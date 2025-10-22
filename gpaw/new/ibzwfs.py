@@ -180,6 +180,7 @@ class IBZWaveFunctions(Generic[WFT]):
             nelectrons=nelectrons / degeneracy,
             eigenvalues=[wfs.eig_n * Ha for wfs in self],
             weights=[wfs.weight for wfs in self],
+            spins=[wfs.spin for wfs in self],
             fermi_levels_guess=(None
                                 if self.fermi_levels is None else
                                 self.fermi_levels * Ha),

@@ -138,6 +138,7 @@ class OccupationNumberCalculator:
                   nelectrons: float,
                   eigenvalues: list[list[float]],
                   weights: list[float],
+                  spins: list[int] | None = None,
                   fermi_levels_guess: list[float] = None,
                   fix_fermi_level: bool = False) -> tuple[Array2D,
                                                           list[float],
@@ -179,7 +180,7 @@ class OccupationNumberCalculator:
         if self.domain_comm.rank == 0:
             # Let the master domain do the work and broadcast results:
             result[:] = self._calculate(
-                nelectrons, eig_qn, weight_q, f_qn,
+                nelectrons, eig_qn, weight_q, spins, f_qn,
                 fermi_levels_guess[0], fix_fermi_level)
 
         self.domain_comm.broadcast(result, 0)
@@ -192,6 +193,7 @@ class OccupationNumberCalculator:
                    nelectrons: float,
                    eig_qn: List[Array1D],
                    weight_q: Array1D,
+                   spin_q,
                    f_qn: Array2D,
                    fermi_level_guess: float,
                    fix_fermi_level: bool = False) -> tuple[float, float]:
@@ -227,6 +229,7 @@ class FixMagneticMomentOccupationNumberCalculator(OccupationNumberCalculator):
                   nelectrons: float,
                   eigenvalues: List[List[float]],
                   weights: List[float],
+                  spins=None,
                   fermi_levels_guess: List[float] = None,
                   fix_fermi_level: bool = False) -> tuple[Array2D,
                                                           List[float],
@@ -239,21 +242,28 @@ class FixMagneticMomentOccupationNumberCalculator(OccupationNumberCalculator):
 
         f1_qn, fermi_levels1, e_entropy1 = self.occ.calculate(
             (nelectrons + magmom) / 2,
-            eigenvalues[::2],
-            weights[::2],
+            [eig_n for eig_n, spin in zip(eigenvalues, spins) if spin == 0],
+            [w for w, spin in zip(weights, spins) if spin == 0],
             fermi_levels_guess[:1],
             fix_fermi_level)
 
         f2_qn, fermi_levels2, e_entropy2 = self.occ.calculate(
             (nelectrons - magmom) / 2,
-            eigenvalues[1::2],
-            weights[1::2],
+            [eig_n for eig_n, spin in zip(eigenvalues, spins) if spin == 1],
+            [w for w, spin in zip(weights, spins) if spin == 1],
             fermi_levels_guess[1:],
             fix_fermi_level)
 
         f_qn = []
-        for f1_n, f2_n in zip(f1_qn, f2_qn):
-            f_qn += [f1_n, f2_n]
+        q1 = 0
+        q2 = 0
+        for spin in spins:
+            if spin == 0:
+                f_qn.append(f1_qn[q1])
+                q1 += 1
+            else:
+                f_qn.append(f2_qn[q2])
+                q2 += 1
 
         return (np.array(f_qn),
                 fermi_levels1 + fermi_levels2,
@@ -282,6 +292,7 @@ class SmoothDistribution(OccupationNumberCalculator):
                    nelectrons,
                    eig_qn,
                    weight_q,
+                   spin_q,
                    f_qn,
                    fermi_level_guess,
                    fix_fermi_level):
@@ -525,6 +536,7 @@ class ZeroWidth(OccupationNumberCalculator):
                    nelectrons,
                    eig_qn,
                    weight_q,
+                   spin_q,
                    f_qn,
                    fermi_level_guess=nan,
                    fix_fermi_level=False):
@@ -603,11 +615,12 @@ class FixedOccupationNumbers(OccupationNumberCalculator):
                    nelectrons,
                    eig_qn,
                    weight_q,
+                   spin_q,
                    f_qn,
                    fermi_level_guess=nan,
                    fix_fermi_level=False):
 
-        calc_fixed(self.bd, self.f_sn, f_qn)
+        calc_fixed(self.bd, self.f_sn, f_qn, spin_q)
 
         return inf, 0.0
 
@@ -665,12 +678,13 @@ class FixedOccupationNumbersUniform(OccupationNumberCalculator):
                    nelectrons,
                    eig_qn,
                    weight_q,
+                   spin_q,
                    f_qn,
                    fermi_level_guess=nan,
                    fix_fermi_level=False):
         assert not fix_fermi_level
 
-        calc_fixed(self.bd, self.f_sn, f_qn)
+        calc_fixed(self.bd, self.f_sn, f_qn, spin_q)
 
         eig_kn, weight_k, nkpts_r = collect_eigelvalues(
             eig_qn, weight_q, self.bd, self.kpt_comm)
@@ -715,11 +729,10 @@ class FixedOccupationNumbersUniform(OccupationNumberCalculator):
         return '# Uniform distribution of occupation numbers'
 
 
-def calc_fixed(bd, f_sn, f_qn):
+def calc_fixed(bd, f_sn, f_qn, spin_q):
     if bd.nbands == f_sn.shape[1]:
-        for q, f_n in enumerate(f_qn):
-            s = q % len(f_sn)
-            bd.distribute(f_sn[s], f_n)
+        for f_n, spin in zip(f_qn, spin_q):
+            bd.distribute(f_sn[spin], f_n)
     else:
         # Non-collinear calculation:
         bd.distribute(f_sn.T.flatten().copy(), f_qn[0])
@@ -741,6 +754,7 @@ class ThomasFermiOccupations(OccupationNumberCalculator):
                    nelectrons,
                    eig_qn,
                    weight_q,
+                   spin_q,
                    f_qn,
                    fermi_level_guess=nan,
                    fix_fermi_level=False):
