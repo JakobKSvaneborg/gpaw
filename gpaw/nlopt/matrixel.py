@@ -196,13 +196,13 @@ def make_nlodata(calc: ASECalculator | str | Path,
         for spin in spins:
             p_qvnn = get_mml(gs, bands, spin, timer)
             p_sqvnn.append(p_qvnn)
-        if not gs.collinear:
-            p_sqvnn = [p_sqvnn[0] + p_sqvnn[1]]
     with timer('Gather the data to master'):
         p_skvnn = []
-        for p_qvnn in p_sqvnn:
-            p_kvnn = gather_to_master(p_qvnn, ibzwfs)
+        for spin, p_qvnn in zip(spins, p_sqvnn):
+            p_kvnn = gather_to_master(p_qvnn, ibzwfs, spin)
             p_skvnn.append(p_kvnn)
+        if not gs.collinear:
+            p_skvnn = [p_skvnn[0] + p_skvnn[1]]
 
     # Save the output to the file
     return NLOData(w_sk=w_sk,
