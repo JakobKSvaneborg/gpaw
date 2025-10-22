@@ -3,7 +3,6 @@ import numpy as np
 
 gw = G0W0('C_lcao_groundstate.gpw',
           integrate_gamma='WS',
-          nbands='nao',
           ecut=200,
           kpts=[0],
           eta=0.1,
