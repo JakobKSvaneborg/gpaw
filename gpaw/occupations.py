@@ -167,27 +167,27 @@ class OccupationNumberCalculator:
         (array([[1., 0.]]), [0.5], 0.0)
         """
 
-        eig_qn = [np.asarray(eig_n) for eig_n in eigenvalues]
-        weight_q = np.asarray(weights)
+        eig_un = np.asarray(eigenvalues)
+        weight_u = np.asarray(weights)
 
         if fermi_levels_guess is None:
             fermi_levels_guess = [nan]
 
-        f_qn = np.empty((len(weight_q), len(eig_qn[0])))
+        f_un = np.empty((len(weight_u), len(eig_un[0])))
 
         result = np.empty(2)
 
         if self.domain_comm.rank == 0:
             # Let the master domain do the work and broadcast results:
             result[:] = self._calculate(
-                nelectrons, eig_qn, weight_q, spins, f_qn,
+                nelectrons, eig_un, weight_u, spins, f_un,
                 fermi_levels_guess[0], fix_fermi_level)
 
         self.domain_comm.broadcast(result, 0)
-        self.domain_comm.broadcast(f_qn, 0)
+        self.domain_comm.broadcast(f_un, 0)
 
         fermi_level, e_entropy = result
-        return f_qn, [float(fermi_level)], float(e_entropy)
+        return f_un, [float(fermi_level)], float(e_entropy)
 
     def _calculate(self,
                    nelectrons: float,
@@ -254,18 +254,18 @@ class FixMagneticMomentOccupationNumberCalculator(OccupationNumberCalculator):
             fermi_levels_guess=fermi_levels_guess[1:],
             fix_fermi_level=fix_fermi_level)
 
-        f_qn = []
+        f_un = []
         q1 = 0
         q2 = 0
         for spin in spins:
             if spin == 0:
-                f_qn.append(f1_qn[q1])
+                f_un.append(f1_qn[q1])
                 q1 += 1
             else:
-                f_qn.append(f2_qn[q2])
+                f_un.append(f2_qn[q2])
                 q2 += 1
 
-        return (np.array(f_qn),
+        return (np.array(f_un),
                 fermi_levels1 + fermi_levels2,
                 e_entropy1 + e_entropy2)
 

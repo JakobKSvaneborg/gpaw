@@ -213,6 +213,7 @@ class WaveFunctions:
             nelectrons=self.nvalence / degeneracy,
             eigenvalues=[kpt.eps_n * Ha for kpt in self.kpt_u],
             weights=[kpt.weightk for kpt in self.kpt_u],
+            spins=[kpt.s for kpt in self.kpt_u],
             fermi_levels_guess=(self.fermi_levels * Ha
                                 if self.fermi_levels is not None else None),
             fix_fermi_level=fix_fermi_level)
