@@ -1192,7 +1192,7 @@ class G0W0(G0W0Calculator):
         nbands: int / String
             Number of bands to use in the calculation. If None, the number will
             be determined from :ecut: to yield a number close to the number of
-            plane waves used. If in LCAO, nao can be used 
+            plane waves used. If in LCAO, nao can be used
         ppa: bool
             Sets whether the Godby-Needs plasmon-pole approximation for the
             dielectric function should be used.
