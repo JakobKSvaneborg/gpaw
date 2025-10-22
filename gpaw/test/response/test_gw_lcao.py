@@ -3,6 +3,7 @@ import pytest
 
 @pytest.mark.ci
 @pytest.mark.response
+@pytest.mark.old_gpaw_only
 def test_lcao_gw(in_tmp_dir):
     from ase.build import bulk
     from gpaw import GPAW
