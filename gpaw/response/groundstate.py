@@ -112,11 +112,11 @@ class ResponseGroundStateAdapter:
 
     @property
     def is_planewave(self):
-        return isinstance(self._wfs, PWWaveFunctions)
+        return self._wfs.mode == 'pw'
 
     @property
     def is_lcao(self):
-        return isinstance(self._wfs, LCAOWaveFunctions)
+        return self._wfs.mode == 'lcao'
 
     @staticmethod
     def from_input(
