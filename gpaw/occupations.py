@@ -191,10 +191,10 @@ class OccupationNumberCalculator:
 
     def _calculate(self,
                    nelectrons: float,
-                   eig_qn: ArrayLike2D,
-                   weight_q: Array1D,
-                   spin_q,
-                   f_qn: Array2D,
+                   eig_un: ArrayLike2D,
+                   weight_u: Array1D,
+                   spin_u,
+                   f_un: Array2D,
                    fermi_level_guess: float,
                    fix_fermi_level: bool = False) -> tuple[float, float]:
         raise NotImplementedError
@@ -290,17 +290,17 @@ class SmoothDistribution(OccupationNumberCalculator):
 
     def _calculate(self,
                    nelectrons,
-                   eig_qn,
-                   weight_q,
-                   spin_q,
-                   f_qn,
+                   eig_un,
+                   weight_u,
+                   spin_u,
+                   f_un,
                    fermi_level_guess,
                    fix_fermi_level):
         # Guess can be nan or inf:
         if not np.isfinite(fermi_level_guess) or self._width == 0.0:
             zero = ZeroWidth(self.parallel_layout)
             fermi_level_guess, _ = zero._calculate(
-                nelectrons, eig_qn, weight_q, f_qn, spin_q)
+                nelectrons, eig_un, weight_u, spin_u, f_un)
             if self._width == 0.0 or np.isinf(fermi_level_guess):
                 return fermi_level_guess, 0.0
 
@@ -311,7 +311,7 @@ class SmoothDistribution(OccupationNumberCalculator):
         def func(x, data=data):
             """calculate excess electrons (and update occupation numbers)."""
             data[:] = 0.0
-            for eig_n, weight, f_n in zip(eig_qn, weight_q, f_qn):
+            for eig_n, weight, f_n in zip(eig_un, weight_u, f_un):
                 f_n[:], dfde_n, e_entropy_n = self.distribution(eig_n, x)
                 data += [weight * x_n.sum()
                          for x_n in [f_n, dfde_n, e_entropy_n]]
@@ -447,73 +447,83 @@ def findroot(func: Callable[[float], Tuple[float, float]],
         assert niter < 1000
 
 
-def collect_eigelvalues(eig_qn: np.ndarray,
-                        weight_q: np.ndarray,
+def collect_eigelvalues(eig_un: np.ndarray,
+                        weight_u: np.ndarray,
                         bd: BandDescriptor,
                         kpt_comm: MPIComm) -> Tuple[np.ndarray,
                                                     np.ndarray,
                                                     np.ndarray]:
-    """Collect eigenvalues from bd.comm and kpt_comm."""
-    nkpts_r = np.zeros(kpt_comm.size, int)
-    nkpts_r[kpt_comm.rank] = len(weight_q)
-    kpt_comm.sum(nkpts_r)
-    nk = cast(int, nkpts_r.sum())
-    weight_k = np.zeros(nk)
-    k1 = nkpts_r[:kpt_comm.rank].sum()
-    k2 = k1 + len(weight_q)
-    weight_k[k1:k2] = weight_q
-    kpt_comm.sum(weight_k, 0)
+    """Collect eigenvalues from bd.comm and kpt_comm.
 
-    eig_kn: Array2D = np.zeros((0, 0))
-    k = 0
-    for rank, nkpts in enumerate(nkpts_r):
-        for q in range(nkpts):
+    * u: local (k-point, spin) pair
+    * U: global (k-point, spin) pair
+    * r: kpt_comm rank
+    """
+    nu_r = np.zeros(kpt_comm.size, int)
+    nu_r[kpt_comm.rank] = len(weight_u)
+    kpt_comm.sum(nu_r)
+    nU = cast(int, nu_r.sum())
+    weight_U = np.zeros(nU)
+    U1 = nu_r[:kpt_comm.rank].sum()
+    U2 = U1 + len(weight_u)
+    weight_U[U1:U2] = weight_u
+    kpt_comm.sum(weight_U, 0)
+
+    eig_Un: Array2D = np.zeros((0, 0))
+    U = 0
+    for rank, nu in enumerate(nu_r):
+        for u in range(nu):
             if rank == kpt_comm.rank:
-                eig_n = eig_qn[q]
+                eig_n = eig_un[u]
                 eig_n = bd.collect(eig_n)
             if bd.comm.rank == 0:
                 if kpt_comm.rank == 0:
-                    if k == 0:
-                        eig_kn = np.empty((nk, len(eig_n)))
+                    if U == 0:
+                        eig_Un = np.empty((nU, len(eig_n)))
                     if rank == 0:
-                        eig_kn[k] = eig_n
+                        eig_Un[U] = eig_n
                     else:
-                        kpt_comm.receive(eig_kn[k], rank)
+                        kpt_comm.receive(eig_Un[U], rank)
                 elif rank == kpt_comm.rank:
                     kpt_comm.send(eig_n, 0)
-            k += 1
-    return eig_kn, weight_k, nkpts_r
+            U += 1
+    return eig_Un, weight_U, nu_r
 
 
-def distribute_occupation_numbers(f_kn: np.ndarray,  # input
-                                  f_qn: np.ndarray,  # output
-                                  nkpts_r: np.ndarray,
+def distribute_occupation_numbers(f_Un: np.ndarray,  # input
+                                  f_un: np.ndarray,  # output
+                                  nu_r: np.ndarray,
                                   bd: BandDescriptor,
                                   kpt_comm: MPIComm) -> None:
-    """Distribute occupation numbers over bd.comm and kpt_comm."""
-    k = 0
-    for rank, nkpts in enumerate(nkpts_r):
-        for q in range(nkpts):
+    """Distribute occupation numbers over bd.comm and kpt_comm.
+
+    * u: local (k-point, spin) pair
+    * U: global (k-point, spin) pair
+    * r: kpt_comm rank
+    """
+    U = 0
+    for rank, nu in enumerate(nu_r):
+        for u in range(nu):
             if kpt_comm.rank == 0:
                 if rank == 0:
                     if bd.comm.size == 1:
-                        f_qn[q] = f_kn[k]
+                        f_un[u] = f_Un[U]
                     else:
-                        bd.distribute(None if f_kn is None else f_kn[k],
-                                      f_qn[q])
-                elif f_kn is not None:
-                    kpt_comm.send(f_kn[k], rank)
+                        bd.distribute(None if f_Un is None else f_Un[U],
+                                      f_un[u])
+                elif f_Un is not None:
+                    kpt_comm.send(f_Un[U], rank)
             elif rank == kpt_comm.rank:
                 if bd.comm.size == 1:
-                    kpt_comm.receive(f_qn[q], 0)
+                    kpt_comm.receive(f_un[u], 0)
                 else:
                     if bd.comm.rank == 0:
                         f_n = bd.empty(global_array=True)
                         kpt_comm.receive(f_n, 0)
                     else:
                         f_n = None
-                    bd.distribute(f_n, f_qn[q])
-            k += 1
+                    bd.distribute(f_n, f_un[u])
+            U += 1
 
 
 class ZeroWidth(OccupationNumberCalculator):
