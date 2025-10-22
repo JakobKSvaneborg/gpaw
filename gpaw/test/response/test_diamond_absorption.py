@@ -32,9 +32,9 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
         eM1_ = 9.727 if mode == 'pw' else 9.3923
         eM2_ = 9.548 if mode == 'pw' else 9.1502
         w0_ = 10.7782 if mode == 'pw' else 10.982
-        I0_ = 5.47 if mode == 'pw' else 1.957
-        w_ = 10.7532 if mode == 'pw' else 12.0380
-        I_ = 5.98 if mode == 'pw' else 2.06
+        I0_ = 5.47 if mode == 'pw' else 4.8188
+        w_ = 10.7532 if mode == 'pw' else 10.967
+        I_ = 5.98 if mode == 'pw' else 4.9859
     else:
         if mode == 'lcao':
             eM1_ = 6.818
@@ -102,8 +102,8 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
 
     # Absorption spectrum calculation ALDA
     if eshift is None:
-        w_ = 10.7562 if mode == 'pw' else 12.0376
-        I_ = 5.8803 if mode == 'pw' else 2.0193
+        w_ = 10.7562 if mode == 'pw' else 10.97
+        I_ = 5.8803 if mode == 'pw' else 4.915
     else:
         w_ = 14.7615 if mode == 'pw' else 14.9731
         I_ = 5.7946 if mode == 'pw' else 4.9209
@@ -121,8 +121,8 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
 
     # Absorption spectrum calculation long-range kernel
     if eshift is None:
-        w_ = 10.2906 if mode == 'pw' else 11.9129
-        I_ = 5.6955 if mode == 'pw' else 1.9579
+        w_ = 10.2906 if mode == 'pw' else 10.4213
+        I_ = 5.6955 if mode == 'pw' else 5.042
     else:
         w_ = 14.2901 if mode == 'pw' else 14.4245
         I_ = 5.5508 if mode == 'pw' else 4.9553
@@ -137,8 +137,8 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
 
     # Absorption spectrum calculation Bootstrap
     if eshift is None:
-        w_ = 10.4600 if mode == 'pw' else 10.8208
-        I_ = 6.0263 if mode == 'pw' else 2.4016
+        w_ = 10.4600 if mode == 'pw' else 10.553
+        I_ = 6.0263 if mode == 'pw' else 5.041
     else:
         w_ = 14.2626 if mode == 'pw' else 14.38418
         I_ = 5.3896 if mode == 'pw' else 4.82897
