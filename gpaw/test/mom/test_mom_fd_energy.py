@@ -17,7 +17,6 @@ def test_mom_fd_spinpol(in_tmp_dir):
                 h=0.24,
                 xc='PBE',
                 spinpol=True,
-                # parallel={'kpt': 1},
                 convergence={'energy': 100,
                              'density': 1e-4,
                              'eigenstates': 100,
@@ -35,7 +34,7 @@ def test_mom_fd_spinpol(in_tmp_dir):
         for s in [0, 1]:
             atoms, calc = restart('hcl_fd_gs.gpw',
                                   txt='-',
-                                  )#parallel={'kpt': 1})
+                                  parallel={'kpt': 1})
 
             f_sn = []
             for spin in range(calc.get_number_of_spins()):

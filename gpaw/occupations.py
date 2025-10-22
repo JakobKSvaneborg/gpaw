@@ -244,15 +244,15 @@ class FixMagneticMomentOccupationNumberCalculator(OccupationNumberCalculator):
             (nelectrons + magmom) / 2,
             [eig_n for eig_n, spin in zip(eigenvalues, spins) if spin == 0],
             [w for w, spin in zip(weights, spins) if spin == 0],
-            fermi_levels_guess[:1],
-            fix_fermi_level)
+            fermi_levels_guess=fermi_levels_guess[:1],
+            fix_fermi_level=fix_fermi_level)
 
         f2_qn, fermi_levels2, e_entropy2 = self.occ.calculate(
             (nelectrons - magmom) / 2,
             [eig_n for eig_n, spin in zip(eigenvalues, spins) if spin == 1],
             [w for w, spin in zip(weights, spins) if spin == 1],
-            fermi_levels_guess[1:],
-            fix_fermi_level)
+            fermi_levels_guess=fermi_levels_guess[1:],
+            fix_fermi_level=fix_fermi_level)
 
         f_qn = []
         q1 = 0
@@ -300,7 +300,7 @@ class SmoothDistribution(OccupationNumberCalculator):
         if not np.isfinite(fermi_level_guess) or self._width == 0.0:
             zero = ZeroWidth(self.parallel_layout)
             fermi_level_guess, _ = zero._calculate(
-                nelectrons, eig_qn, weight_q, f_qn)
+                nelectrons, eig_qn, weight_q, f_qn, spin_q)
             if self._width == 0.0 or np.isinf(fermi_level_guess):
                 return fermi_level_guess, 0.0
 
