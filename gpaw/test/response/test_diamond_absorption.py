@@ -24,6 +24,7 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
                 kpts=(3, 3, 3),
                 nbands='nao' if mode == 'lcao' else None,
                 basis='dzp',
+                convergence={'density': 1e-6},
                 eigensolver='rmm-diis' if mode == 'pw' else None,
                 occupations=FermiDirac(0.001), txt='out.txt')
 
