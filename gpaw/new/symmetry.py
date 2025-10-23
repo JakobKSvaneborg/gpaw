@@ -62,6 +62,8 @@ def create_symmetries_object(atoms: Atoms,
     if extra_ids is not None:
         ids = integer_ids((id, x) for id, x in zips(ids, extra_ids))
 
+    relative_positions = atoms.get_scaled_positions()
+
     if rotations is None:
         # Find symmetries from cell, ids and positions:
         if point_group:
@@ -70,7 +72,7 @@ def create_symmetries_object(atoms: Atoms,
                 pbc=atoms.pbc,
                 tolerance=tolerance,
                 _backwards_compatible=_backwards_compatible,
-                relative_positions=atoms.get_scaled_positions(),
+                relative_positions=relative_positions,
                 ids=ids,
                 symmorphic=symmorphic)
         else:
@@ -78,6 +80,8 @@ def create_symmetries_object(atoms: Atoms,
             sym = Symmetries(cell=cell_cv,
                              tolerance=tolerance,
                              _backwards_compatible=_backwards_compatible)
+            sym = sym.analyze_positions(
+                relative_positions, ids, symmorphic=symmorphic)
 
     else:
         sym = Symmetries(cell=cell_cv,
@@ -87,7 +91,7 @@ def create_symmetries_object(atoms: Atoms,
                          tolerance=tolerance,
                          _backwards_compatible=_backwards_compatible)
         if atommaps is None:
-            sym = sym.with_atom_maps(atoms.get_scaled_positions(), ids=ids)
+            sym = sym.with_atom_maps(relative_positions, ids=ids)
 
     # Legacy:
     sym._old_symmetry = OldSymmetry(
