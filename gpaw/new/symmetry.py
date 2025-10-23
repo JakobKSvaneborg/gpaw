@@ -19,6 +19,10 @@ class SymmetryBrokenError(Exception):
     """Broken-symmetry error."""
 
 
+class SymmetryAnalysisBug(Exception):
+    """Symmetries do not form a proper group."""
+
+
 def create_symmetries_object(atoms: Atoms,
                              *,
                              setup_ids: Sequence | None = None,
@@ -198,18 +202,6 @@ class Symmetries:
                             relative_positions: ArrayLike2D,
                             ids: Sequence[int],
                             symmorphic: bool = True) -> Symmetries:
-        if 1:
-            from spglib import get_symmetry_dataset, standardize_cell
-            cell_cv = normalize_cell(cell)
-            s = get_symmetry_dataset((cell_cv, relative_positions, ids),
-                                     symprec=tolerance)
-            print(s);asdg
-            s = standardize_cell((cell_cv, relative_positions, ids),
-                                 symprec=tolerance,
-                                 no_idealize=True)
-            print(repr(s))
-            print(s[1] - 1 / 3)
-            asdg
         return cls.from_cell(
             cell,
             pbc=pbc,
@@ -348,6 +340,7 @@ class Symmetries:
         return a_a
 
     def group_check(self):
+        """Sanity check."""
         for U1_cc, t1_c in zip(self.rotation_scc, self.translation_sc):
             for U2_cc, t2_c in zip(self.rotation_scc, self.translation_sc):
                 U_cc = U1_cc @ U2_cc
@@ -360,7 +353,8 @@ class Symmetries:
                         continue
                     break
                 else:  # no break
-                    raise ValueError
+                    raise SymmetryAnalysisBug(
+                        'Sorry!  Try using spglib.standardize_cell(...)')
 
 
 def find_lattice_symmetry(cell_cv, pbc_c, tol, _backwards_compatible=False):
