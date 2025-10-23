@@ -70,7 +70,7 @@ def create_symmetries_object(atoms: Atoms,
                 pbc=atoms.pbc,
                 tolerance=tolerance,
                 _backwards_compatible=_backwards_compatible,
-                reelative_positions=atoms.get_scaled_positions(),
+                relative_positions=atoms.get_scaled_positions(),
                 ids=ids,
                 symmorphic=symmorphic)
         else:
@@ -339,7 +339,7 @@ class Symmetries:
 
         return a_a
 
-    def group_check(self):
+    def group_check(self) -> None:
         """Sanity check."""
         for U1_cc, t1_c in zip(self.rotation_scc, self.translation_sc):
             for U2_cc, t2_c in zip(self.rotation_scc, self.translation_sc):
