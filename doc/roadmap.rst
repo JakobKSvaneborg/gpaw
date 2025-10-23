@@ -2,11 +2,14 @@
 Roadmap
 =======
 
-Maybe
-=====
+Finish new GPAW
+---------------
 
-Switch to spglib
-----------------
+Make :ref:`newgpaw` feature-complete and remove old code.
+
+
+Switch to spglib (maybe)
+------------------------
 
 Our current symmetry-analysis code has problems (see :mr:`2933`).
 We could use spglib_ instead:
@@ -21,8 +24,8 @@ We could use spglib_ instead:
 .. _spglib:: https://spglib.readthedocs.io/en/stable/
 
 
-Use mpi4py
-----------
+Use mpi4py (maybe)
+------------------
 
 Why have our own interface to MPI when we can just use mpi4py_?
 See :mr:`2904`.
