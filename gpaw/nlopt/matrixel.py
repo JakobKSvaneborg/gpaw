@@ -59,7 +59,7 @@ def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
 
     # Calculate matrix elements in loop over k-points
     for wfs in ibzwfs:
-        if wfs.spin != spin:
+        if gs.collinear and wfs.spin != spin:
             continue
         # wfs = gs.get_wfs(wfs_s, spin)
 
@@ -199,7 +199,9 @@ def make_nlodata(calc: ASECalculator | str | Path,
     with timer('Gather the data to master'):
         p_skvnn = []
         for spin, p_qvnn in zip(spins, p_sqvnn):
-            p_kvnn = gather_to_master(p_qvnn, ibzwfs, spin)
+            p_kvnn = gather_to_master(p_qvnn,
+                                      ibzwfs,
+                                      spin if gs.collinear else 0)
             p_skvnn.append(p_kvnn)
         if not gs.collinear:
             p_skvnn = [p_skvnn[0] + p_skvnn[1]]
