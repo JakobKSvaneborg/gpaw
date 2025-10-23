@@ -398,6 +398,16 @@ class BSEBackend:
                                  'list or an integer (number of bands).')
             return bands
 
+        def is_integer_like(x):
+            if isinstance(x, (int, np.integer)):
+                return True
+            if isinstance(x, (float, np.floating)):
+                return x.is_integer()
+            return False
+
+        if not is_integer_like(bands) or bands <= 0:
+            raise ValueError(
+                f'\'bands\' must be a positive integer (received {bands = }).')
         n_fully_occupied_bands, n_partially_occupied_bands = \
             self.gs.count_occupied_bands()
 
@@ -407,8 +417,13 @@ class BSEBackend:
             n_fully_occupied_bands *= 2
 
         if band_type == 'valence':
+            if bands > n_fully_occupied_bands:
+                raise ValueError(
+                    f'{bands} valence bands were requested, '
+                    f'but at most {n_fully_occupied_bands} are available.')
             bands_m = range(n_fully_occupied_bands - bands,
                             n_fully_occupied_bands)
+
         elif band_type == 'conduction':
             bands_m = range(n_fully_occupied_bands,
                             n_fully_occupied_bands + bands)
