@@ -44,3 +44,19 @@ def test_response_bse_parse_bands(in_tmp_dir, gpw_files):
             conduction_bands=5,
             nbands=4,
             ecut=10)
+
+    with pytest.raises(ValueError,
+                       match='10000 valence bands were requested *'):
+        BSE(gpw_files['bse_al'],
+            valence_bands=10000,
+            conduction_bands=5,
+            nbands=4,
+            ecut=10)
+
+    with pytest.raises(ValueError,
+                       match='\'bands\' must be a *'):
+        BSE(gpw_files['bse_al'],
+            valence_bands=-1,
+            conduction_bands=5,
+            nbands=4,
+            ecut=10)
