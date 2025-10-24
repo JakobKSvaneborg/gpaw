@@ -43,11 +43,7 @@ def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
     f = atoms.get_forces()
 
     assert energy == pytest.approx(e0, abs=1.0e-4)
-    assert f0 == pytest.approx(f, abs=1e-2)
-
-    if gpaw_new:
-        # restart fails because of missing 'converge_unocc'
-        return
+    assert f == pytest.approx(f0, abs=1e-2)
 
     calc.write('H2.gpw', mode='all')
     from gpaw import restart
@@ -57,7 +53,7 @@ def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
     niter = calc.get_number_of_iterations()
 
     assert niter == pytest.approx(3, abs=1)
-    assert f0 == pytest.approx(f2, abs=1e-2)
+    assert f2 == pytest.approx(f0, abs=1e-2)
 
 
 if __name__ == '__main__':
