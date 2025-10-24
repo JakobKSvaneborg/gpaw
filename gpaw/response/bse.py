@@ -319,10 +319,11 @@ class BSEBackend:
 
         # Bands and spin
         self.nspins = self.gs.nspins
-        self.val_m = self.parse_bands(valence_bands,
+        self.val_m = self.parse_bands(valence_bands, gs=self.gs,
                                       band_type='valence')
-        self.con_m = self.parse_bands(conduction_bands,
-                                      band_type='conduction')
+        self.con_m = self.parse_bands(conduction_bands, gs=self.gs,
+                                      band_type='conduction',
+                                      add_soc=self.add_soc)
 
         self.use_tammdancoff = decide_whether_tammdancoff(self.val_m,
                                                           self.con_m)
@@ -379,7 +380,8 @@ class BSEBackend:
             self.vi, self.vf = self.val_m[0], self.val_m[-1] + 1
             self.ci, self.cf = self.con_m[0], self.con_m[-1] + 1
 
-    def parse_bands(self, bands, band_type='valence'):
+    @staticmethod
+    def parse_bands(bands, gs, band_type='valence', add_soc=False):
         """Helper function that checks whether bands are correctly specified,
          and brings them to the format used later in the code.
 
@@ -398,22 +400,15 @@ class BSEBackend:
                                  'list or an integer (number of bands).')
             return bands
 
-        def is_integer_like(x):
-            if isinstance(x, (int, np.integer)):
-                return True
-            if isinstance(x, (float, np.floating)):
-                return x.is_integer()
-            return False
-
-        if not is_integer_like(bands) or bands <= 0:
+        if bands <= 0:
             raise ValueError(
                 f'\'bands\' must be a positive integer (received {bands = }).')
         n_fully_occupied_bands, n_partially_occupied_bands = \
-            self.gs.count_occupied_bands()
+            gs.count_occupied_bands()
 
-        if self.nspins == 2:
+        if gs.nspins == 2:
             n_fully_occupied_bands += n_partially_occupied_bands
-        elif self.add_soc:
+        elif add_soc:
             n_fully_occupied_bands *= 2
 
         if band_type == 'valence':
