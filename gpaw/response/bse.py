@@ -320,7 +320,8 @@ class BSEBackend:
         # Bands and spin
         self.nspins = self.gs.nspins
         self.val_m = self.parse_bands(valence_bands, gs=self.gs,
-                                      band_type='valence')
+                                      band_type='valence',
+                                      add_soc=self.add_soc)
         self.con_m = self.parse_bands(conduction_bands, gs=self.gs,
                                       band_type='conduction',
                                       add_soc=self.add_soc)

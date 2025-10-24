@@ -36,27 +36,17 @@ def test_response_bse_parse_bands(in_tmp_dir, gpw_files):
 
     assert np.array_equal(correct_valence_n, bse.val_m)
     assert np.array_equal(correct_conduction_n, bse.con_m)
+    gs = bse.gs
 
     with pytest.raises(ValueError,
                        match='The bands must be specified as a single *'):
-        BSE(gpw_files['bse_al'],
-            valence_bands=[range(4), range(4)],
-            conduction_bands=5,
-            nbands=4,
-            ecut=10)
+        BSE.parse_bands(bands=[range(4), range(4)], band_type='valence',
+                        gs=gs)
 
     with pytest.raises(ValueError,
                        match='10000 valence bands were requested *'):
-        BSE(gpw_files['bse_al'],
-            valence_bands=10000,
-            conduction_bands=5,
-            nbands=4,
-            ecut=10)
+        BSE.parse_bands(bands=10000, band_type='valence', gs=gs)
 
     with pytest.raises(ValueError,
                        match='\'bands\' must be a *'):
-        BSE(gpw_files['bse_al'],
-            valence_bands=-1,
-            conduction_bands=5,
-            nbands=4,
-            ecut=10)
+        BSE.parse_bands(bands=-1, band_type='valence', gs=gs)
