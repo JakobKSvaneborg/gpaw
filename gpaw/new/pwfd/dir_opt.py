@@ -90,7 +90,8 @@ class DirOptPWFD(PWFDEigensolver):
                 # weights according to kpt, spin and occupation f_n
                 weight_n = (wfs.weight * wfs.spin_degeneracy *
                             wfs.myocc_n[:nocc])
-                grad_nX.data *= weight_n[:, np.newaxis]
+                shape = (-1,) + (1,) * (grad_nX.data.ndim - 1)
+                grad_nX.data *= weight_n.reshape(shape)
                 self.grad_unX.append(grad_nX)
 
         psit_unX = []
@@ -168,7 +169,8 @@ class DirOptPWFD(PWFDEigensolver):
                         wfs.myocc_n[:nocc])
             # sum weigthed residual
             error += grad_nX.norm2() @ weight_n
-            grad_nX.data *= weight_n[:, np.newaxis]
+            shape = (-1,) + (1,) * (grad_nX.data.ndim - 1)
+            grad_nX.data *= weight_n.reshape(shape)
 
         return 0.0, error, energies
 
