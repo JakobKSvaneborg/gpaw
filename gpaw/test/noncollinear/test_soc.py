@@ -50,7 +50,7 @@ def test_soc_self_consistent(gpaw_new, in_tmp_dir):
                   'experimental': {'magmoms': np.zeros((3, 3)), 'soc': True}}
 
     a.calc = GPAW(convergence={'bands': 28},
-                  random=True,
+                  # random=True,
                   parallel={'domain': 2},
                   **kwargs)
     a.get_potential_energy()
