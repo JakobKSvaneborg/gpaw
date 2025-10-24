@@ -35,7 +35,7 @@ params = dict(mode={'name': 'pw', 'ecut': 350},
 
 
 @pytest.mark.soc
-@pytest.mark.skipif(mpi.size > 2, reason='May not work in parallel')
+# @pytest.mark.skipif(mpi.size > 2, reason='May not work in parallel')
 def test_soc_self_consistent(gpaw_new, in_tmp_dir):
     """Self-consistent SOC."""
     gpw_wfs = Path('mos2.gpw')
@@ -50,8 +50,6 @@ def test_soc_self_consistent(gpaw_new, in_tmp_dir):
                   'experimental': {'magmoms': np.zeros((3, 3)), 'soc': True}}
 
     a.calc = GPAW(convergence={'bands': 28},
-                  # random=True,
-                  parallel={'domain': 2},
                   **kwargs)
     a.get_potential_energy()
     eigs = a.calc.get_eigenvalues(kpt=0)
