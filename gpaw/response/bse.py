@@ -382,7 +382,7 @@ class BSEBackend:
             self.ci, self.cf = self.con_m[0], self.con_m[-1] + 1
 
     @staticmethod
-    def parse_bands(bands, gs, band_type='valence', add_soc=False):
+    def parse_bands(bands, gs, band_type, add_soc):
         """Helper function that checks whether bands are correctly specified,
          and brings them to the format used later in the code.
 
