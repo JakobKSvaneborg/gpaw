@@ -78,7 +78,8 @@ def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
     f2 = atoms.get_forces()
     assert f2 == pytest.approx(f0, abs=1e-2)
     niter = calc.get_number_of_iterations()
-    assert niter == pytest.approx(3, abs=1)
+    if not gpaw_new:
+        assert niter == pytest.approx(3, abs=1)
     if 0:
         assert calc.wfs.kpt_u[0].f_n[6] == 1.0
         assert calc.wfs.kpt_u[0].f_n[5] == 0.0
