@@ -9,8 +9,8 @@ from gpaw.new.etdm.skewherm_matrix import random_a
 
 
 def er_localize(ibzwfs,
-                states="all"
-                loct="pseudo-paw"
+                states="all",
+                loct="pseudo-paw",
                 gtol=1e-6,
                 niter=333,
                 seed=None
