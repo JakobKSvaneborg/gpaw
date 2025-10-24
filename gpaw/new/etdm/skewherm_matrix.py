@@ -314,7 +314,7 @@ def random_a(shape, dtype, seed=None):
     if seed:
         np.random.seed(seed)
     a = np.random.random_sample(shape)
-	if dtype == complex:
-	a = a.astype(complex)
-    a += 1.0j * np.random.random_sample(shape)
+    if dtype == complex:
+        a = a.astype(complex)
+        a += 1.0j * np.random.random_sample(shape)
     return a
