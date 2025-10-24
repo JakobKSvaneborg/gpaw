@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3'
 """Install gpaw on Niflheim in a virtual environment.
 
 Also installs ase, ase-ext, spglib, sklearn and myqueue.
@@ -14,16 +14,14 @@ if version_info < (3, 9):
     raise ValueError('Please use Python-3.9 or later')
 
 # Python version in the venv that we are creating
-version = '3.13'
-fversion = 'cpython-313'
+version = '3.11'
+fversion = 'cpython-311'
 
 # Niflheim login hosts, with the oldest architecture as the first
-nifllogin = [
-    'slid2',  # broadwell_el8 (xeon24el8)
-    'thul',  # skylake_el8 (xeon40el8, sm3090el8)
-    'surt',  # icelake (xeon56, a100, h200)
-    'fjorm',  # epyc9004 (epyc96)
-    'sara']  # saphirerapids (xeon32)
+nifllogin = ['slid2',  # broadwell_el8 (xeon24el8)
+             'thul',  # skylake_el8 (xeon40el8)
+             'surt',  # icelake (xeon56)
+             'fjorm']  # epyc9004 (epyc96)
 
 # Easybuild uses a hierarchy of toolchains for the main foss and intel
 # chains.  The order in the tuples before are
@@ -34,18 +32,18 @@ nifllogin = [
 # The subchain complementary to 'mathchain', with MPI but no math libs, is
 # not used here.
 
-_gcccore = 'GCCcore-14.3.0'
+_gcccore = 'GCCcore-12.3.0'
 toolchains = {
     'foss': dict(
-        fullchain='foss-2025b',
-        mathchain='gfbf-2025b',
-        compchain='GCC-14.3.0',
+        fullchain='foss-2023a',
+        mathchain='gfbf-2023a',
+        compchain='GCC-12.3.0',
         corechain=_gcccore,
     ),
     'intel': dict(
-        fullchain='intel-2025b',
-        mathchain='iimkl-2025b',
-        compchain='intel-compilers-2025.2.0',
+        fullchain='intel-2023a',
+        mathchain='iimkl-2023a',
+        compchain='intel-compilers-2023.1.0',
         corechain=_gcccore,
     )
 }
@@ -54,35 +52,35 @@ toolchains = {
 module_cmds_all = """\
 module purge
 unset PYTHONPATH
-module load gpaw-data/1.0.1-{corechain}
-module load ELPA/2025.06.001-{fullchain}
+module load GPAW-setups/24.11.0
+module load ELPA/2023.05.001-{fullchain}
 module load Wannier90/3.1.0-{fullchain}
-module load Tkinter/3.13.5-{corechain}
-module load libxc/7.0.0-{compchain}
+module load Tkinter/3.11.3-{corechain}
+module load libxc/6.2.2-{compchain}
 """
 
 # These modules are not loaded if --piponly is specified
 module_cmds_easybuild = """\
-module load Python-bundle-PyPI/2025.07-{corechain}
-module load matplotlib/3.10.5-{mathchain}
-module load scikit-learn/1.7.1-{mathchain}
-module load spglib-python/2.6.0-{mathchain}
+module load Python-bundle-PyPI/2023.06-{corechain}
+module load matplotlib/3.7.2-{mathchain}
+module load scikit-learn/1.3.1-{mathchain}
+module load spglib-python/2.1.0-{mathchain}
 """
 
 # These modules are loaded depending on the toolchain
 module_cmds_tc = {
     'foss': """\
-module load libvdwxc/0.5.0-{fullchain}
+module load libvdwxc/0.4.0-{fullchain}
 """,
     'intel': ""
 }
 
 # Arch dependend modules for GPU stuff - not loaded with --piponly
-module_cmds_gpu = """\
-if [ "$CPU_ARCH" == "icelake" ] && [ {fullchain} == "foss-2025b" ];\
-then module load CuPy/13.6.0-{fullchain}-CUDA-12.9.1;fi
-if [ "$CPU_ARCH" == "skylake_el8" ] && [ {fullchain} == "foss-2025b" ];\
-then module load CuPy/13.6.0-{fullchain}-CUDA-12.9.1;fi
+module_cmds_arch_dependent = """\
+if [ "$CPU_ARCH" == "icelake" ] && [ {fullchain} == "foss-2023a" ];\
+then module load CuPy/13.0.0-{fullchain}-CUDA-12.1.1;fi
+if [ "$CPU_ARCH" == "skylake_el8" ] && [ {fullchain} == "foss-2023a" ];\
+then module load CuPy/12.3.0-{fullchain}-CUDA-12.1.1;fi
 if [ "$SLURM_JOB_PARTITION" == "a100" ] \
  || [ "$SLURM_JOB_PARTITION" == "a100_week" ] \
  || [ "$SLURM_JOB_PARTITION" == "sm3090el8" ] \
@@ -135,7 +133,7 @@ def compile_gpaw_c_code(gpaw: Path, activate: Path, intel_only: bool) -> None:
     for host in nifllogin:
         if host == 'fjorm' and intel_only:
             continue
-        run(f'ssh {host} ". {activate} && pip install -q --no-build-isolation -e {gpaw}"')
+        run(f'ssh {host} ". {activate} && pip install -q -e {gpaw}"')
         # Save compiled file
         remote_arch = run(f"ssh {host} 'echo $CPU_ARCH'", capture_output=True).stdout.decode().strip()  # Single quote needed in command
         paths = list(gpaw.glob('_gpaw.*.so'))
@@ -224,8 +222,6 @@ def main():
     parser.add_argument('--piponly', action='store_true',
                         help='Do not use EasyBuild python modules, '
                         'install from pip (may affect performance).')
-    parser.add_argument('--no-gpu', action='store_true',
-                        help='Do not build with GPU support.')
     args = parser.parse_args()
 
     # if args.toolchain == 'intel':
@@ -261,8 +257,8 @@ def main():
             **toolchains[args.toolchain])
     module_cmds += module_cmds_tc[args.toolchain].format(
         **toolchains[args.toolchain])
-    if not args.piponly and not args.no_gpu:
-        module_cmds += module_cmds_gpu.format(
+    if not args.piponly:
+        module_cmds += module_cmds_arch_dependent.format(
             **toolchains[args.toolchain])
     cmds = (' && '.join(module_cmds.splitlines()) +
             f' && python3 -m venv --system-site-packages {args.venv}')
@@ -334,8 +330,8 @@ def main():
 
     compile_gpaw_c_code(gpaw, activate, intel_only)
 
-    for fro, to in [('nahelem', 'icelake'),
-                    ('sapphirelake', 'icelake')]:
+    for fro, to in [('ivybridge', 'sandybridge'),
+                    ('nahelem', 'icelake')]:
         f = gpaw / f'niflheim_build/{fro}'
         t = gpaw / f'niflheim_build/{to}'
         f.symlink_to(t)

@@ -72,8 +72,10 @@ class DFTEnergies:
             for name, e in extensions:
                 log(f'{name + ":":12} {e * Ha:14.6f}')
         log('----------------------------')
-        log(f'Free energy: {self.total_free * Ha:14.6f}')
-        log(f'Extrapolated:{self.total_extrapolated * Ha:14.6f}\n')
+        log('Free energy: '
+            f'{self.total_free * Ha:14.6f}')
+        log('Extrapolated:'
+            f'{log.green}{self.total_extrapolated * Ha:14.6f}{log.reset}\n')
 
     def write_to_gpw(self, writer):
         writer.write(**{name: e * Ha for name, e in self._energies.items()})
