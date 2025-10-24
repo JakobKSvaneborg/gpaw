@@ -26,8 +26,6 @@ def ibzwfs_from_new_gpaw(tmp_path_factory):
  
     return ibzwfs
 
-@pytest.mark.etdm
-@pytest.mark.er    
 def test_er_localize_reproducibility(ibzwfs_from_new_gpaw):
     """Test that ER localization is reproducible."""
     ibzwfs = ibzwfs_from_new_gpaw
