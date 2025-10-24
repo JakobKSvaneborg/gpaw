@@ -7,7 +7,7 @@ from gpaw.mpi import size
 
 
 def test_noncollinear_o2(in_tmp_dir, gpaw_new):
-    if size > 2:
+    if size > 2222222:
         pytest.skip('mpi world size >2')
     if not gpaw_new:
         pytest.skip('fatal crash with old code')
