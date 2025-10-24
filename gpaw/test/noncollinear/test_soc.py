@@ -49,7 +49,10 @@ def test_soc_self_consistent(gpaw_new, in_tmp_dir):
         kwargs = {**params, 'symmetry': 'off',
                   'experimental': {'magmoms': np.zeros((3, 3)), 'soc': True}}
 
-    a.calc = GPAW(convergence={'bands': 28}, **kwargs)
+    a.calc = GPAW(convergence={'bands': 28},
+                  random=True,
+                  parallel={'domain': 2},
+                  **kwargs)
     a.get_potential_energy()
     eigs = a.calc.get_eigenvalues(kpt=0)
     check(eigs, 0.15, 0.002)
@@ -103,3 +106,8 @@ def test_soc_non_self_consistent():
     bzwfs = soc_eigenstates(a.calc, n2=14, ignore_xc_potential=True)
     eigs = bzwfs.eigenvalues()[8]
     check(eigs, 0.15, 0.007)
+
+
+if __name__ == '__main__':
+    test_soc_self_consistent(1, 1)
+    
