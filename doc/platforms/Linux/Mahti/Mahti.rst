@@ -61,6 +61,9 @@ Do the following in a new terminal session.
     # Activate venv
     source venv-gpaw-cpu/bin/activate
 
+    # Update pip, setuptools etc
+    pip install pip setuptools packaging --upgrade
+
     # Clone GPAW development repository
     git clone https://gitlab.com/gpaw/gpaw.git
     cd gpaw
