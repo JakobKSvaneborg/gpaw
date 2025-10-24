@@ -3,6 +3,8 @@ from gpaw.new.pwfd.dir_opt import DirOptPWFD
 
 
 class DirectOptimization(Eigensolver):
+    name = 'etdm-fdpw'
+
     def __init__(self,
                  converge_unocc: bool = False):
         self.converge_unocc = converge_unocc
@@ -20,5 +22,4 @@ class DirectOptimization(Eigensolver):
               atoms):
         return DirOptPWFD(
             converge_unocc=self.converge_unocc,
-            hamiltonian=hamiltonian,
-        )
+            hamiltonian=hamiltonian)

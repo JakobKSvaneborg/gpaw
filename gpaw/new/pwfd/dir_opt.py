@@ -1,7 +1,6 @@
 from __future__ import annotations
 from functools import partial
 
-import numpy as np
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.new import zips
