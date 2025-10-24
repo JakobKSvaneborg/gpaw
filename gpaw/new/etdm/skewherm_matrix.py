@@ -295,7 +295,7 @@ def vec2skewmat(a_vec, dim, ind_up, dtype):
     return a_mat
 
 
-def random_a(shape, dtype):
+def random_a(shape, dtype, seed=None):
     """
     Generate random parameter vector for skew-Hermitian matrices.
 
@@ -311,8 +311,10 @@ def random_a(shape, dtype):
     a : ndarray
         Random vector of given dtype.
     """
+    if seed:
+        np.random.seed(seed)
     a = np.random.random_sample(shape)
-    if dtype == complex:
-        a = a.astype(complex)
-        a += 1.0j * np.random.random_sample(shape)
+	if dtype == complex:
+	a = a.astype(complex)
+    a += 1.0j * np.random.random_sample(shape)
     return a
