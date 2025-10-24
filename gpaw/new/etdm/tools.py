@@ -13,13 +13,11 @@ def er_localize(ibzwfs,
                 loct="pseudo-paw",
                 gtol=1e-6,
                 niter=333,
-                seed=None
-    ):
+                seed=None):
     objfunc = ER(ibzwfs, loct, states)
     a_init = []
     for a in objfunc.a_vec_u:
-        skmat = random_a((a.ndim, a.ndim),
-                          ibzwfs.dtype, seed=seed) * 0.01
+        skmat = random_a((a.ndim, a.ndim), ibzwfs.dtype, seed=seed) * 0.01
         skmat -= skmat.T.conj()
         a_init.append(skmat[a.ind_up])
     a_init = np.asarray(a_init)
