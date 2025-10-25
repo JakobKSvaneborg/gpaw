@@ -35,9 +35,10 @@ params = dict(mode={'name': 'pw', 'ecut': 350},
 
 
 @pytest.mark.soc
-# @pytest.mark.skipif(mpi.size > 2, reason='May not work in parallel')
 def test_soc_self_consistent(gpaw_new, in_tmp_dir):
     """Self-consistent SOC."""
+    if not gpaw_new and mpi.size > 2:
+        pytest.skip('May not work in parallel')
     gpw_wfs = Path('mos2.gpw')
     a = mx2('MoS2')
     a.center(vacuum=3, axis=2)
@@ -104,8 +105,3 @@ def test_soc_non_self_consistent():
     bzwfs = soc_eigenstates(a.calc, n2=14, ignore_xc_potential=True)
     eigs = bzwfs.eigenvalues()[8]
     check(eigs, 0.15, 0.007)
-
-
-if __name__ == '__main__':
-    test_soc_self_consistent(1, 1)
-    
