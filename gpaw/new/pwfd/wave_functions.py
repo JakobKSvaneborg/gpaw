@@ -282,7 +282,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             # H.data[n, :] now contains the nth eigenvector and eps_n[n]
             # the nth eigenvalue
         else:
-            self._eig_n = np.empty(psit_nX.dims)
+            self._eig_n = np.empty(psit_nX.dims[0])
 
         domain_comm.broadcast(H.data, 0)
         domain_comm.broadcast(self._eig_n, 0)
