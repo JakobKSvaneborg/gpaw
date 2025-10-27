@@ -2,16 +2,17 @@
 from __future__ import annotations
 
 from types import ModuleType
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 import gpaw.cgpaw as cgpaw
 import numpy as np
 import scipy.linalg as sla
 
 import gpaw.utilities.blas as blas
 from gpaw import debug
-from gpaw.gpu import cupy as cp, cupy_eigh, XP, gpu_gemm
+from gpaw.gpu import cupy as cp, XP, gpu_gemm
 from gpaw.mpi import MPIComm, _Communicator, serial_comm
 from gpaw.typing import Array1D, ArrayLike1D, ArrayLike2D, Array2D
+from gpaw.gpu.diagonalization import suggest_diagonalizer
 
 _global_blacs_context_store: Dict[Tuple[_Communicator, int, int], int] = {}
 
@@ -184,6 +185,11 @@ class Matrix(XP):
         self.data += other
         return self
 
+    def is_distributed(self) -> bool:
+        """True if this matrix has nontrivial BLACS or GPU distribution.
+        """
+        return self.dist.shape != self.shape
+
     def multiply(self,
                  other,
                  alpha=1.0,
@@ -273,7 +279,8 @@ class Matrix(XP):
         return out
 
     def redist(self, other: Matrix) -> None:
-        """Redistribute to other BLACS layout."""
+        """Redistribute to other BLACS layout.
+        `other` is the output, newly distributed matrix."""
         if self is other:
             return
         d1 = self.dist
@@ -349,6 +356,38 @@ class Matrix(XP):
             S = self
 
         return S
+
+    @staticmethod
+    def scatter(data: Array2D,
+                dist: tuple[_Communicator, int, int, Optional[int]],
+                root: int = 0) -> Matrix:
+        """Construct a distributed Matrix object by scattering a raw 2D array
+        from 'root' rank. The 'dist' argument must specify the communicator
+        and wanted distribution in same way as in the Matrix constructor
+        Empty 'dist' argument is not allowed!
+        """
+
+        assert len(data.shape) == 2
+        assert dist is not None and len(dist) >= 3
+
+        # Some acrobatics needed to bypass limitations in Matrix.redist()
+
+        rows, cols = data.shape[0], data.shape[1]
+        xp = cp if isinstance(data, cp.ndarray) else np
+        comm = dist[0]
+
+        non_distributed_matrix = Matrix(rows, cols,
+                                        dtype=data.dtype,
+                                        dist=(comm, 1, 1),
+                                        xp=xp)
+
+        if comm.rank == root:
+            non_distributed_matrix.data[:] = data[:]
+
+        matrix = Matrix(rows, cols, dtype=data.dtype, xp=xp, dist=dist)
+
+        non_distributed_matrix.redist(matrix)
+        return matrix
 
     def inv(self, uplo='L'):
         """Inplace inversion."""
@@ -449,6 +488,42 @@ class Matrix(XP):
             assert self.dist.comm.size == slcomm.size
             H = self
 
+        # ---- GPU case
+        if self.xp is not np:
+            assert isinstance(H.data, cp.ndarray)
+
+            if cc and np.issubdtype(H.dtype, np.complexfloating):
+                cp.negative(H.data.imag, H.data.imag)
+            if debug and not H.is_distributed():
+                # Set upper triangle to a cool number.
+                # But no easy way of doing this for distributed matrices
+                H.data[cp.triu_indices(H.shape[0], 1)] = 42.0
+
+            # Handle generalized eigenproblem
+            if S is not None:
+                if self.is_distributed():
+                    raise NotImplementedError("GPU generalized eigh "
+                                              "for distributed matrices")
+                S.invcholesky()
+                self.tril2full()
+                eigs = self.dist.eighl(self, S)
+                self.data[:] = self.data.T.copy()
+                return eigs
+
+            # TODO some way for the caller to specify options/backend
+            diagonalizer, options = suggest_diagonalizer(H)
+            options.uplo = 'L'
+            options.inplace = True
+            eigvals, H = diagonalizer.eigh(H, options)
+
+            # Back to original layout
+            if redist:
+                H.redist(self)
+
+            # GPU case done, return here for clarity
+            return eigvals
+
+        # ---- CPU case
         if limit == H.shape[0]:
             limit = None
 
@@ -464,24 +539,13 @@ class Matrix(XP):
                 if debug:
                     H.data[np.triu_indices(H.shape[0], 1)] = 42.0
                 if S is None:
-                    if self.xp is not np:
-                        assert isinstance(H.data, cp.ndarray)
-                        eps[:], H.data.T[:] = cupy_eigh(H.data, UPLO='L')
-                    else:
-                        eps[:], H.data.T[:] = sla.eigh(
-                            H.data,
-                            lower=True,
-                            overwrite_a=True,
-                            check_finite=debug,
-                            driver='evx' if H.data.size == 1 else 'evd')
+                    eps[:], H.data.T[:] = sla.eigh(
+                        H.data,
+                        lower=True,
+                        overwrite_a=True,
+                        check_finite=debug,
+                        driver='evx' if H.data.size == 1 else 'evd')
                 else:
-                    if self.xp is cp:
-                        assert self.dist.comm.size == 1
-                        S.invcholesky()
-                        self.tril2full()
-                        eigs = self.dist.eighl(self, S)
-                        self.data[:] = self.data.T.copy()
-                        return eigs
                     if debug:
                         S.data[self.xp.triu_indices(H.shape[0], 1)] = 42.0
                     eps, evecs = sla.eigh(
@@ -1001,7 +1065,13 @@ class CuPyDistribution(MatrixDistribution):
         tmp = H.new()
         self.multiply(1.0, L, 'N', H, 'N', 0.0, tmp)
         self.multiply(1.0, tmp, 'N', L, 'C', 0.0, H, symmetric=True)
-        eig_M, Ct_MM = cupy_eigh(H.data, UPLO='L')
+
+        diagonalizer, options = suggest_diagonalizer(H)
+        options.inplace = False
+        options.uplo = 'L'
+        eig_M, Ct = diagonalizer.eigh(H, options)
+        Ct_MM = Ct.data.T
+
         assert Ct_MM.flags.f_contiguous
         Ct = H.new(data=Ct_MM.T)
         self.multiply(1.0, L, 'C', Ct, 'T', 0.0, H)

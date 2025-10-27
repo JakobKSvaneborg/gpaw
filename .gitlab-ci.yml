@@ -383,13 +383,6 @@ test-latest:
   script:
     - gpaw info
 
-    # Create a .coveragerc file so we can get nicely printed coverage:
-    - |
-      cat << EOF >> .coveragerc
-      [report]
-      precision = 2
-      EOF
-
     - >
       GPAW_DEBUG=1 pytest -v -m "ci or gpu"
       --cov=gpaw --cov-report=html --cov-report=term
@@ -657,11 +650,12 @@ nightly-mpi-1:
     - pytest --cache-show
     - >
       pytest -n 8 --instafail -r s --durations 30
-      --cov=gpaw --cov-report=html
+      --cov=gpaw --cov-report=html --cov-report=term
   artifacts:
     paths:
       - htmlcov/
     expire_in: 1 day
+  coverage: '/TOTAL.+ ([0-9]+\.[0-9]+%)/'
 
 
 nightly-mpi-2:

@@ -78,7 +78,6 @@ class Davidson(PWFDEigensolver):
 
         psit2_nX = psit_nX.new(data=self.work_arrays[0, :b])
         data_buffer = self.data_buffers[0]
-
         wfs.subspace_diagonalize(Ht, dH,
                                  psit2_nX=psit2_nX,
                                  data_buffer=data_buffer)

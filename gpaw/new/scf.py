@@ -110,6 +110,9 @@ class SCFLoop:
             if log:
                 write_iteration(cc, converged_items, entries, ctx, log)
 
+            if np.isnan(energies.total_free):
+                raise KohnShamConvergenceError('Some energy terms are NaN!')
+
             if converged:
                 converged = all(
                     ext.post_scf_convergence(

@@ -502,10 +502,12 @@ class MonkhorstPack(BZSampling):
     def __init__(self,
                  size: Sequence[int] | None = None,
                  density: float | None = None,
-                 gamma: bool | None = None):
+                 gamma: bool | None = None,
+                 even: bool | None = None):
         self.size = size
         self.density = density
         self.gamma = gamma
+        self.even = even
 
     def todict(self):
         dct = {}
@@ -515,6 +517,8 @@ class MonkhorstPack(BZSampling):
             dct['density'] = self.density
         if self.gamma is not None:
             dct['gamma'] = self.gamma
+        if self.even is not None:
+            dct['even'] = self.even
         return dct
 
     def build(self, atoms):
