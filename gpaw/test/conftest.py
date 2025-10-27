@@ -108,9 +108,9 @@ def monkeypatch_allow_cpupy(sessionscoped_monkeypatch):
 
 
 @pytest.fixture(autouse=True, scope='session')
-def use_fftw_estimate_flag():
+def use_fftw_estimate_flag(sessionscoped_monkeypatch):
     from gpaw.fftw import FFTWPlans, ESTIMATE
-    FFTWPlans._overwrite_flags = ESTIMATE
+    sessionscoped_monkeypatch.setattr(FFTWPlans, '_overwrite_flags', ESTIMATE)
 
 
 @pytest.fixture(scope='session')
