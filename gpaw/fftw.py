@@ -166,6 +166,8 @@ class FFTPlans:
 
 
 class FFTWPlans(FFTPlans):
+    # The test suite likes to override the FFTW flags since methods
+    # like MEASURE are not guaranteed reproducible.
     _overwrite_flags = 0
 
     """FFTW3 3d transforms."""
