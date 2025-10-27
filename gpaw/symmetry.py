@@ -516,7 +516,8 @@ def map_k_points_fast(bzk_kc, U_scc, time_reversal, comm=None, tol=1e-7):
                            order[1:][equivalentpairs_k]])
 
         # This has to be true.
-        assert (orders[0] < nbzkpts).all()
+        if not (orders[0] < nbzkpts).all():
+            raise AttributeError("Duplicate kpoints detected, set symmetry='off'.")
         assert (orders[1] >= nbzkpts).all()
         bz2bz_ks[orders[1] - nbzkpts, s] = orders[0]
 
