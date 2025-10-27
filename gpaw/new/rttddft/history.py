@@ -37,6 +37,18 @@ class RTTDDFTHistory:
         """ Kicks that have been done. """
         return self._kicks
 
+    @property
+    def most_recent_kick(self) -> RTTDDFTKick:
+        """ The most recent kick.
+
+        Raises
+        ------
+        ValueError if there have been no kicks.
+        """
+        if len(self._kicks) == 0:
+            raise ValueError('No kicks have been performed')
+        return self._kicks[-1]
+
     def absorption_kick(self,
                         kick_strength: Vector):
         """ Store the kick strength in history.

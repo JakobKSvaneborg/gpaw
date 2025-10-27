@@ -4,7 +4,7 @@ from ase.utils import IOContext
 
 from gpaw.mpi import world, MPIComm
 from gpaw.new.pot_calc import PotentialCalculator
-from gpaw.new.rttddft.history import RTTDDFTHistory, RTTDDFTKick
+from gpaw.new.rttddft.history import RTTDDFTKick
 from gpaw.new.rttddft.state import RTTDDFTState
 
 
@@ -68,24 +68,31 @@ class DipoleMomentWriter:
         line = '\n'.join(lines)
         self._write(line)
 
-    def _write_kick(self,
-                    kick: RTTDDFTKick):
+    def write_kick(self,
+                   kick: RTTDDFTKick):
+        """ Write a comment with a description of the kick.
+
+        This comment is formatted such that it can be parsed by the
+        spectrum calculator.
+
+        Parameters
+        ----------
+        kick
+            The kick object.
+        """
         comment = f'Kick = {json.dumps(kick.todict())}'
         self.write_comment(comment)
 
     def write_dm(self,
-                 history: RTTDDFTHistory,
+                 time: float,
                  state: RTTDDFTState,
                  pot_calc: PotentialCalculator):
         """ Calculate the dipole moment from the state and write to file.
 
-        If one or several kicks were just performed, then also a comment
-        is written.
-
         Parameters
         ----------
-        history
-            RTTDDFT history object.
+        time
+            Current simulation time in atomic units.
         state
             State containing wave functions and potentials.
         pot_calc
@@ -94,14 +101,7 @@ class DipoleMomentWriter:
         relpos_ac = pot_calc.relpos_ac
         dipolemoment = state.density.calculate_dipole_moment(relpos_ac)
 
-        # Write any kick that was just performed
-        for kick in history.kicks:
-            if kick.time < history.time:
-                # Skip kicks at previous times
-                continue
-            self._write_kick(kick)
-
-        data = (history.time, ) + tuple(dipolemoment)
+        data = (time, ) + tuple(dipolemoment)
         line = '%20.8lf %22.12le %22.12le %22.12le\n' % data
 
         self._write(line)

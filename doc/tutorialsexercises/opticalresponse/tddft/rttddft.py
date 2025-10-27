@@ -32,15 +32,16 @@ td_calc = RTTDDFT.from_file('gs.gpw', td_algorithm='sicn')
 # Open dipole moment file
 with DipoleMomentWriter('dm.dat') as dmwriter:
     # Optionally, write a comment to signify (re)start
-    dmwriter.write_comment(f'Start at {td_calc.history.time:.8f}')
+    dmwriter.write_comment(f'Start at {td_calc.time:.8f}')
 
-    # Kick and write the dipole moment
+    # Kick, write a comment about the kick, and write the dipole moment
     td_calc.absorption_kick([0.0, 0.0, 1e-5])
-    dmwriter.write_dm(td_calc.history, td_calc.state, td_calc.pot_calc)
+    dmwriter.write_kick(td_calc.history.most_recent_kick)
+    dmwriter.write_dm(td_calc.time, td_calc.state, td_calc.pot_calc)
 
     # Propagate for 3000 steps
     for _ in td_calc.ipropagate(dt, 3000):
-        dmwriter.write_dm(td_calc.history, td_calc.state, td_calc.pot_calc)
+        dmwriter.write_dm(td_calc.time, td_calc.state, td_calc.pot_calc)
 
 # Save the state for restarting later
 td_calc.write('td.gpw')

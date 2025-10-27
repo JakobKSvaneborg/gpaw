@@ -101,6 +101,11 @@ class RTTDDFT:
         params = {'td_algorithm': self.td_algorithm.todict()}
         return params
 
+    @property
+    def time(self) -> float:
+        """ Current simulation time in atomic units. """
+        return self.history.time
+
     @classmethod
     def from_dft_calculation(cls,
                              calc: ASECalculator,

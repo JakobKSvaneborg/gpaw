@@ -24,15 +24,16 @@ def test_dipolemoment(nacl_nospin, in_tmp_dir):
 
     with DipoleMomentWriter('dm.dat') as dmwriter:
         # Write the start comment
-        dmwriter.write_comment(f'Start at {td_calc.history.time:.8f}')
+        dmwriter.write_comment(f'Start at {td_calc.time:.8f}')
 
-        # Kick and write the dipole moment
+        # Kick, write a comment about the kick, and write the dipole moment
         td_calc.absorption_kick([0.0, 0.0, 1e-5])
-        dmwriter.write_dm(td_calc.history, td_calc.state, td_calc.pot_calc)
+        dmwriter.write_kick(td_calc.history.most_recent_kick)
+        dmwriter.write_dm(td_calc.time, td_calc.state, td_calc.pot_calc)
 
         # Propagate
         for _ in td_calc.ipropagate(dt, 3):
-            dmwriter.write_dm(td_calc.history, td_calc.state, td_calc.pot_calc)
+            dmwriter.write_dm(td_calc.time, td_calc.state, td_calc.pot_calc)
 
     # Read dipole moment file
     world.barrier()
@@ -45,12 +46,14 @@ def test_dipolemoment(nacl_nospin, in_tmp_dir):
     # Restart in append mode
     with DipoleMomentWriter('dm.dat', append=True) as dmwriter:
         # Write the start comment
-        dmwriter.write_comment(f'Start at {td_calc.history.time:.8f}')
+        dmwriter.write_comment(f'Start at {td_calc.time:.8f}')
 
         # Kick twice and write the dipole moment
         td_calc.absorption_kick([0.0, 0.0, 2e-5])
+        dmwriter.write_kick(td_calc.history.most_recent_kick)
         td_calc.absorption_kick([0.0, 0.0, 3e-5])
-        dmwriter.write_dm(td_calc.history, td_calc.state, td_calc.pot_calc)
+        dmwriter.write_kick(td_calc.history.most_recent_kick)
+        dmwriter.write_dm(td_calc.time, td_calc.state, td_calc.pot_calc)
 
     # Read dipole moment file
     world.barrier()
@@ -74,24 +77,17 @@ def test_dipolemoment(nacl_nospin, in_tmp_dir):
     with DipoleMomentWriter('dm.dat') as dmwriter:
         # We need to write at least two entries, the helper function cannot
         # read the file otherwise
-        dmwriter.write_dm(td_calc.history, td_calc.state, td_calc.pot_calc)
+        dmwriter.write_dm(td_calc.time, td_calc.state, td_calc.pot_calc)
         # Propagate once
         for _ in td_calc.ipropagate(dt, 1):
             pass
-        dmwriter.write_dm(td_calc.history, td_calc.state, td_calc.pot_calc)
+        dmwriter.write_dm(td_calc.time, td_calc.state, td_calc.pot_calc)
 
     # Read dipole moment file
     world.barrier()
     kick_i, time3_t, _, dm3_tv = read_dipole_moment_file('dm.dat')
 
-    # The last two kicks should have been written, because we have not
-    # propaged after them. This behavior is unintuitive perhaps, but
-    # stopping the time propagation right after a kick is also a bit weird.
-    assert len(kick_i) == 2
-    np.testing.assert_almost_equal(kick_i[0]['time'], kick_time)
-    np.testing.assert_almost_equal(kick_i[1]['time'], kick_time)
-    np.testing.assert_allclose(kick_i[0]['strength_v'], [0, 0, 2e-5])
-    np.testing.assert_allclose(kick_i[1]['strength_v'], [0, 0, 3e-5])
+    assert len(kick_i) == 0  # There should be no kicks
 
     # The first data should be identical to the last data from the
     # previous file since we did not propagate inbetween

@@ -78,6 +78,11 @@ Next we kick the system in the z direction and propagate 3000 steps of 0.001 ASE
 The ASE unit of time is `Å\sqrt{\mathrm{e/eV}}`, which is about 10.18fs.
 We open a file and write to it the dipole moments.
 
+* It is important to explicitly write the kick to the dipole moment file so that
+  the spectrum calculator knows what kind of kick was used.
+  The convenience property `most_recent_kick` of the history object can be used to
+  obtain the last kick.
+
 .. literalinclude:: rttddft.py
    :start-after: P2
    :end-before: P3
