@@ -14,7 +14,7 @@ class EnergyNaNifier(Extension):
         return {'nan_energy': np.nan}
 
 
-@pytest.mark.skipif(world.size > 1, reason='Gamma-point calculation.')
+@pytest.mark.serial
 def test_energy_nan(gpaw_new):
     if not gpaw_new:
         pytest.skip('Only GPAW new')
