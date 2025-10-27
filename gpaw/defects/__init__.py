@@ -3,6 +3,7 @@ import numbers
 from scipy.optimize import minimize
 from scipy.integrate import simpson
 from gpaw import GPAW, PW
+from gpaw.mpi import serial_comm
 from ase.parallel import parprint
 import scipy.integrate as integrate
 from scipy.interpolate import InterpolatedUnivariateSpline
@@ -15,7 +16,7 @@ class ElectrostaticCorrections():
     Calculate the electrostatic corrections for charged defects.
     """
     def __init__(self, pristine, charged,
-                 q=None, sigma=None, r0=None, dimensionality='3d'):
+                 q=None, sigma=None, r0=None, dimensionality='3d', comm=serial_comm):
         if isinstance(pristine, str):
             pristine = GPAW(pristine, txt=None, parallel={'domain': 1})
         if isinstance(charged, str):
@@ -25,6 +26,7 @@ class ElectrostaticCorrections():
                           'gamma': True},
                     parallel={'domain': 1},
                     symmetry='off',
+                    communicator=comm,
                     txt=None)
         atoms = pristine.atoms.copy()
         calc.initialize(atoms)
