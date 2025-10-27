@@ -1,8 +1,9 @@
 import numpy as np
+import pytest
+from ase import Atoms
 from ase.dft.kpoints import monkhorst_pack
 from gpaw.old.kpt_descriptor import KPointDescriptor, to1bz
 from gpaw.dft import MonkhorstPack
-from ase import Atoms
 
 
 def test_kpt():
@@ -37,23 +38,23 @@ def test_even():
                               even=True).build(atoms=atom)
     a, b, c = kpts_even.size_c
     l, m, n = kpts_even.shift_c
-    assert (a == 6) and (b == 6) and (c == 6)
-    assert (l == 0) and (m == 0) and (n == 0)
+    assert (a, b, c) == (6, 6, 6)
+    assert (l, m, n) == (0, 0, 0)
 
     kpts_odd = MonkhorstPack(density=8,
                              gamma=False,
                              even=False).build(atoms=atom)
     a, b, c = kpts_odd.size_c
     l, m, n = kpts_odd.shift_c
-    assert (a == 7) and (b == 7) and (c == 7)
-    assert (np.isclose(l, 0.07142857142857142)
-            and np.isclose(m, 0.07142857142857142)
-            and np.isclose(n, 0.07142857142857142))
+    assert (a, b, c) == (7, 7, 7)
+    assert (l, m, n) == (pytest.approx(1.0 / 14),
+                         pytest.approx(1.0 / 14),
+                         pytest.approx(1.0 / 14))
 
     kpts_none = MonkhorstPack(density=8,
                               gamma=False,
                               even=None).build(atoms=atom)
     a, b, c = kpts_none.size_c
     l, m, n = kpts_none.shift_c
-    assert (a == 6) and (b == 6) and (c == 6)
-    assert (l == 0) and (m == 0) and (n == 0)
+    assert (a, b, c) == (6, 6, 6)
+    assert (l, m, n) == (0, 0, 0)
