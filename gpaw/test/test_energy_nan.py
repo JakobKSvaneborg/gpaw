@@ -3,7 +3,6 @@ import numpy as np
 import pytest
 
 from gpaw import GPAW, KohnShamConvergenceError
-from gpaw.mpi import world
 from gpaw.new.extensions import Extension
 
 
