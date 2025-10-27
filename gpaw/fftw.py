@@ -168,14 +168,14 @@ class FFTPlans:
 class FFTWPlans(FFTPlans):
     # The test suite likes to override the FFTW flags since methods
     # like MEASURE are not guaranteed reproducible.
-    _overwrite_flags = 0
+    _overwrite_flags = None
 
     """FFTW3 3d transforms."""
     def __init__(self, size_c, dtype, flags=MEASURE):
         if not have_fftw():
             raise ImportError('Not compiled with FFTW.')
         super().__init__(size_c, dtype)
-        if self._overwrite_flags:
+        if self._overwrite_flags is not None:
             flags = self._overwrite_flags
         self._fftplan = cgpaw.FFTWPlan(self.tmp_R, self.tmp_Q, -1, flags)
         self._ifftplan = cgpaw.FFTWPlan(self.tmp_Q, self.tmp_R, 1, flags)
