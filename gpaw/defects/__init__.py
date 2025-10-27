@@ -16,7 +16,8 @@ class ElectrostaticCorrections():
     Calculate the electrostatic corrections for charged defects.
     """
     def __init__(self, pristine, charged,
-                 q=None, sigma=None, r0=None, dimensionality='3d', comm=serial_comm):
+                 q=None, sigma=None, r0=None,
+                 dimensionality='3d', comm=serial_comm):
         if isinstance(pristine, str):
             pristine = GPAW(pristine, txt=None, parallel={'domain': 1})
         if isinstance(charged, str):
