@@ -662,6 +662,7 @@ nightly-mpi-1:
     paths:
       - htmlcov/
     expire_in: 1 day
+  coverage: '/TOTAL.+ ([0-9]+\.[0-9]+%)/'
 
 
 nightly-mpi-2:
