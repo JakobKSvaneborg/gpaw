@@ -166,11 +166,15 @@ class FFTPlans:
 
 
 class FFTWPlans(FFTPlans):
+    _overwrite_flags = 0
+
     """FFTW3 3d transforms."""
     def __init__(self, size_c, dtype, flags=MEASURE):
         if not have_fftw():
             raise ImportError('Not compiled with FFTW.')
         super().__init__(size_c, dtype)
+        if self._overwrite_flags:
+            flags = self._overwrite_flags
         self._fftplan = cgpaw.FFTWPlan(self.tmp_R, self.tmp_Q, -1, flags)
         self._ifftplan = cgpaw.FFTWPlan(self.tmp_Q, self.tmp_R, 1, flags)
 
