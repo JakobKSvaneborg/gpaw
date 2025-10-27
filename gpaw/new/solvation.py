@@ -92,11 +92,10 @@ class SolvationExtension(Extension):
             return ConjugateGradientPoissonSolver(
                 pw, grid, self.dielectric, zero_vacuum=True)
 
-        ps = WeightedFDPoissonSolver()
-        ps.set_dielectric(self.dielectric)
-        ps.set_grid_descriptor(grid._gd)
-
-        return PoissonSolverWrapper(ps)
+        psolver = WeightedFDPoissonSolver()
+        psolver.set_dielectric(self.dielectric)
+        psolver.set_grid_descriptor(grid._gd)
+        return PoissonSolverWrapper(psolver)
 
     def update1(self, nt_r, kin_en_using_band=True):
         density = DensityWrapper(nt_r)
