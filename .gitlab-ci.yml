@@ -623,7 +623,6 @@ gpwfiles:
   image: $IMAGE_MAIN_LATEST
   variables:
     GPAW_MPI_NPROCS: "1"
-    MARKS: ""  # 'new' jobs override this
   extends:
     - .test
   stage: test
@@ -638,7 +637,7 @@ gpwfiles:
   script:
     - >
       gpaw -P $GPAW_MPI_NPROCS python -m pytest
-      --cov=gpaw --instafail -r s --durations 30 $MARKS
+      --cov=gpaw --instafail -r s --durations 30
     - coverage combine gpaw-coverage-* --datafile coverage-$CI_JOB_NAME
 
   rules:
@@ -690,7 +689,13 @@ nightly-mpi-8:
 .nightly-mpi-new:
   variables:
     GPAW_NEW: "1"
-    MARKS: "not (old_gpaw_only_mpi or old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
+  script:
+    - >
+      gpaw -P $GPAW_MPI_NPROCS python -m pytest
+      --cov=gpaw --instafail -r s --durations 30
+      -m "not (old_gpaw_only_mpi or old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
+    - coverage combine gpaw-coverage-* --datafile coverage-$CI_JOB_NAME
+
   extends:
     - .nightly
 
