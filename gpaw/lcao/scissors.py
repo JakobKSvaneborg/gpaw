@@ -49,7 +49,7 @@ def non_self_consistent_scissors_shift(
     eig_skn = np.zeros((ibzwfs.nspins, len(ibzwfs.ibz), ibzwfs.nbands))
     for wfs in ibzwfs:
         H_MM = matcalc.calculate_matrix(wfs)
-        eig_M = H_MM.eighg(wfs.L_MM, wfs.domain_comm)
+        eig_M = H_MM.eighl(wfs.L_MM, wfs.domain_comm)
         eig_skn[wfs.spin, wfs.k] = eig_M[:ibzwfs.nbands]
     ibzwfs.kpt_comm.sum(eig_skn)
     return eig_skn * Ha
@@ -223,7 +223,7 @@ class MyMatCalc:
             R_mm.data *= (homo - lumo)
             R_mm.add_to_diagonal(lumo)
             B_mM = R_mm.multiply(A_Mm, opb='C')
-            A_Mm.multiply(B_mM, beta=1, out=H_MM)
+            A_Mm.multiply(B_mM, beta=1.0, out=H_MM)
 
             a1 = a2
             M1 = M2

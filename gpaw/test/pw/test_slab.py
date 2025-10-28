@@ -4,7 +4,7 @@ from ase.optimize import BFGS
 
 from gpaw import PW
 from gpaw.new.ase_interface import GPAW as NewGPAW
-from gpaw.calculator import GPAW as OldGPAW
+from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.mpi import world
 
 
@@ -24,7 +24,7 @@ def test_pw_slab(gpu, GPAW):
     if gpu:
         parallel['gpu'] = True
     calc = GPAW(mode=PW(200),
-                eigensolver='dav' if GPAW is NewGPAW else 'rmm-diis',
+                eigensolver='rmm-diis',
                 parallel=parallel,
                 kpts=(k, k, 1))
     slab.calc = calc

@@ -1,3 +1,5 @@
+#include <stdbool.h>
+
 // In the code, one utilizes calls equvalent to PyArray API,
 // except instead of PyArray_BYTES one uses Array_BYTES.
 // Then, if GPAW is built with GPAW_GPU_AWARE_MPI define, these macros are rewritten with wrappers.
@@ -46,7 +48,16 @@
 
 #else // GPAW_ARRAY_ALLOW_CUPY
 
-#define CHK_ARRAY(a) // TODO
+#define CHK_ARRAY(x)                                                            \
+    do {                                                                        \
+        if (x == NULL || !Array_ISCARRAY(x))                                    \
+        {                                                                       \
+            PyErr_SetString(PyExc_TypeError,                                    \
+                "Not a contiguous array for MPI communication.");               \
+            return NULL;                                                        \
+        }                                                                       \
+    } while (0)
+
 #define CHK_ARRAY_RO(a) // TODO
 #define CHK_ARRAYS(a,b,n) // TODO
 
@@ -64,8 +75,10 @@ static inline int Array_NDIM(PyObject* obj)
     // return len(obj.shape)
     PyObject* shape = PyObject_GetAttrString(obj, "shape");
     if (shape == NULL) return -1;
+
+    int ndim = PyTuple_Size(shape);
     Py_DECREF(shape);
-    return PyTuple_Size(shape);
+    return ndim;
 }
 
 static inline int Array_DIM(PyObject* obj, int dim)
@@ -77,12 +90,16 @@ static inline int Array_DIM(PyObject* obj, int dim)
     }
     #endif
     PyObject* shape = PyObject_GetAttrString(obj, "shape");
-
     if (shape == NULL) return -1;
+
     PyObject* pydim = PyTuple_GetItem(shape, dim);
-    Py_DECREF(shape);
-    if (pydim == NULL) return -1;
+    if (pydim == NULL)
+    {
+        Py_DECREF(shape);
+        return -1;
+    }
     int value = (int) PyLong_AS_LONG(pydim);
+    Py_DECREF(shape);
     return value;
 }
 
@@ -97,11 +114,13 @@ static inline char* Array_BYTES(PyObject* obj)
     // Equivalent to obj.data.ptr
     PyObject* ndarray_data = PyObject_GetAttrString(obj, "data");
     if (ndarray_data == NULL) return NULL;
+
     PyObject* ptr_data = PyObject_GetAttrString(ndarray_data, "ptr");
-    if (ptr_data == NULL) return NULL;
-    char* ptr = (char*) PyLong_AS_LONG(ptr_data);
-    Py_DECREF(ptr_data);
     Py_DECREF(ndarray_data);
+    if (ptr_data == NULL) return NULL;
+
+    char* ptr = (char*) PyLong_AsVoidPtr(ptr_data);
+    Py_DECREF(ptr_data);
     return ptr;
 }
 
@@ -146,11 +165,13 @@ static inline int Array_ITEMSIZE(PyObject* obj)
     #endif
     PyObject* dtype = PyObject_GetAttrString(obj, "dtype");
     if (dtype == NULL) return -1;
+
     PyObject* itemsize_obj = PyObject_GetAttrString(dtype, "itemsize");
+    Py_DECREF(dtype);
     if (itemsize_obj == NULL) return -1;
+
     int itemsize = (int) PyLong_AS_LONG(itemsize_obj);
     Py_DECREF(itemsize_obj);
-    Py_DECREF(dtype);
     return itemsize;
 }
 
@@ -173,6 +194,31 @@ static inline int Array_ISCOMPLEX(PyObject* obj)
 {
     int result = PyTypeNum_ISCOMPLEX(Array_TYPE(obj));
     return result;
+}
+
+/* Checks if the array is C-contiguous.
+Does NOT check the equivalent of PyArray_ISBEHAVED() (dunno how to do that for CuPy). */
+static inline bool Array_ISCARRAY(PyObject* obj)
+{
+#ifndef GPAW_ARRAY_DISABLE_NUMPY
+    if (PyArray_Check(obj))
+    {
+	    return PyArray_ISCARRAY((PyArrayObject*)obj);
+    }
+#endif
+
+    PyObject* flags = PyObject_GetAttrString(obj, "flags");
+    if (!flags) return false;
+
+    PyObject* is_contiguous_flag = PyObject_GetAttrString(flags, "c_contiguous");
+    Py_DECREF(flags);
+
+    if (!is_contiguous_flag) return false;
+
+    bool is_contiguous = (bool) PyLong_AS_LONG(is_contiguous_flag);
+    Py_DECREF(is_contiguous_flag);
+
+    return is_contiguous;
 }
 
 static inline void print_array_info(PyObject* obj)

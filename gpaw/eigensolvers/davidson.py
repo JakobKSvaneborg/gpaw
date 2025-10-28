@@ -8,7 +8,7 @@ from gpaw.eigensolvers.diagonalizerbackend import (ScalapackDiagonalizer,
                                                    ScipyDiagonalizer)
 from gpaw.eigensolvers.eigensolver import Eigensolver
 from gpaw.hybrids import HybridXC
-from gpaw.matrix import matrix_matrix_multiply as mmm
+from gpaw.old.matrix import matrix_matrix_multiply as mmm
 
 
 class DummyArray:
@@ -45,7 +45,7 @@ class Davidson(Eigensolver):
         return f'Davidson(niter={self.niter})'
 
     def todict(self):
-        return {'name': 'dav', 'niter': self.niter}
+        return {'name': 'davidson', 'niter': self.niter}
 
     def initialize(self, wfs, dist_backend='scalapack'):
         # dist_backend keyword exists due to this class having

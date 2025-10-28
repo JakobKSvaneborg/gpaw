@@ -1,5 +1,6 @@
 import copy
 import sys
+from itertools import cycle
 from math import pi
 
 import numpy as np
@@ -11,7 +12,7 @@ from ase.utils import seterr
 
 import gpaw.cgpaw as cgpaw
 from gpaw.xc import XC
-from gpaw.gaunt import gaunt
+from gpaw.sphere.gaunt import gaunt
 from gpaw.atom.configurations import configurations
 from gpaw.atom.radialgd import (AERadialGridDescriptor,
                                 AbinitRadialGridDescriptor)
@@ -21,7 +22,20 @@ from gpaw.atom.radialgd import (AERadialGridDescriptor,
 c = 2 * units._hplanck / (units._mu0 * units._c * units._e**2)
 
 # Colors for s, p, d, f, g:
-colors = 'krgbycmkrgbycmmmm'
+
+
+class _Colors:
+    def __init__(self, items):
+        self.items = items
+
+    def __getitem__(self, i):
+        return self.items[i % len(self.items)]
+
+    def __iter__(self):
+        yield from cycle(self.items)
+
+
+colors = _Colors('krgbycm')
 
 
 class GaussianBasis:
@@ -77,11 +91,11 @@ class GaussianBasis:
         self.K_bb = np.dot(np.dot(Q_Bb.T, K_BB), Q_Bb)
 
         r_g = rgd.r_g
-        with seterr(divide='ignore'):
-            # Avoid errors in debug mode from division by zero:
-            gaussians_Bg = np.exp(-np.outer(alpha_B, r_g**2)) * r_g**l
         prefactors_B = (2 * (2 * alpha_B)**(l + 1.5) / gamma(l + 1.5))**0.5
-        self.basis_bg = np.dot(Q_Bb.T, prefactors_B[:, None] * gaussians_Bg)
+        with seterr(divide='ignore', invalid='ignore'):
+            # Avoid errors division by zero when l<0.0:
+            gaussians_Bg = np.exp(-np.outer(alpha_B, r_g**2)) * r_g**l
+            self.basis_bg = Q_Bb.T @ (prefactors_B[:, None] * gaussians_Bg)
 
     def __len__(self):
         return self.nbasis
@@ -462,9 +476,21 @@ class AllElectronAtom:
         self.f_lsn = {}
 
         if configuration is None:
-            configuration = configurations[self.symbol][1]
+            configs = configurations[self.symbol][1]
+        elif isinstance(configuration, str):
+            configs = []
+            if configuration[0] == '[':
+                symbol, configuration = configuration[1:].split(']')
+                configs = configurations[symbol][1]
+            for nlf in configuration.split(','):
+                configs.append((int(nlf[0]),
+                                'spdfg'.index(nlf[1]),
+                                int(nlf[2:]),
+                                -1.0))
+        else:
+            configs = configuration
 
-        for n, l, f, e in configuration:
+        for n, l, f, e in configs:
 
             if l not in self.f_lsn:
                 self.f_lsn[l] = [[] for s in range(self.nspins)]

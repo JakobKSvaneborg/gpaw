@@ -6,7 +6,7 @@ import ase.parallel as mpi
 from ase.build import fcc211, add_adsorbate
 from ase.constraints import FixAtoms
 from ase.optimize import QuasiNewton
-from ase.autoneb import AutoNEB
+from ase.mep.autoneb import AutoNEB
 
 
 @pytest.mark.skip(reason='TODO')

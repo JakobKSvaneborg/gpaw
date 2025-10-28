@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from functools import cached_property
 from types import SimpleNamespace
 
@@ -5,18 +7,23 @@ import numpy as np
 from ase import Atoms
 from ase.units import Bohr
 
-from gpaw.band_descriptor import BandDescriptor
+from gpaw.old.band_descriptor import BandDescriptor
+from gpaw.densities import Densities
 from gpaw.fftw import MEASURE
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.new import prod, zips
-from gpaw.new.calculation import DFTCalculation
+from gpaw.new.density import Density
+from gpaw.new.gpw import GPWFlags
+from gpaw.new.ibzwfs import IBZWaveFunctions
+from gpaw.new.pot_calc import PotentialCalculator
+from gpaw.new.potential import Potential
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.projections import Projections
-from gpaw.pw.descriptor import PWDescriptor
+from gpaw.old.projections import Projections
+from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.utilities import pack_density
 from gpaw.utilities.timing import nulltimer
-from gpaw.wavefunctions.arrays import (PlaneWaveExpansionWaveFunctions,
-                                       UniformGridWaveFunctions)
+from gpaw.old.wavefunctions.arrays import (PlaneWaveExpansionWaveFunctions,
+                                           UniformGridWaveFunctions)
 
 
 class PT:
@@ -75,7 +82,8 @@ class FakeWFS:
         self.occ_calc = occ_calc
         self.occupations = occ_calc.occ
         self.nvalence = int(round(density.nvalence))
-        assert self.nvalence == density.nvalence
+        self.nvalence = density.nvalence
+        # assert self.nvalence == density.nvalence
         self.world = comm
         if ibzwfs.fermi_levels is not None:
             self.fermi_levels = ibzwfs.fermi_levels
@@ -100,8 +108,15 @@ class FakeWFS:
             self.mode = 'lcao'
             self.manytci = wfs.tci_derivatives.manytci
             if self.basis_functions is not None:
-                self.ksl = SimpleNamespace(Mstart=self.basis_functions.Mstart,
-                                           Mstop=self.basis_functions.Mstop)
+                Mstart = self.basis_functions.Mstart
+                Mstop = self.basis_functions.Mstop
+                self.ksl = SimpleNamespace(Mstart=Mstart,
+                                           Mstop=Mstop,
+                                           using_blacs=False,
+                                           world=self.world,
+                                           nao=self.basis_functions.Mmax,
+                                           mynao=Mstop - Mstart,
+                                           block_comm=comm)
         self.collinear = wfs.ncomponents < 4
         self.positions_set = True
         self.read_from_file_init_wfs_dm = ibzwfs.read_from_file_init_wfs_dm
@@ -144,7 +159,7 @@ class FakeWFS:
 
     @cached_property
     def work_matrix_nn(self):
-        from gpaw.matrix import Matrix
+        from gpaw.old.matrix import Matrix
         return Matrix(
             self.bd.nbands, self.bd.nbands,
             dtype=self.dtype,
@@ -166,7 +181,7 @@ class FakeWFS:
 
     def make_preconditioner(self, blocksize):
         if self.mode == 'pw':
-            from gpaw.wavefunctions.pw import Preconditioner
+            from gpaw.old.wavefunctions.pw import Preconditioner
             return Preconditioner(self.pd.G2_qG, self.pd,
                                   _scale=self.ngpts**2)
         from gpaw.preconditioner import Preconditioner
@@ -230,6 +245,27 @@ class FakeWFS:
         x = self.pd.integrate(a_nX, b_nX, global_integral)
         return self.ngpts**2 * x
 
+    def calculate_density_matrix(self, f_n, C_nM, rho_MM=None):
+        assert self.ibzwfs.band_comm.size == 1
+        assert self.ibzwfs.kpt_comm.size == 1
+        rho_MM = self.ibzwfs.wfs_qs[0][0].calculate_density_matrix()
+        return rho_MM
+
+    def write_wave_functions(self, writer):
+        flags = GPWFlags(precision='double',
+                         include_wfs=True, include_projections=True)
+        if self.ibzwfs.collinear:
+            spin_k_shape = (self.ibzwfs.ncomponents, len(self.ibzwfs.ibz))
+        else:
+            spin_k_shape = (len(self.ibzwfs.ibz),)
+        self.ibzwfs._write_wave_functions(writer, spin_k_shape, flags)
+
+    def write_occupations(self, writer):
+        _, occ_skn = self.ibzwfs.get_all_eigs_and_occs()
+        if not self.ibzwfs.collinear:
+            occ_skn = occ_skn[0]
+        writer.write(occupations=occ_skn)
+
 
 class KPT:
     def __init__(self, mode, wfs, atom_partition, scale, pd, gd):
@@ -292,6 +328,8 @@ class KPT:
 
     @property
     def psit_nG(self):
+        if not hasattr(self, 'psit_nX'):
+            return None
         data = self.psit_nX.data
         if self.scale == 1:
             return data
@@ -321,22 +359,41 @@ class KPT:
 
 
 class FakeDensity:
-    def __init__(self, dft: DFTCalculation):
-        self.setups = dft.setups
-        self.D_asii = dft.density.D_asii
-        self.atom_partition = dft._atom_partition
+    def __init__(self,
+                 ibzwfs: IBZWaveFunctions,
+                 density: Density,
+                 potential: Potential,
+                 pot_calc: PotentialCalculator,
+                 densities: Densities | None = None):
+        self.setups = pot_calc.setups
+        self.D_asii = density.D_asii
+        self.atom_partition = self._atom_partition
+        self.ccc_aL = density.calculate_compensation_charge_coefficients()
         try:
-            self.interpolate = dft.pot_calc._interpolate_density
-            self.finegd = dft.pot_calc.fine_grid._gd
+            # mypy complains about these missing from PotentialCalculator
+            self.interpolate = pot_calc._interpolate_density  # type: ignore
+            self.finegd = pot_calc.fine_grid._gd  # type: ignore
+            self.fine_grid = pot_calc.fine_grid  # type: ignore
         except AttributeError:
             pass
-        self.nt_sR = dft.density.nt_sR
+        try:
+            # Only in LCAO
+            self.ghat_aLr = pot_calc.ghat_aLr  # type: ignore
+        except AttributeError:
+            pass
+        self.nt_sR = density.nt_sR
         self.nt_sG = self.nt_sR.data
         self.gd = self.nt_sR.desc._gd
-        self._densities = dft.densities()
+        self._densities = densities
         self.ncomponents = len(self.nt_sG)
         self.nspins = self.ncomponents % 3
         self.collinear = self.ncomponents < 4
+
+    @cached_property
+    def _atom_partition(self):
+        from gpaw.utilities.partition import AtomPartition
+        atomdist = self.D_asii.layout.atomdist
+        return AtomPartition(atomdist.comm, atomdist.rank_a)
 
     @cached_property
     def D_asp(self):
@@ -348,32 +405,77 @@ class FakeDensity:
 
     @cached_property
     def nt_sg(self):
-        return self.interpolate(self.nt_sR)[0].data
+        # Intepolate density
+        nt_sr = self.interpolate(self.nt_sR)[0]
+
+        # Compute pseudo charge
+        pseudo_charge = nt_sr.integrate().sum()
+        comp_charge = (4 * np.pi)**0.5 * sum(float(ccc_L[0])
+                                             for ccc_L in self.ccc_aL.values())
+        comp_charge = self.ccc_aL.layout.atomdist.comm.sum_scalar(comp_charge)
+
+        # Normalize
+        nt_sr.data *= -comp_charge / pseudo_charge
+        return nt_sr.data
+
+    @cached_property
+    def rhot_g(self):
+        rhot_g = self.fine_grid.empty()
+        rhot_g.data[:] = self.nt_sg.sum(axis=0)
+        self.ghat_aLr.add_to(rhot_g, self.ccc_aL)
+        return rhot_g.data
 
     def interpolate_pseudo_density(self):
         pass
 
     def get_all_electron_density(self, *, atoms, gridrefinement):
+        if self._densities is None:
+            raise AttributeError('densities not set')
         n_sr = self._densities.all_electron_densities(
             grid_refinement=gridrefinement).scaled(1 / Bohr, Bohr**3)
         return n_sr.data, n_sr.desc._gd
 
 
+class FakePoisson:
+
+    def get_description(self):
+        return ''
+
+
 class FakeHamiltonian:
-    def __init__(self, ibzwfs, density, potential, pot_calc,
+    def __init__(self,
+                 ibzwfs: IBZWaveFunctions,
+                 density: Density,
+                 potential: Potential,
+                 pot_calc: PotentialCalculator,
+                 e_band=np.nan,
+                 e_kinetic0=np.nan,
+                 e_coulomb=np.nan,
                  e_total_free=np.nan,
+                 e_zero=np.nan,
+                 e_external=np.nan,
+                 e_entropy=np.nan,
+                 e_extrapolation=np.nan,
                  e_xc=np.nan):
         self.pot_calc = pot_calc
         self.ibzwfs = ibzwfs
         self.density = density
         self.potential = potential
+        self.poisson = FakePoisson()
         try:
-            self.finegd = self.pot_calc.fine_grid._gd
+            self.finegd = self.pot_calc.fine_grid._gd  # type: ignore
         except AttributeError:
             pass
         self.grid = potential.vt_sR.desc
         self.e_total_free = e_total_free
         self.e_xc = e_xc
+        self.e_kinetic0 = e_kinetic0
+        self.e_coulomb = e_coulomb
+        self.e_external = e_external
+        self.e_zero = e_zero
+        self.e_entropy = e_entropy
+        self.e_extrapolation = e_extrapolation
+        self.e_band = e_band
 
     def update(self, dens, wfs, kin_en_using_band=True):
         self.potential, _ = self.pot_calc.calculate(
@@ -434,6 +536,15 @@ class FakeHamiltonian:
     @property
     def xc(self):
         return self.pot_calc.xc.xc
+
+    @property
+    def dH_asp(self):
+        from gpaw.utilities.partition import AtomPartition
+        dH_asp = self.potential.dH_asii.to_cpu().to_lower_triangle().gather()
+        atomdist = self.potential.dH_asii.layout.atomdist
+        atom_partition = AtomPartition(atomdist.comm, atomdist.rank_a)
+        dH_asp.partition = atom_partition
+        return dH_asp
 
     def dH(self, P, out):
         for a, I1, I2 in P.indices:

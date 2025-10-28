@@ -8,20 +8,20 @@ from typing import (TYPE_CHECKING, Callable, Dict, Iterable, Iterator, List,
 import numpy as np
 from ase.units import Bohr, Ha, alpha
 
-from gpaw.band_descriptor import BandDescriptor
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.band_descriptor import BandDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.ibz2bz import IBZ2BZMaps
-from gpaw.kpoint import KPoint
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.kpoint import KPoint
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.mpi import broadcast_array, serial_comm
 from gpaw.occupations import OccupationNumberCalculator, ParallelLayout
-from gpaw.projections import Projections
+from gpaw.old.projections import Projections
 from gpaw.setup import Setup
 from gpaw.typing import Array1D, Array2D, Array3D, Array4D, ArrayND
 from gpaw.utilities.partition import AtomPartition
 
 if TYPE_CHECKING:
-    from gpaw.calculator import GPAW  # noqa
+    from gpaw.old.calculator import GPAW  # noqa
     from gpaw.new.ase_interface import ASECalculator
 
 _L_vlmm: List[List[np.ndarray]] = []  # see get_L_vlmm() below
@@ -398,7 +398,7 @@ def soc_eigenstates_raw(ibzwfs: Iterable[Tuple[int, WaveFunction]],
             bzwf = bzwf.redistribute_atoms(atom_partition)
 
             bzwf.add_soc(dVL_avii, s_vss, C_ss)
-            bzwfs[K] = bzwf
+            bzwfs[int(K)] = bzwf  # MYPY: signedinteger[_32Bit | _64Bit] -> int
 
     return bzwfs
 
@@ -479,8 +479,8 @@ def soc_eigenstates(calc: ASECalculator | GPAW | str | Path,
                     phi: float = 0.0,  # degrees
                     eigenvalues: Array3D = None,  # eV
                     occcalc: OccupationNumberCalculator = None,
-                    projected: bool = False
-                    ) -> BZWaveFunctions:
+                    projected: bool = False,
+                    ignore_xc_potential: bool = False) -> BZWaveFunctions:
     """Calculate SOC eigenstates.
 
     Parameters:
@@ -501,11 +501,14 @@ def soc_eigenstates(calc: ASECalculator | GPAW | str | Path,
         occcalc:
             Occupation-number calculator.  By default, the one from *calc*
             will be used.
+        ignore_xc_potential:
+            Ignore XC-contribution to dU/dr for the effective potential
+            (dU/dr is dominated by the Hartree part).
 
     Returns a BZWaveFunctions object covering the whole BZ.
     """
 
-    from gpaw.calculator import GPAW  # noqa
+    from gpaw.old.calculator import GPAW  # noqa
 
     if isinstance(calc, (str, Path)):
         calc = GPAW(calc)
@@ -521,7 +524,9 @@ def soc_eigenstates(calc: ASECalculator | GPAW | str | Path,
 
     # <phi_i|dV_adr / r * L_v|phi_j>
     dVL_avii = {a: soc(calc.wfs.setups[a],
-                       calc.hamiltonian.xc, D_sp) * scale
+                       calc.hamiltonian.xc,
+                       D_sp,
+                       ignore_xc_potential) * scale
                 for a, D_sp in calc.density.D_asp.items()}
 
     if projected:
@@ -562,9 +567,12 @@ def soc_eigenstates(calc: ASECalculator | GPAW | str | Path,
     return BZWaveFunctions(kd, bzwfs, occcalc, calc.wfs.nvalence, n_aj, l_aj)
 
 
-def soc(a: Setup, xc, D_sp: Array2D) -> Array3D:
+def soc(a: Setup,
+        xc,
+        D_sp: Array2D,
+        ignore_xc_potential=False) -> Array3D:
     """<phi_i|dU^a/dr / r * L_v|phi_j>"""
-    v_g = get_radial_potential_derivative(a, xc, D_sp)
+    v_g = get_radial_potential_derivative(a, xc, D_sp, ignore_xc_potential)
     Ng = len(v_g)
     phi_jg = a.data.phi_jg
 
@@ -606,7 +614,10 @@ def projected_soc(dVL_vii: Array3D,
     return dVL_vii
 
 
-def get_radial_potential_derivative(a: Setup, xc, D_sp: Array2D) -> Array1D:
+def get_radial_potential_derivative(a: Setup,
+                                    xc,
+                                    D_sp: Array2D,
+                                    ignore_xc_potential=False) -> Array1D:
     """Calculates (dU/dr) for the effective potential.
     Below, f_g denotes dU/dr which is also the negative of the radial force"""
 
@@ -634,7 +645,7 @@ def get_radial_potential_derivative(a: Setup, xc, D_sp: Array2D) -> Array1D:
     f_g = fc_g + fh_g
 
     # xc force
-    if xc.type != 'GLLB':
+    if not ignore_xc_potential:
         v_sg = np.zeros_like(n_sg)
         xc.calculate_spherical(rgd, n_sg, v_sg)
         fxc_g = np.mean([rgd.derivative(v_g) for v_g in v_sg[:Ns]],

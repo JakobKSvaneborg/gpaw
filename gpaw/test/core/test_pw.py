@@ -84,7 +84,7 @@ def grids():
 @pytest.mark.gpu
 @pytest.mark.parametrize('xp', [np, cp])
 @pytest.mark.parametrize('grid', grids())
-def test_pw_integrate(xp, grid):
+def test_pw_integrate(xp, grid, set_device):
     g = grid
     a = g.desc.cell[0, 0]
     ecut = 0.5 * (2 * np.pi / a)**2 * 1.01
@@ -127,8 +127,8 @@ def test_grr():
                   comm=world)
     pw = PWDesc(ecut=340 / Ha, cell=grid.cell, comm=world)
     print(pw.G_plus_k_Gv.shape)
-    from gpaw.grid_descriptor import GridDescriptor
-    from gpaw.pw.descriptor import PWDescriptor
+    from gpaw.old.grid_descriptor import GridDescriptor
+    from gpaw.old.pw.descriptor import PWDescriptor
     g = GridDescriptor((9, 9, 12), [2 / Bohr, 2 / Bohr, 2.737166 / Bohr])
     p = PWDescriptor(340 / Ha, g)
     print(p.get_reciprocal_vectors().shape)
@@ -164,3 +164,13 @@ def test_random():
     a = pw.empty(2)
     a.randomize()
     assert world.rank != 0 or (a.data[:, 0].imag == 0.0).all()
+
+
+def test_morph():
+    pw1 = PWDesc(ecut=20, cell=[1, 1, 1], comm=world)
+    a = pw1.empty()
+    a.randomize()
+    pw2 = PWDesc(ecut=20, cell=[1, 1, 1.1], comm=world)
+    b = a.morph(pw2)
+    c = b.morph(pw1)
+    assert (a.data == c.data).all()

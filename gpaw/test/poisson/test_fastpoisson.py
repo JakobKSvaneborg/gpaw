@@ -6,7 +6,7 @@ import itertools
 import numpy as np
 from ase.build import bulk
 from gpaw.poisson import FastPoissonSolver, BadAxesError
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.fd_operators import Laplace
 from gpaw.mpi import world
 from gpaw.utilities import h2gpts

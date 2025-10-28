@@ -5,7 +5,7 @@ from ase.units import Bohr
 from gpaw.poisson import PoissonSolver, NoInteractionPoissonSolver
 from gpaw.poisson_moment import MomentCorrectionPoissonSolver, MomentCorrection
 from gpaw.poisson_extravacuum import ExtraVacuumPoissonSolver
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 
 
 @pytest.mark.parametrize('moment_corrections, expected_len', [

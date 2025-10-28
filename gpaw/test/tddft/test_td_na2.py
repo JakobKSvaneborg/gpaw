@@ -5,6 +5,7 @@ from gpaw.tddft import TDDFT, DipoleMomentWriter, photoabsorption_spectrum
 from gpaw.tddft.abc import PML, LinearAbsorbingBoundary, P4AbsorbingBoundary
 
 
+@pytest.mark.old_gpaw_only
 def test_tddft_td_na2(in_tmp_dir, gpw_files):
     """Sodium dimer, Na2."""
     atoms = GPAW(gpw_files['na2_fd']).atoms
@@ -61,7 +62,7 @@ def test_tddft_td_na2(in_tmp_dir, gpw_files):
     td_pmlabs.propagate(time_step, iters)
 
 
-@pytest.mark.old_gpaw_only
+@pytest.mark.old_gpaw_only_mpi
 def test_tddft_fail_with_symmetry(in_tmp_dir, gpw_files):
 
     # Time-propagation calculation

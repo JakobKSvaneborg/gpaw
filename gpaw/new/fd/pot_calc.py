@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from math import pi
 
 import numpy as np
 
 from gpaw.core import UGDesc
-from gpaw.new import zips, spinsum, trace
+from gpaw.new import spinsum, trace, zips
 from gpaw.new.pot_calc import PotentialCalculator
 
 
@@ -18,7 +20,6 @@ class FDPotentialCalculator(PotentialCalculator):
                  relpos_ac,
                  atomdist,
                  interpolation_stencil_range=3,
-                 environment=None,
                  extensions=None,
                  xp=np):
         self.fine_grid = fine_grid
@@ -43,7 +44,6 @@ class FDPotentialCalculator(PotentialCalculator):
 
         super().__init__(xc, poisson_solver, setups,
                          relpos_ac=relpos_ac,
-                         environment=environment,
                          extensions=extensions)
 
     def __str__(self):
@@ -104,10 +104,13 @@ class FDPotentialCalculator(PotentialCalculator):
         comp_charge = ccc_aL.layout.atomdist.comm.sum_scalar(comp_charge)
         pseudo_charge = charge_r.integrate()
         if abs(pseudo_charge) > 1e-10:
-            pc = -comp_charge - density.charge + self.environment.charge
+            pc = (-comp_charge
+                  - density.charge
+                  + sum(ext.charge for ext in self.extensions))
             charge_r.data *= pc / pseudo_charge
 
-        self.environment.update1(charge_r)
+        for ext in self.extensions:
+            ext.update1(charge_r)
 
         self.ghat_aLr.add_to(charge_r, ccc_aL)
 
@@ -119,7 +122,9 @@ class FDPotentialCalculator(PotentialCalculator):
         vt_sr = vxct_sr
         vt_sr.data += vHt_r.data + self.vbar_r.data
 
-        e_env = self.environment.update2(nt_r, vHt_r, vt_sr)
+        e_env = 0.0
+        for ext in self.extensions:
+            e_env += ext.update2(nt_r, vHt_r, vt_sr)
 
         vt_sR = self.restrict(vt_sr)
 
@@ -163,10 +168,12 @@ class FDPotentialCalculator(PotentialCalculator):
         for a, dF_vL in F_avL.items():
             force_av[a] += dF_vL @ Q_aL[a]
 
-        force_av += self.environment.forces(nt_r, potential.vHt_x)
+        ext_force_av = np.zeros((len(self.setups), 3))
+        for ext in self.extensions:
+            ext_force_av += ext.force_contribution(nt_r, potential.vHt_x)
 
         return (force_av,
                 density.nct_aX.derivative(vt_R),
                 Ftauct_av,
                 self.vbar_ar.derivative(nt_r),
-                self.extensions_force_av)
+                ext_force_av)

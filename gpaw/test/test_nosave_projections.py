@@ -16,7 +16,7 @@ def noprojs_gpw(module_tmp_path, request):
     else:
         kwargs = dict(mode={'name': 'pw', 'ecut': 200.0})
     atoms.calc = GPAW(kpts=[2, 2, 2], txt=None, parallel=parallel,
-                      convergence={'density': 1e6, 'eigenstates': 1e6},
+                      convergence={'density': 1e-3, 'eigenstates': 1e-3},
                       **kwargs)
     atoms.get_potential_energy()
     gpw_path = module_tmp_path / f'gs_noprojs_{mode}.gpw'
@@ -45,7 +45,7 @@ def test_nice_error_message(noprojs_gpw):
         wfs.P_ani
 
 
-def test_fixed_density_bandstructure(tmp_path, noprojs_gpw):
+def test_fixed_density_bandstructure(noprojs_gpw):
     calc = GPAW(noprojs_gpw, parallel=parallel)
 
     fixed_calc = calc.fixed_density(

@@ -3,12 +3,10 @@ from pathlib import Path
 from typing import Union, List, Tuple, Optional
 
 import numpy as np
-from ase.spectrum.dosdata import GridDOSData
-from ase.spectrum.doscollection import GridDOSCollection
 
 from gpaw import GPAW
 from gpaw.setup import Setup
-from gpaw.spherical_harmonics import names as ylmnames
+from gpaw.sphere.spherical_harmonics import names as ylmnames
 from gpaw.dos import DOSCalculator
 
 
@@ -152,6 +150,9 @@ def dos(filename: Union[Path, str],
         Calculate integrated DOS.
 
     """
+    from ase.spectrum.dosdata import GridDOSData
+    from ase.spectrum.doscollection import GridDOSCollection
+
     calc = GPAW(filename)
 
     doscalc = DOSCalculator.from_calculator(calc, soc)

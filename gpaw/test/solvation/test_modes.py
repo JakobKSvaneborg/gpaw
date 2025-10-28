@@ -28,7 +28,7 @@ def test_h(gpaw_new, mode, in_tmp_dir):
     solvation = dict(cavity=NoCavity(), dielectric=Vacuum(), interactions=[])
 
     if gpaw_new:
-        atoms.calc = GPAW(environment=SJM(**sjm, **solvation), **params)
+        atoms.calc = GPAW(extensions=[SJM(**sjm, **solvation)], **params)
         atoms.get_potential_energy()
         pot = -atoms.calc.get_fermi_level()
     else:
@@ -41,11 +41,7 @@ def test_h(gpaw_new, mode, in_tmp_dir):
     atoms.write('h.traj')
     if gpaw_new:
         atoms.calc.write('h.gpw')
-
-        def hook(dct):
-            return SJM(**sjm, **solvation)
-
-        GPAW('h.gpw', object_hooks={'environment': hook})
+        GPAW('h.gpw', object_hooks={'extensions': lambda exts: []})
 
     if 0:
         v = atoms.calc.get_electrostatic_potential()

@@ -27,6 +27,7 @@ def create_functional(xc: OldXCFunctional | str | dict,
                       xp=np) -> Functional:
     exx_fraction = 0.0
     exx_omega = 0.0
+    exx_yukawa = False
     if isinstance(xc, (str, dict)):
         xc = XC(xc)
 
@@ -34,6 +35,7 @@ def create_functional(xc: OldXCFunctional | str | dict,
         assert isinstance(xc, HybridXC)
         exx_fraction = xc.exx_fraction
         exx_omega = xc.omega
+        exx_yukawa = xc.yukawa
         xc = xc.xc
 
     if xc.type == 'LDA':
@@ -47,6 +49,7 @@ def create_functional(xc: OldXCFunctional | str | dict,
 
     functional.exx_fraction = exx_fraction
     functional.exx_omega = exx_omega
+    functional.exx_yukawa = exx_yukawa
 
     return functional
 
@@ -63,9 +66,11 @@ class Functional:
         self.name = self.xc.name
         self.type = self.xc.type
         self.xc.xp = xp
-        self.xc.set_grid_descriptor(grid._gd)
+        if grid.size.any():  # not TB-mode
+            self.xc.set_grid_descriptor(grid._gd)
         self.exx_fraction = 0.0
         self.exx_omega = 0.0
+        self.exx_yukawa = False
         self.energies: dict[str, float] = {}
 
     def __str__(self):
@@ -78,8 +83,8 @@ class Functional:
                                                            UGArray | None]:
         raise NotImplementedError
 
-    def calculate_paw_correction(self, setup, d, h=None):
-        return self.xc.calculate_paw_correction(setup, d, h)
+    def calculate_paw_correction(self, setup, d, h=None, a=None):
+        return self.xc.calculate_paw_correction(setup, d, h, a=a)
 
     def get_setup_name(self) -> str:
         return self.name
@@ -169,7 +174,8 @@ class GGAFunctional(LDAFunctional):
                  xp=np):
         super().__init__(xc, grid, xp)
         # xc already has Gradient.apply bound methods!!!
-        self.grad_v = [grad.__self__ for grad in xc.grad_v]  # type: ignore
+        if grid.size.any():  # not TB-mode
+            self.grad_v = [grad.__self__ for grad in xc.grad_v]  # type: ignore
 
     def _evaluate_xc_cpu(self, args):
         if 'vdW' not in self.name:

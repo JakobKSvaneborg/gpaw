@@ -12,7 +12,7 @@ from gpaw import __version__ as version
 from gpaw.atom.aeatom import (AllElectronAtom, Channel, GaussianBasis, colors,
                               parse_ld_str)
 from gpaw.basis_data import Basis, BasisFunction
-from gpaw.gaunt import gaunt
+from gpaw.sphere.gaunt import gaunt
 from gpaw.setup_data import SetupData
 from gpaw.typing import Array2D
 from gpaw.utilities import pack_hermitian
@@ -790,25 +790,6 @@ class PAWSetupGenerator:
         if show:
             plt.show()
 
-    def plot_potential_components(self, ax: 'plt.Axes') -> None:
-        r_g = self.rgd.r_g
-        assert self.vtr_g is not None  # Appease `mypy`
-
-        ax.plot(r_g, self.vxct_g, label='xc')
-        ax.plot(r_g[1:], self.v0r_g[1:] / r_g[1:], label='0')
-        ax.plot(r_g[1:], self.vHtr_g[1:] / r_g[1:], label='H')
-        ax.plot(r_g[1:], self.vtr_g[1:] / r_g[1:], label='ps')
-        ax.plot(r_g[1:], self.aea.vr_sg[0, 1:] / r_g[1:], label='ae')
-        ax.axis(xmin=0,
-                xmax=2 * self.rcmax,
-                ymin=self.vtr_g[1] / r_g[1],
-                ymax=max(0, (self.v0r_g[1:] / r_g[1:]).max()))
-        aea = self.aea
-        ax.set_title(f'Potential components: {aea.symbol} {aea.xc.name}')
-        ax.set_xlabel('radius [Bohr]')
-        ax.set_ylabel('potential [Ha]')
-        ax.legend()
-
     def plot(
         self,
         *,
@@ -817,17 +798,20 @@ class PAWSetupGenerator:
         projectors: 'plt.Axes' | None = None,
     ) -> None:
         if potential_components is not None:
-            self.plot_potential_components(potential_components)
+            from .plot_dataset import (
+                plot_potential_components,
+                get_plot_pot_comps_params_from_generator as get_pc_args)
+            plot_potential_components(potential_components, *get_pc_args(self))
         if partial_waves is not None:
             from .plot_dataset import (
                 plot_partial_waves,
-                get_ppw_params_paw_setup_generator as get_ppw_args)
+                get_plot_pwaves_params_from_generator as get_ppw_args)
 
             plot_partial_waves(partial_waves, *get_ppw_args(self))
         if projectors is not None:
             from .plot_dataset import (
                 plot_projectors,
-                get_pp_params_paw_setup_generator as get_pp_args)
+                get_plot_projs_params_from_generator as get_pp_args)
 
             plot_projectors(projectors, *get_pp_args(self))
 
@@ -1288,7 +1272,7 @@ def get_parameters(symbol, args):
         extra = {}
 
     if args.configuration:
-        configuration = eval(args.configuration)
+        configuration = args.configuration
     else:
         configuration = None
 
@@ -1411,8 +1395,7 @@ class CLICommand:
             help='Exchange-Correlation functional (default value LDA)',
             metavar='<XC>')
         add('-C', '--configuration',
-            help='e.g. for Li: "[(1, 0, 2, -1.878564), (2, 0, 1, -0.10554),'
-            ' (2, 1, 0, 0.0)]"')
+            help='Example for Nd: "[Xe]6s1,5d1,4f4".')
         add('-P', '--projectors',
             help='Projector functions - use comma-separated - ' +
             'nl values, where n can be principal quantum number ' +

@@ -12,7 +12,7 @@ WSe2.positions[:, 2] -= 3.3
 
 bilayer = WSe2 + MoS2
 bilayer.center(vacuum=6.0, axis=2)
-bilayer.pbc = True  # Too surpress the D3 warning
+bilayer.pbc = True  # suppress the D3 warning
 
 calc = GPAW(mode=PW(400),
             xc='PBE',

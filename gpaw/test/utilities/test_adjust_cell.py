@@ -5,7 +5,7 @@ from ase.build import fcc111, graphene_nanoribbon
 
 from gpaw.utilities.adjust_cell import adjust_cell
 from gpaw.utilities import h2gpts
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 
 
 def test_non_periodic():

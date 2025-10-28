@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any, Callable
 
 import numpy as np
 from ase import Atoms
 from ase.units import Ha
+
 from gpaw import __version__
 from gpaw.core import UGArray
+from gpaw.core.arrays import XArrayWithNoData
+from gpaw.dft import GPAW, Parameters
 from gpaw.dos import DOSCalculator
 from gpaw.mpi import broadcast, synchronize_atoms
 from gpaw.new import Timer, trace
@@ -22,8 +24,6 @@ from gpaw.new.xc import create_functional
 from gpaw.typing import Array1D, Array2D, Array3D
 from gpaw.utilities import pack_density
 from gpaw.utilities.memory import maxrss
-from gpaw.dft import Parameters, GPAW
-
 
 LOGO = """\
   ___ ___ ___ _ _ _
@@ -35,7 +35,7 @@ LOGO = """\
 
 
 def write_header(log: Logger, params: Parameters) -> None:
-    from gpaw.io.logger import write_header as header
+    from gpaw.old.logger import write_header as header
     log(LOGO.format(version=__version__))
     header(log, log.comm)
     with log.indent('input parameters:'):
@@ -340,10 +340,6 @@ class ASECalculator:
                          precision=precision, include_wfs=mode == 'all')
         write_gpw(filename, self.dft, flags=flags)
 
-    @property
-    def environment(self):
-        return self.dft.pot_calc.environment
-
     # Old API:
 
     implemented_properties = ['energy', 'free_energy',
@@ -391,7 +387,7 @@ class ASECalculator:
     def get_number_of_electrons(self):
         density = self.dft.density
         return (density.nvalence - density.charge +
-                self.dft.pot_calc.environment.charge)
+                self.dft.pot_calc.charge)
 
     def get_number_of_bands(self):
         return self.dft.ibzwfs.nbands
@@ -424,7 +420,7 @@ class ASECalculator:
     def get_pseudo_density(self,
                            spin=None,
                            gridrefinement=1,
-                           broadcast=True) -> Array3D:
+                           broadcast=True) -> Array3D | None:
         assert spin is None
         nt_sr = self.dft.densities().pseudo_densities(
             grid_refinement=gridrefinement)
@@ -522,15 +518,20 @@ class ASECalculator:
     @property
     def density(self):
         from gpaw.new.backwards_compatibility import FakeDensity
-        return FakeDensity(self.dft)
+        return FakeDensity(ibzwfs=self.dft.ibzwfs,
+                           density=self.dft.density,
+                           potential=self.dft.potential,
+                           pot_calc=self.dft.pot_calc,
+                           densities=self.dft.densities())
 
     @property
     def hamiltonian(self):
         from gpaw.new.backwards_compatibility import FakeHamiltonian
         return FakeHamiltonian(
             self.dft.ibzwfs, self.dft.density, self.dft.potential,
-            self.dft.pot_calc, self.dft.results.get('free_energy'),
-            self.dft.energies._energies['xc'])
+            self.dft.pot_calc,
+            e_total_free=self.dft.results.get('free_energy'),
+            e_xc=self.dft.energies._energies['xc'])
 
     @property
     def spos_ac(self):
@@ -559,7 +560,7 @@ class ASECalculator:
         xc = create_functional(xcparams, pot_calc.fine_grid)
         if xc.type == 'MGGA' and density.taut_sR is None:
             dft.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
-            if isinstance(dft.ibzwfs.wfs_qs[0][0].psit_nX, SimpleNamespace):
+            if isinstance(dft.ibzwfs.wfs_qs[0][0].psit_nX, XArrayWithNoData):
                 builder = self.params.dft_component_builder(self.atoms,
                                                             log=dft.log)
                 basis_set = builder.create_basis_set()
@@ -614,23 +615,24 @@ class ASECalculator:
                       txt='-',
                       update_fermi_level: bool = False,
                       **kwargs) -> ASECalculator:
+        kwargs.pop('communicator', None)  # Ignore silently
         kwargs = {**self.params.todict(), **kwargs}
         params = Parameters(**kwargs)
         log = Logger(txt, self.comm)
         builder = params.dft_component_builder(self.atoms, log=log)
         basis_set = builder.create_basis_set()
         dft = self.dft
-        comm1 = dft.ibzwfs.kpt_band_comm
-        comm2 = builder.communicators['D']
+        kbcomm1 = dft.ibzwfs.kpt_band_comm
+        kbcomm2 = builder.communicators['D']
         potential = dft.potential.redist(
             builder.grid,
             builder.electrostatic_potential_desc,
             builder.atomdist,
-            comm1, comm2)
+            kbcomm1, kbcomm2)
         density = dft.density.redist(builder.grid,
                                      builder.interpolation_desc,
                                      builder.atomdist,
-                                     comm1, comm2)
+                                     kbcomm1, kbcomm2)
         ibzwfs = builder.create_ibz_wave_functions(basis_set, potential)
         ibzwfs.fermi_levels = dft.ibzwfs.fermi_levels
 

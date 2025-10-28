@@ -44,16 +44,20 @@ class DFTComponentsBuilder:
                  *,
                  log=None,
                  comm=None):
+        from gpaw.gpu import set_device
 
         self.atoms = atoms.copy()
         self.mode = params.mode.name
         self.params = params
         if not isinstance(log, Logger):
             log = Logger(log, comm)
+
         self.log = log
         comm = log.comm
 
         parallel = params.parallel
+        if self.gpu:
+            set_device(log)
 
         synchronize_atoms(atoms, comm)
         self.check_cell(atoms.cell)
@@ -65,7 +69,12 @@ class DFTComponentsBuilder:
         self.nspins = self.ncomponents % 3
         self.spin_degeneracy = self.ncomponents % 2 + 1
 
-        xcfunc = params.xc.functional(collinear=(self.ncomponents < 4))
+        self.relpos_ac = self.atoms.get_scaled_positions()
+        self.relpos_ac %= 1
+        self.relpos_ac %= 1  # yes, we need to do this twice!
+
+        xcfunc = params.xc.functional(collinear=(self.ncomponents < 4),
+                                      atoms=self.atoms)
 
         if self.ncomponents == 4 and xcfunc.type != 'LDA':
             raise ValueError('Only LDA supported for '
@@ -139,10 +148,6 @@ class DFTComponentsBuilder:
 
         self.grid, self.fine_grid = self.create_uniform_grids()
 
-        self.relpos_ac = self.atoms.get_scaled_positions()
-        self.relpos_ac %= 1
-        self.relpos_ac %= 1  # yes, we need to do this twice!
-
         self.xc = create_functional(xcfunc, self.fine_grid, self.xp)
 
         self.interpolation_desc: Domain
@@ -152,13 +157,15 @@ class DFTComponentsBuilder:
         return f'{self.__class__.__name__}({self.atoms}, {self.params})'
 
     def get_extensions(self):
-        return [ext.build(self.atoms,
-                          self.communicators,
-                          self.log) for ext in self.params.extensions]
+        return [ext.build(self) for ext in self.params.extensions]
+
+    @cached_property
+    def charge(self) -> float:
+        return self.setups.core_charge + self.params.charge
 
     @cached_property
     def nelectrons(self) -> float:
-        return self.setups.nvalence - self.params.charge
+        return self.setups.nvalence - self.charge
 
     @cached_property
     def atomdist(self) -> AtomDistribution:
@@ -243,7 +250,8 @@ class DFTComponentsBuilder:
                             self.relpos_ac,
                             self.communicators['w'],
                             self.communicators['k'],
-                            self.communicators['b'])
+                            self.communicators['b'],
+                            self.xp)
 
     def density_from_superposition(self, basis_set):
         return Density.from_superposition(
@@ -255,7 +263,7 @@ class DFTComponentsBuilder:
             basis_set=basis_set,
             magmom_av=self.initial_magmom_av,
             ncomponents=self.ncomponents,
-            charge=self.params.charge,
+            charge=self.charge,
             hund=self.params.hund,
             mgga=self.xc.type == 'MGGA')
 
@@ -269,7 +277,25 @@ class DFTComponentsBuilder:
             self.initial_magmom_av.sum(0),
             self.ncomponents,
             self.nelectrons,
-            np.linalg.inv(self.atoms.cell.complete()).T)
+            np.linalg.inv(self.atoms.cell.complete()).T,
+            orbital_free=any(setup.orbital_free for setup in self.setups))
+
+    def create_poisson_solver(self, extensions):
+        poisson_solvers = []
+        for ext in extensions:
+            ps = ext.create_poisson_solver(
+                self.fine_grid,
+                pw=self.electrostatic_potential_desc,
+                charge=self.charge,
+                xp=self.xp)
+            if ps is not None:
+                poisson_solvers.append(ps)
+        if not poisson_solvers:
+            raise NotImplementedError
+        assert len(poisson_solvers) == 1
+        psparams = self.params.poissonsolver.params
+        assert not psparams
+        return poisson_solvers[0]
 
     def create_ibz_wave_functions(self,
                                   basis: BasisFunctions,
@@ -367,12 +393,6 @@ class DFTComponentsBuilder:
             # old gpw-file
             ibzwfs.fermi_levels = np.array(
                 [reader.occupations.fermilevel / ha])
-
-    def create_environment(self, grid):
-        return self.params.environment.build(
-            setups=self.setups,
-            grid=grid, relpos_ac=self.relpos_ac, log=self.log,
-            comm=self.communicators['w'])
 
 
 def create_communicators(comm: MPIComm = None,

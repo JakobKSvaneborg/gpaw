@@ -10,9 +10,9 @@ class Spring:
     def __init__(self, *, a1, a2, l, k):
         self.a1, self.a2, self.l, self.k = a1, a2, l, k
 
-    def build(self, atoms, domain_comm, log):
-        atoms = atoms.copy()
-        log('Building Spring')
+    def build(self, builder):
+        atoms = builder.atoms.copy()
+        builder.log('Building Spring')
 
         class EnergyAdder(Extension):
             name = 'spring'
@@ -34,7 +34,7 @@ class Spring:
                 _self.F_av[self.a1, :] = -v * F
                 _self.F_av[self.a2, :] = v * F
 
-            def force_contribution(self):
+            def force_contribution(self, nt_r, vHt_r):
                 return self.F_av
 
             def get_energy_contributions(self):
@@ -84,6 +84,7 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
                     symmetry='off',
                     parallel={'band': band, 'domain': domain},
                     kpts=(2, 1, 1),
+                    convergence={'density': 1e-6},
                     mode=mode)
         atoms.calc = calc
         return calc
@@ -106,6 +107,7 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     # 3. Calculate a reference result without extensions
     calc = GPAW(mode=mode,
                 kpts=(2, 1, 1),
+                convergence={'density': 1e-6},
                 symmetry='off')
     atoms.calc = calc
 

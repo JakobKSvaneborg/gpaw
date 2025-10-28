@@ -1,6 +1,6 @@
 import numpy as np
 
-from gpaw.calculator import GPAW
+from gpaw.old.calculator import GPAW
 from gpaw.elph import ResonantRamanCalculator
 
 

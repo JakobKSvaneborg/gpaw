@@ -31,7 +31,7 @@ def test_dH_aii_times_P_ani(dtype):
     out_cupy_nI = cp.zeros((nN, IN), dtype=dtype)
     ni_a = cp.ones(aN, dtype=np.int32) * iN
 
-    kernel_call(dH_aii, ni_a, P_nI, out_kernel_nI)
+    kernel_call(dH_aii, ni_a, P_nI, out_kernel_nI, 0)
     cupy_call(dH_aii, ni_a, P_nI, out_cupy_nI)
     assert out_kernel_nI.get() == \
         pytest.approx(out_cupy_nI.get(), abs=1e-5)
@@ -57,8 +57,10 @@ def test_pwlfc_expand(dtype, cc):
 
     rdtype = as_real_dtype(dtype)
     f_Gs = rng.randn(GN, sN, dtype=rdtype)
-    emiGR_Ga = rng.randn(GN, aN, dtype=rdtype) \
-        + 1j * rng.randn(GN, aN, dtype=rdtype)
+    Gk_Gv = rng.randn(GN, 3, dtype=rdtype)
+    pos_av = rng.randn(aN, 3, dtype=rdtype)
+    eikR_a = rng.randn(aN, dtype=rdtype) \
+        + 1j * rng.randn(aN, dtype=rdtype)
     Y_GL = rng.randn(GN, LN, dtype=rdtype)
 
     gN = GN if np.issubdtype(dtype, np.complexfloating) else 2 * GN
@@ -80,14 +82,21 @@ def test_pwlfc_expand(dtype, cc):
         I1 = I2
     assert I2 == IN
 
-    kernel_call(f_Gs, emiGR_Ga, Y_GL,
+    kernel_call(f_Gs, Gk_Gv, pos_av,
+                eikR_a, Y_GL,
                 l_s, a_J, s_J,
-                cc, f_kernel_GI, I_J)
-    cupy_call(f_Gs, emiGR_Ga, Y_GL,
+                cc, f_kernel_GI, I_J, 0)
+    cupy_call(f_Gs, Gk_Gv, pos_av,
+              eikR_a, Y_GL,
               l_s, a_J, s_J,
               cc, f_cupy_GI, I_J)
 
-    assert f_kernel_GI.get() == pytest.approx(f_cupy_GI.get())
+    if dtype in {np.float32, np.complex64}:
+        tol = 1e-6
+    else:
+        tol = 1e-12
+    assert f_kernel_GI.get() == pytest.approx(f_cupy_GI.get(),
+                                              rel=tol, abs=tol)
 
 
 @pytest.mark.gpu
@@ -110,7 +119,7 @@ def test_pw_amend_insert_realwf(dtype):
     array_kernel_nQ = array_nQ.copy()
     array_cupy_nQ = array_nQ.copy()
 
-    kernel_call(array_kernel_nQ, n, m)
+    kernel_call(array_kernel_nQ, n, m, 0)
     cupy_call(array_cupy_nQ, n, m)
 
     assert array_kernel_nQ.get() != pytest.approx(array_nQ.get())
@@ -138,7 +147,7 @@ def test_calculate_residuals(dtype):
     residual_kernel_nG = cp.zeros((nN, GN), dtype=dtype)
     residual_cupy_nG = cp.zeros((nN, GN), dtype=dtype)
 
-    kernel_call(residual_kernel_nG, eps_n, wfs_nG)
+    kernel_call(residual_kernel_nG, eps_n, wfs_nG, 0)
     cupy_call(residual_cupy_nG, eps_n, wfs_nG)
 
     assert residual_kernel_nG.get() == pytest.approx(residual_cupy_nG.get())
@@ -166,7 +175,7 @@ def test_add_to_density(dtype):
     nt_kernel_R = cp.zeros(RN, dtype=np.float64)
     nt_cupy_R = cp.zeros(RN, dtype=np.float64)
 
-    kernel_call(weight_n, psit_nR, nt_kernel_R)
+    kernel_call(weight_n, psit_nR, nt_kernel_R, 0)
     cupy_call(weight_n, psit_nR, nt_cupy_R)
 
     assert nt_kernel_R.get() == \
@@ -193,7 +202,7 @@ def test_pw_norm(dtype):
     result_kernel_x = cp.empty(xN, dtype=rdtype)
     result_cupy_x = cp.empty(xN, dtype=rdtype)
 
-    kernel_call(result_kernel_x, C_xG)
+    kernel_call(result_kernel_x, C_xG, 0)
     cupy_call(result_cupy_x, C_xG)
 
     assert result_kernel_x.get() == pytest.approx(result_cupy_x.get())
@@ -220,7 +229,7 @@ def test_pw_norm_kinetic(dtype):
     result_kernel_x = cp.zeros(xN, dtype=rdtype)
     result_cupy_x = cp.zeros(xN, dtype=rdtype)
 
-    kernel_call(result_kernel_x, C_xG, kin_G)
+    kernel_call(result_kernel_x, C_xG, kin_G, 0)
     cupy_call(result_cupy_x, C_xG, kin_G)
 
     assert result_kernel_x.get() == \
@@ -255,7 +264,7 @@ def test_pw_insert(dtype):
     psit_kernel_bQ = cp.zeros((bN, QN), dtype=dtype)
     psit_cupy_bQ = cp.zeros((bN, QN), dtype=dtype)
 
-    kernel_call(psit_nG, Q_G, scale, psit_kernel_bQ, nx, ny, nz)
+    kernel_call(psit_nG, Q_G, scale, psit_kernel_bQ, nx, ny, nz, 0)
     cupy_call(psit_nG, Q_G, scale, psit_cupy_bQ, nx, ny, nz)
 
     assert psit_kernel_bQ.get() == pytest.approx(psit_cupy_bQ.get())

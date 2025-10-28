@@ -16,9 +16,11 @@ import gpaw.cgpaw as cgpaw
 import numpy as np
 import scipy.linalg.blas as blas
 from gpaw import debug
+from gpaw.gpu import cupy_is_fake
 from gpaw.new import prod
 from gpaw.typing import Array2D, ArrayND
 from gpaw.utilities import is_contiguous
+from gpaw.new.timer import trace
 
 
 def is_finite(array, tril=False):
@@ -298,7 +300,7 @@ def rk(alpha, a, beta, c, trans='c'):
 
         assert (a.dtype == float and c.dtype == float or
                 a.dtype == complex and c.dtype == complex)
-        assert a.flags.c_contiguous
+        assert a.flags.c_contiguous, (a.shape, a.strides, a.dtype)
         assert a.ndim > 1
         if trans == 'n':
             assert c.shape == (a.shape[1], a.shape[1])
@@ -343,12 +345,19 @@ def r2k(alpha, a, b, beta, c, trans='c'):
 
     Only the lower triangle of ``c`` will contain sensible numbers.
     """
+    # Get a flattened view of the last dimensions
+    if c.size == 0:
+        return
+    a = a.reshape(a.shape[0], -1)
+    b = b.reshape(b.shape[0], -1)
     if debug:
         assert beta == 0.0 or is_finite(c, tril=True)
         assert (a.dtype == float and b.dtype == float and c.dtype == float or
                 a.dtype == complex and b.dtype == complex and
                 c.dtype == complex)
-        assert a.flags.c_contiguous and b.flags.c_contiguous
+        # assert a.flags.c_contiguous and b.flags.c_contiguous
+        assert a.strides[-1] == a.itemsize or a.size == 0
+        assert b.strides[-1] == b.itemsize or b.size == 0
         assert a.ndim > 1
         assert a.shape == b.shape
         if trans == 'c':
@@ -360,12 +369,41 @@ def r2k(alpha, a, b, beta, c, trans='c'):
     cgpaw.r2k(alpha, a, b, beta, c, trans)
 
 
+@trace(gpu=True)
 def gpu_r2k(alpha, a, b, beta, c, trans='c'):
     """Launch CPU or GPU version of r2k()."""
-    cgpaw.r2k_gpu(alpha, a.data.ptr, a.shape,
-                  b.data.ptr, b.shape, beta,
-                  c.data.ptr, c.shape,
-                  a.dtype)
+    if cupy_is_fake:
+        return r2k(alpha, a._data, b._data, beta, c._data, trans)
+
+    from cupy.cuda.stream import get_current_stream
+
+    assert a.shape == b.shape
+    assert c.shape[0] == a.shape[0]
+    assert c.shape[1] == a.shape[0]
+    assert a.strides[-1] == a.itemsize or a.size == 0
+    assert b.strides[-1] == b.itemsize or b.size == 0
+    assert c.strides[1] == c.itemsize or c.size == 0
+    assert a.ndim > 1
+
+    if a.size == 0 and b.size == 0:
+        if beta:
+            c *= beta
+        else:
+            c[:] = 0
+        return
+
+    lda = a.strides[0] // a.itemsize
+    ldb = b.strides[0] // b.itemsize
+    ldc = c.strides[0] // c.itemsize
+    cgpaw.r2k_gpu(get_current_stream().ptr,
+                  alpha,
+                  a,
+                  b,
+                  beta,
+                  c,
+                  lda,
+                  ldb,
+                  ldc)
 
 
 def gpu_dotc(a, b):
@@ -385,6 +423,9 @@ def gpu_dotc(a, b):
         assert ((is_contiguous(a, float) and is_contiguous(b, float)) or
                 (is_contiguous(a, complex) and is_contiguous(b, complex)))
         assert a.shape == b.shape
+
+        from cupy.cuda.stream import get_current_stream
+        assert get_current_stream().ptr == 0
 
     return cgpaw.dotc_gpu(a.data.ptr, a.shape,
                           b.data.ptr, a.dtype)
@@ -407,6 +448,9 @@ def gpu_dotu(a, b):
         assert ((is_contiguous(a, float) and is_contiguous(b, float)) or
                 (is_contiguous(a, complex) and is_contiguous(b, complex)))
         assert a.shape == b.shape
+
+        from cupy.cuda.stream import get_current_stream
+        assert get_current_stream().ptr == 0
 
     return cgpaw.dotu_gpu(a.data.ptr, a.shape,
                           b.data.ptr, a.dtype)
@@ -521,7 +565,6 @@ if not hasattr(cgpaw, 'mmm'):
 elif not debug:
     mmm = cgpaw.mmm  # noqa
     rk = cgpaw.rk  # noqa
-    r2k = cgpaw.r2k  # noqa
     gemmdot = _gemmdot
 
 else:

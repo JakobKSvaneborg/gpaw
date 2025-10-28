@@ -5,8 +5,8 @@ from ase.units import Bohr
 
 import gpaw.cgpaw as cgpaw
 from gpaw import debug
-from gpaw.grid_descriptor import GridDescriptor, GridBoundsError
-from gpaw.gpu import cupy_is_fake
+from gpaw.old.grid_descriptor import GridDescriptor, GridBoundsError
+from gpaw.gpu import cupy_is_fake, as_numpy, as_np, as_xp
 from gpaw.new import trace
 from gpaw.utilities import smallest_safe_grid_spacing
 
@@ -967,7 +967,6 @@ class BasisFunctions(LocalizedFunctionsCollection):
                                               dtype, integral,
                                               forces, xp=xp)
         self.use_global_indices = True
-
         self.Mstart = None
         self.Mstop = None
 
@@ -1027,17 +1026,18 @@ class BasisFunctions(LocalizedFunctionsCollection):
                    a,i
 
         """
-        assert np.all(self.gd.n_c == nt_sG.shape[1:])
-        nspins = len(nt_sG)
-        f_sM = np.empty((nspins, self.Mmax))
-        for a in self.atom_indices:
-            sphere = self.sphere_a[a]
-            M1 = self.M_a[a]
-            M2 = M1 + sphere.Mmax
-            f_sM[:, M1:M2] = f_asi[a]
+        with as_numpy(nt_sG) as nt_sG:
+            assert np.all(self.gd.n_c == nt_sG.shape[1:])
+            nspins = len(nt_sG)
+            f_sM = np.empty((nspins, self.Mmax))
+            for a in self.atom_indices:
+                sphere = self.sphere_a[a]
+                M1 = self.M_a[a]
+                M2 = M1 + sphere.Mmax
+                f_sM[:, M1:M2] = f_asi[a]
 
-        for nt_G, f_M in zip(nt_sG, f_sM):
-            self.lfc.construct_density1(f_M, nt_G)
+            for nt_G, f_M in zip(nt_sG, f_sM):
+                self.lfc.construct_density1(f_M, nt_G)
 
     def construct_density(self, rho_MM, nt_G, q):
         """Calculate electron density from density matrix.
@@ -1054,7 +1054,10 @@ class BasisFunctions(LocalizedFunctionsCollection):
                    --     M1       M1M2   M2
                   M1,M2
         """
-        self.lfc.construct_density(rho_MM, nt_G, q, self.Mstart, self.Mstop)
+        rho_MM = as_np(rho_MM)
+        with as_numpy(nt_G) as nt_G:
+            self.lfc.construct_density(
+                rho_MM, nt_G, q, self.Mstart, self.Mstop)
 
     def integrate2(self, a_xG, c_xM, q=-1):
         """Calculate integrals of arrays times localized functions.
@@ -1084,6 +1087,8 @@ class BasisFunctions(LocalizedFunctionsCollection):
                       /
 
         Overwrites the elements of the target matrix Vt_MM. """
+        vt_G = as_np(vt_G)
+
         assert np.all(vt_G.shape == self.gd.n_c), (vt_G.shape, self.gd.n_c)
         if self.gamma and self.dtype == float:
             Vt_xMM = np.zeros((1, self.Mstop - self.Mstart, self.Mmax))
@@ -1095,7 +1100,8 @@ class BasisFunctions(LocalizedFunctionsCollection):
                                self.Mmax))
             self.lfc.calculate_potential_matrices(vt_G, Vt_xMM, self.x_W,
                                                   self.Mstart, self.Mstop)
-        return Vt_xMM
+
+        return as_xp(Vt_xMM, self.xp)
 
     def calculate_potential_matrix(self, vt_G, Vt_MM, q):
         """Calculate lower part of potential matrix.
@@ -1251,7 +1257,7 @@ def LFC(gd, spline_aj, kd=None,
 
 
 def test():
-    from gpaw.grid_descriptor import GridDescriptor
+    from gpaw.old.grid_descriptor import GridDescriptor
 
     ngpts = 40
     h = 1 / ngpts

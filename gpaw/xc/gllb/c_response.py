@@ -5,7 +5,7 @@ import numpy as np
 from ase.units import Ha
 from gpaw import BadParallelization
 from gpaw.mpi import world
-from gpaw.density import redistribute_array, redistribute_atomic_matrices
+from gpaw.old.density import redistribute_array, redistribute_atomic_matrices
 from gpaw.sphere.lebedev import weight_n
 from gpaw.utilities import (pack_atomic_matrices, pack_density,
                             unpack_atomic_matrices)
@@ -639,7 +639,7 @@ class C_Response(Contribution):
     def heeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeelp(self, olddens):
         # XXX This function should be removed once the deprecated
         # `fixdensity=True` option is removed.
-        from gpaw.density import redistribute_array
+        from gpaw.old.density import redistribute_array
         self.vt_sg = redistribute_array(self.vt_sg,
                                         olddens.finegd, self.finegd,
                                         self.wfs.nspins, self.wfs.kptband_comm)

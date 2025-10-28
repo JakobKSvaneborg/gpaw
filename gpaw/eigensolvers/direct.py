@@ -3,7 +3,7 @@
 
 import numpy as np
 from gpaw.eigensolvers.eigensolver import Eigensolver
-from gpaw.matrix_descriptor import MatrixDescriptor
+from gpaw.old.matrix_descriptor import MatrixDescriptor
 
 
 class DirectPW(Eigensolver):

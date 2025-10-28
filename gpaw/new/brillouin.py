@@ -53,6 +53,7 @@ class BZPoints:
                                  use_time_reversal,
                                  comm,
                                  tolerance)
+        assert (weight_k > 0.0).all()
 
         if strict and -1 in bz2bz_Ks:
             raise ValueError(
@@ -60,6 +61,12 @@ class BZPoints:
 
         return IBZ(symmetries, self, ibz2bz_k, bz2ibz_K, weight_k, bz2bz_Ks,
                    sym_K, time_reversal_K)
+
+
+class BZBandPath(BZPoints):
+    def __init__(self, band_path):
+        self.band_path = band_path
+        super().__init__(band_path.kpts)
 
 
 class MonkhorstPackKPoints(BZPoints):

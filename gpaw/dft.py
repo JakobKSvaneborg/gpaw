@@ -15,13 +15,14 @@ from gpaw.new.calculation import DFTCalculation
 from gpaw.new.logger import Logger
 from gpaw.new.symmetry import Symmetries, create_symmetries_object
 from gpaw.new.pwfd.davidson import Davidson as DavidsonEigensolver
+from gpaw.new.pwfd.ppcg import PPCG as PPCGEigensolver
 from gpaw.new.pwfd.rmmdiis import RMMDIIS as RMMDIISEigensolver
 
 if TYPE_CHECKING:
     from gpaw.new.ase_interface import ASECalculator
 
 PARAMETER_NAMES = [
-    'mode', 'basis', 'charge', 'convergence', 'eigensolver', 'environment',
+    'mode', 'basis', 'charge', 'convergence', 'eigensolver',
     'experimental', 'extensions', 'gpts', 'h', 'hund',
     'interpolation', 'kpts', 'magmoms', 'maxiter', 'mixer', 'nbands',
     'occupations', 'parallel', 'poissonsolver', 'random', 'setups', 'soc',
@@ -61,19 +62,26 @@ class Mode(Parameter):
         dct = self._not_none('dtype')
         if self.force_complex_dtype:
             dct['force_complex_dtype'] = True
+        if 'dtype' in dct:
+            dct['dtype'] = np.dtype(self.dtype).name
         return dct
 
     @classmethod
     def from_param(cls, mode) -> Mode:
+        if isinstance(mode, Mode):
+            return mode
         if isinstance(mode, str):
             mode = {'name': mode}
-        if isinstance(mode, dict):
-            mode = mode.copy()
-            return {'pw': PW,
-                    'lcao': LCAO,
-                    'fd': FD,
-                    'tb': TB}[mode.pop('name')](**mode)
-        return mode
+        elif not isinstance(mode, dict):
+            mode = mode.todict()
+        mode = mode.copy()
+        if 'dtype' in mode:
+            if isinstance(mode['dtype'], str):
+                mode['dtype'] = np.dtype(mode['dtype'])
+        return {'pw': PW,
+                'lcao': LCAO,
+                'fd': FD,
+                'tb': TB}[mode.pop('name')](**mode)
 
     def dft_components_builder(self, atoms, params, *, log=None, comm=None):
         module = importlib.import_module(f'gpaw.new.{self.name}.builder')
@@ -111,13 +119,6 @@ class PW(Mode):
 class LCAO(Mode):
     distribution = '?'
 
-    def __init__(self,
-                 *,
-                 dtype: DTypeLike | None = None,
-                 force_complex_dtype: bool = False):
-        super().__init__(dtype=dtype,
-                         force_complex_dtype=force_complex_dtype)
-
 
 class FD(Mode):
     def __init__(self,
@@ -143,6 +144,16 @@ class TB(Mode):
 class Eigensolver(Parameter):
     @classmethod
     def from_param(cls, eigensolver):
+        from gpaw.new.do import DirectOptimization
+        eigensolvers = {
+            'davidson': Davidson,
+            'rmm-diis': RMMDIIS,
+            'etdm-fdpw': DirectOptimization,
+            'ppcg': PPCG,
+            'lcao': LCAOEigensolver,
+            'hybrid-lcao': HybridLCAOEigensolver,
+            'scissors': Scissors}
+
         if isinstance(eigensolver, str):
             eigensolver = {'name': eigensolver}
         elif not isinstance(eigensolver, dict):
@@ -168,11 +179,106 @@ class DefaultEigensolver(Eigensolver):
 
 
 class PWFDEigensolverParamater(Eigensolver):
-    def __init__(self, niter: int = 2):
+    def __init__(self,
+                 niter: int = 2,
+                 max_buffer_mem: int = 200 * 1024**2):
         self.niter = niter
+        self.max_buffer_mem = max_buffer_mem
 
     def todict(self):
         return {'niter': self.niter}
+
+    def build(self,
+              nbands,
+              wf_desc,
+              band_comm,
+              hamiltonian,
+              converge_bands,
+              setups,
+              atoms):
+        return self.cls(
+            nbands,
+            wf_desc,
+            band_comm,
+            hamiltonian,
+            converge_bands,
+            niter=self.niter,
+            max_buffer_mem=self.max_buffer_mem)
+
+
+class Davidson(PWFDEigensolverParamater):
+    name = 'davidson'
+    cls = DavidsonEigensolver
+
+
+class PPCG(PWFDEigensolverParamater):
+    name = 'ppcg'
+    cls = PPCGEigensolver
+
+    def __init__(self,
+                 niter: int = 2,
+                 min_niter: int | None = None,
+                 max_buffer_mem: int = 200 * 1024**2,
+                 blocksize=None,
+                 rr_modulo=5,
+                 include_cg=True,
+                 tolerances: tuple[float] | None = None):
+        self.niter = niter
+        self.min_niter = min_niter
+        self.max_buffer_mem = max_buffer_mem
+        self.blocksize = blocksize
+        self.rr_modulo = rr_modulo
+        self.include_cg = include_cg
+        self.tolerances = tolerances
+
+    def todict(self):
+        return {'niter': self.niter,
+                'min_niter': self.min_niter,
+                'max_buffer_mem': self.max_buffer_mem,
+                'blocksize': self.blocksize,
+                'rr_modulo': self.rr_modulo,
+                'include_cg': self.include_cg,
+                'tolerances': self.tolerances}
+
+    def build(self,
+              nbands,
+              wf_desc,
+              band_comm,
+              hamiltonian,
+              converge_bands,
+              setups,
+              atoms):
+        return self.cls(
+            nbands,
+            wf_desc,
+            band_comm,
+            hamiltonian,
+            converge_bands,
+            niter=self.niter,
+            min_niter=self.min_niter,
+            max_buffer_mem=self.max_buffer_mem,
+            blocksize=self.blocksize,
+            rr_modulo=self.rr_modulo,
+            include_cg=self.include_cg,
+            tolerances=self.tolerances)
+
+
+class RMMDIIS(PWFDEigensolverParamater):
+    name = 'rmm-diis'
+    cls = RMMDIISEigensolver
+
+    def __init__(self,
+                 niter: int = 1,
+                 max_buffer_mem: int = 200 * 1024**2,
+                 trial_step: float | None = None):
+        self.niter = niter
+        self.max_buffer_mem = max_buffer_mem
+        self.trial_step = trial_step
+
+    def todict(self):
+        return {'niter': self.niter,
+                'max_buffer_mem': self.max_buffer_mem,
+                'trial_step': self.trial_step}
 
     def build(self,
               nbands,
@@ -188,17 +294,9 @@ class PWFDEigensolverParamater(Eigensolver):
             band_comm,
             create_preconditioner,
             converge_bands,
-            niter=self.niter)
-
-
-class Davidson(PWFDEigensolverParamater):
-    name = 'davidson'
-    cls = DavidsonEigensolver
-
-
-class RMMDIIS(PWFDEigensolverParamater):
-    name = 'rmm-diis'
-    cls = RMMDIISEigensolver
+            niter=self.niter,
+            max_buffer_mem=self.max_buffer_mem,
+            trial_step=self.trial_step)
 
 
 class LCAOEigensolver(Eigensolver):
@@ -231,52 +329,26 @@ class Scissors(LCAOEigensolver):
                                        symmetries)
 
 
-eigensolvers = {
-    'davidson': Davidson,
-    'rmm-diis': RMMDIIS,
-    'lcao': LCAOEigensolver,
-    'hybrid-lcao': HybridLCAOEigensolver,
-    'scissors': Scissors}
-
-
-class Extension(Parameter):
+class ExtensionInput(Parameter):
     @classmethod
-    def from_param(self, extension):
+    def from_input(self, extension: ExtensionInput | dict):
         if isinstance(extension, dict):
             dct = extension.copy()
             name = dct.pop('name')
             if name == 'd3':
                 from gpaw.new.extensions import D3
                 return D3(**dct)
-            raise ValueError(name)
-        return extension
-
-
-class Environment(Parameter):
-    @classmethod
-    def from_param(self, env):
-        if env is None:
-            return Environment()
-        if isinstance(env, dict):
-            dct = env.copy()
-            name = dct.pop('name')
+            if name == 'spin_direction_constraint':
+                from gpaw.new.constraints import SpinDirectionConstraint
+                return SpinDirectionConstraint(**dct)
             if name == 'sjm':
                 from gpaw.new.sjm import SJM
                 return SJM(**dct)
             if name == 'solvation':
                 from gpaw.new.solvation import Solvation
                 return Solvation(**dct)
-            raise ValueError(f'Unknown environment: {name}')
-        return env
-
-    def build(self,
-              setups,
-              grid,
-              relpos_ac,
-              log,
-              comm):
-        from gpaw.new.environment import Environment as Env
-        return Env(len(setups))
+            raise ValueError(f'Unknown extension: {name}')
+        return extension
 
 
 class Mixer(Parameter):
@@ -319,11 +391,6 @@ class PoissonSolver(Parameter):
         if isinstance(ps, dict):
             return PoissonSolver(ps)
         return ps
-
-    def build(self, *, grid, xp=np):
-        from gpaw.poisson import PoissonSolver as make_poisson_solver
-        solver = make_poisson_solver(**self.params, xp=xp)
-        return solver.build(grid, xp)
 
 
 def array_or_none(a):
@@ -405,6 +472,8 @@ class BZSampling(Parameter):
         if isinstance(kpts, dict):
             if 'kpts' in kpts:
                 return KPoints(kpts['kpts'])
+            if 'path' in kpts:
+                return BandPath(**kpts)
             kpts = kpts.copy()
             kpts.pop('name', '')
         else:
@@ -433,10 +502,12 @@ class MonkhorstPack(BZSampling):
     def __init__(self,
                  size: Sequence[int] | None = None,
                  density: float | None = None,
-                 gamma: bool | None = None):
+                 gamma: bool | None = None,
+                 even: bool | None = None):
         self.size = size
         self.density = density
         self.gamma = gamma
+        self.even = even
 
     def todict(self):
         dct = {}
@@ -446,6 +517,8 @@ class MonkhorstPack(BZSampling):
             dct['density'] = self.density
         if self.gamma is not None:
             dct['gamma'] = self.gamma
+        if self.even is not None:
+            dct['even'] = self.even
         return dct
 
     def build(self, atoms):
@@ -457,6 +530,23 @@ class MonkhorstPack(BZSampling):
         return MonkhorstPackKPoints(size, offset)
 
 
+class BandPath(BZSampling):
+    def __init__(self,
+                 path: str,
+                 npoints: int):
+        self.path = path
+        self.npoints = npoints
+
+    def todict(self):
+        return {'path': self.path, 'npoints': self.npoints}
+
+    def build(self, atoms):
+        from gpaw.new.brillouin import BZBandPath
+        return BZBandPath(atoms.cell.bandpath(self.path,
+                                              npoints=self.npoints,
+                                              pbc=atoms.pbc))
+
+
 class XC(Parameter):
     def __init__(self, name, **kwargs):
         self.name = name
@@ -465,10 +555,10 @@ class XC(Parameter):
     def todict(self):
         return {'name': self.name, **self.kwargs}
 
-    def functional(self, collinear):
+    def functional(self, *, collinear: bool, atoms: Atoms | None = None):
         from gpaw.xc import XC as xc
         return xc({'name': self.name, **self.kwargs},
-                  collinear=collinear)
+                  collinear=collinear, atoms=atoms)
 
     @classmethod
     def from_param(cls, xc):
@@ -496,9 +586,8 @@ class Parameters:
         charge: float | None = None,
         convergence: dict | None = None,
         eigensolver: str | dict | Eigensolver | None = None,
-        environment=None,
         experimental: dict | None = None,
-        extensions: Sequence[Extension] | None = None,
+        extensions: Sequence[ExtensionInput] | None = None,
         gpts: Sequence[int] | None = None,
         h: float | None = None,
         hund: bool | None = None,
@@ -517,7 +606,7 @@ class Parameters:
         spinpol: bool | None = None,
         symmetry: str | dict | Symmetry | None = None,
         xc: str | dict | XC | None = None):
-        """DFT-parameters object.
+        r"""DFT-parameters object.
 
         >>> p = Parameters(mode=PW(400))
         >>> p
@@ -528,7 +617,7 @@ class Parameters:
         XC(name='LDA')
         >>> from ase.build import molecule
         >>> atoms = molecule('H2', vacuum=3.0)
-        >>> dft = p.dft_calculation(atoms, txt='h2.txt')
+        >>> dft = p.dft_calculation(atoms, txt=None)
         >>> atoms.calc = dft.ase_calculator()
 
         Parameters
@@ -545,13 +634,21 @@ class Parameters:
             SCF-convergence criteria.
         eigensolver:
             Eigensolver.  Default for PW and FD mode is ``'davidson'``.
-        environment:
-            ...
         gpts:
             Number of real-space grid-points for wave-functions
             (three integers).
         h:
-            grid-spaving for wave-function grid (Å).
+            Grid-spacing for wave-function grid (Å).  Default value is
+            0.2 Å for LCAO and FD mode calculations.  For a PW-mode
+            calculation, we use the formula `h=γh_0` with `γ \simeq 1.4` and:
+
+            .. math::
+
+               h_0 = \frac{\pi}{\sqrt{8E_c}}.
+
+            Ideally, we would use `\gamma=1`, but in practice, 1.4 is
+            a good compromise between accuracy and efficiency.
+            In eV and Å units we have `h_0=3.07/\sqrt{E_c}`.
         hund:
             Use Hund's rule for initial magnetic moments.
         experimental:
@@ -605,9 +702,8 @@ class Parameters:
         self.charge = charge or 0.0
         self.convergence = convergence or {}
         self.eigensolver = Eigensolver.from_param(eigensolver or {})
-        self.environment = Environment.from_param(environment)
         self.experimental = experimental or {}
-        self.extensions = [Extension.from_param(ext)
+        self.extensions = [ExtensionInput.from_input(ext)
                            for ext in extensions or []]
         self.gpts = np.array(gpts) if gpts is not None else None
         self.h = h
@@ -703,7 +799,10 @@ def _parse_experimental(experimental: dict | None,
                       DeprecatedParameterWarning)
         assert magmoms is None
         magmoms = experimental.pop('magmoms')
-    unknown = experimental.keys() - {'backwards_compatible', 'ccirs'}
+    unknown = experimental.keys() - {'backwards_compatible',
+                                     'ccirs',
+                                     'fast_pw_init',
+                                     'pw_pot_calc'}
     if unknown:
         warnings.warn(f'Unknown experimental keyword(s): {unknown}',
                       stacklevel=3)
@@ -731,9 +830,8 @@ def DFT(
     charge: float | None = None,
     convergence: dict | None = None,
     eigensolver: str | dict | Eigensolver | None = None,
-    environment=None,
     experimental: dict | None = None,
-    extensions: Sequence[Extension] | None = None,
+    extensions: Sequence[ExtensionInput] | None = None,
     gpts: Sequence[int] | None = None,
     h: float | None = None,
     hund: bool | None = None,
@@ -781,9 +879,8 @@ def GPAW(
     charge: float | None = None,
     convergence: dict | None = None,
     eigensolver: str | dict | Eigensolver | None = None,
-    environment=None,
     experimental: dict | None = None,
-    extensions: Sequence[Extension] | None = None,
+    extensions: Sequence[ExtensionInput] | None = None,
     gpts: Sequence[int] | None = None,
     h: float | None = None,
     hund: bool | None = None,
