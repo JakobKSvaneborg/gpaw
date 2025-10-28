@@ -48,20 +48,23 @@ Do the following in a new terminal session.
     module load netlib-scalapack/2.2.0
 
     # Set library and include paths for non-module dependencies (xc)
-    export LIBRARY_PATH=/appl/spack/v023/views/gpaw-python-311/lib64:/appl/spack/v023/views/gpaw-python-311/lib:$LIBRARY_PATH
-    export LD_LIBRARY_PATH=/appl/spack/v023/views/gpaw-python-311/lib64:/appl/spack/v023/views/gpaw-python-311/lib:$LD_LIBRARY_PATH
-    export CPATH=/appl/spack/v023/views/gpaw-python-311/include:$CPATH
+    export LIBRARY_PATH=/appl/spack/v023/views/gpaw-python-311/lib64:/appl/spack/v023/views/gpaw-python-311/lib:\$LIBRARY_PATH
+    export LD_LIBRARY_PATH=/appl/spack/v023/views/gpaw-python-311/lib64:/appl/spack/v023/views/gpaw-python-311/lib:\$LD_LIBRARY_PATH
+    export CPATH=/appl/spack/v023/views/gpaw-python-311/include:\$CPATH
 
     # Paths for libvdwxc separately. We use the v0.4.0 install from gcc-13.1.0 tree which was built for OpenMPI-4.
     # Not ideal but works (ABIs are compatible)
-    export LIBRARY_PATH=/appl/spack/v020/install-tree/gcc-13.1.0/libvdwxc-0.4.0-5vlzlb/lib:$LIBRARY_PATH
-    export LD_LIBRARY_PATH=/appl/spack/v020/install-tree/gcc-13.1.0/libvdwxc-0.4.0-5vlzlb/lib:$LD_LIBRARY_PATH
-    export CPATH=/appl/spack/v020/install-tree/gcc-13.1.0/libvdwxc-0.4.0-5vlzlb/include:$CPATH
+    export LIBRARY_PATH=/appl/spack/v020/install-tree/gcc-13.1.0/libvdwxc-0.4.0-5vlzlb/lib:\$LIBRARY_PATH
+    export LD_LIBRARY_PATH=/appl/spack/v020/install-tree/gcc-13.1.0/libvdwxc-0.4.0-5vlzlb/lib:\$LD_LIBRARY_PATH
+    export CPATH=/appl/spack/v020/install-tree/gcc-13.1.0/libvdwxc-0.4.0-5vlzlb/include:\$CPATH
     EOF
     cat venv-gpaw-cpu/bin/activate.old >> venv-gpaw-cpu/bin/activate
 
     # Activate venv
     source venv-gpaw-cpu/bin/activate
+
+    # Setup constraints for pip so that we don't accidentally override system provided packages
+    pip list --format=freeze | tee $(dirname $(which pip))/../constraints.txt
 
     # Update pip, setuptools etc
     pip install --upgrade pip setuptools packaging
@@ -74,7 +77,7 @@ Do the following in a new terminal session.
 
     # Install GPAW. Leave the '-e' out if you don't want an editable install
     rm -rf build _gpaw.*.so gpaw.egg-info
-    pip install --no-build-isolation -v --log build-cpu.log -e .
+    pip install --no-build-isolation --constraint $(dirname $(which pip))/../constraints.txt -v --log build-cpu.log -e .
 
 The above gets ``siteconfig.py`` from the cloned Git repository.
 Alternatively, you can download it from here:
