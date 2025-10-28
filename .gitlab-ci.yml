@@ -643,7 +643,7 @@ gpwfiles:
       from gpaw.mpi import world
       os.environ['COVERAGE_FILE'] = f'gpaw-coverage-{world.rank}'
       EOF
-    - export GPAW_PREEXEC_SCRIPT=preexec.py
+    - export GPAW_PREEXEC_SCRIPT=$(realpath preexec.py)
   script:
     - >
       gpaw -P $GPAW_MPI_NPROCS python -m pytest
