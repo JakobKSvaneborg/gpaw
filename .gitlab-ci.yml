@@ -650,12 +650,20 @@ nightly-mpi-1:
     - pytest --cache-show
     - >
       pytest -n 8 --instafail -r s --durations 30
-      --cov=gpaw --cov-report=html --cov-report=term
+      --cov=gpaw --cov-report=html
+
+    # We'd like to "just" use gitlab's coverage badge, but that won't work
+    # unless this job runs in every pipeline.
+    # We manually generate one then:
+    - >
+      python -m gpaw.doctools.makebadge
+      $(coverage report --format=total --precision 0)
+      > htmlcov/coverage.svg
+
   artifacts:
     paths:
       - htmlcov/
     expire_in: 1 day
-  coverage: '/TOTAL.+ ([0-9]+\.[0-9]+%)/'
 
 
 nightly-mpi-2:
