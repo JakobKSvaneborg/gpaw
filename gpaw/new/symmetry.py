@@ -27,7 +27,11 @@ def spglib_remove_nonsymmorphic(spglib_data):
     rotations = []
     for r_cc, t_c in zips(spglib_data.rotations,
                           spglib_data.translations):
-        if np.allclose(t_c, np.zeros((3,)), atol=1e-5):
+        if (np.abs(r_cc) > 1).any():
+            # Maybe we want to keep these symmetries from spglib in the future
+            continue
+        if (np.allclose(t_c % 1., np.zeros((3,)), atol=1e-5) or
+            np.allclose(t_c % 1., np.ones((3,)), atol=1e-5)):
             rotations.append(r_cc)
     return np.array(rotations)
 
@@ -279,7 +283,6 @@ class Symmetries:
 
         data = get_symmetry_dataset((cell, relative_positions, ids),
                                     symprec=tolerance)
-
         rotations = spglib_remove_nonsymmorphic(data)
 
         return Symmetries(cell=cell,
