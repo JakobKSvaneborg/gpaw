@@ -85,5 +85,9 @@ def main(args=None):
         from ase.cli.main import main as ase_main
         from gpaw import __version__
 
+    import os
+    from gpaw.mpi import world
+    os.environ['COVERAGE_FILE'] = f'gpaw-coverage-{world.rank}'
+
     ase_main('gpaw', 'GPAW command-line tool', __version__,
              commands, hook, args)
