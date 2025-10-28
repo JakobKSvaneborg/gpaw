@@ -1,9 +1,6 @@
 .. image:: https://badge.fury.io/py/gpaw.svg
     :target: https://pypi.org/project/gpaw/
 
-.. image:: https://gitlab.com/gpaw/gpaw/badges/master/coverage.svg?job=nightly-mpi-1
-    :target: https://gpaw.gitlab.io/gpaw/
-
 GPAW
 ====
 
