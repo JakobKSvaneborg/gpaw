@@ -26,7 +26,7 @@ default:
     - export PYTHONUSERBASE=`realpath $PYTHONUSERBASE`
     - mkdir -p `python -m site --user-site`
     - export PATH=$PYTHONUSERBASE/bin:$PATH
-    - export PYTEST_ADDOPTS="--color=yes"
+    - export PYTEST_ADDOPTS="--color=yes -k test_timing"
     - pip freeze
   interruptible: true
   tags:
@@ -583,11 +583,11 @@ nightly-all:
   stage: build
   script:
     - echo This is only a dummy job used to trigger other jobs
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "push"
-      when: manual
-      allow_failure: true
-    - if: $CI_PIPELINE_SOURCE == "schedule"
+  # rules:
+  #  - if: $CI_PIPELINE_SOURCE == "push"
+  #    when: manual
+  #    allow_failure: true
+  #  - if: $CI_PIPELINE_SOURCE == "schedule"
 
 
 gpwfiles:
@@ -641,7 +641,9 @@ gpwfiles:
       cat << EOF > preexec.py
       import os
       from gpaw.mpi import world
-      os.environ['COVERAGE_FILE'] = f'gpaw-coverage-{world.rank}'
+      from pathlib import Path
+      cwd = Path.cwd()
+      os.environ['COVERAGE_FILE'] = str(cwd / f'gpaw-coverage-{world.rank}')
       EOF
     - export GPAW_PREEXEC_SCRIPT=$(realpath preexec.py)
   script:
@@ -649,7 +651,10 @@ gpwfiles:
       gpaw -P $GPAW_MPI_NPROCS python -m pytest
       --cov=gpaw --instafail -r s --durations 30
   after_script:
-    - coverage combine gpaw-coverage-* --datafile coverage-$CI_JOB_NAME
+    - pwd  # where are the coverage files grrr
+    - ls
+    - coverage combine gpaw-coverage-*
+    - mv .coverage coverage-$CI_JOB_NAME
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
       when: on_success
@@ -668,9 +673,9 @@ nightly-mpi-1:
   script:
     - gpaw info
     - pytest --cache-show
-    - >
-      pytest -n 8 --instafail -r s --durations 30
-      --cov=gpaw
+    - pytest -n 8 --instafail -r s --durations 30 --cov=gpaw
+    - coverage
+  after_script:
     - mv .coverage coverage-$CI_JOB_NAME
 
 
@@ -718,6 +723,8 @@ nightly-mpi-1-new:
       pytest -n 8 --instafail -r s --durations 30 -m
       "not (old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
       --cov=gpaw
+  after_script:
+    - mv .coverage coverage-$CI_JOB_NAME
 
 
 nightly-mpi-2-new:
