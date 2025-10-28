@@ -637,12 +637,8 @@ gpwfiles:
     - pip install pytest-instafail pytest-xdist
   script:
     - >
-      gpaw -P $GPAW_MPI_NPROCS python -c
-      "import os; from gpaw.mpi import world; import subprocess;
-      subprocess.check_call(
-          'pytest --cov=gpaw --instafail -r s --durations 30 ' + os.environ['MARKS'],
-          shell=True,
-          env={**os.environ, 'COVERAGE_FILE': f'gpaw-coverage-{world.rank}'})"
+      gpaw -P $GPAW_MPI_NPROCS python -m pytest
+      --cov=gpaw --instafail -r s --durations 30 $MARKS
     - coverage combine gpaw-coverage-* --datafile coverage-$CI_JOB_NAME
 
   rules:
