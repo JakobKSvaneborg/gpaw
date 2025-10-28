@@ -629,7 +629,7 @@ gpwfiles:
   stage: test
   needs:
     - build-latest
-    - gpwfiles
+  #  - gpwfiles
   tags:
     - xeon40
   before_script:
