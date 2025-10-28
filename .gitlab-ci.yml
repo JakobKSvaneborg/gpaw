@@ -637,7 +637,7 @@ gpwfiles:
       --cov=gpaw --cov-report=html
     # Might be wildly unsafe to run coverage in parallel?
 
-    - mv htmlcov/ htmcov-$CI_JOB_NAME
+    - mv htmlcov/ htmlcov-$CI_JOB_NAME
 
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
