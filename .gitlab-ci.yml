@@ -650,16 +650,16 @@ nightly-mpi-1:
     - pytest --cache-show
     - >
       pytest -n 8 --instafail -r s --durations 30
-      --cov=gpaw --cov-report=html --cov-report=term
+      --cov=gpaw --cov-report=html
 
     # We'd like to "just" use gitlab's coverage badge, but that won't work
     # unless this job runs in every pipeline.
-    # So we manually hack the percentage into a custom badge:
-    - export COV_PERCENT=$(coverage report --format=total)
-    # Magical incantation to decide colour from percentage:
-    - export COV_COLOR=$(python3 -c "x = $COV_PERCENT; '4c1' if x >= 95 else 'a3c51c' if x >= 90 else 'dfb317' if x >= 75 else 'e05d44'")
-    - wget https://img.shields.io/badge/coverage-$COV_PERCENT%25-$COV_COLOR -O coverage.svg
-    - cp coverage.svg htmlcov/
+    # We manually generate one then:
+    - >
+      python -m gpaw.doctools.makebadge
+      $(coverage report --format=total)
+      > htmlcov/coverage.svg
+
   artifacts:
     paths:
       - htmlcov/
