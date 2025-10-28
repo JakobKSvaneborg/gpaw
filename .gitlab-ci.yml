@@ -657,7 +657,7 @@ nightly-mpi-1:
     # We manually generate one then:
     - >
       python -m gpaw.doctools.makebadge
-      $(coverage report --format=total)
+      $(coverage report --format=total --precision 0)
       > htmlcov/coverage.svg
 
   artifacts:
