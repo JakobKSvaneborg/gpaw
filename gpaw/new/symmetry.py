@@ -23,11 +23,29 @@ class SymmetryAnalysisBug(Exception):
     """Symmetries do not form a proper group."""
 
 
+def spglib_remove_nonsymmorphic(spglib_data):
+    rotations = []
+    for r_cc, t_c in zips(spglib_data['rotations'],
+                          spglib_data['translations']):
+        if np.allclose(t_c, np.zeros((3,)), atol=1e-5):
+            rotations.append(r_cc)
+    return np.array(rotations)
+
+
+def assert_same_rotations(sym, sym_spglib):
+    assert len(sym.rotation_scc) == len(sym_spglib.rotation_scc)
+    for r_cc in sym.rotation_scc:
+        checks = []
+        for r_spg_cc in sym_spglib.rotation_scc:
+            checks.append(np.array_equal(r_cc, r_spg_cc))
+        assert np.sum(checks) == 1  # Only one symmetry should match exactly.
+
+
 def assert_same_output(sym, sym_spglib):
+    assert len(sym.rotation_scc) == len(sym_spglib.rotation_scc)
     for r_cc, t_c, amap_a in zips(sym.rotation_scc,
                                   sym.translation_sc,
                                   sym.atommap_sa):
-
         checks = []
         for r_spg_cc, t_spg_c, amap_spg_a in zips(sym_spglib.rotation_scc,
                                                   sym_spglib.translation_sc,
@@ -37,8 +55,8 @@ def assert_same_output(sym, sym_spglib):
                 np.array_equal(t_c, t_spg_c),
                 np.array_equal(amap_a, amap_spg_a)],
                 int).all())
-
         assert np.sum(checks) == 1  # Only one symmetry should match exactly.
+
 
 def create_symmetries_object(atoms: Atoms,
                              *,
@@ -83,6 +101,7 @@ def create_symmetries_object(atoms: Atoms,
     if rotations is None:
         # Find symmetries from cell, ids and positions:
         if point_group:
+            assert symmorphic, 'non-symmorphic symmetries are a WIP'
             sym = Symmetries.from_cell_and_atoms(
                 cell_cv,
                 pbc=atoms.pbc,
@@ -101,8 +120,11 @@ def create_symmetries_object(atoms: Atoms,
                 ids=ids,
                 symmorphic=symmorphic)
 
-            assert_same_output(sym, sym_spglib)
+            assert_same_rotations(sym, sym_spglib)
 
+            # Add atommaps
+            sym_spglib = sym_spglib.with_atom_maps(relative_positions, ids)
+            assert_same_output(sym, sym_spglib)
         else:
             # No symmetries (identity only):
             sym = Symmetries(cell=cell_cv,
@@ -256,16 +278,16 @@ class Symmetries:
         from spglib import get_symmetry_dataset
 
         data = get_symmetry_dataset((cell, relative_positions, ids),
-                             symprec=tolerance)
+                                    symprec=tolerance)
 
-        sym = Symmetries(cell=cell,
-                         rotations=np.transpose(data['rotations'], (0, 2, 1)),
-                         translations=data['translations'],
-                         atommaps=None,
-                         tolerance=tolerance,
-                         _backwards_compatible=_backwards_compatible)
+        rotations = spglib_remove_nonsymmorphic(data)
 
-        return sym.with_atom_maps(relative_positions, ids)
+        return Symmetries(cell=cell,
+                          rotations=np.transpose(rotations, (0, 2, 1)),
+                          translations=None,  # Only symmorphic for now..
+                          atommaps=None,
+                          tolerance=tolerance,
+                          _backwards_compatible=_backwards_compatible)
 
     def with_atom_maps(self,
                        relative_positions: Array2D,
