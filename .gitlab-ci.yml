@@ -758,7 +758,7 @@ nightly-mpi4py-4:
 
 coverage-combine:
   image: $IMAGE_MAIN_LATEST  # (Any image present on the runner will do)
-  dependencies:
+  needs:
     - gpwfiles
     - nightly-mpi-1
     - nightly-mpi-2
@@ -772,8 +772,7 @@ coverage-combine:
   tags:
     - xeon40
   script:
-    - >
-      coverage combine coverage-gpwfiles coverage-nightly-*
+    - coverage combine coverage-gpwfiles coverage-nightly-*
     - coverage report
     - coverage html
 
