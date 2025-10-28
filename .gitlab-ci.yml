@@ -755,24 +755,25 @@ nightly-mpi4py-4:
     GPAW_MPI_NPROCS: "4"
     GPAW_DEBUG: "1"
 
-pages:
+
+coverage-combine:
   image: $IMAGE_MAIN_LATEST  # (Any image present on the runner will do)
-  stage: deploy
   dependencies:
     - gpwfiles
     - nightly-mpi-1
-    - nightly-mpi-1-new
+    - nightly-mpi-2
+    - nightly-mpi-4
     - nightly-mpi-8
+    - nightly-mpi-1-new
+    - nightly-mpi-2-new
+    - nightly-mpi-4-new
     - nightly-mpi-8-new
+    - nightly-mpi4py-4
   tags:
     - xeon40
   script:
     - >
-      coverage combine
-      coverage-gpwfiles
-      coverage-nightly-mpi-1
-      coverage-nightly-mpi-8
-      coverage-nightly-mpi-8-new
+      coverage combine coverage-gpwfiles coverage-nightly-*
     - coverage report
     - coverage html
 
@@ -784,6 +785,20 @@ pages:
       $(coverage report --format=total --precision 0)
       > htmlcov/coverage.svg
 
+  artifacts:
+    paths:
+      - htmlcov
+    expire_in: 1 week
+
+
+pages:
+  image: $IMAGE_MAIN_LATEST  # (Any image present on the runner will do)
+  stage: deploy
+  dependencies:
+    - coverage-combine
+  tags:
+    - xeon40
+  script:
     - mv htmlcov public
   artifacts:
     paths:
