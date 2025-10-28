@@ -762,6 +762,8 @@ pages:
     - gpwfiles
     - nightly-mpi-1
     - nightly-mpi-1-new
+    - nightly-mpi-8
+    - nightly-mpi-8-new
   tags:
     - xeon40
   script:
@@ -769,7 +771,8 @@ pages:
       coverage combine
       coverage-gpwfiles
       coverage-nightly-mpi-1
-      coverage-nightly-mpi-1-new
+      coverage-nightly-mpi-8
+      coverage-nightly-mpi-8-new
     - coverage report
     - coverage html
 
