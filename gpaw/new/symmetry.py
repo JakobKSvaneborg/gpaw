@@ -23,6 +23,23 @@ class SymmetryAnalysisBug(Exception):
     """Symmetries do not form a proper group."""
 
 
+def assert_same_output(sym, sym_spglib):
+    for r_cc, t_c, amap_a in zips(sym.rotation_scc,
+                                  sym.translation_sc,
+                                  sym.atommap_sa):
+
+        checks = []
+        for r_spg_cc, t_spg_c, amap_spg_a in zips(sym_spglib.rotation_scc,
+                                                  sym_spglib.translation_sc,
+                                                  sym_spglib.atommap_sa):
+            checks.append(np.array([
+                np.array_equal(r_cc, r_spg_cc),
+                np.array_equal(t_c, t_spg_c),
+                np.array_equal(amap_a, amap_spg_a)],
+                int).all())
+
+        assert np.sum(checks) == 1  # Only one symmetry should match exactly.
+
 def create_symmetries_object(atoms: Atoms,
                              *,
                              setup_ids: Sequence | None = None,
@@ -63,7 +80,6 @@ def create_symmetries_object(atoms: Atoms,
         ids = integer_ids((id, x) for id, x in zips(ids, extra_ids))
 
     relative_positions = atoms.get_scaled_positions()
-
     if rotations is None:
         # Find symmetries from cell, ids and positions:
         if point_group:
@@ -75,6 +91,18 @@ def create_symmetries_object(atoms: Atoms,
                 relative_positions=relative_positions,
                 ids=ids,
                 symmorphic=symmorphic)
+
+            sym_spglib = Symmetries.from_cell_and_atoms_spglib(
+                cell_cv,
+                pbc=atoms.pbc,
+                tolerance=tolerance,
+                _backwards_compatible=_backwards_compatible,
+                relative_positions=relative_positions,
+                ids=ids,
+                symmorphic=symmorphic)
+
+            assert_same_output(sym, sym_spglib)
+
         else:
             # No symmetries (identity only):
             sym = Symmetries(cell=cell_cv,
@@ -206,12 +234,38 @@ class Symmetries:
                             relative_positions: ArrayLike2D,
                             ids: Sequence[int],
                             symmorphic: bool = True) -> Symmetries:
+
         return cls.from_cell(
             cell,
             pbc=pbc,
             tolerance=tolerance,
             _backwards_compatible=_backwards_compatible).analyze_positions(
             relative_positions, ids, symmorphic=symmorphic)
+
+    @classmethod
+    def from_cell_and_atoms_spglib(cls,
+                                   cell: ArrayLike1D | ArrayLike2D,
+                                   *,
+                                   pbc: ArrayLike1D = (True, True, True),
+                                   tolerance: float | None = None,
+                                   _backwards_compatible=False,
+                                   relative_positions: ArrayLike2D,
+                                   ids: Sequence[int],
+                                   symmorphic: bool = True) -> Symmetries:
+
+        from spglib import get_symmetry_dataset
+
+        data = get_symmetry_dataset((cell, relative_positions, ids),
+                             symprec=tolerance)
+
+        sym = Symmetries(cell=cell,
+                         rotations=np.transpose(data['rotations'], (0, 2, 1)),
+                         translations=data['translations'],
+                         atommaps=None,
+                         tolerance=tolerance,
+                         _backwards_compatible=_backwards_compatible)
+
+        return sym.with_atom_maps(relative_positions, ids)
 
     def with_atom_maps(self,
                        relative_positions: Array2D,
@@ -220,9 +274,9 @@ class Symmetries:
         a_ij = defaultdict(list)
         for a, id in enumerate(ids):
             a_ij[id].append(a)
-        for U_cc, t_c, map_a in zip(self.rotation_scc,
-                                    self.translation_sc,
-                                    atommap_sa):
+        for U_cc, t_c, map_a in zips(self.rotation_scc,
+                                     self.translation_sc,
+                                     atommap_sa):
             map_a[:] = self.check_one_symmetry(relative_positions,
                                                U_cc, t_c, a_ij)
         return Symmetries(cell=self.cell_cv,
