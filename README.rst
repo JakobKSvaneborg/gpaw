@@ -1,6 +1,9 @@
 .. image:: https://badge.fury.io/py/gpaw.svg
     :target: https://pypi.org/project/gpaw/
 
+.. image:: https://gitlab.io/gpaw/coverage.svg
+    :target: https://gpaw.gitlab.io/gpaw/
+
 GPAW
 ====
 
