@@ -603,10 +603,14 @@ gpwfiles:
   before_script:
     - !reference [default, before_script]
   script:
-    - pytest -n 16 -m generate_gpw_files --durations 30 -v
+    - >
+      pytest -n 16 -m generate_gpw_files --durations 30 -v
+      --cov=gpaw --cov-report=html
+    - mv htmlcov htmlcov-$CI_JOB_NAME
   artifacts:
     paths:
       - .pytest_cache/
+      - htmlcov-$CI_JOB_NAME
     expire_in: 30 mins
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
@@ -669,7 +673,7 @@ nightly-mpi-1:
       $(coverage report --format=total --precision 0)
       > htmlcov/coverage.svg
 
-    - mv htmlcov htmlcov-$GPAW_MPI_NPR
+    - mv htmlcov htmlcov-$CI_JOB_NAME
 
 
 nightly-mpi-2:
@@ -705,7 +709,8 @@ nightly-mpi-8:
       gpaw -P $GPAW_MPI_NPROCS python -m
       pytest --instafail -r s --durations 30 -m
       "not (old_gpaw_only_mpi or old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
-
+      --cov=gpaw --cov-report=html
+    - mv htmlcov htmlcov-$CI_JOB_NAME
 
 nightly-mpi-1-new:
   extends:
@@ -716,6 +721,8 @@ nightly-mpi-1-new:
     - >
       pytest -n 8 --instafail -r s --durations 30 -m
       "not (old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
+      --cov=gpaw --cov-report=html
+    - mv htmlcov htmlcov-$CI_JOB_NAME
 
 
 nightly-mpi-2-new:
@@ -756,7 +763,7 @@ pages:
   tags:
     - xeon40
   script:
-    - mv htmlcov/ public
+    - mv htmlcov-nightly-mpi-1 public
   artifacts:
     paths:
       - public
