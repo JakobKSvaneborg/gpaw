@@ -381,7 +381,7 @@ class LocalizedFunctionsCollection(BaseLFC):
                     next(iterator)
 
         self.lfc = cgpaw.LFC(self.A_Wgm, self.M_W, self.G_B, self.W_B,
-                             self.gd.dv, self.phase_qW, self.xp is not np)
+                             self.gd.dv, self.phase_qW, False)
 
         return sdisp_Wc
 
@@ -425,10 +425,11 @@ class LocalizedFunctionsCollection(BaseLFC):
             elif cupy_is_fake:
                 self.lfc.add(c_xM._data, a_xG._data, q)
             else:
-                self.lfc.add_gpu(c_xM.data.ptr,
-                                 c_xM.shape,
-                                 a_xG.data.ptr,
-                                 a_xG.shape, q)
+                raise NotImplementedError("GPU support is not implemented")
+                # self.lfc.add_gpu(c_xM.data.ptr,
+                #                  c_xM.shape,
+                #                  a_xG.data.ptr,
+                #                  a_xG.shape, q)
             return
 
         dtype = a_xG.dtype
@@ -478,10 +479,11 @@ class LocalizedFunctionsCollection(BaseLFC):
         elif cupy_is_fake:
             self.lfc.add(c_xM._data, a_xG._data, q)
         else:
-            self.lfc.add_gpu(c_xM.data.ptr,
-                             c_xM.shape,
-                             a_xG.data.ptr,
-                             a_xG.shape, q)
+            raise NotImplementedError("GPU support is not implemented")
+            # self.lfc.add_gpu(c_xM.data.ptr,
+            #                  c_xM.shape,
+            #                  a_xG.data.ptr,
+            #                  a_xG.shape, q)
 
     def add_derivative(self, a, v, a_xG, c_axi=1.0, q=-1):
         """Add derivative of localized functions on atom to extended arrays.
@@ -594,11 +596,12 @@ class LocalizedFunctionsCollection(BaseLFC):
         elif cupy_is_fake:
             self.lfc.integrate(a_xG._data, c_xM._data, q)
         else:
-            self.lfc.integrate_gpu(a_xG.data.ptr,
-                                   a_xG.shape,
-                                   c_xM.data.ptr,
-                                   c_xM.shape, q)
-            c_xM *= self.gd.dv
+            raise NotImplementedError("GPU support is not implemented")
+            # self.lfc.integrate_gpu(a_xG.data.ptr,
+            #                        a_xG.shape,
+            #                        c_xM.data.ptr,
+            #                        c_xM.shape, q)
+            # c_xM *= self.gd.dv
 
         rank = comm.rank
         srequests = []
