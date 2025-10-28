@@ -26,7 +26,7 @@ default:
     - export PYTHONUSERBASE=`realpath $PYTHONUSERBASE`
     - mkdir -p `python -m site --user-site`
     - export PATH=$PYTHONUSERBASE/bin:$PATH
-    - export PYTEST_ADDOPTS="--color=yes -k test_timing"
+    - export PYTEST_ADDOPTS="--color=yes"
     - pip freeze
   interruptible: true
   tags:
@@ -583,11 +583,11 @@ nightly-all:
   stage: build
   script:
     - echo This is only a dummy job used to trigger other jobs
-  # rules:
-  #  - if: $CI_PIPELINE_SOURCE == "push"
-  #    when: manual
-  #    allow_failure: true
-  #  - if: $CI_PIPELINE_SOURCE == "schedule"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: manual
+      allow_failure: true
+    - if: $CI_PIPELINE_SOURCE == "schedule"
 
 
 gpwfiles:
@@ -628,7 +628,7 @@ gpwfiles:
   stage: test
   needs:
     - build-latest
-  #   - gpwfiles
+    - gpwfiles
   tags:
     - xeon40
   before_script:
@@ -651,8 +651,6 @@ gpwfiles:
       gpaw -P $GPAW_MPI_NPROCS python -m pytest
       --cov=gpaw --instafail -r s --durations 30
   after_script:
-    - pwd  # where are the coverage files grrr
-    - ls
     - coverage combine gpaw-coverage-*
     - mv .coverage coverage-$CI_JOB_NAME
   rules:
