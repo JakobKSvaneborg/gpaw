@@ -13,8 +13,6 @@ class CuPyMPI:
         return f'CuPyMPI({self.comm})'
 
     def sum(self, array, root=-1):
-        if isinstance(array, (float, int)):
-            return self.comm.sum(array, root)
         if isinstance(array, np.ndarray):
             self.comm.sum(array, root)
             return
