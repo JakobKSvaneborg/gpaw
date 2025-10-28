@@ -628,7 +628,7 @@ gpwfiles:
   stage: test
   needs:
     - build-latest
-    - gpwfiles
+  #   - gpwfiles
   tags:
     - xeon40
   before_script:
@@ -637,7 +637,8 @@ gpwfiles:
 
     # We need to use GPAW_PREEXEC_SCRIPT to hack the environment
     # so coverage writes to different files:
-    - cat << EOF > preexec.py
+    - |
+      cat << EOF > preexec.py
       import os
       from gpaw.mpi import world
       os.environ['COVERAGE_FILE'] = f'gpaw-coverage-{world.rank}'
