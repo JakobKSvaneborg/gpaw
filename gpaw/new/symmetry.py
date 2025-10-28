@@ -25,8 +25,8 @@ class SymmetryAnalysisBug(Exception):
 
 def spglib_remove_nonsymmorphic(spglib_data):
     rotations = []
-    for r_cc, t_c in zips(spglib_data['rotations'],
-                          spglib_data['translations']):
+    for r_cc, t_c in zips(spglib_data.rotations,
+                          spglib_data.translations):
         if np.allclose(t_c, np.zeros((3,)), atol=1e-5):
             rotations.append(r_cc)
     return np.array(rotations)
