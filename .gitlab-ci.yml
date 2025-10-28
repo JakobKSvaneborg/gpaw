@@ -634,12 +634,21 @@ gpwfiles:
     - >
       gpaw -P $GPAW_MPI_NPROCS python -m
       pytest --instafail -r s --durations 30
+      --cov=gpaw --cov-report=html
+    # Might be wildly unsafe to run coverage in parallel?
+
+    - mv htmlcov/ htmcov-$CI_JOB_NAME
+
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
       when: on_success
       allow_failure: true
     - if: $CI_PIPELINE_SOURCE == "schedule"
   #  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  artifacts:
+    paths:
+      - htmlcov-$CI_JOB_NAME
+    expire_in: 1 day
 
 
 nightly-mpi-1:
@@ -660,10 +669,7 @@ nightly-mpi-1:
       $(coverage report --format=total --precision 0)
       > htmlcov/coverage.svg
 
-  artifacts:
-    paths:
-      - htmlcov/
-    expire_in: 1 day
+    - mv htmlcov htmlcov-$GPAW_MPI_NPR
 
 
 nightly-mpi-2:
