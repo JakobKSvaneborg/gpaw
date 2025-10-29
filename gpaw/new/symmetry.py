@@ -30,11 +30,24 @@ def spglib_remove_nonsymmorphic(spglib_data):
         if (np.abs(r_cc) > 1).any():
             # Maybe we want to keep these symmetries from spglib in the future
             continue
-        if (np.allclose(t_c % 1., np.zeros((3,)), atol=1e-5) or
-            np.allclose(t_c - 1 % 1., np.zeros((3,)), atol=1e-5)):
-            # Are these checks enough?
+        if is_zero_translation_vector(t_c):
             rotations.append(r_cc)
     return np.array(rotations)
+
+
+def is_zero_translation_vector(t_c):
+    zero_translation_vectors = [[0., 0., 0.],
+                                [1., 0., 0.],
+                                [0., 1., 0.],
+                                [0., 0., 1.],
+                                [1., 1., 0.],
+                                [1., 0., 1.],
+                                [0., 1., 1.],
+                                [1., 1., 1.]]
+    for zero_translation_vector in zero_translation_vectors:
+        if np.allclose(t_c, zero_translation_vector, atol=1e-5):
+            return True
+    return False
 
 
 def assert_same_rotations(sym, sym_spglib):
@@ -116,20 +129,21 @@ def create_symmetries_object(atoms: Atoms,
                 ids=ids,
                 symmorphic=symmorphic)
 
-            sym_spglib = Symmetries.from_cell_and_atoms_spglib(
-                cell_cv,
-                pbc=atoms.pbc,
-                tolerance=tolerance,
-                _backwards_compatible=_backwards_compatible,
-                relative_positions=relative_positions,
-                ids=ids,
-                symmorphic=symmorphic)
+            if (True and len(atoms) > 0):  # Switch + Ignore if jellium
+                sym_spglib = Symmetries.from_cell_and_atoms_spglib(
+                    cell_cv,
+                    pbc=atoms.pbc,
+                    tolerance=tolerance,
+                    _backwards_compatible=_backwards_compatible,
+                    relative_positions=relative_positions,
+                    ids=ids,
+                    symmorphic=symmorphic)
 
-            assert_same_rotations(sym, sym_spglib)
+                assert_same_rotations(sym, sym_spglib)
 
-            # Add atommaps
-            sym_spglib = sym_spglib.with_atom_maps(relative_positions, ids)
-            assert_same_output(sym, sym_spglib)
+                # Add atommaps
+                sym_spglib = sym_spglib.with_atom_maps(relative_positions, ids)
+                assert_same_output(sym, sym_spglib)
         else:
             # No symmetries (identity only):
             sym = Symmetries(cell=cell_cv,
@@ -280,10 +294,18 @@ class Symmetries:
                                    ids: Sequence[int],
                                    symmorphic: bool = True) -> Symmetries:
 
-        from spglib import get_symmetry_dataset
+        if np.sum(pbc) == 3:
+            from spglib import get_symmetry_dataset
+            data = get_symmetry_dataset(
+                cell=(cell, relative_positions, ids),
+                symprec=tolerance)
+        if np.sum(pbc) == 2:
+            from spglib import get_layergroup
+            data = get_layergroup(
+                (cell, relative_positions, ids),
+                aperiodic_dir=np.argwhere(pbc is False)[0][0],
+                symprec=tolerance)
 
-        data = get_symmetry_dataset((cell, relative_positions, ids),
-                                    symprec=tolerance)
         rotations = spglib_remove_nonsymmorphic(data)
 
         return Symmetries(cell=cell,
