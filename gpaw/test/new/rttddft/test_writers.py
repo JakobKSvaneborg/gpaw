@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from gpaw.exteral import create_absorption_kick
+from gpaw.external import create_absorption_kick
 from gpaw.mpi import world
 from gpaw.new.rttddft import RTTDDFT
 from gpaw.new.rttddft.writers import DipoleMomentWriter
