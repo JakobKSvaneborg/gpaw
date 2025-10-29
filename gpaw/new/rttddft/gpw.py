@@ -13,7 +13,7 @@ from gpaw.dft import Parameters
 from gpaw.new.builder import DFTComponentsBuilder
 from gpaw.new.gpw import GPWFlags, write_dft_state, read_dft_state
 from gpaw.new.rttddft.history import RTTDDFTHistory
-from gpaw.new.rttddft.state import RTTDDFTState
+from gpaw.new.rttddft.dataclasses import RTTDDFTState
 from gpaw.new.logger import Logger
 
 

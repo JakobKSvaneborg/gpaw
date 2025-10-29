@@ -5,7 +5,7 @@ from typing import Any, Union
 
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.pot_calc import PotentialCalculator
-from gpaw.new.rttddft.state import RTTDDFTState
+from gpaw.new.rttddft.dataclasses import RTTDDFTState
 from gpaw.new.rttddft.wf_propagator import build_wf_propagator
 
 

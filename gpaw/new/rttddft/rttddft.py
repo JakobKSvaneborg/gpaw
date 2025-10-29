@@ -2,14 +2,11 @@ from __future__ import annotations
 
 from typing import Generator
 
-import numpy as np
-
 from ase import Atoms
-from ase.units import Bohr, Hartree
 from ase.io.ulm import Reader
 
 from gpaw.dft import Parameters
-from gpaw.external import ExternalPotential, ConstantElectricField
+from gpaw.external import ExternalPotential
 from gpaw.mpi import broadcast, world
 from gpaw.new.ase_interface import ASECalculator
 from gpaw.new.fd.hamiltonian import FDHamiltonian, FDKickHamiltonian
@@ -23,10 +20,9 @@ from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.rttddft.td_algorithm import create_td_algorithm, TDAlgorithmLike
+from gpaw.new.rttddft.dataclasses import RTTDDFTState
 from gpaw.new.rttddft.history import RTTDDFTHistory
-from gpaw.new.rttddft.state import RTTDDFTState
 from gpaw.tddft.units import asetime_to_autime, autime_to_asetime
-from gpaw.typing import Vector
 from gpaw.utilities import reconstruct_atoms
 from gpaw.utilities.timing import nulltimer
 
@@ -73,8 +69,6 @@ class RTTDDFT:
         self.hamiltonian = hamiltonian
         self.history = history
         self.dft_params = dft_params
-
-        self.kick_ext: ExternalPotential | None = None
 
         if isinstance(hamiltonian, LCAOHamiltonian):
             self.mode = 'lcao'
@@ -233,51 +227,14 @@ class RTTDDFT:
                       self.state,
                       self.history)
 
-    def absorption_kick(self,
-                        kick_strength: Vector):
-        """Kick with a weak electric field.
-
-        Parameters
-        ----------
-        kick_strength
-            Strength of the kick in atomic units.
-        """
-        with self.timer('Kick'):
-            kick_strength = np.array(kick_strength, dtype=float)
-            self.history.absorption_kick(kick_strength)
-
-            magnitude = np.sqrt(np.sum(kick_strength**2))
-            direction = kick_strength / magnitude
-            dirstr = [f'{d:.4f}' for d in direction]
-
-            self.log('----  Applying absorption kick')
-            self.log(f'----  Magnitude: {magnitude:.8f} Hartree/Bohr')
-            self.log(f'----  Direction: {dirstr}')
-
-            # Create Hamiltonian object for absorption kick
-            cef = ConstantElectricField(magnitude * Hartree / Bohr, direction)
-
-            kw = dict()
-            if self.mode == 'fd':
-                # Different behavior between LCAO and FD. See #1423
-                kw['nkicks'] = int(round(magnitude / 1.0e-4))
-                if kw['nkicks'] < 1:
-                    kw['nkicks'] = 1
-
-            # Propagate kick
-            return self.kick(cef, **kw)
-
     def kick(self,
-             ext: ExternalPotential,
+             potential: ExternalPotential,
              nkicks: int = 10):
-        """Kick with any external potential.
-
-        Note that unless this function is called by absorption_kick, the kick
-        is not logged in history.
+        """Kick with any external potential and register in history.
 
         Parameters
         ----------
-        ext
+        potential
             External potential.
         nkicks
             Propagate the wave functions nkicks times, using a kick
@@ -291,7 +248,7 @@ class RTTDDFT:
             assert isinstance(self.state.ibzwfs, LCAOIBZWaveFunctions)
             kick_hamiltonian = LCAOKickHamiltonian(self.hamiltonian.basis,
                                                    self.state.ibzwfs,
-                                                   ext,
+                                                   potential,
                                                    self.pot_calc)
         elif self.mode == 'fd':
             assert isinstance(self.state.ibzwfs, PWFDIBZWaveFunctions)
@@ -299,7 +256,7 @@ class RTTDDFT:
                           xp=self.hamiltonian.kin.xp)
             layout = self.state.potential.dH_asii.layout
             kick_hamiltonian = FDKickHamiltonian(self.hamiltonian.grid,
-                                                 ext,
+                                                 potential,
                                                  self.state.ibzwfs,
                                                  self.pot_calc,
                                                  layout,
@@ -310,8 +267,7 @@ class RTTDDFT:
 
         with self.timer('Kick'):
             self.log('----  Applying kick')
-            self.log(f'----  {ext}')
-            self.kick_ext = ext
+            self.log(f'----  {potential}')
 
             # For the kick, the propagator is always ECN
             td_algorithm = create_td_algorithm('ecn')
@@ -323,6 +279,8 @@ class RTTDDFT:
             td_algorithm.update_time_dependent_operators(self.state,
                                                          self.pot_calc)
 
+            # Register in history
+            self.history.register_kick(potential)
         return kick_hamiltonian
 
     def ipropagate(self,

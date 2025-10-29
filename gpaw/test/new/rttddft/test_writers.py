@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from gpaw.exteral import create_absorption_kick
 from gpaw.mpi import world
 from gpaw.new.rttddft import RTTDDFT
 from gpaw.new.rttddft.writers import DipoleMomentWriter
@@ -27,8 +28,9 @@ def test_dipolemoment(nacl_nospin, in_tmp_dir):
         dmwriter.write_comment(f'Start at {td_calc.time:.8f}')
 
         # Kick, write a comment about the kick, and write the dipole moment
-        td_calc.absorption_kick([0.0, 0.0, 1e-5])
-        dmwriter.write_kick(td_calc.history.most_recent_kick)
+        kick_potential = create_absorption_kick([0.0, 0.0, 1e-5])
+        td_calc.kick(kick_potential)
+        dmwriter.write_kick(td_calc.time, kick_potential)
         dmwriter.write_dm(td_calc.time, td_calc.state, td_calc.pot_calc)
 
         # Propagate
@@ -49,10 +51,12 @@ def test_dipolemoment(nacl_nospin, in_tmp_dir):
         dmwriter.write_comment(f'Start at {td_calc.time:.8f}')
 
         # Kick twice and write the dipole moment
-        td_calc.absorption_kick([0.0, 0.0, 2e-5])
-        dmwriter.write_kick(td_calc.history.most_recent_kick)
-        td_calc.absorption_kick([0.0, 0.0, 3e-5])
-        dmwriter.write_kick(td_calc.history.most_recent_kick)
+        kick_potential = create_absorption_kick([0.0, 0.0, 2e-5])
+        td_calc.kick(kick_potential)
+        dmwriter.write_kick(td_calc.time, kick_potential)
+        kick_potential = create_absorption_kick([0.0, 0.0, 3e-5])
+        td_calc.kick(kick_potential)
+        dmwriter.write_kick(td_calc.time, kick_potential)
         dmwriter.write_dm(td_calc.time, td_calc.state, td_calc.pot_calc)
 
     # Read dipole moment file

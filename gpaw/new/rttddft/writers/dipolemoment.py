@@ -3,9 +3,9 @@ import json
 from ase.utils import IOContext
 
 from gpaw.mpi import world, MPIComm
+from gpaw.external import ExternalPotential
 from gpaw.new.pot_calc import PotentialCalculator
-from gpaw.new.rttddft.history import RTTDDFTKick
-from gpaw.new.rttddft.state import RTTDDFTState
+from gpaw.new.rttddft.dataclasses import RTTDDFTState, RTTDDFTKick
 
 
 class DipoleMomentWriter:
@@ -69,7 +69,9 @@ class DipoleMomentWriter:
         self._write(line)
 
     def write_kick(self,
-                   kick: RTTDDFTKick):
+                   time: float,
+                   potential: ExternalPotential,
+                   gauge: str = 'length'):
         """ Write a comment with a description of the kick.
 
         This comment is formatted such that it can be parsed by the
@@ -77,9 +79,14 @@ class DipoleMomentWriter:
 
         Parameters
         ----------
-        kick
-            The kick object.
+        time
+            Current simulation time in atomic units.
+        potential
+            The external potential of the kick.
+        gauge
+            Kick gauge.
         """
+        kick = RTTDDFTKick(time=time, potential=potential, gauge=gauge)
         comment = f'Kick = {json.dumps(kick.todict())}'
         self.write_comment(comment)
 

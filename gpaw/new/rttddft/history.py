@@ -1,13 +1,7 @@
 from __future__ import annotations
-from dataclasses import asdict, dataclass
-from typing import Any, Union
 
-import numpy as np
-
-from gpaw.typing import Vector
-
-
-RTTDDFTKickLike = Union['RTTDDFTKick', dict[str, Any]]
+from gpaw.external import ExternalPotential
+from gpaw.new.rttddft.dataclasses import RTTDDFTKick, RTTDDFTKickLike
 
 
 class RTTDDFTHistory:
@@ -37,28 +31,19 @@ class RTTDDFTHistory:
         """ Kicks that have been done. """
         return self._kicks
 
-    @property
-    def most_recent_kick(self) -> RTTDDFTKick:
-        """ The most recent kick.
-
-        Raises
-        ------
-        ValueError if there have been no kicks.
-        """
-        if len(self._kicks) == 0:
-            raise ValueError('No kicks have been performed')
-        return self._kicks[-1]
-
-    def absorption_kick(self,
-                        kick_strength: Vector):
-        """ Store the kick strength in history.
+    def register_kick(self,
+                      potential: ExternalPotential,
+                      gauge: str = 'length'):
+        """ Store the kick in history.
 
         Parameters
         ----------
-        kick_strength
-            Strength of the kick in atomic units.
+        potential
+            External potential.
+        gauge
+            Kick gauge.
         """
-        kick = RTTDDFTKick(self.time, np.array(kick_strength, dtype=float))
+        kick = RTTDDFTKick(self.time, potential=potential, gauge=gauge)
         self._kicks.append(kick)
 
     def propagate(self,
@@ -96,25 +81,3 @@ class RTTDDFTHistory:
         history._niter = niter
         history._time = time
         return history
-
-
-@dataclass
-class RTTDDFTKick:
-
-    """ Class representing a kick in RTTDDFT history.
-    """
-
-    time: float  # Simulation time
-    strength: Vector  # Kick strength in atomic units
-    gauge: str = 'length'
-
-    def __post_init__(self):
-        if self.gauge not in ['length', 'velocity']:
-            raise ValueError('Only length and velocity gauge supported')
-
-        if len(self.strength) > 3:
-            raise ValueError('Strength must be given as a vector of length 3')
-        self.strength = list(self.strength)  # Convert to list
-
-    def todict(self):
-        return asdict(self)

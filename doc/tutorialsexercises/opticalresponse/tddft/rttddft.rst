@@ -121,7 +121,7 @@ Code documentation
    :members:
    :undoc-members:
 
-.. autoclass:: gpaw.new.rttddft.state.RTTDDFTState
+.. automodule:: gpaw.new.rttddft.dataclasses
    :members:
 
 .. autoclass:: gpaw.external.ExternalPotential

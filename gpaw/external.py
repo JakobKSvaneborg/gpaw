@@ -7,7 +7,7 @@ import numpy as np
 from ase.units import Bohr, Ha
 
 import gpaw.cgpaw as cgpaw
-from gpaw.typing import Array3D
+from gpaw.typing import Array3D, Vector
 
 __all__ = ['ConstantPotential', 'ConstantElectricField', 'CDFTPotential',
            'PointChargePotential', 'StepPotentialz',
@@ -29,6 +29,30 @@ def create_external_potential(name, **kwargs):
     if not known_potentials:
         _register_known_potentials()
     return known_potentials[name](**kwargs)
+
+
+def create_absorption_kick(kick_strength: Vector) -> 'ConstantElectricField':
+    """ Create a constant electric field-kick.
+
+    This kick is useful for absorption spectrum calculations.
+
+    Parameters
+    ----------
+    kick_strength
+        Strength of the kick in atomic units.
+
+    Returns
+    -------
+    External potential to be used for absorption kick.
+    """
+    kick_strength = np.array(kick_strength, dtype=float)
+
+    # Magnitude in atomic units
+    magnitude = np.linalg.norm(kick_strength)
+    direction = kick_strength / magnitude
+
+    potential = ConstantElectricField(magnitude * Ha / Bohr, direction)
+    return potential
 
 
 class ExternalPotential:
@@ -167,8 +191,8 @@ class ConstantElectricField(ExternalPotential):
 
     def todict(self):
         return {'name': self.name,
-                'strength': self.strength * Ha / Bohr,
-                'direction': self.direction_v}
+                'strength': float(self.strength * Ha / Bohr),
+                'direction': list(self.direction_v)}
 
 
 class ProductPotential(ExternalPotential):

@@ -21,6 +21,7 @@ energy = atoms.get_potential_energy()
 calc.write('gs.gpw', mode='all')
 # P2
 # Time-propagation calculation
+from gpaw.external import create_absorption_kick
 from gpaw.new.rttddft import RTTDDFT
 from gpaw.new.rttddft.writers import DipoleMomentWriter
 
@@ -35,8 +36,9 @@ with DipoleMomentWriter('dm.dat') as dmwriter:
     dmwriter.write_comment(f'Start at {td_calc.time:.8f}')
 
     # Kick, write a comment about the kick, and write the dipole moment
-    td_calc.absorption_kick([0.0, 0.0, 1e-5])
-    dmwriter.write_kick(td_calc.history.most_recent_kick)
+    kick_potential = create_absorption_kick([0.0, 0.0, 1e-5])
+    td_calc.kick(kick_potential)
+    dmwriter.write_kick(td_calc.time, kick_potential)
     dmwriter.write_dm(td_calc.time, td_calc.state, td_calc.pot_calc)
 
     # Propagate for 3000 steps

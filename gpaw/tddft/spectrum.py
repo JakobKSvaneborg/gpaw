@@ -4,10 +4,11 @@ import numpy as np
 
 from gpaw import __version__ as version
 from gpaw.mpi import world
+from gpaw.external import ConstantElectricField, create_absorption_kick
 from gpaw.tddft.units import au_to_as, au_to_fs, au_to_eV, rot_au_to_cgs
 from gpaw.tddft.folding import FoldedFrequencies
 from gpaw.tddft.folding import Folding
-from gpaw.new.rttddft.history import RTTDDFTKick
+from gpaw.new.rttddft.dataclasses import RTTDDFTKick
 
 
 def calculate_fourier_transform(x_t, y_ti, foldedfrequencies, velocity=False):
@@ -112,7 +113,8 @@ def _parse_kick_line_version_1(line: str) -> RTTDDFTKick:
     else:
         time = float(m.group('time'))
     gauge = 'velocity' if 'velocity' in line else 'length'
-    kick = RTTDDFTKick(time, kick_v, gauge)
+    potential = create_absorption_kick(kick_v)
+    kick = RTTDDFTKick(time=time, potential=potential, gauge=gauge)
     return kick
 
 
@@ -168,13 +170,18 @@ def determine_td_file_version(fname):
     -------
     Version of the DipoleMomentWriter used.
     """
-    regexp = re.compile(r"DipoleMomentWriter\[version\=(?P<version>[0-9]+)\]")
+    regexp = re.compile(r"(?P<writer>[A-Za-z]+)"
+                        r"\[version\=(?P<version>[0-9]+)\]")
     with open(fname) as f:
         for line in f:
             m = regexp.search(line)
             if m is None:
                 continue
+            assert m['writer'] in ['DipoleMomentWriter', 'VelocityGaugeWriter']
             version = int(m['version'])
+            if m['writer'] == 'VelocityGaugeWriter' and version == 5:
+                # This is some messy convention..
+                version = 1
             return version
 
     # No version header found, raise error
@@ -205,7 +212,16 @@ def read_td_file_kicks(fname: str,
         for line in f:
             if line.startswith('# Kick'):
                 kick = parse_kick_line(line, version=version)
-                kick_i.append({'strength_v': np.array(kick.strength),
+                if not isinstance(kick.potential, ConstantElectricField):
+                    raise ValueError('Kick must be constant electric field '
+                                     'for absorption spectrum calculation.')
+
+                # Magnitude in atomic units
+                magnitude = kick.potential.strength
+                # Normalized direction
+                direction_v = kick.potential.direction_v
+
+                kick_i.append({'strength_v': magnitude * direction_v,
                                'time': kick.time,
                               'velocity': kick.gauge == 'velocity'})
     return kick_i
