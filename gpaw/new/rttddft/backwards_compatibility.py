@@ -234,7 +234,7 @@ class RTTDDFTAdapter:
                 # Magnitude in atomic units
                 magnitude = kick.potential.strength
                 # Normalized direction
-                direction_v = kick.potentia.direction_v
+                direction_v = kick.potential.direction_v
                 return magnitude * direction_v
             except IndexError:
                 # There have been no kicks
