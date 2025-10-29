@@ -294,17 +294,9 @@ class Symmetries:
                                    ids: Sequence[int],
                                    symmorphic: bool = True) -> Symmetries:
 
-        if np.sum(pbc) == 3:
-            from spglib import get_symmetry_dataset
-            data = get_symmetry_dataset(
-                cell=(cell, relative_positions, ids),
-                symprec=tolerance)
-        if np.sum(pbc) == 2:
-            from spglib import get_layergroup
-            data = get_layergroup(
-                (cell, relative_positions, ids),
-                aperiodic_dir=np.argwhere(pbc is False)[0][0],
-                symprec=tolerance)
+        from spglib import get_symmetry_dataset
+        data = get_symmetry_dataset(cell=(cell, relative_positions, ids),
+                                    symprec=tolerance)
 
         rotations = spglib_remove_nonsymmorphic(data)
 
