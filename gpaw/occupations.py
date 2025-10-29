@@ -167,6 +167,9 @@ class OccupationNumberCalculator:
         (array([[1., 0.]]), [0.5], 0.0)
         """
 
+        if len(eigenvalues) == 0:
+            return [], [], 0.0
+
         eig_un = np.asarray(eigenvalues)
         weight_u = np.asarray(weights)
 
