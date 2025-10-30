@@ -316,7 +316,7 @@ def as_np(array: np.ndarray | cupy.ndarray, dtype=None) -> np.ndarray:
         array = cupy.asnumpy(array)
 
     if dtype is None:
-        return array
+        return np.asarray(array)
 
     return np.asarray(array, dtype=dtype)
 
