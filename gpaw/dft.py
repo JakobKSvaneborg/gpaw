@@ -216,8 +216,8 @@ class PPCG(PWFDEigensolverParamater):
     cls = PPCGEigensolver
 
     def __init__(self,
-                 niter: int = 2,
-                 min_niter: int | None = None,
+                 niter: int = 5,
+                 min_niter: int | None = 2,
                  max_buffer_mem: int = 200 * 1024**2,
                  blocksize=None,
                  rr_modulo=5,
