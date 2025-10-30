@@ -277,7 +277,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             slcomm, r, c, b = scalapack_parameters
             if r == c == 1:
                 slcomm = None
-            self._eig_n = as_np(H.eigh(scalapack=(slcomm, r, c, b)), dtype=np.float64)
+            self._eig_n = as_np(H.eigh(scalapack=(slcomm, r, c, b)),
+                                dtype=np.float64)
             H.complex_conjugate()
             # H.data[n, :] now contains the nth eigenvector and eps_n[n]
             # the nth eigenvalue
@@ -296,7 +297,6 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             H.multiply(psit2_nX, out=psit2_nX, data_buffer=data_buffer)
             H.multiply(P_ani, out=P2_ani)
             P_ani.data[:] = P2_ani.data
-
 
     def force_contribution(self,
                            potential: Potential,
