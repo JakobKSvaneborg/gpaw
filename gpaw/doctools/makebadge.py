@@ -1,3 +1,6 @@
+import sys
+
+
 def coverage_badge(percentage):
     # This creates a fancy coverage bagde for README, gitlab, etc.
     #
@@ -27,6 +30,9 @@ def makebadge(value, color):
 """.format(value=value, color=color, width=width, width_small=width_small)  # noqa
 
 
+def main(args):
+    print(coverage_badge(args[1]))
+
+
 if __name__ == '__main__':
-    import sys
-    print(coverage_badge(sys.argv[1]))
+    main(sys.argv)
