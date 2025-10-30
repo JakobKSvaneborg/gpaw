@@ -175,7 +175,7 @@ class Davidson(PWFDEigensolver):
                             # print(S_NN.data)
                             eig_N[:] = H_NN.eigh(S_NN)
                             # print(eig_N, self.niter)
-                            wfs._eig_n = as_np(eig_N[:B])
+                            wfs.eig_n = as_np(eig_N[:B])
                 if domain_comm.rank == 0:
                     band_comm.broadcast(wfs.eig_n, 0)
                 domain_comm.broadcast(wfs.eig_n, 0)

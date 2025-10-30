@@ -136,6 +136,12 @@ class WaveFunctions:
             raise ValueError
         return self._eig_n
 
+    @eig_n.setter
+    def eig_n(self, value):
+        if value is not None:
+            assert value.dtype == np.float64
+        self._eig_n = value
+
     @property
     def occ_n(self) -> Array1D:
         if self._occ_n is None:
