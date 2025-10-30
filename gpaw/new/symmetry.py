@@ -119,7 +119,6 @@ def create_symmetries_object(atoms: Atoms,
     if rotations is None:
         # Find symmetries from cell, ids and positions:
         if point_group:
-            assert symmorphic, 'non-symmorphic symmetries are a WIP'
             sym = Symmetries.from_cell_and_atoms(
                 cell_cv,
                 pbc=atoms.pbc,
@@ -129,7 +128,7 @@ def create_symmetries_object(atoms: Atoms,
                 ids=ids,
                 symmorphic=symmorphic)
 
-            if (True and len(atoms) > 0):  # Switch + Ignore if jellium
+            if (False and len(atoms) > 0):  # Switch + Ignore if jellium
                 sym_spglib = Symmetries.from_cell_and_atoms_spglib(
                     cell_cv,
                     pbc=atoms.pbc,
