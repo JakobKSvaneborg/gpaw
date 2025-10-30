@@ -518,10 +518,13 @@ class KPointDescriptor:
 
     def get_count(self, rank=None):
         """Return the number of ks-pairs which belong to a given rank."""
-
         if rank is None:
             rank = self.comm.rank
         assert rank in range(self.comm.size)
+
+        if hasattr(self, 'nu_r'):
+            return self.nu_r[rank]
+
         mynk0 = self.nibzkpts // self.comm.size
         mynk = mynk0
         if rank >= self.rank0:

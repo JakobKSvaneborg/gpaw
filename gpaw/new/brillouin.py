@@ -162,6 +162,9 @@ class IBZ:
         kd.mynk = 'hello'
         kd.k0 = 'hello'
         kd.weight_q = -5555555555
+        kd.nu_r = np.zeros(kpt_comm.size, int)
+        kd.nu_r[kpt_comm.rank] = (rank_ks == kpt_comm.rank).sum()
+        kpt_comm.sum(kd.nu_r)
         return kd
 
 
