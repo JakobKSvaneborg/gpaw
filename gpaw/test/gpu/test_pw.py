@@ -49,7 +49,7 @@ def test_gpu(dtype, gpu, mode, random):
 @pytest.mark.skipif(size > 2, reason='Not implemented')
 @pytest.mark.parametrize('gpu', [False, True])
 @pytest.mark.parametrize('par', ['domain', 'kpt', 'band'])
-@pytest.mark.parametrize('mode', ['pw'])
+@pytest.mark.parametrize('mode', ['pw', 'fd'])
 @pytest.mark.parametrize('xc', ['LDA', 'PBE'])
 def test_gpu_k(gpu, par, mode, xc):
     if gpu and size > 1 and not GPU_AWARE_MPI:
