@@ -386,7 +386,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                     self,
                     psit_nX,
                     atomdist=self.atomdist.gather())
-                if self.eig_n is not None:
+                if self.has_eigs:
                     wfs.eig_n = self.eig_n[n1:n2]
                 return wfs
         else:
