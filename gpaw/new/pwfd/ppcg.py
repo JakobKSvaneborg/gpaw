@@ -118,7 +118,7 @@ class PPCG(PWFDEigensolver):
 
         if self.blocksize is None:
             if xp == np:
-                self.blocksize = 32 # 192
+                self.blocksize = 128 # 192
             else:
                 self.blocksize = 1024
 
@@ -338,11 +338,14 @@ class PPCG(PWFDEigensolver):
                     buff_bX[:nblocks].matrix_elements(
                         buff_bX[:nblocks], cc=True, out=MBuf_bb,
                         domain_sum=False, symmetric=True)
+                    if self.promote_inner_dtype:
+                        S_bb[:] = buffer_bb
+                        buffer_bb[:] = 0
                     HPbuf_abi[:, :nblocks].matrix.multiply(
                         Pbuf_abi[:, :nblocks], out=MBuf_bb,
                         symmetric=True, beta=1, opb='C')
                     if self.promote_inner_dtype:
-                        S_bb[:] = buffer_bb[:]
+                        S_bb += buffer_bb
                     domain_comm.sum(S_bb)
 
                     # Scale the diagonal elements, to improve numerical
@@ -368,11 +371,14 @@ class PPCG(PWFDEigensolver):
                         buff_bX[:nblocks], function=Ht_H,
                         cc=True, out=MBuf_bb,
                         domain_sum=False, symmetric=True)
+                    if self.promote_inner_dtype:
+                        H_bb[:] = buffer_bb
+                        buffer_bb[:] = 0
                     HPbuf_abi[:, :nblocks].matrix.multiply(
                         Pbuf_abi[:, :nblocks], out=MBuf_bb,
                         symmetric=True, beta=1, opb='C')
                     if self.promote_inner_dtype:
-                        H_bb[:] = buffer_bb[:]
+                        H_bb[:] += buffer_bb[:]
                     domain_comm.sum(H_bb)
 
                     if nblocks > 2 * block:
@@ -456,7 +462,6 @@ class PPCG(PWFDEigensolver):
                 else:
                     wfs.orthonormalize(residual_nX)
                     Ht(psit_nX, out=residual_nX)
-                    # update_eigenvalues(wfs, residual_nX, wfs.P_ani, P2_ani, dH, domain_comm)
 
                 calculate_residuals(wfs.psit_nX,
                                     residual_nX,

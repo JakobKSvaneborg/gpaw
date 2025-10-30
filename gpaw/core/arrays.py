@@ -211,7 +211,7 @@ class DistributedArrays(Generic[DomainType], XP):
             # numerical stability. This is especially important
             # for single precision.
             if self.data.dtype in (np.float32, np.complex64):
-                blocksize = 16384
+                blocksize = max(4096, int(np.sqrt(X))) # 16384
                 # 16384 = 2**14. Large enough that the extra
                 # overhead is negligible, yet still comparable
                 # to the square root of the mantisa of float32
