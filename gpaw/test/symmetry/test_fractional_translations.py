@@ -4,10 +4,7 @@ from gpaw import PW
 import pytest
 
 
-def test_symmetry_fractional_translations(gpaw_new, in_tmp_dir):
-    if gpaw_new:
-        pytest.xfail('Non-symmorphic symmetries from '
-                     'spglib have not been implemented yet')
+def test_symmetry_fractional_translations(in_tmp_dir):
     'sishovite'
     # no 136 - tetragonal
 

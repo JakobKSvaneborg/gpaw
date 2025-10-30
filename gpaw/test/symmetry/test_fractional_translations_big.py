@@ -4,10 +4,7 @@ from gpaw import PW
 import pytest
 
 
-def test_symmetry_fractional_translations_big(gpaw_new):
-    if gpaw_new:
-        pytest.xfail('Non-symmorphic symmetries from '
-                     'spglib have not been implemented yet')
+def test_symmetry_fractional_translations_big():
     'cristobalite'
     # no. 92 - tetragonal
 
