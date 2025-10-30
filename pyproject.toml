@@ -60,11 +60,11 @@ Homepage = 'https://gpaw.readthedocs.io/'
 Repository = 'https://gitlab.com/gpaw/gpaw.git'
 Issues = 'https://gitlab.com/gpaw/gpaw/issues/'
 
-[tool.setuptools]
-packages = ['gpaw']
-
 [tool.setuptools.dynamic]
 version = {attr = 'gpaw.__version__'}
+
+[tool.setuptools.packages.find]
+# where = ['gpaw']  # why does this fail?
 
 [tool.setuptools.package-data]
 gpaw = ['py.typed']
