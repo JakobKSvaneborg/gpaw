@@ -225,7 +225,8 @@ class LocalizedFunctionsCollection(BaseLFC):
 
     """
     def __init__(self, gd, spline_aj, kd=None, cut=False, dtype=float,
-                 integral=None, forces=None, xp=np, gpu_add_and_integrate=True):
+                 integral=None, forces=None, xp=np,
+                 gpu_add_and_integrate=True):
         self.gd = gd
         self.kd = kd
         self.sphere_a = [Sphere(spline_j) for spline_j in spline_aj]
@@ -385,7 +386,8 @@ class LocalizedFunctionsCollection(BaseLFC):
                     next(iterator)
 
         self.lfc = cgpaw.LFC(self.A_Wgm, self.M_W, self.G_B, self.W_B,
-                             self.gd.dv, self.phase_qW, self.gpu_add_and_integrate)
+                             self.gd.dv, self.phase_qW,
+                             self.gpu_add_and_integrate)
 
         return sdisp_Wc
 
@@ -967,7 +969,8 @@ class LocalizedFunctionsCollection(BaseLFC):
 
 class BasisFunctions(LocalizedFunctionsCollection):
     def __init__(self, gd, spline_aj, kd=None, cut=False, dtype=float,
-                 integral=None, forces=None, xp=np, gpu_add_and_integrate=True):
+                 integral=None, forces=None, xp=np,
+                 gpu_add_and_integrate=True):
         LFC = LocalizedFunctionsCollection
         LFC.__init__(self, gd, spline_aj,
                      kd, cut,
