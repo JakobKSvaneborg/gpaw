@@ -142,6 +142,28 @@ class IBZ:
         """Distribute k-points over MPI-communicator."""
         return ranks(comm.size, len(self) * nspins).reshape((-1, nspins))
 
+    def _old_kd(self, nspins, kpt_comm):
+        from gpaw.old.kpt_descriptor import KPointDescriptor
+        kd = KPointDescriptor(self.bz.kpt_Kc, nspins)
+        kd.ibzk_kc = self.kpt_kc
+        kd.weight_k = self.weight_k
+        kd.sym_k = self.s_K
+        kd.time_reversal_k = self.time_reversal_K
+        kd.bz2ibz_k = self.bz2ibz_K
+        kd.ibz2bz_k = self.ibz2bz_k
+        kd.bz2bz_ks = self.bz2bz_Ks
+        kd.nibzkpts = len(self)
+        kd.symmetry = self.symmetries._old_symmetry
+        kd.set_communicator(kpt_comm)
+        rank_ks = self.ranks(kpt_comm, nspins)
+        here_k = (rank_ks == kpt_comm.rank).any(axis=1)
+        kd.ibzk_qc = self.kpt_kc[here_k]
+        kd.rank0 = 'hello'
+        kd.mynk = 'hello'
+        kd.k0 = 'hello'
+        kd.weight_q = -5555555555
+        return kd
+
 
 def ranks(N, K) -> Array1D:
     """Distribute k-points over MPI-communicator.

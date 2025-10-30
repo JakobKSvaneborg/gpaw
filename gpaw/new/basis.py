@@ -18,18 +18,7 @@ def create_basis(ibz: IBZ,
                  kpt_comm=serial_comm,
                  band_comm=serial_comm,
                  xp=np):
-    kd = KPointDescriptor(ibz.bz.kpt_Kc, nspins)
-
-    kd.ibzk_kc = ibz.kpt_kc
-    kd.weight_k = ibz.weight_k
-    kd.sym_k = ibz.s_K
-    kd.time_reversal_k = ibz.time_reversal_K
-    kd.bz2ibz_k = ibz.bz2ibz_K
-    kd.ibz2bz_k = ibz.ibz2bz_k
-    kd.bz2bz_ks = ibz.bz2bz_Ks
-    kd.nibzkpts = len(ibz)
-    kd.symmetry = ibz.symmetries._old_symmetry
-    kd.set_communicator(kpt_comm)
+    kd = ibz._old_kd(nspins, kpt_comm)
     if GPAW_NO_C_EXTENSION:
         return SimpleBasis(grid, setups, relpos_ac, xp)
     basis_dtype = complex if \

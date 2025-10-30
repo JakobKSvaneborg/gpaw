@@ -10,7 +10,6 @@ from ase.units import Bohr
 from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.densities import Densities
 from gpaw.fftw import MEASURE
-from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.new import prod, zips
 from gpaw.new.density import Density
 from gpaw.new.gpw import GPWFlags
@@ -63,17 +62,7 @@ class FakeWFS:
         self.potential = potential
         self.hamiltonian = hamiltonian
         ibz = ibzwfs.ibz
-        self.kd = kd = KPointDescriptor(ibz.bz.kpt_Kc, ibzwfs.nspins)
-        kd.ibzk_kc = ibz.kpt_kc
-        kd.weight_k = ibz.weight_k
-        kd.sym_k = ibz.s_K
-        kd.time_reversal_k = ibz.time_reversal_K
-        kd.bz2ibz_k = ibz.bz2ibz_K
-        kd.ibz2bz_k = ibz.ibz2bz_k
-        kd.bz2bz_ks = ibz.bz2bz_Ks
-        kd.nibzkpts = len(ibz)
-        kd.symmetry = ibz.symmetries._old_symmetry
-        kd.set_communicator(ibzwfs.kpt_comm)
+        self.kd = ibz._old_kd(ibzwfs.nspins, ibzwfs.kpt_comm)
         self.bd = BandDescriptor(ibzwfs.nbands, ibzwfs.band_comm)
         self.grid = density.nt_sR.desc
         self.gd = self.grid._gd

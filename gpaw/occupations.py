@@ -167,9 +167,6 @@ class OccupationNumberCalculator:
         (array([[1., 0.]]), [0.5], 0.0)
         """
 
-        if len(eigenvalues) == 0:
-            return [], [], 0.0
-
         eig_un = np.asarray(eigenvalues)
         weight_u = np.asarray(weights)
 
@@ -245,15 +242,15 @@ class FixMagneticMomentOccupationNumberCalculator(OccupationNumberCalculator):
 
         f1_qn, fermi_levels1, e_entropy1 = self.occ.calculate(
             (nelectrons + magmom) / 2,
-            [eig_n for eig_n, spin in zip(eigenvalues, spins) if spin == 0],
-            [w for w, spin in zip(weights, spins) if spin == 0],
+            eigenvalues,
+            [w if spin == 0 else 0.0 for w, spin in zip(weights, spins)],
             fermi_levels_guess=fermi_levels_guess[:1],
             fix_fermi_level=fix_fermi_level)
 
         f2_qn, fermi_levels2, e_entropy2 = self.occ.calculate(
             (nelectrons - magmom) / 2,
-            [eig_n for eig_n, spin in zip(eigenvalues, spins) if spin == 1],
-            [w for w, spin in zip(weights, spins) if spin == 1],
+            eigenvalues,
+            [w if spin == 1 else 0.0 for w, spin in zip(weights, spins)],
             fermi_levels_guess=fermi_levels_guess[1:],
             fix_fermi_level=fix_fermi_level)
 
@@ -558,7 +555,7 @@ class ZeroWidth(OccupationNumberCalculator):
 
         if eig_kn.size != 0:
             # Try to use integer weights (avoid round-off errors):
-            N = int(round(1 / min(weight_k)))
+            N = int(round(1 / min(w for w in weight_k if w > 0.0)))
             w_k = (weight_k * N).round().astype(int)
             if abs(w_k - N * weight_k).max() > 1e-10:
                 # Did not work.  Use original fractional weights:
