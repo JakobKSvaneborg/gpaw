@@ -85,5 +85,10 @@ def main(args=None):
         from ase.cli.main import main as ase_main
         from gpaw import __version__
 
+    pre_exec = os.environ.get('GPAW_PREEXEC_SCRIPT')
+    if pre_exec is not None:
+        import runpy
+        runpy.run_path(pre_exec)
+
     ase_main('gpaw', 'GPAW command-line tool', __version__,
              commands, hook, args)
