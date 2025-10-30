@@ -47,6 +47,7 @@ def initialize_system(nacl_nospin):
     return unocc_calc, fdm
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_propagated_wave_function(initialize_system, module_tmp_path):
     wfr = WaveFunctionReader(module_tmp_path / 'wf.ulm')
@@ -69,6 +70,8 @@ def test_propagated_wave_function(initialize_system, module_tmp_path):
     assert err < 1e-4
 
 
+@pytest.mark.filterwarnings('ignore:Using compabilitity wrapper for RTTDDFT')
+@pytest.mark.old_gpaw_only_mpi
 @pytest.mark.rttddft
 @pytest.mark.parametrize('parallel', parallel_i)
 def test_propagation(initialize_system, module_tmp_path, parallel,
@@ -178,6 +181,7 @@ def test_ksd_transform_real_only(load_ksd, ksd_transform_reference):
     assert err < atol
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_dipole_moment_from_ksd(ksd_transform, load_ksd,
                                 dipole_moment_reference):
@@ -221,6 +225,7 @@ def density_reference(ksd_reference):
     return dict(dmat=dmat_rho_wg, ksd=ksd_rho_wg)
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_ksd_vs_dmat_density(density_reference):
     ref_wg = density_reference['dmat']
@@ -240,6 +245,7 @@ def density(load_ksd):
     return dict(dmat=dmat_rho_wg, ksd=ksd_rho_wg)
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 @pytest.mark.parametrize('kind', ['ksd', 'dmat'])
 def test_density(kind, density, load_ksd, density_reference):
@@ -251,6 +257,7 @@ def test_density(kind, density, load_ksd, density_reference):
     assert err < atol
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 @pytest.mark.parametrize('kind', ['ksd', 'dmat'])
 def test_dipole_moment_from_density(kind, density, load_ksd,
@@ -269,6 +276,7 @@ def test_dipole_moment_from_density(kind, density, load_ksd,
     assert err < atol
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 @only_on_master(world)
 def test_read_ksd(ksd_reference):
@@ -299,6 +307,8 @@ def initialize_system_spinpol(nacl_spin):
                                do_fdm=True)
 
 
+@pytest.mark.filterwarnings('ignore:Using compabilitity wrapper for RTTDDFT')
+@pytest.mark.old_gpaw_only_mpi
 @pytest.mark.rttddft
 def test_spinpol_dipole_moment(initialize_system, initialize_system_spinpol,
                                module_tmp_path):
@@ -309,6 +319,8 @@ def test_spinpol_dipole_moment(initialize_system, initialize_system_spinpol,
                    atol=1.0001e-12)
 
 
+@pytest.mark.filterwarnings('ignore:Using compabilitity wrapper for RTTDDFT')
+@pytest.mark.old_gpaw_only_mpi
 @pytest.mark.rttddft
 @pytest.mark.parametrize('parallel', parallel_i)
 def test_spinpol_propagation(initialize_system_spinpol, module_tmp_path,

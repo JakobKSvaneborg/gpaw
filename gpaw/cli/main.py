@@ -12,7 +12,7 @@ commands = [
     ('gpw', 'gpaw.cli.gpw'),
     ('completion', 'gpaw.cli.completion'),
     ('atom', 'gpaw.atom.aeatom'),
-    ('diag', 'gpaw.fulldiag'),
+    ('diag', 'gpaw.cli.fulldiag'),
     # ('quick', 'gpaw.cli.quick'),
     ('python', 'gpaw.cli.python'),
     ('sbatch', 'gpaw.cli.sbatch'),
@@ -49,7 +49,7 @@ def hook(parser, args):
         if have_mpi and world.size == 1 and args.parallel > 1:
             py = sys.executable
         elif not have_mpi:
-            py = 'gpaw-python'
+            raise SystemExit('MPI not available')
         else:
             py = ''
 
@@ -84,6 +84,11 @@ def main(args=None):
 
         from ase.cli.main import main as ase_main
         from gpaw import __version__
+
+    pre_exec = os.environ.get('GPAW_PREEXEC_SCRIPT')
+    if pre_exec is not None:
+        import runpy
+        runpy.run_path(pre_exec)
 
     ase_main('gpaw', 'GPAW command-line tool', __version__,
              commands, hook, args)

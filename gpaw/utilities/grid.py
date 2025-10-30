@@ -161,7 +161,7 @@ def grid2grid(comm, gd1, gd2, src_g, dst_g, offset1_c=None, offset2_c=None,
 
 
 def main():
-    from gpaw.grid_descriptor import GridDescriptor
+    from gpaw.old.grid_descriptor import GridDescriptor
     from gpaw.mpi import world
 
     serial = world.new_communicator([world.rank])

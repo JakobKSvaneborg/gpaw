@@ -3,8 +3,8 @@ import pytest
 import numpy as np
 from itertools import permutations
 
-from gpaw.spherical_harmonics import Y
-from gpaw.gaunt import gaunt, super_gaunt
+from gpaw.sphere.spherical_harmonics import Y
+from gpaw.sphere.gaunt import gaunt, super_gaunt
 
 
 def test_contraction_rule(lmax: int = 3):

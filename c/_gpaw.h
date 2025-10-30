@@ -27,6 +27,11 @@ PyObject* craypat_region_begin(PyObject *self, PyObject *args);
 PyObject* craypat_region_end(PyObject *self, PyObject *args);
 #endif
 
+#if defined(GPAW_WITH_MAGMA) && !defined(GPAW_GPU)
+#warning "GPAW must be built with GPU support in order to use MAGMA routines. Disabling MAGMA"
+#undef GPAW_WITH_MAGMA
+#endif
+
 PyObject* evaluate_mpa_poly(PyObject *self, PyObject *args);
 PyObject* pawexxvv(PyObject* self, PyObject* args);
 PyObject* symmetrize(PyObject *self, PyObject *args);
@@ -203,17 +208,15 @@ PyObject* evaluate_lda_gpu(PyObject* self, PyObject* args);
 PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args);
 PyObject* calculate_residual_gpu(PyObject* self, PyObject* args);
 
-#endif // GPAW_GPU
+PyObject* flush_pending_decrefs(PyObject* self, PyObject* args);
 
 #ifdef GPAW_WITH_MAGMA
-#include "magma_gpaw.h"
-PyObject* eigh_magma_dsyevd(PyObject* self, PyObject* args);
-PyObject* eigh_magma_zheevd(PyObject* self, PyObject* args);
-#ifdef GPAW_GPU
-PyObject* eigh_magma_dsyevd_gpu(PyObject* self, PyObject* args);
-PyObject* eigh_magma_zheevd_gpu(PyObject* self, PyObject* args);
-#endif
+    // Include just the C99-compliant interface, implementation is C++
+    #include "gpu/cpp/magma/magma_python_interface.h"
 #endif // GPAW_WITH_MAGMA
+
+#endif // GPAW_GPU
+
 
 static PyMethodDef functions[] = {
     {"pawexxvv", pawexxvv, METH_VARARGS, 0},
@@ -386,17 +389,14 @@ static PyMethodDef functions[] = {
     {"evaluate_pbe_gpu", evaluate_pbe_gpu, METH_VARARGS, 0},
     {"calculate_residuals_gpu", calculate_residual_gpu, METH_VARARGS, 0},
 
+    #ifdef GPAW_WITH_MAGMA
+    {"_eigh_magma_numpy", eigh_magma_numpy, METH_VARARGS, 0},
+    {"_eigh_magma_cupy", eigh_magma_cupy, METH_VARARGS, 0},
+    #endif // GPAW_WITH_MAGMA
+
+    {"_flush_pending_decrefs", flush_pending_decrefs, METH_NOARGS, 0},
+
 #endif // GPAW_GPU
-
-#ifdef GPAW_WITH_MAGMA
-{"eigh_magma_dsyevd", eigh_magma_dsyevd, METH_VARARGS, 0},
-{"eigh_magma_zheevd", eigh_magma_zheevd, METH_VARARGS, 0},
-#ifdef GPAW_GPU
-{"eigh_magma_dsyevd_gpu", eigh_magma_dsyevd_gpu, METH_VARARGS, 0},
-{"eigh_magma_zheevd_gpu", eigh_magma_zheevd_gpu, METH_VARARGS, 0},
-#endif
-#endif // GPAW_WITH_MAGMA
-
 
     {0, 0, 0, 0}
 };
@@ -419,10 +419,7 @@ extern PyTypeObject lxcXCFunctionalType;
 
 static void gpaw_module_cleanup(void *m)
 {
-#ifdef GPAW_WITH_MAGMA
-    // Assuming GPAW calls magma_init() during module startup
-    magma_finalize();
-#endif
+    // Relic from the distant past
 }
 
 static struct PyModuleDef moduledef = {
@@ -503,17 +500,6 @@ static PyObject* moduleinit(void)
 
 #ifdef GPAW_WITH_MAGMA
     PyObject_SetAttrString(m, "have_magma", Py_True);
-
-    // MAGMA needs to be globally initialized, but keeps track of accumulated
-    // magma_init() calls. So it's safe to call it inside GPAW, even if other
-    // libs are also doing it.
-
-    // FIXME: Where should GPAW call magma_init()?
-    // Should not be in GPU-specific init because magma can work without GPU too.
-    // However it needs to come AFTER cudaSetValidDevices and cudaSetDeviceFlags.
-    // Calling it here could become a problem if Python-side GPU init does more than setDevice(...)
-    magma_init();
-
 #else
     PyObject_SetAttrString(m, "have_magma", Py_False);
 #endif

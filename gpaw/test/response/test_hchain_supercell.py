@@ -30,6 +30,7 @@ def get_hydrogen_chain_dielectric_function(NH, NK):
     return omega_w, eps_LF
 
 
+@pytest.mark.filterwarnings('ignore:unclosed file')
 @pytest.mark.dielectricfunction
 @pytest.mark.serial
 @pytest.mark.response

@@ -5,7 +5,7 @@ import pytest
 from scipy.special import expn
 import ase.units as units
 
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.hyperfine import (hyperfine_parameters, paw_correction, smooth_part,
                             integrate, alpha, G_FACTOR_E, core_contribution)
 from gpaw import GPAW

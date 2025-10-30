@@ -14,7 +14,6 @@ Ref. [#Ojanpera2012]_.
 
     * :ref:`timepropagation`
     * :class:`gpaw.tddft.TDDFT`
-    * :meth:`gpaw.tddft.TDDFT.propagate`
 
 
 ------------
@@ -106,6 +105,6 @@ References
                    *Phys. Rev. B* **89**, 035120 (2014).
 
 .. [#Brand2019] C. Brand, M. Debiossac, T. Susi, F. Aguillon, J. Kotakoski,
-                P. Roncin, M. Arndt, "Coherent diffraction of hydrogen 
+                P. Roncin, M. Arndt, "Coherent diffraction of hydrogen
                 through the 246 pm lattice of graphene",
                 *New J. Phys.* **21**, 033004 (2019).

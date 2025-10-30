@@ -53,6 +53,7 @@ class BZPoints:
                                  use_time_reversal,
                                  comm,
                                  tolerance)
+        assert (weight_k > 0.0).all()
 
         if strict and -1 in bz2bz_Ks:
             raise ValueError(

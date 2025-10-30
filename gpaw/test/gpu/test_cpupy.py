@@ -20,3 +20,13 @@ def test_grr():
     a[:] = 2.5
     b = np.float64(3.0) * a
     assert isinstance(b, cp.ndarray)
+
+
+@pytest.mark.gpu
+@pytest.mark.serial
+@pytest.mark.xfail  # fails with cpupy - don't know how to fix it!
+def test_no_implicit_conversion():
+    a = cp.ones(2)
+    b = np.empty(2)
+    with pytest.raises(TypeError):
+        b[:] = a

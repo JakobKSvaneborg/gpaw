@@ -8,7 +8,7 @@ from ase.parallel import parprint
 from ase.units import Bohr
 from ase.utils.filecache import MultiFileJSONCache
 
-from gpaw.calculator import GPAW
+from gpaw.old.calculator import GPAW
 from gpaw.lcao.tightbinding import TightBinding
 from gpaw.typing import ArrayND
 from gpaw.utilities import unpack_hermitian

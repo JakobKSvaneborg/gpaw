@@ -3,14 +3,14 @@ import numpy as np
 from ase import Atoms
 from ase.units import Ha, Bohr
 
-from gpaw.kpt_descriptor import KPointDescriptor
-from gpaw.grid_descriptor import GridDescriptor
-from gpaw.kpoint import KPoint
+from gpaw.old.kpt_descriptor import KPointDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.old.kpoint import KPoint
 from gpaw.symmetry import Symmetry
-from gpaw.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
-from gpaw.pw.descriptor import PWDescriptor
-from gpaw.pw.lfc import PWLFC
-from gpaw.projections import Projections
+from gpaw.old.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
+from gpaw.old.pw.descriptor import PWDescriptor
+from gpaw.old.pw.lfc import PWLFC
+from gpaw.old.projections import Projections
 from gpaw.mpi import world
 from gpaw.spline import Spline
 from gpaw.hybrids.energy import calculate_energy

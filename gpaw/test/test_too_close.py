@@ -1,7 +1,7 @@
 """Make sure we get an exception when an atom is too close to the boundary."""
 from ase import Atoms
 from gpaw import GPAW
-from gpaw.grid_descriptor import GridBoundsError
+from gpaw.old.grid_descriptor import GridBoundsError
 from gpaw.utilities import AtomsTooClose
 import pytest
 

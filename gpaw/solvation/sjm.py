@@ -22,8 +22,8 @@ from ase.units import Bohr, Ha, _e, kB
 from gpaw import GPAW_NEW, ConvergenceError
 from gpaw.dipole_correction import DipoleCorrection
 from gpaw.fd_operators import Gradient
-from gpaw.hamiltonian import RealSpaceHamiltonian
-from gpaw.io.logger import indent
+from gpaw.old.hamiltonian import RealSpaceHamiltonian
+from gpaw.old.logger import indent
 from gpaw.jellium import Jellium, JelliumSlab
 from gpaw.solvation.calculator import OldSolvationGPAW
 from gpaw.solvation.cavity import Power12Potential, get_pbc_positions

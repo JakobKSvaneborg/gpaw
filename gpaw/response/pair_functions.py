@@ -176,7 +176,7 @@ def map_ZgG_array_to_reduced_pd(qpdi, qpd, blockdist, in_ZgG):
 
 def map_zGG_array_to_reduced_pd(qpdi, qpd, in_zGG):
     """Map the array in_zGG from the qpdi to the qpd plane-wave basis."""
-    from gpaw.pw.descriptor import PWMapping
+    from gpaw.old.pw.descriptor import PWMapping
 
     # Initialize the basis mapping
     pwmapping = PWMapping(qpdi, qpd)

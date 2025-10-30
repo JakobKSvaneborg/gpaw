@@ -9,7 +9,7 @@ from gpaw.solvation.poisson import (WeightedFDPoissonSolver,
                                     ADM12PoissonSolver,
                                     PolarizationPoissonSolver)
 from gpaw.solvation.dielectric import Dielectric
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.utilities.gauss import Gaussian
 from gpaw.fd_operators import Gradient
 import pytest

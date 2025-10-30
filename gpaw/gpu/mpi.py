@@ -115,6 +115,9 @@ class CuPyMPI:
             if request.target is not None:
                 request.target[:] = cp.asarray(request.buffer)
 
+    def barrier(self):
+        self.comm.barrier()
+
     def get_c_object(self):
         return self.comm.get_c_object()
 

@@ -33,6 +33,16 @@ def execute_in_tmp_path(request, tmp_path_factory):
 
 
 @pytest.fixture(scope='module')
+def set_device():
+    from gpaw.gpu import set_device
+
+    def log(*args, **kwargs):
+        kwargs.pop('parallel', None)
+        print(*args, **kwargs)
+    set_device(log)
+
+
+@pytest.fixture(scope='module')
 def dftd3():
     from ase.calculators.dftd3 import PureDFTD3
     try:
@@ -95,6 +105,12 @@ def monkeypatch_allow_cpupy(sessionscoped_monkeypatch):
     sessionscoped_monkeypatch.setattr(DFTComponentsBuilder, 'gpu', gpu)
     # Needed for `@cached_property` to work
     gpu.__set_name__(DFTComponentsBuilder, 'gpu')
+
+
+@pytest.fixture(autouse=True, scope='session')
+def use_fftw_estimate_flag(sessionscoped_monkeypatch):
+    from gpaw.fftw import FFTWPlans, ESTIMATE
+    sessionscoped_monkeypatch.setattr(FFTWPlans, '_overwrite_flags', ESTIMATE)
 
 
 @pytest.fixture(scope='session')
