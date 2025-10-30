@@ -29,7 +29,7 @@ class PPCG(PWFDEigensolver):
                  blocksize=None,
                  rr_modulo=5,
                  include_cg=True,
-                 promote_inner_dtype=False,
+                 promote_inner_dtype=True,
                  tolerances: tuple[float, ...] | None = None,
                  scalapack_parameters=None,
                  max_buffer_mem: int = 200 * 1024 ** 2):
@@ -118,7 +118,7 @@ class PPCG(PWFDEigensolver):
 
         if self.blocksize is None:
             if xp == np:
-                self.blocksize = 192
+                self.blocksize = 32 # 192
             else:
                 self.blocksize = 1024
 
@@ -168,7 +168,7 @@ class PPCG(PWFDEigensolver):
         #   breakout_tolerance saves time at the cost of minimum
         #   achievable residual. Can also be used to improve numerical
         #   stability.
-        self.breakout_tolerance = 1e-7
+        self.breakout_tolerance = 1e-8
 
         if self.tolerances is not None:
             assert len(self.tolerances) == 3
@@ -202,9 +202,6 @@ class PPCG(PWFDEigensolver):
 
         with tracectx('Initialize'):
             M_nn = self.M_nn
-            # Some buffer arrays for approx orthonormalization
-            # Y1_nn = M_nn.new()
-            # Y2_nn = M_nn.new()
 
             xp = M_nn.xp
 
@@ -232,7 +229,8 @@ class PPCG(PWFDEigensolver):
             band_comm = psit_nX.comm
 
             if weight_n is None:
-                weight_n = np.ones(b)
+                weight_n = np.zeros(b)
+                weight_n[:(len(weight_n) * 3) // 4] = 1.0
 
             buffer_array_nX = psit_nX.create_work_buffer(self.data_buffers[0])
 
@@ -288,6 +286,7 @@ class PPCG(PWFDEigensolver):
             active_bs = len(active_indicies)
 
             with tracectx('Block-diagonal Update'):
+                wfs.eig_n[:] = 0 # Reset eigenvalues
                 for j in range(0, active_bs, self.blocksize):
                     block_slice_base = \
                         slice(j, min(j + self.blocksize, active_bs))
@@ -400,12 +399,12 @@ class PPCG(PWFDEigensolver):
                                            data=S_bb[:nblocks,
                                                      :nblocks],
                                            xp=xp)
-                            MH_bb.eigh(MS_bb)
+                            eig_b = MH_bb.eigh(MS_bb)
                         else:
                             # Do the full PPCG update
-                            MH_bb.eigh(MS_bb)
+                            eig_b = MH_bb.eigh(MS_bb)
                     else:
-                        MH_bb.eigh(MS_bb)
+                        eig_b = MH_bb.eigh(MS_bb)
                     if self.promote_inner_dtype:
                         buffer_bb[:] = H_bb.conj()
                         cmin = buffer_bb[:block, :nblocks]
@@ -415,6 +414,7 @@ class PPCG(PWFDEigensolver):
                         print('H is not finite')
                         break_after_update = True
                         continue
+                    wfs.myeig_n[block_slice] = as_np(eig_b[:block])
 
                     with tracectx('rotations', gpu=xp is not np):
                         # Ye olde updates
@@ -442,6 +442,7 @@ class PPCG(PWFDEigensolver):
                             Pbuf_abi.matrix.data[:block] \
                             + Pbuf_abi.matrix.data[block:2 * block]
 
+            band_comm.sum(wfs._eig_n)
             wfs.orthonormalized = False
             if break_after_update or i >= self.niter - 1:
                 break
@@ -449,28 +450,13 @@ class PPCG(PWFDEigensolver):
             with tracectx('Residual'):
                 # Subspace diagonialization needed every once in a while
                 if (i + 1) % self.rr_modulo == 0:
-                    # if b_error < 1e-2:
-                    #     Approximate orthonormalization only if
-                    #     the residual is small.
-                    #     approx_orthonormalize(wfs, residual_nX, M_nn, Y1_nn,
-                    #                           Y2_nn, dS_aii, domain_comm)
                     wfs.subspace_diagonalize(Ht, dH,
                                              psit2_nX=residual_nX,
                                              data_buffer=self.data_buffers[0])
                 else:
-                    # In theory we could skip orthonormalization,
-                    # but this sometimes causes issues so we do it.
-                    if b_error < 1e-2 and False:
-                        ...
-                        # Approximate orthonormalization only if
-                        # the residual is small.
-                        # approx_orthonormalize(wfs, residual_nX, M_nn, Y1_nn,
-                        #                       Y2_nn, dS_aii, domain_comm)
-                    else:
-                        wfs.orthonormalize(residual_nX)
+                    wfs.orthonormalize(residual_nX)
                     Ht(psit_nX, out=residual_nX)
-                    update_eigenvalues(wfs, residual_nX, P_ani, Ptemp_ani, dH,
-                                       domain_comm)
+                    # update_eigenvalues(wfs, residual_nX, wfs.P_ani, P2_ani, dH, domain_comm)
 
                 calculate_residuals(wfs.psit_nX,
                                     residual_nX,
@@ -516,13 +502,6 @@ class PPCG(PWFDEigensolver):
 
         if not wfs.orthonormalized:
             wfs.orthonormalize(residual_nX)
-            # if b_error < 1e-2:
-            #     Approximate orthonormalization only if
-            #     the residual is small.
-            #     approx_orthonormalize(wfs, residual_nX, M_nn, Y1_nn,
-            #                           Y2_nn, dS_aii, domain_comm)
-            # else:
-            #     wfs.orthonormalize(residual_nX)
 
         if debug:
             psit_nX.sanity_check()
