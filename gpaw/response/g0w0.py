@@ -996,7 +996,7 @@ class G0W0Calculator:
 
                 for (progress, kpt1, kpt2)\
                         in self.pair_distribution.kpt_pairs_by_q(bzq_c, 0, m2):
-                    pb.update((nQ + progress) / self.wcalc.qd.mynk)
+                    pb.update((nQ + progress) / self.wcalc.qd.get_count())
 
                     k1 = self.wcalc.gs.kd.bz2ibz_k[kpt1.K]
                     i = self.kpts.index(k1)

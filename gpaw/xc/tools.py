@@ -70,6 +70,7 @@ def vxc(gs, xc=None, coredensity=True, n1=0, n2=0):
                                  P_ni.conj()).sum(1).real
 
     gs.gd.comm.sum(vxc_un)
+
     vxc_skn = gs.kd.collect(vxc_un, broadcast=True)
 
     if xc.orbital_dependent:

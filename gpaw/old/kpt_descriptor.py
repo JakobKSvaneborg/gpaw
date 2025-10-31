@@ -247,7 +247,7 @@ class KPointDescriptor:
         self.comm = comm
 
         # My number and offset of k-point/spin combinations
-        self.mynk = self.get_count()
+        self.mynk = self.get_count() // self.nspins
         self.k0 = self.get_offset()
 
         self.ibzk_qc = self.ibzk_kc[self.k0:self.k0 + self.mynk]
@@ -525,7 +525,8 @@ class KPointDescriptor:
         """Return the number of ks-pairs which belong to a given rank."""
         if rank is None:
             rank = self.comm.rank
-        assert rank in range(self.comm.size)
+        else:
+            assert rank in range(self.comm.size)
 
         if hasattr(self, 'nu_r'):
             return self.nu_r[rank]
@@ -534,7 +535,7 @@ class KPointDescriptor:
         mynk = mynk0
         if rank >= self.rank0:
             mynk += 1
-        return mynk
+        return mynk * self.nspins
 
     def get_offset(self, rank=None):
         """Return the offset of the first ks-pair on a given rank."""
