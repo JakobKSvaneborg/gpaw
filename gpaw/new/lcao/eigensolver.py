@@ -46,8 +46,7 @@ class LCAOEigensolver(Eigensolver):
         C_Mn = H_MM  # rename (H_MM now contains the eigenvectors)
         assert len(eig_M) >= wfs.nbands
         N = wfs.nbands
-        wfs._eig_n = np.empty(wfs.nbands)
-        wfs._eig_n[:] = as_np(eig_M[:N])
+        wfs.eig_n = as_np(eig_M[:N])
         comm = C_Mn.dist.comm
         if isinstance(wfs.C_nM, MatrixWithNoData):
             wfs.C_nM = wfs.C_nM.create()

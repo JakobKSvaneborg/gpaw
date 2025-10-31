@@ -360,7 +360,7 @@ class DFTComponentsBuilder:
                 dims = [self.nbands, 2]
                 index = (wfs.k,)
 
-            wfs._eig_n = eig_skn[index] / ha
+            wfs.eig_n = eig_skn[index] / ha
             wfs._occ_n = occ_skn[index]
             layout = AtomArraysLayout([(setup.ni,) for setup in self.setups],
                                       atomdist=self.atomdist,
