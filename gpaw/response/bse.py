@@ -272,13 +272,13 @@ class BSEBackend:
                  integrate_gamma='reciprocal',
                  q0_correction=False,
                  mode='BSE',
-                 q_c=[0.0, 0.0, 0.0],
+                 q_c=(0.0, 0.0, 0.0),
                  direction=0):
 
         integrate_gamma = GammaIntegrationMode(integrate_gamma)
 
         self.gs = gs
-        self.q_c = q_c
+        self.q_c = list(q_c)
         self.direction = direction
         self.context = context
         self.add_soc = add_soc
