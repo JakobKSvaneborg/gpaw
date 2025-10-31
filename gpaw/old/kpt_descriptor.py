@@ -548,11 +548,11 @@ class KPointDescriptor:
             k0 += rank - self.rank0
         return k0
 
-    def get_rank_and_index(self, k):
+    def get_rank_and_index(self, k, s):
         """Find rank and local index of k-point/spin combination."""
 
-        rank, q = self.who_has(k)
-        return rank, q
+        rank, u = self.who_has(k, s)
+        return rank, u
 
     def get_indices(self, rank=None):
         """Return the global ks-pair indices which belong to a given rank."""

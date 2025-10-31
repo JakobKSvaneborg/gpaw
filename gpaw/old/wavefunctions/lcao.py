@@ -313,8 +313,7 @@ class LCAOWaveFunctions(WaveFunctions):
         self.initialize_wave_functions_from_lcao()
 
     def add_orbital_density(self, nt_G, kpt, n):
-        rank, q = self.kd.get_rank_and_index(kpt.k)
-        u = q * self.nspins + kpt.s
+        rank, u = self.kd.get_rank_and_index(kpt.k, kpt.s)
         assert rank == self.kd.comm.rank
         assert self.kpt_u[u] is kpt
         psit_G = self._get_wave_function_array(u, n, realspace=True)

@@ -481,8 +481,7 @@ class PWWaveFunctions(FDPWWaveFunctions):
 
     def get_wave_function_array(self, n, k, s, realspace=True,
                                 cut=True, periodic=False):
-        kpt_rank, q = self.kd.get_rank_and_index(k)
-        u = q * self.nspins + s
+        kpt_rank, u = self.kd.get_rank_and_index(k, s)
         band_rank, myn = self.bd.who_has(n)
 
         rank = self.world.rank
