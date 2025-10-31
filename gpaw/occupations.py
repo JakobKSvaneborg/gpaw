@@ -240,14 +240,14 @@ class FixMagneticMomentOccupationNumberCalculator(OccupationNumberCalculator):
         if fermi_levels_guess is None:
             fermi_levels_guess = [nan, nan]
 
-        f1_qn, fermi_levels1, e_entropy1 = self.occ.calculate(
+        f1_un, fermi_levels1, e_entropy1 = self.occ.calculate(
             (nelectrons + magmom) / 2,
             eigenvalues,
             [w if spin == 0 else 0.0 for w, spin in zip(weights, spins)],
             fermi_levels_guess=fermi_levels_guess[:1],
             fix_fermi_level=fix_fermi_level)
 
-        f2_qn, fermi_levels2, e_entropy2 = self.occ.calculate(
+        f2_un, fermi_levels2, e_entropy2 = self.occ.calculate(
             (nelectrons - magmom) / 2,
             eigenvalues,
             [w if spin == 1 else 0.0 for w, spin in zip(weights, spins)],
@@ -255,15 +255,11 @@ class FixMagneticMomentOccupationNumberCalculator(OccupationNumberCalculator):
             fix_fermi_level=fix_fermi_level)
 
         f_un = []
-        q1 = 0
-        q2 = 0
-        for spin in spins:
+        for u, spin in enumerate(spins):
             if spin == 0:
-                f_un.append(f1_qn[q1])
-                q1 += 1
+                f_un.append(f1_un[u])
             else:
-                f_un.append(f2_qn[q2])
-                q2 += 1
+                f_un.append(f2_un[u])
 
         return (np.array(f_un),
                 fermi_levels1 + fermi_levels2,
