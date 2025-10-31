@@ -304,7 +304,7 @@ def as_numpy(a: np.ndarray | cupy.ndarray
     a[:] = cupy.asarray(b)
 
 
-def as_np(array: np.ndarray | cupy.ndarray) -> np.ndarray:
+def as_np(array: np.ndarray | cupy.ndarray, dtype=None) -> np.ndarray:
     """Transfer array to CPU (if not already there).
 
     Parameters
@@ -312,9 +312,13 @@ def as_np(array: np.ndarray | cupy.ndarray) -> np.ndarray:
     array:
         Numpy or CuPy array.
     """
-    if isinstance(array, np.ndarray):
-        return array
-    return cupy.asnumpy(array)
+    if not isinstance(array, np.ndarray):
+        array = cupy.asnumpy(array)
+
+    if dtype is None:
+        return np.asarray(array)
+
+    return np.asarray(array, dtype=dtype)
 
 
 def as_xp(array, xp):

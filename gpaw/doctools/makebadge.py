@@ -1,4 +1,7 @@
-def coverage_badge(percentage):
+import sys
+
+
+def coverage_badge(percentage: str | int | float) -> str:
     # This creates a fancy coverage bagde for README, gitlab, etc.
     #
     # We cannot use gitlab's own coverage badge because it always reflects
@@ -8,14 +11,14 @@ def coverage_badge(percentage):
                      color=getcolor(float(percentage)))
 
 
-def getcolor(x):
+def getcolor(x: int | float) -> str:
     return ('4c1' if x >= 95 else
             'a3c51c' if x >= 90 else
             'dfb317' if x >= 75 else
             'e05d44')
 
 
-def makebadge(value, color):
+def makebadge(value: str, color: str) -> str:
     # Note: If text changes length you need to revisit the widths
     # including textLength, offsets etc., better use shields.io if you
     # need to generate a badge with different text lengths.
@@ -27,6 +30,9 @@ def makebadge(value, color):
 """.format(value=value, color=color, width=width, width_small=width_small)  # noqa
 
 
+def main(args: list[str]) -> None:
+    print(coverage_badge(args[1]))
+
+
 if __name__ == '__main__':
-    import sys
-    print(coverage_badge(sys.argv[1]))
+    main(sys.argv)
