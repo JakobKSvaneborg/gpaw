@@ -251,7 +251,8 @@ class DFTComponentsBuilder:
                             self.communicators['w'],
                             self.communicators['k'],
                             self.communicators['b'],
-                            self.xp)
+                            self.xp,
+                            gpu_add_and_integrate=False)
 
     def density_from_superposition(self, basis_set):
         return Density.from_superposition(
