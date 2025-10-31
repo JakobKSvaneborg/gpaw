@@ -14,7 +14,7 @@ import numpy as np
 from scipy.fft import fftn, ifftn, irfftn, rfftn
 
 import gpaw.cgpaw as cgpaw
-from gpaw.utilities import as_complex_dtype, as_real_dtype
+from gpaw.utilities import as_complex_dtype, as_real_dtype, get_dtype_precision
 from gpaw.new.c import pw_insert_gpu
 from gpaw.new import trace
 from gpaw.typing import Array1D, Array3D, DTypeLike, IntVector
@@ -96,7 +96,7 @@ def create_plans(size_c: IntVector,
     # Create new plan:
     if xp is not np:
         plan = CuPyFFTPlans(size_c, dtype)
-    elif have_fftw():
+    elif have_fftw() and get_dtype_precision(dtype) != 'single':
         plan = FFTWPlans(size_c, dtype, flags)
     else:
         plan = NumpyFFTPlans(size_c, dtype)
@@ -418,6 +418,6 @@ def create_plan(in_R: Array3D,
                 out_R: Array3D,
                 sign: int,
                 flags: int = MEASURE) -> FFTPlan:
-    if have_fftw():
+    if have_fftw() and get_dtype_precision(in_R.dtype) != 'single':
         return FFTWPlan(in_R, out_R, sign, flags)
     return NumpyFFTPlan(in_R, out_R, sign, flags)
