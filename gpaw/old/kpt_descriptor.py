@@ -295,30 +295,35 @@ class KPointDescriptor:
     def collect(self, a_ux, broadcast: bool):
         """Collect distributed data to all."""
 
+        # Only used in xc.tools.vxc()
+
         xshape = a_ux.shape[1:]
-        a_qsx = a_ux.reshape((-1, self.nspins) + xshape)
+        assert len(xshape) == 1
+        # a_qsx = a_ux.reshape((-1, self.nspins) + xshape)
         if self.comm.rank == 0 or broadcast:
-            a_ksx = np.empty((self.nibzkpts, self.nspins) + xshape, a_ux.dtype)
+            a_Ux = np.empty((self.nibzkpts * self.nspins,) + xshape,
+                            a_ux.dtype)
 
         if self.comm.rank > 0:
-            self.comm.send(a_qsx, 0)
+            self.comm.send(a_ux, 0)
         else:
-            k1 = self.get_count(0)
-            a_ksx[0:k1] = a_qsx
+            U1 = self.get_count(0)
+            a_Ux[0:U1] = a_ux
             requests = []
             for rank in range(1, self.comm.size):
-                k2 = k1 + self.get_count(rank)
-                requests.append(self.comm.receive(a_ksx[k1:k2], rank,
+                U2 = U1 + self.get_count(rank)
+                requests.append(self.comm.receive(a_Ux[U1:U2], rank,
                                                   block=False))
-                k1 = k2
-            assert k1 == self.nibzkpts
+                U1 = U2
+            assert U1 == self.nibzkpts * self.nspins
             self.comm.waitall(requests)
 
         if broadcast:
-            self.comm.broadcast(a_ksx, 0)
+            self.comm.broadcast(a_Ux, 0)
 
         if self.comm.rank == 0 or broadcast:
-            return a_ksx.transpose((1, 0, 2))
+            return a_Ux.reshape(
+                (self.nibzkpts, self.nspins) + xshape).transpose((1, 0, 2))
 
     def transform_wave_function(self, psit_G, k, index_G=None, phase_G=None):
         """Transform wave function from IBZ to BZ.
@@ -556,8 +561,14 @@ class KPointDescriptor:
         k2 = k1 + self.get_count(rank)
         return np.arange(k1, k2)
 
-    def who_has(self, k):
+    def who_has(self, k, s):
         """Convert global index to rank information and local index."""
+
+        if hasattr(self, 'rank_ks'):
+            rank = self.rank_ks[k, s]
+            U = k * self.nspins + s
+            U0 = self.nu_r[:rank].sum()
+            return rank, U - U0
 
         mynk0 = self.nibzkpts // self.comm.size
         if k < mynk0 * self.rank0:
@@ -565,7 +576,7 @@ class KPointDescriptor:
         else:
             rank, q = divmod(k - mynk0 * self.rank0, mynk0 + 1)
             rank += self.rank0
-        return rank, q
+        return rank, q * self.nspins + s
 
     def write(self, writer):
         writer.write('ibzkpts', self.ibzk_kc)

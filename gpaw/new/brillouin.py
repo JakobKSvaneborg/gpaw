@@ -165,6 +165,7 @@ class IBZ:
         kd.nu_r = np.zeros(kpt_comm.size, int)
         kd.nu_r[kpt_comm.rank] = (rank_ks == kpt_comm.rank).sum()
         kpt_comm.sum(kd.nu_r)
+        kd.rank_ks = rank_ks
         return kd
 
 
