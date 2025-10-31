@@ -128,7 +128,7 @@ class DFTCalculation:
         ibzwfs = builder.create_ibz_wave_functions(
             basis_set, potential)
 
-        if ibzwfs._wfs_u[0]._eig_n is not None:
+        if ibzwfs._wfs_u[0].has_eigs:
             nelectrons = density.nvalence - density.charge + pot_calc.charge
             ibzwfs.calculate_occs(scf_loop.occ_calc, nelectrons)
 

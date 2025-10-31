@@ -274,8 +274,8 @@ class IBZWaveFunctions(Generic[WFT]):
             if rank == self.kpt_comm.rank:
                 wfs = self._get_wfs(kpt, spin)
                 if rank == 0:
-                    return wfs._eig_n, wfs._occ_n
-                self.kpt_comm.send(wfs._eig_n, 0)
+                    return wfs.eig_n, wfs._occ_n
+                self.kpt_comm.send(wfs.eig_n, 0)
                 self.kpt_comm.send(wfs._occ_n, 0)
             elif self.kpt_comm.rank == 0:
                 eig_n = np.empty(self.nbands)

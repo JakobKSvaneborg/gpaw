@@ -1,5 +1,6 @@
 *.pyc
 build/
+niflheim_build/
 /dist
 MANIFEST
 _gpaw*.so
@@ -10,7 +11,7 @@ gpaw.egg-info/
 /siteconfig.py
 /siteconfig-*.py
 /venv*/
-.coverage*
+.coverage
 htmlcov/
 .pytest_cache/
 .idea

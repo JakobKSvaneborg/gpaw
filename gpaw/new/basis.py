@@ -16,7 +16,8 @@ def create_basis(ibz: IBZ,
                  comm=serial_comm,
                  kpt_comm=serial_comm,
                  band_comm=serial_comm,
-                 xp=np):
+                 xp=np,
+                 gpu_add_and_integrate=True):
     kd = ibz._old_kd(nspins, kpt_comm)
     if GPAW_NO_C_EXTENSION:
         return SimpleBasis(grid, setups, relpos_ac, xp)
@@ -27,7 +28,8 @@ def create_basis(ibz: IBZ,
                            kd,
                            dtype=basis_dtype,
                            cut=True,
-                           xp=xp)
+                           xp=xp,
+                           gpu_add_and_integrate=gpu_add_and_integrate)
     basis.set_positions(relpos_ac)
     myM = (basis.Mmax + band_comm.size - 1) // band_comm.size
     basis.set_matrix_distribution(

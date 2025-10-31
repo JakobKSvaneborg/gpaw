@@ -252,7 +252,8 @@ class DFTComponentsBuilder:
                             self.communicators['w'],
                             self.communicators['k'],
                             self.communicators['b'],
-                            self.xp)
+                            self.xp,
+                            gpu_add_and_integrate=False)
 
     def density_from_superposition(self, basis_set):
         return Density.from_superposition(
@@ -360,7 +361,7 @@ class DFTComponentsBuilder:
                 dims = [self.nbands, 2]
                 index = (wfs.k,)
 
-            wfs._eig_n = eig_skn[index] / ha
+            wfs.eig_n = eig_skn[index] / ha
             wfs._occ_n = occ_skn[index]
             layout = AtomArraysLayout([(setup.ni,) for setup in self.setups],
                                       atomdist=self.atomdist,

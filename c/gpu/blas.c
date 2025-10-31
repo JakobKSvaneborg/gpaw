@@ -349,8 +349,9 @@ static void _r2k_gpu(int n, int k,
                      Py_complex alpha, void *a_gpu,
                      int lda, void *b_gpu,
                      int ldb, double beta,
-                     void *c_gpu, int ldc, int dtypenum)
+                     void *c_gpu, int ldc, int dtypenum, gpuStream_t stream)
 {
+    gpublasSetStream(_gpaw_gpublas_handle, stream);
     if (dtypenum == NP_DOUBLE) {
         gpublasSafeCall(
                 gpublasDsyr2k(_gpaw_gpublas_handle,
@@ -394,8 +395,10 @@ static void _r2k_gpu(int n, int k,
                     (gpublasComplex*) c_gpu, ldc));
     } else {
         PyErr_SetString(PyExc_TypeError, "Unsupported dtype");
-        return;
     }
+
+    // The rest of the code assumes null stream, so being compliant to that for now
+    gpublasSetStream(_gpaw_gpublas_handle, 0);
 }
 
 
@@ -405,12 +408,13 @@ PyObject* r2k_gpu(PyObject *self, PyObject *args)
     double beta;
     int lda, ldb, ldc;
 
-    PyObject *a_obj, *b_obj, *c_obj;
+    PyObject *a_obj, *b_obj, *c_obj, *stream_obj;
     // PyArray_Descr *type;
 
-    if (!PyArg_ParseTuple(args, "DOOdOii|i", &alpha, &a_obj, &b_obj, &beta, &c_obj, &lda, &ldb, &ldc))
+    if (!PyArg_ParseTuple(args, "ODOOdOii|i", &stream_obj, &alpha, &a_obj, &b_obj, &beta, &c_obj, &lda, &ldb, &ldc))
         return NULL;
 
+    gpuStream_t stream = (gpuStream_t) PyLong_AsVoidPtr(stream_obj);
     void *a_gpu = (void*) Array_DATA(a_obj);
     void *b_gpu = (void*) Array_DATA(b_obj);
     void *c_gpu = (void*) Array_DATA(c_obj);
@@ -421,7 +425,7 @@ PyObject* r2k_gpu(PyObject *self, PyObject *args)
     for (int d = 2; d < Array_NDIM(a_obj); d++)
         k *= Array_DIM(a_obj, d);
 
-    _r2k_gpu(n, k, alpha, a_gpu, lda, b_gpu, ldb, beta, c_gpu, ldc, dtypenum);
+    _r2k_gpu(n, k, alpha, a_gpu, lda, b_gpu, ldb, beta, c_gpu, ldc, dtypenum, stream);
 
     if (PyErr_Occurred())
         return NULL;
