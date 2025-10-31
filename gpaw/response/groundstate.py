@@ -14,8 +14,6 @@ from gpaw.ibz2bz import IBZ2BZMaps
 from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.new.ase_interface import ASECalculator as NewGPAW
 from gpaw.response.paw import LeanPAWDataset
-from gpaw.old.wavefunctions.lcao import LCAOWaveFunctions
-from gpaw.old.wavefunctions.pw import PWWaveFunctions
 
 from gpaw.utilities.gpts import pw_ecut_from_lcao_grid
 
@@ -59,15 +57,20 @@ class ResponseGroundStateAdapter:
     def __init__(self, calc: GPAWCalculator, lazy=False):
 
         wfs = calc.wfs  # wavefunction object from gpaw.old.wavefunctions
+        self._wfs = wfs
         self.gs_info = ""
 
-        if isinstance(wfs, LCAOWaveFunctions):
-            # and not getattr(calc, 'planewavefy_completed', False)):
+        if self.is_lcao:
+            if isinstance(calc, NewGPAW):
+                raise ValueError('LCAO calculations are only '
+                                 'supported by old GPAW')
             calc.initialize_positions()
             for kpt in wfs.kpt_u:
                 assert kpt.C_nM is not None
             ecut_pw = pw_ecut_from_lcao_grid(wfs.gd)
             wfs.planewavefy(ecut=ecut_pw / Ha, lazy=lazy)
+            assert wfs.pd is not None
+
             self.gs_info = f"""Converting LCAO wf to PW wf
                          with cutoff of Ecut={ecut_pw:.3f} eV"""
             # calc = planewavefy_completed
@@ -105,18 +108,17 @@ class ResponseGroundStateAdapter:
 
         self.ibz2bz = IBZ2BZMaps.from_calculator(calc)
 
-        self._wfs = wfs
         self._density = calc.density
         self._hamiltonian = calc.hamiltonian
         self._calc = calc
 
     @property
     def is_planewave(self):
-        return isinstance(self._wfs, PWWaveFunctions)
+        return self._wfs.mode == 'pw'
 
     @property
     def is_lcao(self):
-        return isinstance(self._wfs, LCAOWaveFunctions)
+        return self._wfs.mode == 'lcao'
 
     @staticmethod
     def from_input(

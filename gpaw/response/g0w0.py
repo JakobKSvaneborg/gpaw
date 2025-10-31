@@ -1191,7 +1191,7 @@ class G0W0(G0W0Calculator):
             for the cutoff energy.
             If an array is given, the extrapolation will be performed based on
             the cutoff energies given in the array.
-        nbands: int / String
+        nbands: int | String
             Number of bands to use in the calculation. If None, the number will
             be determined from :ecut: to yield a number close to the number of
             plane waves used. If in LCAO, nao can be used
@@ -1307,6 +1307,12 @@ class G0W0(G0W0Calculator):
         context = ResponseContext(txt=output_prefix + '.txt',
                                   comm=world, timer=timer)
         gs = ResponseGroundStateAdapter.from_gpw_file(gpwfile, lazy=True)
+
+        if gs.is_lcao:
+            if ecut_extrapolation:
+                raise ValueError('ecut_extrapolation is '
+                                 'disabled in LCAO mode.')
+
         context.print(gs.gs_info)
 
         # Check if nblocks is compatible, adjust if not

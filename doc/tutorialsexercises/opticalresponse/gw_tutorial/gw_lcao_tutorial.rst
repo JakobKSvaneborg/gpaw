@@ -19,7 +19,7 @@ More information can be found here:
     __ https://prb.aps.org/abstract/PRB/v87/i23/e235132
     
 Additionally, before getting started using LCAO wave functions in the GW approximation,
-it would be beneficial to become familiar with G0W0 using GPAW, see :ref:`gw_tutorial`.
+it would be beneficial to become familiar with G0W0 using GPAW, see :ref:`gw tutorial`.
 
 Quasi-particle spectrum of bulk diamond
 =======================================
