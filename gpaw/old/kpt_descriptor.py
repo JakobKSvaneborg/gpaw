@@ -558,8 +558,9 @@ class KPointDescriptor:
     def get_indices(self, rank=None):
         """Return the global ks-pair indices which belong to a given rank."""
 
+        assert not hasattr(self, 'rank_ks')
         k1 = self.get_offset(rank)
-        k2 = k1 + self.get_count(rank)
+        k2 = k1 + self.get_count(rank) // self.nspins
         return np.arange(k1, k2)
 
     def who_has(self, k, s):
