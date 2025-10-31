@@ -12,40 +12,44 @@ from gpaw import GPAW_NO_C_EXTENSION
 @pytest.mark.gpu
 @pytest.mark.serial
 @pytest.mark.parametrize('dtype', [float, complex])
-@pytest.mark.parametrize('gpu', [False, True])
+@pytest.mark.parametrize('gpu', [True, False])
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
-@pytest.mark.parametrize('random', [False, True])
+@pytest.mark.parametrize('random', [True, False])
 def test_gpu(dtype, gpu, mode, random):
     if GPAW_NO_C_EXTENSION and not random:
         pytest.skip('No LCAO Initialization with GPAW_NO_C_EXTENSION')
     if GPAW_NO_C_EXTENSION and mode == 'fd':
         pytest.skip('No FD mode with GPAW_NO_C_EXTENSION')
-    atoms = Atoms('H2')
-    atoms.positions[1, 0] = 0.75
-    atoms.center(vacuum=1.0)
-    if mode == 'fd':
-        kwargs = {'poissonsolver': FDPoissonSolver(),
-                  'h': 0.17}
-    else:
-        kwargs = {}
-    dft = DFT(
-        atoms,
-        mode={'name': mode,
-              'force_complex_dtype': dtype == complex},
-        random=random,
-        **{'symmetry': 'off',
-           'mixer': {'backend': 'fft'}} if GPAW_NO_C_EXTENSION else {},
-        convergence={'density': 1e-8},
-        parallel={'gpu': gpu},
-        setups='paw',
-        **kwargs)
-    dft.converge()
-    dft.energy()
-    energy = dft.results['energy'] * Ha
-    if mode == 'pw':
-        assert energy == pytest.approx(-16.032945, abs=1e-6)
-    else:
-        assert energy == pytest.approx(5.07197289, abs=1e-6)
+    from gpaw.gpu import cupy
+    stream = cupy.cuda.stream.Stream(non_blocking=mode == 'pw',
+                                     null=mode != 'pw')
+    with stream:
+        atoms = Atoms('H2')
+        atoms.positions[1, 0] = 0.75
+        atoms.center(vacuum=1.0)
+        if mode == 'fd':
+            kwargs = {'poissonsolver': FDPoissonSolver(),
+                      'h': 0.17}
+        else:
+            kwargs = {}
+        dft = DFT(
+            atoms,
+            mode={'name': mode,
+                  'force_complex_dtype': dtype == complex},
+            random=random,
+            **{'symmetry': 'off',
+               'mixer': {'backend': 'fft'}} if GPAW_NO_C_EXTENSION else {},
+            convergence={'density': 1e-8},
+            parallel={'gpu': gpu},
+            setups='paw',
+            **kwargs)
+        dft.converge()
+        dft.energy()
+        energy = dft.results['energy'] * Ha
+        if mode == 'pw':
+            assert energy == pytest.approx(-16.032945, abs=1e-6)
+        else:
+            assert energy == pytest.approx(5.07197289, abs=1e-6)
 
 
 @pytest.mark.gpu

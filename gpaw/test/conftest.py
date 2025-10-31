@@ -107,6 +107,12 @@ def monkeypatch_allow_cpupy(sessionscoped_monkeypatch):
     gpu.__set_name__(DFTComponentsBuilder, 'gpu')
 
 
+@pytest.fixture(autouse=True, scope='session')
+def use_fftw_estimate_flag(sessionscoped_monkeypatch):
+    from gpaw.fftw import FFTWPlans, ESTIMATE
+    sessionscoped_monkeypatch.setattr(FFTWPlans, '_overwrite_flags', ESTIMATE)
+
+
 @pytest.fixture(scope='session')
 def gpw_files(request):
     """Reuse gpw-files.

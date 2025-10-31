@@ -843,7 +843,11 @@ class GPAW(Calculator):
 
         M = np.linalg.norm(magmom_av.sum(0))
 
-        nbands = par.nbands
+        if reading:
+            shape = self.reader.wave_functions.eigenvalues.shape
+            nbands = shape[-1] // (1 if len(shape) == 3 else 2)
+        else:
+            nbands = par.nbands
 
         orbital_free = any(setup.orbital_free for setup in self.setups)
         if orbital_free:

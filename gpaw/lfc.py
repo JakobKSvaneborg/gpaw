@@ -967,7 +967,6 @@ class BasisFunctions(LocalizedFunctionsCollection):
                                               dtype, integral,
                                               forces, xp=xp)
         self.use_global_indices = True
-
         self.Mstart = None
         self.Mstop = None
 

@@ -75,24 +75,27 @@ def test_blas(dtype, set_device):
         assert approx(c_gpu.get()) == c
 
     # r2k
-    c_gpu_ref = c_gpu.copy()
-    c_ref = c.copy()
-    r2k(0.5, a, b, 0.2, c)
-    gpu_r2k(0.5, a_gpu, b_gpu, 0.2, c_gpu)
-    assert approx(c_gpu.get()) == c
+    from cupy.cuda.stream import Stream
+    stream = Stream(non_blocking=True)
+    with stream:
+        c_gpu_ref = c_gpu.copy()
+        c_ref = c.copy()
+        r2k(0.5, a, b, 0.2, c)
+        gpu_r2k(0.5, a_gpu, b_gpu, 0.2, c_gpu)
+        assert approx(c_gpu.get()) == c
 
-    # r2k sliced
-    bs = 11
-    for i in range(0, (N + bs - 1) // bs):
-        gpu_r2k(0.5, a_gpu[:, i * bs:(i + 1) * bs],
-                b_gpu[::, i * bs:(i + 1) * bs],
-                0.2 if (i == 0) else 1.0, c_gpu_ref)
-        r2k(0.5, a[:, i * bs:(i + 1) * bs],
-            b[:, i * bs:(i + 1) * bs],
-            0.2 if (i == 0) else 1.0, c_ref)
+        # r2k sliced
+        bs = 11
+        for i in range(0, (N + bs - 1) // bs):
+            gpu_r2k(0.5, a_gpu[:, i * bs:(i + 1) * bs],
+                    b_gpu[::, i * bs:(i + 1) * bs],
+                    0.2 if (i == 0) else 1.0, c_gpu_ref)
+            r2k(0.5, a[:, i * bs:(i + 1) * bs],
+                b[:, i * bs:(i + 1) * bs],
+                0.2 if (i == 0) else 1.0, c_ref)
 
-    assert approx(c_gpu_ref.get()) == c
-    assert approx(c_ref) == c
+        assert approx(c_gpu_ref.get()) == c
+        assert approx(c_ref) == c
 
     if not GPAW_NO_C_EXTENSION:
         # dotc

@@ -30,6 +30,10 @@ Git master branch
   ``parallel_python_interpreter`` in ``siteconfig.py``
   should not be used.
 
+* :ref:`newgpaw`: Non-collinear calculations can now be parallelized over
+  plane-waves.
+
+
 Version 25.7.0
 ==============
 

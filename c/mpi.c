@@ -62,7 +62,7 @@ static void maybeSynchronize(PyObject* a)
 #ifdef GPAW_GPU_AWARE_MPI
     if (!PyArray_Check(a))
     {
-        gpawDeviceSynchronize();
+      gpawDeviceSynchronize();
     }
 #endif
 }

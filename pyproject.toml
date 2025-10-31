@@ -23,7 +23,7 @@ requires-python = '>=3.10'
 
 dependencies = [
     'ase >= 3.25.0',  # what about __ase_version_required__?
-    'numpy',
+    'numpy >= 1.20.0',  # Must match build requirement, otherwise older version may be left in place due to "build isolation"
     'scipy >= 1.6.0',
     'gpaw-data',
 ]
@@ -60,11 +60,11 @@ Homepage = 'https://gpaw.readthedocs.io/'
 Repository = 'https://gitlab.com/gpaw/gpaw.git'
 Issues = 'https://gitlab.com/gpaw/gpaw/issues/'
 
+[tool.setuptools]
+packages = ['gpaw']
+
 [tool.setuptools.dynamic]
 version = {attr = 'gpaw.__version__'}
-
-[tool.setuptools.packages.find]
-# where = ['gpaw']  # why does this fail?
 
 [tool.setuptools.package-data]
 gpaw = ['py.typed']
