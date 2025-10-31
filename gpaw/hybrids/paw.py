@@ -65,14 +65,6 @@ def python_pawexxvv(M_pp, D_ii):
     return V_ii
 
 
-pawexxvv = python_pawexxvv
-
-
 if not TYPE_CHECKING:
-    try:
-        if not GPAW_NO_C_EXTENSION:
-            from _gpaw import pawexxvv  # noqa: F811
-    except ImportError:
-        import warnings
-        warnings.warn('Please recompile GPAW binary. Using python '
-                      'version of pawexxvv instead of faster c version.')
+    if not GPAW_NO_C_EXTENSION:
+        from _gpaw import pawexxvv  # noqa: F811
