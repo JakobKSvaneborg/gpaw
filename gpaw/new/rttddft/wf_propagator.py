@@ -143,7 +143,7 @@ class FDNumpyPropagator(WaveFunctionPropagator):
         if isinstance(hamiltonian, FDKickHamiltonian):
             self.dH = hamiltonian.dH
         else:
-            self.dH = state.potential
+            self.dH = state.potential.deltaH
 
         wfs = state.ibzwfs.wfs_qs[0][0]
         self.dS = partial(wfs.setups.get_overlap_corrections,
