@@ -47,19 +47,21 @@ sj = {'target_potential': 4.5,
       'jelliumregion': {'top': 14.},
       'tol': 0.005}
 
+... = dict(
+    cavity=EffectivePotentialCavity(
+        effective_potential=SJMPower12Potential(u0=u0,
+                                                H2O_layer=True),
+        temperature=T,
+        surface_calculator=GradientSurface()),
+    dielectric=LinearDielectric(epsinf=epsinf),
+    interactions=[SurfaceInteraction(surface_tension=gamma)])
+
 calc = SJM(mode='fd',
            sj=sj,
            gpts=(48, 32, 88),
            kpts=(2, 2, 1),
            xc='PBE',
            occupations=FermiDirac(0.1),
-           cavity=EffectivePotentialCavity(
-               effective_potential=SJMPower12Potential(u0=u0,
-                                                       H2O_layer=True),
-               temperature=T,
-               surface_calculator=GradientSurface()),
-           dielectric=LinearDielectric(epsinf=epsinf),
-           interactions=[SurfaceInteraction(surface_tension=gamma)],
            txt='sjm.txt',
            convergence={'energy': 0.000005})
 
