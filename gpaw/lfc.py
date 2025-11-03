@@ -387,7 +387,7 @@ class LocalizedFunctionsCollection(BaseLFC):
 
         self.lfc = cgpaw.LFC(self.A_Wgm, self.M_W, self.G_B, self.W_B,
                              self.gd.dv, self.phase_qW,
-                             self.gpu_add_and_integrate)
+                             self.gpu_add_and_integrate and self.xp is not np)
 
         return sdisp_Wc
 
