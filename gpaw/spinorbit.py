@@ -949,9 +949,9 @@ def get_both_spins(wfs):
     kpt_comm = wfs.kd.comm
     if kpt1.s == 1:
         reqs = [
-            kpt_comm.send(kpt1.f_n, kpt_comm.rank - 1, block=False),
+            kpt_comm.send(kpt1.f_n.copy(), kpt_comm.rank - 1, block=False),
             kpt_comm.send(kpt1.eps_n, kpt_comm.rank - 1, block=False),
-            kpt_comm.send(kpt1._projections.array, kpt_comm.rank - 1,
+            kpt_comm.send(kpt1.projections.array, kpt_comm.rank - 1,
                           block=False)]
         del kpt_u[0]
     if kpt2.s == 0:
@@ -961,7 +961,9 @@ def get_both_spins(wfs):
                       kpt2.k,
                       kpt2.q,
                       kpt2.phase_cd)
-        kpt3._projections = kpt2._projections.new()
+        kpt3.f_n = np.empty_like(kpt2.f_n)
+        kpt3.eps_n = np.empty_like(kpt2.eps_n)
+        kpt3._projections = kpt2.projections.new()
         kpt_comm.receive(kpt3.f_n, kpt_comm.rank + 1)
         kpt_comm.receive(kpt3.eps_n, kpt_comm.rank + 1)
         kpt_comm.receive(kpt3._projections.array, kpt_comm.rank + 1)

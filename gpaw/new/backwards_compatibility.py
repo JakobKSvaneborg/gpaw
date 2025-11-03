@@ -304,6 +304,8 @@ class KPT:
             self.P_aMi = wfs.P_aMi
         if mode == 'fd':
             self.phase_cd = wfs.psit_nX.desc.phase_factor_cd
+        else:
+            self.phase_cd = None
 
     @property
     def P_ani(self):
