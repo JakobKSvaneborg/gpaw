@@ -2,8 +2,8 @@ import pickle
 from matplotlib import pyplot as plt
 import numpy as np
 
-pw_file = "C_pw_results_GW.pckl"
-lcao_file = "C_lcao_results_GW.pckl"
+pw_file = "C-g0w0-pw_results_GW.pckl"
+lcao_file = "C-g0w0-lcao_results_GW.pckl"
 
 omega = np.linspace(-50, 75, 500)
 

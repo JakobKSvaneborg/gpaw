@@ -10,6 +10,7 @@ calc = GPAW(mode=PW(ecut=500),
             kpts={'size': (8, 8, 8), 'gamma': True},
             xc='LDA',
             occupations=FermiDirac(0.0),
+            parallel={'domain': 1},
             txt='C_pw_groundstate.txt')
 
 atoms.calc = calc
