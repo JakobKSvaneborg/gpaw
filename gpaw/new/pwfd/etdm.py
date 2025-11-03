@@ -51,7 +51,7 @@ class ETDM(PWFDEigensolver):
             self.dS_aii = pot_calc.setups.get_overlap_corrections(
                 density.D_asii.layout.atomdist, xp)
 
-        dH = potential.dH
+        dH = potential
         # H_KS = - 1/2 nabla^2 + veff(r) + dExc/dtau O_tau
         #                        vt_sR     dedtaut_sR (projection |tau><tau|)
         Ht = partial(hamiltonian.apply,
@@ -154,7 +154,7 @@ class ETDM(PWFDEigensolver):
 
     def postprocess(self, ibzwfs, density, potential, hamiltonian):
 
-        dH = potential.dH
+        dH = potential
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
                      potential.dedtaut_sR,

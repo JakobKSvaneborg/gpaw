@@ -35,7 +35,7 @@ class Potential:
 
     def __call__(self, P_ani, out_ani, spin=None):
         if spin is None:
-            spin = self.spin        
+            spin = self.spin
         if len(P_ani.dims) == 1:  # collinear wave functions
             P_ani.block_diag_multiply(self.dH_asii, out_ani, spin)
             return
