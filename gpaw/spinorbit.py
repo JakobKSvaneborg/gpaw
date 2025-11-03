@@ -116,17 +116,28 @@ class WaveFunction:
         # spin dimension is added
         Ns = calc.wfs.nspins
         Nm, Nn = self.v_mn.shape
-
+        print(f'{Ns = }')
+        print(f'{Nn = }')
         if calc.wfs.collinear:
+            print('wavefunctions: here 1', flush=True)
+            print(f'{self.bz_index = }', flush=True)
+            u1 = calc.wfs.get_wave_function_array(160, self.bz_index, 0,
+                                                       periodic=periodic)
+            print(u1)
             u_snR = [[calc.wfs.get_wave_function_array(n, self.bz_index, s,
                                                        periodic=periodic)
                       for n in range(Nn // 2)]
                      for s in range(Ns)]
-            u_msR = np.empty((Nm, 2) + u_snR[0][0].shape, complex)
+            print('wavefunctions: here 2', flush=True)
+            print(u_snR[0])
+            sample = np.asarray(u_snR[0][0])
+            u_msR = np.empty((Nm, 2) + sample.shape, complex)
             np.einsum('mn, nabc -> mabc', self.v_mn[:, ::2], u_snR[0],
                       out=u_msR[:, 0])
+            print('wavefunctions: here 3', flush=True)
             np.einsum('mn, nabc -> mabc', self.v_mn[:, 1::2], u_snR[-1],
                       out=u_msR[:, 1])
+            print('wavefunctions: here 4', flush=True)
         else:
             u_nsR = np.array(
                 [calc.wfs.get_wave_function_array(n, self.bz_index, 0,

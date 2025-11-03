@@ -55,7 +55,9 @@ class IBZWaveFunctions:
             if a in P_ani:
                 P_ni = P_ani[a][:, indices]
                 dos_kns[wf.k, bands, wf.s] = (abs(P_ni)**2).sum(1)
-
+        #if isinstance(self.wfs, BZWaveFunctions):
+        #    self.calc.wfs.kpt_comm.sum(dos_kns)
+        #else:
         self.calc.world.sum(dos_kns)
         return dos_kns
 
@@ -130,6 +132,11 @@ class DOSCalculator:
         self.cell = cell
 
         self.eig_skn = wfs.eigenvalues()
+        '''
+        if len(self.eig_skn.shape) == 2:
+            self.eig_skn = self.eig_skn[None]
+            print('adding spin index', flush=True)
+        '''
         self.fermi_level = wfs.fermi_level
 
         if shift_fermi_level:
@@ -167,7 +174,7 @@ class DOSCalculator:
         if not isinstance(filename, (str, Path)):
             calc = filename
         else:
-            calc = GPAW(filename, txt=None)
+            calc = GPAW(filename, txt=None, parallel={'kpt': 1})
 
         wfs: Union[BZWaveFunctions, IBZWaveFunctions]
         if soc:
@@ -218,6 +225,7 @@ class DOSCalculator:
                  l: int,
                  m: Optional[int] = None,
                  spin: Optional[int] = None,
+                 band_index=0,
                  width: float = 0.1) -> Array1D:
         """Calculate projected density of states.
 
@@ -240,11 +248,13 @@ class DOSCalculator:
         if m is not None:
             indices = indices[m::(2 * l) + 1]
         weight_kns = self.wfs.pdos_weights(a, indices)
-
+        print("DEBUG: eig_skn.shape =", self.eig_skn.shape)
+        print("DEBUG: weight_kns.shape =", weight_kns.shape)
+        print("DEBUG: nspins =", self.nspins, "degeneracy =", self.degeneracy)
         if spin is None:
             dos = sum(self.calculate(energies,
-                                     eig_kn,
-                                     weight_nk.T,
+                                     eig_kn[:, :band_index+1],
+                                     weight_nk[:band_index+1, :].T,
                                      width=width)
                       for eig_kn, weight_nk
                       in zip(self.eig_skn, weight_kns.T))
@@ -254,5 +264,88 @@ class DOSCalculator:
                                  self.eig_skn[spin],
                                  weight_kns[:, :, spin],
                                  width=width)
+        
+        if isinstance(self.wfs, BZWaveFunctions):
+            new_dos = []
+            for d in dos:
+                new_dos.append(self.wfs.kpt_comm.sum_scalar(d))
+            comm = self.wfs.kpt_comm
+            total_weight = self.weight_k.sum()
+            total_weight_all = comm.sum_scalar(total_weight)
+            print("DEBUG: weight_k sum (should be 1.0) =", total_weight_all)
 
+            return np.array(new_dos)
         return dos
+
+
+    def raw_soc_pdos(self,
+                 energies: Sequence[float],
+                 a: int,
+                 l: int,
+                 m: Optional[int] = None,
+                 spin: Optional[int] = None,
+                 band_index=0,
+                 width: float = 0.1) -> Array1D:
+        """Calculate projected density of states.
+
+        a:
+            Atom index.
+        l:
+            Angular momentum quantum number.
+        m:
+            Magnetic quantum number.  Default is None meaning sum over all m.
+            For p-orbitals, m=0,1,2 translates to y, z and x.
+            For d-orbitals, m=0,1,2,3,4 translates to xy, yz, 3z2-r2,
+            zx and x2-y2.
+        spin:
+            Must be 0, 1 or None meaning spin-up, down or total respectively.
+        width: float
+            Width of Gaussians in eV.  Use width=0.0 to use the
+            linear-tetrahedron-interpolation method.
+        """
+        indices = get_projector_numbers(self.setups[a], l)
+        if m is not None:
+            indices = indices[m::(2 * l) + 1]
+        weight_kns = self.wfs.pdos_weights(a, indices)
+        print("DEBUG: eig_skn.shape =", self.eig_skn.shape)
+        print("DEBUG: weight_kns.shape =", weight_kns.shape)
+        print("DEBUG: nspins =", self.nspins, "degeneracy =", self.degeneracy)
+        w_per_spin = np.transpose(weight_kns, (2, 0, 1))
+        dos = 0.0
+        for eig_kn_spin, w_kn_spin in zip(self.eig_skn, w_per_spin):
+            dos += self.calculate(energies,
+                                  eig_kn_spin[:, :band_index+1],
+                                  w_kn_spin[:, :band_index+1],
+                                  width=width)
+            dos *= self.degeneracy
+        else:
+            dos = self.calculate(energies,
+                                 self.eig_skn[spin],
+                                 weight_kns[:, :, spin],
+                                 width=width)
+
+        if isinstance(self.wfs, BZWaveFunctions):
+            new_dos = []
+            for d in dos:
+                new_dos.append(self.wfs.kpt_comm.sum_scalar(d))
+            comm = self.wfs.kpt_comm
+            total_weight = self.weight_k.sum()
+            total_weight_all = comm.sum_scalar(total_weight)
+            print("DEBUG: weight_k sum (should be 1.0) =", total_weight_all)
+
+            return np.array(new_dos)
+        return dos
+
+    def raw_pdos_kresolved(self, a: int, l: int, m: Optional[int] = None, band_index=0):
+        indices = get_projector_numbers(self.setups[a], l)
+        if m is not None:
+            indices = indices[m::(2 * l) + 1]
+        weight_kns = self.wfs.pdos_weights(a, indices)
+        eig_kn = self.eig_skn.mean(axis=0)
+        weights = weight_kns.sum(axis=2) if weight_kns.ndim == 3 else weight_kns
+
+        eig_kn = eig_kn[:, band_index:band_index+1]
+        weights = weights[:, band_index:band_index+1]
+
+        return eig_kn, weights
+

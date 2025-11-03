@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from ase.units import Ha, Bohr
-
+from gpaw.mpi import world
 import gpaw.mpi as mpi
 from gpaw.ibz2bz import IBZ2BZMaps
 from gpaw.calculator import GPAW as OldGPAW
@@ -294,6 +294,10 @@ class ResponseGroundStateAdapter:
         elif isinstance(nbands, int):
             n1 = 0
             m2 = nbands
+            if world.rank ==0:
+                print(f'{m2 = }',flush=True)
+                print(f'{self.nbands = }')
+
             assert 1 <= m2 <= self.nbands
         elif isinstance(nbands, slice):
             n1 = nbands.start
