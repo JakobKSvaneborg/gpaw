@@ -23,7 +23,6 @@ class Potential:
         self.dedtaut_sR = dedtaut_sR
         self.vHt_x = vHt_x  # initial guess for Hartree potential
         self.e_stress = e_stress  # idotropic contribution to stress tensor
-        self.spin = None
 
     def __repr__(self):
         return (f'Potential({self.vt_sR}, {self.dH_asii}, '
@@ -33,9 +32,7 @@ class Potential:
         return (f'potential:\n'
                 f'  grid points: {self.vt_sR.desc.size}\n')
 
-    def __call__(self, P_ani, out_ani, spin=None):
-        if spin is None:
-            spin = self.spin
+    def deltaH(self, P_ani, out_ani, spin):
         if len(P_ani.dims) == 1:  # collinear wave functions
             P_ani.block_diag_multiply(self.dH_asii, out_ani, spin)
             return

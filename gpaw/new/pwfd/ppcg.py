@@ -198,9 +198,11 @@ class PPCG(PWFDEigensolver):
 
     def iterate1(self,
                  wfs: PWFDWaveFunctions,
-                 Ht, dH, dS_aii, weight_n):
+                 Ht, potential,
+                 dS_aii, weight_n):
 
         with tracectx('Initialize'):
+            dH = partial(potential.deltaH, spin=wfs.spin)
             M_nn = self.M_nn
             # Some buffer arrays for approx orthonormalization
             # Y1_nn = M_nn.new()
