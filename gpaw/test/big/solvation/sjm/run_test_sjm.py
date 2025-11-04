@@ -3,8 +3,9 @@ import numpy as np
 from ase.optimize import BFGS
 from ase import Atoms
 
-from gpaw import restart
-from gpaw.solvation.sjm import SJM, SJMPower12Potential
+from gpaw import restart, GPAW_NEW, GPAW
+from gpaw.new.sjm import SJM as NewSJM
+from gpaw.solvation.sjm import SJM as OldSJM, SJMPower12Potential
 from gpaw import FermiDirac
 from gpaw.solvation import (
     EffectivePotentialCavity,
@@ -47,7 +48,7 @@ sj = {'target_potential': 4.5,
       'jelliumregion': {'top': 14.},
       'tol': 0.005}
 
-... = dict(
+solvation = dict(
     cavity=EffectivePotentialCavity(
         effective_potential=SJMPower12Potential(u0=u0,
                                                 H2O_layer=True),
@@ -56,14 +57,24 @@ sj = {'target_potential': 4.5,
     dielectric=LinearDielectric(epsinf=epsinf),
     interactions=[SurfaceInteraction(surface_tension=gamma)])
 
-calc = SJM(mode='fd',
-           sj=sj,
-           gpts=(48, 32, 88),
-           kpts=(2, 2, 1),
-           xc='PBE',
-           occupations=FermiDirac(0.1),
-           txt='sjm.txt',
-           convergence={'energy': 0.000005})
+params = dict(
+    mode='fd',
+    gpts=(48, 32, 88),
+    kpts=(2, 2, 1),
+    xc='PBE',
+    occupations=FermiDirac(0.1),
+    txt='sjm.txt',
+    convergence={'energy': 0.000005})
+
+if GPAW_NEW:
+    calc = GPAW(
+        **params,
+        extensions=[NewSJM(**sj, **solvation)])
+else:
+    calc = OldSJM(
+        **params,
+        sj=sj,
+        **solvation)
 
 atoms.calc = calc
 E = []
@@ -84,7 +95,7 @@ assert abs(E[0] - E[-1]) < 1e-2
 
 calc.write('sjm.gpw')
 
-atoms, calc = restart('sjm.gpw', Class=SJM)
+atoms, calc = restart('sjm.gpw', Class=OldSJM)
 calc.set(sj={'tol': 0.002})
 atoms.get_potential_energy()
 assert abs(calc.get_electrode_potential() - 4.5) < 0.002
