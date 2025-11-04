@@ -1,9 +1,11 @@
+import json
+from pathlib import Path
 from time import time
 
 import numpy as np
-from gpaw.benchmark import gather_system_information
 from gpaw.benchmark.systems import systems
 from gpaw.dft import GPAW, PW, MonkhorstPack
+from gpaw.utilities.memory import maxrss
 
 
 def workflow():
@@ -11,7 +13,8 @@ def workflow():
     for name, function in systems.items():
         atoms = function()
         if len(atoms) == 2:
-            run(function=work, args=[name], cores=24)
+            run(function=work, args=[name], cores=24,
+                creates=f'{name}.json')
 
 
 def work(name):
@@ -30,11 +33,16 @@ def work(name):
     else:
         atoms.positions += 0.1 * f1
     t1 = time() - t1
-    dct1 = gather_system_information()
+    m1 = maxrss()
 
     t2 = time()
     e2 = atoms.get_potential_energy()
     _ = atoms.get_forces()
     t2 = time() - t2
-    dct2 = gather_system_information()
-    return (e1, t1, dct1, e2, t2, dct2)
+    m2 = maxrss()
+    Path(f'{name}.json').write_text(json.dumps([e1, t1, m1, e2, t2, m2]))
+
+
+if __name__ == '__main__':
+    work('H2')
+
