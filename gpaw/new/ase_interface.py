@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Generator
 
 import numpy as np
 from ase import Atoms
 from ase.units import Ha
-
 from gpaw import __version__
 from gpaw.core import UGArray
 from gpaw.core.arrays import XArrayWithNoData
@@ -20,6 +19,7 @@ from gpaw.new.calculation import (CalculationModeError, DFTCalculation,
 from gpaw.new.gpw import GPWFlags, write_gpw
 from gpaw.new.logger import Logger
 from gpaw.new.pw.fulldiag import diagonalize
+from gpaw.new.scf import SCFContext
 from gpaw.new.xc import create_functional
 from gpaw.typing import Array1D, Array2D, Array3D
 from gpaw.utilities import pack_density
@@ -110,7 +110,7 @@ class ASECalculator:
 
     def iconverge(self, atoms: Atoms | None,
                   *,
-                  need_wfs: bool = False) -> None:
+                  need_wfs: bool = False) -> Generator[SCFContext, None, None]:
         """Iterate to self-consistent solution.
 
         Will also calculate "cheap" properties: energy, magnetic moments
