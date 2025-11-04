@@ -36,8 +36,7 @@ def run(symbol, d0, M, ecut, L):
         **(dict(xc='PBE0') if GPAW_NEW else
            dict(xc=HybridXC('PBE0'),
                 eigensolver=RMMDIIS(niter=1),
-                parallel={'band': 1, 'kpt': 1}),
-        )
+                parallel={'band': 1, 'kpt': 1})))
     e1 = a.get_potential_energy()
 
     if world.rank == 0:
