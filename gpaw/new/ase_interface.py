@@ -108,7 +108,9 @@ class ASECalculator:
     def __repr__(self):
         return f'ASECalculator({self.params!r})'
 
-    def iconverge(self, atoms: Atoms | None):
+    def iconverge(self, atoms: Atoms | None,
+                  *,
+                  need_wfs: bool = False) -> None:
         """Iterate to self-consistent solution.
 
         Will also calculate "cheap" properties: energy, magnetic moments
@@ -152,6 +154,8 @@ class ASECalculator:
         elif not self._dft.results:
             # Something cleared the results dict
             converged = False
+        elif need_wfs and not self.dft.ibzwfs.has_wave_functions():
+            converged = False
 
         if converged:
             return
@@ -193,7 +197,7 @@ class ASECalculator:
         * magmoms
         * dipole
         """
-        for _ in self.iconverge(atoms):
+        for _ in self.iconverge(atoms, need_wfs=prop in {'forces', 'stress'}):
             pass
 
         if prop == 'forces':
@@ -418,14 +422,15 @@ class ASECalculator:
         return self.dft.electrostatic_potential().atomic_corrections()
 
     def get_pseudo_density(self,
-                           spin=None,
-                           gridrefinement=1,
-                           broadcast=True) -> Array3D | None:
-        assert spin is None
+                           spin: int | None = None,
+                           gridrefinement: int = 1,
+                           broadcast: bool = True) -> Array3D | None:
         nt_sr = self.dft.densities().pseudo_densities(
             grid_refinement=gridrefinement)
         nt_sr = nt_sr.gather(broadcast=broadcast)
-        return None if nt_sr is None else nt_sr.data.sum(0)
+        if spin is None:
+            return None if nt_sr is None else nt_sr.data.sum(0)
+        return None if nt_sr is None else nt_sr.data[spin]
 
     def get_all_electron_density(self,
                                  spin=None,
