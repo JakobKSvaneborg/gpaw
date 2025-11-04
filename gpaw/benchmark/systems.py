@@ -1,4 +1,5 @@
 import numpy as np
+from ase import Atoms
 
 
 def system_magic_graphene():
@@ -114,6 +115,19 @@ def system_metalslab():
     return slab
 
 
+def system_c2db():
+    atoms = Atoms(
+        symbols='MnVS2',
+        pbc=[True, True, False],
+        cell=[3.65, 3.97, 1.0],
+        scaled_positions=[[0.5, 0.5, 7.22],
+                          [0.0, 0.0, 7.49],
+                          [0.0, 0.5, 8.70],
+                          [0.5, 0.0, 6.00]])
+    atoms.center(vacuum=6.0, axis=2)
+    return atoms
+
+
 systems = {'C60': system_C60,
            'diamond': system_diamond,
            'H2': system_H2,
@@ -123,7 +137,8 @@ systems = {'C60': system_C60,
            'C676': system_676_bl_graphene,
            'magbulk': system_magbulk,
            'metalslab': system_metalslab,
-           'magic_graphene': system_magic_graphene}
+           'magic_graphene': system_magic_graphene,
+           'MnVS2-slab': system_c2db}
 
 
 def parse_system(name):
