@@ -3,6 +3,7 @@ from pathlib import Path
 from time import time
 
 import numpy as np
+
 from gpaw.benchmark.systems import systems
 from gpaw.dft import GPAW, PW, MonkhorstPack
 from gpaw.utilities.memory import maxrss
@@ -12,12 +13,13 @@ def workflow():
     from myqueue.workflow import run
     for name, function in systems.items():
         atoms = function()
-        if len(atoms) == 2:
+        if len(atoms) < 500:
             run(function=work, args=[name], cores=24,
-                creates=f'{name}.json')
+                name=name,
+                creates=[f'{name}.json'])
 
 
-def work(name):
+def work(name: str) -> None:
     atoms = systems[name]()
     atoms.calc = GPAW(
         mode=PW(800),
@@ -40,9 +42,9 @@ def work(name):
     _ = atoms.get_forces()
     t2 = time() - t2
     m2 = maxrss()
+
     Path(f'{name}.json').write_text(json.dumps([e1, t1, m1, e2, t2, m2]))
 
 
 if __name__ == '__main__':
     work('H2')
-
