@@ -1,5 +1,6 @@
 import numpy as np
 from ase import Atoms
+from ase.build import mx2, fcc111, add_adsorbate
 
 
 def system_magic_graphene():
@@ -128,6 +129,44 @@ def system_c2db():
     return atoms
 
 
+def opt111b():
+    atoms = fcc111('Pt', (2, 2, 6), a=4.00, vacuum=10.0)
+    add_adsorbate(atoms, 'O', 2.0, 'fcc')
+
+
+def lic8():
+    from ase.lattice.hexagonal import Graphene
+    ccdist = 1.40
+    layerdist = 3.7
+    a = ccdist * np.sqrt(3)
+    c = layerdist
+    Li_gra = Graphene('C', size=(2, 2, 1), latticeconstant={'a': a, 'c': c})
+    Li_gra.append('Li')
+    Li_gra.positions[-1] = (a / 2, ccdist / 2, layerdist / 2)
+
+
+def vii():
+    atoms = mx2('VII', a=4.12, kind='1T', thickness=3.13)
+    atoms[0].magmom = 3.0
+    return atoms
+
+
+def bi2se3():
+    a = 4.138
+    c = 28.64
+    mu = 0.399
+    nu = 0.206
+    cell = [[-a / 2, -3**0.5 / 6 * a, c / 3],
+            [a / 2, -3**0.5 / 6 * a, c / 3],
+            [0.0, 3**0.5 / 3 * a, c / 3]]
+    pos = [[mu, mu, mu],
+           [-mu, -mu, -mu],
+           [0.0, 0.0, 0.0],
+           [nu, nu, nu],
+           [-nu, -nu, -nu]]
+    return Atoms('Bi2Se3', cell=cell, scaled_positions=pos, pbc=True)
+
+
 systems = {'C60': system_C60,
            'diamond': system_diamond,
            'H2': system_H2,
@@ -138,7 +177,11 @@ systems = {'C60': system_C60,
            'magbulk': system_magbulk,
            'metalslab': system_metalslab,
            'magic_graphene': system_magic_graphene,
-           'MnVS2-slab': system_c2db}
+           'MnVS2-slab': system_c2db,
+           'OPt111b': opt111b,
+           'LiC8': lic8,
+           'VI2': vii,
+           'Bi2Se3': bi2se3}
 
 
 def parse_system(name):
