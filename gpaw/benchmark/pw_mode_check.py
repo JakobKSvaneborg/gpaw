@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from time import time
+from typing import Any
 
 import numpy as np
 
@@ -29,7 +30,7 @@ def workflow():
              atoms.cell.volume * 1e-6)
         if t < 1.0:
             cores = 24
-        if t < 10.0:
+        elif t < 10.0:
             cores = 40
         else:
             cores = 56
@@ -41,11 +42,15 @@ def workflow():
             creates=[f'{name}.json'])
 
 
-def work(name: str) -> None:
+def work(name):
+    global params
+    extra = Path('params.json')
+    if extra.is_file():
+        params |= json.loads(extra.read())
     atoms = systems[name]()
     calc = GPAW(
-        **params,
-        txt=f'{name}.txt')
+        txt=f'{name}.txt',
+        **params)
     atoms.calc = calc
 
     t1 = time()
