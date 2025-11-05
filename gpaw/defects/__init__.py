@@ -321,14 +321,16 @@ class ElectrostaticCorrections():
         assert len(V) == len(z)
         N = len(V)
         deltaN = N // 8
+
         if self.dimensionality == '3d':
+            # as far away as possible from the defect
             middle = np.argmin(np.abs(z + self.z0)) + N // 2
             middle = middle % N
-            points = np.arange(middle - deltaN, middle + deltaN + 1)
-            points = points % N
-            restricted = V[points]
         elif self.dimensionality == '2d':
-            points = list(range(0, deltaN)) + list(range(N - deltaN, N))
+            middle = 0
+
+        points = np.arange(middle - deltaN, middle + deltaN + 1)
+        points = points % N
         restricted = V[points]
         V_mean = np.mean(restricted)
         return V_mean
