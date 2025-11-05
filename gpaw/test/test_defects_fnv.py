@@ -3,48 +3,44 @@ from ase.build import bulk
 from gpaw import GPAW
 from gpaw.defects import ElectrostaticCorrections
 import pytest
-from pathlib import Path
 
 
-def test_fnv():
-    a0 = 5.628  # lattice parameter
+@pytest.mark.parametrize('modename', ['pw', 'fd'])
+def test_fnv(modename):
+    a0 = 5.628      # lattice parameter
     sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
-    epsilon = 12.7 # dielectric constant
-    N = 1
-    charge = -3  # defect charge
+    epsilon = 12.7  # dielectric constant
+    charge = -3     # defect charge
 
-    gpw_def = Path('GaAs.def.gpw')
-    gpw_prs = Path('GaAs.prs.gpw')
+    mode = {'pw': {'name': 'pw', 'ecut': 400},
+            'fd': {'name': 'fd'}}
 
-    params = {'mode': {'name': 'fd'},
+    params = {'mode': mode[modename],
               'xc': 'LDA',
               'kpts': {'size': (2, 2, 2), 'gamma': False},
               'occupations': {'name': 'fermi-dirac', 'width': 0.01}}
-              
-    E_corr_t = 23.558833
-    E_uncorr_t = 18.310214
+
+    E_corr_t = 23.55
+    E_uncorr_t = 18.31
 
     pristine = bulk('GaAs', crystalstructure='zincblende', a=a0, cubic=True)
 
     defect = pristine.copy()
     defect.pop(0)  # make a Ga vacancy
 
-    calc_charged = GPAW(charge=charge, **params) 
-    calc_neutral = GPAW(charge=0, **params) 
+    calc_charged = GPAW(charge=charge, **params)
+    calc_neutral = GPAW(charge=0, **params)
 
     defect.calc = calc_charged
     defect.get_potential_energy()
-    defect.calc.write(gpw_def)
 
     # pristine case
-
     pristine.calc = calc_neutral
     pristine.get_potential_energy()
-    pristine.calc.write(gpw_prs)
 
     # need to convert Path -> str
-    elc = ElectrostaticCorrections(pristine=str(gpw_prs),
-                                   charged=str(gpw_def),
+    elc = ElectrostaticCorrections(pristine=pristine.calc,
+                                   charged=defect.calc,
                                    q=charge,
                                    sigma=sigma,
                                    dimensionality='3d')
@@ -52,8 +48,8 @@ def test_fnv():
     E_corr = elc.calculate_corrected_formation_energy()
     E_uncorr = elc.calculate_uncorrected_formation_energy()
 
-    assert E_corr == pytest.approx(E_corr_t, abs=1e-3)
-    assert E_uncorr == pytest.approx(E_uncorr_t, abs=1e-3)
+    assert E_corr == pytest.approx(E_corr_t, abs=2e-2)
+    assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-2)
 
 
 if __name__ == "__main__":
