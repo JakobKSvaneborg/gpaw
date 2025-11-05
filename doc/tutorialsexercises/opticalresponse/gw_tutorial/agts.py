@@ -23,6 +23,12 @@ def workflow():
             run(script='MoS2_bs_plot.py')
             run(script='check_gw.py')
 
+    lcao_gs = run(script='C_lcao_groundstate.py', cores=24, tmax='1h')
+    lcao_gw = run(script='C_lcao_gw.py', cores=4, tmax='1h', deps=[lcao_gs])
+    pw_gs = run(script='C_pw_groundstate.py', cores=24, tmax='1h')
+    pw_gw = run(script='C_pw_gw.py', cores=24, tmax='1h', deps=[pw_gs])
+    run(script='plot_C_lcao_gw.py', deps=[pw_gw, lcao_gw])
+
 
 def check_mpa():
     """Check numbers in ReST file."""

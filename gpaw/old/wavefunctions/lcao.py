@@ -258,6 +258,17 @@ class LCAOWaveFunctions(WaveFunctions):
         self.decomposed_S_qMM = [None] * len(self.S_qMM)
         self.set_orthonormalized(False)
 
+    def planewavefy(self, lazy=False, *, ecut):
+        import gpaw.fftw as fftw
+        from gpaw.old.pw.descriptor import PWDescriptor
+        from gpaw.old.wavefunctions.pw import PWWaveFunctions
+        self.pd = PWDescriptor(ecut, self.gd, self.dtype, self.kd,
+                               fftw.MEASURE)
+        PWWaveFunctions.initialize_from_lcao_coefficients(self,
+                                                          self.basis_functions,
+                                                          lazy=lazy,
+                                                          reset_C_nM=False)
+
     def initialize(self, density, hamiltonian, spos_ac):
         # Note: The above line exists also in set_positions.
         # This is guaranteed to be correct, but we can probably remove one.

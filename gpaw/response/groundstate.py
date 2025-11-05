@@ -15,6 +15,8 @@ from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.new.ase_interface import ASECalculator as NewGPAW
 from gpaw.response.paw import LeanPAWDataset
 
+from gpaw.utilities.gpts import pw_ecut_from_lcao_grid
+
 if TYPE_CHECKING:
     from gpaw.setup import Setups, LeanSetup
 
@@ -52,8 +54,26 @@ ResponseGroundStateAdaptable = Union['ResponseGroundStateAdapter',
 
 
 class ResponseGroundStateAdapter:
-    def __init__(self, calc: GPAWCalculator):
+    def __init__(self, calc: GPAWCalculator, lazy=False):
+
         wfs = calc.wfs  # wavefunction object from gpaw.old.wavefunctions
+        self._wfs = wfs
+        self.gs_info = ""
+
+        if self.is_lcao:
+            if isinstance(calc, NewGPAW):
+                raise ValueError('LCAO calculations are only '
+                                 'supported by old GPAW')
+            calc.initialize_positions()
+            for kpt in wfs.kpt_u:
+                assert kpt.C_nM is not None
+            ecut_pw = pw_ecut_from_lcao_grid(wfs.gd)
+            wfs.planewavefy(ecut=ecut_pw / Ha, lazy=lazy)
+            assert wfs.pd is not None
+
+            self.gs_info = f"""Converting LCAO wf to PW wf
+                         with cutoff of Ecut={ecut_pw:.3f} eV"""
+            # calc = planewavefy_completed
 
         self.atoms = calc.atoms
         self.kd = wfs.kd  # KPointDescriptor object
@@ -88,10 +108,17 @@ class ResponseGroundStateAdapter:
 
         self.ibz2bz = IBZ2BZMaps.from_calculator(calc)
 
-        self._wfs = wfs
         self._density = calc.density
         self._hamiltonian = calc.hamiltonian
         self._calc = calc
+
+    @property
+    def is_planewave(self):
+        return self._wfs.mode == 'pw'
+
+    @property
+    def is_lcao(self):
+        return self._wfs.mode == 'lcao'
 
     @staticmethod
     def from_input(
@@ -105,13 +132,13 @@ class ResponseGroundStateAdapter:
         raise ValueError('Expected ResponseGroundStateAdaptable, got', gs)
 
     @classmethod
-    def from_gpw_file(cls, gpw: GPWFilename) -> ResponseGroundStateAdapter:
+    def from_gpw_file(cls, gpw, lazy=False) -> ResponseGroundStateAdapter:
         """Initiate the ground state adapter directly from a .gpw file."""
         from gpaw import GPAW, disable_dry_run
         assert Path(gpw).is_file()
         with disable_dry_run():
             calc = GPAW(gpw, txt=None, communicator=mpi.serial_comm)
-        return cls(calc)
+        return cls(calc, lazy=lazy)
 
     @property
     def pd(self):
@@ -303,7 +330,7 @@ class ResponseGroundStateAdapter:
         elif isinstance(nbands, int):
             n1 = 0
             m2 = nbands
-            assert 1 <= m2 <= self.nbands
+            assert 1 <= m2 <= self.nbands, (m2, self.nbands)
         elif isinstance(nbands, slice):
             n1 = nbands.start
             m2 = nbands.stop
