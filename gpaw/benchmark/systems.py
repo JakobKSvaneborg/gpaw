@@ -148,6 +148,7 @@ def lic8():
 
 def vii():
     atoms = mx2('VII', a=4.12, kind='1T', thickness=3.13)
+    atoms.center(vacuum=5.0)
     atoms[0].magmom = 3.0
     return atoms
 
