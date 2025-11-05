@@ -21,7 +21,7 @@ from gpaw.typing import Array1D, Array2D, Array3D, Array4D, ArrayND
 from gpaw.utilities.partition import AtomPartition
 
 if TYPE_CHECKING:
-    from gpaw.old.calculator import GPAW  # noqa
+    from gpaw.old.calculator import GPAW as OldGPAW
     from gpaw.new.ase_interface import ASECalculator
 
 _L_vlmm: List[List[np.ndarray]] = []  # see get_L_vlmm() below
@@ -471,7 +471,7 @@ def extract_ibz_wave_functions(kpt_qs: List[List[KPoint]],
         yield ibz_index, WaveFunction(eig_m, projections)
 
 
-def soc_eigenstates(calc: ASECalculator | GPAW | str | Path,
+def soc_eigenstates(calc: ASECalculator | OldGPAW | str | Path,
                     n1: int = None,
                     n2: int = None,
                     scale: float = 1.0,
@@ -507,8 +507,7 @@ def soc_eigenstates(calc: ASECalculator | GPAW | str | Path,
 
     Returns a BZWaveFunctions object covering the whole BZ.
     """
-
-    from gpaw.old.calculator import GPAW  # noqa
+    from gpaw import GPAW
 
     if isinstance(calc, (str, Path)):
         calc = GPAW(calc)
