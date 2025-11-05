@@ -1,8 +1,8 @@
+import pytest
 import numpy as np
 from ase.build import bulk
 from gpaw import GPAW
 from gpaw.defects import ElectrostaticCorrections
-import pytest
 
 
 @pytest.mark.parametrize('modename', ['pw', 'fd'])
