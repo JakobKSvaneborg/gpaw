@@ -2,9 +2,9 @@ import pytest
 import numpy as np
 from ase.build import bulk, graphene
 from ase.build.supercells import make_supercell
-from ase import Atoms
 from gpaw import GPAW
 from gpaw.defects import ElectrostaticCorrections
+
 
 def test_fnv_2d():
 
@@ -23,18 +23,16 @@ def test_fnv_2d():
               'occupations': {'name': 'fermi-dirac', 'width': 0.01}}
 
     calc_charged = GPAW(charge=charge, **params)
-    calc_neutral = GPAW(charge=charge, **params)
+    calc_neutral = GPAW(charge=0, **params)
 
-    atoms = graphene('N2', a=a0, vacuum=c0/2)
+    atoms = graphene('N2', a=a0, vacuum=c0 / 2)
     atoms.symbols[0] = 'B'
     atoms.set_pbc(True)
     atoms.center()
-    
+
     # transformation to orthogonal cell
     P = np.array([[1, 0, 0], [1, 2, 0], [0, 0, 1]])
-
     pristine = make_supercell(atoms, P)
-    pristine.edit()
     pristine.calc = calc_neutral
     pristine.get_potential_energy()
 
