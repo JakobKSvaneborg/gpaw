@@ -318,14 +318,17 @@ class ElectrostaticCorrections():
         return np.array(zs), np.array(Vs)
 
     def average(self, V, z):
+        assert len(V) == len(z)
         N = len(V)
+        deltaN = N // 8
         if self.dimensionality == '3d':
             middle = np.argmin(np.abs(z + self.z0)) + N // 2
-            middle = middle % len(z)
-            points = range(middle - N // 8, middle + N // 8 + 1)
+            middle = middle % N
+            points = np.arange(middle - deltaN, middle + deltaN + 1)
+            points = points % N
             restricted = V[points]
         elif self.dimensionality == '2d':
-            points = list(range(0, N // 8)) + list(range(7 * N // 8, N))
+            points = list(range(0, deltaN)) + list(range(N - deltaN, N))
         restricted = V[points]
         V_mean = np.mean(restricted)
         return V_mean
