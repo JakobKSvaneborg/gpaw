@@ -192,7 +192,7 @@ class DFTComponentsBuilder:
                 'Please Niggli-reduce your unit-cell so that the angle '
                 'are closer to 90 degrees:\n\n'
                 '  from ase.build import niggli_reduce\n'
-                '  nigli_reduce(atoms)\n')
+                '  niggli_reduce(atoms)\n')
 
     @cached_property
     def wf_desc(self) -> Domain:
