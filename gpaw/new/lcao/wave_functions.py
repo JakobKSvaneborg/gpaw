@@ -211,8 +211,8 @@ class LCAOWaveFunctions(WaveFunctions, XP):
         basis.lcao_to_grid(self.C_nM.data, psit_nR.data, self.q)
 
         wfs = PWFDWaveFunctions.from_wfs(self, psit_nR)
-        if self._eig_n is not None:
-            wfs._eig_n = self._eig_n.copy()
+        if self.has_eigs:
+            wfs.eig_n = self.eig_n.copy()
         return wfs
 
     def collect(self,
@@ -262,7 +262,7 @@ class LCAOWaveFunctions(WaveFunctions, XP):
                                 k=self.k,
                                 weight=self.weight,
                                 ncomponents=self.ncomponents)
-        wfs._eig_n = self._eig_n
+        wfs.eig_n = self.eig_n
         wfs._occ_n = self._occ_n
         return wfs
 

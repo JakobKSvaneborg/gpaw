@@ -2,7 +2,7 @@ from ase import Atoms
 import numpy as np
 import pytest
 
-from gpaw import GPAW, KohnShamConvergenceError
+from gpaw import GPAW
 from gpaw.new.extensions import Extension
 
 
@@ -23,5 +23,5 @@ def test_energy_nan(gpaw_new):
     atom.center()
     atom.calc = GPAW(mode={'name': 'pw', 'ecut': 200},
                      extensions=[EnergyNaNifier()])
-    with pytest.raises(KohnShamConvergenceError, match='Some energy terms*'):
+    with pytest.raises(ValueError, match='Some energy terms*'):
         atom.get_potential_energy()

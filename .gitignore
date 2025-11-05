@@ -1,5 +1,6 @@
 *.pyc
 build/
+niflheim_build/
 /dist
 MANIFEST
 _gpaw*.so

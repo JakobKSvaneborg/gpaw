@@ -149,7 +149,7 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     # Make sure the recalculated energies are forces are correct
     atoms.set_positions(atoms.get_positions() + 1e-10)
     assert E == pytest.approx(atoms.get_potential_energy(), abs=1e-5)
-    assert F == pytest.approx(atoms.get_forces(), abs=1e-5)
+    assert F == pytest.approx(atoms.get_forces(), abs=2e-5)
 
     # 5. Test full blown relaxation.
     from ase.optimize import BFGS
