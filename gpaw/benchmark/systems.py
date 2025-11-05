@@ -1,11 +1,13 @@
+from math import pi
+
 import numpy as np
 from ase import Atoms
-from ase.build import mx2, fcc111, add_adsorbate
+from ase.build import add_adsorbate, bulk, fcc111, graphene, molecule, mx2
+from ase.lattice.hexagonal import Graphene
+from gpaw.benchmark.generate_twisted import make_heterostructure
 
 
 def system_magic_graphene():
-    from gpaw.benchmark.generate_twisted import make_heterostructure
-    from ase.build import graphene
     atoms = graphene(vacuum=5)
     transa_cc = np.array([[29, -30, 0], [59, 29, 0], [0, 0, 1]])
     transb_cc = np.array([[30, -29, 0], [59, 30, 0], [0, 0, 1]])
@@ -18,8 +20,6 @@ def system_magic_graphene():
 
 
 def system_2188_bl_graphene():
-    from gpaw.benchmark.generate_twisted import make_heterostructure
-    from ase.build import graphene
     atoms = graphene(vacuum=5)
     transa_cc = np.array([[27, 13, 0], [14, 27, 0], [0, 0, 1]])
     transb_cc = np.array([[27, 24, 0], [13, 27, 0], [0, 0, 1]])
@@ -32,8 +32,6 @@ def system_2188_bl_graphene():
 
 
 def system_6000_bl_graphene():
-    from gpaw.benchmark.generate_twisted import make_heterostructure
-    from ase.build import graphene
     atoms = graphene(vacuum=5)
     transa_cc = np.array([[23, 45, 0], [-22, 23, 0], [0, 0, 1]])
     transb_cc = np.array([[22, 45, 0], [-23, 22, 0], [0, 0, 1]])
@@ -46,8 +44,6 @@ def system_6000_bl_graphene():
 
 
 def system_676_bl_graphene():
-    from gpaw.benchmark.generate_twisted import make_heterostructure
-    from ase.build import graphene
     atoms = graphene(vacuum=5)
     transa_cc = np.array([[7, -8, 0], [15, 7, 0], [0, 0, 1]])
     transb_cc = np.array([[8, -7, 0], [15, 8, 0], [0, 0, 1]])
@@ -60,31 +56,23 @@ def system_676_bl_graphene():
 
 
 def system_H2():
-    from ase.build import molecule
     atoms = molecule('H2')
     atoms.center(vacuum=3)
     return atoms
 
 
 def system_C60():
-    from ase.build import molecule
     atoms = molecule('C60')
     atoms.center(vacuum=5)
     return atoms
 
 
 def system_diamond():
-    from ase.build import bulk
     atoms = bulk('C')
     return atoms
 
 
 def system_MoS2_tube():
-    from math import pi
-    import numpy as np
-    from ase.build import mx2
-
-    # Create tube of MoS2:
     atoms = mx2('MoS2', size=(3, 2, 1))
     atoms.cell[1, 0] = 0
     atoms = atoms.repeat((1, 10, 1))
@@ -104,14 +92,12 @@ def system_MoS2_tube():
 
 
 def system_magbulk():
-    from ase.build import bulk
     atoms = bulk('Fe') * 2
     atoms.set_initial_magnetic_moments([3] * len(atoms))
     return atoms
 
 
 def system_metalslab():
-    from ase.build import fcc111
     slab = fcc111('Al', size=(3, 4, 8), vacuum=6.0)
     return slab
 
@@ -126,6 +112,7 @@ def system_c2db():
                           [0.0, 0.5, 8.70],
                           [0.5, 0.0, 6.00]])
     atoms.center(vacuum=6.0, axis=2)
+    atoms.set_initial_magnetic_moments([2, 2, 0, 0])
     return atoms
 
 
@@ -134,8 +121,8 @@ def opt111b():
     add_adsorbate(atoms, 'O', 2.0, 'fcc')
     return atoms
 
+
 def lic8():
-    from ase.lattice.hexagonal import Graphene
     ccdist = 1.40
     layerdist = 3.7
     a = ccdist * np.sqrt(3)
@@ -166,7 +153,9 @@ def bi2se3():
            [0.0, 0.0, 0.0],
            [nu, nu, nu],
            [-nu, -nu, -nu]]
-    return Atoms('Bi2Se3', cell=cell, scaled_positions=pos, pbc=True)
+    atoms = Atoms('Bi2Se3', cell=cell, scaled_positions=pos, pbc=True)
+    # niggli_reduce(atoms)
+    return atoms
 
 
 def ganfh():
