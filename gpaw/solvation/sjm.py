@@ -1090,12 +1090,14 @@ class SJMPower12Potential(Power12Potential):
                  unsolv_backside=True, communicator=gpaw.mpi.world):
         super().__init__(atomic_radii, u0, pbc_cutoff, tiny)
 
-
         # The following guarantees backwards compatibility
         self.H2O_layer = False
         if H2O_layer is not False:
+            # Default parameters for cleaning the interface
+            # 1/1.5 is just there to give exact results as before
             self.H2O_layer = {'style': 'ghost_atoms', 'nox': 'all',
-                          'ghosts_below_ox': True, 'ghost_spacing': 1/1.5}
+                              'ghosts_below_ox': True,
+                              'ghost_spacing': 1 / 1.5}
             if not isinstance(H2O_layer, dict):
                 warnings.warn('The provided syntax for cleaning the interface '
                               'is deprecated. Please use a dictionary with '
@@ -1108,9 +1110,6 @@ class SJMPower12Potential(Power12Potential):
             elif isinstance(H2O_layer, str):
                 H2O_layer = {'style': H2O_layer}
             self.H2O_layer.update(H2O_layer)
-            #= {'style': H2O_layer.get('style', 'ghost_atoms'),
-            #                  'nox': H2O_layer.get('nox', 'all'),
-            #                  'ghosts_below_ox': H2O_layer.get('ghosts_below_ox', True)}
         self.unsolv_backside = unsolv_backside
         self.communicator = communicator
 
@@ -1209,10 +1208,9 @@ class SJMPower12Potential(Power12Potential):
             if len(i_ox_in_h2o):
                 oxygen = self.pos_aav[i_ox_in_h2o[0]] * Bohr
                 if len(i_ox_in_h2o) > 1:
-                    for iw,windex in enumerate(i_ox_in_h2o[1:]):
+                    for iw, windex in enumerate(i_ox_in_h2o[1:]):
                         oxygen = np.concatenate(
                             (oxygen, self.pos_aav[windex] * Bohr))
-                        #print(iw, self.pos_aav[windex] * Bohr)
 
             # if isinstance(self.H2O_layer, str):
             if 'plane' in self.H2O_layer['style']:
@@ -1238,17 +1236,17 @@ class SJMPower12Potential(Power12Potential):
                 # Ghost atoms are added below the explicit water layer
                 O_layer = []
                 gh_spacing = self.H2O_layer.get('ghost_spacing', 2)  # in Bohr
-                #TODO: Why is the cell in Bohr?
+                # TODO: Why is the cell in Bohr?
                 cell = atoms.cell.copy() / Bohr
                 cell[2][2] = 1.
 
                 # A ghost atom grid spacing of 1/Angstrom
-                ## TODO: This should actually not follow the unit cell vectors but
-                ## be aligned to the cartesian axes.
+                # TODO: This should actually not follow the unit cell vectors
+                # but be aligned to the cartesian axes.
                 natoms_in_plane = [round(np.linalg.norm(cell[0]) / gh_spacing),
                                    round(np.linalg.norm(cell[1]) / gh_spacing)]
 
-                # Define z-value below which the implicit solvent will be removed
+                # z-value below which the implicit solvent will be removed
                 plane_z = oxygen[:, 2].min() - 1.75 * r_vdw_O
 
                 # Number of ghost atoms in z-direction
@@ -1263,9 +1261,11 @@ class SJMPower12Potential(Power12Potential):
 
                             # Add ghost O atoms in a grid below the water layer
                             # ghost atoms span -1/4 unit cell to 1.25 unit cell
-                            # to account for pbc and are palced at every 1.5 bohr
+                            # to account for pbc and are placed at every
+                            # 1/gh_spacing Bohr
                             O_layer.append(np.dot(np.array(
-                                [(1.5 * i - natoms_in_plane[0] / 4) / natoms_in_plane[0],
+                                [(1.5 * i - natoms_in_plane[0] / 4) /
+                                 natoms_in_plane[0],
                                  (1.5 * j - natoms_in_plane[1] / 4) /
                                  natoms_in_plane[1],
                                  k / Bohr]), cell))
@@ -1274,9 +1274,9 @@ class SJMPower12Potential(Power12Potential):
                 # of water which frees the interface in case of corrugated
                 # water layers
                 if self.H2O_layer.get('ghosts_below_ox', True):
-                    for iox,ox in enumerate(oxygen.copy() / Bohr):
+                    for iox, ox in enumerate(oxygen.copy() / Bohr):
                         O_layer.append(np.array([ox[0], ox[1], ox[2]
-                                                - 1.0 * r_vdw_O]))
+                                                - 1.0 * r_vdw_O / Bohr]))
 
                 r12_add = []
                 for i in range(len(O_layer)):
