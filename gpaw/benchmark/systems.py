@@ -132,7 +132,7 @@ def system_c2db():
 def opt111b():
     atoms = fcc111('Pt', (2, 2, 6), a=4.00, vacuum=10.0)
     add_adsorbate(atoms, 'O', 2.0, 'fcc')
-
+    return atoms
 
 def lic8():
     from ase.lattice.hexagonal import Graphene
@@ -143,6 +143,7 @@ def lic8():
     Li_gra = Graphene('C', size=(2, 2, 1), latticeconstant={'a': a, 'c': c})
     Li_gra.append('Li')
     Li_gra.positions[-1] = (a / 2, ccdist / 2, layerdist / 2)
+    return Li_gra
 
 
 def vii():
