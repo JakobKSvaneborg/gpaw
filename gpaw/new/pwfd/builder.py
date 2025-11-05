@@ -26,7 +26,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
         from gpaw.dft import DefaultEigensolver
         es = self.params.eigensolver
         if isinstance(es, DefaultEigensolver):
-            es = es.from_param({'name': 'ppcg', **es.params})
+            es = es.from_param({'name': 'davidson', **es.params})
         return es.build(
             self.nbands,
             self.wf_desc,
