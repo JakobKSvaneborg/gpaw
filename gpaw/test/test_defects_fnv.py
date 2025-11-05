@@ -1,74 +1,51 @@
 import numpy as np
-from ase import Atoms
+from ase.build import bulk
 from gpaw import GPAW
 from gpaw.defects import ElectrostaticCorrections
 import pytest
+from pathlib import Path
 
 
 def test_fnv():
-    a0 = 5.628  # Lattice parameter
+    a0 = 5.628  # lattice parameter
     sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
-    epsilon = 12.7
+    epsilon = 12.7 # dielectric constant
     N = 1
-    q = -3  # Defect charge
+    charge = -3  # defect charge
 
+    gpw_def = Path('GaAs.def.gpw')
+    gpw_prs = Path('GaAs.prs.gpw')
+
+    params = {'mode': {'name': 'fd'},
+              'xc': 'LDA',
+              'kpts': {'size': (2, 2, 2), 'gamma': False},
+              'occupations': {'name': 'fermi-dirac', 'width': 0.01}}
+              
     E_corr_t = 23.558833
     E_uncorr_t = 18.310214
 
-    formula = 'Ga4As4'
+    pristine = bulk('GaAs', crystalstructure='zincblende', a=a0, cubic=True)
 
-    lattice = [[a0, 0.0, 0.0],  # work with cubic cell
-               [0.0, a0, 0.0],
-               [0.0, 0.0, a0]]
+    defect = pristine.copy()
+    defect.pop(0)  # make a Ga vacancy
 
-    basis = [[0.0, 0.0, 0.0],
-             [0.5, 0.5, 0.0],
-             [0.0, 0.5, 0.5],
-             [0.5, 0.0, 0.5],
-             [0.25, 0.25, 0.25],
-             [0.75, 0.75, 0.25],
-             [0.25, 0.75, 0.75],
-             [0.75, 0.25, 0.75]]
+    calc_charged = GPAW(charge=charge, **params) 
+    calc_neutral = GPAW(charge=0, **params) 
 
-    GaAs = Atoms(symbols=formula,
-                 scaled_positions=basis,
-                 cell=lattice,
-                 pbc=(1, 1, 1))
+    defect.calc = calc_charged
+    defect.get_potential_energy()
+    defect.calc.write(gpw_def)
 
-    GaAsdef = GaAs.repeat((N, N, N))
+    # pristine case
 
-    GaAsdef.pop(0)  # Make the supercell and a Ga vacancy
+    pristine.calc = calc_neutral
+    pristine.get_potential_energy()
+    pristine.calc.write(gpw_prs)
 
-    calc = GPAW(mode='fd',
-                kpts={'size': (2, 2, 2), 'gamma': False},
-                xc='LDA',
-                charge=q,
-                occupations={'name': 'fermi-dirac', 'width': 0.01},
-                txt='GaAs{0}{0}{0}.Ga_vac.txt'.format(N))
-
-    GaAsdef.calc = calc
-    GaAsdef.get_potential_energy()
-
-    calc.write('GaAs{0}{0}{0}.Ga_vac_charged.gpw'.format(N))
-
-    # now for the pristine case
-
-    GaAspris = GaAs.repeat((N, N, N))
-    parameters = calc.todict()
-    parameters['txt'] = 'GaAs{0}{0}{0}.pristine.txt'.format(N)
-    parameters['charge'] = 0
-    calc = GPAW(**parameters)
-
-    GaAspris.calc = calc
-    GaAspris.get_potential_energy()
-
-    calc.write('GaAs{0}{0}{0}.pristine.gpw'.format(N))
-
-    pristine = 'GaAs{0}{0}{0}.pristine.gpw'.format(N)
-    charged = 'GaAs{0}{0}{0}.Ga_vac_charged.gpw'.format(N)
-    elc = ElectrostaticCorrections(pristine=pristine,
-                                   charged=charged,
-                                   q=q,
+    # need to convert Path -> str
+    elc = ElectrostaticCorrections(pristine=str(gpw_prs),
+                                   charged=str(gpw_def),
+                                   q=charge,
                                    sigma=sigma,
                                    dimensionality='3d')
     elc.set_epsilons(epsilon)
