@@ -53,4 +53,4 @@ def test_fnv(modename):
 
 
 if __name__ == "__main__":
-    test_fnv()
+    test_fnv('pw')
