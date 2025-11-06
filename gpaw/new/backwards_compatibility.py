@@ -228,14 +228,6 @@ class FakeWFS:
                     self.pd, self.gd)
                 for wfs in self.ibzwfs._wfs_u]
 
-    @cached_property
-    def _____kpt_qs(self):
-        1 / 0
-        return [[KPT(self.mode, wfs, self.atom_partition, self.scale,
-                     self.pd, self.gd)
-                 for wfs in wfs_s]
-                for wfs_s in self.ibzwfs.wfs_qs]
-
     def integrate(self, a_nX, b_nX, global_integral):
         if self.mode == 'fd':
             return self.gd.integrate(a_nX, b_nX, global_integral)
