@@ -294,8 +294,12 @@ class Symmetries:
                                    symmorphic: bool = True) -> Symmetries:
 
         from spglib import get_symmetry_dataset
-        data = get_symmetry_dataset(cell=(cell, relative_positions, ids),
-                                    symprec=tolerance)
+        if tolerance is None:
+            tolerance = 1e-7 if _backwards_compatible else 1e-5
+        cell_cv = normalize_cell(cell)
+        data = get_symmetry_dataset(
+            cell=(cell_cv, np.asarray(relative_positions), ids),
+            symprec=tolerance)
 
         rotations = spglib_remove_nonsymmorphic(data)
 

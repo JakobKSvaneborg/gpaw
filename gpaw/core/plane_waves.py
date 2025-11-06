@@ -490,7 +490,7 @@ class PWArray(DistributedArrays[PWDesc]):
 
         return out if not isinstance(out, Empty) else None
 
-    def gather_all(self, out: PWArray) -> None:
+    def gather_all(self, out: np.ndarray | PWArray) -> None:
         """Gather coefficients from self[r] on rank r.
 
         On rank r, an array of all G-vector coefficients will be returned.
@@ -499,6 +499,10 @@ class PWArray(DistributedArrays[PWDesc]):
         assert len(self.dims) == 1
         pw = self.desc
         comm = pw.comm
+
+        if isinstance(out, PWArray):
+            out = out.data
+
         if comm.size == 1:
             out[:] = self.data[0]
             return
@@ -545,7 +549,6 @@ class PWArray(DistributedArrays[PWDesc]):
         shape = (self.dims[0], self.desc.shape[0])
         fro = Matrix(*shape,
                      data=array.data)
-        print(comm.size, self.comm.size, self.desc.comm.size)
         to = Matrix(*shape,
                     data=self.data,
                     dist=(comm, self.comm.size, self.desc.comm.size))
