@@ -128,6 +128,7 @@ class SCFLoop:
                 dens_error = self.mixer.mix(density)
                 potential, energies, _ = pot_calc.calculate(
                     density, ibzwfs, potential.vHt_x)
+                energies.sanity_check()
 
         self.eigensolver.postprocess(
             ibzwfs, density, potential, self.hamiltonian)

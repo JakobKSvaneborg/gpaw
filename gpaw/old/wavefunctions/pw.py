@@ -481,8 +481,7 @@ class PWWaveFunctions(FDPWWaveFunctions):
 
     def get_wave_function_array(self, n, k, s, realspace=True,
                                 cut=True, periodic=False):
-        kpt_rank, q = self.kd.get_rank_and_index(k)
-        u = q * self.nspins + s
+        kpt_rank, u = self.kd.get_rank_and_index(k, s)
         band_rank, myn = self.bd.who_has(n)
 
         rank = self.world.rank
@@ -807,26 +806,28 @@ See issue #241 in GPAW. Creashing to prevent corrupted results."""
 
     def initialize_from_lcao_coefficients(self,
                                           basis_functions: BasisFunctions,
-                                          block_size: int = 10) -> None:
+                                          block_size: int = 10,
+                                          lazy=False,
+                                          reset_C_nM=True) -> None:
         """Convert from LCAO to PW coefficients."""
-        nlcao = len(self.kpt_qs[0][0].C_nM)
+        nlcao = len(self.kpt_u[0].C_nM)
 
         # We go from LCAO to real-space and then to PW's.
         # It's too expensive to allocate one big real-space array:
         block_size = min(max(nlcao, 1), block_size)
         psit_nR = self.gd.empty(block_size, self.dtype)
 
-        for kpt in self.kpt_u:
+        def create_psit(kpt):
             if self.kd.gamma:
                 emikr_R = 1.0
             else:
                 k_c = self.kd.ibzk_kc[kpt.k]
                 emikr_R = self.gd.plane_wave(-k_c)
-            kpt.psit = PlaneWaveExpansionWaveFunctions(
+            psit = PlaneWaveExpansionWaveFunctions(
                 self.bd.nbands, self.pd, self.dtype, kpt=kpt.q,
                 dist=(self.bd.comm, -1, 1),
                 spin=kpt.s, collinear=self.collinear)
-            psit_nG = kpt.psit.array
+            psit_nG = psit.array
             if psit_nG.ndim == 3:  # non-collinear calculation
                 N, S, G = psit_nG.shape
                 psit_nG = psit_nG.reshape((N * S, G))
@@ -839,7 +840,20 @@ See issue #241 in GPAW. Creashing to prevent corrupted results."""
                                              block_size)
                 for psit_R, psit_G in zip(psit_nR, psit_nG[n1:n2]):
                     psit_G[:] = self.pd.fft(psit_R * emikr_R, kpt.q)
-            kpt.C_nM = None
+            if reset_C_nM:
+                kpt.C_nM = None
+            return psit
+
+        class LazyPsit:
+            def __init__(self, kpt):
+                self.kpt = kpt
+
+            @property
+            def array(self):
+                return create_psit(self.kpt).array
+
+        for kpt in self.kpt_u:
+            kpt.psit = LazyPsit(kpt) if lazy else create_psit(kpt)
 
     def random_wave_functions(self, mynao):
         rs = np.random.RandomState(self.world.rank)

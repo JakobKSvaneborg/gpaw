@@ -68,3 +68,8 @@ version = {attr = 'gpaw.__version__'}
 
 [tool.setuptools.package-data]
 gpaw = ['py.typed']
+
+[tool.coverage.report]
+exclude_also = [
+    'if __name__ == .__main__.:'
+]

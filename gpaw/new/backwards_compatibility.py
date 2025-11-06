@@ -10,7 +10,6 @@ from ase.units import Bohr
 from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.densities import Densities
 from gpaw.fftw import MEASURE
-from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.new import prod, zips
 from gpaw.new.density import Density
 from gpaw.new.gpw import GPWFlags
@@ -31,16 +30,17 @@ class PT:
         self.ibzwfs = ibzwfs
 
     def integrate(self, psit_nG, P_ani, q):
-        pt_aiX = self.ibzwfs.wfs_qs[q][0].pt_aiX
+        pt_aiX = self.ibzwfs._wfs_u[self.ibzwfs.u_q[q]].pt_aiX
         pt_aiX._lazy_init()
         pt_aiX._lfc.integrate(psit_nG, P_ani, q=0)
 
     def add(self, psit_nG, c_axi, q):
-        self.ibzwfs.wfs_qs[q][0].pt_aiX._lfc.add(psit_nG, c_axi, q=0)
+        self.ibzwfs._wfs_u[self.ibzwfs.u_q[q]].pt_aiX._lfc.add(
+            psit_nG, c_axi, q=0)
 
     def dict(self, shape):
-        return self.ibzwfs.wfs_qs[0][0].pt_aiX.empty(shape,
-                                                     self.ibzwfs.band_comm)
+        return self.ibzwfs._wfs_u[0].pt_aiX.empty(shape,
+                                                  self.ibzwfs.band_comm)
 
 
 class FakeWFS:
@@ -62,17 +62,7 @@ class FakeWFS:
         self.potential = potential
         self.hamiltonian = hamiltonian
         ibz = ibzwfs.ibz
-        self.kd = kd = KPointDescriptor(ibz.bz.kpt_Kc, ibzwfs.nspins)
-        kd.ibzk_kc = ibz.kpt_kc
-        kd.weight_k = ibz.weight_k
-        kd.sym_k = ibz.s_K
-        kd.time_reversal_k = ibz.time_reversal_K
-        kd.bz2ibz_k = ibz.bz2ibz_K
-        kd.ibz2bz_k = ibz.ibz2bz_k
-        kd.bz2bz_ks = ibz.bz2bz_Ks
-        kd.nibzkpts = len(ibz)
-        kd.symmetry = ibz.symmetries._old_symmetry
-        kd.set_communicator(ibzwfs.kpt_comm)
+        self.kd = ibz._old_kd(ibzwfs.nspins, ibzwfs.kpt_comm)
         self.bd = BandDescriptor(ibzwfs.nbands, ibzwfs.band_comm)
         self.grid = density.nt_sR.desc
         self.gd = self.grid._gd
@@ -91,7 +81,7 @@ class FakeWFS:
                 self.fermi_level = self.fermi_levels[0]
         self.nspins = ibzwfs.nspins
         self.dtype = ibzwfs.dtype
-        wfs = ibzwfs.wfs_qs[0][0]
+        wfs = ibzwfs._wfs_u[0]
         self.pd = None
         self.basis_functions = getattr(wfs,  # dft.scf_loop.hamiltonian,
                                        'basis', None)
@@ -131,7 +121,7 @@ class FakeWFS:
         self.fftwflags = MEASURE
 
     def apply_pseudo_hamiltonian(self, kpt, ham, a1, a2):
-        desc = self.ibzwfs.wfs_qs[kpt.q][0].psit_nX.desc
+        desc = self.ibzwfs._wfs_u[self.ibzwfs.u_q[kpt.q]].psit_nX.desc
         self.hamiltonian.apply(
             self.potential.vt_sR,
             None,
@@ -147,9 +137,10 @@ class FakeWFS:
             fix_fermi_level=fixed)
 
     def empty(self, n, q):
-        return np.empty((n,) +
-                        self.ibzwfs.wfs_qs[q][0].psit_nX.data.shape[1:],
-                        complex if self.mode == 'pw' else self.dtype)
+        return np.empty(
+            (n,) +
+            self.ibzwfs._wfs_u[self.ibzwfs.u_q[q]].psit_nX.data.shape[1:],
+            complex if self.mode == 'pw' else self.dtype)
 
     @cached_property
     def work_array(self):
@@ -167,13 +158,13 @@ class FakeWFS:
 
     @property
     def orthonormalized(self):
-        return self.ibzwfs.wfs_qs[0][0].orthonormalized
+        return self.ibzwfs._wfs_u[0].orthonormalized
 
     def orthonormalize(self, kpt=None):
         if kpt is None:
             kpts = list(self.ibzwfs)
         else:
-            kpts = [self.ibzwfs.wfs_qs[kpt.q][kpt.s]]
+            kpts = [self.ibzwfs._get_wfs(kpt.k, kpt.s)]
         for wfs in kpts:
             wfs._P_ani = None
             wfs.orthonormalized = False
@@ -204,10 +195,11 @@ class FakeWFS:
         assert not cut
         assert self.ibzwfs.band_comm.size == 1
         assert self.ibzwfs.kpt_comm.size == 1
+        u = k * self.ibzwfs.nspins + s
         if self.mode == 'lcao':
             assert not realspace
-            return self.kpt_qs[k][s].C_nM[n]
-        psit_X = self.kpt_qs[k][s].wfs.psit_nX[n]
+            return self.kpt_u[u].C_nM[n]
+        psit_X = self.kpt_u[u].wfs.psit_nX[n]
         if not realspace:
             return psit_X.data
         if self.mode == 'pw':
@@ -221,23 +213,20 @@ class FakeWFS:
         return psit_R.data
 
     def collect_projections(self, k, s):
-        return self.kpt_qs[k][s].projections.collect()
+        assert self.ibzwfs.kpt_comm.size == 1
+        u = k * self.ibzwfs.nspins + s
+        return self.kpt_u[u].projections.collect()
 
     def collect_eigenvalues(self, k, s):
-        return self.ibzwfs.wfs_qs[k][s].eig_n.copy()
+        assert self.ibzwfs.kpt_comm.size == 1
+        u = k * self.ibzwfs.nspins + s
+        return self.ibzwfs._wfs_u[u].eig_n.copy()
 
     @cached_property
     def kpt_u(self):
-        return [kpt
-                for kpt_s in self.kpt_qs
-                for kpt in kpt_s]
-
-    @cached_property
-    def kpt_qs(self):
-        return [[KPT(self.mode, wfs, self.atom_partition, self.scale,
-                     self.pd, self.gd)
-                 for wfs in wfs_s]
-                for wfs_s in self.ibzwfs.wfs_qs]
+        return [KPT(self.mode, wfs, self.atom_partition, self.scale,
+                    self.pd, self.gd)
+                for wfs in self.ibzwfs._wfs_u]
 
     def integrate(self, a_nX, b_nX, global_integral):
         if self.mode == 'fd':
@@ -248,7 +237,7 @@ class FakeWFS:
     def calculate_density_matrix(self, f_n, C_nM, rho_MM=None):
         assert self.ibzwfs.band_comm.size == 1
         assert self.ibzwfs.kpt_comm.size == 1
-        rho_MM = self.ibzwfs.wfs_qs[0][0].calculate_density_matrix()
+        rho_MM = self.ibzwfs._wfs_u[0].calculate_density_matrix()
         return rho_MM
 
     def write_wave_functions(self, writer):
@@ -307,6 +296,8 @@ class KPT:
             self.P_aMi = wfs.P_aMi
         if mode == 'fd':
             self.phase_cd = wfs.psit_nX.desc.phase_factor_cd
+        else:
+            self.phase_cd = None
 
     @property
     def P_ani(self):

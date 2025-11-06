@@ -136,7 +136,8 @@ def create_lcao_ibzwfs(basis,
     S_qMM, T_qMM, P_qaMi, tciexpansions, tci_derivatives = tci_helper(
         basis, ibz, domain_comm, band_comm, kpt_comm,
         relpos_ac, atomdist,
-        grid, dtype, setups, xp)
+        grid, dtype, setups, xp,
+        nspins=ncomponents % 3)
 
     nao = setups.nao
 
@@ -189,9 +190,10 @@ def tci_helper(basis,
                grid,
                dtype,
                setups,
-               xp):
-    rank_k = ibz.ranks(kpt_comm)
-    here_k = rank_k == kpt_comm.rank
+               xp,
+               nspins):
+    rank_ks = ibz.ranks(kpt_comm, nspins)
+    here_k = (rank_ks == kpt_comm.rank).any(axis=1)
     kpt_qc = ibz.kpt_kc[here_k]
 
     tciexpansions = TCIExpansions.new_from_setups(setups)

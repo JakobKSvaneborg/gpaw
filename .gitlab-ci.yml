@@ -383,13 +383,6 @@ test-latest:
   script:
     - gpaw info
 
-    # Create a .coveragerc file so we can get nicely printed coverage:
-    - |
-      cat << EOF >> .coveragerc
-      [report]
-      precision = 2
-      EOF
-
     - >
       GPAW_DEBUG=1 pytest -v -m "ci or gpu"
       --cov=gpaw --cov-report=html --cov-report=term
@@ -610,10 +603,14 @@ gpwfiles:
   before_script:
     - !reference [default, before_script]
   script:
-    - pytest -n 16 -m generate_gpw_files --durations 30 -v
+    - >
+      pytest -n 16 -m generate_gpw_files --durations 30 -v
+      --cov=gpaw
+    - mv .coverage coverage-$CI_JOB_NAME
   artifacts:
     paths:
       - .pytest_cache/
+      - coverage-$CI_JOB_NAME
     expire_in: 30 mins
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
@@ -637,16 +634,35 @@ gpwfiles:
   before_script:
     - !reference [default, before_script]
     - pip install pytest-instafail pytest-xdist
+
+    # We need to use GPAW_PREEXEC_SCRIPT to hack the environment
+    # so coverage writes to different files:
+    - |
+      cat << EOF > preexec.py
+      import os
+      from gpaw.mpi import world
+      from pathlib import Path
+      cwd = Path.cwd()
+      os.environ['COVERAGE_FILE'] = str(cwd / f'gpaw-coverage-{world.rank}')
+      EOF
+    - export GPAW_PREEXEC_SCRIPT=$(realpath preexec.py)
   script:
     - >
-      gpaw -P $GPAW_MPI_NPROCS python -m
-      pytest --instafail -r s --durations 30
+      gpaw -P $GPAW_MPI_NPROCS python -m pytest
+      --cov=gpaw --instafail -r s --durations 30
+  after_script:
+    - coverage combine gpaw-coverage-*
+    - mv .coverage coverage-$CI_JOB_NAME
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
       when: on_success
       allow_failure: true
     - if: $CI_PIPELINE_SOURCE == "schedule"
   #  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  artifacts:
+    paths:
+      - coverage-$CI_JOB_NAME
+    expire_in: 1 day
 
 
 nightly-mpi-1:
@@ -655,13 +671,10 @@ nightly-mpi-1:
   script:
     - gpaw info
     - pytest --cache-show
-    - >
-      pytest -n 8 --instafail -r s --durations 30
-      --cov=gpaw --cov-report=html
-  artifacts:
-    paths:
-      - htmlcov/
-    expire_in: 1 day
+    - pytest -n 8 --instafail -r s --durations 30 --cov=gpaw
+    - coverage
+  after_script:
+    - mv .coverage coverage-$CI_JOB_NAME
 
 
 nightly-mpi-2:
@@ -689,14 +702,13 @@ nightly-mpi-8:
 .nightly-mpi-new:
   variables:
     GPAW_NEW: "1"
+  script:
+    - >
+      gpaw -P $GPAW_MPI_NPROCS python -m pytest
+      --cov=gpaw --instafail -r s --durations 30
+      -m "not (old_gpaw_only_mpi or old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
   extends:
     - .nightly
-  script:
-    - gpaw info
-    - >
-      gpaw -P $GPAW_MPI_NPROCS python -m
-      pytest --instafail -r s --durations 30 -m
-      "not (old_gpaw_only_mpi or old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
 
 
 nightly-mpi-1-new:
@@ -708,6 +720,9 @@ nightly-mpi-1-new:
     - >
       pytest -n 8 --instafail -r s --durations 30 -m
       "not (old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
+      --cov=gpaw
+  after_script:
+    - mv .coverage coverage-$CI_JOB_NAME
 
 
 nightly-mpi-2-new:
@@ -740,15 +755,50 @@ nightly-mpi4py-4:
     GPAW_MPI_NPROCS: "4"
     GPAW_DEBUG: "1"
 
+
+coverage-combine:
+  image: $IMAGE_MAIN_LATEST  # (Any image present on the runner will do)
+  needs:
+    - gpwfiles
+    - nightly-mpi-1
+    - nightly-mpi-2
+    - nightly-mpi-4
+    - nightly-mpi-8
+    - nightly-mpi-1-new
+    - nightly-mpi-2-new
+    - nightly-mpi-4-new
+    - nightly-mpi-8-new
+    - nightly-mpi4py-4
+  tags:
+    - xeon40
+  script:
+    - coverage combine coverage-gpwfiles coverage-nightly-*
+    - coverage report
+    - coverage html
+
+    # We'd like to "just" use gitlab's coverage badge, but that won't work
+    # unless this job runs in every pipeline.
+    # We manually generate one then:
+    - >
+      python -m gpaw.doctools.makebadge
+      $(coverage report --format=total --precision 0)
+      > htmlcov/coverage.svg
+
+  artifacts:
+    paths:
+      - htmlcov
+    expire_in: 1 week
+
+
 pages:
   image: $IMAGE_MAIN_LATEST  # (Any image present on the runner will do)
   stage: deploy
   dependencies:
-    - nightly-mpi-1
+    - coverage-combine
   tags:
     - xeon40
   script:
-    - mv htmlcov/ public
+    - mv htmlcov public
   artifacts:
     paths:
       - public
