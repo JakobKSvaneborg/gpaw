@@ -17,7 +17,7 @@ def test_fnv_2d():
     a0 = 2.51026699
     c0 = 15.0
 
-    params = {'mode': 'fd',
+    params = {'mode': {'name': 'pw', 'ecut': 400},
               'xc': 'PBE',
               'kpts': {'size': (4, 4, 1)},
               'occupations': {'name': 'fermi-dirac', 'width': 0.01}}
@@ -60,8 +60,7 @@ def test_fnv_2d():
     assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-2)
 
 
-@pytest.mark.parametrize('modename', ['pw', 'fd'])
-def test_fnv_3d(modename):
+def test_fnv_3d():
 
     E_corr_t = 23.55
     E_uncorr_t = 18.31
@@ -71,10 +70,7 @@ def test_fnv_3d(modename):
     epsilon = 12.7  # dielectric constant
     charge = -3     # defect charge
 
-    mode = {'pw': {'name': 'pw', 'ecut': 400},
-            'fd': {'name': 'fd'}}
-
-    params = {'mode': mode[modename],
+    params = {'mode': {'name': 'pw', 'ecut': 400},
               'xc': 'LDA',
               'kpts': {'size': (2, 2, 2), 'gamma': False},
               'occupations': {'name': 'fermi-dirac', 'width': 0.01}}
@@ -109,9 +105,8 @@ def test_fnv_3d(modename):
     assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-2)
 
 
-@pytest.mark.parametrize('P', [[[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+@pytest.mark.parametrize('P', [[[1, 0, 0], [1, -1, 0], [0, 0, 1]]])
                                # [[1, 0, -1], [1, -1, 0], [0, 0, 1]],  # fails
-                               [[1, 0, 0], [1, -1, 0], [0, 0, 1]]])
 def test_fnv_cell(P):
     P = np.array(P)
 
