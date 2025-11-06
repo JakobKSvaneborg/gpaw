@@ -114,40 +114,38 @@ def diagonalize(potential: Potential,
 
     band_comm = ibzwfs.band_comm
 
-    wfs_qs: list[list[WaveFunctions]] = []
-    for wfs_s in ibzwfs.wfs_qs:
-        wfs_qs.append([])
-        for wfs in wfs_s:
-            dS_aii = [setup.dO_ii for setup in wfs.setups]
-            assert isinstance(wfs, PWFDWaveFunctions)
-            assert isinstance(wfs.pt_aiX, PWAtomCenteredFunctions)
-            pw = wfs.psit_nX.desc
-            H_GG, S_GG = pw_matrix(pw,
-                                   wfs.pt_aiX,
-                                   dH_asii[:, wfs.spin],
-                                   dS_aii,
-                                   vt_sR[wfs.spin],
-                                   dedtaut_sR[wfs.spin],
-                                   band_comm)
+    wfs_u: list[WaveFunctions] = []
+    for wfs in ibzwfs:
+        dS_aii = [setup.dO_ii for setup in wfs.setups]
+        assert isinstance(wfs, PWFDWaveFunctions)
+        assert isinstance(wfs.pt_aiX, PWAtomCenteredFunctions)
+        pw = wfs.psit_nX.desc
+        H_GG, S_GG = pw_matrix(pw,
+                               wfs.pt_aiX,
+                               dH_asii[:, wfs.spin],
+                               dS_aii,
+                               vt_sR[wfs.spin],
+                               dedtaut_sR[wfs.spin],
+                               band_comm)
 
-            eig_n = H_GG.eigh(S_GG, limit=nbands)
-            H_GG.complex_conjugate()
-            assert eig_n[0] > -1000, 'See issue #241'
-            psit_nG = pw.empty(nbands, comm=band_comm)
-            mynbands, nG = psit_nG.data.shape
-            maxmynbands = (nbands + band_comm.size - 1) // band_comm.size
-            C_nG = H_GG.new(
-                dist=(band_comm, band_comm.size, 1, maxmynbands, 1))
-            H_GG.redist(C_nG)
-            psit_nG.data[:] = C_nG.data[:mynbands]
-            new_wfs = PWFDWaveFunctions.from_wfs(wfs, psit_nX=psit_nG)
-            new_wfs.eig_n = eig_n
-            wfs_qs[-1].append(new_wfs)
+        eig_n = H_GG.eigh(S_GG, limit=nbands)
+        H_GG.complex_conjugate()
+        assert eig_n[0] > -1000, 'See issue #241'
+        psit_nG = pw.empty(nbands, comm=band_comm)
+        mynbands, nG = psit_nG.data.shape
+        maxmynbands = (nbands + band_comm.size - 1) // band_comm.size
+        C_nG = H_GG.new(
+            dist=(band_comm, band_comm.size, 1, maxmynbands, 1))
+        H_GG.redist(C_nG)
+        psit_nG.data[:] = C_nG.data[:mynbands]
+        new_wfs = PWFDWaveFunctions.from_wfs(wfs, psit_nX=psit_nG)
+        new_wfs.eig_n = eig_n
+        wfs_u.append(new_wfs)
 
     new_ibzwfs = IBZWaveFunctions(
         ibzwfs.ibz,
         ncomponents=ibzwfs.ncomponents,
-        wfs_qs=wfs_qs,
+        wfs_u=wfs_u,
         kpt_comm=ibzwfs.kpt_comm,
         kpt_band_comm=ibzwfs.kpt_band_comm,
         comm=ibzwfs.comm)

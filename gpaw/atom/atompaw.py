@@ -271,6 +271,7 @@ class AtomOccupations(OccupationNumberCalculator):
                    nelectrons,
                    eig_qn,
                    weight_q,
+                   spin_q,
                    f_qn,
                    fermi_level_guess,
                    fix_fermi_level=False):

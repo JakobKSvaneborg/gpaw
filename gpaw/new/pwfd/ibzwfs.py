@@ -9,4 +9,4 @@ class PWFDIBZWaveFunctions(IBZWaveFunctions[PWFDWaveFunctions]):
         self.move_wave_functions = move_wave_functions
 
     def has_wave_functions(self):
-        return self.wfs_qs[0][0].psit_nX.data is not None
+        return self._wfs_u[0].psit_nX.data is not None

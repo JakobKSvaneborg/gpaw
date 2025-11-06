@@ -53,6 +53,7 @@ def get_berry_phases(calc, spin=0, dir=0, check2d=False):
     dO_aii = get_overlap_coefficients(wfs)
 
     kd = calc.wfs.kd
+    assert kd.comm.size == 1
 
     u_knR = []
     proj_k = []
@@ -62,7 +63,7 @@ def get_berry_phases(calc, spin=0, dir=0, check2d=False):
         ik_c = kd.ibzk_kc[ik]
         # Since symmetry is off this should always hold
         assert np.allclose(k_c, ik_c)
-        kpt = wfs.kpt_qs[ik][spin]
+        kpt = wfs.kpt_u[ik * wfs.nspins + spin]
 
         # Check that all states are occupied
         assert np.all(kpt.f_n[:nocc] > 1e-6)

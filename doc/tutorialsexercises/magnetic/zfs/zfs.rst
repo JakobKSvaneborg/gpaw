@@ -5,6 +5,7 @@ Zero-field splitting
 ====================
 
 .. warning:: **Work in progress**
+.. warning:: Don't parallelize over spins!  Use ``parallel={'kpt': 1}``
 
 This tutorial calculates the zero-field splitting for the NV center in diamond
 and bi-radicals.

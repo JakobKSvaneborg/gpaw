@@ -119,8 +119,9 @@ class DFTComponentsBuilder:
         d = parallel.get('domain', 1 if xcfunc.type == 'HYB' else None)
         k = parallel.get('kpt', None)
         b = parallel.get('band', None)
-        self.communicators = create_communicators(comm, len(self.ibz),
-                                                  d, k, b, self.xp)
+        self.communicators = create_communicators(
+            comm, len(self.ibz) * self.nspins,
+            d, k, b, self.xp)
 
         if self.mode == 'fd':
             pass  # filter = create_fourier_filter(grid)

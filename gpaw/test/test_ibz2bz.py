@@ -214,7 +214,7 @@ def get_ibz_data_from_wfs(wfs, nbands, ik, s):
     """ gets data at ibz k-point ik
     """
     # get energies and wfs
-    kpt = wfs.kpt_qs[ik][s]
+    kpt = wfs.kpt_u[ik * wfs.nspins + s]
     psit_nG = kpt.psit_nG
     eps_n = kpt.eps_n
 

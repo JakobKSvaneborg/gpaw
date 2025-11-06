@@ -11,7 +11,7 @@ from scipy.special import erf
 
 from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.mpi import MPIComm, broadcast_float, serial_comm
-from gpaw.typing import Array1D, Array2D
+from gpaw.typing import Array1D, Array2D, ArrayLike2D
 
 
 class ParallelLayout(NamedTuple):
@@ -138,6 +138,7 @@ class OccupationNumberCalculator:
                   nelectrons: float,
                   eigenvalues: list[list[float]],
                   weights: list[float],
+                  spins: list[int] | None = None,
                   fermi_levels_guess: list[float] = None,
                   fix_fermi_level: bool = False) -> tuple[Array2D,
                                                           list[float],
@@ -166,33 +167,34 @@ class OccupationNumberCalculator:
         (array([[1., 0.]]), [0.5], 0.0)
         """
 
-        eig_qn = [np.asarray(eig_n) for eig_n in eigenvalues]
-        weight_q = np.asarray(weights)
+        eig_un = np.asarray(eigenvalues)
+        weight_u = np.asarray(weights)
 
         if fermi_levels_guess is None:
             fermi_levels_guess = [nan]
 
-        f_qn = np.empty((len(weight_q), len(eig_qn[0])))
+        f_un = np.empty((len(weight_u), len(eig_un[0])))
 
         result = np.empty(2)
 
         if self.domain_comm.rank == 0:
             # Let the master domain do the work and broadcast results:
             result[:] = self._calculate(
-                nelectrons, eig_qn, weight_q, f_qn,
+                nelectrons, eig_un, weight_u, spins, f_un,
                 fermi_levels_guess[0], fix_fermi_level)
 
         self.domain_comm.broadcast(result, 0)
-        self.domain_comm.broadcast(f_qn, 0)
+        self.domain_comm.broadcast(f_un, 0)
 
         fermi_level, e_entropy = result
-        return f_qn, [float(fermi_level)], float(e_entropy)
+        return f_un, [float(fermi_level)], float(e_entropy)
 
     def _calculate(self,
                    nelectrons: float,
-                   eig_qn: List[Array1D],
-                   weight_q: Array1D,
-                   f_qn: Array2D,
+                   eig_un: ArrayLike2D,
+                   weight_u: Array1D,
+                   spin_u,
+                   f_un: Array2D,
                    fermi_level_guess: float,
                    fix_fermi_level: bool = False) -> tuple[float, float]:
         raise NotImplementedError
@@ -227,6 +229,7 @@ class FixMagneticMomentOccupationNumberCalculator(OccupationNumberCalculator):
                   nelectrons: float,
                   eigenvalues: List[List[float]],
                   weights: List[float],
+                  spins=None,
                   fermi_levels_guess: List[float] = None,
                   fix_fermi_level: bool = False) -> tuple[Array2D,
                                                           List[float],
@@ -237,25 +240,28 @@ class FixMagneticMomentOccupationNumberCalculator(OccupationNumberCalculator):
         if fermi_levels_guess is None:
             fermi_levels_guess = [nan, nan]
 
-        f1_qn, fermi_levels1, e_entropy1 = self.occ.calculate(
+        f1_un, fermi_levels1, e_entropy1 = self.occ.calculate(
             (nelectrons + magmom) / 2,
-            eigenvalues[::2],
-            weights[::2],
-            fermi_levels_guess[:1],
-            fix_fermi_level)
+            eigenvalues,
+            [w if spin == 0 else 0.0 for w, spin in zip(weights, spins)],
+            fermi_levels_guess=fermi_levels_guess[:1],
+            fix_fermi_level=fix_fermi_level)
 
-        f2_qn, fermi_levels2, e_entropy2 = self.occ.calculate(
+        f2_un, fermi_levels2, e_entropy2 = self.occ.calculate(
             (nelectrons - magmom) / 2,
-            eigenvalues[1::2],
-            weights[1::2],
-            fermi_levels_guess[1:],
-            fix_fermi_level)
+            eigenvalues,
+            [w if spin == 1 else 0.0 for w, spin in zip(weights, spins)],
+            fermi_levels_guess=fermi_levels_guess[1:],
+            fix_fermi_level=fix_fermi_level)
 
-        f_qn = []
-        for f1_n, f2_n in zip(f1_qn, f2_qn):
-            f_qn += [f1_n, f2_n]
+        f_un = []
+        for u, spin in enumerate(spins):
+            if spin == 0:
+                f_un.append(f1_un[u])
+            else:
+                f_un.append(f2_un[u])
 
-        return (np.array(f_qn),
+        return (np.array(f_un),
                 fermi_levels1 + fermi_levels2,
                 e_entropy1 + e_entropy2)
 
@@ -280,16 +286,17 @@ class SmoothDistribution(OccupationNumberCalculator):
 
     def _calculate(self,
                    nelectrons,
-                   eig_qn,
-                   weight_q,
-                   f_qn,
+                   eig_un,
+                   weight_u,
+                   spin_u,
+                   f_un,
                    fermi_level_guess,
                    fix_fermi_level):
         # Guess can be nan or inf:
         if not np.isfinite(fermi_level_guess) or self._width == 0.0:
             zero = ZeroWidth(self.parallel_layout)
             fermi_level_guess, _ = zero._calculate(
-                nelectrons, eig_qn, weight_q, f_qn)
+                nelectrons, eig_un, weight_u, spin_u, f_un)
             if self._width == 0.0 or np.isinf(fermi_level_guess):
                 return fermi_level_guess, 0.0
 
@@ -300,7 +307,7 @@ class SmoothDistribution(OccupationNumberCalculator):
         def func(x, data=data):
             """calculate excess electrons (and update occupation numbers)."""
             data[:] = 0.0
-            for eig_n, weight, f_n in zip(eig_qn, weight_q, f_qn):
+            for eig_n, weight, f_n in zip(eig_un, weight_u, f_un):
                 f_n[:], dfde_n, e_entropy_n = self.distribution(eig_n, x)
                 data += [weight * x_n.sum()
                          for x_n in [f_n, dfde_n, e_entropy_n]]
@@ -436,73 +443,83 @@ def findroot(func: Callable[[float], Tuple[float, float]],
         assert niter < 1000
 
 
-def collect_eigelvalues(eig_qn: np.ndarray,
-                        weight_q: np.ndarray,
+def collect_eigelvalues(eig_un: np.ndarray,
+                        weight_u: np.ndarray,
                         bd: BandDescriptor,
                         kpt_comm: MPIComm) -> Tuple[np.ndarray,
                                                     np.ndarray,
                                                     np.ndarray]:
-    """Collect eigenvalues from bd.comm and kpt_comm."""
-    nkpts_r = np.zeros(kpt_comm.size, int)
-    nkpts_r[kpt_comm.rank] = len(weight_q)
-    kpt_comm.sum(nkpts_r)
-    nk = cast(int, nkpts_r.sum())
-    weight_k = np.zeros(nk)
-    k1 = nkpts_r[:kpt_comm.rank].sum()
-    k2 = k1 + len(weight_q)
-    weight_k[k1:k2] = weight_q
-    kpt_comm.sum(weight_k, 0)
+    """Collect eigenvalues from bd.comm and kpt_comm.
 
-    eig_kn: Array2D = np.zeros((0, 0))
-    k = 0
-    for rank, nkpts in enumerate(nkpts_r):
-        for q in range(nkpts):
+    * u: local (k-point, spin) pair
+    * U: global (k-point, spin) pair
+    * r: kpt_comm rank
+    """
+    nu_r = np.zeros(kpt_comm.size, int)
+    nu_r[kpt_comm.rank] = len(weight_u)
+    kpt_comm.sum(nu_r)
+    nU = cast(int, nu_r.sum())
+    weight_U = np.zeros(nU)
+    U1 = nu_r[:kpt_comm.rank].sum()
+    U2 = U1 + len(weight_u)
+    weight_U[U1:U2] = weight_u
+    kpt_comm.sum(weight_U, 0)
+
+    eig_Un: Array2D = np.zeros((0, 0))
+    U = 0
+    for rank, nu in enumerate(nu_r):
+        for u in range(nu):
             if rank == kpt_comm.rank:
-                eig_n = eig_qn[q]
+                eig_n = eig_un[u]
                 eig_n = bd.collect(eig_n)
             if bd.comm.rank == 0:
                 if kpt_comm.rank == 0:
-                    if k == 0:
-                        eig_kn = np.empty((nk, len(eig_n)))
+                    if U == 0:
+                        eig_Un = np.empty((nU, len(eig_n)))
                     if rank == 0:
-                        eig_kn[k] = eig_n
+                        eig_Un[U] = eig_n
                     else:
-                        kpt_comm.receive(eig_kn[k], rank)
+                        kpt_comm.receive(eig_Un[U], rank)
                 elif rank == kpt_comm.rank:
                     kpt_comm.send(eig_n, 0)
-            k += 1
-    return eig_kn, weight_k, nkpts_r
+            U += 1
+    return eig_Un, weight_U, nu_r
 
 
-def distribute_occupation_numbers(f_kn: np.ndarray,  # input
-                                  f_qn: np.ndarray,  # output
-                                  nkpts_r: np.ndarray,
+def distribute_occupation_numbers(f_Un: np.ndarray,  # input
+                                  f_un: np.ndarray,  # output
+                                  nu_r: np.ndarray,
                                   bd: BandDescriptor,
                                   kpt_comm: MPIComm) -> None:
-    """Distribute occupation numbers over bd.comm and kpt_comm."""
-    k = 0
-    for rank, nkpts in enumerate(nkpts_r):
-        for q in range(nkpts):
+    """Distribute occupation numbers over bd.comm and kpt_comm.
+
+    * u: local (k-point, spin) pair
+    * U: global (k-point, spin) pair
+    * r: kpt_comm rank
+    """
+    U = 0
+    for rank, nu in enumerate(nu_r):
+        for u in range(nu):
             if kpt_comm.rank == 0:
                 if rank == 0:
                     if bd.comm.size == 1:
-                        f_qn[q] = f_kn[k]
+                        f_un[u] = f_Un[U]
                     else:
-                        bd.distribute(None if f_kn is None else f_kn[k],
-                                      f_qn[q])
-                elif f_kn is not None:
-                    kpt_comm.send(f_kn[k], rank)
+                        bd.distribute(None if f_Un is None else f_Un[U],
+                                      f_un[u])
+                elif f_Un is not None:
+                    kpt_comm.send(f_Un[U], rank)
             elif rank == kpt_comm.rank:
                 if bd.comm.size == 1:
-                    kpt_comm.receive(f_qn[q], 0)
+                    kpt_comm.receive(f_un[u], 0)
                 else:
                     if bd.comm.rank == 0:
                         f_n = bd.empty(global_array=True)
                         kpt_comm.receive(f_n, 0)
                     else:
                         f_n = None
-                    bd.distribute(f_n, f_qn[q])
-            k += 1
+                    bd.distribute(f_n, f_un[u])
+            U += 1
 
 
 class ZeroWidth(OccupationNumberCalculator):
@@ -525,6 +542,7 @@ class ZeroWidth(OccupationNumberCalculator):
                    nelectrons,
                    eig_qn,
                    weight_q,
+                   spin_q,
                    f_qn,
                    fermi_level_guess=nan,
                    fix_fermi_level=False):
@@ -533,7 +551,7 @@ class ZeroWidth(OccupationNumberCalculator):
 
         if eig_kn.size != 0:
             # Try to use integer weights (avoid round-off errors):
-            N = int(round(1 / min(weight_k)))
+            N = int(round(1 / min(w for w in weight_k if w > 0.0)))
             w_k = (weight_k * N).round().astype(int)
             if abs(w_k - N * weight_k).max() > 1e-10:
                 # Did not work.  Use original fractional weights:
@@ -603,11 +621,12 @@ class FixedOccupationNumbers(OccupationNumberCalculator):
                    nelectrons,
                    eig_qn,
                    weight_q,
+                   spin_q,
                    f_qn,
                    fermi_level_guess=nan,
                    fix_fermi_level=False):
 
-        calc_fixed(self.bd, self.f_sn, f_qn)
+        calc_fixed(self.bd, self.f_sn, f_qn, spin_q)
 
         return inf, 0.0
 
@@ -665,12 +684,13 @@ class FixedOccupationNumbersUniform(OccupationNumberCalculator):
                    nelectrons,
                    eig_qn,
                    weight_q,
+                   spin_q,
                    f_qn,
                    fermi_level_guess=nan,
                    fix_fermi_level=False):
         assert not fix_fermi_level
 
-        calc_fixed(self.bd, self.f_sn, f_qn)
+        calc_fixed(self.bd, self.f_sn, f_qn, spin_q)
 
         eig_kn, weight_k, nkpts_r = collect_eigelvalues(
             eig_qn, weight_q, self.bd, self.kpt_comm)
@@ -715,11 +735,10 @@ class FixedOccupationNumbersUniform(OccupationNumberCalculator):
         return '# Uniform distribution of occupation numbers'
 
 
-def calc_fixed(bd, f_sn, f_qn):
+def calc_fixed(bd, f_sn, f_qn, spin_q):
     if bd.nbands == f_sn.shape[1]:
-        for q, f_n in enumerate(f_qn):
-            s = q % len(f_sn)
-            bd.distribute(f_sn[s], f_n)
+        for f_n, spin in zip(f_qn, spin_q):
+            bd.distribute(f_sn[spin], f_n)
     else:
         # Non-collinear calculation:
         bd.distribute(f_sn.T.flatten().copy(), f_qn[0])
@@ -741,6 +760,7 @@ class ThomasFermiOccupations(OccupationNumberCalculator):
                    nelectrons,
                    eig_qn,
                    weight_q,
+                   spin_q,
                    f_qn,
                    fermi_level_guess=nan,
                    fix_fermi_level=False):

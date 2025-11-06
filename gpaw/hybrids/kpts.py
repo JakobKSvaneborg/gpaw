@@ -59,7 +59,7 @@ def get_kpt(wfs, k, spin, n1, n2):
 
     if wfs.world.size == wfs.gd.comm.size:
         # Easy:
-        kpt = wfs.kpt_qs[k][spin]
+        kpt = wfs.kpt_u[k * wfs.nspins + spin]
         psit = kpt.psit.view(n1, n2)
         proj = kpt.projections.view(n1, n2)
         f_n = kpt.f_n[n1:n2]
