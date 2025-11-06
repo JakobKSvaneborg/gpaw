@@ -119,8 +119,9 @@ class DFTComponentsBuilder:
         d = parallel.get('domain', 1 if xcfunc.type == 'HYB' else None)
         k = parallel.get('kpt', None)
         b = parallel.get('band', None)
-        self.communicators = create_communicators(comm, len(self.ibz),
-                                                  d, k, b, self.xp)
+        self.communicators = create_communicators(
+            comm, len(self.ibz) * self.nspins,
+            d, k, b, self.xp)
 
         if self.mode == 'fd':
             pass  # filter = create_fourier_filter(grid)
@@ -251,7 +252,8 @@ class DFTComponentsBuilder:
                             self.communicators['w'],
                             self.communicators['k'],
                             self.communicators['b'],
-                            self.xp)
+                            self.xp,
+                            gpu_add_and_integrate=False)
 
     def density_from_superposition(self, basis_set):
         return Density.from_superposition(
@@ -359,7 +361,7 @@ class DFTComponentsBuilder:
                 dims = [self.nbands, 2]
                 index = (wfs.k,)
 
-            wfs._eig_n = eig_skn[index] / ha
+            wfs.eig_n = eig_skn[index] / ha
             wfs._occ_n = occ_skn[index]
             layout = AtomArraysLayout([(setup.ni,) for setup in self.setups],
                                       atomdist=self.atomdist,

@@ -12,9 +12,10 @@ namespace gpaw
 namespace life_support
 {
 // Global cache for storing objects that have pending unpin/decref
+#ifdef GPAW_GPU_LIFETIME_GUARD
 static std::vector<PyObject*> g_pending_decrefs; // should this be volatile?!
 static std::mutex g_pending_decrefs_mutex;
-
+#endif
 } // namespace life_support
 
 

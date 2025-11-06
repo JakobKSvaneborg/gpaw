@@ -507,10 +507,12 @@ class G0W0Calculator:
             (see :ref:`frequency grid`).
         ecut_e: array(float)
             Plane wave cut-off energies in eV. Defined with choose_ecut_things
-        nbands: int
-            Number of bands to use in the calculation. If None, the number will
-            be determined from :ecut: to yield a number close to the number of
-            plane waves used.
+        nbands: int | None
+            Number of bands to use in the calculation. If None, and groundstate
+            gpw file is a plane wave calculations, the number will be
+            determined from :ecut: to yield a number close to the number of
+            plane waves used. If None, and LCAO, the number of bands will be
+            determined by the number of total bands in the gpw-file.
         do_GW_too: bool
             When carrying out a calculation including vertex corrections, it
             is possible to get the standard GW results at the same time
@@ -551,7 +553,7 @@ class G0W0Calculator:
         self.mpa = mpa
         if evaluate_sigma is None:
             evaluate_sigma = np.array([])
-        self.evaluate_sigma = evaluate_sigma
+        self.evaluate_sigma = evaluate_sigma / Ha
         self.qcache = qcache
 
         # Note: self.wd should be our only representation of the frequencies.
@@ -996,7 +998,7 @@ class G0W0Calculator:
 
                 for (progress, kpt1, kpt2)\
                         in self.pair_distribution.kpt_pairs_by_q(bzq_c, 0, m2):
-                    pb.update((nQ + progress) / self.wcalc.qd.mynk)
+                    pb.update((nQ + progress) / self.wcalc.qd.get_count())
 
                     k1 = self.wcalc.gs.kd.bz2ibz_k[kpt1.K]
                     i = self.kpts.index(k1)
@@ -1189,10 +1191,10 @@ class G0W0(G0W0Calculator):
             for the cutoff energy.
             If an array is given, the extrapolation will be performed based on
             the cutoff energies given in the array.
-        nbands: int
+        nbands: int | str
             Number of bands to use in the calculation. If None, the number will
             be determined from :ecut: to yield a number close to the number of
-            plane waves used.
+            plane waves used. If in LCAO, nao can be used
         ppa: bool
             Sets whether the Godby-Needs plasmon-pole approximation for the
             dielectric function should be used.
@@ -1301,10 +1303,17 @@ class G0W0(G0W0Calculator):
         # (calc can not actually be a calculator at all.)
         gpwfile = Path(calc)
 
-        output_prefix = filename or output_prefix
+        output_prefix = output_prefix or filename
         context = ResponseContext(txt=output_prefix + '.txt',
                                   comm=world, timer=timer)
-        gs = ResponseGroundStateAdapter.from_gpw_file(gpwfile)
+        gs = ResponseGroundStateAdapter.from_gpw_file(gpwfile, lazy=True)
+
+        if gs.is_lcao:
+            if ecut_extrapolation:
+                raise ValueError('ecut_extrapolation is '
+                                 'disabled in LCAO mode.')
+
+        context.print(gs.gs_info)
 
         # Check if nblocks is compatible, adjust if not
         if nblocksmax:
@@ -1315,7 +1324,13 @@ class G0W0(G0W0Calculator):
         ecut, ecut_e = choose_ecut_things(ecut, ecut_extrapolation)
 
         if nbands is None:
-            nbands = int(gs.volume * (ecut / Ha)**1.5 * 2**0.5 / 3 / pi**2)
+            if gs.is_planewave:
+                nbands = int(gs.volume * (ecut / Ha)**1.5 * 2**0.5 / 3 / pi**2)
+            elif gs.is_lcao:
+                nbands = gs.nbands
+            else:
+                raise ValueError('Unknown type of gpw calclations for'
+                                 ' response.')
         else:
             if ecut_extrapolation:
                 raise RuntimeError(
@@ -1412,8 +1427,16 @@ class EXXVXCCalculator:
         self._snapshotfile_prefix = snapshotfile_prefix
 
     def calculate(self, n1, n2, kpt_indices):
+        calc = GPAW(self._gpwfile, parallel={'kpt': 1, 'band': 1})
+
+        # To convert the LCAO wave functions, we need to add the
+        # custom psit to all k-points which know how to convert
+        # the wave functions. Initializing the ResponseGroundStateAdapter
+        # establishes that.
+        # TODO: Now we call this for all files, not just LCAO
+        ResponseGroundStateAdapter(calc, lazy=False)
         _, vxc_skn, exx_skn = non_self_consistent_eigenvalues(
-            self._gpwfile,
+            calc,
             'EXX',
             n1, n2,
             kpt_indices=kpt_indices,

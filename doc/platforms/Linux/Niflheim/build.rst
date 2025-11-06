@@ -24,6 +24,12 @@ read the guide :ref:`Using a pre-installed GPAW on Niflheim <load on niflheim>`.
 Creating the venv
 =================
 
+**IMPORTANT:** Starting October 2025, this procedure will install GPAW
+with the new 2025b series of compilers and libraries.  If you want to
+install using the older 2023a series, please use the script
+:download:`gpaw_venv_2023a.py` instead.
+
+
 Download the :download:`gpaw_venv.py` script (use ``wget <url>``)
 and run it like this::
 

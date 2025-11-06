@@ -277,15 +277,16 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             slcomm, r, c, b = scalapack_parameters
             if r == c == 1:
                 slcomm = None
-            self._eig_n = as_np(H.eigh(scalapack=(slcomm, r, c, b)))
+            self.eig_n = as_np(H.eigh(scalapack=(slcomm, r, c, b)),
+                               dtype=np.float64)
             H.complex_conjugate()
             # H.data[n, :] now contains the nth eigenvector and eps_n[n]
             # the nth eigenvalue
         else:
-            self._eig_n = np.empty(psit_nX.dims)
+            self.eig_n = np.empty(psit_nX.dims[0])
 
         domain_comm.broadcast(H.data, 0)
-        domain_comm.broadcast(self._eig_n, 0)
+        domain_comm.broadcast(self.eig_n, 0)
         if data_buffer is None:
             H.multiply(psit_nX, out=psit2_nX)
             psit_nX.data[:] = psit2_nX.data
@@ -385,8 +386,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                     self,
                     psit_nX,
                     atomdist=self.atomdist.gather())
-                if self._eig_n is not None:
-                    wfs._eig_n = self.eig_n[n1:n2]
+                if self.has_eigs:
+                    wfs.eig_n = self.eig_n[n1:n2]
                 return wfs
         else:
             rank = band_comm.rank
@@ -409,7 +410,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                                 weight=self.weight,
                                 ncomponents=self.ncomponents,
                                 qspiral_v=self.qspiral_v)
-        wfs._eig_n = self._eig_n
+        wfs.eig_n = self.eig_n
         wfs._occ_n = self._occ_n
         return wfs
 

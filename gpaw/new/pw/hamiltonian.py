@@ -52,12 +52,16 @@ class PWHamiltonian(Hamiltonian):
         mynbands = psit_nG.mydims[0]
         Q_G = pw_local.indices(tmp_Q.shape)
 
+        # apply_local_potential_gpu doesn't work with domain parallisation
+        # So we force vt_R to be the right type here.
+        vt_R_data = xp.asarray(vt_R.data)
+
         for n1 in range(0, mynbands, domain_comm.size):
             n2 = min(n1 + domain_comm.size, mynbands)
             psit_nG[n1:n2].gather_all(psit_G)
             if domain_comm.rank < n2 - n1:
                 plan.ifft_sphere(psit_G, pw_local)
-                tmp_R *= vt_R.data
+                tmp_R *= vt_R_data
                 plan.fft()
                 vtpsit_G = tmp_Q.ravel()[Q_G]
                 psit_G *= e_kin_G

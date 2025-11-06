@@ -213,6 +213,7 @@ class WaveFunctions:
             nelectrons=self.nvalence / degeneracy,
             eigenvalues=[kpt.eps_n * Ha for kpt in self.kpt_u],
             weights=[kpt.weightk for kpt in self.kpt_u],
+            spins=[kpt.s for kpt in self.kpt_u],
             fermi_levels_guess=(self.fermi_levels * Ha
                                 if self.fermi_levels is not None else None),
             fix_fermi_level=fix_fermi_level)
@@ -276,10 +277,10 @@ class WaveFunctions:
         domain a full array on the domain master and send this to the
         global master."""
 
-        kpt_qs = self.kpt_qs
-        kpt_rank, q = self.kd.get_rank_and_index(k)
+        kpt_u = self.kpt_u
+        kpt_rank, u = self.kd.get_rank_and_index(k, s)
         if self.kd.comm.rank == kpt_rank:
-            a_nx = getattr(kpt_qs[q][s], name)
+            a_nx = getattr(kpt_u[u], name)
 
             if subset is not None:
                 a_nx = a_nx[subset]
@@ -301,7 +302,7 @@ class WaveFunctions:
 
         elif self.world.rank == 0 and kpt_rank != 0:
             # Only used to determine shape and dtype of receiving buffer:
-            a_nx = getattr(kpt_qs[0][0], name)
+            a_nx = getattr(kpt_u[0], name)
 
             if subset is not None:
                 a_nx = a_nx[subset]
@@ -321,13 +322,12 @@ class WaveFunctions:
         domain a full array on the domain master and send this to the
         global master."""
 
-        kpt_rank, q = self.kd.get_rank_and_index(k)
+        kpt_rank, u = self.kd.get_rank_and_index(k, s)
 
         if self.kd.comm.rank == kpt_rank:
             if isinstance(value, str):
-                a_o = getattr(self.kpt_qs[q][s], value)
+                a_o = getattr(self.kpt_u[u], value)
             else:
-                u = q * self.nspins + s
                 a_o = value[u]  # assumed list
 
             # Make sure data is a mutable object
@@ -354,10 +354,10 @@ class WaveFunctions:
         For the parallel case find the rank in kpt_comm that contains
         the (k,s) pair, for this rank, send to the global master."""
 
-        kpt_rank, q = self.kd.get_rank_and_index(k)
+        kpt_rank, u = self.kd.get_rank_and_index(k, s)
 
         if self.kd.comm.rank == kpt_rank:
-            kpt = self.kpt_qs[q][s]
+            kpt = self.kpt_u[u]
             P_nI = kpt.projections.collect()
             if self.world.rank == 0:
                 return P_nI
@@ -388,14 +388,13 @@ class WaveFunctions:
         domain a full array on the domain master and send this to the
         global master."""
 
-        kpt_rank, q = self.kd.get_rank_and_index(k)
+        kpt_rank, u = self.kd.get_rank_and_index(k, s)
         band_rank, myn = self.bd.who_has(n)
 
         rank = self.world.rank
 
         if (self.kd.comm.rank == kpt_rank and
             self.bd.comm.rank == band_rank):
-            u = q * self.nspins + s
             psit_G = self._get_wave_function_array(u, myn,
                                                    realspace, periodic)
 

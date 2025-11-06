@@ -843,7 +843,11 @@ class GPAW(Calculator):
 
         M = np.linalg.norm(magmom_av.sum(0))
 
-        nbands = par.nbands
+        if reading:
+            shape = self.reader.wave_functions.eigenvalues.shape
+            nbands = shape[-1] // (1 if len(shape) == 3 else 2)
+        else:
+            nbands = par.nbands
 
         orbital_free = any(setup.orbital_free for setup in self.setups)
         if orbital_free:
@@ -2227,7 +2231,12 @@ class GPAW(Calculator):
     def eigenvalues(self):
         return np.array(
             [[self.get_eigenvalues(kpt=kpt, spin=spin)
+              for kpt in range(len(self.get_ibz_k_points()))]
+             for spin in range(self.get_number_of_spins())])
 
+    def occupations(self):
+        return np.array(
+            [[self.get_occupation_numbers(kpt=kpt, spin=spin)
               for kpt in range(len(self.get_ibz_k_points()))]
              for spin in range(self.get_number_of_spins())])
 

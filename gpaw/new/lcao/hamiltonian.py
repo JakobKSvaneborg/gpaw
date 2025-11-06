@@ -101,7 +101,7 @@ class NonCollinearHamiltonianMatrixCalculator(HamiltonianMatrixCalculator):
 
         V_sMM[0] += wfs.T_MM
 
-        assert wfs.domain_comm.size == 1
+        # assert wfs.domain_comm.size == 1
         assert wfs.band_comm.size == 1
 
         for V_MM in V_sMM:
@@ -172,7 +172,7 @@ class LCAOKickHamiltonian(LCAOHamiltonian):
         W_aL = pot_calc.ghat_aLr.integrate(vext_r)
 
         assert ibzwfs.ibz.bz.gamma_only
-        setups_a = ibzwfs.wfs_qs[0][0].setups
+        setups_a = ibzwfs._wfs_u[0].setups
 
         self.V_sxMM = [V_MM for s in range(self.nspins)]
         self.dH_saii = [{a: unpack_hermitian(setups_a[a].Delta_pL @ W_L)

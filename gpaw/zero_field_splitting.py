@@ -32,7 +32,9 @@ def zfs(calc: GPAW,
 
     Calculate magnetic dipole coupling tensor in eV.
     """
-    (kpt1, kpt2), = calc.wfs.kpt_qs  # spin-polarized and gamma only
+    assert calc.wfs.nspins == 2
+    assert calc.wfs.kd.gamma
+    kpt1, kpt2 = calc.wfs.kpt_u  # no parallelization over spins
 
     nocc1 = (kpt1.f_n > 0.5).sum()
     nocc2 = (kpt2.f_n > 0.5).sum()
@@ -82,7 +84,10 @@ class WaveFunctions:
     @staticmethod
     def from_calc(calc: GPAW, spin: int, n1: int, n2: int) -> 'WaveFunctions':
         """Create WaveFunctions object GPAW calculation."""
-        kpt = calc.wfs.kpt_qs[0][spin]
+        assert calc.wfs.nspins == 2
+        assert calc.wfs.kd.gamma
+        assert calc.wfs.kd.comm.size == 1
+        kpt = calc.wfs.kpt_u[spin]
         gd = calc.wfs.gd.new_descriptor(pbc_c=np.ones(3, bool),
                                         comm=serial_comm)
         psit_nR = gd.empty(n2 - n1)
