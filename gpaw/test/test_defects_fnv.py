@@ -106,7 +106,7 @@ def test_fnv_3d():
 
 
 @pytest.mark.parametrize('P', [[[1, 0, 0], [1, -1, 0], [0, 0, 1]]])
-                               # [[1, 0, -1], [1, -1, 0], [0, 0, 1]],  # fails
+# [[1, 0, -1], [1, -1, 0], [0, 0, 1]]  # fails
 def test_fnv_cell(P):
     P = np.array(P)
 
