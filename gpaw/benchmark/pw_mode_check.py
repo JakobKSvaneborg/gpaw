@@ -16,13 +16,15 @@ params = dict(
 
 
 def workflow():
+    """MyQueue workflow."""
     from myqueue.workflow import run
     for name, function in systems.items():
         if name in {'magic_graphene', 'C6000', 'C2188', 'C676'}:
             continue
+
         atoms = function()
 
-        # Estimate time:
+        # Estimate time (memory):
         info = get_calculation_info(atoms, **params)
         t = (len(info.ibz) * info.nbands * info.ncomponents *
              atoms.cell.volume * 1e-6)
@@ -43,23 +45,28 @@ def workflow():
 
 
 def work(name):
+    """Do two steps."""
+
     global params
+
     extra = Path('params.json')
     if extra.is_file():
         params |= json.loads(extra.read_text())
 
     atoms = systems[name]()
+
+    # Do a non-colinear calculation?
     if hasattr(atoms, '_magmoms'):
         params != dict(
             magmoms=atoms._magmoms,
             symmetry='off')
 
-    # from gpaw import GPAW
     calc = GPAW(
         txt=f'{name}.txt',
         **params)
     atoms.calc = calc
 
+    # First step:
     t1 = time()
     e1 = atoms.get_potential_energy()
     f1 = atoms.get_forces()
@@ -73,6 +80,7 @@ def work(name):
     t1 = time() - t1
     m1 = maxrss()
 
+    # Second step:
     t2 = time()
     e2 = atoms.get_potential_energy()
     _ = atoms.get_forces()
@@ -85,6 +93,7 @@ def work(name):
                                                     e2, t2, i2, m2]))
 
 
+# Reference energies and change in energy after first step:
 energies = {
     'Bi2Se3': (-21.46195, -0.18655),
     'C60': (-530.92535, -0.44820),
@@ -107,6 +116,7 @@ energies = {
 def read(folder: Path,
          mode: int,
          eps: float = 0.001) -> dict[str, tuple[float, int]]:
+    """Read <name>.json files."""
     data = {}
     for name, (e0, de0) in energies.items():
         path = folder / f'{name}.json'
@@ -168,8 +178,10 @@ def summary(folders: list[Path], mode: int) -> None:
 if __name__ == '__main__':
     from argparse import ArgumentParser
     parser = ArgumentParser()
-    parser.add_argument('-m', '--mode', type=int, default=3)
-    parser.add_argument('folder', nargs='+')
+    parser.add_argument('-m', '--mode', type=int, default=3,
+                        help='1: first step, 2: second step, 3: both.')
+    parser.add_argument('folder', nargs='+',
+                        help='Folder with <name>.json files.')
     args = parser.parse_args()
     summary(
         folders=[Path(folder) for folder in args.folder], mode=args.mode)
