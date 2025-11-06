@@ -2,7 +2,6 @@ import json
 import sys
 from pathlib import Path
 from time import time
-from typing import Any
 
 import numpy as np
 from gpaw.benchmark.systems import systems
@@ -28,16 +27,18 @@ def workflow():
         info = get_calculation_info(atoms, **params)
         t = (len(info.ibz) * info.nbands * info.ncomponents *
              atoms.cell.volume * 1e-6)
+        tmax = '1h'
         if t < 1.0:
             cores = 24
         elif t < 10.0:
             cores = 40
         else:
             cores = 56
+            tmax = '3h'
         run(function=work,
             args=[name],
             cores=cores,
-            tmax='1h',
+            tmax=tmax,
             name=name,
             creates=[f'{name}.json'])
 
@@ -46,7 +47,7 @@ def work(name):
     global params
     extra = Path('params.json')
     if extra.is_file():
-        params |= json.loads(extra.read())
+        params |= json.loads(extra.read_text())
     atoms = systems[name]()
     calc = GPAW(
         txt=f'{name}.txt',
