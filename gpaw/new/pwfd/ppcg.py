@@ -287,7 +287,7 @@ class PPCG(PWFDEigensolver):
             active_bs = len(active_indicies)
 
             with tracectx('Block-diagonal Update'):
-                wfs.eig_n[:] = 0  # Reset eigenvalues
+                new_eigs_n = np.zeros_like(wfs.myeig_n) # Reset eigenvalues
                 for j in range(0, active_bs, self.blocksize):
                     block_slice_base = \
                         slice(j, min(j + self.blocksize, active_bs))
@@ -350,11 +350,11 @@ class PPCG(PWFDEigensolver):
                     domain_comm.sum(S_bb)
 
                     # Scale the diagonal elements, to improve numerical
-                    # stability. Here, we use the expontent -0.25, which
+                    # stability. Here, we use the expontent -0.5, which
                     # makes the diagonal elements closer to 1, by the a
                     # factor of sqrt(X), with X being the previous diagonal.
                     # This value performed best of the ones attempted.
-                    diag_scale_b = xp.diag(S_bb)[block:]**(-0.25)
+                    diag_scale_b = xp.diag(S_bb)[block:]**(-0.5)
                     S_bb[block:, :] *= diag_scale_b[:, None]
                     S_bb[:, block:] *= diag_scale_b[None, :]
                     buff_bX.matrix.data[block:nblocks, :] \
@@ -394,7 +394,7 @@ class PPCG(PWFDEigensolver):
                             pos_defness = pos_defness.get()
                         if pos_defness < \
                                 np.finfo(psit_nX.data.dtype).eps * \
-                                nblocks**0.5:
+                                nblocks**0.5 or np.isnan(pos_defness):
                             # Insufficient numerical precision for CG,
                             # thus we only do the steepest descent step
                             nblocks = 2 * block
@@ -418,10 +418,10 @@ class PPCG(PWFDEigensolver):
                     else:
                         cmin = H_bb[:block, :nblocks].conj()
                     if not xp.isfinite(H_bb).all():
-                        print('H is not finite')
                         break_after_update = True
+                        new_eigs_n[block_slice] = wfs.myeig_n[block_slice]
                         continue
-                    wfs.myeig_n[block_slice] = as_np(eig_b[:block])
+                    new_eigs_n[block_slice] = as_np(eig_b[:block])
 
                     with tracectx('rotations', gpu=xp is not np):
                         # Ye olde updates
@@ -449,6 +449,7 @@ class PPCG(PWFDEigensolver):
                             Pbuf_abi.matrix.data[:block] \
                             + Pbuf_abi.matrix.data[block:2 * block]
 
+            wfs.myeig_n[:] = new_eigs_n
             band_comm.sum(wfs._eig_n)
             wfs.orthonormalized = False
             if break_after_update or i >= self.niter - 1:
