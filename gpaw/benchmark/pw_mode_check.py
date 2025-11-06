@@ -46,8 +46,9 @@ def work(name):
     global params
     extra = Path('params.json')
     if extra.is_file():
-        params |= json.loads(extra.read())
+        params |= json.loads(extra.read_text())
     atoms = systems[name]()
+    # from gpaw import GPAW
     calc = GPAW(
         txt=f'{name}.txt',
         **params)
