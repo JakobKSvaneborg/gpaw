@@ -287,7 +287,7 @@ class PPCG(PWFDEigensolver):
             active_bs = len(active_indicies)
 
             with tracectx('Block-diagonal Update'):
-                new_eigs_n = np.zeros_like(wfs.myeig_n) # Reset eigenvalues
+                new_eigs_n = np.zeros_like(wfs.myeig_n)  # New eigenvalues
                 for j in range(0, active_bs, self.blocksize):
                     block_slice_base = \
                         slice(j, min(j + self.blocksize, active_bs))
