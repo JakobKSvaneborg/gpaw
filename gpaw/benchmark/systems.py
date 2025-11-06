@@ -188,6 +188,7 @@ def ganfh():
 
 
 def pto3li2o3():
+    # From /home/niflheim2/cmr/C2DB-ASR/ICSD-COD/not_converged/Li2PtO6/
     atoms = Atoms(
         'PtO3Li2O3',
         cell=[5.362, 5.362, 32.360676, 90, 90, 120],
@@ -203,6 +204,18 @@ def pto3li2o3():
             [-0.06702499999999945, 3.1344490451872087, 15.0],
             [2.6810000000000005, 1.6252698752822565, 15.0],
             [0.0, 0.0, 15.0]])
+    return atoms
+
+
+def erge():
+    # From /home/niflheim2/cmr/C2DB-ASR/ICSD-COD/lanthanides/ErGe/
+    atoms = Atoms(
+        'ErGe',
+        cell=[3.911, 4.091, 1.0],
+        magmoms=[0, 2],
+        pbc=[True, True, False],
+        scaled_positions=[[0, 0, 0], [0.5, 0.5, 1.124]])
+    atoms.center(vacuum=5.5, axis=2)
     return atoms
 
 
@@ -222,7 +235,8 @@ systems = {'C60': system_C60,
            'VI2': vii,
            'Bi2Se3': bi2se3,
            'Ga2N4F4H10': ganfh,
-           'PtO3Li2O3': pto3li2o3}
+           'PtO3Li2O3': pto3li2o3,
+           'ErGe': erge}
 
 
 def parse_system(name):
