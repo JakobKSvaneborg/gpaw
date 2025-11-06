@@ -219,6 +219,51 @@ def erge():
     return atoms
 
 
+def as4crsi2():
+    atoms = Atoms(
+        'As4CrSi2',
+        cell=[3.81, 3.81, 1.0, 90, 90, 120],
+        magmoms=[0, 0, 0, 0, 4, 0, 0],
+        pbc=[True, True, False],
+        scaled_positions=[
+            [0, 0, -4.66],
+            [0, 0, 4.66],
+            [1 / 3, 2 / 3, -1.12],
+            [2 / 3, 1 / 3, 1.12],
+            [0, 0, 0],
+            [2 / 3, 1 / 3, 3.54],
+            [1 / 3, 2 / 3, -3.54]])
+    atoms.center(vacuum=6.5, axis=2)
+    return atoms
+
+
+def v3cl6():
+    a = 6.339
+    d = 1.331
+    atoms = Atoms(
+        'V3Cl6',
+        cell=[a, a, 1, 90, 90, 60],
+        pbc=[1, 1, 0],
+        scaled_positions=[
+            [0, 0, 0],
+            [1 / 3, 1 / 3, 0],
+            [2 / 3, 2 / 3, 0],
+            [0, 2 / 3, d],
+            [0, 1 / 3, -d],
+            [1 / 3, 0, d],
+            [1 / 3, 2 / 3, -d],
+            [2 / 3, 1 / 3, d],
+            [2 / 3, 0, -d]])
+    atoms.center(axis=2, vacuum=5)
+    m = 3.0
+    magmoms = np.zeros((9, 3))
+    magmoms[0] = [m, 0, 0]
+    magmoms[1] = [-m / 2, m * 3**0.5 / 2, 0]
+    magmoms[2] = [-m / 2, -m * 3**0.5 / 2, 0]
+    atoms._magmoms = magmoms
+    return atoms
+
+
 systems = {'C60': system_C60,
            'diamond': system_diamond,
            'H2': system_H2,
@@ -236,7 +281,9 @@ systems = {'C60': system_C60,
            'Bi2Se3': bi2se3,
            'Ga2N4F4H10': ganfh,
            'PtO3Li2O3': pto3li2o3,
-           'ErGe': erge}
+           'ErGe': erge,
+           'As4CrSi2': as4crsi2,
+           'V3Cl6': v3cl6}
 
 
 def parse_system(name):

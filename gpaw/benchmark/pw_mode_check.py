@@ -1,5 +1,4 @@
 import json
-import sys
 from pathlib import Path
 from time import time
 
@@ -48,7 +47,13 @@ def work(name):
     extra = Path('params.json')
     if extra.is_file():
         params |= json.loads(extra.read_text())
+
     atoms = systems[name]()
+    if hasattr(atoms, '_magmoms'):
+        params != dict(
+            magmoms=atoms._magmoms,
+            symmetry='off')
+
     # from gpaw import GPAW
     calc = GPAW(
         txt=f'{name}.txt',
@@ -92,10 +97,16 @@ energies = {
     'MnVS2-slab': (-29.11777, -0.00014),
     'MoS2_tube': (-1291.31046, 7.55276),
     'VI2': (-9.29013, -0.77486),
-    'OPt111b': (-153.25143, -1.61599)}
+    'OPt111b': (-153.25143, -1.61599),
+    'PtO3Li2O3': (0.0, 0.0),
+    'ErGe': (0.0, 0.0),
+    'As4CrSi2': (0.0, 0.0),
+    'V3Cl6': (0.0, 0.0)}
 
 
-def read(folder: Path, mode: int, eps: float = 0.001) -> dict[str, tuple[float, int]]:
+def read(folder: Path,
+         mode: int,
+         eps: float = 0.001) -> dict[str, tuple[float, int]]:
     data = {}
     for name, (e0, de0) in energies.items():
         path = folder / f'{name}.json'
@@ -157,7 +168,7 @@ def summary(folders: list[Path], mode: int) -> None:
 if __name__ == '__main__':
     from argparse import ArgumentParser
     parser = ArgumentParser()
-    parser.add_argument('-m', '--mode', type=int)
+    parser.add_argument('-m', '--mode', type=int, default=3)
     parser.add_argument('folder', nargs='+')
     args = parser.parse_args()
     summary(
