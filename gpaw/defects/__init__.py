@@ -47,6 +47,7 @@ class ElectrostaticCorrections():
 
         self.pd = self.calc.wfs.pd
         self.G_Gv = self.pd.get_reciprocal_vectors(q=0, add_q=False)
+        print('G_Gv=', self.G_Gv.shape)
         self.G2_G = self.pd.G2_qG[0]  # |\vec{G}|^2 in Bohr^-2
 
     def calculate_gaussian_density(self):
@@ -83,20 +84,29 @@ class ElectrostaticCorrections():
         Eli = 0.5 * self.charge ** 2 * Ha / np.pi ** 0.5 / eps / sgm
         return Eli
 
+    def calculate_model_potential(self):
+        # need to backtransform phi_G -> phi_r = sum_G exp(i G * r) phi_G
+        phi_r = 0
+        return phi_r
+
+    def extract_electrostatic_potentials(self):
+        self.phi_prs = - self.pristine.get_electrostatic_potential()
+        self.phi_def = - self.defect.get_electrostatic_potential() 
+        self.r_vR = self.pristine.wfs.pd.gd.refine().get_grid_point_coordinates()
+        r_vR = self.defect.wfs.pd.gd.refine().get_grid_point_coordinates()
+        print(self.r_vR.shape, self.phi_prs.shape)
+        assert np.allclose(self.r_vR, r_vR)
+        assert np.allclose(self.phi_prs.shape, self.phi_def.shape)
+        assert np.allclose(self.phi_prs.shape, self.r_vR.shape[1:])
+
     def calculate_potential_alignment(self):
         # XXX check sign convention
-        V_neutral = - self.pristine.get_electrostatic_potential()
-        V_defect = - self.defect.get_electrostatic_potential()
-        # V_model = self.calculate_model_potential()
+        self.extract_electrostatic_potentials() 
+        V_model = self.calculate_model_potential()
         V_model = 0
-        Delta_V = V_model - V_defect + V_neutral
+        Delta_V = V_model - (self.phi_def - self.phi_prs)
         Delta_V = 0
         return Delta_V
-
-    def calculate_model_potential(self):
-        # need to backtransform phi_G -> phi_r
-        rvec, phi_r = None, None
-        return rvec, phi_r
 
     def calculate_corrected_formation_energy(self):
         E_0 = self.pristine.get_potential_energy()
