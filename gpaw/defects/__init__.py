@@ -42,6 +42,7 @@ class ElectrostaticCorrections():
         self.epsilon = epsilon
         self.r0 = np.array(r0)      # Angstrom
         self.ravg = ravg            # Angstrom
+        self.nfreq = 4              # grid coarsening
         # np.min(self.atoms_prs.cell.lengths())/8.  # Angstrom
 
         # volume
@@ -85,27 +86,31 @@ class ElectrostaticCorrections():
 
         # assuming G: (ng, 3), r: (3, nx, ny, nz), phi_G: (ng,)
         # compute G * r for all G and grid points
-        Gr = np.einsum('gi,i...->g...', self.G_Gv, r_vR)  # shape: (ng, nx, ny, nz)
+        # shape: (ng, nx, ny, nz)
+        Gr = np.einsum('gi,i...->g...', self.G_Gv, r_vR)
 
         # compute exp(i * G * r)
-        exp_Gr = np.exp(1j * Gr)  # shape: (ng, nx, ny, nz)
+        # shape: (ng, nx, ny, nz)
+        exp_Gr = np.exp(1j * Gr)
 
         # weighted sum over G
-        phi_r = np.einsum('g,g...->...', self.phi_G, exp_Gr)  # shape: (nx, ny, nz)
+        # shape: (nx, ny, nz)
+        phi_r = np.einsum('g,g...->...', self.phi_G, exp_Gr)
 
         assert np.abs(phi_r.imag).max() < 1e-8
 
-        return phi_r.real / self.Omega
+        return phi_r.real / self.Omega  # XXX right normalization ?
 
     def extract_electrostatic_potentials(self):
         self.phi_prs = - self.pristine.get_electrostatic_potential()
-        self.phi_def = - self.defect.get_electrostatic_potential() 
-        self.r_vR = self.pristine.wfs.pd.gd.refine().get_grid_point_coordinates()
-        r_vR = self.defect.wfs.pd.gd.refine().get_grid_point_coordinates()
+        self.phi_def = - self.defect.get_electrostatic_potential()
+        finegrid = self.pristine.wfs.pd.gd.refine()
+        self.r_vR = finegrid.get_grid_point_coordinates()
+        finegrid_def = self.defect.wfs.pd.gd.refine()
+        r_vR = finegrid_def.get_grid_point_coordinates()
         assert np.allclose(self.r_vR, r_vR)
         assert np.allclose(self.phi_prs.shape, self.phi_def.shape)
         assert np.allclose(self.phi_prs.shape, self.r_vR.shape[1:])
-        
 
     def get_reference_index(self, index):
         """Get index of atom furthest away from the atom index."""
@@ -125,31 +130,34 @@ class ElectrostaticCorrections():
         dR = self.atoms_prs.positions - self.r0[None, :]
         _, dist = find_mic(dR, cell_prs)
         defect_index = np.argmin(dist)
-        print('defect_index=', defect_index)
 
-        # now find atom most away 
+        # now find atom most away
         bulk_index = self.get_reference_index(defect_index)
-        print('bulk_index=', bulk_index)
 
         # return grid indices of region around the bulk atoms
         grid_shape = self.r_vR.shape[1:]
-        print('grid_shape=', grid_shape)
         # convert grid to Angstrom such we can use find_mic
         rgrid_vR = self.r_vR * Bohr
         rbulk_v = self.atoms_prs.positions[bulk_index, :]
         dR = rgrid_vR.T - rbulk_v[None, None, None, :]
-        # flatten grid and reshape 
+        # flatten grid and reshape
         dR = dR.reshape((np.prod(grid_shape), 3))
         _, dist = find_mic(dR, cell_prs)
         dist = dist.reshape(grid_shape)
         # sphere radius: self.ravg
         self.region = np.where(dist < self.ravg)
-         
+
+    def coarsen_grid(self):
+        nfreq = self.nfreq
+        self.phi_prs = self.phi_prs[::nfreq, ::nfreq, ::nfreq]
+        self.phi_def = self.phi_def[::nfreq, ::nfreq, ::nfreq]
+        self.r_vR = self.r_vR[:, ::nfreq, ::nfreq, ::nfreq]
 
     def calculate_potential_alignment(self):
         # extract electro-static potential and grid from
         # pristine and defect
-        self.extract_electrostatic_potentials() 
+        self.extract_electrostatic_potentials()
+        self.coarsen_grid()
 
         # define region away from defect
         self.define_averaging_region()
@@ -158,8 +166,6 @@ class ElectrostaticCorrections():
         self.phi_prs = self.phi_prs[self.region]
         self.phi_def = self.phi_def[self.region]
         self.r_vR = self.r_vR[:, *self.region]
-        
-        print('region_shape', self.r_vR.shape)
 
         # get model potential inside the averaging region
         phi_model = self.calculate_model_potential(self.r_vR)
@@ -173,7 +179,7 @@ class ElectrostaticCorrections():
         Eli = self.calculate_isolated_correction()
         Elp = self.calculate_periodic_correction()
         Delta_V = self.calculate_potential_alignment()
-        print('Eli=', Eli, 'Elp=', Elp, 'Delta_V=', Delta_V)
+        parprint('Eli=', Eli, 'Elp=', Elp, 'Delta_V=', Delta_V)
         return E_X - E_0 - (Elp - Eli) + Delta_V * self.charge
 
     def calculate_uncorrected_formation_energy(self):
