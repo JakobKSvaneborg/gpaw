@@ -50,23 +50,32 @@ class ElectrostaticCorrections():
         self.pd = self.calc.wfs.pd
         self.G_Gv = self.pd.get_reciprocal_vectors(q=0, add_q=False)
         self.G2_G = self.pd.G2_qG[0]  # |\vec{G}|^2 in Bohr^-2
-        self.rho_G = self.calculate_gaussian_density()
 
     def calculate_gaussian_density(self):
-        # Fourier transformed gaussian:
+        # fourier transformed gaussian:
         return self.charge * np.exp(-0.5 * self.G2_G * self.sigma ** 2)
 
-    def calculate_periodic_correction(self):
-        Elp = 0.0
+    def calculate_gaussian_potential(self):
+        phi_G = np.zeros_like(self.rho_G)
         for gg, G2 in enumerate(self.G_2G):
             if np.allclose(G2, 0):
                 parprint('Skipping G^2=0 contribution to Elp')
+                phi_G[gg] = 0.0     # neutralizing background cancels contribution
             else:
-                Elp += np.sum(np.abs(self.rho_G[gg])**2 / G2).real
-        Elp *= 2.0 * np.pi * Ha / self.epsilon / self.Omega
+                phi_G[gg] = 4. * np.pi * self.rho_G[gg] * Ha / G2 / self.epsilon
+        return phi_G
+
+    def calculate_periodic_correction(self):
+        self.rho_G = self.calculate_gaussian_density()
+        self.phi_G = self.calculate_gaussian_potential()
+        # electro-static energy of model charge distribution interacting with its images
+        # (and itself -> needs to be substracted with calculate_isolated_correction)
+        # neutralizing background taken into account
+        Elp = 0.5 * np.sum(self.rho_G * self.phi_G).real / self.Omega
         return Elp
 
     def calculate_isolated_correction(self):
+        # electro-static self-interaction energy of the gaussian model charge distribution
         Eli = 0.5 * self.charge ** 2 * Ha / np.pi ** 0.5 / self.epsilon / self.sigma
         return Eli
 
@@ -74,7 +83,8 @@ class ElectrostaticCorrections():
         # XXX check sign convention
         V_neutral = - self.pristine.get_electrostatic_potential()
         V_defect = - self.defect.get_electrostatic_potential()
-        V_model = self.calculate_model_potential()
+        # V_model = self.calculate_model_potential()
+        V_model = 0
         Delta_V = V_model - V_defect + V_neutral
         return Delta_V
 
