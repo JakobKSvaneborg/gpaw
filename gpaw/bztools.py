@@ -37,12 +37,14 @@ def get_lattice_symmetry(cell_cv, tolerance=1e-7):
     return latsym
 
 
-def find_high_symmetry_monkhorst_pack(calc, density):
+def find_high_symmetry_monkhorst_pack(calc: str,
+                                      density: float,
+                                      return_as_mp_size: bool = False):
     """Make high symmetry Monkhorst Pack k-point grid.
 
     Searches for and returns a Monkhorst Pack grid which
     contains the corners of the irreducible BZ so that when the
-    number of kpoints are reduced the full irreducible brillouion
+    number of k-points are reduced the full irreducible brillouion
     zone is spanned.
 
     Parameters
@@ -55,7 +57,7 @@ def find_high_symmetry_monkhorst_pack(calc, density):
     Returns
     -------
     ndarray
-        Array of shape (nk, 3) containing the kpoints.
+        Array of shape (nk, 3) containing the k-points.
 
     """
 
@@ -80,7 +82,7 @@ def find_high_symmetry_monkhorst_pack(calc, density):
     for n1 in range(minsize[0], maxsize[0]):
         for n2 in range(minsize[1], maxsize[1]):
             for n3 in range(minsize[2], maxsize[2]):
-                size = [n1, n2, n3]
+                size = n1, n2, n3
                 size, offset = kpts2sizeandoffsets(size=size, gamma=True,
                                                    atoms=atoms)
 
@@ -98,13 +100,15 @@ def find_high_symmetry_monkhorst_pack(calc, density):
                             raise AssertionError('Did not find ' + str(ibzk_c))
                     if mpi.rank == 0:
                         print('Done. Monkhorst-Pack grid:', size, offset)
-                    return kpts_kc
+                    if return_as_mp_size:
+                        return size
+                    else:
+                        return kpts_kc
 
     if mpi.rank == 0:
-        print('Did not find matching kpoints for the IBZ')
         print(ibzk_kc.round(5))
 
-    raise RuntimeError
+    raise RuntimeError('Did not find matching k-points for the IBZ')
 
 
 def unfold_points(points, U_scc, tol=1e-8, mod=None):
@@ -115,16 +119,16 @@ def unfold_points(points, U_scc, tol=1e-8, mod=None):
     points: ndarray
     U_scc: ndarray
     tol: float
-        Tolerance indicating when kpoints are considered to be
+        Tolerance indicating when k-points are considered to be
         identical.
     mod: integer 1 or None
-        Consider kpoints spaced by a full reciprocal lattice vector
+        Consider k-points spaced by a full reciprocal lattice vector
         to be identical.
 
     Returns
     -------
     ndarray
-        Array of shape (nk, 3) containing the unfolded kpoints.
+        Array of shape (nk, 3) containing the unfolded k-points.
     """
 
     points = np.concatenate(np.dot(points, U_scc.transpose(0, 2, 1)))
@@ -138,10 +142,10 @@ def unique_rows(ain, tol=1e-10, mod=None, aglomerate=True):
     ----------
     ain : 2D ndarray
     tol : float
-        Tolerance indicating when kpoints are considered to be
+        Tolerance indicating when k-points are considered to be
         identical.
     mod : integer 1 or None
-        Consider kpoints spaced by a full reciprocal lattice vector
+        Consider k-points spaced by a full reciprocal lattice vector
         to be identical.
     aglomerate : bool
         Aglomerate clusters of points before comparing.
