@@ -2231,9 +2231,20 @@ class GPAW(Calculator):
     def eigenvalues(self):
         return np.array(
             [[self.get_eigenvalues(kpt=kpt, spin=spin)
-
               for kpt in range(len(self.get_ibz_k_points()))]
              for spin in range(self.get_number_of_spins())])
+
+    def occupations(self):
+        return np.array(
+            [[self.get_occupation_numbers(kpt=kpt, spin=spin)
+              for kpt in range(len(self.get_ibz_k_points()))]
+             for spin in range(self.get_number_of_spins())])
+
+    @property
+    def dft(self):
+        # Make calc.dft.scf_loop.niter work:
+        scf_loop = type('SCF', (), {'niter': self.scf.niter})()
+        return type('DFT', (), {'scf_loop': scf_loop})()
 
 
 class DeprecatedParameterWarning(FutureWarning):

@@ -188,7 +188,7 @@ def code():
     pw.get_potential_energy(a)
     lcao.get_potential_energy(a)
     ibzwfs = fd.dft.ibzwfs
-    ibzwfs.wfs_qs = ibzwfs.wfs_qs[0][0]
+    ibzwfs._wfs_u = ibzwfs._wfs_u[0]
 
     colors = {'BZPoints': '#ddffdd',
               'PotentialCalculator': '#ffdddd',
@@ -206,11 +206,11 @@ def code():
         return mod.startswith('gpaw.new')
 
     things = [pw, lcao,
-              lcao.dft.ibzwfs.wfs_qs[0][0],
+              lcao.dft.ibzwfs._wfs_u[0],
               BZPoints(np.zeros((5, 3)))]
     nodes = create_nodes(a0, *things, include=include)
     plot_graph('code', nodes, colors,
-               replace={'wfs_qs': 'wfs_qs[q][s]'})
+               replace={'_wfs_u': '_wfs_u[u]'})
 
     # scf.svg:
     nodes = create_nodes(
@@ -221,8 +221,8 @@ def code():
 
     # da.svg:
     nodes = create_nodes(
-        fd.dft.ibzwfs.wfs_qs.psit_nX,
-        pw.dft.ibzwfs.wfs_qs[0][0].psit_nX,
+        fd.dft.ibzwfs._wfs_u.psit_nX,
+        pw.dft.ibzwfs._wfs_u[0].psit_nX,
         include=lambda obj:
             getattr(obj, '__module__', '').startswith('gpaw.core') and
             obj.__class__.__name__ != '_lru_cache_wrapper')
