@@ -64,6 +64,7 @@ class PWHamiltonian(Hamiltonian):
                 tmp_R *= vt_R_data
                 plan.fft()
                 vtpsit_G = tmp_Q.ravel()[Q_G]
+                vtpsit_G *= 1.0 / tmp_R.size
                 psit_G *= e_kin_G
                 vtpsit_G += psit_G
             out_nG[n1:n2].scatter_from_all(vtpsit_G)
