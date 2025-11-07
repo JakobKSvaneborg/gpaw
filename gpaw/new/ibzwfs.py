@@ -566,7 +566,7 @@ def bytes_for_projectors(ibzwfs: IBZWaveFunctions) -> int:
     if ibzwfs.mode != 'pw':
         # TODO ...
         return -1
-    wfs = ibzwfs.wfs_qs[0][0]
+    wfs = ibzwfs._wfs_u[0]
     setups = wfs.setups
     nunique = 0
     lmax = 0
