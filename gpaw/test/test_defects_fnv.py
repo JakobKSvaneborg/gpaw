@@ -3,7 +3,8 @@ import numpy as np
 from ase.build import bulk, graphene
 from ase.build.supercells import make_supercell
 from gpaw import GPAW
-from gpaw.defects import ElectrostaticCorrections
+#from gpaw.defects import ElectrostaticCorrections
+from gpaw.defects import OldElectrostaticCorrections
 
 
 def test_fnv_2d():
@@ -46,12 +47,12 @@ def test_fnv_2d():
     # defect position
     r0 = pristine.positions[0, :]
 
-    elc = ElectrostaticCorrections(pristine=pristine.calc,
-                                   charged=defect.calc,
-                                   r0=r0,
-                                   q=charge,
-                                   sigma=sigma,
-                                   dimensionality='2d')
+    elc = OldElectrostaticCorrections(pristine=pristine.calc,
+                                      charged=defect.calc,
+                                      r0=r0,
+                                      q=charge,
+                                      sigma=sigma,
+                                      dimensionality='2d')
     elc.set_epsilons(epsilons)
     E_corr = elc.calculate_corrected_formation_energy()
     E_uncorr = elc.calculate_uncorrected_formation_energy()
@@ -91,12 +92,12 @@ def test_fnv_3d():
     r0 = pristine.positions[0, :]
 
     # need to convert Path -> str
-    elc = ElectrostaticCorrections(pristine=pristine.calc,
-                                   charged=defect.calc,
-                                   r0=r0,
-                                   q=charge,
-                                   sigma=sigma,
-                                   dimensionality='3d')
+    elc = OldElectrostaticCorrections(pristine=pristine.calc,
+                                      charged=defect.calc,
+                                      r0=r0,
+                                      q=charge,
+                                      sigma=sigma,
+                                      dimensionality='3d')
     elc.set_epsilons(epsilon)
     E_corr = elc.calculate_corrected_formation_energy()
     E_uncorr = elc.calculate_uncorrected_formation_energy()
@@ -142,13 +143,13 @@ def test_fnv_cell(P):
     r0 = pristine.positions[0, :]
 
     # need to convert Path -> str
-    elc = ElectrostaticCorrections(pristine=pristine.calc,
-                                   charged=defect.calc,
-                                   r0=r0,
-                                   q=charge,
-                                   sigma=sigma,
-                                   dimensionality='3d',
-                                   check_cell=False)
+    elc = OldElectrostaticCorrections(pristine=pristine.calc,
+                                      charged=defect.calc,
+                                      r0=r0,
+                                      q=charge,
+                                      sigma=sigma,
+                                      dimensionality='3d',
+                                      check_cell=False)
     elc.set_epsilons(epsilon)
     E_corr = elc.calculate_corrected_formation_energy()
     E_uncorr = elc.calculate_uncorrected_formation_energy()

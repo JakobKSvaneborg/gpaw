@@ -348,6 +348,7 @@ class ElectrostaticCorrections():
         Eli = self.calculate_isolated_correction()
         Elp = self.calculate_periodic_correction()
         Delta_V = self.calculate_potential_alignment()
+        print('Eli=', Eli, 'Elp=', Elp, 'Delta_V=', Delta_V)
         return E_X - E_0 - (Elp - Eli) + Delta_V * self.q
 
     def calculate_uncorrected_formation_energy(self):
