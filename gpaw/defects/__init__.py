@@ -15,7 +15,7 @@ class ElectrostaticCorrections():
     """
     def __init__(self, pristine, defect,
                  charge=None, epsilon=None, sigma=None, r0=None,
-                 comm=serial_comm):
+                 ravg=3.0, comm=serial_comm):
 
         if isinstance(pristine, (str, Path)):
             pristine = GPAW(pristine, txt=None, parallel={'domain': 1})
@@ -34,12 +34,14 @@ class ElectrostaticCorrections():
         calc.initialize(atoms)
 
         self.pristine = pristine
+        self.atoms_prs = pristine.get_atoms()
         self.defect = defect
         self.calc = calc
         self.charge = charge
         self.sigma = sigma
         self.epsilon = epsilon
-        self.r0 = np.array(r0) / Bohr
+        self.r0 = np.array(r0)
+        self.ravg = np.array(ravg) / Bohr
 
         # volume
         self.Omega = np.abs(np.linalg.det(self.calc.density.gd.cell_cv))
@@ -111,11 +113,37 @@ class ElectrostaticCorrections():
         assert np.allclose(self.phi_prs.shape, self.phi_def.shape)
         assert np.allclose(self.phi_prs.shape, self.r_vR.shape[1:])
 
+    def get_reference_index(atoms, index):
+        """Get index of atom furthest away from the atom index."""
+
+        dR = atoms.positions - atoms.positions[index, :][None, :]
+        dist_vec, dist = find_mic(dR, atoms.get_cell())
+        ref_index = np.argmax(dist)
+
+        return ref_index
+
+    def define_averaging_region(self):
+        # locate atom farest away from the defect
+
+        # in pristine obtain atom positions closest to the defect_site
+        dR = self.atoms_prs.positions - self.r0[None, :]
+        _, dist = find_mic(dR, self.atoms_prs.get_cell())
+        defect_index = np.argmin(dist)
+        print('defect_index=', defect_index)
+
+        # now find atom most away 
+        bulk_index = get_reference_index(self.atoms_prs, defect_index)
+        print('bulk_index=', bulk_index)
+
+        self.atoms_prs.edit()
+
+
     def calculate_potential_alignment(self):
+        self.define_averaging_region()
+        # define region away from defect
         self.extract_electrostatic_potentials() 
         phi_model = self.calculate_model_potential(self.r_vR[:, :3, :3, :3])
         Delta_V = phi_model - (self.phi_def - self.phi_prs)
-        # define region away from defect
         return Delta_V
 
     def calculate_corrected_formation_energy(self):
