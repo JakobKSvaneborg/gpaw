@@ -55,7 +55,7 @@ class ElectrostaticCorrections():
 
     def calculate_gaussian_potential(self):
         phi_G = np.zeros_like(self.rho_G)
-        for gg, G2 in enumerate(self.G_2G):
+        for gg, G2 in enumerate(self.G2_G):
             if np.allclose(G2, 0):
                 parprint('Skipping G^2=0 contribution to Elp')
                 # neutralizing background cancels contribution
@@ -88,8 +88,8 @@ class ElectrostaticCorrections():
         V_neutral = - self.pristine.get_electrostatic_potential()
         V_defect = - self.defect.get_electrostatic_potential()
         # V_model = self.calculate_model_potential()
-        V_model = 0
-        Delta_V = V_model - V_defect + V_neutral
+        # Delta_V = V_model - V_defect + V_neutral
+        Delta_V = 0
         return Delta_V
 
     def calculate_model_potential(self):
@@ -99,7 +99,7 @@ class ElectrostaticCorrections():
 
     def calculate_corrected_formation_energy(self):
         E_0 = self.pristine.get_potential_energy()
-        E_X = self.charged.get_potential_energy()
+        E_X = self.defect.get_potential_energy()
         Eli = self.calculate_isolated_correction()
         Elp = self.calculate_periodic_correction()
         Delta_V = self.calculate_potential_alignment()
@@ -108,5 +108,5 @@ class ElectrostaticCorrections():
 
     def calculate_uncorrected_formation_energy(self):
         E_0 = self.pristine.get_potential_energy()
-        E_X = self.charged.get_potential_energy()
+        E_X = self.defect.get_potential_energy()
         return E_X - E_0

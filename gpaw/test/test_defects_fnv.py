@@ -3,7 +3,7 @@ import numpy as np
 from ase.build import bulk, graphene
 from ase.build.supercells import make_supercell
 from gpaw import GPAW
-# from gpaw.defects import ElectrostaticCorrections
+from gpaw.defects import ElectrostaticCorrections
 from gpaw.defects.old_electrostatic import OldElectrostaticCorrections
 
 
@@ -76,8 +76,8 @@ def test_fnv_3d():
               'kpts': {'size': (2, 2, 2), 'gamma': False},
               'occupations': {'name': 'fermi-dirac', 'width': 0.01}}
 
-    calc_charged = GPAW(charge=charge, **params)
-    calc_neutral = GPAW(charge=0, **params)
+    calc_charged = GPAW(charge=charge, **params, txt=None)
+    calc_neutral = GPAW(charge=0, **params, txt=None)
 
     pristine = bulk('GaAs', crystalstructure='zincblende', a=a0, cubic=True)
     pristine.calc = calc_neutral
@@ -90,6 +90,15 @@ def test_fnv_3d():
 
     # defect position
     r0 = pristine.positions[0, :]
+
+    elcnew = ElectrostaticCorrections(pristine=pristine.calc,
+                                      defect=defect.calc,
+                                      r0=r0,
+                                      charge=charge,
+                                      sigma=sigma,
+                                      epsilon=epsilon)
+    E_corr_new = elcnew.calculate_corrected_formation_energy()
+    E_uncorr_new = elcnew.calculate_uncorrected_formation_energy()
 
     # need to convert Path -> str
     elc = OldElectrostaticCorrections(pristine=pristine.calc,
@@ -163,4 +172,4 @@ def test_fnv_cell(P):
 
 
 if __name__ == "__main__":
-    test_fnv_2d()
+    test_fnv_3d()
