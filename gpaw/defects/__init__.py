@@ -84,10 +84,22 @@ class ElectrostaticCorrections():
         Eli = 0.5 * self.charge ** 2 * Ha / np.pi ** 0.5 / eps / sgm
         return Eli
 
-    def calculate_model_potential(self):
+    def calculate_model_potential(self, r_vR):
         # need to backtransform phi_G -> phi_r = sum_G exp(i G * r) phi_G
-        phi_r = 0
-        return phi_r
+
+        # assuming G: (ng, 3), r: (3, nx, ny, nz), phi_G: (ng,)
+        # compute G * r for all G and grid points
+        Gr = np.einsum('gi,i...->g...', self.G_Gv, r_vR)  # shape: (ng, nx, ny, nz)
+
+        # compute exp(i * G * r)
+        exp_Gr = np.exp(1j * Gr)  # shape: (ng, nx, ny, nz)
+
+        # weighted sum over G
+        phi_r = np.einsum('g,g...->...', self.phi_G, exp_Gr)  # shape: (nx, ny, nz)
+
+        assert np.abs(phi_r.imag).max() < 1e-8
+
+        return phi_r.real
 
     def extract_electrostatic_potentials(self):
         self.phi_prs = - self.pristine.get_electrostatic_potential()
@@ -100,12 +112,10 @@ class ElectrostaticCorrections():
         assert np.allclose(self.phi_prs.shape, self.r_vR.shape[1:])
 
     def calculate_potential_alignment(self):
-        # XXX check sign convention
         self.extract_electrostatic_potentials() 
-        V_model = self.calculate_model_potential()
-        V_model = 0
-        Delta_V = V_model - (self.phi_def - self.phi_prs)
-        Delta_V = 0
+        phi_model = self.calculate_model_potential(self.r_vR[:, :3, :3, :3])
+        Delta_V = phi_model - (self.phi_def - self.phi_prs)
+        # define region away from defect
         return Delta_V
 
     def calculate_corrected_formation_energy(self):
