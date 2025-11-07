@@ -554,7 +554,7 @@ class PWArray(DistributedArrays[PWDesc]):
                     dist=(comm, self.comm.size, self.desc.comm.size))
         fro.redist(to)
 
-    def scatter_from_all(self, a_G: PWArray) -> None:
+    def scatter_from_all(self, a_G: np.ndarray) -> None:
         """Scatter all coefficients from rank r to self on other cores."""
         assert len(self.dims) == 1
         pw = self.desc
