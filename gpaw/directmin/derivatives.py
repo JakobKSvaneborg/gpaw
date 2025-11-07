@@ -3,7 +3,7 @@ from gpaw.directmin.tools import get_n_occ, get_indices, random_a, \
     sort_orbitals_according_to_occ, sort_orbitals_according_to_energies
 from ase.units import Hartree
 from gpaw.mpi import world
-from gpaw.io.logger import GPAWLogger
+from gpaw.old.logger import GPAWLogger
 from gpaw.typing import RNG
 from copy import deepcopy
 from typing import Any, Dict, Union
@@ -316,7 +316,7 @@ class Davidson:
     w: Krylov subspace
     """
 
-    def __init__(self, etdm, logfile, fd_mode=None, m=None, h=None,
+    def __init__(self, etdm, logfile=None, fd_mode=None, m=None, h=None,
                  eps=None, cap_krylov=None, gmf=False,
                  accurate_first_pdiag=True, remember_sp_order=None,
                  sp_order=None, seed=None):
@@ -507,7 +507,7 @@ class Davidson:
             kpt.C_nM = deepcopy(self.c_ref[k])
         if not self.gmf:
             sort_orbitals_according_to_energies(
-                ham, wfs, self.etdm.constraints, use_eps=True)
+                ham, wfs, self.etdm.constraints)
         self.first_run = False
 
     def obtain_grad_at_c_ref(self, wfs, ham, dens):
@@ -954,7 +954,7 @@ class Davidson:
                 calc.wfs, use_prev=True)
             self.etdm.constraints = deepcopy(constraints_copy)
         sort_orbitals_according_to_energies(
-            calc.hamiltonian, calc.wfs, self.etdm.constraints, use_eps=True)
+            calc.hamiltonian, calc.wfs, self.etdm.constraints)
         return appr_sp_order
 
 

@@ -14,7 +14,7 @@ import numpy as np
 from scipy.fft import fftn, ifftn, irfftn, rfftn
 
 import gpaw.cgpaw as cgpaw
-from gpaw.utilities import as_complex_dtype, as_real_dtype
+from gpaw.utilities import as_complex_dtype, as_real_dtype, get_dtype_precision
 from gpaw.new.c import pw_insert_gpu
 from gpaw.new import trace
 from gpaw.typing import Array1D, Array3D, DTypeLike, IntVector
@@ -96,7 +96,7 @@ def create_plans(size_c: IntVector,
     # Create new plan:
     if xp is not np:
         plan = CuPyFFTPlans(size_c, dtype)
-    elif have_fftw():
+    elif have_fftw() and get_dtype_precision(dtype) != 'single':
         plan = FFTWPlans(size_c, dtype, flags)
     else:
         plan = NumpyFFTPlans(size_c, dtype)
@@ -166,11 +166,20 @@ class FFTPlans:
 
 
 class FFTWPlans(FFTPlans):
+    # The test suite likes to override the FFTW flags since methods
+    # like MEASURE are not guaranteed reproducible.
+    _overwrite_flags = None
+
     """FFTW3 3d transforms."""
     def __init__(self, size_c, dtype, flags=MEASURE):
         if not have_fftw():
             raise ImportError('Not compiled with FFTW.')
         super().__init__(size_c, dtype)
+        if self._overwrite_flags is not None:
+            flags = self._overwrite_flags
+
+        assert self.tmp_R.dtype != np.complex64
+        assert self.tmp_R.dtype != np.float32
         self._fftplan = cgpaw.FFTWPlan(self.tmp_R, self.tmp_Q, -1, flags)
         self._ifftplan = cgpaw.FFTWPlan(self.tmp_Q, self.tmp_R, 1, flags)
 
@@ -271,7 +280,8 @@ class CuPyFFTPlans(FFTPlans):
 
     @trace
     def ifft_sphere(self, coef_G, pw, out_R):
-        from gpaw.gpu import cupyx
+        from gpaw.gpu import cupyx, cupy
+        assert isinstance(out_R.data, cupy.ndarray)
 
         if coef_G is None:
             out_R.scatter_from(None)
@@ -319,7 +329,15 @@ class CuPyFFTPlans(FFTPlans):
             if is_hip:
                 out_Q = rfftn_patch(in_R)
             else:
+                # CuPy bug? rfftn fails on non-aligned arrays
+                # To that end, make a copy. However, display a warning.
+                if in_R.data.ptr % 16:
+                    in_R = in_R.copy()
+                    from warnings import warn
+                    warn('Circumventing GPU array alignment problem '
+                         'with copy at rfftn.')
                 out_Q = cupyx.scipy.fft.rfftn(in_R)
+
         Q_G = self.indices(pw)
         coef_G = out_Q.ravel()[Q_G] * (1 / in_R.size)
         return coef_G
@@ -400,6 +418,6 @@ def create_plan(in_R: Array3D,
                 out_R: Array3D,
                 sign: int,
                 flags: int = MEASURE) -> FFTPlan:
-    if have_fftw():
+    if have_fftw() and get_dtype_precision(in_R.dtype) != 'single':
         return FFTWPlan(in_R, out_R, sign, flags)
     return NumpyFFTPlan(in_R, out_R, sign, flags)

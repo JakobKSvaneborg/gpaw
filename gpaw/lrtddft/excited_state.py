@@ -7,14 +7,14 @@ from ase.utils.timing import Timer
 from ase.calculators.calculator import Calculator
 
 import gpaw.mpi as mpi
-from gpaw.calculator import GPAW
+from gpaw.old.calculator import GPAW
 from gpaw import __version__, restart
-from gpaw.density import RealSpaceDensity
+from gpaw.old.density import RealSpaceDensity
 from gpaw.lrtddft import LrTDDFT
 from gpaw.lrtddft.finite_differences import FiniteDifference
 from gpaw.lrtddft.excitation import ExcitationLogger
 from gpaw.utilities.blas import axpy
-from gpaw.wavefunctions.lcao import LCAOWaveFunctions
+from gpaw.old.wavefunctions.lcao import LCAOWaveFunctions
 
 
 class ExcitedState(GPAW):

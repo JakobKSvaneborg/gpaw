@@ -13,9 +13,6 @@ class CuPyMPI:
         return f'CuPyMPI({self.comm})'
 
     def sum(self, array, root=-1):
-        if isinstance(array, (float, int)):
-            1 / 0
-            return self.comm.sum(array, root)
         if isinstance(array, np.ndarray):
             self.comm.sum(array, root)
             return
@@ -70,27 +67,27 @@ class CuPyMPI:
         self.comm.broadcast(b, root)
         a[...] = cp.asarray(b)
 
-    def receive(self, a, rank, tag=0, block=True):
+    def receive(self, a, src, tag=0, block=True):
         if isinstance(a, np.ndarray):
-            return self.comm.receive(a, rank, tag, block)
+            return self.comm.receive(a, src, tag, block)
         b = np.empty(a.shape, a.dtype)
-        req = self.comm.receive(b, rank, tag, block)
+        req = self.comm.receive(b, src, tag, block)
         if block:
             a[:] = cp.asarray(b)
             return
         return CuPyRequest(req, b, a)
 
-    def ssend(self, a, rank, tag):
+    def ssend(self, a, dest, tag):
         if isinstance(a, np.ndarray):
-            self.comm.ssend(a, rank, tag)
+            self.comm.ssend(a, dest, tag)
         else:
-            self.comm.ssend(a.get(), rank, tag)
+            self.comm.ssend(a.get(), dest, tag)
 
-    def send(self, a, rank, tag=0, block=True):
+    def send(self, a, dest, tag=0, block=True):
         if isinstance(a, np.ndarray):
-            return self.comm.send(a, rank, tag, block)
+            return self.comm.send(a, dest, tag, block)
         b = a.get()
-        request = self.comm.send(b, rank, tag, block)
+        request = self.comm.send(b, dest, tag, block)
         if not block:
             return CuPyRequest(request, b)
 
@@ -114,6 +111,9 @@ class CuPyMPI:
         for request in requests:
             if request.target is not None:
                 request.target[:] = cp.asarray(request.buffer)
+
+    def barrier(self):
+        self.comm.barrier()
 
     def get_c_object(self):
         return self.comm.get_c_object()

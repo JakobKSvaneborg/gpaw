@@ -8,20 +8,20 @@ from typing import (TYPE_CHECKING, Callable, Dict, Iterable, Iterator, List,
 import numpy as np
 from ase.units import Bohr, Ha, alpha
 
-from gpaw.band_descriptor import BandDescriptor
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.band_descriptor import BandDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.ibz2bz import IBZ2BZMaps
-from gpaw.kpoint import KPoint
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.kpoint import KPoint
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.mpi import broadcast_array, serial_comm
 from gpaw.occupations import OccupationNumberCalculator, ParallelLayout
-from gpaw.projections import Projections
+from gpaw.old.projections import Projections
 from gpaw.setup import Setup
 from gpaw.typing import Array1D, Array2D, Array3D, Array4D, ArrayND
 from gpaw.utilities.partition import AtomPartition
 
 if TYPE_CHECKING:
-    from gpaw.calculator import GPAW  # noqa
+    from gpaw.old.calculator import GPAW as OldGPAW
     from gpaw.new.ase_interface import ASECalculator
 
 _L_vlmm: List[List[np.ndarray]] = []  # see get_L_vlmm() below
@@ -398,7 +398,7 @@ def soc_eigenstates_raw(ibzwfs: Iterable[Tuple[int, WaveFunction]],
             bzwf = bzwf.redistribute_atoms(atom_partition)
 
             bzwf.add_soc(dVL_avii, s_vss, C_ss)
-            bzwfs[K] = bzwf
+            bzwfs[int(K)] = bzwf  # MYPY: signedinteger[_32Bit | _64Bit] -> int
 
     return bzwfs
 
@@ -471,7 +471,7 @@ def extract_ibz_wave_functions(kpt_qs: List[List[KPoint]],
         yield ibz_index, WaveFunction(eig_m, projections)
 
 
-def soc_eigenstates(calc: ASECalculator | GPAW | str | Path,
+def soc_eigenstates(calc: ASECalculator | OldGPAW | str | Path,
                     n1: int = None,
                     n2: int = None,
                     scale: float = 1.0,
@@ -479,8 +479,8 @@ def soc_eigenstates(calc: ASECalculator | GPAW | str | Path,
                     phi: float = 0.0,  # degrees
                     eigenvalues: Array3D = None,  # eV
                     occcalc: OccupationNumberCalculator = None,
-                    projected: bool = False
-                    ) -> BZWaveFunctions:
+                    projected: bool = False,
+                    ignore_xc_potential: bool = False) -> BZWaveFunctions:
     """Calculate SOC eigenstates.
 
     Parameters:
@@ -501,11 +501,13 @@ def soc_eigenstates(calc: ASECalculator | GPAW | str | Path,
         occcalc:
             Occupation-number calculator.  By default, the one from *calc*
             will be used.
+        ignore_xc_potential:
+            Ignore XC-contribution to dU/dr for the effective potential
+            (dU/dr is dominated by the Hartree part).
 
     Returns a BZWaveFunctions object covering the whole BZ.
     """
-
-    from gpaw.calculator import GPAW  # noqa
+    from gpaw import GPAW
 
     if isinstance(calc, (str, Path)):
         calc = GPAW(calc)
@@ -521,7 +523,9 @@ def soc_eigenstates(calc: ASECalculator | GPAW | str | Path,
 
     # <phi_i|dV_adr / r * L_v|phi_j>
     dVL_avii = {a: soc(calc.wfs.setups[a],
-                       calc.hamiltonian.xc, D_sp) * scale
+                       calc.hamiltonian.xc,
+                       D_sp,
+                       ignore_xc_potential) * scale
                 for a, D_sp in calc.density.D_asp.items()}
 
     if projected:
@@ -536,7 +540,8 @@ def soc_eigenstates(calc: ASECalculator | GPAW | str | Path,
     if eigenvalues is not None:
         assert eigenvalues.shape == (kd.nspins, kd.nibzkpts, n2 - n1)
 
-    ibzwfs = extract_ibz_wave_functions(calc.wfs.kpt_qs,
+    kpt_qs = get_both_spins(calc.wfs)
+    ibzwfs = extract_ibz_wave_functions(kpt_qs,
                                         bd, gd, n1, n2, eigenvalues)
     ibz2bzmaps = IBZ2BZMaps.from_calculator(calc)
 
@@ -562,9 +567,12 @@ def soc_eigenstates(calc: ASECalculator | GPAW | str | Path,
     return BZWaveFunctions(kd, bzwfs, occcalc, calc.wfs.nvalence, n_aj, l_aj)
 
 
-def soc(a: Setup, xc, D_sp: Array2D) -> Array3D:
+def soc(a: Setup,
+        xc,
+        D_sp: Array2D,
+        ignore_xc_potential=False) -> Array3D:
     """<phi_i|dU^a/dr / r * L_v|phi_j>"""
-    v_g = get_radial_potential_derivative(a, xc, D_sp)
+    v_g = get_radial_potential_derivative(a, xc, D_sp, ignore_xc_potential)
     Ng = len(v_g)
     phi_jg = a.data.phi_jg
 
@@ -606,7 +614,10 @@ def projected_soc(dVL_vii: Array3D,
     return dVL_vii
 
 
-def get_radial_potential_derivative(a: Setup, xc, D_sp: Array2D) -> Array1D:
+def get_radial_potential_derivative(a: Setup,
+                                    xc,
+                                    D_sp: Array2D,
+                                    ignore_xc_potential=False) -> Array1D:
     """Calculates (dU/dr) for the effective potential.
     Below, f_g denotes dU/dr which is also the negative of the radial force"""
 
@@ -634,7 +645,7 @@ def get_radial_potential_derivative(a: Setup, xc, D_sp: Array2D) -> Array1D:
     f_g = fc_g + fh_g
 
     # xc force
-    if xc.type != 'GLLB':
+    if not ignore_xc_potential:
         v_sg = np.zeros_like(n_sg)
         xc.calculate_spherical(rgd, n_sg, v_sg)
         fxc_g = np.mean([rgd.derivative(v_g) for v_g in v_sg[:Ns]],
@@ -924,3 +935,39 @@ def get_L_vlmm():
     f[4, 2] = -1.0j
     _L_vlmm.append([s, p, d, f])
     return _L_vlmm
+
+
+def get_both_spins(wfs):
+    if hasattr(wfs, 'kpt_qs'):
+        return wfs.kpt_qs
+    if wfs.nspins == 1:
+        return [[wfs] for wfs in wfs.kpt_u]
+    kpt_u = wfs.kpt_u.copy()
+    kpt1 = kpt_u[0]
+    kpt2 = kpt_u[-1]
+    kpt_comm = wfs.kd.comm
+    if kpt1.s == 1:
+        reqs = [
+            kpt_comm.send(kpt1.f_n.copy(), kpt_comm.rank - 1, block=False),
+            kpt_comm.send(kpt1.eps_n, kpt_comm.rank - 1, block=False),
+            kpt_comm.send(kpt1.projections.array, kpt_comm.rank - 1,
+                          block=False)]
+        del kpt_u[0]
+    if kpt2.s == 0:
+        kpt3 = KPoint(kpt2.weightk,
+                      kpt2.weight,
+                      1,
+                      kpt2.k,
+                      kpt2.q,
+                      kpt2.phase_cd)
+        kpt3.f_n = np.empty_like(kpt2.f_n)
+        kpt3.eps_n = np.empty_like(kpt2.eps_n)
+        kpt3._projections = kpt2.projections.new()
+        kpt_comm.receive(kpt3.f_n, kpt_comm.rank + 1)
+        kpt_comm.receive(kpt3.eps_n, kpt_comm.rank + 1)
+        kpt_comm.receive(kpt3._projections.array, kpt_comm.rank + 1)
+        kpt_u.append(kpt3)
+    if kpt1.s == 1:
+        kpt_comm.waitall(reqs)
+    kpt_qs = [[up, dn] for up, dn in zip(kpt_u[::2], kpt_u[1::2])]
+    return kpt_qs

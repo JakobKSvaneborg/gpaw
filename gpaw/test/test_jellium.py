@@ -1,9 +1,11 @@
-import pytest
 import numpy as np
+import pytest
 from ase import Atoms
 from ase.units import Bohr
-from gpaw.jellium import JelliumSlab
 from gpaw import GPAW, Mixer
+from gpaw.core import UGArray
+from gpaw.jellium import JelliumSlab
+from gpaw.new.extensions import Jellium
 
 rs = 5.0 * Bohr  # Wigner-Seitz radius
 h = 0.24  # grid-spacing
@@ -18,7 +20,8 @@ ne = a**2 * L / (4 * np.pi / 3 * rs**3)
 @pytest.mark.libxc
 def test_jellium(in_tmp_dir, gpaw_new):
     x = h / 4  # make sure surfaces are between grid-points
-    bc = JelliumSlab(ne, z1=v - x, z2=v + L + x)
+    z1 = v - x
+    z2 = v + L + x
 
     surf = Atoms(pbc=(True, True, False),
                  cell=(a, a, v + L + v))
@@ -26,7 +29,6 @@ def test_jellium(in_tmp_dir, gpaw_new):
         mode='fd',
         poissonsolver={'dipolelayer': 'xy'},
         xc='LDA_X+LDA_C_WIGNER',
-        eigensolver='dav',
         kpts=[k, k, 1],
         h=h,
         maxiter=300,
@@ -34,11 +36,17 @@ def test_jellium(in_tmp_dir, gpaw_new):
         mixer=Mixer(0.3, 7, 100),
         nbands=int(ne / 2) + 15)
     if gpaw_new:
-        surf.calc = GPAW(**params, environment=bc)
+        class MyJellium(Jellium):
+            def update_mask(self, mask_r: UGArray) -> None:
+                z = mask_r.desc.xyz()[0, 0, :, 2] * Bohr
+                mask_r.data[:] = np.logical_and(z > z1, z < z2)
+
+        surf.calc = GPAW(**params, extensions=[MyJellium(charge=ne)])
     else:
+        bc = JelliumSlab(ne, z1=z1, z2=z2)
         surf.calc = GPAW(**params, background_charge=bc)
 
-    _ = surf.get_potential_energy()
+    surf.get_potential_energy()
 
     # Get the work function
     v_r = surf.calc.get_electrostatic_potential()

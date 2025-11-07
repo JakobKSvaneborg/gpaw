@@ -52,8 +52,8 @@ from ase.units import Bohr
 
 import gpaw.cgpaw as cgpaw
 from gpaw.ffbt import ffbt, FourierBesselTransformer
-from gpaw.gaunt import gaunt
-from gpaw.spherical_harmonics import Yl, nablarlYL
+from gpaw.sphere.gaunt import gaunt
+from gpaw.sphere.spherical_harmonics import Yl, nablarlYL
 from gpaw.spline import Spline
 from gpaw.utilities.tools import tri2full
 from gpaw.utilities.timing import nulltimer

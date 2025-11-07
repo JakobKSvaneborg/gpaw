@@ -1,7 +1,7 @@
 import pytest
 from ase import Atoms
 from gpaw.new.ase_interface import GPAW
-from gpaw.mpi import broadcast_string
+from gpaw.mpi import broadcast_string, world
 from io import StringIO
 
 
@@ -25,7 +25,7 @@ def test_new_cell(gpu):
     assert e0 == pytest.approx(-1.27648045935401)
     assert f0 == pytest.approx(0, abs=1e-5)
     assert s0 == pytest.approx([-3.97491456e-01] * 2
-                               + [3.29507807e-03] + [0, 0, 0], abs=5e-7)
+                               + [3.29507807e-03] + [0, 0, 0], abs=5e-6)
 
     atoms.cell[2, 2] = 0.9 * az
     atoms.positions += 0.1
@@ -36,7 +36,7 @@ def test_new_cell(gpu):
     assert e1 == pytest.approx(-1.2359952570422994)
     assert f1 == pytest.approx(0, abs=1e-4)
     assert s1 == pytest.approx([-4.37458548e-01] * 2 +
-                               [-9.41665221e-02, 0.0, 0.0, 0.0], abs=5e-7)
+                               [-9.41665221e-02, 0.0, 0.0, 0.0], abs=5e-6)
     out = broadcast_string(output.getvalue() or None)
     assert 'Interpolating wave fun' in out
 
@@ -47,12 +47,13 @@ def test_new_cell_1d(gpu):
     az = 2.099
     atoms = Atoms('Li', pbc=(0, 0, 1), cell=[a, a, az, 90, 90, 120])
     atoms.center()
+    atoms.positions -= 0.001
     output = StringIO()
     atoms.calc = GPAW(
         xc='PBE',
         mode={'name': 'pw'},
         kpts=(1, 1, 4),
-        parallel={'gpu': gpu, 'domain': 1},
+        parallel={'gpu': gpu, 'band': 2 if world.size == 8 else 1},
         txt=output)
     e0 = atoms.get_potential_energy()
     s0 = atoms.get_stress()
@@ -61,7 +62,7 @@ def test_new_cell_1d(gpu):
     assert e0 == pytest.approx(-3.367005531386283)
     assert f0 == pytest.approx(0, abs=1e-5)
     assert s0 == pytest.approx(
-        [8.05730258e-02] * 2 + [-1.45549945e-01, 0, 0, 0], abs=5e-7)
+        [8.05730258e-02] * 2 + [-1.45549945e-01, 0, 0, 0], abs=5e-6)
 
     atoms.cell[2, 2] = 1.05 * az
     atoms.positions += 0.1

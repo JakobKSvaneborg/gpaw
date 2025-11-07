@@ -7,7 +7,7 @@ import numpy as np
 from ase.data import covalent_radii
 from ase.data.colors import jmol_colors
 from ase.units import Bohr, Hartree
-from gpaw.calculator import GPAW
+from gpaw.old.calculator import GPAW
 from gpaw.lcao.tightbinding import TightBinding  # as LCAOTightBinding
 from gpaw.lcao.tools import get_bfi
 from gpaw.typing import Array1D, Array2D, Array4D
@@ -317,7 +317,7 @@ class Subdiagonalization(BasisTransform):
         for index in show:
             groups[eps[index]].append(index)
 
-        self.groups = groups
+        self.groups = groups  # type: ignore[assignment]
         return self.groups
 
     def group_symmetries(self, decimals: int = 1, cutoff: float = 0.9):
@@ -336,7 +336,9 @@ class Subdiagonalization(BasisTransform):
         groups = defaultdict(set)
         blocks = self.blocks
         # Loop over pair of blocks.
-        for b1, b2 in zip(*np.triu_indices(len(blocks), k=1)):
+        for bb1, bb2 in zip(*np.triu_indices(len(blocks), k=1)):
+            b1 = int(bb1)
+            b2 = int(bb2)
             if len(blocks[b1]) != len(blocks[b2]):
                 # Blocks with different dimensions not compatible.
                 continue

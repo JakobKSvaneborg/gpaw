@@ -20,7 +20,6 @@ The new ground state is calculated below. For BN use (24,24,1) k-points while fo
 
 # %%
 from gpaw import GPAW
-from gpaw.mpi import world
 from gpaw.occupations import FermiDirac
 
 
@@ -28,7 +27,7 @@ from gpaw.occupations import FermiDirac
 calc_old = GPAW('Si_gs_LDA.gpw', txt=None) # student: calc_old = GPAW('.gpw', txt=None)
 
 #Extract number of valence bands:
-nval = calc_old.wfs.nvalence
+nval = int(calc_old.wfs.nvalence)
 
 # Do new ground state calculations with more k-points.
 # This is because in general RPA calculations requires more k-poins to be converged.
@@ -59,7 +58,6 @@ This will submit the script with the name "script.py" to 8 cores with a maximum 
 # %%
 #Define parameters for rpa calculations. You should change the name of the output file so it corresponds with your calculation:
 from gpaw import GPAW
-from gpaw.mpi import world
 from gpaw.occupations import FermiDirac
 from gpaw.response.df import DielectricFunction
 

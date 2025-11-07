@@ -7,13 +7,13 @@ from typing import Generator, List, Optional, Tuple, Union
 
 import numpy as np
 from ase.units import Ha
-from gpaw.calculator import GPAW as GPAWOld
+from gpaw.old.calculator import GPAW as GPAWOld
 from gpaw import GPAW
 from gpaw.new.ase_interface import ASECalculator
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.mpi import serial_comm
-from gpaw.pw.descriptor import PWDescriptor
-from gpaw.pw.lfc import PWLFC
+from gpaw.old.pw.descriptor import PWDescriptor
+from gpaw.old.pw.lfc import PWLFC
 from gpaw.typing import Array3D
 from gpaw.xc import XC
 from gpaw.xc.kernel import XCNull
@@ -80,7 +80,7 @@ def non_self_consistent_eigenvalues(
     if path:
         e_dft_sin, v_dft_sin, v_hyb_sl_sin, v_hyb_nl_sin = read_snapshot(path)
 
-    xcname, exx_fraction, omega = parse_name(xcname)
+    xcname, exx_fraction, omega, yukawa = parse_name(xcname)
 
     if v_dft_sin.size == 0:
         xc = XC(xcname)
@@ -98,7 +98,7 @@ def non_self_consistent_eigenvalues(
 
     if any(len(kpt_indices) > 0 for kpt_indices in kpt_indices_s):
         for s, v_hyb_nl_n in _non_local(calc, n1, n2, kpt_indices_s,
-                                        ftol, omega):
+                                        ftol, omega, yukawa):
             v_hyb_nl_sin[s].append(v_hyb_nl_n * exx_fraction)
             write_snapshot(e_dft_sin, v_dft_sin, v_hyb_sl_sin, v_hyb_nl_sin,
                            path, wfs.world)
@@ -132,7 +132,8 @@ def _non_local(calc: GPAWOld | ASECalculator,
                n2: int,
                kpt_indices_s: List[List[int]],
                ftol: float,
-               omega: float) -> Generator[Tuple[int, np.ndarray], None, None]:
+               omega: float,
+               yukawa: bool) -> Generator[Tuple[int, np.ndarray], None, None]:
     wfs = calc.wfs
     kd = wfs.kd
     dens = calc.density
@@ -141,7 +142,7 @@ def _non_local(calc: GPAWOld | ASECalculator,
                for kpt in wfs.kpt_u)
     nocc = kd.comm.max_scalar(wfs.bd.comm.sum_scalar(int(nocc)))
 
-    coulomb = coulomb_interaction(omega, wfs.gd, kd)
+    coulomb = coulomb_interaction(omega, wfs.gd, kd, yukawa=yukawa)
     sym = Symmetry(kd)
 
     paw_s = calculate_paw_stuff(wfs, dens)

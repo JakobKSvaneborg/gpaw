@@ -98,6 +98,18 @@ class WaveFunctions:
         self._eig_n = None
         # self._occ_n = None
 
+    def copy(self) -> WaveFunctions:
+        """ Make a copy of the wave functions.
+
+        The buffer for the wave functions themselves is
+        copied, so that it can be modified without changing
+        the original.
+
+        Useful, e.g. in RTTDDFT, where the wave functions
+        are copied in order to be restored later.
+        """
+        raise NotImplementedError
+
     def collect(self,
                 n1: int = 0,
                 n2: int = 0) -> WaveFunctions | None:
@@ -123,6 +135,15 @@ class WaveFunctions:
         if self._eig_n is None:
             raise ValueError
         return self._eig_n
+
+    @eig_n.setter
+    def eig_n(self, value):
+        # It can induce (and has induced) mpi and related bugs to set wrong
+        # length or wrong dtype arrays, so we are being very careful here.
+        if value is not None:
+            assert value.dtype == np.float64
+            assert len(value) == self.nbands
+        self._eig_n = value
 
     @property
     def occ_n(self) -> Array1D:

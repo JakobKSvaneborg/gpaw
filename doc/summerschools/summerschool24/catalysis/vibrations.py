@@ -71,7 +71,7 @@ b) Once you have done this you can calculate the vibrations using the
    common assumption. Use 4 displacements to fit the frequencies and the same
    calculator parameters as in a).
 
-[3]: https://wiki.fysik.dtu.dk/ase/ase/vibrations/vibrations.html
+[3]: https://ase-lib.org/ase/vibrations/vibrations.html
 
 Submit the calculations for the initial and the final state to the queue. It
 will take a while to run, but you can start preparing your analysis (part c
@@ -156,13 +156,13 @@ contributions to the free energy. For more information on what the different
 contributions are see the [ASE background webpage][4]
 (go to the **Harmonic limit** sub-heading).
 
-[4]: https://wiki.fysik.dtu.dk/ase/ase/thermochemistry/thermochemistry.html
+[4]: https://ase-lib.org/ase/thermochemistry/thermochemistry.html
 
 Now try to calculate how the different contributions change with temperature.
 You can for example make a `for` loop and use the `get_entropy()` and
 `get_internal_energy()` methods [(see description here)][5].
 
-[5]: https://wiki.fysik.dtu.dk/ase/ase/thermochemistry/thermochemistry.html#ase.thermochemistry.IdealGasThermo.get_enthalpy
+[5]: https://ase-lib.org/ase/thermochemistry/thermochemistry.html#ase.thermochemistry.IdealGasThermo.get_enthalpy
 """
 
 # %%

@@ -10,14 +10,48 @@ Git master branch
 
 :git:`master <>`.
 
+
+* :ref:`newgpaw`: Calculations can now be parallelized over
+  spins.
+
+* :ref:`newgpaw`: Non-collinear calculations can now be parallelized over
+  plane-waves.
+
+* :ref:`newgpaw`: LCAO and finite-difference mode TDDFT have been ported
+  into a common RT-TDDFT interface with a subset of features so far.
+  ECN and SICN propagators are available.
+
+* :ref:`debug mode` is now enabled by setting the environment variable
+  :envvar:`GPAW_DEBUG` to ``1``.  Using the ``-d`` option of the
+  Python interpreter is no longer supported.
+
+* MFT calculations for magnons can now be performed with LDA+U. See
+  :ref:`mft`
+
+* LCAO calculations can now be done using FFTs to reciprocal space in order
+  to 1) solve the Poisson equation and 2) interpolate the density to a
+  finer grid.  This is equivalent to the way things are done in PW-mode.
+  Turn this on by using ``experimental={'pw_pot_calc': True}``.
+
+* The parallel ``gpaw-python`` interpreter has been removed.
+  You can use ``gpaw python`` as a replacement. The variable
+  ``parallel_python_interpreter`` in ``siteconfig.py``
+  should not be used.
+
+
+Version 25.7.0
+==============
+
+July 29, 2025: :git:`25.7.0 <../25.7.0>`
+
+* Minimum version requirements: Python 3.9, ASE 3.25.0.
+
 * The XAS code has been expanded to allow for calculations of core holes
   with 𝑙≠0.
 
 * :ref:`acwf benchmark` results for our PAW-potentials (PW and LCAO modes).
 
 * The fluctuation-dissipation theorem has been added to the SJM.
-
-* Minimum version requirements: Python 3.9, ASE 3.23.0.
 
 * The constant inner potential DFT method has been included SJM.
 
@@ -51,6 +85,26 @@ Git master branch
 * Constraining spins within PAW spheres along specified directions in
   noncollinear calculations is now possible:
   :ref:`spin direction constrained dft`.
+
+* Preliminary implementation of YS-PBE0 hybrid functional.
+
+* Experimental: Implemented the PPCG eigensolver in :ref:`newgpaw` for
+  use with plane-waves and finite-difference. This eigensolver is
+  particularly stable for single precision wave-functions.
+  See https://doi.org/10.1016/j.jcp.2015.02.030 for details.
+
+* Added a new method and a tutorial for accurate dielectric functions,
+  :ref:`BSE+ <bseplus tutorial>`, which improves the convergence of the
+  BSE by including excitations outside of the active space of BSE at the RPA
+  level.
+
+* The :ref:`d3correction` can now be added to a :ref:`newgpaw`
+  DFT calculation via the new ``extensions`` keyword.
+
+* Smaller memory footprint for PW-mode calculations.
+
+* PAW-potentials can now be installed via a PyPI package:
+  `gpaw-data <https://pypi.org/project/gpaw-data/>`__.
 
 
 .. _controlling color: https://docs.python.org/3/using/cmdline.html
@@ -340,7 +394,7 @@ Jun 9, 2023: :git:`23.6.0 <../23.6.0>`
   See the :class:`gpaw.convergence_criteria.Energy` class.
 
 * The PW-mode now includes an ``interpolation`` flag.  See
-  :class:`gpaw.wavefunctions.pw.PW` for details.
+  :class:`gpaw.old.wavefunctions.pw.PW` for details.
 
 * The LCAO implementation of direct optimization for variational calculations
   of excited electronic states now includes
@@ -957,15 +1011,14 @@ Jan 11, 2019: :git:`1.5.0 <../1.5.0>`
   cover: :ref:`catalysis`, :ref:`magnetism`, :ref:`machinelearning`,
   :ref:`excited states`, :ref:`batteries` and :ref:`intro`.
 
-* New experimental local **k**-point refinement feature:
-  :git:`gpaw/test/test_kpt_refine.py`.
+* New experimental local **k**-point refinement feature.
 
 * A module and tutorial have been added for calculating electrostatic
   corrections to DFT total energies for charged systems involving localized
   defects: :ref:`defects`.
 
 * Default for FFTW planning has been changed from ``ESTIMATE`` to ``MEASURE``.
-  See :class:`gpaw.wavefunctions.pw.PW`.
+  See :class:`gpaw.old.wavefunctions.pw.PW`.
 
 
 Version 1.4.0
@@ -1394,7 +1447,7 @@ Mar 7, 2012: :git:`0.9.0 <../0.9.0>`.
 * Much improved :ref:`cli` now based on the `new tool`_ in ASE.
 
 
-.. _new tool: https://wiki.fysik.dtu.dk/ase/ase/cmdline.html
+.. _new tool: https://ase-lib.org/ase/cmdline.html
 
 
 Version 0.8.0

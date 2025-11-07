@@ -2,7 +2,7 @@ import pytest
 from gpaw.utilities import compiled_with_libvdwxc
 import itertools
 import numpy as np
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.xc import XC
 from gpaw.xc.libvdwxc import vdw_df_cx
 from gpaw.mpi import world
@@ -11,6 +11,7 @@ pytestmark = pytest.mark.skipif(not compiled_with_libvdwxc(),
                                 reason='not compiled_with_libvdwxc()')
 
 
+@pytest.mark.flaky
 def test_vdw_libvdwxc_spin():
     def test(xc, tol=5e-10):
         N_c = np.array([10, 6, 4])

@@ -4,7 +4,7 @@ from gpaw.xc.fxc import KernelWave, XCFlags, FXCCache
 from gpaw.xc.rpa import GCut
 
 from gpaw.response.qpd import SingleQPWDescriptor
-from gpaw.pw.descriptor import PWMapping
+from gpaw.old.pw.descriptor import PWMapping
 
 
 class G0W0Kernel:

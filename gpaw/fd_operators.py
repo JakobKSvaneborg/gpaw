@@ -1,25 +1,23 @@
-# Copyright (C) 2003  CAMP
-# Please see the accompanying LICENSE file for further information.
-from __future__ import annotations
-
 """Finite difference operators.
 
 This file defines a series of finite difference operators used in grid mode.
 """
+from __future__ import annotations
 
 from math import factorial as fact
 from math import pi
 from typing import TYPE_CHECKING
 
-import gpaw.cgpaw as cgpaw
 import numpy as np
 from ase.geometry.minkowski_reduction import reduction_full
-from gpaw import debug
-from gpaw.gpu import cupy_is_fake
-from gpaw.grid_descriptor import GridDescriptor
-from gpaw.typing import Array2D, ArrayLike2D
 from numpy.fft import fftn, ifftn
 from scipy.spatial import Voronoi
+
+import gpaw.cgpaw as cgpaw
+from gpaw import debug
+from gpaw.gpu import cupy_is_fake
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.typing import Array2D, ArrayLike2D
 
 if TYPE_CHECKING:
     from gpaw.core import UGDesc

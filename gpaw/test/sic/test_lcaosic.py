@@ -1,14 +1,21 @@
 import pytest
+import io
 
-from gpaw import GPAW, LCAO
-from gpaw.directmin.etdm_lcao import LCAOETDM
-from ase import Atoms
+from gpaw import GPAW
 import numpy as np
+import numpy.testing as npt
+
+from gpaw.old.logger import GPAWLogger
+from gpaw.old.wavefunctions.base import eigenvalue_string
+from gpaw.test.sic._utils import (mk_arr_from_str,
+                                  extract_lagrange_section,
+                                  MockWorld)
+from gpaw.mpi import rank
 
 
 @pytest.mark.old_gpaw_only
 @pytest.mark.sic
-def test_lcaosic(in_tmp_dir):
+def test_lcaosic(in_tmp_dir, gpw_files):
     """
     Test Perdew-Zunger Self-Interaction
     Correction  in LCAO mode using ETDM
@@ -17,27 +24,8 @@ def test_lcaosic(in_tmp_dir):
     """
 
     # Water molecule:
-    d = 0.9575
-    t = np.pi / 180 * 104.51
-    H2O = Atoms('OH2',
-                positions=[(0, 0, 0),
-                           (d, 0, 0),
-                           (d * np.cos(t), d * np.sin(t), 0)])
-    H2O.center(vacuum=4.0)
-
-    calc = GPAW(mode=LCAO(force_complex_dtype=True),
-                h=0.22,
-                occupations={'name': 'fixed-uniform'},
-                eigensolver=LCAOETDM(localizationtype='PM_PZ',
-                                     localizationseed=42,
-                                     functional={'name': 'PZ-SIC',
-                                                 'scaling_factor':
-                                                     (0.5, 0.5)}),
-                convergence={'eigenstates': 1e-4},
-                mixer={'backend': 'no-mixing'},
-                nbands='nao',
-                symmetry='off'
-                )
+    calc = GPAW(gpw_files['h2o_lcaosic'])
+    H2O = calc.atoms
     H2O.calc = calc
     e = H2O.get_potential_energy()
     f = H2O.get_forces()
@@ -65,3 +53,41 @@ def test_lcaosic(in_tmp_dir):
     niter = calc.get_number_of_iterations()
     assert niter == pytest.approx(4, abs=3)
     assert f2 == pytest.approx(f3, abs=0.1)
+
+    if rank == 0:
+        logger = GPAWLogger(MockWorld(rank=0))
+        string_io = io.StringIO()
+        logger.fd = string_io
+        calc.wfs.summary_func(logger)
+        lstr = extract_lagrange_section(string_io.getvalue())
+
+        expect_lagrange_str = """\
+          Band         L_ii  Occupancy
+             0    -20.96885    2.00000
+             1    -20.72880    2.00000
+             2    -14.63714    2.00000
+             3    -14.63436    2.00000
+             4      1.52758    0.00000
+             5      5.15451    0.00000
+        """
+        expect_eigen_str = """\
+         Band  Eigenvalues  Occupancy
+              0    -30.11715    2.00000
+              1    -17.20818    2.00000
+              2    -12.38599    2.00000
+              3    -11.25782    2.00000
+              4      1.52757    0.00000
+              5      5.15452    0.00000
+        """
+
+        npt.assert_allclose(
+            mk_arr_from_str(expect_lagrange_str),
+            mk_arr_from_str(lstr),
+            atol=0.3,
+        )
+
+        npt.assert_allclose(
+            mk_arr_from_str(expect_eigen_str),
+            mk_arr_from_str(eigenvalue_string(calc.wfs)),
+            atol=0.3,
+        )

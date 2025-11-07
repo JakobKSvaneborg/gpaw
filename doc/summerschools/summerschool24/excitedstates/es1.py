@@ -34,10 +34,10 @@ Here is some information to help you to build the ase.Atoms object:
 * Monolayer BN centered in a hexagonal unit cell with a=2.5 Å (and 7 Å of vacuum at each side to prevent it from interacting with its periodic copies) and a basis of (0,0) and (0,$a / \sqrt{3}$)
 
 The first thing you should do is to create an ase.Atoms object. In order to do so, you might find useful to use one of the crystal structures included in ase.build.bulk (hint, if you have an element of the IV group you might be interested on this link
-https://wiki.fysik.dtu.dk/ase/ase/build/build.html#module-ase.build).
+https://ase-lib.org/ase/build/build.html#module-ase.build).
 
 or you might have to create a list/array for the atomic positions and another one for the unit cell and then create an atoms object (hint: see above). You can find an example of how to build an ase.Atoms object here:
-https://wiki.fysik.dtu.dk/ase/ase/atoms.html
+https://ase-lib.org/ase/atoms.html
 """
 
 # %%
@@ -45,7 +45,6 @@ https://wiki.fysik.dtu.dk/ase/ase/atoms.html
 import numpy as np
 from ase import Atoms
 from ase.build import bulk
-from ase.visualize import view
 
 # %%
 Si = bulk('Si', 'diamond', a=5.4) # student:
@@ -89,7 +88,7 @@ atoms.calc = calc
 
 # %%
 """
-We are going to relax the atomic positions and the unit cell at the same time. To do so, we are going to use the UnitCellFilter (see https://wiki.fysik.dtu.dk/ase/ase/constraints.html#ase.constraints.UnitCellFilter) and the BFGS (or QuasiNewton) optimizer.
+We are going to relax the atomic positions and the unit cell at the same time. To do so, we are going to use the UnitCellFilter (see https://ase-lib.org/ase/constraints.html#ase.constraints.UnitCellFilter) and the BFGS (or QuasiNewton) optimizer.
 """
 
 # %%
@@ -182,7 +181,7 @@ calc.write(label + '_gs_LDA.gpw')
 ### Band structure:
 Next, we calculate eigenvalues along a high symmetry path in the Brillouin zone. You can find the definition of the high symmetry k-points for the fcc lattice here:
 
-https://wiki.fysik.dtu.dk/ase/ase/dft/kpoints.html#ase.dft.kpoints.special_points
+https://ase-lib.org/ase/dft/kpoints.html#ase.dft.kpoints.special_points
 
 If your system is in the fcc or the diamond structures, then, your path may look something like 'GXWKL'. For BN, 'GMKG'.
 
@@ -202,7 +201,7 @@ calc = GPAW(label + '_gs_LDA.gpw').fixed_density(
 # %%
 """
 Finally, we compute the band structure using ASE's band structure method, whose documentation you can find here:
-https://wiki.fysik.dtu.dk/ase/ase/dft/kpoints.html#ase.dft.band_structure.BandStructure
+https://ase-lib.org/ase/dft/kpoints.html#ase.dft.band_structure.BandStructure
 """
 
 # %%

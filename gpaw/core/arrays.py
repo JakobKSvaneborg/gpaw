@@ -10,6 +10,7 @@ from gpaw.core.matrix import Matrix
 from gpaw.mpi import MPIComm
 from gpaw.typing import Array1D, Self, ArrayND
 from gpaw.gpu import XP
+from gpaw.new import trace
 
 if TYPE_CHECKING:
     from gpaw.core.uniform_grid import UGArray, UGDesc
@@ -31,7 +32,7 @@ class XArrayWithNoData:
         self.xp = xp
         self.data = None
 
-    def morph(self):
+    def morph(self, desc):
         from gpaw.new.calculation import ReuseWaveFunctionsError
         raise ReuseWaveFunctionsError
 
@@ -89,8 +90,38 @@ class DistributedArrays(Generic[DomainType], XP):
         XP.__init__(self, xp)
         self._matrix: Matrix | None = None
 
-    def new(self, data=None) -> DistributedArrays:
+    def new(self, data=None, dims=None) -> DistributedArrays:
         raise NotImplementedError
+
+    def create_work_buffer(self, data_buffer: np.ndarray):
+        """Create new Distributed array object of same
+        kind, to be used as a buffer array when doing
+        sliced operations.
+
+        Parameters
+        ----------
+        data_buffer:
+            Array to use for storage.
+        """
+        assert isinstance(data_buffer, self.xp.ndarray)
+        assert len(self.dims) >= 1
+        data_buffer = data_buffer.view(self.data.dtype)
+        datasize = data_buffer.size
+        X = self.data.shape[1:]
+        nX = int(np.prod(X))
+        # Choose mybands, s.t. they fit into
+        # data_buffer. Hence, datasize divided by nX
+        # rounded down.
+        mybands = min(datasize // nX,
+                      self.data.shape[0])
+        mybands = self.desc.comm.min_scalar(mybands)
+        data = data_buffer[:mybands * nX].reshape(
+            (mybands,) + X)
+        totalbands = self.comm.sum_scalar(mybands)
+        # Dims is (totalbands,) + self.dims[1:], where
+        # self.dims[1:] is extra dimensions, such as spin.
+        return self.new(data=data,
+                        dims=(totalbands,) + self.dims[1:])
 
     def copy(self):
         return self.new(data=self.data.copy())
@@ -112,7 +143,7 @@ class DistributedArrays(Generic[DomainType], XP):
         for index in range(self.dims[0]):
             yield self[index]
 
-    def flat(self):
+    def flat(self) -> Self:
         if self.dims == ():
             yield self
         else:
@@ -143,6 +174,7 @@ class DistributedArrays(Generic[DomainType], XP):
 
         return self._matrix
 
+    @trace
     def matrix_elements(self,
                         other: Self,
                         *,
@@ -170,12 +202,45 @@ class DistributedArrays(Generic[DomainType], XP):
 
             M1 = self.matrix
             M2 = other.matrix
-            out = M1.multiply(M2, opb='C', alpha=self.dv,
-                              symmetric=symmetric, out=out)
 
-            # Plane-wave expansion of real-valued functions needs a correction:
+            n = M1.shape[0]
+            m = M2.shape[0]
+            X = M1.shape[1]
+            assert M2.shape[1] == X
+
+            # Slice the inner product into blocks, to improve
+            # numerical stability. This is especially important
+            # for single precision.
+            if self.data.dtype in (np.float32, np.complex64):
+                blocksize = 16384
+                # 16384 = 2**14. Large enough that the extra
+                # overhead is negligible, yet still comparable
+                # to the square root of the mantisa of float32
+                # (2**24)**0.5.
+            elif self.data.dtype in (np.float64, np.complex128):
+                blocksize = 268435456
+                # Double is simply just the blocksize of
+                # single precision squared 2**28. Most likely,
+                # we will never end up slicing the matrix into
+                # blocks for double precision.
+
+            for ind in range(0, max(X, 1), blocksize):
+                m1 = Matrix(n,
+                            min(blocksize, X - ind),
+                            data=M1.data[:, ind:ind + blocksize],
+                            xp=self.xp,
+                            dist=(comm, -1, 1))
+                m2 = Matrix(m,
+                            min(blocksize, X - ind),
+                            data=M2.data[:, ind:ind + blocksize],
+                            xp=self.xp,
+                            dist=(comm, -1, 1))
+                m1.multiply(m2, opb='C', alpha=self.dv,
+                            symmetric=symmetric, out=out,
+                            beta=0 if ind == 0 else 1)
+
+            # functions needs a correction:
             self._matrix_elements_correction(M1, M2, out, symmetric)
-
         else:
             if symmetric:
                 _parallel_me_sym(self, out, function)
@@ -187,7 +252,6 @@ class DistributedArrays(Generic[DomainType], XP):
 
         if domain_sum:
             self.domain_comm.sum(out.data)
-
         return out
 
     def _matrix_elements_correction(self,
@@ -232,7 +296,17 @@ class DistributedArrays(Generic[DomainType], XP):
     def redist(self,
                domain,
                comm1: MPIComm, comm2: MPIComm) -> DistributedArrays:
-        result = domain.empty(self.dims)
+        """Redistribute to new domain.
+
+        The "world" is spanned by::
+
+            (self.desc.comm, comm1)
+
+        and::
+
+            (domain.comm, comm2).
+        """
+        result = domain.empty(self.dims, xp=self.xp)
         if comm1.rank == 0:
             a = self.gather()
         else:
@@ -260,8 +334,8 @@ def _parallel_me(psit1_nX: DistributedArrays,
                  psit2_nX: DistributedArrays,
                  M_nn: Matrix) -> None:
 
-    comm = psit1_nX.comm
-    nbands = psit1_nX.dims[0]
+    comm = psit2_nX.comm
+    nbands = psit2_nX.dims[0]
 
     psit1_nX = psit1_nX[:]
 

@@ -2,9 +2,9 @@
 # Copyright (C) 2014 R. Warmbier Materials for Energy Research Group,
 # Wits University
 # Please see the accompanying LICENSE file for further information.
+from fractions import Fraction
 from typing import Tuple
 
-from ase.utils import gcd
 import numpy as np
 
 import gpaw.cgpaw as cgpaw
@@ -12,21 +12,16 @@ import gpaw.mpi as mpi
 
 
 def frac(f: float,
-         n: int = 2 * 3 * 4 * 5,
+         *,
+         max_denominator: int = 50,
          tol: float = 1e-6) -> Tuple[int, int]:
     """Convert to fraction.
 
     >>> frac(0.5)
     (1, 2)
     """
-    if f == 0:
-        return 0, 1
-    x = n * f
-    if abs(x - round(x)) > n * tol:
-        raise ValueError
-    x = int(round(x))
-    d = gcd(x, n)
-    return x // d, n // d
+    fr = Fraction(f).limit_denominator(max_denominator)
+    return fr.numerator, fr.denominator
 
 
 def sfrac(f: float) -> str:
@@ -418,10 +413,8 @@ def reduce_kpts(bzk_kc,
                 tol):
     nbzkpts = len(bzk_kc)
     nsym = len(U_scc)
-
     bz2bz_ks = map_k_points_fast(bzk_kc, U_scc, use_time_reversal,
                                  comm, tol)
-
     bz2bz_k = -np.ones(nbzkpts + 1, int)
     ibz2bz_k = []
     for k in range(nbzkpts - 1, -1, -1):
@@ -432,10 +425,9 @@ def reduce_kpts(bzk_kc,
     ibz2bz_k = np.array(ibz2bz_k[::-1])
     bz2bz_k = bz2bz_k[:-1].copy()
 
-    bz2ibz_k = np.empty(nbzkpts, int)
+    bz2ibz_k = np.zeros(nbzkpts, int) - 1
     bz2ibz_k[ibz2bz_k] = np.arange(len(ibz2bz_k))
     bz2ibz_k = bz2ibz_k[bz2bz_k]
-
     weight_k = np.bincount(bz2ibz_k) * (1.0 / nbzkpts)
 
     # Symmetry operation mapping IBZ to BZ:
@@ -524,7 +516,9 @@ def map_k_points_fast(bzk_kc, U_scc, time_reversal, comm=None, tol=1e-7):
                            order[1:][equivalentpairs_k]])
 
         # This has to be true.
-        assert (orders[0] < nbzkpts).all()
+        if not (orders[0] < nbzkpts).all():
+            raise ValueError("Duplicate kpoints detected, "
+                             "set symmetry='off'.")
         assert (orders[1] >= nbzkpts).all()
         bz2bz_ks[orders[1] - nbzkpts, s] = orders[0]
 
@@ -596,11 +590,13 @@ class CLICommand:
     @staticmethod
     def run(args):
         import sys
-        from gpaw.new.symmetry import create_symmetries_object
-        from gpaw.dft import MonkhorstPack
+
         from ase.cli.run import str2dict
         from ase.db import connect
         from ase.io import read
+
+        from gpaw.dft import MonkhorstPack
+        from gpaw.new.symmetry import create_symmetries_object
 
         if args.filename == '-':
             atoms = next(connect(sys.stdin).select()).toatoms()

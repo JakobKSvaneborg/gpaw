@@ -1,11 +1,14 @@
 """Brillouin-zone sampling."""
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
+
 import numpy as np
 from ase.dft.kpoints import monkhorst_pack
 from gpaw.mpi import MPIComm
-from gpaw.typing import Array1D, ArrayLike2D
 from gpaw.symmetry import reduce_kpts
+from gpaw.typing import Array1D, Array2D, ArrayLike2D
+
 if TYPE_CHECKING:
     from gpaw.new.symmetry import Symmetries
 
@@ -53,6 +56,7 @@ class BZPoints:
                                  use_time_reversal,
                                  comm,
                                  tolerance)
+        assert (weight_k > 0.0).all()
 
         if strict and -1 in bz2bz_Ks:
             raise ValueError(
@@ -60,6 +64,12 @@ class BZPoints:
 
         return IBZ(symmetries, self, ibz2bz_k, bz2ibz_K, weight_k, bz2bz_Ks,
                    sym_K, time_reversal_K)
+
+
+class BZBandPath(BZPoints):
+    def __init__(self, band_path):
+        self.band_path = band_path
+        super().__init__(band_path.kpts)
 
 
 class MonkhorstPackKPoints(BZPoints):
@@ -129,9 +139,35 @@ class IBZ:
             k += 1
         return txt
 
-    def ranks(self, comm: MPIComm) -> Array1D:
+    def ranks(self, comm: MPIComm, nspins: int = 1) -> Array2D:
         """Distribute k-points over MPI-communicator."""
-        return ranks(comm.size, len(self))
+        return ranks(comm.size, len(self) * nspins).reshape((-1, nspins))
+
+    def _old_kd(self, nspins, kpt_comm):
+        from gpaw.old.kpt_descriptor import KPointDescriptor
+        kd = KPointDescriptor(self.bz.kpt_Kc, nspins)
+        kd.ibzk_kc = self.kpt_kc
+        kd.weight_k = self.weight_k
+        kd.sym_k = self.s_K
+        kd.time_reversal_k = self.time_reversal_K
+        kd.bz2ibz_k = self.bz2ibz_K
+        kd.ibz2bz_k = self.ibz2bz_k
+        kd.bz2bz_ks = self.bz2bz_Ks
+        kd.nibzkpts = len(self)
+        kd.symmetry = self.symmetries._old_symmetry
+        kd.set_communicator(kpt_comm)
+        rank_ks = self.ranks(kpt_comm, nspins)
+        here_k = (rank_ks == kpt_comm.rank).any(axis=1)
+        kd.ibzk_qc = self.kpt_kc[here_k]
+        kd.rank0 = 'hello'
+        kd.mynk = 'hello'
+        kd.k0 = 'hello'
+        kd.weight_q = -5555555555
+        kd.nu_r = np.zeros(kpt_comm.size, int)
+        kd.nu_r[kpt_comm.rank] = (rank_ks == kpt_comm.rank).sum()
+        kpt_comm.sum(kd.nu_r)
+        kd.rank_ks = rank_ks
+        return kd
 
 
 def ranks(N, K) -> Array1D:
