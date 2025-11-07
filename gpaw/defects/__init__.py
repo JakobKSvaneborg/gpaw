@@ -89,55 +89,8 @@ class ElectrostaticCorrections():
         return Delta_V
 
     def calculate_model_potential(self):
-
-        vox3 = self.calc.density.gd.cell_cv[2, :] / len(self.z_g)
-
-        # The grid is arranged with z increasing fastest, then y
-        # then x (like a cube file)
-
-        G_z = self.G_z[1:]
-        rho_Gz = self.q * np.exp(-0.5 * G_z * G_z * self.sigma * self.sigma)
-
-        zs = []
-        Vs = []
-        if self.dimensionality == '2d':
-            phase = np.exp(1j * (self.G_z * self.z0))
-            A_GG = (self.GG * self.epsilon_GG['out-of-plane'])
-            A_GG[0, 0] = 1
-            V_G = np.linalg.solve(A_GG,
-                                  phase * np.array([0] + list(rho_Gz)))[1:]
-        elif self.dimensionality == '3d':
-            phase = np.exp(1j * (G_z * self.z0))
-            V_G = phase * rho_Gz / self.eb[1] / G_z ** 2
-
-        for z in self.z_g:
-            phase_G = np.exp(1j * (G_z * z))
-            V = (np.sum(phase_G * V_G).real
-                 * Ha * 4.0 * np.pi / (self.Omega))
-            Vs.append(V)
-
-        V = (np.sum(V_G.real) * Ha * 4.0 * np.pi / (self.Omega))
-        zs = list(self.z_g) + [vox3[2]]
-        Vs.append(V)
-        return np.array(zs), np.array(Vs)
-
-    def average(self, V, z):
-        assert len(V) == len(z)
-        N = len(V)
-        deltaN = N // 8
-
-        if self.dimensionality == '3d':
-            # as far away as possible from the defect
-            middle = np.argmin(np.abs(z + self.z0)) + N // 2
-            middle = middle % N
-        elif self.dimensionality == '2d':
-            middle = 0
-
-        points = np.arange(middle - deltaN, middle + deltaN + 1)
-        points = points % N
-        restricted = V[points]
-        V_mean = np.mean(restricted)
-        return V_mean
+        # need to backtransform phi_G -> phi_r
+        return rvec, phi_r
 
     def calculate_corrected_formation_energy(self):
         E_0 = self.pristine.get_potential_energy()
@@ -145,39 +98,10 @@ class ElectrostaticCorrections():
         Eli = self.calculate_isolated_correction()
         Elp = self.calculate_periodic_correction()
         Delta_V = self.calculate_potential_alignment()
-        return E_X - E_0 - (Elp - Eli) + Delta_V * self.q
+        print('Eli=', Eli, 'Elp=', Elp, 'Delta_V=', Delta_V)
+        return E_X - E_0 - (Elp - Eli) + Delta_V * self.charge
 
     def calculate_uncorrected_formation_energy(self):
         E_0 = self.pristine.get_potential_energy()
         E_X = self.charged.get_potential_energy()
         return E_X - E_0
-
-    def collect_electrostatic_data(self):
-        V_neutral = -np.mean(self.pristine.get_electrostatic_potential(),
-                             (0, 1)),
-        V_charged = -np.mean(self.charged.get_electrostatic_potential(),
-                             (0, 1)),
-        data = {'epsilon': self.eb[0],
-                'z': self.density_z,
-                'V_0': V_neutral,
-                'V_X': V_charged,
-                'Elc': self.Elp - self.Eli,
-                'D_V_mean': self.calculate_potential_alignment(),
-                'V_model': self.V_model,
-                'D_V': (self.V_model
-                        + V_neutral
-                        - V_charged)}
-        self.data = data
-        return data
-
-
-def find_G_z(G_Gv):
-    mask = (G_Gv[:, 0] == 0) & (G_Gv[:, 1] == 0)
-    G_z = G_Gv[mask][:, 2]  # qG_z vectors in Bohr^{-1}
-    return G_z
-
-
-def find_z(gd):
-    r3_xyz = gd.get_grid_point_coordinates()
-    nrz = r3_xyz.shape[3]
-    return r3_xyz[2].flatten()[:nrz]
