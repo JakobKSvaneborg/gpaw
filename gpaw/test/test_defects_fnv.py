@@ -113,6 +113,8 @@ def test_fnv_3d():
 
     assert E_corr == pytest.approx(E_corr_t, abs=2e-2)
     assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-2)
+    assert E_corr_new == pytest.approx(E_corr_t, abs=2e-2)
+    assert E_uncorr_new == pytest.approx(E_uncorr_t, abs=2e-2)
 
 
 @pytest.mark.parametrize('P', [[[1, 0, 0], [1, -1, 0], [0, 0, 1]]])

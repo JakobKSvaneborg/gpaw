@@ -88,7 +88,8 @@ class ElectrostaticCorrections():
         V_neutral = - self.pristine.get_electrostatic_potential()
         V_defect = - self.defect.get_electrostatic_potential()
         # V_model = self.calculate_model_potential()
-        # Delta_V = V_model - V_defect + V_neutral
+        V_model = 0
+        Delta_V = V_model - V_defect + V_neutral
         Delta_V = 0
         return Delta_V
 
