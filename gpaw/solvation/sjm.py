@@ -1068,15 +1068,28 @@ class SJMPower12Potential(Power12Potential):
     pbc_cutoff: float
         Cutoff in eV for including neighbor cells in a calculation with
         periodic boundary conditions.
-    H2O_layer: bool, int or str
-        True: Exclude the implicit solvent from the interface region
-        between electrode and water. Ghost atoms will be added below
-        the water layer.
-        False: The opposite of True. [default]
-        int: Explicitly account for the given number of water molecules above
-        electrode. This is handy if H2O is directly adsorbed and a water layer
-        is present in the unit cell at the same time.
-        'plane': Use a plane instead of ghost atoms for freeing the surface.
+    H2O_layer: dict
+        Dictionary to control the non-local part of solvation, i.e.
+        (exclusion of solvent from the electrode-water interface).
+        I has 4 keys:
+        style: 'ghost_atoms' or 'plane'
+            'ghost_atoms': Add ghost atoms below the water layer to
+            exclude implicit solvent from the interface region.
+            'plane': Use a plane instead of ghost atoms for freeing the
+            surface.
+        nox: 'all' (default) or int
+            'all': Free the interface only between the lowest lying O and
+            the electrode.
+            int: Explicitly mention under which water molecule counter from
+            the top the interface is cleaned from implicit solvent.
+        ghosts_below_ox: bool
+            Only relevant if style is 'ghost_atoms'. Add extra ghost atoms
+            below the oxygen atoms of the water layer. [default: True]
+        ghost_spacing: float
+            Only relevant if style is 'ghost_atoms'. Spacing between ghost
+            atoms in Angstroms. [default: 2/3 Bohr].  Note that the
+            default is overly dense and leads to longer waiting times between
+            SCF cycles. A spacing of 1.5 Bohr is likely sufficient.
     unsolv_backside: bool
         Exclude implicit solvent from the region behind the electrode
 
