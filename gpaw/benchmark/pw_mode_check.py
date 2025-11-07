@@ -5,14 +5,14 @@ from time import time
 import numpy as np
 from gpaw.benchmark.systems import systems
 from gpaw.calcinfo import get_calculation_info
-from gpaw.dft import GPAW, PW, MonkhorstPack
+from gpaw import GPAW
 from gpaw.mpi import world
 from gpaw.utilities.memory import maxrss
 
-params = dict(
+PARAMS = dict(
     xc='PBE',
-    mode=PW(800),
-    kpts=MonkhorstPack(density=5.0))
+    mode={'name': 'pw', 'ecut': 800},
+    kpts={'density': 5.0})
 
 
 def workflow():
@@ -25,8 +25,8 @@ def workflow():
         atoms = function()
 
         # Estimate time (memory):
-        info = get_calculation_info(atoms, **params)
-        t = (len(info.ibz) * info.nbands * info.ncomponents *
+        info = get_calculation_info(atoms, **PARAMS)
+        t = (len(info.ibz) * info.ncomponents * info.nbands *
              atoms.cell.volume * 1e-6)
         tmax = '1h'
         if t < 1.0:
@@ -44,11 +44,10 @@ def workflow():
             creates=[f'{name}.json'])
 
 
-def work(name):
+def work(name: str, params: dict | None = None) -> None:
     """Do two steps."""
 
-    global params
-
+    params = params or PARAMS.copy()
     extra = Path('params.json')
     if extra.is_file():
         params |= json.loads(extra.read_text())
@@ -57,9 +56,10 @@ def work(name):
 
     # Do a non-colinear calculation?
     if hasattr(atoms, '_magmoms'):
-        params != dict(
+        params |= dict(
             magmoms=atoms._magmoms,
-            symmetry='off')
+            symmetry='off',
+            xc='LDA')
 
     calc = GPAW(
         txt=f'{name}.txt',
@@ -70,7 +70,7 @@ def work(name):
     t1 = time()
     e1 = atoms.get_potential_energy()
     f1 = atoms.get_forces()
-    i1 = calc.dft.scf_loop.niter
+    i1 = get_number_of_iterations(calc)
 
     if abs(f1).max() < 0.0001:
         s1 = atoms.get_stress(voigt=False)
@@ -84,13 +84,19 @@ def work(name):
     t2 = time()
     e2 = atoms.get_potential_energy()
     _ = atoms.get_forces()
-    i2 = calc.dft.scf_loop.niter
+    i2 = get_number_of_iterations(calc)
     t2 = time() - t2
     m2 = maxrss()
 
     if world.rank == 0:
         Path(f'{name}.json').write_text(json.dumps([e1, t1, i1, m1,
                                                     e2, t2, i2, m2]))
+
+
+def get_number_of_iterations(calc) -> int:
+    if calc.old:
+        return calc.scf.niter
+    return calc.dft.scf_loop.niter
 
 
 # Reference energies and change in energy after first step:
@@ -136,7 +142,7 @@ def read(folder: Path,
                 t = x[1] + x[5]
                 i = x[2] + x[6]
         else:
-            t = 9999.9
+            t = 99999.9
             i = 999
         data[name] = (t, i)
     return data
@@ -154,18 +160,18 @@ def summary(folders: list[Path], mode: int) -> None:
         times = [data[name][0] for data in alldata]
         iters = [data[name][1] for data in alldata]
         t0 = min(times)
-        if t0 == 9999.9:
+        if t0 == 99999.9:
             print()
             continue
-        if max(times) < 9999.9:
+        if max(times) < 99999.9:
             N += 1
         for n, (t, i) in enumerate(zip(times, iters)):
-            if t == 9999.9:
+            if t == 99999.9:
                 print(' | ------(---) ------%', end='')
             else:
                 print(f' | {t:6.1f}({i:3}) {(t / t0 - 1) * 100:+6.1f}%',
                       end='')
-            if max(times) < 9999.9:
+            if max(times) < 99999.9:
                 scores[n] += t / t0
         print()
     print('------------' + '+---------------------' * len(folders) +
@@ -178,10 +184,12 @@ def summary(folders: list[Path], mode: int) -> None:
 if __name__ == '__main__':
     from argparse import ArgumentParser
     parser = ArgumentParser()
-    parser.add_argument('-m', '--mode', type=int, default=3,
-                        help='1: first step, 2: second step, 3: both.')
-    parser.add_argument('folder', nargs='+',
-                        help='Folder with <name>.json files.')
+    parser.add_argument(
+        '-m', '--mode', type=int, default=3,
+        help='1: first step, 2: second step, 3: both (default).')
+    parser.add_argument(
+        'folder', nargs='+',
+        help='Folder with <name>.json files.')
     args = parser.parse_args()
-    summary(
-        folders=[Path(folder) for folder in args.folder], mode=args.mode)
+    summary(folders=[Path(folder) for folder in args.folder],
+            mode=args.mode)
