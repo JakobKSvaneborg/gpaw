@@ -4,6 +4,7 @@ import pytest
 from ase import Atoms
 from gpaw.benchmark.pw_mode_check import summary, work
 from gpaw.benchmark.systems import systems
+from gpaw.mpi import world
 
 
 @pytest.mark.serial
@@ -14,7 +15,9 @@ def test_systems(name):
 
 
 def test_pw_benchmark(in_tmp_dir):
-    Path('params.json').write_text(
-        '{"mode": "pw"}')
+    if world.rank == 0:
+        Path('params.json').write_text(
+            '{"mode": "pw"}')
+    world.barrier()
     work('H2')
     summary([Path(), Path()], mode=3)
