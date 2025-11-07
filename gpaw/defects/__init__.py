@@ -4,8 +4,8 @@ import numpy as np
 from gpaw import GPAW, PW
 from gpaw.mpi import serial_comm
 from ase.parallel import parprint
-from ase.units import Hartree as Ha
-from ase.units import Bohr
+from ase.units import Bohr, Hartree
+from ase.geometry import find_mic
 from pathlib import Path
 
 
@@ -38,10 +38,10 @@ class ElectrostaticCorrections():
         self.defect = defect
         self.calc = calc
         self.charge = charge
-        self.sigma = sigma
+        self.sigma = sigma          # Bohr ? XXX consistency?
         self.epsilon = epsilon
-        self.r0 = np.array(r0)
-        self.ravg = np.array(ravg) / Bohr
+        self.r0 = np.array(r0)      # Angstrom
+        self.ravg = np.array(ravg)  # Angstrom
 
         # volume
         self.Omega = np.abs(np.linalg.det(self.calc.density.gd.cell_cv))
@@ -65,7 +65,7 @@ class ElectrostaticCorrections():
                 phi_G[gg] = 0.0
             else:
                 phi_G[gg] = self.rho_G[gg] / G2
-        return 4. * np.pi * phi_G * Ha / self.epsilon
+        return 4. * np.pi * phi_G * Hartree / self.epsilon
 
     def calculate_periodic_correction(self):
         self.rho_G = self.calculate_gaussian_density()
@@ -83,7 +83,7 @@ class ElectrostaticCorrections():
         # gaussian model charge distribution
         eps = self.epsilon
         sgm = self.sigma
-        Eli = 0.5 * self.charge ** 2 * Ha / np.pi ** 0.5 / eps / sgm
+        Eli = 0.5 * self.charge ** 2 * Hartree / np.pi ** 0.5 / eps / sgm
         return Eli
 
     def calculate_model_potential(self, r_vR):
@@ -113,9 +113,12 @@ class ElectrostaticCorrections():
         assert np.allclose(self.phi_prs.shape, self.phi_def.shape)
         assert np.allclose(self.phi_prs.shape, self.r_vR.shape[1:])
 
-    def get_reference_index(atoms, index):
+        
+
+    def get_reference_index(self, index):
         """Get index of atom furthest away from the atom index."""
 
+        atoms = self.atoms_prs
         dR = atoms.positions - atoms.positions[index, :][None, :]
         dist_vec, dist = find_mic(dR, atoms.get_cell())
         ref_index = np.argmax(dist)
@@ -124,26 +127,45 @@ class ElectrostaticCorrections():
 
     def define_averaging_region(self):
         # locate atom farest away from the defect
+        cell_prs = self.atoms_prs.get_cell()
 
         # in pristine obtain atom positions closest to the defect_site
         dR = self.atoms_prs.positions - self.r0[None, :]
-        _, dist = find_mic(dR, self.atoms_prs.get_cell())
+        _, dist = find_mic(dR, cell_prs)
         defect_index = np.argmin(dist)
         print('defect_index=', defect_index)
 
         # now find atom most away 
-        bulk_index = get_reference_index(self.atoms_prs, defect_index)
+        bulk_index = self.get_reference_index(defect_index)
         print('bulk_index=', bulk_index)
 
-        self.atoms_prs.edit()
-
+        # return grid indices of region around the bulk atoms
+        # convert grid to Angstrom such we can use find_mic
+        # radius: self.ravg
+        rgrid_vR = self.r_vR * Bohr
+        rbulk_v = self.atoms_prs.positions[bulk_index, :]
+        dR = rgrid_vR.T - rbulk[None, None, None, :]
+        _, dist = find_mic(dR, cell_prs)
+        self.region = np.where(dist < self.ravg)
+         
 
     def calculate_potential_alignment(self):
-        self.define_averaging_region()
         # define region away from defect
+        self.define_averaging_region()
+
+        # extract electro-static potential and grid from
+        # pristine and defect
         self.extract_electrostatic_potentials() 
-        phi_model = self.calculate_model_potential(self.r_vR[:, :3, :3, :3])
-        Delta_V = phi_model - (self.phi_def - self.phi_prs)
+
+        # restrict to averaging region
+        self.phi_prs = self.phi_prs[self.region]
+        self.phi_def = self.phi_def[self.region]
+        self.r_vR = self.r_vR[:, self.region]
+
+        # get model potential inside the averaging region
+        phi_model = self.calculate_model_potential(self.r_vR)
+
+        Delta_V = np.average(phi_model - (self.phi_def - self.phi_prs))
         return Delta_V
 
     def calculate_corrected_formation_energy(self):
