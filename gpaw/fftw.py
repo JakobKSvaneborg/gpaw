@@ -282,15 +282,17 @@ class CuPyFFTPlans(FFTPlans):
         return Q_G
 
     @trace
-    def ifft_sphere(self, coef_G, pw, out_R):
+    def ifft_sphere(self, coef_G, pw, out_R=None):
         from gpaw.gpu import cupyx, cupy
-        assert isinstance(out_R.data, cupy.ndarray)
+        if out_R is not None:
+            assert isinstance(out_R.data, cupy.ndarray)
 
         if coef_G is None:
-            out_R.scatter_from(None)
+            if out_R is not None:
+                out_R.scatter_from(None)
             return
 
-        if out_R.desc.comm.size == 1:
+        if out_R is not None and out_R.desc.comm.size == 1:
             array_R = out_R.data
         else:
             array_R = self.tmp_R
@@ -301,11 +303,12 @@ class CuPyFFTPlans(FFTPlans):
 
         assert np.issubdtype(array_Q.dtype, np.complexfloating)
         assert np.issubdtype(coef_G.dtype, np.complexfloating)
+        shape = array_R.shape
         pw_insert_gpu(coef_G,
                       Q_G,
                       1.0,
                       array_Q.ravel(),
-                      *out_R.desc.size_c)
+                      *shape)
 
         if np.issubdtype(self.dtype, np.complexfloating):
             array_R[:] = cupyx.scipy.fft.ifftn(
@@ -313,14 +316,13 @@ class CuPyFFTPlans(FFTPlans):
                 norm='forward', overwrite_x=True)
         else:
             if is_hip:
-                array_R[:] = irfftn_patch(array_Q, out_R.desc.global_shape())\
-                    * array_R.size
+                array_R[:] = irfftn_patch(array_Q, shape) * array_R.size
             else:
                 array_R[:] = cupyx.scipy.fft.irfftn(
-                    array_Q, out_R.desc.global_shape(),
+                    array_Q, shape,
                     norm='forward', overwrite_x=True)
 
-        if out_R.desc.comm.size > 1:
+        if out_R is not None and out_R.desc.comm.size > 1:
             out_R.scatter_from(array_R)
 
     @trace
