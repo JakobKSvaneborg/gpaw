@@ -15,7 +15,7 @@ class ElectrostaticCorrections():
     """
     def __init__(self, pristine, defect,
                  charge=None, epsilon=None, sigma=None, r0=None,
-                 ravg=3.0, comm=serial_comm):
+                 ravg=1.0, comm=serial_comm):
 
         if isinstance(pristine, (str, Path)):
             pristine = GPAW(pristine, txt=None, parallel={'domain': 1})
@@ -49,7 +49,6 @@ class ElectrostaticCorrections():
 
         self.pd = self.calc.wfs.pd
         self.G_Gv = self.pd.get_reciprocal_vectors(q=0, add_q=False)
-        print('G_Gv=', self.G_Gv.shape)
         self.G2_G = self.pd.G2_qG[0]  # |\vec{G}|^2 in Bohr^-2
 
     def calculate_gaussian_density(self):
@@ -108,11 +107,9 @@ class ElectrostaticCorrections():
         self.phi_def = - self.defect.get_electrostatic_potential() 
         self.r_vR = self.pristine.wfs.pd.gd.refine().get_grid_point_coordinates()
         r_vR = self.defect.wfs.pd.gd.refine().get_grid_point_coordinates()
-        print(self.r_vR.shape, self.phi_prs.shape)
         assert np.allclose(self.r_vR, r_vR)
         assert np.allclose(self.phi_prs.shape, self.phi_def.shape)
         assert np.allclose(self.phi_prs.shape, self.r_vR.shape[1:])
-
         
 
     def get_reference_index(self, index):
@@ -140,27 +137,34 @@ class ElectrostaticCorrections():
         print('bulk_index=', bulk_index)
 
         # return grid indices of region around the bulk atoms
+        grid_shape = self.r_vR.shape[1:]
+        print('grid_shape=', grid_shape)
         # convert grid to Angstrom such we can use find_mic
-        # radius: self.ravg
         rgrid_vR = self.r_vR * Bohr
         rbulk_v = self.atoms_prs.positions[bulk_index, :]
-        dR = rgrid_vR.T - rbulk[None, None, None, :]
+        dR = rgrid_vR.T - rbulk_v[None, None, None, :]
+        # flatten grid and reshape 
+        dR = dR.reshape((np.prod(grid_shape), 3))
         _, dist = find_mic(dR, cell_prs)
+        dist = dist.reshape(grid_shape)
+        # sphere radius: self.ravg
         self.region = np.where(dist < self.ravg)
          
 
     def calculate_potential_alignment(self):
-        # define region away from defect
-        self.define_averaging_region()
-
         # extract electro-static potential and grid from
         # pristine and defect
         self.extract_electrostatic_potentials() 
 
+        # define region away from defect
+        self.define_averaging_region()
+
         # restrict to averaging region
         self.phi_prs = self.phi_prs[self.region]
         self.phi_def = self.phi_def[self.region]
-        self.r_vR = self.r_vR[:, self.region]
+        self.r_vR = self.r_vR[:, *self.region]
+        
+        print('region_shape', self.r_vR.shape)
 
         # get model potential inside the averaging region
         phi_model = self.calculate_model_potential(self.r_vR)
