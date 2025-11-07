@@ -15,7 +15,7 @@ class ElectrostaticCorrections():
     """
     def __init__(self, pristine, defect,
                  charge=None, epsilon=None, sigma=None, r0=None,
-                 ravg=1.0, comm=serial_comm):
+                 ravg=0.5, comm=serial_comm):
 
         if isinstance(pristine, (str, Path)):
             pristine = GPAW(pristine, txt=None, parallel={'domain': 1})
@@ -100,7 +100,7 @@ class ElectrostaticCorrections():
 
         assert np.abs(phi_r.imag).max() < 1e-8
 
-        return phi_r.real
+        return phi_r.real / self.Omega
 
     def extract_electrostatic_potentials(self):
         self.phi_prs = - self.pristine.get_electrostatic_potential()
