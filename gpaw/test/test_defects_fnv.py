@@ -99,7 +99,6 @@ def test_fnv_3d():
                                       epsilon=epsilon)
     E_corr_new = elcnew.calculate_corrected_formation_energy()
     E_uncorr_new = elcnew.calculate_uncorrected_formation_energy()
-    correction_new = E_corr_new - E_uncorr_new
 
     # need to convert Path -> str
     elc = OldElectrostaticCorrections(pristine=pristine.calc,
@@ -111,8 +110,8 @@ def test_fnv_3d():
     elc.set_epsilons(epsilon)
     E_corr = elc.calculate_corrected_formation_energy()
     E_uncorr = elc.calculate_uncorrected_formation_energy()
-    correction = E_corr - E_uncorr
 
+    print(E_corr_new, E_corr, E_uncorr_new)
     assert E_corr == pytest.approx(E_corr_t, abs=2e-2)
     assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-2)
 

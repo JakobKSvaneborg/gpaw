@@ -163,9 +163,10 @@ class ElectrostaticCorrections():
         self.define_averaging_region()
 
         # restrict to averaging region
-        self.phi_prs = self.phi_prs[self.region]
-        self.phi_def = self.phi_def[self.region]
-        self.r_vR = self.r_vR[:, *self.region]
+        ix, iy, iz = self.region
+        self.phi_prs = self.phi_prs[ix, iy, iz]
+        self.phi_def = self.phi_def[ix, iy, iz]
+        self.r_vR = self.r_vR[:, ix, iy, iz]
 
         # get model potential inside the averaging region
         phi_model = self.calculate_model_potential(self.r_vR)
