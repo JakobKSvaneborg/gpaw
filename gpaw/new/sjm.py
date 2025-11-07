@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import numpy as np
 from ase.units import Bohr
-from gpaw.core import UGArray, PWDesc, PWArray
-from gpaw.jellium import create_background_charge
-from gpaw.new.environment import Environment, FixedPotentialJellium, Jellium
+from gpaw.core import PWArray, PWDesc, UGArray
+from gpaw.new.extensions import (Extension, FixedPotentialJelliumExtension,
+                                 JelliumExtension)
 from gpaw.new.poisson import PoissonSolverWrapper
 from gpaw.new.pw.poisson import PWPoissonSolver
-from gpaw.new.solvation import SolvationEnvironment, Solvation
+from gpaw.new.solvation import Solvation, SolvationExtension
+from gpaw.new.builder import DFTComponentsBuilder
 
 
 class SJM(Solvation):
@@ -28,34 +29,30 @@ class SJM(Solvation):
         self.excess_electrons = excess_electrons
         self.tol = tol
 
-    def build(self,
-              setups,
-              grid,
-              relpos_ac,
-              log,
-              comm) -> SJMEnvironment:
-        solvation = super().build(
-            setups=setups, grid=grid, relpos_ac=relpos_ac,
-            log=log, comm=comm)
+    def build(self, builder: DFTComponentsBuilder) -> SJMExtension:
+        solvation = super().build(builder)
+        grid = builder.fine_grid
+        relpos_ac = builder.relpos_ac
         h = grid.cell_cv[2, 2] * Bohr
-        z1 = relpos_ac[:, 2].max() * h + 3.0
-        z2 = self.jelliumregion.get('top', h - 1.0)
-        background = create_background_charge(charge=self.excess_electrons,
-                                              z1=z1,
-                                              z2=z2)
-        background.set_grid_descriptor(grid._gd)
+        z1 = relpos_ac[:, 2].max() * h + 3.0  # Å
+        z2 = self.jelliumregion.get('top', h - 1.0)  # Å
+        mask_r = grid.empty()
+        R_rv = grid.xyz()
+        mask_r.data[:] = np.logical_and(R_rv[:, :, :, 2] > z1 / Bohr,
+                                        R_rv[:, :, :, 2] < z2 / Bohr)
         if self.target_potential is None:
-            jellium = Jellium(background,
-                              natoms=len(relpos_ac),
-                              grid=grid)
+            jellium = JelliumExtension(
+                mask_r,
+                charge=self.excess_electrons,
+                pw=builder.interpolation_desc)
         else:
-            jellium = FixedPotentialJellium(
-                background,
-                natoms=len(relpos_ac),
-                grid=grid,
-                workfunction=self.target_potential,
-                tolerance=self.tol)
-        return SJMEnvironment(solvation, jellium)
+            jellium = FixedPotentialJelliumExtension(
+                mask_r,
+                workfunction_target=self.target_potential,
+                excess_electrons_guess=self.excess_electrons,
+                tolerance=self.tol,
+                pw=builder.interpolation_desc)
+        return SJMExtension(solvation, jellium)
 
     def todict(self):
         dct = super().todict()
@@ -67,18 +64,27 @@ class SJM(Solvation):
         return dct
 
 
-class SJMEnvironment(Environment):
+class SJMExtension(Extension):
+    name = 'sjm'
+
     def __init__(self,
-                 solvation: SolvationEnvironment,
-                 jellium: Jellium):
-        super().__init__(solvation.natoms)
+                 solvation: SolvationExtension,
+                 jellium: JelliumExtension):
         self.solvation = solvation
         self.jellium = jellium
         self.charge = jellium.charge
         self.dielectric = solvation.dielectric
 
-    def create_poisson_solver(self, **kwargs):
-        ps = self.solvation.create_poisson_solver(**kwargs).solver
+    def create_poisson_solver(self, grid, pw, charge, xp):
+        if isinstance(pw, PWDesc):
+            from gpaw.new.pw.poisson import ConjugateGradientPoissonSolver
+            return ConjugateGradientPoissonSolver(
+                pw, grid, self.dielectric, zero_vacuum=True)
+            # from gpaw.new.sjm import SJMPWPoissonSolver
+            # return SJMPWPoissonSolver(pw, environment.dielectric, grid)
+
+        ps = self.solvation.create_poisson_solver(
+            grid, pw, charge=charge, xp=xp).solver
         return SJMPoissonSolver(ps, self.solvation.dielectric)
 
     def post_scf_convergence(self,
@@ -97,8 +103,9 @@ class SJMEnvironment(Environment):
         self.jellium.update1(nt_r)
 
     def update1pw(self, nt_g):
-        nt_r = self.jellium.grid.empty()
-        nt_r.scatter_from(nt_g.ifft(grid=self.jellium.grid.new(comm=None))
+        grid = self.jellium.mask_r.desc
+        nt_r = grid.empty()
+        nt_r.scatter_from(nt_g.ifft(grid=grid.new(comm=None))
                           if nt_g is not None else None)
         self.solvation.update1(nt_r)
         self.jellium.update1pw(nt_g)

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from gpaw.setup import create_setup
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.lfc import LFC
 from gpaw.xc import XC
 

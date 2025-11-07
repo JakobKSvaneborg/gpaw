@@ -35,7 +35,7 @@ class GSInfo:
         if not (ibzwfs.domain_comm.size == 1 and ibzwfs.band_comm.size == 1):
             raise ValueError('Calculator must be initialised with '
                              'only k-point parallelisation.')
-        if isinstance(ibzwfs.wfs_qs[0][0].psit_nX, SimpleNamespace):
+        if isinstance(ibzwfs._wfs_u[0].psit_nX, SimpleNamespace):
             raise ValueError('Calculator is missing wfs data. If loading from '
                              'a .gpw file, please recalculate wave functions.')
 

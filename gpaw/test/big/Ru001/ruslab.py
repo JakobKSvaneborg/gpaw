@@ -2,7 +2,7 @@ from sys import argv
 from ase.build import hcp0001, add_adsorbate
 from ase.constraints import FixAtoms
 from ase.optimize.lbfgs import LBFGS
-from gpaw import GPAW, Mixer, FermiDirac
+from gpaw import GPAW, Mixer, FermiDirac, GPAW_NEW
 
 tag = 'Ru001'
 
@@ -25,7 +25,7 @@ calc = GPAW(mode='fd',
             mixer=Mixer(0.1, 5, weight=100.0),
             occupations=FermiDirac(width=0.1),
             kpts=[4, 4, 1],
-            eigensolver='cg',
+            eigensolver='ppcg' if GPAW_NEW else 'cg',
             txt=tag + '.txt')
 slab.calc = calc
 

@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.transformers import Transformer
 from gpaw.mpi import world
 from gpaw.gpu import cupy as cp, cupy_is_fake

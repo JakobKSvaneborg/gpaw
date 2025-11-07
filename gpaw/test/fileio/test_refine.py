@@ -6,7 +6,6 @@ from ase import Atoms
 from gpaw import GPAW
 
 
-@pytest.mark.old_gpaw_only
 def test_fileio_refine(in_tmp_dir):
     restart_wf = 'gpaw-restart-wf.gpw'
     # H2

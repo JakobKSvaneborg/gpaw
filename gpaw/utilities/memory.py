@@ -23,13 +23,13 @@ def _VmB(VmKey):
         # get VmKey line e.g. 'VmRSS:  9999  kB\n ...'
         i = v.index(VmKey)
     except (OSError, ValueError, LookupError):
-        return 0.0  # non-Linux?
+        return 0  # non-Linux?
 
     v = v[i:].split(None, 3)  # whitespace
     if len(v) < 3:
-        return 0.0  # invalid format?
+        return 0  # invalid format?
     # convert Vm value to bytes
-    return float(v[1]) * _scale[v[2]]
+    return int(float(v[1]) * _scale[v[2]])
 
 
 def maxrss():
@@ -70,7 +70,7 @@ def maxrss():
     except (TypeError, ImportError):
         pass
 
-    return 0.0  # no more ideas
+    return 0  # no more ideas
 
 
 class MemNode:

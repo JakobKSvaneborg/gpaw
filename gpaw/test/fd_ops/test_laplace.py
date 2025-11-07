@@ -4,7 +4,7 @@ from math import sin, cos, pi
 import numpy as np
 from gpaw.fd_operators import GUCLaplace as Laplace
 from gpaw.fd_operators import Gradient
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 
 pytestmark = pytest.mark.skipif(world.size > 1,
                                 reason='world.size > 1')

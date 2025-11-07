@@ -10,9 +10,33 @@ Git master branch
 
 :git:`master <>`.
 
+
+* :ref:`newgpaw`: Calculations can now be parallelized over
+  spins.
+
+* :ref:`newgpaw`: Non-collinear calculations can now be parallelized over
+  plane-waves.
+
+* :ref:`newgpaw`: LCAO and finite-difference mode TDDFT have been ported
+  into a common RT-TDDFT interface with a subset of features so far.
+  ECN and SICN propagators are available.
+
 * :ref:`debug mode` is now enabled by setting the environment variable
   :envvar:`GPAW_DEBUG` to ``1``.  Using the ``-d`` option of the
   Python interpreter is no longer supported.
+
+* MFT calculations for magnons can now be performed with LDA+U. See
+  :ref:`mft`
+
+* LCAO calculations can now be done using FFTs to reciprocal space in order
+  to 1) solve the Poisson equation and 2) interpolate the density to a
+  finer grid.  This is equivalent to the way things are done in PW-mode.
+  Turn this on by using ``experimental={'pw_pot_calc': True}``.
+
+* The parallel ``gpaw-python`` interpreter has been removed.
+  You can use ``gpaw python`` as a replacement. The variable
+  ``parallel_python_interpreter`` in ``siteconfig.py``
+  should not be used.
 
 
 Version 25.7.0
@@ -370,7 +394,7 @@ Jun 9, 2023: :git:`23.6.0 <../23.6.0>`
   See the :class:`gpaw.convergence_criteria.Energy` class.
 
 * The PW-mode now includes an ``interpolation`` flag.  See
-  :class:`gpaw.wavefunctions.pw.PW` for details.
+  :class:`gpaw.old.wavefunctions.pw.PW` for details.
 
 * The LCAO implementation of direct optimization for variational calculations
   of excited electronic states now includes
@@ -987,15 +1011,14 @@ Jan 11, 2019: :git:`1.5.0 <../1.5.0>`
   cover: :ref:`catalysis`, :ref:`magnetism`, :ref:`machinelearning`,
   :ref:`excited states`, :ref:`batteries` and :ref:`intro`.
 
-* New experimental local **k**-point refinement feature:
-  :git:`gpaw/test/test_kpt_refine.py`.
+* New experimental local **k**-point refinement feature.
 
 * A module and tutorial have been added for calculating electrostatic
   corrections to DFT total energies for charged systems involving localized
   defects: :ref:`defects`.
 
 * Default for FFTW planning has been changed from ``ESTIMATE`` to ``MEASURE``.
-  See :class:`gpaw.wavefunctions.pw.PW`.
+  See :class:`gpaw.old.wavefunctions.pw.PW`.
 
 
 Version 1.4.0

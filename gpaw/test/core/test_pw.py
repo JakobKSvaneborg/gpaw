@@ -84,7 +84,7 @@ def grids():
 @pytest.mark.gpu
 @pytest.mark.parametrize('xp', [np, cp])
 @pytest.mark.parametrize('grid', grids())
-def test_pw_integrate(xp, grid):
+def test_pw_integrate(xp, grid, set_device):
     g = grid
     a = g.desc.cell[0, 0]
     ecut = 0.5 * (2 * np.pi / a)**2 * 1.01
@@ -127,8 +127,8 @@ def test_grr():
                   comm=world)
     pw = PWDesc(ecut=340 / Ha, cell=grid.cell, comm=world)
     print(pw.G_plus_k_Gv.shape)
-    from gpaw.grid_descriptor import GridDescriptor
-    from gpaw.pw.descriptor import PWDescriptor
+    from gpaw.old.grid_descriptor import GridDescriptor
+    from gpaw.old.pw.descriptor import PWDescriptor
     g = GridDescriptor((9, 9, 12), [2 / Bohr, 2 / Bohr, 2.737166 / Bohr])
     p = PWDescriptor(340 / Ha, g)
     print(p.get_reciprocal_vectors().shape)

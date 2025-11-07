@@ -4,8 +4,8 @@ import numpy as np
 from ase.atoms import Atoms
 from scipy.linalg import eigh
 
-from gpaw.calculator import GPAW
-from gpaw.wavefunctions.base import WaveFunctions
+from gpaw.old.calculator import GPAW
+from gpaw.old.wavefunctions.base import WaveFunctions
 from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
 from gpaw.utilities import unpack_hermitian
 from gpaw.occupations import OccupationNumberCalculator
@@ -271,6 +271,7 @@ class AtomOccupations(OccupationNumberCalculator):
                    nelectrons,
                    eig_qn,
                    weight_q,
+                   spin_q,
                    f_qn,
                    fermi_level_guess,
                    fix_fermi_level=False):

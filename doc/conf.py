@@ -56,6 +56,7 @@ intersphinx_mapping = {
 nitpick_ignore = [('py:class', 'gpaw.calculator.GPAW'),
                   ('py:class', 'gpaw.spinorbit.BZWaveFunctions'),
                   ('py:class', 'GPAW'),
+                  ('py:class', 'OldGPAW'),
                   ('py:class', 'Atoms'),
                   ('py:class', 'np.ndarray'),
                   ('py:class', 'ase.spectrum.dosdata.GridDOSData'),

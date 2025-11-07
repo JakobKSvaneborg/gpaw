@@ -1,6 +1,9 @@
 .. image:: https://badge.fury.io/py/gpaw.svg
     :target: https://pypi.org/project/gpaw/
 
+.. image:: https://gpaw.gitlab.io/gpaw/coverage.svg
+    :target: https://gpaw.gitlab.io/gpaw/
+
 GPAW
 ====
 
@@ -15,7 +18,7 @@ Webpage: https://gpaw.readthedocs.io/
 Requirements
 ------------
 
-* Python_ 3.9 or later
+* Python_ 3.10 or later
 * ASE_
 * NumPy_
 * SciPy_

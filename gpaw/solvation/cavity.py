@@ -4,7 +4,7 @@ from ase.data.vdw import vdw_radii
 
 from gpaw.solvation.gridmem import NeedsGD
 from gpaw.fd_operators import Gradient
-from gpaw.io.logger import indent
+from gpaw.old.logger import indent
 
 BAD_RADIUS_MESSAGE = 'All atomic radii have to be finite and >= zero.'
 

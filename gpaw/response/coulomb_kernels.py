@@ -5,7 +5,7 @@ import numpy as np
 from ase.dft import monkhorst_pack
 from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.response.dyson import PWKernel
-from gpaw.kpt_descriptor import to1bz
+from gpaw.old.kpt_descriptor import to1bz
 
 
 class NewCoulombKernel(PWKernel):
