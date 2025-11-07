@@ -17,11 +17,14 @@ class ElectrostaticCorrections():
     """
     def __init__(self, pristine, charged,
                  q=None, sigma=None, r0=None,
-                 dimensionality='3d', comm=serial_comm):
+                 dimensionality='3d', comm=serial_comm,
+                 check_cell=True):
+
         if isinstance(pristine, str):
             pristine = GPAW(pristine, txt=None, parallel={'domain': 1})
         if isinstance(charged, str):
             charged = GPAW(charged, txt=None)
+
         calc = GPAW(mode=PW(500, force_complex_dtype=True),
                     kpts={'size': (1, 1, 1),
                           'gamma': True},
@@ -29,7 +32,11 @@ class ElectrostaticCorrections():
                     symmetry='off',
                     communicator=comm,
                     txt=None)
+
         atoms = pristine.atoms.copy()
+        if check_cell:
+            assert np.allclose(atoms.cell.angles(), [90., 90., 90.])
+
         calc.initialize(atoms)
 
         self.pristine = pristine

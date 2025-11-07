@@ -147,7 +147,8 @@ def test_fnv_cell(P):
                                    r0=r0,
                                    q=charge,
                                    sigma=sigma,
-                                   dimensionality='3d')
+                                   dimensionality='3d',
+                                   check_cell=False)
     elc.set_epsilons(epsilon)
     E_corr = elc.calculate_corrected_formation_energy()
     E_uncorr = elc.calculate_uncorrected_formation_energy()
