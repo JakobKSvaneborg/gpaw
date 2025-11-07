@@ -15,7 +15,7 @@ class ElectrostaticCorrections():
     """
     def __init__(self, pristine, defect,
                  charge=None, epsilon=None, sigma=None, r0=None,
-                 ravg=0.5, comm=serial_comm):
+                 ravg=1.5, comm=serial_comm):
 
         if isinstance(pristine, (str, Path)):
             pristine = GPAW(pristine, txt=None, parallel={'domain': 1})
@@ -41,11 +41,11 @@ class ElectrostaticCorrections():
         self.sigma = sigma          # Bohr ? XXX consistency?
         self.epsilon = epsilon
         self.r0 = np.array(r0)      # Angstrom
-        self.ravg = np.array(ravg)  # Angstrom
+        self.ravg = ravg            # Angstrom
+        # np.min(self.atoms_prs.cell.lengths())/8.  # Angstrom
 
         # volume
-        self.Omega = np.abs(np.linalg.det(self.calc.density.gd.cell_cv))
-        # XXX check whether atoms.get_volume() gives the same?
+        self.Omega = self.atoms_prs.get_volume() / Bohr ** 3
 
         self.pd = self.calc.wfs.pd
         self.G_Gv = self.pd.get_reciprocal_vectors(q=0, add_q=False)
@@ -57,13 +57,8 @@ class ElectrostaticCorrections():
 
     def calculate_gaussian_potential(self):
         phi_G = np.zeros_like(self.rho_G)
-        for gg, G2 in enumerate(self.G2_G):
-            if np.allclose(G2, 0):
-                parprint('Skipping G^2=0 contribution to Elp')
-                # neutralizing background cancels contribution
-                phi_G[gg] = 0.0
-            else:
-                phi_G[gg] = self.rho_G[gg] / G2
+        zero = np.abs(self.G2_G) < 1e-4
+        phi_G[~zero] = self.rho_G[~zero] / self.G2_G[~zero]
         return 4. * np.pi * phi_G * Hartree / self.epsilon
 
     def calculate_periodic_correction(self):
