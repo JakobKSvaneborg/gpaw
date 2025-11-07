@@ -396,9 +396,10 @@ class Potential(NeedsGD):
     def check_for_position_changes(self, atoms, r_cutoff):
         new_pos_aav = get_pbc_positions(atoms, r_cutoff)
         if self.pos_aav is not None:
-            if not np.sum(np.array(list(self.pos_aav.values())) -
-                          np.array(list(new_pos_aav.values()))):
-                return True
+            if self.pos_aav.keys() == new_pos_aav.keys():
+                if np.array_equal(np.array(list(self.pos_aav.values())),
+                                  np.array(list(new_pos_aav.values()))):
+                    return True
         self.pos_aav = new_pos_aav
 
     def get_del_r_vg(self, atom_index, density):
@@ -480,6 +481,7 @@ class Power12Potential(Potential):
         self.r12_a = (self.atomic_radii_output / Bohr) ** 12
         r_cutoff = (self.r12_a.max() * self.u0 / self.pbc_cutoff) ** (1. / 12.)
 
+        # self.pos_aav is updated inside the check function
         if self.check_for_position_changes(atoms, r_cutoff):
             return False
 
