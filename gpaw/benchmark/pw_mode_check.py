@@ -149,6 +149,7 @@ def read(folder: Path,
 
 
 def summary(folders: list[Path], mode: int) -> None:
+    from gpaw.new.logger import GREEN, RESET
     alldata = [read(folder, mode) for folder in folders]
     for i, folder in enumerate(folders):
         print(i + 1, folder)
@@ -167,10 +168,12 @@ def summary(folders: list[Path], mode: int) -> None:
             N += 1
         for n, (t, i) in enumerate(zip(times, iters)):
             if t == 99999.9:
-                print(' | ------(---) ------%', end='')
+                line = ' | ------(---) ------%'
             else:
-                print(f' | {t:6.1f}({i:3}) {(t / t0 - 1) * 100:+6.1f}%',
-                      end='')
+                line = f' | {t:6.1f}({i:3}) {(t / t0 - 1) * 100:+6.1f}%'
+                if t == t0:
+                    line = GREEN + line + RESET
+            print(line, end='')
             if max(times) < 99999.9:
                 scores[n] += t / t0
         print()
