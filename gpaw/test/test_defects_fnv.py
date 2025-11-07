@@ -3,8 +3,8 @@ import numpy as np
 from ase.build import bulk, graphene
 from ase.build.supercells import make_supercell
 from gpaw import GPAW
-#from gpaw.defects import ElectrostaticCorrections
-from gpaw.defects import OldElectrostaticCorrections
+# from gpaw.defects import ElectrostaticCorrections
+from gpaw.defects.old_electrostatic import OldElectrostaticCorrections
 
 
 def test_fnv_2d():

@@ -11,7 +11,7 @@ from ase.units import Hartree as Ha
 from ase.units import Bohr
 
 
-class ElectrostaticCorrections():
+class OldElectrostaticCorrections():
     """
     Calculate the electrostatic corrections for charged defects.
     """
