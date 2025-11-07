@@ -55,6 +55,7 @@ class PWHamiltonian(Hamiltonian):
         # apply_local_potential_gpu doesn't work with domain parallisation
         # So we force vt_R to be the right type here.
         vt_R_data = xp.asarray(vt_R.data)
+        vtpsit_G = xp.zeros(0, complex)
 
         for n1 in range(0, mynbands, domain_comm.size):
             n2 = min(n1 + domain_comm.size, mynbands)
