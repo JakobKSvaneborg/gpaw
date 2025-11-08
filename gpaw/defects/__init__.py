@@ -43,9 +43,13 @@ class ElectrostaticCorrections():
         self.epsilon = epsilon
         self.r0 = np.array(r0)      # Angstrom
         self.ravg = ravg            # Angstrom
-        self.nfreq = 4              # grid coarsening
         self.is_monoclin = np.allclose(self.cell_prs.angles()[:2], [90., 90.])
         self.method = method
+
+        self.nfreq = 4              # grid coarsening
+        if (method is not None) and ('full' in method):
+            parprint('fine grid')
+            self.nfreq = 1          # no coarsening
 
         # volume
         self.Omega = self.atoms_prs.get_volume() / Bohr ** 3
@@ -181,7 +185,26 @@ class ElectrostaticCorrections():
         deltan = np.min([np.max([nz // 8, nmin]), nsample])
         ix = np.linspace(0, nx - 1, nsample, dtype=int)
         iy = np.linspace(0, ny - 1, nsample, dtype=int)
-        iz = np.arange(iblk_z - deltan, iblk_z + deltan) % nz
+        iz = np.arange(iblk_z - deltan, iblk_z + deltan + 1) % nz
+
+        igx, igy, igz = np.meshgrid(ix, iy, iz)
+
+        self.region = (igx, igy, igz)
+
+    def full_planar_average(self):
+        # check that ortho-rhombic
+        assert self.is_monoclin
+
+        nx, ny, nz = self.ngc_v
+
+        # find defect grid index
+        _, _, idef_z = self.find_grid_index(self.r0)
+        iblk_z = (idef_z + nz // 2) % nz
+
+        deltan = nz // 8
+        ix = np.linspace(0, nx - 1, nx, dtype=int)
+        iy = np.linspace(0, ny - 1, ny, dtype=int)
+        iz = np.arange(iblk_z - deltan, iblk_z + deltan + 1) % nz
 
         igx, igy, igz = np.meshgrid(ix, iy, iz)
 
@@ -196,6 +219,9 @@ class ElectrostaticCorrections():
                 # average around "bulk atom"
                 parprint('bulk atom average')
                 self.bulk_atom_average()
+        elif self.method == 'full-planar':
+            parprint('full-planar average')
+            self.full_planar_average()
         elif self.method == 'planar':
             parprint('planar average')
             self.planar_average()
