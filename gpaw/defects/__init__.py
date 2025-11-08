@@ -144,6 +144,19 @@ class ElectrostaticCorrections():
 
         return dist
 
+    def grid_mic_dist(self, r_v):
+        grid_shape = self.ngc_v
+        # convert grid to Angstrom such we can use find_mic
+        rg_vR = self.rc_vR * Bohr
+
+        dR = rg_vR.T - r_v[None, None, None, :]
+        # flatten grid and reshape
+        dR = dR.reshape((np.prod(grid_shape), 3))
+        _, dist = find_mic(dR, self.cell_prs)
+        dist = dist.reshape(grid_shape)
+
+        return dist
+
     def find_grid_index(self, r0_v):
         ng_v = self.ngc_v
 
@@ -155,9 +168,6 @@ class ElectrostaticCorrections():
         return np.array(np.round(ng_v * s0_v, 0), dtype=int) % ng_v
 
     def bulk_atom_average(self):
-        grid_shape = self.ngc_v
-        # convert grid to Angstrom such we can use find_mic
-        r_vR = self.rc_vR * Bohr
 
         # locate atom farest away from the defect
         rdefect_v = self.atoms_prs.positions[self.defect_index, :]
@@ -165,12 +175,9 @@ class ElectrostaticCorrections():
 
         # return grid indices of region around the bulk atoms
         rbulk_v = self.atoms_prs.positions[bulk_index, :]
-        dR = r_vR.T - rbulk_v[None, None, None, :]
-        # flatten grid and reshape
-        dR = dR.reshape((np.prod(grid_shape), 3))
-        _, dist = find_mic(dR, self.cell_prs)
-        dist = dist.reshape(grid_shape)
-        # sphere radius: self.ravg
+        dist = self.grid_mic_dist(rbulk_v)
+
+        # set region as sphere with radius self.ravg
         self.region = np.where(dist < self.ravg)
 
     @timeit
