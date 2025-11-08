@@ -147,17 +147,36 @@ class ElectrostaticCorrections():
         # sphere radius: self.ravg
         self.region = np.where(dist < self.ravg)
 
-    def coarsen_grid(self):
-        nfreq = self.nfreq
+    def coarsen_grid(self, nfreq):
         self.phi_prs = self.phi_prs[::nfreq, ::nfreq, ::nfreq]
         self.phi_def = self.phi_def[::nfreq, ::nfreq, ::nfreq]
         self.r_vR = self.r_vR[:, ::nfreq, ::nfreq, ::nfreq]
+
+    def calculate_potential_profile(self):
+        self.extract_electrostatic_potentials()
+        self.coarsen_grid(nfreq=2)
+
+        # restrict to z-axis
+        phiz_prs = np.mean(self.phi_prs, axis=(0, 1))
+        phiz_def = np.mean(self.phi_def, axis=(0, 1))
+        z_vR = self.r_vR[:, :, :, :]
+
+        # get model potential along zaxis
+        phiz_model = np.mean(self.calculate_model_potential(z_vR), axis=(0, 1))
+
+        zaxis = z_vR[2, 0, 0, :]
+        iz = np.argsort(zaxis)
+
+        profile = {'z': zaxis[iz], 'model': phiz_model[iz],
+                   'prs': phiz_prs[iz], 'def': phiz_def[iz]}
+
+        return profile
 
     def calculate_potential_alignment(self):
         # extract electro-static potential and grid from
         # pristine and defect
         self.extract_electrostatic_potentials()
-        self.coarsen_grid()
+        self.coarsen_grid(nfreq=self.nfreq)
 
         # define region away from defect
         self.define_averaging_region()
