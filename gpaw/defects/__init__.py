@@ -211,9 +211,8 @@ class ElectrostaticCorrections():
         ix, iy, iz = iblk_v
         rbulk_v = rg_vR[:, ix, iy, iz]
 
-        rdiff = np.linalg.norm(rbulk_v - self.r0) 
-        print('rdiff=', rdiff)
-         
+        rdiff = np.linalg.norm(rbulk_v - self.r0)
+
         # return grid indices of region around the defect
         rdist = self.grid_mic_dist(self.r0)
 
