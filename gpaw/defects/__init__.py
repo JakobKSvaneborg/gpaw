@@ -15,7 +15,7 @@ class ElectrostaticCorrections():
     """
     def __init__(self, pristine, defect,
                  charge=None, epsilon=None, sigma=None, r0=None,
-                 ravg=1.5, comm=serial_comm):
+                 ravg=2.5, comm=serial_comm):
 
         if isinstance(pristine, (str, Path)):
             pristine = GPAW(pristine, txt=None, parallel={'domain': 1})
@@ -43,7 +43,7 @@ class ElectrostaticCorrections():
         self.epsilon = epsilon
         self.r0 = np.array(r0)      # Angstrom
         self.ravg = ravg            # Angstrom
-        self.nfreq = 4              # grid coarsening
+        self.nfreq = 2              # grid coarsening
         self.is_ortho = np.allclose(self.cell_prs.angles(), [90., 90., 90.])
         # np.min(self.atoms_prs.cell.lengths())/8.  # Angstrom
 
@@ -168,7 +168,7 @@ class ElectrostaticCorrections():
         # set region as sphere with radius self.ravg
         self.region = np.where(dist < self.ravg)
 
-    def planar_average(self, nsample=8, nmin=3):
+    def planar_average(self, nsample=25, nmin=3):
         # check that ortho-rhombic
         assert self.is_ortho
 

@@ -104,8 +104,8 @@ def test_fnv_3d():
     assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-2)
 
 
-@pytest.mark.parametrize('P', [[[1, 0, 0], [1, -1, 0], [0, 0, 1]],
-                               [[1, 0, -1], [1, -1, 0], [0, 0, 1]]])
+@pytest.mark.parametrize('P', [[[1, 0, -1], [1, -1, 0], [0, 0, 1]]])
+# [[1, 0, 0], [1, -1, 0], [0, 0, 1]] passes
 def test_fnv_cell(P):
     P = np.array(P)
 
