@@ -44,7 +44,7 @@ class ElectrostaticCorrections():
         self.r0 = np.array(r0)      # Angstrom
         self.ravg = ravg            # Angstrom
         self.nfreq = 4              # grid coarsening
-        self.is_ortho = np.allclose(self.cell_prs.angles(), [90., 90., 90.])
+        self.is_monoclin = np.allclose(self.cell_prs.angles()[:2], [90., 90.])
         self.method = method
 
         # volume
@@ -170,7 +170,7 @@ class ElectrostaticCorrections():
 
     def planar_average(self, nsample=25, nmin=3):
         # check that ortho-rhombic
-        assert self.is_ortho
+        assert self.is_monoclin
 
         nx, ny, nz = self.ngc_v
 
@@ -189,7 +189,7 @@ class ElectrostaticCorrections():
 
     def define_averaging_region(self, region_min=500):
         if self.method is None:
-            if self.is_ortho:
+            if self.is_monoclin:
                 parprint('planar average')
                 self.planar_average()
             else:
