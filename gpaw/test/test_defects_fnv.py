@@ -5,7 +5,6 @@ from ase.build.supercells import make_supercell
 from gpaw import GPAW
 from gpaw.defects import ElectrostaticCorrections
 from gpaw.defects.old_electrostatic import OldElectrostaticCorrections
-from matplotlib import pyplot as plt
 
 
 def test_fnv_2d():
@@ -100,20 +99,6 @@ def test_fnv_3d():
                                       epsilon=epsilon)
     E_corr_new = elcnew.calculate_corrected_formation_energy()
     E_uncorr_new = elcnew.calculate_uncorrected_formation_energy()
-    profile = elcnew.calculate_potential_profile()
-
-    fig, ax = plt.subplots(1, 1)
-    zaxis = profile['z']
-    ax.plot(zaxis, profile['model'] - (profile['def'] - profile['prs']),
-            label=r'$\Delta\phi(z)$', color='darkblue')
-    ax.plot(zaxis, profile['model'], label=r'$\phi(z)$', color='orange')
-    ax.plot(zaxis, profile['def'] - profile['prs'], color='green',
-            label=r'$\phi_\text{def}(z)-\phi_\text{prs}(z)$')
-    ax.plot(zaxis, np.zeros_like(zaxis), '--', c='k')
-    ax.plot(zaxis, profile['dphi'] * np.ones_like(zaxis), '--', color='darkblue')
-    #ax.set_ylim([-1, 1])
-    ax.legend()
-    plt.show()
 
     # need to convert Path -> str
     elc = OldElectrostaticCorrections(pristine=pristine.calc,
