@@ -35,6 +35,7 @@ class ElectrostaticCorrections():
 
         self.pristine = pristine
         self.atoms_prs = pristine.get_atoms()
+        self.cell_prs = self.atoms_prs.get_cell()
         self.defect = defect
         self.calc = calc
         self.charge = charge
@@ -51,6 +52,9 @@ class ElectrostaticCorrections():
         self.pd = self.calc.wfs.pd
         self.G_Gv = self.pd.get_reciprocal_vectors(q=0, add_q=False)
         self.G2_G = self.pd.G2_qG[0]  # |\vec{G}|^2 in Bohr^-2
+
+        # potential alignment
+        self.dphi = None
 
     def calculate_gaussian_density(self):
         # fourier transformed gaussian:
@@ -106,11 +110,12 @@ class ElectrostaticCorrections():
         self.phi_def = - self.defect.get_electrostatic_potential()
         finegrid = self.pristine.wfs.pd.gd.refine()
         self.r_vR = finegrid.get_grid_point_coordinates()
+        self.ng_v = np.array(self.r_vR.shape[1:])
         finegrid_def = self.defect.wfs.pd.gd.refine()
         r_vR = finegrid_def.get_grid_point_coordinates()
         assert np.allclose(self.r_vR, r_vR)
         assert np.allclose(self.phi_prs.shape, self.phi_def.shape)
-        assert np.allclose(self.phi_prs.shape, self.r_vR.shape[1:])
+        assert np.allclose(self.phi_prs.shape, self.ng_v)
 
     def get_reference_index(self, index):
         """Get index of atom furthest away from the atom index."""
@@ -135,7 +140,7 @@ class ElectrostaticCorrections():
         bulk_index = self.get_reference_index(defect_index)
 
         # return grid indices of region around the bulk atoms
-        grid_shape = self.r_vR.shape[1:]
+        grid_shape = self.ng_v
         # convert grid to Angstrom such we can use find_mic
         rgrid_vR = self.r_vR * Bohr
         rbulk_v = self.atoms_prs.positions[bulk_index, :]
@@ -147,36 +152,57 @@ class ElectrostaticCorrections():
         # sphere radius: self.ravg
         self.region = np.where(dist < self.ravg)
 
+    def find_grid_index(self, r0_v):
+        # r0_v cartesian vector in Angstrom
+        # assumes self.r_vR being on a regular grid
+        # evaluate grid index of cartesian vector
+        # convert to reduced (fractional) coordinates
+        s0_v = np.linalg.solve(self.cell_prs.T, r0_v)
+        return np.array(np.round(self.ng_v * s0_v, 0), dtype=int) % self.ng_v
+
     def coarsen_grid(self, nfreq):
         self.phi_prs = self.phi_prs[::nfreq, ::nfreq, ::nfreq]
         self.phi_def = self.phi_def[::nfreq, ::nfreq, ::nfreq]
         self.r_vR = self.r_vR[:, ::nfreq, ::nfreq, ::nfreq]
+        self.ng_v = np.array(self.r_vR.shape[1:])
 
-    def calculate_potential_profile(self):
+    def calculate_potential_profile(self, nfreq=2, nsample=8):
         self.extract_electrostatic_potentials()
-        self.coarsen_grid(nfreq=2)
+        self.coarsen_grid(nfreq=nfreq)
 
         # restrict to z-axis
         phiz_prs = np.mean(self.phi_prs, axis=(0, 1))
         phiz_def = np.mean(self.phi_def, axis=(0, 1))
-        z_vR = self.r_vR[:, :, :, :]
 
         # get model potential along zaxis
-        phiz_model = np.mean(self.calculate_model_potential(z_vR), axis=(0, 1))
+        # expensive for large arrays z_vR
+        # therefore coarsen in x-y plane
+        # we evaluate on (nsample, nsample, nz) grid
+        nx, ny, nz = self.ng_v
+        ix = np.linspace(0, nx-1, nsample, dtype=int)
+        iy = np.linspace(0, ny-1, nsample, dtype=int)
+        igx, igy = np.meshgrid(ix, iy)
 
-        zaxis = z_vR[2, 0, 0, :]
-        iz = np.argsort(zaxis)
+        z_vR = self.r_vR[:, igx, igy, :]
+        phi_model = self.calculate_model_potential(z_vR)
+        phiz_model = np.mean(phi_model, axis=(0, 1))
+
+        zaxis = self.r_vR[2, 0, 0, :]
+        sz = np.argsort(zaxis)
 
         dphi = self.calculate_potential_alignment()
 
         # sorting and conversion to Angstrom
-        profile = {'z': zaxis[iz] * Bohr, 'model': phiz_model[iz],
-                   'prs': phiz_prs[iz], 'def': phiz_def[iz],
+        profile = {'z': zaxis[sz] * Bohr, 'model': phiz_model[sz],
+                   'prs': phiz_prs[sz], 'def': phiz_def[sz],
                    'dphi': dphi}
 
         return profile
 
     def calculate_potential_alignment(self):
+        if self.dphi is not None:
+            return self.dphi
+
         # extract electro-static potential and grid from
         # pristine and defect
         self.extract_electrostatic_potentials()
@@ -194,8 +220,8 @@ class ElectrostaticCorrections():
         # get model potential inside the averaging region
         phi_model = self.calculate_model_potential(self.r_vR)
 
-        Delta_V = np.average(phi_model - (self.phi_def - self.phi_prs))
-        return Delta_V
+        self.dphi = np.average(phi_model - (self.phi_def - self.phi_prs))
+        return self.dphi
 
     def calculate_corrected_formation_energy(self):
         E_0 = self.pristine.get_potential_energy()
