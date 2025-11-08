@@ -7,17 +7,6 @@ from ase.parallel import parprint
 from ase.units import Bohr, Hartree
 from ase.geometry import find_mic
 from pathlib import Path
-import time
-
-
-def timeit(func):
-    def wrapper(*args, **kwargs):
-        start = time.perf_counter()
-        result = func(*args, **kwargs)
-        end = time.perf_counter()
-        print(f'#timing {func.__name__} {end - start:.5f} seconds')
-        return result
-    return wrapper
 
 
 class ElectrostaticCorrections():
@@ -80,7 +69,6 @@ class ElectrostaticCorrections():
         phi_G[~zero] = self.rho_G[~zero] / self.G2_G[~zero]
         return 4. * np.pi * phi_G * Hartree / self.epsilon
 
-    @timeit
     def calculate_periodic_correction(self):
         self.rho_G = self.calculate_gaussian_density()
         self.phi_G = self.calculate_gaussian_potential()
@@ -92,7 +80,6 @@ class ElectrostaticCorrections():
         Elp = 0.5 * np.sum(self.rho_G * self.phi_G).real / self.Omega
         return Elp
 
-    @timeit
     def calculate_isolated_correction(self):
         # electro-static self-interaction energy of the
         # gaussian model charge distribution
@@ -101,7 +88,6 @@ class ElectrostaticCorrections():
         Eli = 0.5 * self.charge ** 2 * Hartree / np.pi ** 0.5 / eps / sgm
         return Eli
 
-    @timeit
     def calculate_model_potential(self, r_vR):
         # need to backtransform phi_G -> phi_r = sum_G exp(i G * r) phi_G
 
@@ -122,7 +108,6 @@ class ElectrostaticCorrections():
 
         return phi_r.real / self.Omega  # XXX right normalization ?
 
-    @timeit
     def extract_electrostatic_potentials(self):
         if self.phi_prs is not None:
             return
@@ -183,46 +168,6 @@ class ElectrostaticCorrections():
         # set region as sphere with radius self.ravg
         self.region = np.where(dist < self.ravg)
 
-    def bulk_region_average(self):
-        ng_v = self.ngc_v
-        # convert grid to Angstrom such we can use find_mic
-        rg_vR = self.rc_vR * Bohr
-
-        # find defect grid index
-        idef_v = self.find_grid_index(self.r0)
-        iblk_v = (idef_v + ng_v // 2) % ng_v
-        ix, iy, iz = iblk_v
-        rbulk_v = rg_vR[:, ix, iy, iz]
-
-        # return grid indices of region around the bulk index
-        dist = self.grid_mic_dist(rbulk_v)
-
-        # set region as sphere with radius self.ravg / 2
-        self.region = np.where(dist < self.ravg)
-
-    def defect_region_average(self):
-        ng_v = self.ngc_v
-        # convert grid to Angstrom such we can use find_mic
-        rg_vR = self.rc_vR * Bohr
-
-        # find defect grid index
-        idef_v = self.find_grid_index(self.r0)
-        iblk_v = (idef_v + ng_v // 2) % ng_v
-        ix, iy, iz = iblk_v
-        rbulk_v = rg_vR[:, ix, iy, iz]
-
-        rdiff = np.linalg.norm(rbulk_v - self.r0)
-
-        # return grid indices of region around the defect
-        rdist = self.grid_mic_dist(self.r0)
-
-        rinner = rdiff - self.ravg
-        router = rdiff
-
-        # set region sphere-shell
-        self.region = np.where((rdist > rinner) &
-                               (rdist < router))
-
     def planar_average(self, nsample=8, nmin=3):
         # check that ortho-rhombic
         assert self.is_ortho
@@ -242,18 +187,11 @@ class ElectrostaticCorrections():
 
         self.region = (igx, igy, igz)
 
-    @timeit
     def define_averaging_region(self, region_min=500):
         if self.is_ortho:
             parprint('planar average')
             self.planar_average()
         else:
-            # sphere shell: rinner < r < router
-            # self.defect_region_average()
-
-            # average around "bulk grid point"
-            # self.bulk_region_average()
-
             # average around "bulk atom"
             parprint('bulk atom average')
             self.bulk_atom_average()
@@ -264,7 +202,6 @@ class ElectrostaticCorrections():
         self.rc_vR = self.r_vR[:, ::nfreq, ::nfreq, ::nfreq]
         self.ngc_v = np.array(self.rc_vR.shape[1:])
 
-    @timeit
     def calculate_potential_profile(self, nfreq=2, nsample=8):
         self.extract_electrostatic_potentials()
         self.coarsen_grid(nfreq=nfreq)
@@ -299,7 +236,6 @@ class ElectrostaticCorrections():
 
         return profile
 
-    @timeit
     def calculate_potential_alignment(self):
         if self.dphi is not None:
             return self.dphi
