@@ -15,7 +15,7 @@ class ElectrostaticCorrections():
     """
     def __init__(self, pristine, defect,
                  charge=None, epsilon=None, sigma=None, r0=None,
-                 ravg=2.5, comm=serial_comm):
+                 ravg=2.5, method=None, comm=serial_comm):
 
         if isinstance(pristine, (str, Path)):
             pristine = GPAW(pristine, txt=None, parallel={'domain': 1})
@@ -45,7 +45,7 @@ class ElectrostaticCorrections():
         self.ravg = ravg            # Angstrom
         self.nfreq = 2              # grid coarsening
         self.is_ortho = np.allclose(self.cell_prs.angles(), [90., 90., 90.])
-        # np.min(self.atoms_prs.cell.lengths())/8.  # Angstrom
+        self.method = method
 
         # volume
         self.Omega = self.atoms_prs.get_volume() / Bohr ** 3
@@ -188,10 +188,18 @@ class ElectrostaticCorrections():
         self.region = (igx, igy, igz)
 
     def define_averaging_region(self, region_min=500):
-        if self.is_ortho:
+        if self.method is None:
+            if self.is_ortho:
+                parprint('planar average')
+                self.planar_average()
+            else:
+                # average around "bulk atom"
+                parprint('bulk atom average')
+                self.bulk_atom_average()
+        elif self.method == 'planar':
             parprint('planar average')
             self.planar_average()
-        else:
+        elif self.method == 'atoms':
             # average around "bulk atom"
             parprint('bulk atom average')
             self.bulk_atom_average()
