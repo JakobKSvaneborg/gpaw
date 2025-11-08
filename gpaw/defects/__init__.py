@@ -168,6 +168,8 @@ class ElectrostaticCorrections():
         return np.array(np.round(ng_v * s0_v, 0), dtype=int) % ng_v
 
     def bulk_atom_average(self):
+        # in pristine obtain atom positions closest to the defect_site
+        defect_index = np.argmin(self.prs_mic_dist(self.r0))
 
         # locate atom farest away from the defect
         rdefect_v = self.atoms_prs.positions[self.defect_index, :]
@@ -180,12 +182,28 @@ class ElectrostaticCorrections():
         # set region as sphere with radius self.ravg
         self.region = np.where(dist < self.ravg)
 
+    def bulk_region_average(self):
+        ng_v = self.ngc_v
+        # convert grid to Angstrom such we can use find_mic
+        rg_vR = self.rc_vR * Bohr
+
+        # find defect grid index
+        idef_v = self.find_grid_index(self.r0)
+        iblk_v = (idef_v + ng_v // 2) % ng_v
+        print(iblk_v)
+        ix, iy, iz = iblk_v
+        rbulk_v = rg_vR[:, ix, iy, iz]
+
+        # return grid indices of region around the bulk index
+        dist = self.grid_mic_dist(rbulk_v)
+
+        # set region as sphere with radius self.ravg
+        self.region = np.where(dist < self.ravg)
+
     @timeit
     def define_averaging_region(self):
-        # in pristine obtain atom positions closest to the defect_site
-        self.defect_index = np.argmin(self.prs_mic_dist(self.r0))
-
-        self.bulk_atom_average()
+        self.bulk_region_average()
+        #self.bulk_atom_average()
 
     def coarsen_grid(self, nfreq):
         self.phic_prs = self.phi_prs[::nfreq, ::nfreq, ::nfreq]
