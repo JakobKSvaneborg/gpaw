@@ -1,7 +1,7 @@
 from __future__ import annotations
 from gpaw.occupations import create_occ_calc, ParallelLayout
-from gpaw.band_descriptor import BandDescriptor
-from gpaw.typing import ArrayLike2D, Array2D
+from gpaw.old.band_descriptor import BandDescriptor
+from gpaw.typing import Array2D
 
 
 class OccupationNumberCalculator:
@@ -14,13 +14,17 @@ class OccupationNumberCalculator:
                  magmom_v,
                  ncomponents,
                  nelectrons,
-                 rcell):
+                 rcell,
+                 orbital_free: bool = False):
         if not dct:
-            if pbc.any():
-                dct = {'name': 'fermi-dirac',
-                       'width': 0.1}  # eV
+            if not orbital_free:
+                if pbc.any():
+                    dct = {'name': 'fermi-dirac',
+                           'width': 0.1}  # eV
+                else:
+                    dct = {'width': 0.0}
             else:
-                dct = {'width': 0.0}
+                dct = {'name': 'orbital-free'}
 
         if dct.get('fixmagmom'):
             if ncomponents == 1:
@@ -61,12 +65,14 @@ class OccupationNumberCalculator:
 
     def calculate(self,
                   nelectrons: float,
-                  eigenvalues: ArrayLike2D,
+                  eigenvalues: list[list[float]],
                   weights: list[float],
+                  spins: list[int],
                   fermi_levels_guess: list[float] = None,
                   fix_fermi_level: bool = False
                   ) -> tuple[Array2D, list[float], float]:
         occs, fls, e = self.occ.calculate(nelectrons, eigenvalues, weights,
+                                          spins,
                                           fermi_levels_guess, fix_fermi_level)
         return occs, fls, e
 

@@ -37,7 +37,7 @@ class PZSICFDPW:
         self.pd3 = None
         self.corr = None
         if wfs.mode == 'pw':
-            from gpaw.wavefunctions.pw import PWLFC
+            from gpaw.old.wavefunctions.pw import PWLFC
 
             assert self.sic_coarse_grid
             self.pd2 = dens.pd2

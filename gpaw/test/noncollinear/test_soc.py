@@ -35,9 +35,10 @@ params = dict(mode={'name': 'pw', 'ecut': 350},
 
 
 @pytest.mark.soc
-@pytest.mark.skipif(mpi.size > 2, reason='May not work in parallel')
 def test_soc_self_consistent(gpaw_new, in_tmp_dir):
     """Self-consistent SOC."""
+    if not gpaw_new and mpi.size > 2:
+        pytest.skip('May not work in parallel')
     gpw_wfs = Path('mos2.gpw')
     a = mx2('MoS2')
     a.center(vacuum=3, axis=2)
@@ -49,7 +50,8 @@ def test_soc_self_consistent(gpaw_new, in_tmp_dir):
         kwargs = {**params, 'symmetry': 'off',
                   'experimental': {'magmoms': np.zeros((3, 3)), 'soc': True}}
 
-    a.calc = GPAW(convergence={'bands': 28}, **kwargs)
+    a.calc = GPAW(convergence={'bands': 28},
+                  **kwargs)
     a.get_potential_energy()
     eigs = a.calc.get_eigenvalues(kpt=0)
     check(eigs, 0.15, 0.002)
@@ -66,13 +68,19 @@ def test_soc_self_consistent(gpaw_new, in_tmp_dir):
 @pytest.mark.soc
 @pytest.mark.skipif(mpi.size > 2,
                     reason='Does not work with more than 2 cores')
-def test_non_collinear_plus_soc():
+def test_non_collinear_plus_soc(gpaw_new):
     a = mx2('MoS2')
     a.center(vacuum=3, axis=2)
 
-    a.calc = GPAW(experimental={'magmoms': np.zeros((3, 3)), 'soc': False},
-                  convergence={'bands': 28}, symmetry='off',
-                  parallel={'domain': 1}, **params)
+    kwargs = {'magmoms': np.zeros((3, 3)), 'soc': False}
+    if not gpaw_new:
+        kwargs = {'experimental': kwargs}
+    a.calc = GPAW(
+        convergence={'bands': 28},
+        symmetry='off',
+        parallel={'domain': 1},
+        **kwargs,
+        **params)
     a.get_potential_energy()
 
     bzwfs = soc_eigenstates(a.calc, n2=28)

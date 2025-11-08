@@ -32,7 +32,9 @@ def test_mom_fd_spinpol(in_tmp_dir):
     for mom in [False, True]:
         # Test spin polarized excited-state calculations
         for s in [0, 1]:
-            atoms, calc = restart('hcl_fd_gs.gpw', txt='-')
+            atoms, calc = restart('hcl_fd_gs.gpw',
+                                  txt='-',
+                                  parallel={'kpt': 1})
 
             f_sn = []
             for spin in range(calc.get_number_of_spins()):
@@ -95,3 +97,7 @@ def test_mom_fd_spinpair(in_tmp_dir):
         dE = E_es - E_gs
         print(dE)
         assert dE == pytest.approx(dE_ref, abs=0.01)
+
+
+if __name__ == '__main__':
+    test_mom_fd_spinpol(1)

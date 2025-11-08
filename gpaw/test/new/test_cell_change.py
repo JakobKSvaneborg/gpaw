@@ -1,7 +1,7 @@
 import pytest
 from ase import Atoms
 from gpaw.new.ase_interface import GPAW
-from gpaw.mpi import broadcast_string
+from gpaw.mpi import broadcast_string, world
 from io import StringIO
 
 
@@ -47,12 +47,13 @@ def test_new_cell_1d(gpu):
     az = 2.099
     atoms = Atoms('Li', pbc=(0, 0, 1), cell=[a, a, az, 90, 90, 120])
     atoms.center()
+    atoms.positions -= 0.001
     output = StringIO()
     atoms.calc = GPAW(
         xc='PBE',
         mode={'name': 'pw'},
         kpts=(1, 1, 4),
-        parallel={'gpu': gpu, 'domain': 1},
+        parallel={'gpu': gpu, 'band': 2 if world.size == 8 else 1},
         txt=output)
     e0 = atoms.get_potential_energy()
     s0 = atoms.get_stress()

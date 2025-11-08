@@ -277,15 +277,16 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             slcomm, r, c, b = scalapack_parameters
             if r == c == 1:
                 slcomm = None
-            self._eig_n = as_np(H.eigh(scalapack=(slcomm, r, c, b)))
+            self.eig_n = as_np(H.eigh(scalapack=(slcomm, r, c, b)),
+                               dtype=np.float64)
             H.complex_conjugate()
             # H.data[n, :] now contains the nth eigenvector and eps_n[n]
             # the nth eigenvalue
         else:
-            self._eig_n = np.empty(psit_nX.dims)
+            self.eig_n = np.empty(psit_nX.dims[0])
 
         domain_comm.broadcast(H.data, 0)
-        domain_comm.broadcast(self._eig_n, 0)
+        domain_comm.broadcast(self.eig_n, 0)
         if data_buffer is None:
             H.multiply(psit_nX, out=psit2_nX)
             psit_nX.data[:] = psit2_nX.data
@@ -359,7 +360,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         if band_comm.rank == 0:
             if domain_comm.rank == 0:
                 psit_nX = self.psit_nX.desc.new(comm=None).empty(
-                    (n2 - n1, *spinors))
+                    (n2 - n1, *spinors), xp=self.psit_nX.xp)
             rank = rank1
             ba = b1
             na = n1
@@ -385,7 +386,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                     self,
                     psit_nX,
                     atomdist=self.atomdist.gather())
-                wfs._eig_n = self.eig_n[n1:n2]
+                if self.has_eigs:
+                    wfs.eig_n = self.eig_n[n1:n2]
                 return wfs
         else:
             rank = band_comm.rank
@@ -396,6 +398,21 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                 band_comm.send(self.psit_nX.data[ba:bb], dest=0)
 
         return None
+
+    def copy(self) -> PWFDWaveFunctions:
+        wfs = PWFDWaveFunctions(self.psit_nX.copy(),
+                                spin=self.spin,
+                                q=self.q,
+                                k=self.k,
+                                setups=self.setups,
+                                relpos_ac=self.relpos_ac,
+                                atomdist=self.atomdist,
+                                weight=self.weight,
+                                ncomponents=self.ncomponents,
+                                qspiral_v=self.qspiral_v)
+        wfs.eig_n = self.eig_n
+        wfs._occ_n = self._occ_n
+        return wfs
 
     def send(self, rank, comm):
         stuff = (self.kpt_c,
@@ -491,12 +508,16 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
     def to_uniform_grid_wave_functions(self,
                                        grid,
-                                       basis):
+                                       basis,
+                                       *,
+                                       xp=None):
         if isinstance(self.psit_nX, UGArray):
             return self
 
+        if xp is None:
+            xp = self.xp
         grid = grid.new(kpt=self.kpt_c, dtype=self.dtype)
-        psit_nR = grid.zeros(self.nbands, self.band_comm)
+        psit_nR = grid.zeros(self.nbands, self.band_comm, xp=xp)
         self.psit_nX.ifft(out=psit_nR)
         return PWFDWaveFunctions.from_wfs(self, psit_nR)
 
@@ -510,4 +531,5 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         self._pt_aiX = None
 
         return PWFDWaveFunctions.from_wfs(self, psit_nX,
-                                          relpos_ac=relpos_ac)
+                                          relpos_ac=relpos_ac,
+                                          atomdist=atomdist)

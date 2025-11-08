@@ -6,7 +6,6 @@ from gpaw import GPAW
 from gpaw.utilities.sic import NSCFSIC
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.sic
 @pytest.mark.serial
 def test_sic_nscfsic(in_tmp_dir):

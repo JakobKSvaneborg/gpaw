@@ -8,7 +8,8 @@ from math import log
 
 import numpy as np
 
-from gpaw.calculator import GPAW
+from gpaw import GPAW_NEW
+from gpaw.old.calculator import GPAW
 from gpaw.mixer import DummyMixer
 from gpaw.preconditioner import Preconditioner
 from gpaw.tddft.units import (attosec_to_autime, autime_to_attosec,
@@ -24,7 +25,7 @@ from gpaw.tddft.tdopers import \
     TimeDependentWaveFunctions, \
     TimeDependentDensity, \
     AbsorptionKickHamiltonian
-from gpaw.wavefunctions.fd import FD
+from gpaw.old.wavefunctions.fd import FD
 
 from gpaw.tddft.spectrum import photoabsorption_spectrum
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
@@ -35,6 +36,21 @@ from gpaw.lcaotddft.restartfilewriter import RestartFileWriter
 __all__ = ['TDDFT', 'photoabsorption_spectrum',
            'DipoleMomentWriter', 'MagneticMomentWriter',
            'RestartFileWriter']
+
+
+def TDDFT(filename: str, **kwargs):
+    if GPAW_NEW:
+        from gpaw.new.rttddft.backwards_compatibility import RTTDDFTAdapter
+        kwargs.pop('txt', None)  # Ignore silently
+        kwargs.pop('parallel', None)  # Ignore silently
+        kwargs.pop('communicator', None)  # Ignore silently
+        assert kwargs.pop('solver', None) in [None], \
+            'solver not implemented yet'
+        assert kwargs.pop('td_potential', None) in [None], \
+            'td_potential not implemented yet'
+        new_tddft = RTTDDFTAdapter.from_file(filename, **kwargs)
+        return new_tddft
+    return OldTDDFT(filename, **kwargs)
 
 
 # T^-1
@@ -67,7 +83,7 @@ class FDTDDFTMode(FD):
         return TimeDependentWaveFunctions(self.nn, *args, **kwargs)
 
 
-class TDDFT(GPAW):
+class OldTDDFT(GPAW):
     """Time-dependent density functional theory calculation based on GPAW.
 
     This class is the core class of the time-dependent density functional

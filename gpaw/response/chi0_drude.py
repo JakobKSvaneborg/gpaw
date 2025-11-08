@@ -180,14 +180,14 @@ class PlasmaFrequencyIntegrand(Integrand):
         n1, n2 = self._band_summation()
         # gs: ResponseGroundStateAdapter from gpaw.response.groundstate
         gs = self._drude.gs
-        # kd: KPointDescriptor object from gpaw.kpt_descriptor
+        # kd: KPointDescriptor object from gpaw.old.kpt_descriptor
         kd = gs.kd
         k_v = point.kpt_c  # XXX v/c discrepancy
-        # gd: GridDescriptor from gpaw.grid_descriptor
+        # gd: GridDescriptor from gpaw.old.grid_descriptor
         k_c = np.dot(self.cell_cv, k_v) / (2 * np.pi)
         K1 = gs.kpoints.kptfinder.find(k_c)
         ik = kd.bz2ibz_k[K1]
-        kpt1 = gs.kpt_qs[ik][point.spin]
+        kpt1 = gs.kpt_ks[ik][point.spin]
         assert gs.kd.comm.size == 1
 
         return kpt1.eps_n[n1:n2]
