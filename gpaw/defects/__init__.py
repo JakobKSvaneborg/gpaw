@@ -43,7 +43,7 @@ class ElectrostaticCorrections():
         self.epsilon = epsilon
         self.r0 = np.array(r0)      # Angstrom
         self.ravg = ravg            # Angstrom
-        self.nfreq = 2              # grid coarsening
+        self.nfreq = 4              # grid coarsening
         self.is_ortho = np.allclose(self.cell_prs.angles(), [90., 90., 90.])
         self.method = method
 
