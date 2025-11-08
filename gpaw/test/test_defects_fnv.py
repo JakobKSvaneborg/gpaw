@@ -65,6 +65,7 @@ def test_fnv_3d():
 
     E_corr_t = 23.55
     E_uncorr_t = 18.31
+    E_fnv_t = E_corr_t - E_uncorr_t
 
     a0 = 5.628      # lattice parameter
     sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
@@ -99,18 +100,21 @@ def test_fnv_3d():
                                    epsilon=epsilon)
     E_corr = elc.calculate_corrected_formation_energy()
     E_uncorr = elc.calculate_uncorrected_formation_energy()
+    E_fnv = E_corr - E_uncorr
 
+    assert E_fnv == pytest.approx(E_fnv_t, abs=3e-2)
     assert E_corr == pytest.approx(E_corr_t, abs=2e-2)
     assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-2)
 
 
-@pytest.mark.parametrize('P', [[[1, 0, -1], [1, -1, 0], [0, 0, 1]]])
+@pytest.mark.parametrize('P', [[[1, 0, 0], [1, 1, 0], [0, 0, 1]]])
 # [[1, 0, 0], [1, -1, 0], [0, 0, 1]] passes
 def test_fnv_cell(P):
     P = np.array(P)
 
     E_corr_t = 23.55
     E_uncorr_t = 18.31
+    E_fnv_t = E_corr_t - E_uncorr_t
 
     a0 = 5.628      # lattice parameter
     sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
@@ -148,11 +152,13 @@ def test_fnv_cell(P):
                                    epsilon=epsilon)
     E_corr = elc.calculate_corrected_formation_energy()
     E_uncorr = elc.calculate_uncorrected_formation_energy()
+    E_fnv = E_corr - E_uncorr
 
     # changed tolerance to pass ortho-rhombic case
     # switching symmetry off does not help to improve accuracy
-    assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-1)
+    assert E_fnv == pytest.approx(E_fnv_t, abs=2e-2)
     assert E_corr == pytest.approx(E_corr_t, abs=2e-1)
+    assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-1)
 
 
 if __name__ == "__main__":
