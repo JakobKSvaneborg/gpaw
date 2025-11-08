@@ -199,10 +199,29 @@ class ElectrostaticCorrections():
         # set region as sphere with radius self.ravg
         self.region = np.where(dist < self.ravg)
 
+    def defect_region_average(self):
+        # return grid indices of region around the defect
+        dist = self.grid_mic_dist(self.r0)
+
+        # set region sphere-shell with inner radius ravg
+        self.region = np.where((dist > self.ravg) &
+                               (dist < 1.2*self.ravg))
+
     @timeit
-    def define_averaging_region(self):
-        self.bulk_region_average()
-        #self.bulk_atom_average()
+    def define_averaging_region(self, region_max=3000):
+        # try average out-side the defect region (radius ravg)
+        self.defect_region_average()
+
+        # region size
+        nregion = len(self.region[0])
+        print('nregion=', nregion)
+        if nregion < 1 or nregion > region_max:
+            print('bulk region average')
+            # default to bulk region
+            self.bulk_region_average()
+            #self.bulk_atom_average ()
+            nregion = len(self.region[0])
+            print('nregion=', nregion)
 
     def coarsen_grid(self, nfreq):
         self.phic_prs = self.phi_prs[::nfreq, ::nfreq, ::nfreq]
