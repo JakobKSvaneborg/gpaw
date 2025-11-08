@@ -7,6 +7,18 @@ from ase.parallel import parprint
 from ase.units import Bohr, Hartree
 from ase.geometry import find_mic
 from pathlib import Path
+import time
+
+
+def timeit(func):
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        end = time.perf_counter()
+        print(f'#timing {func.__name__} {end - start:.5f} seconds')
+        return result
+    return wrapper
+
 
 
 class ElectrostaticCorrections():
@@ -54,6 +66,8 @@ class ElectrostaticCorrections():
         self.G2_G = self.pd.G2_qG[0]  # |\vec{G}|^2 in Bohr^-2
 
         # potential alignment
+        self.phi_prs = None
+        self.phi_def = None
         self.dphi = None
 
     def calculate_gaussian_density(self):
@@ -66,6 +80,7 @@ class ElectrostaticCorrections():
         phi_G[~zero] = self.rho_G[~zero] / self.G2_G[~zero]
         return 4. * np.pi * phi_G * Hartree / self.epsilon
 
+    @timeit
     def calculate_periodic_correction(self):
         self.rho_G = self.calculate_gaussian_density()
         self.phi_G = self.calculate_gaussian_potential()
@@ -77,6 +92,7 @@ class ElectrostaticCorrections():
         Elp = 0.5 * np.sum(self.rho_G * self.phi_G).real / self.Omega
         return Elp
 
+    @timeit
     def calculate_isolated_correction(self):
         # electro-static self-interaction energy of the
         # gaussian model charge distribution
@@ -85,6 +101,7 @@ class ElectrostaticCorrections():
         Eli = 0.5 * self.charge ** 2 * Hartree / np.pi ** 0.5 / eps / sgm
         return Eli
 
+    @timeit
     def calculate_model_potential(self, r_vR):
         # need to backtransform phi_G -> phi_r = sum_G exp(i G * r) phi_G
 
@@ -105,7 +122,10 @@ class ElectrostaticCorrections():
 
         return phi_r.real / self.Omega  # XXX right normalization ?
 
+    @timeit
     def extract_electrostatic_potentials(self):
+        if self.phi_prs is not None:
+            return
         self.phi_prs = - self.pristine.get_electrostatic_potential()
         self.phi_def = - self.defect.get_electrostatic_potential()
         finegrid = self.pristine.wfs.pd.gd.refine()
@@ -127,7 +147,12 @@ class ElectrostaticCorrections():
 
         return ref_index
 
+    @timeit
     def define_averaging_region(self):
+        grid_shape = self.ngc_v
+        # convert grid to Angstrom such we can use find_mic
+        r_vR = self.rc_vR * Bohr
+
         # locate atom farest away from the defect
         cell_prs = self.atoms_prs.get_cell()
 
@@ -140,11 +165,8 @@ class ElectrostaticCorrections():
         bulk_index = self.get_reference_index(defect_index)
 
         # return grid indices of region around the bulk atoms
-        grid_shape = self.ng_v
-        # convert grid to Angstrom such we can use find_mic
-        rgrid_vR = self.r_vR * Bohr
         rbulk_v = self.atoms_prs.positions[bulk_index, :]
-        dR = rgrid_vR.T - rbulk_v[None, None, None, :]
+        dR = r_vR.T - rbulk_v[None, None, None, :]
         # flatten grid and reshape
         dR = dR.reshape((np.prod(grid_shape), 3))
         _, dist = find_mic(dR, cell_prs)
@@ -153,41 +175,45 @@ class ElectrostaticCorrections():
         self.region = np.where(dist < self.ravg)
 
     def find_grid_index(self, r0_v):
+        ng_v = self.ngc_v
+
         # r0_v cartesian vector in Angstrom
         # assumes self.r_vR being on a regular grid
         # evaluate grid index of cartesian vector
         # convert to reduced (fractional) coordinates
         s0_v = np.linalg.solve(self.cell_prs.T, r0_v)
-        return np.array(np.round(self.ng_v * s0_v, 0), dtype=int) % self.ng_v
+        return np.array(np.round(ng_v * s0_v, 0), dtype=int) % ng_v
 
     def coarsen_grid(self, nfreq):
-        self.phi_prs = self.phi_prs[::nfreq, ::nfreq, ::nfreq]
-        self.phi_def = self.phi_def[::nfreq, ::nfreq, ::nfreq]
-        self.r_vR = self.r_vR[:, ::nfreq, ::nfreq, ::nfreq]
-        self.ng_v = np.array(self.r_vR.shape[1:])
+        self.phic_prs = self.phi_prs[::nfreq, ::nfreq, ::nfreq]
+        self.phic_def = self.phi_def[::nfreq, ::nfreq, ::nfreq]
+        self.rc_vR = self.r_vR[:, ::nfreq, ::nfreq, ::nfreq]
+        self.ngc_v = np.array(self.rc_vR.shape[1:])
 
+    @timeit
     def calculate_potential_profile(self, nfreq=2, nsample=8):
         self.extract_electrostatic_potentials()
         self.coarsen_grid(nfreq=nfreq)
 
         # restrict to z-axis
-        phiz_prs = np.mean(self.phi_prs, axis=(0, 1))
-        phiz_def = np.mean(self.phi_def, axis=(0, 1))
+        # use coarse grids
+        phiz_prs = np.mean(self.phic_prs, axis=(0, 1))
+        phiz_def = np.mean(self.phic_def, axis=(0, 1))
 
         # get model potential along zaxis
         # expensive for large arrays z_vR
         # therefore coarsen in x-y plane
         # we evaluate on (nsample, nsample, nz) grid
-        nx, ny, nz = self.ng_v
+        nx, ny, nz = self.ngc_v
         ix = np.linspace(0, nx-1, nsample, dtype=int)
         iy = np.linspace(0, ny-1, nsample, dtype=int)
         igx, igy = np.meshgrid(ix, iy)
 
-        z_vR = self.r_vR[:, igx, igy, :]
+        z_vR = self.rc_vR[:, igx, igy, :]
         phi_model = self.calculate_model_potential(z_vR)
         phiz_model = np.mean(phi_model, axis=(0, 1))
 
-        zaxis = self.r_vR[2, 0, 0, :]
+        zaxis = self.rc_vR[2, 0, 0, :]
         sz = np.argsort(zaxis)
 
         dphi = self.calculate_potential_alignment()
@@ -199,6 +225,7 @@ class ElectrostaticCorrections():
 
         return profile
 
+    @timeit
     def calculate_potential_alignment(self):
         if self.dphi is not None:
             return self.dphi
@@ -212,15 +239,16 @@ class ElectrostaticCorrections():
         self.define_averaging_region()
 
         # restrict to averaging region
+        # use coarse grid
         ix, iy, iz = self.region
-        self.phi_prs = self.phi_prs[ix, iy, iz]
-        self.phi_def = self.phi_def[ix, iy, iz]
-        self.r_vR = self.r_vR[:, ix, iy, iz]
+        phi_prs = self.phic_prs[ix, iy, iz]
+        phi_def = self.phic_def[ix, iy, iz]
+        r_vR = self.rc_vR[:, ix, iy, iz]
 
         # get model potential inside the averaging region
-        phi_model = self.calculate_model_potential(self.r_vR)
+        phi_model = self.calculate_model_potential(r_vR)
 
-        self.dphi = np.average(phi_model - (self.phi_def - self.phi_prs))
+        self.dphi = np.average(phi_model - (phi_def - phi_prs))
         return self.dphi
 
     def calculate_corrected_formation_energy(self):
