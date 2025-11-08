@@ -26,7 +26,7 @@ class ElectrostaticCorrections():
     """
     def __init__(self, pristine, defect,
                  charge=None, epsilon=None, sigma=None, r0=None,
-                 ravg=1.5, comm=serial_comm):
+                 ravg=3.0, comm=serial_comm):
 
         if isinstance(pristine, (str, Path)):
             pristine = GPAW(pristine, txt=None, parallel={'domain': 1})
@@ -190,7 +190,6 @@ class ElectrostaticCorrections():
         # find defect grid index
         idef_v = self.find_grid_index(self.r0)
         iblk_v = (idef_v + ng_v // 2) % ng_v
-        print(iblk_v)
         ix, iy, iz = iblk_v
         rbulk_v = rg_vR[:, ix, iy, iz]
 
