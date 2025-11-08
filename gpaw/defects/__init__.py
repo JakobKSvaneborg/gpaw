@@ -167,8 +167,12 @@ class ElectrostaticCorrections():
         zaxis = z_vR[2, 0, 0, :]
         iz = np.argsort(zaxis)
 
-        profile = {'z': zaxis[iz], 'model': phiz_model[iz],
-                   'prs': phiz_prs[iz], 'def': phiz_def[iz]}
+        dphi = self.calculate_potential_alignment()
+
+        # sorting and conversion to Angstrom
+        profile = {'z': zaxis[iz] * Bohr, 'model': phiz_model[iz],
+                   'prs': phiz_prs[iz], 'def': phiz_def[iz],
+                   'dphi': dphi}
 
         return profile
 

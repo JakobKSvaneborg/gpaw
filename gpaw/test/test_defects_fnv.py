@@ -105,12 +105,13 @@ def test_fnv_3d():
     fig, ax = plt.subplots(1, 1)
     zaxis = profile['z']
     ax.plot(zaxis, profile['model'] - (profile['def'] - profile['prs']),
-             label=r'$\Delta\phi(z)$')
-    ax.plot(zaxis, profile['model'], label=r'$\phi(z)$')
-    ax.plot(zaxis, profile['def'] - profile['prs'],
-             label=r'$\phi_\text{def}(z)-\phi_\text{prs}(z)$')
+            label=r'$\Delta\phi(z)$', color='darkblue')
+    ax.plot(zaxis, profile['model'], label=r'$\phi(z)$', color='orange')
+    ax.plot(zaxis, profile['def'] - profile['prs'], color='green',
+            label=r'$\phi_\text{def}(z)-\phi_\text{prs}(z)$')
     ax.plot(zaxis, np.zeros_like(zaxis), '--', c='k')
-    ax.set_ylim([-1, 1])
+    ax.plot(zaxis, profile['dphi'] * np.ones_like(zaxis), '--', color='darkblue')
+    #ax.set_ylim([-1, 1])
     ax.legend()
     plt.show()
 
