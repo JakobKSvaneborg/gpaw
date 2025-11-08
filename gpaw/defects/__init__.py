@@ -136,42 +136,13 @@ class ElectrostaticCorrections():
         assert np.allclose(self.phi_prs.shape, self.phi_def.shape)
         assert np.allclose(self.phi_prs.shape, self.ng_v)
 
-    def get_reference_index(self, index):
-        """Get index of atom furthest away from the atom index."""
+    def prs_mic_dist(self, r_v):
 
         atoms = self.atoms_prs
-        dR = atoms.positions - atoms.positions[index, :][None, :]
-        dist_vec, dist = find_mic(dR, atoms.get_cell())
-        ref_index = np.argmax(dist)
+        dR = atoms.positions - r_v[None, :]
+        _, dist = find_mic(dR, self.cell_prs)
 
-        return ref_index
-
-    @timeit
-    def define_averaging_region(self):
-        grid_shape = self.ngc_v
-        # convert grid to Angstrom such we can use find_mic
-        r_vR = self.rc_vR * Bohr
-
-        # locate atom farest away from the defect
-        cell_prs = self.atoms_prs.get_cell()
-
-        # in pristine obtain atom positions closest to the defect_site
-        dR = self.atoms_prs.positions - self.r0[None, :]
-        _, dist = find_mic(dR, cell_prs)
-        defect_index = np.argmin(dist)
-
-        # now find atom most away
-        bulk_index = self.get_reference_index(defect_index)
-
-        # return grid indices of region around the bulk atoms
-        rbulk_v = self.atoms_prs.positions[bulk_index, :]
-        dR = r_vR.T - rbulk_v[None, None, None, :]
-        # flatten grid and reshape
-        dR = dR.reshape((np.prod(grid_shape), 3))
-        _, dist = find_mic(dR, cell_prs)
-        dist = dist.reshape(grid_shape)
-        # sphere radius: self.ravg
-        self.region = np.where(dist < self.ravg)
+        return dist
 
     def find_grid_index(self, r0_v):
         ng_v = self.ngc_v
@@ -182,6 +153,32 @@ class ElectrostaticCorrections():
         # convert to reduced (fractional) coordinates
         s0_v = np.linalg.solve(self.cell_prs.T, r0_v)
         return np.array(np.round(ng_v * s0_v, 0), dtype=int) % ng_v
+
+    def bulk_atom_average(self):
+        grid_shape = self.ngc_v
+        # convert grid to Angstrom such we can use find_mic
+        r_vR = self.rc_vR * Bohr
+
+        # locate atom farest away from the defect
+        rdefect_v = self.atoms_prs.positions[self.defect_index, :]
+        bulk_index = np.argmax(self.prs_mic_dist(rdefect_v))
+
+        # return grid indices of region around the bulk atoms
+        rbulk_v = self.atoms_prs.positions[bulk_index, :]
+        dR = r_vR.T - rbulk_v[None, None, None, :]
+        # flatten grid and reshape
+        dR = dR.reshape((np.prod(grid_shape), 3))
+        _, dist = find_mic(dR, self.cell_prs)
+        dist = dist.reshape(grid_shape)
+        # sphere radius: self.ravg
+        self.region = np.where(dist < self.ravg)
+
+    @timeit
+    def define_averaging_region(self):
+        # in pristine obtain atom positions closest to the defect_site
+        self.defect_index = np.argmin(self.prs_mic_dist(self.r0))
+
+        self.bulk_atom_average()
 
     def coarsen_grid(self, nfreq):
         self.phic_prs = self.phi_prs[::nfreq, ::nfreq, ::nfreq]
