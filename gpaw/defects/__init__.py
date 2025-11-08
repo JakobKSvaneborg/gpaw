@@ -26,7 +26,7 @@ class ElectrostaticCorrections():
     """
     def __init__(self, pristine, defect,
                  charge=None, epsilon=None, sigma=None, r0=None,
-                 ravg=3.0, comm=serial_comm):
+                 ravg=1.5, comm=serial_comm):
 
         if isinstance(pristine, (str, Path)):
             pristine = GPAW(pristine, txt=None, parallel={'domain': 1})
@@ -55,6 +55,7 @@ class ElectrostaticCorrections():
         self.r0 = np.array(r0)      # Angstrom
         self.ravg = ravg            # Angstrom
         self.nfreq = 4              # grid coarsening
+        self.is_ortho = np.allclose(self.cell_prs.angles(), [90., 90., 90.])
         # np.min(self.atoms_prs.cell.lengths())/8.  # Angstrom
 
         # volume
@@ -172,7 +173,7 @@ class ElectrostaticCorrections():
         defect_index = np.argmin(self.prs_mic_dist(self.r0))
 
         # locate atom farest away from the defect
-        rdefect_v = self.atoms_prs.positions[self.defect_index, :]
+        rdefect_v = self.atoms_prs.positions[defect_index, :]
         bulk_index = np.argmax(self.prs_mic_dist(rdefect_v))
 
         # return grid indices of region around the bulk atoms
@@ -196,32 +197,67 @@ class ElectrostaticCorrections():
         # return grid indices of region around the bulk index
         dist = self.grid_mic_dist(rbulk_v)
 
-        # set region as sphere with radius self.ravg
+        # set region as sphere with radius self.ravg / 2
         self.region = np.where(dist < self.ravg)
 
     def defect_region_average(self):
-        # return grid indices of region around the defect
-        dist = self.grid_mic_dist(self.r0)
+        ng_v = self.ngc_v
+        # convert grid to Angstrom such we can use find_mic
+        rg_vR = self.rc_vR * Bohr
 
-        # set region sphere-shell with inner radius ravg
-        self.region = np.where((dist > self.ravg) &
-                               (dist < 1.2*self.ravg))
+        # find defect grid index
+        idef_v = self.find_grid_index(self.r0)
+        iblk_v = (idef_v + ng_v // 2) % ng_v
+        ix, iy, iz = iblk_v
+        rbulk_v = rg_vR[:, ix, iy, iz]
+
+        rdiff = np.linalg.norm(rbulk_v - self.r0) 
+        print('rdiff=', rdiff)
+         
+        # return grid indices of region around the defect
+        rdist = self.grid_mic_dist(self.r0)
+
+        rinner = rdiff - self.ravg
+        router = rdiff
+
+        # set region sphere-shell
+        self.region = np.where((rdist > rinner) &
+                               (rdist < router))
+
+    def planar_average(self, nsample=8, nmin=3):
+        # check that ortho-rhombic
+        assert self.is_ortho
+
+        nx, ny, nz = self.ngc_v
+
+        # find defect grid index
+        _, _, idef_z = self.find_grid_index(self.r0)
+        iblk_z = (idef_z + nz // 2) % nz
+
+        deltan = np.min([np.max([nz // 8, nmin]), nsample])
+        ix = np.linspace(0, nx - 1, nsample, dtype=int)
+        iy = np.linspace(0, ny - 1, nsample, dtype=int)
+        iz = np.arange(iblk_z - deltan, iblk_z + deltan) % nz
+
+        igx, igy, igz = np.meshgrid(ix, iy, iz)
+
+        self.region = (igx, igy, igz)
 
     @timeit
-    def define_averaging_region(self, region_max=3000):
-        # try average out-side the defect region (radius ravg)
-        self.defect_region_average()
+    def define_averaging_region(self, region_min=500):
+        if self.is_ortho:
+            parprint('planar average')
+            self.planar_average()
+        else:
+            # sphere shell: rinner < r < router
+            # self.defect_region_average()
 
-        # region size
-        nregion = len(self.region[0])
-        print('nregion=', nregion)
-        if nregion < 1 or nregion > region_max:
-            print('bulk region average')
-            # default to bulk region
-            self.bulk_region_average()
-            #self.bulk_atom_average ()
-            nregion = len(self.region[0])
-            print('nregion=', nregion)
+            # average around "bulk grid point"
+            # self.bulk_region_average()
+
+            # average around "bulk atom"
+            parprint('bulk atom average')
+            self.bulk_atom_average()
 
     def coarsen_grid(self, nfreq):
         self.phic_prs = self.phi_prs[::nfreq, ::nfreq, ::nfreq]
