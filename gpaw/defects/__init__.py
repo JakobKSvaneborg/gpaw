@@ -20,7 +20,6 @@ def timeit(func):
     return wrapper
 
 
-
 class ElectrostaticCorrections():
     """
     Calculate the electrostatic corrections for charged defects.
@@ -205,8 +204,8 @@ class ElectrostaticCorrections():
         # therefore coarsen in x-y plane
         # we evaluate on (nsample, nsample, nz) grid
         nx, ny, nz = self.ngc_v
-        ix = np.linspace(0, nx-1, nsample, dtype=int)
-        iy = np.linspace(0, ny-1, nsample, dtype=int)
+        ix = np.linspace(0, nx - 1, nsample, dtype=int)
+        iy = np.linspace(0, ny - 1, nsample, dtype=int)
         igx, igy = np.meshgrid(ix, iy)
 
         z_vR = self.rc_vR[:, igx, igy, :]
