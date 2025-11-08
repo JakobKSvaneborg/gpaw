@@ -91,33 +91,21 @@ def test_fnv_3d():
     # defect position
     r0 = pristine.positions[0, :]
 
-    elcnew = ElectrostaticCorrections(pristine=pristine.calc,
-                                      defect=defect.calc,
-                                      r0=r0,
-                                      charge=charge,
-                                      sigma=sigma,
-                                      epsilon=epsilon)
-    E_corr_new = elcnew.calculate_corrected_formation_energy()
-    E_uncorr_new = elcnew.calculate_uncorrected_formation_energy()
-
-    # need to convert Path -> str
-    elc = OldElectrostaticCorrections(pristine=pristine.calc,
-                                      charged=defect.calc,
-                                      r0=r0,
-                                      q=charge,
-                                      sigma=sigma,
-                                      dimensionality='3d')
-    elc.set_epsilons(epsilon)
+    elc = ElectrostaticCorrections(pristine=pristine.calc,
+                                   defect=defect.calc,
+                                   r0=r0,
+                                   charge=charge,
+                                   sigma=sigma,
+                                   epsilon=epsilon)
     E_corr = elc.calculate_corrected_formation_energy()
     E_uncorr = elc.calculate_uncorrected_formation_energy()
 
-    print(E_corr_new, E_corr, E_uncorr_new)
     assert E_corr == pytest.approx(E_corr_t, abs=2e-2)
     assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-2)
 
 
-@pytest.mark.parametrize('P', [[[1, 0, 0], [1, -1, 0], [0, 0, 1]]])
-# [[1, 0, -1], [1, -1, 0], [0, 0, 1]]  # fails
+@pytest.mark.parametrize('P', [[[1, 0, 0], [1, -1, 0], [0, 0, 1]],
+                               [[1, 0, -1], [1, -1, 0], [0, 0, 1]]])
 def test_fnv_cell(P):
     P = np.array(P)
 
@@ -152,15 +140,12 @@ def test_fnv_cell(P):
     # defect position
     r0 = pristine.positions[0, :]
 
-    # need to convert Path -> str
-    elc = OldElectrostaticCorrections(pristine=pristine.calc,
-                                      charged=defect.calc,
-                                      r0=r0,
-                                      q=charge,
-                                      sigma=sigma,
-                                      dimensionality='3d',
-                                      check_cell=False)
-    elc.set_epsilons(epsilon)
+    elc = ElectrostaticCorrections(pristine=pristine.calc,
+                                   defect=defect.calc,
+                                   r0=r0,
+                                   charge=charge,
+                                   sigma=sigma,
+                                   epsilon=epsilon)
     E_corr = elc.calculate_corrected_formation_energy()
     E_uncorr = elc.calculate_uncorrected_formation_energy()
 
