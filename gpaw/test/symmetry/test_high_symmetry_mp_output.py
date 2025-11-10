@@ -19,6 +19,4 @@ def test_high_symmetry_monkhorst_pack_output(gpw_files):
     atoms = GPAW(gpwname).atoms
     kpts2_kc = MonkhorstPack(**kpts_dict).build(atoms).kpt_Kc
 
-    assert kpts1_kc[:, 0] == pytest.approx(kpts2_kc[:, 0], abs=1e-10)
-    assert kpts1_kc[:, 1] == pytest.approx(kpts2_kc[:, 1], abs=1e-10)
-    assert kpts1_kc[:, 2] == pytest.approx(kpts2_kc[:, 2], abs=1e-10)
+    assert kpts1_kc == pytest.approx(kpts2_kc, abs=1e-10)
