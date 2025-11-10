@@ -52,8 +52,22 @@ class Mode(Parameter):
 
     def __init__(self,
                  *,
-                 dtype: DTypeLike | None = None,
+                 dtype: str = 'double',
                  force_complex_dtype: bool = False):
+        # Translate legacy dtypes
+        if dtype == 'float32' or dtype == np.float32:
+            dtype = 'single'
+            force_complex_dtype = False
+        elif dtype == 'float64' or dtype == np.float64:
+            dtype = 'double'
+            force_complex_dtype = False
+        elif dtype == 'complex64' or dtype == np.complex64:
+            dtype = 'single'
+            force_complex_dtype = True
+        elif dtype == 'complex128' or dtype == np.complex128:
+            dtype = 'double'
+            force_complex_dtype = True
+
         self.dtype = dtype
         self.force_complex_dtype = force_complex_dtype
         self.name = self.__class__.__name__.lower()
@@ -63,7 +77,7 @@ class Mode(Parameter):
         if self.force_complex_dtype:
             dct['force_complex_dtype'] = True
         if 'dtype' in dct:
-            dct['dtype'] = np.dtype(self.dtype).name
+            dct['dtype'] = self.dtype
         return dct
 
     @classmethod
@@ -77,7 +91,7 @@ class Mode(Parameter):
         mode = mode.copy()
         if 'dtype' in mode:
             if isinstance(mode['dtype'], str):
-                mode['dtype'] = np.dtype(mode['dtype'])
+                mode['dtype'] = dtype
         return {'pw': PW,
                 'lcao': LCAO,
                 'fd': FD,
@@ -95,7 +109,7 @@ class PW(Mode):
                  *,
                  qspiral=None,
                  dedecut=None,
-                 dtype: DTypeLike | None = None,
+                 dtype: str = 'double',
                  force_complex_dtype: bool = False):
         """PW-mode.
 
@@ -124,7 +138,7 @@ class FD(Mode):
     def __init__(self,
                  *,
                  nn=3,
-                 dtype: DTypeLike | None = None,
+                 dtype: str = 'double',
                  force_complex_dtype: bool = False):
         self.nn = nn
         super().__init__(dtype=dtype,

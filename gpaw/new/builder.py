@@ -136,7 +136,7 @@ class DFTComponentsBuilder:
             self.nbands *= 2
 
         self.dtype: DTypeLike
-        if params.mode.dtype is None:
+        if params.mode.dtype == 'double':
             if self.params.mode.force_complex_dtype:
                 self.dtype = complex
             else:
@@ -144,8 +144,16 @@ class DFTComponentsBuilder:
                     self.dtype = float
                 else:
                     self.dtype = complex
+        elif params.mode.dtype == 'single':
+            if self.params.mode.force_complex_dtype:
+                self.dtype = np.complex64
+            else:
+                if self.ibz.bz.gamma_only and self.ncomponents < 4:
+                    self.dtype = np.float32
+                else:
+                    self.dtype = np.complex64
         else:
-            self.dtype = params.mode.dtype
+            raise ValueError(f'Unknown dtype {params.mode.dtype}')
 
         self.grid, self.fine_grid = self.create_uniform_grids()
 
