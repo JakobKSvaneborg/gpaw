@@ -8,7 +8,6 @@ from typing import IO, TYPE_CHECKING, Any, Sequence, Union, Literal
 import numpy as np
 from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
-from numpy.typing import DTypeLike
 
 from gpaw.mpi import MPIComm
 from gpaw.new.calculation import DFTCalculation
