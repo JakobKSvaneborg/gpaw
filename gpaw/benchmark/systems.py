@@ -353,10 +353,3 @@ systems = {'H2': system_H2,
 
 def parse_system(name):
     return systems[name]()
-
-
-if __name__ == '__main__':
-    from ase.geometry.cell import cell_to_cellpar
-    for name, func in systems.items():
-        atoms = func()
-        print(name, cell_to_cellpar(atoms.cell))

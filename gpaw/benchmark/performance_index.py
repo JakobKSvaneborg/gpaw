@@ -3,9 +3,10 @@ from pathlib import Path
 from time import time
 
 import numpy as np
+from ase.geometry.cell import cell_to_cellpar
+from gpaw import GPAW, GPAW_NEW
 from gpaw.benchmark.systems import systems
 from gpaw.calcinfo import get_calculation_info
-from gpaw import GPAW, GPAW_NEW
 from gpaw.mpi import world
 from gpaw.utilities.memory import maxrss
 
@@ -18,25 +19,12 @@ PARAMS = dict(
 def workflow():
     """MyQueue workflow."""
     from myqueue.workflow import run
-    for name, function in systems.items():
-        if name in {'magic_graphene', 'C6000', 'C2188'}:
-            continue
-
-        atoms = function()
-
-        # Estimate time (memory):
-        info = get_calculation_info(atoms, **PARAMS)
-        t = (len(info.ibz) * info.ncomponents * info.nbands *
-             atoms.cell.volume * 1e-6)
+    for name, (_, _, cores, _) in REFERENCES.items():
         tmax = '1h'
         nodename = None
-        if t < 1.0:
-            cores = 24
-        elif t < 10.0:
-            cores = 40
+        if cores == 40
             nodename = 'xeon40_clx'
-        else:
-            cores = 56
+        elif cores == 56:
             tmax = '3h'
 
         run(function=work,
@@ -112,26 +100,26 @@ def get_number_of_iterations(calc) -> int:
 # 3) time in seconds
 #
 REFERENCES = {
-    'Bi2Se3': (-21.46195, -0.18655, 55),
-    'C60': (-530.92535, -0.44820, 190),
-    'C676': (-530.92535, -0.44820, 190),
-    'diamond': (-18.19611, -0.00000, 16),
-    'Ga2N4F4H10': (-99.08900, 0.00013, 120),
-    'H2': (-6.77477, 0.11710, 10.0),
-    'LiC8': (-75.37653, 0.66102, 38),
-    'magbulk': (-72.37710, -0.00713, 119),
-    'metalslab': (-350.06299, -0.01156, 37 * 60),
-    'MnVS2-slab': (-29.11777, -0.00014, 3600),
-    'MoS2_tube': (-1291.31046, 7.55276, 3700),
-    'VI2': (-9.29013, -0.77486, 3090),
-    'OPt111b': (-153.25143, -1.61599, 1200),
-    'PtO3Li2O3': (0.0, 0.0, 2500),
-    'ErGe': (0.0, 0.0, 2500),
-    'As4CrSi2': (0.0, 0.0, 103),
-    'V3Cl6': (0.0, 0.0, 333),
-    'Mn2O2': (0.0, 0.0, 1000),
-    'Ti2Br6': (0.0, 0.0, 1000),
-    'Fe8O8': (0.0, 0.0, 1000)}
+    'Bi2Se3': (-21.46195, -0.18655, 24, 55),
+    'C60': (-530.92535, -0.44820, 24, 190),
+    'C676': (-530.92535, -0.44820, 24, 190),
+    'diamond': (-18.19611, -0.00000, 24, 16),
+    'Ga2N4F4H10': (-99.08900, 0.00013, 40, 120),
+    'H2': (-6.77477, 0.11710, 24, 10.0),
+    'LiC8': (-75.37653, 0.66102, 24, 38),
+    'magbulk': (-72.37710, -0.00713, 24, 119),
+    'metalslab': (-350.06299, -0.01156, 40, 37 * 60),
+    'MnVS2-slab': (-29.11777, -0.00014, 24, 3600),
+    'MoS2_tube': (-1291.31046, 7.55276, 56, 3700),
+    'VI2': (-9.29013, -0.77486, 24, 3090),
+    'OPt111b': (-153.25143, -1.61599, 40, 1200),
+    'PtO3Li2O3': (0.0, 0.0, 24, 2500),
+    'ErGe': (0.0, 0.0, 24, 2500),
+    'As4CrSi2': (0.0, 0.0, 24, 103),
+    'V3Cl6': (0.0, 0.0, 24, 333),
+    'Mn2O2': (0.0, 0.0, 24, 1000),
+    'Ti2Br6': (0.0, 0.0, 24, 1000),
+    'Fe8O8': (0.0, 0.0, 40, 1000)}
 
 
 def read(folder: Path,
@@ -221,8 +209,20 @@ if __name__ == '__main__':
         '-m', '--mode', type=int, default=3,
         help='1: first step, 2: second step, 3: both (default).')
     parser.add_argument(
+        '-l', '--list', action='store_true',
+        help='List systems.')
+    parser.add_argument(
         'folder', nargs='+',
         help='Folder with <name>.json files.')
     args = parser.parse_args()
-    summary(folders=[Path(folder) for folder in args.folder],
-            mode=args.mode)
+    if not args.list:
+        summary(folders=[Path(folder) for folder in args.folder],
+                mode=args.mode)
+        return
+
+    for name, (e, de, core, t) in REFERENCES.items():
+        atoms = systems[name]()
+        info = get_calculation_info(atoms, **PARAMS)
+        print(f'len(info.ibz) * info.ncomponents * info.nbands *
+         atoms.cell.volume * 1e-6)
+        print(name, cell_to_cellpar(atoms.cell))
