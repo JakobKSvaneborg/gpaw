@@ -100,12 +100,12 @@ def get_number_of_iterations(calc) -> int:
 
 
 # Reference energies and change in energy after first step:
-energies = {
+REFERENCES = {
     'Bi2Se3': (-21.46195, -0.18655),
     'C60': (-530.92535, -0.44820),
     'diamond': (-18.19611, -0.00000),
     'Ga2N4F4H10': (-99.08900, 0.00013),
-    'H2': (-6.77477, 0.11710),
+    'H2': (-6.77477, 0.11710, 10.0),
     'LiC8': (-75.37653, 0.66102),
     'magbulk': (-72.37710, -0.00713),
     'metalslab': (-350.06299, -0.01156),
@@ -116,7 +116,10 @@ energies = {
     'PtO3Li2O3': (0.0, 0.0),
     'ErGe': (0.0, 0.0),
     'As4CrSi2': (0.0, 0.0),
-    'V3Cl6': (0.0, 0.0)}
+    'V3Cl6': (0.0, 0.0),
+    'Mn2O2': (0.0, 0.0),
+    'Ti2Br6': (0.0, 0.0),
+    'Fe8O8': (0.0, 0.0)}
 
 
 def read(folder: Path,
@@ -124,7 +127,7 @@ def read(folder: Path,
          eps: float = 0.001) -> dict[str, tuple[float, int]]:
     """Read <name>.json files."""
     data = {}
-    for name, (e0, de0) in energies.items():
+    for name, (e0, de0, t0) in REFERENCES.items():
         path = folder / f'{name}.json'
         if path.is_file():
             x = json.loads(path.read_text())
@@ -156,7 +159,7 @@ def summary(folders: list[Path], mode: int) -> None:
     print('------------' + '+---------------------' * len(folders))
     scores = [0.0] * len(folders)
     N = 0
-    for name in energies:
+    for name in REFERENCES:
         print(f'{name:10} ', end='')
         times = [data[name][0] for data in alldata]
         iters = [data[name][1] for data in alldata]
@@ -170,9 +173,10 @@ def summary(folders: list[Path], mode: int) -> None:
             if t == 99999.9:
                 line = ' | ------(---) ------%'
             else:
-                line = f' | {t:6.1f}({i:3}) {(t / t0 - 1) * 100:+6.1f}%'
+                percent = f'{(t / t0 - 1) * 100:+6.1f}%'
                 if t == t0:
-                    line = GREEN + line + RESET
+                    percent = GREEN + percent + RESET
+                line = f' | {t:6.1f}({i:3}) {percent}'
             print(line, end='')
             if max(times) < 99999.9:
                 scores[n] += t / t0
@@ -181,7 +185,21 @@ def summary(folders: list[Path], mode: int) -> None:
           '\n           ', end='')
     for s in scores:
         print(f'{(s / N - 1) * 100:+21.1f}%', end='')
+    print('\n           ', end='')
+    for data in alldata:
+        s = score({name: t for name, (t, i) in data.items()})
+        print(f'{s:22.2f}', end='')
     print()
+
+
+def score(data: dict[str, float]) -> tuple[float, int]:
+    s = 0.0
+    n = 0
+    for name, (_, _, tref) in REFERENCES.items():
+        if name in data:
+            s += data[name] / tref
+            n += 1
+    return 100 / s * n, n
 
 
 if __name__ == '__main__':
