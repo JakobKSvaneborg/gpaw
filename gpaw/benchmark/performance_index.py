@@ -5,7 +5,7 @@ from time import time
 import numpy as np
 from gpaw.benchmark.systems import systems
 from gpaw.calcinfo import get_calculation_info
-from gpaw import GPAW
+from gpaw import GPAW, GPAW_NEW
 from gpaw.mpi import world
 from gpaw.utilities.memory import maxrss
 
@@ -19,7 +19,7 @@ def workflow():
     """MyQueue workflow."""
     from myqueue.workflow import run
     for name, function in systems.items():
-        if name in {'magic_graphene', 'C6000', 'C2188', 'C676'}:
+        if name in {'magic_graphene', 'C6000', 'C2188'}:
             continue
 
         atoms = function()
@@ -64,6 +64,8 @@ def work(name: str, params: dict | None = None) -> None:
             magmoms=atoms._magmoms,
             symmetry='off',
             xc='LDA')
+        if not GPAW_NEW:
+            params['experimental'] = {'magmoms': atoms._magmoms}
 
     calc = GPAW(
         txt=f'{name}.txt',
@@ -112,6 +114,7 @@ def get_number_of_iterations(calc) -> int:
 REFERENCES = {
     'Bi2Se3': (-21.46195, -0.18655, 55),
     'C60': (-530.92535, -0.44820, 190),
+    'C676': (-530.92535, -0.44820, 190),
     'diamond': (-18.19611, -0.00000, 16),
     'Ga2N4F4H10': (-99.08900, 0.00013, 120),
     'H2': (-6.77477, 0.11710, 10.0),
