@@ -10,6 +10,7 @@ and includes the Fluctuation Dissipation Theorem.
 import copy
 import os
 import textwrap
+from collections import deque
 
 import ase.io
 import gpaw.mpi
@@ -25,7 +26,7 @@ from gpaw.old.hamiltonian import RealSpaceHamiltonian
 from gpaw.old.logger import indent
 from gpaw.jellium import Jellium, JelliumSlab
 from gpaw.solvation.calculator import OldSolvationGPAW
-from gpaw.solvation.cavity import Power12Potential, get_pbc_positions
+from gpaw.solvation.cavity import Power12Potential
 from gpaw.solvation.hamiltonian import SolvationRealSpaceHamiltonian
 from gpaw.solvation.poisson import WeightedFDPoissonSolver
 from scipy.ndimage import uniform_filter1d
@@ -532,6 +533,13 @@ class OldSJM(OldSolvationGPAW):
         p = self.parameters['sj']
         iteration = 0
 
+        if p.fdt:
+            previous_electrons = p.previous_electrons
+            previous_potentials = p.previous_potentials
+        else:
+            previous_electrons = deque(maxlen=p.slope_regression_depth)
+            previous_potentials = deque(maxlen=p.slope_regression_depth)
+
         rerun = False
         while iteration <= p.max_iters:
             self.log('Attempt {:d} to equilibrate potential to {:.3f} +/-'
@@ -568,12 +576,12 @@ class OldSJM(OldSolvationGPAW):
             # will be reduced by factor of 2 every time.
             # The rerun is disabled if the FDT is used.
 
-            if len(p.previous_potentials):
+            if len(previous_potentials):
 
-                stepsize = abs(true_potential - p.previous_potentials[-1])
+                stepsize = abs(true_potential - previous_potentials[-1])
 
                 if (stepsize > p.max_step and
-                   abs(p.previous_potentials[-1] - p.target_potential) <
+                   abs(previous_potentials[-1] - p.target_potential) <
                    abs(true_potential - p.target_potential)) and not p.fdt:
                     self.log('Step resulted in a potential change of '
                              f'{stepsize:.2f} V, larger than max_step '
@@ -585,7 +593,7 @@ class OldSJM(OldSolvationGPAW):
                     if p.fdt:
                         rerun = False
                     else:
-                        pe, ce = p.previous_electrons[-1], p.excess_electrons
+                        pe, ce = previous_electrons[-1], p.excess_electrons
                         if abs(pe - ce) < 1e-5:
                             msg = ('Step size is too small to be halved in '
                                    'rerun. To avoid this try to change your '
@@ -603,30 +611,17 @@ class OldSJM(OldSolvationGPAW):
             rerun = False
 
             # Store attempt and calculate slope.
-            p.previous_electrons.append(float(p.excess_electrons))
-            p.previous_potentials.append(float(true_potential))
+            previous_electrons.append(float(p.excess_electrons))
+            previous_potentials.append(float(true_potential))
 
-            # The following solves a bug, where the code would crash if the
-            # user sets the right number of electrons to reach the target
-            # potential in the first iteration and then changes the target
-            # potential. The code would crash because the slope has not been
-            # calculated yet and so no step is taken towards the new potential.
-            # As two equal charges are added to p.previous_electrons, the
-            # regression of the slope will fail.
-            if len(p.previous_electrons) > 1:
-                if not p.previous_electrons[-2] - p.previous_electrons[-1]:
-                    del p.previous_electrons[-2], p.previous_potentials[-2]
+            if len(previous_electrons) > 1:
+                slope = linregress(previous_electrons,
+                                   previous_potentials)[0]
+                self.log(f'Slope regressed from last {len(previous_electrons)}'
+                         f'attempts is {slope:.4f} V/electron,')
 
-            if len(p.previous_electrons) > 1:
-                slope = _calculate_slope(p.previous_electrons,
-                                         p.previous_potentials,
-                                         p.slope_regression_depth)
-
-                nreg = len(p.previous_electrons[-p.slope_regression_depth:])
-                self.log(f'Slope regressed from last {nreg:d} attempts is '
-                         f'{slope:.4f} V/electron,')
-                area = np.linalg.det(atoms.cell[:2, :2])
                 # get capacitance in muF/cm^2
+                area = np.linalg.det(atoms.cell[:2, :2])
                 capacitance = - _e * 1e22 / (area * slope)
                 self.log(f'or apparent capacitance of {capacitance:.4f} '
                          'muF/cm^2')
@@ -711,7 +706,7 @@ class OldSJM(OldSolvationGPAW):
                'excess_electrons and the potential are listed below; '
                'plotting them could give you insight into the problem.')
         msg = textwrap.fill(msg) + '\n'
-        for n, p in zip(p.previous_electrons, p.previous_potentials):
+        for n, p in zip(previous_electrons, previous_potentials):
             msg += f'{n:+.6f} {p:.6f}\n'
         self.log(msg, flush=True)
         raise PotentialConvergenceError(msg)
@@ -1037,16 +1032,6 @@ def _write_property_on_grid(grid, property, atoms, name, dir):
     ase.io.write(os.path.join(dir, name), atoms, data=property)
 
 
-def _calculate_slope(previous_electrons, previous_potentials, n_prev_pot):
-    """Calculates the slope of potential versus number of electrons;
-    regresses based on (up to) last four data points to smooth noise."""
-    # debug
-
-    ans = linregress(previous_electrons[-n_prev_pot:],
-                     previous_potentials[-n_prev_pot:])
-    return ans[0]
-
-
 class SJMPower12Potential(Power12Potential):
     r"""Inverse power-law potential.
     Inverse power law potential for SJM, inherited from the
@@ -1117,7 +1102,10 @@ class SJMPower12Potential(Power12Potential):
             return False
         self.r12_a = (self.atomic_radii_output / Bohr) ** 12
         r_cutoff = (self.r12_a.max() * self.u0 / self.pbc_cutoff) ** (1. / 12.)
-        self.pos_aav = get_pbc_positions(atoms, r_cutoff)
+
+        if self.check_for_position_changes(atoms, r_cutoff):
+            return False
+
         self.u_g.fill(.0)
         self.grad_u_vg.fill(.0)
         na = np.newaxis
@@ -1130,6 +1118,7 @@ class SJMPower12Potential(Power12Potential):
                     self.u_g[:, :, z] = np.inf
                     self.grad_u_vg[:, :, :, z] = 0
 
+        ghost_aav = {}
         if self.H2O_layer:
             # Add ghost coordinates and indices to pos_aav dictionary if
             # a water layer is present.
@@ -1235,13 +1224,13 @@ class SJMPower12Potential(Power12Potential):
 
                 r12_add = []
                 for i in range(len(O_layer)):
-                    self.pos_aav[len(atoms) + i] = [O_layer[i]]
+                    ghost_aav[len(atoms) + i] = [O_layer[i]]
                     r12_add.append(self.r12_a[water_oxygen_ind[0]])
                 r12_add = np.array(r12_add)
                 # r12_a must have same dimensions as pos_aav items
                 self.r12_a = np.concatenate((self.r12_a, r12_add))
 
-        for index, pos_av in self.pos_aav.items():
+        for index, pos_av in {**self.pos_aav, **ghost_aav}.items():
             pos_av = np.array(pos_av)
             r12 = self.r12_a[index]
             for pos_v in pos_av:
