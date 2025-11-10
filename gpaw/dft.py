@@ -89,9 +89,6 @@ class Mode(Parameter):
         elif not isinstance(mode, dict):
             mode = mode.todict()
         mode = mode.copy()
-        if 'dtype' in mode:
-            if isinstance(mode['dtype'], str):
-                mode['dtype'] = dtype
         return {'pw': PW,
                 'lcao': LCAO,
                 'fd': FD,
