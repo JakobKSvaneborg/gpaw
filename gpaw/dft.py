@@ -75,8 +75,8 @@ class Mode(Parameter):
         dct = self._not_none('dtype')
         if self.force_complex_dtype:
             dct['force_complex_dtype'] = True
-        if 'dtype' in dct:
-            dct['dtype'] = self.dtype
+        if self.dtype == 'single':
+            dct['dtype'] = 'single'
         return dct
 
     @classmethod
