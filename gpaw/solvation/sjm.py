@@ -1283,7 +1283,7 @@ class SJMPower12Potential(Power12Potential):
                 r12_add = []
                 for i in range(len(O_layer)):
                     ghost_aav[len(atoms) + i] = [O_layer[i]]
-                    r12_add.append(self.r12_a[water_oxygen_ind[0]])
+                    r12_add.append(self.r12_a[i_ox_in_h2o[0]])
 
                 r12_add = np.array(r12_add)
                 # r12_a must have same dimensions as pos_aav items
