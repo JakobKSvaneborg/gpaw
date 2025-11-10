@@ -99,27 +99,31 @@ def get_number_of_iterations(calc) -> int:
     return calc.dft.scf_loop.niter
 
 
-# Reference energies and change in energy after first step:
+# Reference numbers:
+#
+# * energy
+# * change in energy after first step
+# * time in seconds
 REFERENCES = {
-    'Bi2Se3': (-21.46195, -0.18655),
-    'C60': (-530.92535, -0.44820),
-    'diamond': (-18.19611, -0.00000),
-    'Ga2N4F4H10': (-99.08900, 0.00013),
-    'H2': (-6.77477, 0.11710, 10.0),
-    'LiC8': (-75.37653, 0.66102),
-    'magbulk': (-72.37710, -0.00713),
-    'metalslab': (-350.06299, -0.01156),
-    'MnVS2-slab': (-29.11777, -0.00014),
-    'MoS2_tube': (-1291.31046, 7.55276),
-    'VI2': (-9.29013, -0.77486),
-    'OPt111b': (-153.25143, -1.61599),
-    'PtO3Li2O3': (0.0, 0.0),
-    'ErGe': (0.0, 0.0),
-    'As4CrSi2': (0.0, 0.0),
-    'V3Cl6': (0.0, 0.0),
-    'Mn2O2': (0.0, 0.0),
-    'Ti2Br6': (0.0, 0.0),
-    'Fe8O8': (0.0, 0.0)}
+    'Bi2Se3': (-21.46195, -0.18655, 55),
+    'C60': (-530.92535, -0.44820, 190),
+    'diamond': (-18.19611, -0.00000, 16),
+    'Ga2N4F4H10': (-99.08900, 0.00013, 120),
+    'H2': (-6.77477, 0.11710, 10.0, 10),
+    'LiC8': (-75.37653, 0.66102, 38),
+    'magbulk': (-72.37710, -0.00713, 119),
+    'metalslab': (-350.06299, -0.01156, 37 * 60),
+    'MnVS2-slab': (-29.11777, -0.00014, 3600),
+    'MoS2_tube': (-1291.31046, 7.55276, 3700),
+    'VI2': (-9.29013, -0.77486, 3090),
+    'OPt111b': (-153.25143, -1.61599, 1200),
+    'PtO3Li2O3': (0.0, 0.0, 2500),
+    'ErGe': (0.0, 0.0, 2500),
+    'As4CrSi2': (0.0, 0.0, 103),
+    'V3Cl6': (0.0, 0.0, 333),
+    'Mn2O2': (0.0, 0.0, 1000),
+    'Ti2Br6': (0.0, 0.0, 1000),
+    'Fe8O8': (0.0, 0.0, 1000)}
 
 
 def read(folder: Path,
@@ -187,7 +191,7 @@ def summary(folders: list[Path], mode: int) -> None:
         print(f'{(s / N - 1) * 100:+21.1f}%', end='')
     print('\n           ', end='')
     for data in alldata:
-        s = score({name: t for name, (t, i) in data.items()})
+        s, _ = score({name: t for name, (t, i) in data.items()})
         print(f'{s:22.2f}', end='')
     print()
 
