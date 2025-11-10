@@ -39,7 +39,7 @@ def get_lattice_symmetry(cell_cv, tolerance=1e-7):
 
 def find_high_symmetry_monkhorst_pack(calc: str,
                                       density: float,
-                                      return_as_mp_size: bool = False):
+                                      return_as_dict: bool = False):
     """Make high symmetry Monkhorst Pack k-point grid.
 
     Searches for and returns a Monkhorst Pack grid which
@@ -100,8 +100,8 @@ def find_high_symmetry_monkhorst_pack(calc: str,
                             raise AssertionError('Did not find ' + str(ibzk_c))
                     if mpi.rank == 0:
                         print('Done. Monkhorst-Pack grid:', size, offset)
-                    if return_as_mp_size:
-                        return size
+                    if return_as_dict:
+                        return {'size': size, 'gamma': True}
                     else:
                         return kpts_kc
 
