@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 from ase import Atoms
-from gpaw.benchmark.pw_mode_check import summary, work
+from gpaw.benchmark.performance_index import summary, work
 from gpaw.benchmark.systems import systems
 from gpaw.mpi import world
 

@@ -29,17 +29,21 @@ def workflow():
         t = (len(info.ibz) * info.ncomponents * info.nbands *
              atoms.cell.volume * 1e-6)
         tmax = '1h'
+        nodename = None
         if t < 1.0:
             cores = 24
         elif t < 10.0:
             cores = 40
+            nodename = 'xeon40_clx'
         else:
             cores = 56
             tmax = '3h'
+
         run(function=work,
             args=[name],
             cores=cores,
             tmax=tmax,
+            nodename=nodename,
             name=name,
             creates=[f'{name}.json'])
 
@@ -101,9 +105,10 @@ def get_number_of_iterations(calc) -> int:
 
 # Reference numbers:
 #
-# * energy
-# * change in energy after first step
-# * time in seconds
+# 1) energy
+# 2) change in energy after first step
+# 3) time in seconds
+#
 REFERENCES = {
     'Bi2Se3': (-21.46195, -0.18655, 55),
     'C60': (-530.92535, -0.44820, 190),
