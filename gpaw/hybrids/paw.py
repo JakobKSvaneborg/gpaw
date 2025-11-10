@@ -49,7 +49,7 @@ def calculate_paw_stuff(wfs, dens) -> List[PAWThings]:
             for VV_aii in VV_saii]
 
 
-def python_pawexxvv(M_pp, D_ii):
+def pawexxvv(M_pp, D_ii):
     """PAW correction for valence-valence EXX energy."""
     ni = len(D_ii)
     V_ii = np.empty((ni, ni))
@@ -65,6 +65,5 @@ def python_pawexxvv(M_pp, D_ii):
     return V_ii
 
 
-if not TYPE_CHECKING:
-    if not GPAW_NO_C_EXTENSION:
-        from _gpaw import pawexxvv  # noqa: F811
+if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
+    from _gpaw import pawexxvv  # noqa: F811
