@@ -27,7 +27,7 @@ from gpaw.occupations import FermiDirac
 calc_old = GPAW('Si_gs_LDA.gpw', txt=None) # student: calc_old = GPAW('.gpw', txt=None)
 
 #Extract number of valence bands:
-nval = calc_old.wfs.nvalence
+nval = int(calc_old.wfs.nvalence)
 
 # Do new ground state calculations with more k-points.
 # This is because in general RPA calculations requires more k-poins to be converged.

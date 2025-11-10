@@ -114,6 +114,7 @@ class DistributedArrays(Generic[DomainType], XP):
         # rounded down.
         mybands = min(datasize // nX,
                       self.data.shape[0])
+        mybands = self.desc.comm.min_scalar(mybands)
         data = data_buffer[:mybands * nX].reshape(
             (mybands,) + X)
         totalbands = self.comm.sum_scalar(mybands)

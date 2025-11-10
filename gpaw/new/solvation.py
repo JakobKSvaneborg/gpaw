@@ -3,6 +3,7 @@ from ase.units import Ha, Bohr
 from gpaw.fd_operators import Gradient
 from gpaw.new.c import add_to_density
 from gpaw.new.poisson import PoissonSolver, PoissonSolverWrapper
+from gpaw.core import PWDesc
 from gpaw.solvation.poisson import WeightedFDPoissonSolver
 from gpaw.solvation.cavity import Cavity
 from gpaw.solvation.dielectric import Dielectric
@@ -86,9 +87,14 @@ class SolvationExtension(Extension):
                               *,
                               charge,
                               xp) -> PoissonSolver:
+        if isinstance(pw, PWDesc):
+            from gpaw.new.pw.poisson import ConjugateGradientPoissonSolver
+            return ConjugateGradientPoissonSolver(
+                pw, grid, self.dielectric, zero_vacuum=True)
+
         psolver = WeightedFDPoissonSolver()
         psolver.set_dielectric(self.dielectric)
-        psolver.set_grid_descriptor(self.grid._gd)
+        psolver.set_grid_descriptor(grid._gd)
         return PoissonSolverWrapper(psolver)
 
     def update1(self, nt_r, kin_en_using_band=True):

@@ -104,7 +104,7 @@ class ScissorsLCAOEigensolver(LCAOEigensolver):
         eps_error, _, energies = \
             super().iterate(ibzwfs, density, potential,
                             hamiltonian, pot_calc, energies)
-        if ibzwfs.wfs_qs[0][0]._occ_n is None:
+        if ibzwfs._wfs_u[0]._occ_n is None:
             wfs_error = np.nan
         else:
             wfs_error = 0.0
