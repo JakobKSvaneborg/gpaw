@@ -154,7 +154,7 @@ def bi2se3():
            [nu, nu, nu],
            [-nu, -nu, -nu]]
     atoms = Atoms('Bi2Se3', cell=cell, scaled_positions=pos, pbc=True)
-    # niggli_reduce(atoms)
+    atoms.cell[:] = [[1, 0, -1], [0, 1, -1], [1, 1, 1]] @ atoms.cell
     return atoms
 
 
@@ -264,18 +264,80 @@ def v3cl6():
     return atoms
 
 
-systems = {'C60': system_C60,
-           'diamond': system_diamond,
-           'H2': system_H2,
+def mn2o2():
+    a = 4.5155
+    b = a / 2
+    atoms = Atoms(
+        'Mn2O2',
+        cell=[[a, b, b], [b, a, b], [b, b, a]],
+        pbc=True,
+        positions=[[0, 0, 0],
+                   [a, a, a],
+                   [b, b, b],
+                   [a + b, a + b, a + b]],
+        magmoms=[1, -1, 0, 0])
+    atoms.cell[:] = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]] @ atoms.cell
+    return atoms
+
+
+def ti2br6():
+    atoms = Atoms(
+        'Ti2Br6',
+        [[8.1142, 6.4498, 6.8322],
+         [4.8964, 1.0125, 0.0002],
+         [3.9117, 2.8044, 1.5473],
+         [9.0989, 4.6578, 5.2852],
+         [6.9947, 4.7843, 1.4810],
+         [6.0159, 2.6779, 5.3514],
+         [6.0215, 6.6423, 5.3382],
+         [6.9891, 0.8199, 1.4942]],
+        cell=[[6.518707, 0.000000, 0.000000],
+              [3.264878, 5.606928, 0.000000],
+              [3.227015, 1.855287, 6.832419]],
+        pbc=True)
+    return atoms
+
+
+def fe8o8():
+    atoms = Atoms(
+        'Fe8O8',
+        cell=[[-0.017249, 4.052906, 4.049397],
+              [4.510540, -0.477776, 4.510540],
+              [4.049397, 4.052906, -0.017249]],
+        positions=[
+            [0.0000, -0.0000, 0.0000],
+            [-2.0333, -0.0000, 2.0334],
+            [-0.0086, 2.0264, 2.0247],
+            [-2.0420, 2.0264, 4.0581],
+            [-2.2639, 2.2653, -0.2306],
+            [-4.2972, 2.2653, 1.8028],
+            [-2.2726, 4.2918, 1.7941],
+            [-4.3058, 4.2918, 3.8275],
+            [2.1356, 1.9070, 2.1356],
+            [0.1024, 1.9070, 4.1690],
+            [2.1271, 3.9335, 4.1603],
+            [0.0937, 3.9335, 6.1937],
+            [-0.1282, 4.1723, 1.9051],
+            [-2.1615, 4.1723, 3.9384],
+            [-0.1368, 6.1988, 3.9298],
+            [-2.1702, 6.1988, 5.9631]],
+        magmoms=[2] * 8 + [0] * 8,
+        pbc=True)
+    return atoms
+
+
+systems = {'H2': system_H2,
+           'C60': system_C60,
            'MoS2_tube': system_MoS2_tube,
            'C6000': system_6000_bl_graphene,
            'C2188': system_2188_bl_graphene,
            'C676': system_676_bl_graphene,
-           'magbulk': system_magbulk,
            'metalslab': system_metalslab,
            'magic_graphene': system_magic_graphene,
            'MnVS2-slab': system_c2db,
            'OPt111b': opt111b,
+           'diamond': system_diamond,
+           'magbulk': system_magbulk,
            'LiC8': lic8,
            'VI2': vii,
            'Bi2Se3': bi2se3,
@@ -283,8 +345,18 @@ systems = {'C60': system_C60,
            'PtO3Li2O3': pto3li2o3,
            'ErGe': erge,
            'As4CrSi2': as4crsi2,
-           'V3Cl6': v3cl6}
+           'V3Cl6': v3cl6,
+           'Mn2O2': mn2o2,
+           'Ti2Br6': ti2br6,
+           'Fe8O8': fe8o8}
 
 
 def parse_system(name):
     return systems[name]()
+
+
+if __name__ == '__main__':
+    from ase.geometry.cell import cell_to_cellpar
+    for name, func in systems.items():
+        atoms = func()
+        print(name, cell_to_cellpar(atoms.cell))
