@@ -237,7 +237,7 @@ def pw_norm_kinetic_gpu(result_x, a_xG, kin_G):
         result_x[:] = cp.sum(cp.abs(a_xG)**2 * kin_G[None, :], axis=1)
 
 
-def r2k_gpu(alpha, a, b, beta, c, lda, ldb, ldc):
+def r2k_gpu(stream, alpha, a, b, beta, c, lda, ldb, ldc):
     # assert a.shape[-1] == lda
     # assert b.shape[-1] == ldb
     # assert c.shape[-1] == ldc
