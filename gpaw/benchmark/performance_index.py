@@ -121,6 +121,8 @@ REFERENCES = {
     'Ti2Br6': (0.0, 0.0, 24, 1000),
     'Fe8O8': (0.0, 0.0, 40, 1000)}
 
+REFERENCES[...] = (...)
+
 
 def read(folder: Path,
          mode: int,
