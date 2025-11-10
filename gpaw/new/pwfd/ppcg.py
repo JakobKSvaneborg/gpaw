@@ -389,9 +389,12 @@ class PPCG(PWFDEigensolver):
                         #     pos_defness = A.get()[0]
                         # Eigvalsh approach
                         with tracectx('eigvalsh', gpu=xp is not np):
-                            pos_defness = xp.linalg.eigvalsh(S_bb)[0]
-                        if xp is not np:
-                            pos_defness = pos_defness.get()
+                            try:
+                                pos_defness = xp.linalg.eigvalsh(S_bb)[0]
+                                if xp is not np:
+                                    pos_defness = pos_defness.get()
+                            except np.linalg.LinAlgError:
+                                pos_defness = -42
                         if pos_defness < \
                                 np.finfo(psit_nX.data.dtype).eps * \
                                 nblocks**0.5 or np.isnan(pos_defness):
