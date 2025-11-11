@@ -15,6 +15,69 @@ PARAMS = dict(
     mode={'name': 'pw', 'ecut': 800},
     kpts={'density': 5.0})
 
+# Reference numbers:
+#
+# 1) energy
+# 2) change in energy after first step
+# 3) number of cores
+# 4) time in seconds
+#
+# Initial set of 14 materials for the first bechmark-run
+# with old GPAW (master branch Nov. 11 2025):
+REFERENCES1 = {
+    'Bi2Se3': (-21.46195, -0.18655, 24, 49.0),
+    'C60': (-530.92535, -0.44820, 24, 213.4),
+    'C72': (-530.92535, -0.44820, 24, 272.6),
+    'diamond': (-18.19611, -0.00000, 24, 12.0),
+    'Ga2N4F4H10': (-99.08900, 0.00013, 40, 83.6),
+    'H2': (-6.77477, 0.11710, 24, 5.5),
+    'LiC8': (-75.37653, 0.66102, 24, 32.6),
+    'magbulk': (-72.37710, -0.00713, 24, 114.4),
+    'metalslab': (-350.06299, -0.01156, 40, 1440.0),
+    'MnVS2-slab': (-29.11777, -0.00014, 24, 127.0),
+    'MoS2_tube': (-1291.31046, 7.55276, 56, 6227.0),
+    'OPt111b': (-153.25143, -1.61599, 40, 1011.2),
+    'As4CrSi2': (0.0, 0.0, 24, 96.1),
+    'Ti2Br6': (0.0, 0.0, 24, 159.0)}
+
+# New materials for second run:
+REFERENCES2 = {
+    'VI2': (-9.29013, -0.77486, 24, 3090),
+    'PtO3Li2O3': (0.0, 0.0, 24, 2500),
+    'ErGe': (0.0, 0.0, 24, 2500),
+    'V3Cl6': (0.0, 0.0, 24, 333),
+    'Mn2O2': (0.0, 0.0, 24, 439.9,
+    'Fe8O8': (0.0, 0.0, 40, 1000)}
+
+REFERENCES = REFERENCES1 | REFERENCES2
+RESCALE_FACTOR = 1.0
+
+
+def score(data: dict[str, float]) -> tuple[float, int]:
+    """GPAW's PW-index (or score).
+
+    With `N` materials and times for completion of each
+    material `t_i`, we get this indix normalized to 100
+    for the first run with reference times `t_i^0`:::
+
+                   0
+              N   t
+       100 α ---   i
+       ----- >   ----.
+         N   ---  t
+             i=1   i
+
+    The rescaling factor `\alpha` is used for rescaling the
+    index when new materials are added or hardware is updated.
+    """
+    s = 0.0
+    n = 0
+    for name, (_, _, _, tref) in REFERENCES1.items():
+        if name in data:
+            s += tref / data[name]
+            n += 1
+    return 100 * RESCALE_FACTOR * s / len(REFERENCES1), n
+
 
 def workflow():
     """MyQueue workflow."""
@@ -95,37 +158,6 @@ def get_number_of_iterations(calc) -> int:
     return calc.dft.scf_loop.niter
 
 
-# Reference numbers:
-#
-# 1) energy
-# 2) change in energy after first step
-# 3) time in seconds
-#
-REFERENCES = {
-    'Bi2Se3': (-21.46195, -0.18655, 24, 55),
-    'C60': (-530.92535, -0.44820, 24, 190),
-    'C72': (-530.92535, -0.44820, 24, 190),
-    'diamond': (-18.19611, -0.00000, 24, 16),
-    'Ga2N4F4H10': (-99.08900, 0.00013, 40, 120),
-    'H2': (-6.77477, 0.11710, 24, 10.0),
-    'LiC8': (-75.37653, 0.66102, 24, 38),
-    'magbulk': (-72.37710, -0.00713, 24, 119),
-    'metalslab': (-350.06299, -0.01156, 40, 37 * 60),
-    'MnVS2-slab': (-29.11777, -0.00014, 24, 3600),
-    'MoS2_tube': (-1291.31046, 7.55276, 56, 3700),
-    'VI2': (-9.29013, -0.77486, 24, 3090),
-    'OPt111b': (-153.25143, -1.61599, 40, 1200),
-    'PtO3Li2O3': (0.0, 0.0, 24, 2500),
-    'ErGe': (0.0, 0.0, 24, 2500),
-    'As4CrSi2': (0.0, 0.0, 24, 103),
-    'V3Cl6': (0.0, 0.0, 24, 333),
-    'Mn2O2': (0.0, 0.0, 24, 1000),
-    'Ti2Br6': (0.0, 0.0, 24, 1000),
-    'Fe8O8': (0.0, 0.0, 40, 1000)}
-
-# REFERENCES[...] = (...)
-
-
 def read(folder: Path,
          mode: int,
          eps: float = 0.001) -> dict[str, tuple[float, int]]:
@@ -149,7 +181,7 @@ def read(folder: Path,
                 t = x[1] + x[5]
                 i = x[2] + x[6]
         else:
-            t = 99999.9
+            t = np.inf
             i = 999
         data[name] = (t, i)
     return data
@@ -168,13 +200,13 @@ def summary(folders: list[Path], mode: int) -> None:
         times = [data[name][0] for data in alldata]
         iters = [data[name][1] for data in alldata]
         t0 = min(times)
-        if t0 == 99999.9:
+        if t0 == np.inf:
             print()
             continue
-        if max(times) < 99999.9:
+        if max(times) < np.inf:
             N += 1
         for n, (t, i) in enumerate(zip(times, iters)):
-            if t == 99999.9:
+            if t == np.inf:
                 line = ' | ------(---) ------%'
             else:
                 percent = f'{(t / t0 - 1) * 100:+6.1f}%'
@@ -182,7 +214,7 @@ def summary(folders: list[Path], mode: int) -> None:
                     percent = GREEN + percent + RESET
                 line = f' | {t:6.1f}({i:3}) {percent}'
             print(line, end='')
-            if max(times) < 99999.9:
+            if max(times) < np.inf:
                 scores[n] += t / t0
         print()
     print('------------' + '+---------------------' * len(folders) +
@@ -196,17 +228,7 @@ def summary(folders: list[Path], mode: int) -> None:
     print()
 
 
-def score(data: dict[str, float]) -> tuple[float, int]:
-    s = 0.0
-    n = 0
-    for name, (_, _, _, tref) in REFERENCES.items():
-        if name in data:
-            s += data[name] / tref
-            n += 1
-    return 100 / s * n, n
-
-
-def main():
+def main(arguments: list[str] | None = None):
     from argparse import ArgumentParser
     parser = ArgumentParser()
     parser.add_argument(
@@ -215,7 +237,7 @@ def main():
     parser.add_argument(
         'folder', nargs='*',
         help='Folder with <name>.json files.')
-    args = parser.parse_args()
+    args = parser.parse_args(arguments)
     if args.folder:
         summary(folders=[Path(folder) for folder in args.folder],
                 mode=args.mode)
