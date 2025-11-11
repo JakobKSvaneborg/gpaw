@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 from ase import Atoms
-from gpaw.benchmark.performance_index import summary, work
+from gpaw.benchmark.performance_index import main, work
 from gpaw.benchmark.systems import systems
 from gpaw.mpi import world
 
@@ -19,5 +19,6 @@ def test_pw_benchmark(in_tmp_dir):
         Path('params.json').write_text(
             '{"mode": "pw"}')
     world.barrier()
-    work('H2')
-    summary([Path(), Path()], mode=3)
+    work('H2-0')
+    main([])
+    main(['.', '.'])
