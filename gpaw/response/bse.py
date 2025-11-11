@@ -403,7 +403,7 @@ class BSEBackend:
 
         if bands <= 0:
             raise ValueError(
-                f'\'bands\' must be a positive integer (received {bands}).')
+                f'\'bands\' must be a positive integer (received {bands=}).')
         n_fully_occupied_bands, n_partially_occupied_bands = \
             gs.count_occupied_bands()
 
