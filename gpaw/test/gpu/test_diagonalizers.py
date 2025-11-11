@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from typing import TYPE_CHECKING, Type, Optional
+from typing import TYPE_CHECKING
 from gpaw.core.matrix import Matrix
 from gpaw.gpu import cupy as cp, cupy_is_fake, device_count
 from gpaw.cgpaw import have_magma
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 def diagonalizer_tester_common(
         raw_matrix: cp.ndarray,
         matrix: Matrix,
-        diagonalizer_class: Type["GPUDiagonalizer"],
+        diagonalizer_class: type["GPUDiagonalizer"],
         options: DiagonalizerOptions) -> None:
     """"""
 
@@ -86,11 +86,11 @@ def diagonalizer_tester_common(
                          [(CuPyMPI(world), -1, 1, None),
                           (world, -1, 1, None)])
 def test_gpu_diagonalizer(fixt_eigh_test_matrix: cp.ndarray,
-                          diagonalizer_class: Type["GPUDiagonalizer"],
+                          diagonalizer_class: type["GPUDiagonalizer"],
                           matrix_size: int,
                           # dist as in Matrix class: (comm, rows, cols, block)
                           distribution: tuple["MPIComm", int, int,
-                                              Optional[int]],
+                                              int | None],
                           dtype: np.dtype,
                           uplo: str,
                           inplace: bool):
@@ -127,10 +127,10 @@ def test_gpu_diagonalizer(fixt_eigh_test_matrix: cp.ndarray,
                          [(CuPyMPI(world), -1, 1, None),
                           (world, -1, 1, None)])
 def test_multigpu(fixt_eigh_test_matrix: cp.ndarray,
-                  diagonalizer_class: Type["GPUDiagonalizer"],
+                  diagonalizer_class: type["GPUDiagonalizer"],
                   matrix_size: int,
                   # dist as in Matrix class: (comm, rows, cols, blocksize)
-                  distribution: tuple["MPIComm", int, int, Optional[int]],
+                  distribution: tuple["MPIComm", int, int, int | None],
                   dtype: np.dtype,
                   uplo: str,
                   inplace: bool):

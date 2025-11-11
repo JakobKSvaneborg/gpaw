@@ -31,7 +31,7 @@ def test_vdw_libvdwxc_mbeef():
     e = system.get_potential_energy()
     ref = -60.53662105617721
     err = abs(e - ref)
-    print('e=%r ref=%r err=%r' % (e, ref, err))
+    print(f'e={e!r} ref={ref!r} err={err!r}')
     # It would be reasonable to put 1e-6 as tolerance,
     # but the value changes by 4e-4 depending on libxc version.
     # See https://gitlab.com/gpaw/gpaw/issues/161 .

@@ -1,4 +1,5 @@
-from typing import Callable, Collection, NamedTuple, Tuple, Union
+from collections.abc import Callable, Collection
+from typing import NamedTuple
 
 import numpy as np
 import pytest
@@ -44,7 +45,7 @@ def test_directmin_lcao(in_tmp_dir, gpw_files):
                            need_init_orbs=False,
                            linesearch_algo={'name': 'max-step'})
     lcaoetdm_rand_and_niter_checks: Collection[
-        Tuple[Union[RNG, None], NiterCheck]
+        tuple[RNG | None, NiterCheck]
     ] = [(None, is_approx_3),
          (np.random.default_rng(8), is_le_12)]
 
