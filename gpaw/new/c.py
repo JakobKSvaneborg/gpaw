@@ -26,9 +26,9 @@ if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
         import functools
 
         def s(fun):
-            from cupy.cuda.stream import get_current_stream
             @functools.wraps(fun)
             def wrapper(*args):
+                from cupy.cuda.stream import get_current_stream
                 return fun(*args, get_current_stream().ptr)
             return wrapper
 
