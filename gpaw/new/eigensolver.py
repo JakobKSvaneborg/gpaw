@@ -46,7 +46,7 @@ def calculate_weights(converge_bands: int | str,
                       ibzwfs: IBZWaveFunctions) -> list[Array1D | None]:
     """Calculate convergence weights for all eigenstates."""
     weight_un = []
-    nu = len(ibzwfs.wfs_qs) * ibzwfs.nspins
+    nu = len(ibzwfs._wfs_u)
     nbands = ibzwfs.nbands
 
     if converge_bands == 'occupied':

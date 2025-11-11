@@ -108,7 +108,7 @@ def read_rttddft(filename: Union[str, Path, IO[str]],
     state = RTTDDFTState(*dft_state)
 
     if builder.mode in ['pw', 'fd']:  # fd = finite-difference
-        data = ibzwfs.wfs_qs[0][0].psit_nX.data
+        data = ibzwfs._wfs_u[0].psit_nX.data
         if not hasattr(data, 'fd'):  # fd = file-descriptor
             reader.close()
     else:

@@ -998,7 +998,7 @@ class G0W0Calculator:
 
                 for (progress, kpt1, kpt2)\
                         in self.pair_distribution.kpt_pairs_by_q(bzq_c, 0, m2):
-                    pb.update((nQ + progress) / self.wcalc.qd.mynk)
+                    pb.update((nQ + progress) / self.wcalc.qd.get_count())
 
                     k1 = self.wcalc.gs.kd.bz2ibz_k[kpt1.K]
                     i = self.kpts.index(k1)
@@ -1191,7 +1191,7 @@ class G0W0(G0W0Calculator):
             for the cutoff energy.
             If an array is given, the extrapolation will be performed based on
             the cutoff energies given in the array.
-        nbands: int | String
+        nbands: int | str
             Number of bands to use in the calculation. If None, the number will
             be determined from :ecut: to yield a number close to the number of
             plane waves used. If in LCAO, nao can be used

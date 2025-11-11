@@ -269,7 +269,7 @@ class BZRealSpaceWaveFunctions:
 
         gd = wfs.gd.new_descriptor(comm=calc.world)
 
-        nproj_a = wfs.kpt_qs[0][0].projections.nproj_a
+        nproj_a = wfs.kpt_u[0].projections.nproj_a
         # All atoms on rank-0:
         rank_a = np.zeros_like(nproj_a)
         atom_partition = AtomPartition(gd.comm, rank_a)

@@ -502,7 +502,8 @@ def get_projections_in_bz(wfs, K, s, ibz2bz, bcomm=None):
     bcomm: band communicator
     """
     ik = wfs.kd.bz2ibz_k[K]  # IBZ k-point
-    kpt = wfs.kpt_qs[ik][s]
+    assert wfs.kd.comm.size == 1
+    kpt = wfs.kpt_u[ik * wfs.nspins + s]
     nbands = wfs.bd.nbands
     # Get projections in ibz
     proj = kpt.projections.new(nbands=nbands, bcomm=bcomm)

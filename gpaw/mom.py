@@ -155,6 +155,7 @@ class OccupationsMOM:
                   nelectrons,
                   eigenvalues,
                   weights,
+                  spins,
                   fermi_levels_guess,
                   fix_fermi_level=False):
         assert not fix_fermi_level
@@ -172,6 +173,7 @@ class OccupationsMOM:
         f_qn, fermi_levels, e_entropy = self.occ.calculate(nelectrons,
                                                            eigenvalues,
                                                            weights,
+                                                           spins,
                                                            fermi_levels_guess)
         return f_qn, fermi_levels, e_entropy
 

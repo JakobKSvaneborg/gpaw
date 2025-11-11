@@ -92,7 +92,6 @@ class ResponseGroundStateAdapter:
         self.spos_ac = calc.spos_ac  # scaled position vector: np.ndarray
 
         self.kpt_u = wfs.kpt_u  # list of Kpoint from gpaw.old.kpoint
-        self.kpt_qs = wfs.kpt_qs  # list of Kpoint from gpaw.old.kpoint
 
         self.fermi_level = wfs.fermi_level  # float
         self.atoms = calc.atoms  # ASE Atoms object
@@ -139,6 +138,13 @@ class ResponseGroundStateAdapter:
         with disable_dry_run():
             calc = GPAW(gpw, txt=None, communicator=mpi.serial_comm)
         return cls(calc, lazy=lazy)
+
+    @cached_property
+    def kpt_ks(self):
+        assert self.kd.comm.size == 1
+        return [[self.kpt_u[k * self.nspins + s]
+                 for s in range(self.nspins)]
+                for k in range(self.kd.nibzkpts)]
 
     @property
     def pd(self):
