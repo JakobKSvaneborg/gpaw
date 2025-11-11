@@ -22,8 +22,8 @@ def workflow():
     for name, (_, _, cores, _) in REFERENCES.items():
         tmax = '1h'
         nodename = None
-        if cores == 40
-            nodename = 'xeon40_clx'
+        if cores == 40:
+            nodename = 'xeon40el8_clx'
         elif cores == 56:
             tmax = '3h'
 
@@ -54,6 +54,8 @@ def work(name: str, params: dict | None = None) -> None:
             xc='LDA')
         if not GPAW_NEW:
             params['experimental'] = {'magmoms': atoms._magmoms}
+            params['parallel'] = {'kpt': 24}
+            del params['magmoms']
 
     calc = GPAW(
         txt=f'{name}.txt',
@@ -102,7 +104,7 @@ def get_number_of_iterations(calc) -> int:
 REFERENCES = {
     'Bi2Se3': (-21.46195, -0.18655, 24, 55),
     'C60': (-530.92535, -0.44820, 24, 190),
-    'C676': (-530.92535, -0.44820, 24, 190),
+    'C72': (-530.92535, -0.44820, 24, 190),
     'diamond': (-18.19611, -0.00000, 24, 16),
     'Ga2N4F4H10': (-99.08900, 0.00013, 40, 120),
     'H2': (-6.77477, 0.11710, 24, 10.0),
@@ -121,7 +123,7 @@ REFERENCES = {
     'Ti2Br6': (0.0, 0.0, 24, 1000),
     'Fe8O8': (0.0, 0.0, 40, 1000)}
 
-REFERENCES[...] = (...)
+# REFERENCES[...] = (...)
 
 
 def read(folder: Path,
@@ -129,7 +131,7 @@ def read(folder: Path,
          eps: float = 0.001) -> dict[str, tuple[float, int]]:
     """Read <name>.json files."""
     data = {}
-    for name, (e0, de0, t0) in REFERENCES.items():
+    for name, (e0, de0, _, _) in REFERENCES.items():
         path = folder / f'{name}.json'
         if path.is_file():
             x = json.loads(path.read_text())
@@ -197,34 +199,41 @@ def summary(folders: list[Path], mode: int) -> None:
 def score(data: dict[str, float]) -> tuple[float, int]:
     s = 0.0
     n = 0
-    for name, (_, _, tref) in REFERENCES.items():
+    for name, (_, _, _, tref) in REFERENCES.items():
         if name in data:
             s += data[name] / tref
             n += 1
     return 100 / s * n, n
 
 
-if __name__ == '__main__':
+def main():
     from argparse import ArgumentParser
     parser = ArgumentParser()
     parser.add_argument(
         '-m', '--mode', type=int, default=3,
         help='1: first step, 2: second step, 3: both (default).')
     parser.add_argument(
-        '-l', '--list', action='store_true',
-        help='List systems.')
-    parser.add_argument(
-        'folder', nargs='+',
+        'folder', nargs='*',
         help='Folder with <name>.json files.')
     args = parser.parse_args()
-    if not args.list:
+    if args.folder:
         summary(folders=[Path(folder) for folder in args.folder],
                 mode=args.mode)
         return
 
+    print('name     natoms formula    IBZ spin bands     vol '
+          '(lengths)          (angles)')
     for name, (e, de, core, t) in REFERENCES.items():
         atoms = systems[name]()
         info = get_calculation_info(atoms, **PARAMS)
-        print(f'len(info.ibz) * info.ncomponents * info.nbands *
-         atoms.cell.volume * 1e-6)
-        print(name, cell_to_cellpar(atoms.cell))
+        f = f'{atoms.symbols.formula:ab2}'
+        print(f'{name:10} {len(atoms):4} {f:10}', end=' ')
+        print(f'{len(info.ibz):3}    {info.ncomponents}   {info.nbands:3}',
+              end='')
+        print(f' {atoms.cell.volume:7.1f}', end=' ')
+        a, b, c, A, B, C = cell_to_cellpar(atoms.cell)
+        print(f'({a:5.1f},{b:5.1f}{c:5.1f}) ({A:5.1f},{B:5.1f},{C:5.1f})')
+
+
+if __name__ == '__main__':
+    main()

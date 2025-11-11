@@ -326,6 +326,10 @@ def fe8o8():
     return atoms
 
 
+def c72():
+    return graphene(size=(6, 6, 1), vacuum=5.0)
+
+
 systems = {'H2': system_H2,
            'C60': system_C60,
            'MoS2_tube': system_MoS2_tube,
@@ -348,7 +352,8 @@ systems = {'H2': system_H2,
            'V3Cl6': v3cl6,
            'Mn2O2': mn2o2,
            'Ti2Br6': ti2br6,
-           'Fe8O8': fe8o8}
+           'Fe8O8': fe8o8,
+           'C72': c72}
 
 
 def parse_system(name):
