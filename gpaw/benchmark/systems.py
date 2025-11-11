@@ -86,7 +86,7 @@ def system_MoS2_tube():
     atoms.positions = p2
     atoms.cell = [atoms.cell[0, 0], 0, 0]
     atoms.center(vacuum=6, axis=[1, 2])
-    atoms.pbc = True
+    atoms.pbc = [True, False, False]
 
     return atoms
 

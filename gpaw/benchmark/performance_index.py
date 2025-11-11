@@ -221,16 +221,18 @@ def main():
                 mode=args.mode)
         return
 
-    print('name     natoms formula    IBZ spin bands     vol '
+    print('name     natoms ndim formula    IBZ spin bands     vol '
           '(lengths)          (angles)')
     for name, (e, de, core, t) in REFERENCES.items():
         atoms = systems[name]()
         info = get_calculation_info(atoms, **PARAMS)
         f = f'{atoms.symbols.formula:ab2}'
-        print(f'{name:10} {len(atoms):4} {f:10}', end=' ')
+        print(f'{name:10} {len(atoms):4}    {atoms.pbc.sum()} {f:10}',
+              end=' ')
         print(f'{len(info.ibz):3}    {info.ncomponents}   {info.nbands:3}',
               end='')
-        print(f' {atoms.cell.volume:7.1f}', end=' ')
+        print(f' {atoms.cell.volume:7.1f}',
+              end=' ')
         a, b, c, A, B, C = cell_to_cellpar(atoms.cell)
         print(f'({a:5.1f},{b:5.1f}{c:5.1f}) ({A:5.1f},{B:5.1f},{C:5.1f})')
 
