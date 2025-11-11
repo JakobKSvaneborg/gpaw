@@ -107,7 +107,10 @@ def test_fnv_3d():
 
 @pytest.mark.parametrize('P', [[[1, 0, 0], [1, -1, 0], [0, 0, 1]]])
 # [[1, 0, -1], [1, -1, 0], [0, 0, 1]]  # fails
-def test_fnv_cell(P):
+def test_fnv_cell(P, gpaw_new):
+    if gpaw_new:
+        pytest.skip('Transformed cell [90, 90, 45] not supported by GPAW new')
+
     P = np.array(P)
 
     E_corr_t = 23.55
