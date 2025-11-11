@@ -10,8 +10,8 @@ def test_high_symmetry_monkhorst_pack_output(gpw_files):
 
     kpts1_kc = find_high_symmetry_monkhorst_pack(gpwname, 6.0)
 
-    # kpts returned from this function are not inside the first Brillouin zone.
-    # Putting them back..
+    # kpts returned from this function are not inside the (-0.5, 0.5] interval.
+    # Putting them inside the interval..
     kpts1_kc = kpts1_kc - (kpts1_kc > 0.5) + (- kpts1_kc >= 0.5)
 
     kpts_dict = find_high_symmetry_monkhorst_pack(gpwname, 6.0,
