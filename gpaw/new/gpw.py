@@ -188,7 +188,7 @@ def write_wave_function_indices(writer, ibzwfs, grid):
 
 def read_gpw(filename: str | Path | IO[str],
              *,
-             log: Logger | str | Path | IO[str] = None,
+             log: Logger | str | Path | IO[str] | None = None,
              comm=None,
              parallel: dict[str, Any] = None,
              dtype=None,

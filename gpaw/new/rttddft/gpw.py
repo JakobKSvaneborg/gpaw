@@ -64,7 +64,7 @@ def write_rttddft(filename: str | Path,
 
 def read_rttddft(filename: str | Path | IO[str],
                  *,
-                 log: Logger | str | Path | IO[str] = None,
+                 log: Logger | str | Path | IO[str] | None = None,
                  comm=None,
                  parallel: dict[str, Any] = None,
                  ) -> tuple[Atoms,

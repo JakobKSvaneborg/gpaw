@@ -5,7 +5,7 @@
 # Computer generated code:
 # format: (energy in Hartrees)
 #    'element': (atomic number, [(n, l, occ, energy), ...])
-from typing import Dict, Any
+from typing import Any
 import copy
 
 configurations = {
