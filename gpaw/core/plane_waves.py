@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from math import pi
-from typing import TYPE_CHECKING, Literal, Sequence
+from typing import TYPE_CHECKING, Literal
+from collections.abc import Sequence
 
 import numpy as np
 from ase.units import Ha

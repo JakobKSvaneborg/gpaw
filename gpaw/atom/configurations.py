@@ -1044,7 +1044,7 @@ configurations['No'][1][15] = (5, 3, 14, -0.36654300000000001)
 configurations['No'][1][16] = (6, 2, 0, -0.14319000000000001)
 
 
-parameters: Dict[str, Dict[str, Any]] = {
+parameters: dict[str, dict[str, Any]] = {
  'H' : {'rcut': 0.9},
  'He': {'rcut': 1.5},
  'Li': {'core': '[He]',       'rcut': 2.0},

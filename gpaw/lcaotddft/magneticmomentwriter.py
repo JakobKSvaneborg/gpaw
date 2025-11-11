@@ -1,6 +1,5 @@
 import json
 import re
-from typing import Tuple
 
 import numpy as np
 from ase import Atoms
@@ -240,7 +239,7 @@ def get_origin_coordinates(atoms: Atoms,
     return origin_v / Bohr
 
 
-def parse_header(line: str) -> Tuple[str, int, dict]:
+def parse_header(line: str) -> tuple[str, int, dict]:
     """Parse header line.
 
     Example header line (keyword arguments as json):

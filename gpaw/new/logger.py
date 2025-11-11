@@ -6,7 +6,8 @@ import os
 import sys
 from functools import cache
 from pathlib import Path
-from typing import IO, Any, Sequence
+from typing import IO, Any
+from collections.abc import Sequence
 
 from gpaw.mpi import MPIComm, world
 

@@ -234,7 +234,7 @@ class Profiler(Timer):
             for i in range(self.comm.size):
                 fname = f'{self.prefix}.{ranktxt(self.comm, rank=i)}.json'
                 print('Processing', fname)
-                with open(fname, 'r') as f:
+                with open(fname) as f:
                     out.writelines(f.readlines())
             out.write("] }\n")
             out.close()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, TypeVar, Callable, Literal
+from typing import TYPE_CHECKING, Generic, TypeVar, Literal
+from collections.abc import Callable
 
 import gpaw.fftw as fftw
 import numpy as np

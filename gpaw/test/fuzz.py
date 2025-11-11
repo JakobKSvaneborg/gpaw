@@ -9,7 +9,8 @@ import subprocess
 import sys
 from pathlib import Path
 from time import time
-from typing import Any, TypeVar, Callable, TYPE_CHECKING
+from typing import Any, TypeVar, TYPE_CHECKING
+from collections.abc import Callable
 
 import numpy as np
 from ase import Atoms

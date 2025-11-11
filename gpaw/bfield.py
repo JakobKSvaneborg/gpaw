@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 from ase.units import Ha
@@ -46,6 +46,6 @@ class BField(NoExternalPotential):
             c_vp = (4 * np.pi)**0.5 * self.field_v[:, np.newaxis]
             dH_sp[1:] -= c_vp * Delta_p
 
-    def todict(self) -> Dict[str, Any]:
+    def todict(self) -> dict[str, Any]:
         return {'name': self.name,
                 'field': tuple(self.field_v * Ha)}

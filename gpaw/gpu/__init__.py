@@ -2,7 +2,8 @@ from __future__ import annotations
 import contextlib
 import atexit
 from time import time
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
+from collections.abc import Generator
 from types import ModuleType
 from collections.abc import Iterable
 from gpaw.new.timer import trace
@@ -294,7 +295,7 @@ def synchronize():
 
 @contextlib.contextmanager
 def as_numpy(a: np.ndarray | cupy.ndarray
-             ) -> Generator[np.ndarray, None, None]:
+             ) -> Generator[np.ndarray]:
     """Copy array to CPU and back to GPU when done."""
     if isinstance(a, np.ndarray):
         yield a

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import partial
 from math import pi
-from typing import Optional, Callable
+from collections.abc import Callable
 
 import numpy as np
 from gpaw.core.arrays import DistributedArrays as XArray
@@ -51,7 +51,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                          dtype=psit_nX.desc.dtype,
                          domain_comm=psit_nX.desc.comm,
                          band_comm=psit_nX.comm)
-        self._pt_aiX: Optional[AtomCenteredFunctions] = None
+        self._pt_aiX: AtomCenteredFunctions | None = None
         self.orthonormalized = False
         self.bytes_per_band = (prod(self.array_shape(global_shape=True)) *
                                psit_nX.desc.itemsize)

@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from functools import partial
 from math import exp, log, pi, sqrt
-from typing import Any, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 import numpy as np
 from ase.data import atomic_numbers, chemical_symbols
@@ -30,9 +30,8 @@ class DatasetGenerationError(Exception):
     pass
 
 
-parameters: dict[str,
-                 Union[tuple[str, float | list[float]],
-                       tuple[str, float | list[float], dict[str, Any]]]] = {
+parameters: dict[str, (tuple[str, float | list[float]] |
+                       tuple[str, float | list[float], dict[str, Any]])] = {
     # 1-2:
     'H1': ('1s,s,p', 0.9),
     'He2': ('1s,s,p', 1.5),
@@ -322,12 +321,12 @@ class PAWSetupGenerator:
 
         self.fd = fd or sys.stdout
         self.yukawa_gamma = yukawa_gamma
-        self.exxcc_w: Dict[float, float] = {}
-        self.exxcv_wii: Dict[float, Array2D] = {}
+        self.exxcc_w: dict[float, float] = {}
+        self.exxcv_wii: dict[float, Array2D] = {}
         self.omega = omega
         self.ecut = ecut
 
-        self.core_hole: Optional[Tuple[int, int, float]]
+        self.core_hole: tuple[int, int, float] | None
         if core_hole:
             state, occ = core_hole.split(',')
             n0 = int(state[0])
@@ -338,17 +337,17 @@ class PAWSetupGenerator:
         else:
             self.core_hole = None
 
-        self.l0: Optional[int] = None
+        self.l0: int | None = None
         if projectors[-1].isupper():
             assert projectors[-2] == ',', projectors
             self.l0 = 'SPDFG'.find(projectors[-1])
             projectors = projectors[:-2]
 
         self.lmax = -1
-        self.states: Dict[int, List[Union[None, int, float]]] = {}
+        self.states: dict[int, list[None | int | float]] = {}
         for s in projectors.split(','):
             l = 'spdf'.find(s[-1])
-            n: Union[None, int, float]
+            n: None | int | float
             if len(s) == 1:
                 n = None
             elif '.' in s:
@@ -739,7 +738,7 @@ class PAWSetupGenerator:
         return e_b
 
     def test_convergence(self,
-                         ax: 'plt.Axes',
+                         ax: plt.Axes,
                          show: bool = True) -> None:
         rgd = self.rgd
         r_g = rgd.r_g
@@ -793,9 +792,9 @@ class PAWSetupGenerator:
     def plot(
         self,
         *,
-        potential_components: 'plt.Axes' | None = None,
-        partial_waves: 'plt.Axes' | None = None,
-        projectors: 'plt.Axes' | None = None,
+        potential_components: plt.Axes | None = None,
+        partial_waves: plt.Axes | None = None,
+        projectors: plt.Axes | None = None,
     ) -> None:
         if potential_components is not None:
             from .plot_dataset import (
@@ -1530,7 +1529,7 @@ def main(args):
 def plot_log_derivs(gen: PAWSetupGenerator,
                     ld_str: str,
                     plot: bool,
-                    ax: 'plt.Axes') -> None:
+                    ax: plt.Axes) -> None:
     """Make nice log-derivs plot."""
 
     r = 1.1 * gen.rcmax
