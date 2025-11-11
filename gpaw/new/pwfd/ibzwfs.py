@@ -14,4 +14,4 @@ class PWFDIBZWaveFunctions(IBZWaveFunctions[PWFDWaveFunctions]):
                 wfs1.other_spin = wfs2
 
     def has_wave_functions(self):
-        return self.wfs_qs[0][0].psit_nX.data is not None
+        return self._wfs_u[0].psit_nX.data is not None

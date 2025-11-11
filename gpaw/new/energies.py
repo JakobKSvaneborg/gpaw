@@ -1,6 +1,7 @@
 """PAW-DFT energy-contributions."""
 
 from ase.units import Ha
+import numpy as np
 
 # Contributions to free energy:
 NAMES = ['kinetic', 'coulomb', 'zero', 'external', 'xc', 'entropy',
@@ -55,6 +56,10 @@ class DFTEnergies:
         return [(name, self._energies.get(name, 0.0))
                 for name in self._energies
                 if name not in OTHERS and name not in NAMES]
+
+    def sanity_check(self):
+        if np.isnan(list(self._energies.values())).any():
+            raise ValueError('Some energy terms are NaN!')
 
     def summary(self, log) -> None:
         for name in NAMES:

@@ -216,12 +216,13 @@ class PPCG(PWFDEigensolverParamater):
     cls = PPCGEigensolver
 
     def __init__(self,
-                 niter: int = 2,
-                 min_niter: int | None = None,
+                 niter: int = 5,
+                 min_niter: int | None = 2,
                  max_buffer_mem: int = 200 * 1024**2,
                  blocksize=None,
                  rr_modulo=5,
                  include_cg=True,
+                 promote_inner_dtype=False,
                  tolerances: tuple[float] | None = None):
         self.niter = niter
         self.min_niter = min_niter
@@ -229,6 +230,7 @@ class PPCG(PWFDEigensolverParamater):
         self.blocksize = blocksize
         self.rr_modulo = rr_modulo
         self.include_cg = include_cg
+        self.promote_inner_dtype = promote_inner_dtype
         self.tolerances = tolerances
 
     def todict(self):
@@ -238,6 +240,7 @@ class PPCG(PWFDEigensolverParamater):
                 'blocksize': self.blocksize,
                 'rr_modulo': self.rr_modulo,
                 'include_cg': self.include_cg,
+                'promote_inner_dtype': self.promote_inner_dtype,
                 'tolerances': self.tolerances}
 
     def build(self,
@@ -260,6 +263,7 @@ class PPCG(PWFDEigensolverParamater):
             blocksize=self.blocksize,
             rr_modulo=self.rr_modulo,
             include_cg=self.include_cg,
+            promote_inner_dtype=self.promote_inner_dtype,
             tolerances=self.tolerances)
 
 
@@ -502,10 +506,12 @@ class MonkhorstPack(BZSampling):
     def __init__(self,
                  size: Sequence[int] | None = None,
                  density: float | None = None,
-                 gamma: bool | None = None):
+                 gamma: bool | None = None,
+                 even: bool | None = None):
         self.size = size
         self.density = density
         self.gamma = gamma
+        self.even = even
 
     def todict(self):
         dct = {}
@@ -515,6 +521,8 @@ class MonkhorstPack(BZSampling):
             dct['density'] = self.density
         if self.gamma is not None:
             dct['gamma'] = self.gamma
+        if self.even is not None:
+            dct['even'] = self.even
         return dct
 
     def build(self, atoms):

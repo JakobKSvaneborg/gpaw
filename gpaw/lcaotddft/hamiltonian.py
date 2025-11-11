@@ -251,8 +251,7 @@ class TimeDependentHamiltonian:
     def get_hamiltonian_matrix(self, kpt, time, addfxc=True, addpot=True,
                                scale=True):
         self.timer.start('Calculate H_MM')
-        kpt_rank, q = self.wfs.kd.get_rank_and_index(kpt.k)
-        u = q * self.wfs.nspins + kpt.s
+        kpt_rank, u = self.wfs.kd.get_rank_and_index(kpt.k, kpt.s)
         assert kpt_rank == self.wfs.kd.comm.rank
 
         get_matrix = self.wfs.eigensolver.calculate_hamiltonian_matrix

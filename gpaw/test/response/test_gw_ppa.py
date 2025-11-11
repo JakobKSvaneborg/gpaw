@@ -46,7 +46,7 @@ def test_ff(in_tmp_dir, gpw_files, scalapack):
               bands=(3, 5),
               nbands=9,
               nblocks=1,
-              evaluate_sigma=np.linspace(-1, 1, 10),
+              evaluate_sigma=np.linspace(-1, 1, 10) * Ha,
               ecut=40)
 
     results = gw.calculate()

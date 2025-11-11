@@ -114,6 +114,7 @@ class DistributedArrays(Generic[DomainType], XP):
         # rounded down.
         mybands = min(datasize // nX,
                       self.data.shape[0])
+        mybands = self.desc.comm.min_scalar(mybands)
         data = data_buffer[:mybands * nX].reshape(
             (mybands,) + X)
         totalbands = self.comm.sum_scalar(mybands)
@@ -211,15 +212,16 @@ class DistributedArrays(Generic[DomainType], XP):
             # numerical stability. This is especially important
             # for single precision.
             if self.data.dtype in (np.float32, np.complex64):
-                blocksize = 16384
-                # 16384 = 2**14. Large enough that the extra
-                # overhead is negligible, yet still comparable
-                # to the square root of the mantisa of float32
-                # (2**24)**0.5.
+                blocksize = 4096
+                # 4096 = 2**12. Largest blocksize, that yields
+                # good numerical stability. This results in some
+                # overhead, however, numericaly stability is
+                # more important. In the future, we might want
+                # to find improvements.
             elif self.data.dtype in (np.float64, np.complex128):
-                blocksize = 268435456
+                blocksize = 16777216
                 # Double is simply just the blocksize of
-                # single precision squared 2**28. Most likely,
+                # single precision squared 2**24. Most likely,
                 # we will never end up slicing the matrix into
                 # blocks for double precision.
 

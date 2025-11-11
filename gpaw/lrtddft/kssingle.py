@@ -144,10 +144,11 @@ class KSSingles(ExcitationList):
         u = 0
         for ispin in ispins:
             for k in range(wfs.kd.nibzkpts):
-                q = k - wfs.kd.k0
+                # q = k - wfs.kd.k0
                 for s in range(wfs.nspins):
-                    if q >= 0 and q < wfs.kd.mynk:
-                        kpt = wfs.kpt_qs[q][s]
+                    rank, u = wfs.kd.who_has(k, s)
+                    if rank == kpt_comm.rank:  # q >= 0 and q < wfs.kd.mynk:
+                        kpt = wfs.kpt_u[u]
                         for i in range(nbands):
                             for j in range(i + 1, nbands):
                                 fij = (kpt.f_n[i] - kpt.f_n[j]) / kpt.weight
@@ -167,13 +168,15 @@ class KSSingles(ExcitationList):
         u = 0
         for ispin in ispins:
             for k in range(wfs.kd.nibzkpts):
-                q = k - wfs.kd.k0
+                # q = k - wfs.kd.k0
                 for s in range(wfs.kd.nspins):
+                    rank, u = wfs.kd.who_has(k, s)
                     for i in range(nbands):
                         for j in range(i + 1, nbands):
                             if take[u, i, j]:
-                                if q >= 0 and q < wfs.kd.mynk:
-                                    kpt = wfs.kpt_qs[q][s]
+                                # if q >= 0 and q < wfs.kd.mynk:
+                                if rank == kpt_comm.rank:
+                                    kpt = wfs.kpt_u[u]
                                     pspin = max(kpt.s, ispin)
                                     self.append(
                                         KSSingle(i, j, pspin, kpt, paw,
