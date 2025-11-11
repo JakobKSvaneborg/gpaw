@@ -86,7 +86,7 @@ def system_MoS2_tube():
     atoms.positions = p2
     atoms.cell = [atoms.cell[0, 0], 0, 0]
     atoms.center(vacuum=6, axis=[1, 2])
-    atoms.pbc = True
+    atoms.pbc = [True, False, False]
 
     return atoms
 
@@ -326,37 +326,44 @@ def fe8o8():
     return atoms
 
 
+def c72():
+    atoms = graphene(vacuum=5.0)
+    atoms.positions[0, 2] += 0.05
+    return atoms * (6, 6, 1)
+
+
+# Contains both old and new names:
 systems = {'H2': system_H2,
+           'H2-0': system_H2,
            'C60': system_C60,
+           'C60-0': system_C60,
            'MoS2_tube': system_MoS2_tube,
+           'Mo60S120-1': system_MoS2_tube,
            'C6000': system_6000_bl_graphene,
            'C2188': system_2188_bl_graphene,
            'C676': system_676_bl_graphene,
            'metalslab': system_metalslab,
+           'Al96-2': system_metalslab,
            'magic_graphene': system_magic_graphene,
-           'MnVS2-slab': system_c2db,
-           'OPt111b': opt111b,
+           'MnVS2-2M': system_c2db,
+           'OPt24-2': opt111b,
            'diamond': system_diamond,
+           'C2-3': system_diamond,
            'magbulk': system_magbulk,
-           'LiC8': lic8,
-           'VI2': vii,
-           'Bi2Se3': bi2se3,
-           'Ga2N4F4H10': ganfh,
-           'PtO3Li2O3': pto3li2o3,
-           'ErGe': erge,
-           'As4CrSi2': as4crsi2,
-           'V3Cl6': v3cl6,
-           'Mn2O2': mn2o2,
-           'Ti2Br6': ti2br6,
-           'Fe8O8': fe8o8}
+           'Fe8-3M': system_magbulk,
+           'LiC8-2': lic8,
+           'VI2-2M': vii,
+           'Bi2Se3-3': bi2se3,
+           'Ga2F4N4H10-3': ganfh,
+           'PtLi2O6-2M': pto3li2o3,
+           'ErGe-2M': erge,
+           'CrSi2As4-2M': as4crsi2,
+           'V3Cl6-2N': v3cl6,
+           'Mn2O2-3M': mn2o2,
+           'Ti2Br6-3': ti2br6,
+           'Fe8O8-3M': fe8o8,
+           'C72-2': c72}
 
 
 def parse_system(name):
     return systems[name]()
-
-
-if __name__ == '__main__':
-    from ase.geometry.cell import cell_to_cellpar
-    for name, func in systems.items():
-        atoms = func()
-        print(name, cell_to_cellpar(atoms.cell))
