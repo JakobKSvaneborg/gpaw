@@ -67,6 +67,8 @@ def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
     assert f == pytest.approx(f0, abs=1e-2)
 
     if 0:
+        # If unoccupied orbitals are not converged:
+        #     energy(LUMO) > energy(HOMO)
         assert calc.wfs.kpt_u[0].f_n[6] == 1.0
         assert calc.wfs.kpt_u[0].f_n[5] == 0.0
         assert calc.wfs.kpt_u[0].eps_n[6] > calc.wfs.kpt_u[0].eps_n[5]
@@ -81,6 +83,8 @@ def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
     if not gpaw_new:
         assert niter == pytest.approx(3, abs=1)
     if 0:
+        # If unoccupied orbitals are not converged:
+        #     energy(LUMO) > energy(HOMO)
         assert calc.wfs.kpt_u[0].f_n[6] == 1.0
         assert calc.wfs.kpt_u[0].f_n[5] == 0.0
         assert calc.wfs.kpt_u[0].eps_n[6] > calc.wfs.kpt_u[0].eps_n[5]
