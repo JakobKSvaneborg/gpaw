@@ -1,6 +1,9 @@
 import numpy as np
+import pytest
+from ase import Atoms
 from ase.dft.kpoints import monkhorst_pack
-from gpaw.kpt_descriptor import KPointDescriptor, to1bz
+from gpaw.old.kpt_descriptor import KPointDescriptor, to1bz
+from gpaw.dft import MonkhorstPack
 
 
 def test_kpt():
@@ -24,3 +27,34 @@ def test_kpt():
                                    [0.55, -0.275, 0]])
     assert abs(error_kc).max() == 0.0
     assert not KPointDescriptor(np.zeros((1, 3)) + 1e-14).gamma
+
+
+def test_even():
+    atom = Atoms('H', positions=[(0, 0, 0)], pbc=[1, 1, 1])
+    atom.center(vacuum=5)
+
+    kpts_even = MonkhorstPack(density=8,
+                              gamma=False,
+                              even=True).build(atoms=atom)
+    a, b, c = kpts_even.size_c
+    l, m, n = kpts_even.shift_c
+    assert (a, b, c) == (6, 6, 6)
+    assert (l, m, n) == (0, 0, 0)
+
+    kpts_odd = MonkhorstPack(density=8,
+                             gamma=False,
+                             even=False).build(atoms=atom)
+    a, b, c = kpts_odd.size_c
+    l, m, n = kpts_odd.shift_c
+    assert (a, b, c) == (7, 7, 7)
+    assert (l, m, n) == (pytest.approx(1.0 / 14),
+                         pytest.approx(1.0 / 14),
+                         pytest.approx(1.0 / 14))
+
+    kpts_none = MonkhorstPack(density=8,
+                              gamma=False,
+                              even=None).build(atoms=atom)
+    a, b, c = kpts_none.size_c
+    l, m, n = kpts_none.shift_c
+    assert (a, b, c) == (6, 6, 6)
+    assert (l, m, n) == (0, 0, 0)

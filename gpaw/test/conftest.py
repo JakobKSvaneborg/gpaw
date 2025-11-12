@@ -4,7 +4,7 @@ from functools import cached_property
 
 import numpy as np
 import pytest
-from gpaw import setup_paths, GPAW_NEW
+from gpaw import setup_paths, GPAW_NEW, debug
 from gpaw.cli.info import info
 from gpaw.mpi import broadcast, world
 from gpaw.test.gpwfile import GPWFiles, _all_gpw_methodnames
@@ -30,6 +30,16 @@ def execute_in_tmp_path(request, tmp_path_factory):
         yield path
     finally:
         os.chdir(cwd)
+
+
+@pytest.fixture(scope='module')
+def set_device():
+    from gpaw.gpu import set_device
+
+    def log(*args, **kwargs):
+        kwargs.pop('parallel', None)
+        print(*args, **kwargs)
+    set_device(log)
 
 
 @pytest.fixture(scope='module')
@@ -95,6 +105,12 @@ def monkeypatch_allow_cpupy(sessionscoped_monkeypatch):
     sessionscoped_monkeypatch.setattr(DFTComponentsBuilder, 'gpu', gpu)
     # Needed for `@cached_property` to work
     gpu.__set_name__(DFTComponentsBuilder, 'gpu')
+
+
+@pytest.fixture(autouse=True, scope='session')
+def use_fftw_estimate_flag(sessionscoped_monkeypatch):
+    from gpaw.fftw import FFTWPlans, ESTIMATE
+    sessionscoped_monkeypatch.setattr(FFTWPlans, '_overwrite_flags', ESTIMATE)
 
 
 @pytest.fixture(scope='session')
@@ -312,6 +328,7 @@ class GPAWPlugin:
         from gpaw.mpi import size
         terminalreporter.section('GPAW-MPI stuff')
         terminalreporter.write(f'size: {size}\n')
+        terminalreporter.write(f'debug-mode: {debug}\n')
 
 
 @pytest.fixture

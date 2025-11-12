@@ -6,8 +6,8 @@ from ase import Atoms
 from ase.units import Bohr
 
 from gpaw.new.ase_interface import ASECalculator as GPAW
-from gpaw.kpt_descriptor import KPointDescriptor
-from gpaw.projections import Projections
+from gpaw.old.kpt_descriptor import KPointDescriptor
+from gpaw.old.projections import Projections
 from gpaw.setup import Setup
 from gpaw.typing import Array2D, Array3D, Array4D, ArrayLike1D
 from gpaw.utilities.partition import AtomPartition
@@ -269,7 +269,7 @@ class BZRealSpaceWaveFunctions:
 
         gd = wfs.gd.new_descriptor(comm=calc.world)
 
-        nproj_a = wfs.kpt_qs[0][0].projections.nproj_a
+        nproj_a = wfs.kpt_u[0].projections.nproj_a
         # All atoms on rank-0:
         rank_a = np.zeros_like(nproj_a)
         atom_partition = AtomPartition(gd.comm, rank_a)

@@ -1,11 +1,10 @@
-import sys
-
 import numpy as np
 import pytest
 
 from gpaw.core import PWDesc, UGDesc
-from gpaw.gpu import cupy as cp
+from gpaw.gpu import cupy as cp, cupy_is_fake
 from gpaw.mpi import world
+from gpaw.new.c import GPU_AWARE_MPI
 
 a = 2.5
 n = 20
@@ -56,10 +55,12 @@ def test_acf_fd(grid, xp):
 def test_acf_pw(grid, xp):
     if world.size > 1 and xp is cp:
         pytest.skip()
-    if xp is cp and '_gpaw' in sys.builtin_module_names:
-        pytest.skip()
-
-    pw = PWDesc(ecut=50, cell=grid.cell, dtype=complex, comm=world)
+    if xp is cp and cupy_is_fake or not GPU_AWARE_MPI:
+        from gpaw.gpu.mpi import CuPyMPI
+        comm = CuPyMPI(world)
+    else:
+        comm = world
+    pw = PWDesc(ecut=50, cell=grid.cell, dtype=complex, comm=comm)
 
     basis = pw.atom_centered_functions(
         [[s]],

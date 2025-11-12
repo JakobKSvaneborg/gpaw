@@ -1,7 +1,7 @@
 from ase import Atoms
 from ase.build import molecule
 from ase.parallel import paropen
-from gpaw import GPAW, Mixer, MixerDif
+from gpaw import GPAW, Mixer, MixerDif, GPAW_NEW
 from gpaw.utilities.tools import split_formula
 
 cell = [14.4, 14.4, 14.4]
@@ -68,7 +68,7 @@ for formula in systems:
         calc = calc.new(hund=True,
                         # fixmom=True,
                         mixer=MixerDif(),
-                        eigensolver='cg',
+                        eigensolver='ppcg' if GPAW_NEW else 'cg',
                         txt=formula + '.txt')
     else:
         calc = calc.new(mixer=Mixer(), txt=formula + '.txt')

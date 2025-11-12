@@ -5,8 +5,10 @@ from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.lcaotddft.dipolemomentwriter import VelocityGaugeWriter
 
 
+@pytest.mark.filterwarnings('ignore:Using compabilitity wrapper for RTTDDFT')
+@pytest.mark.old_gpaw_only_mpi
 @pytest.mark.rttddft
-@pytest.mark.parametrize('propagator', ['sicn', 'scpc', 'ecn'])
+@pytest.mark.parametrize('propagator', ['sicn', 'ecn'])
 def test_propagators(propagator, gpw_files, in_tmp_dir):
     # XXX convergence={'density': 1e-8} originally 1e-12
     td_calc = LCAOTDDFT(gpw_files['na2_tddft_dzp'], propagator=propagator)
@@ -44,30 +46,6 @@ def test_propagators(propagator, gpw_files, in_tmp_dir):
                  1.864302841758e-04,
                  1.580588287559e-04]
 
-    elif propagator == 'scpc':
-        ref_i = [1.440334447474e-15,
-                 1.125313930892e-15,
-                 3.584439590353e-05,
-                 7.109886048577e-05,
-                 1.051848309578e-04,
-                 1.375459452388e-04,
-                 1.676578426631e-04,
-                 1.950366598449e-04,
-                 2.192461280005e-04,
-                 2.399033382662e-04,
-                 2.566833411562e-04,
-                 2.693227827882e-04,
-                 2.776227689310e-04,
-                 2.814510134936e-04,
-                 2.807437787678e-04,
-                 2.755072543407e-04,
-                 2.658179386847e-04,
-                 2.518229288423e-04,
-                 2.337394843530e-04,
-                 2.118531419552e-04,
-                 1.865144815236e-04,
-                 1.581341901411e-04]
-
     elif propagator == 'ecn':
         ref_i = [1.440334447474e-15,
                  1.125313930892e-15,
@@ -95,7 +73,51 @@ def test_propagators(propagator, gpw_files, in_tmp_dir):
     assert data_i == pytest.approx(ref_i, abs=1e-8)
 
 
+@pytest.mark.old_gpaw_only
+@pytest.mark.rttddft
+@pytest.mark.parametrize('propagator', ['scpc'])
+def test_propagators_old_gpaw(propagator, gpw_files, in_tmp_dir):
+    # Duplicate of above test, for parameters that don't work in new GPAW
+    td_calc = LCAOTDDFT(gpw_files['na2_tddft_dzp'], propagator=propagator)
+    DipoleMomentWriter(td_calc, 'dm.dat')
+    td_calc.absorption_kick([0.0, 0.0, 1e-5])
+    td_calc.propagate(40, 20)
+    data = np.loadtxt('dm.dat')
+
+    # Make sure that norm and x and y components are zero
+    assert data[:, 1:4] == pytest.approx(0, abs=1e-8)
+    # Isolate z-directional data for comparison
+    data_i = data[:, 4]
+
+    if propagator == 'scpc':
+        ref_i = [1.440334447474e-15,
+                 1.125313930892e-15,
+                 3.584439590353e-05,
+                 7.109886048577e-05,
+                 1.051848309578e-04,
+                 1.375459452388e-04,
+                 1.676578426631e-04,
+                 1.950366598449e-04,
+                 2.192461280005e-04,
+                 2.399033382662e-04,
+                 2.566833411562e-04,
+                 2.693227827882e-04,
+                 2.776227689310e-04,
+                 2.814510134936e-04,
+                 2.807437787678e-04,
+                 2.755072543407e-04,
+                 2.658179386847e-04,
+                 2.518229288423e-04,
+                 2.337394843530e-04,
+                 2.118531419552e-04,
+                 1.865144815236e-04,
+                 1.581341901411e-04]
+
+    assert data_i == pytest.approx(ref_i, abs=1e-8)
+
+
 @pytest.mark.serial  # Todo:remove later
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_velocity(gpw_files, in_tmp_dir):
 

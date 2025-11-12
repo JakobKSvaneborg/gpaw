@@ -11,8 +11,7 @@ import numpy as np
 from scipy.linalg import eigh
 
 from gpaw.blacs import BlacsGrid, Redistributor, BlacsDescriptor
-from gpaw.kpt_descriptor import KPointDescriptor
-from gpaw.matrix import suggest_blocking
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.mpi import world, serial_comm
 from gpaw.response import ResponseContext
 from gpaw.response.groundstate import CellDescriptor
@@ -78,6 +77,9 @@ class BSEMatrix:
         return w_T, v_RT, exclude_S
 
     def diagonalize_tammdancoff(self, bse, deps_max=None, backend='scalapack'):
+        known_backends = {'scalapack', 'elpa', None}
+        if backend not in known_backends:
+            raise ValueError(f"'backend' must be one of {known_backends}")
         if deps_max is None:
             deps_max = self.deps_max
         exclude_S = np.where(np.abs(self.deps_S) > deps_max)[0]
@@ -89,24 +91,7 @@ class BSEMatrix:
         nR = bse.nS - len(exclude_S)
         w_T = np.empty(nR)
         v_rt = desc.empty(dtype=complex)
-        if backend == 'mkl':
-            bse.context.print('  Using mkl...')
-            bse.context.print('You are using a general eigensolver '
-                              'to solve a Hermitian eigenvalue problem. '
-                              'You may get better performance by using '
-                              '`backend = \'scalapack\'`')
-            w_T = np.empty(nR, dtype=complex)
-            mkl_scalapack_diagonalize_non_symmetric(desc, H_rr, v_rt, w_T)
-            w_T = w_T.real
-            grid_Rt = BlacsGrid(world, 1, world.size)
-            nt = -((-nR) // world.size)
-            desc_Rt = grid_Rt.new_descriptor(nR, nR, nR, nt)
-            v_Rt = desc_Rt.zeros(dtype=complex)
-            Redistributor(world, desc, desc_Rt).redistribute(v_rt, v_Rt)
-            norm_t = np.linalg.norm(v_Rt, axis=0)
-            assert np.allclose(norm_t, 1.0, atol=1e-5)
-            return w_T, v_Rt, exclude_S
-        elif backend == 'elpa':
+        if backend == 'elpa':
             warnings.warn('Elpa implementation is currently experimental'
                           ' - use at your own risk!')
             bse.context.print('Using elpa...')
@@ -162,7 +147,7 @@ def parallel_delete(A_nn: np.ndarray,
     grid_desc: BlacsDescriptor for A_nn
     new_grid: BlacsGrid on which A_nn will be returned; optional.
     If None, the output grid will be determined automatically
-    by the gpaw.matrix.suggest_blocking function.
+    by the gpaw.old.matrix.suggest_blocking function.
     -------------------
     Returns:
     A_rs: np.ndarray
@@ -172,6 +157,7 @@ def parallel_delete(A_nn: np.ndarray,
     have been deleted.
     new_grid is the grid on which it is distributed.
     """
+    from gpaw.old.matrix import suggest_blocking
     N = grid_desc.N
     assert N == grid_desc.M, 'Matrix must be square'
 
@@ -302,6 +288,7 @@ class BSEBackend:
                  gw_kn=None,
                  truncation=None,
                  integrate_gamma='reciprocal',
+                 q0_correction=False,
                  mode='BSE',
                  q_c=[0.0, 0.0, 0.0],
                  direction=0):
@@ -314,7 +301,10 @@ class BSEBackend:
         self.context = context
         self.add_soc = add_soc
         self.scale = scale
-
+        self.q0_correction = q0_correction
+        if q0_correction and truncation != '2D':
+            raise ValueError('q0_correction should only be used with '
+                             'truncation=\'2D\'.')
         assert mode in ['RPA', 'BSE']
 
         if deps_max is None:
@@ -347,10 +337,12 @@ class BSEBackend:
 
         # Bands and spin
         self.nspins = self.gs.nspins
-        self.val_m = self.parse_bands(valence_bands,
-                                      band_type='valence')
-        self.con_m = self.parse_bands(conduction_bands,
-                                      band_type='conduction')
+        self.val_m = self.parse_bands(valence_bands, gs=self.gs,
+                                      band_type='valence',
+                                      add_soc=self.add_soc)
+        self.con_m = self.parse_bands(conduction_bands, gs=self.gs,
+                                      band_type='conduction',
+                                      add_soc=self.add_soc)
 
         self.use_tammdancoff = decide_whether_tammdancoff(self.val_m,
                                                           self.con_m)
@@ -407,7 +399,8 @@ class BSEBackend:
             self.vi, self.vf = self.val_m[0], self.val_m[-1] + 1
             self.ci, self.cf = self.con_m[0], self.con_m[-1] + 1
 
-    def parse_bands(self, bands, band_type='valence'):
+    @staticmethod
+    def parse_bands(bands, gs, band_type, add_soc):
         """Helper function that checks whether bands are correctly specified,
          and brings them to the format used later in the code.
 
@@ -426,17 +419,25 @@ class BSEBackend:
                                  'list or an integer (number of bands).')
             return bands
 
+        if bands <= 0:
+            raise ValueError(
+                f'\'bands\' must be a positive integer (received {bands = }).')
         n_fully_occupied_bands, n_partially_occupied_bands = \
-            self.gs.count_occupied_bands()
+            gs.count_occupied_bands()
 
-        if self.nspins == 2:
+        if gs.nspins == 2:
             n_fully_occupied_bands += n_partially_occupied_bands
-        elif self.add_soc:
+        elif add_soc:
             n_fully_occupied_bands *= 2
 
         if band_type == 'valence':
+            if bands > n_fully_occupied_bands:
+                raise ValueError(
+                    f'{bands} valence bands were requested, '
+                    f'but at most {n_fully_occupied_bands} are available.')
             bands_m = range(n_fully_occupied_bands - bands,
                             n_fully_occupied_bands)
+
         elif band_type == 'conduction':
             bands_m = range(n_fully_occupied_bands,
                             n_fully_occupied_bands + bands)
@@ -778,7 +779,8 @@ class BSEBackend:
         return initialize_w_calculator(
             self._chi0calc, self.wcontext,
             coulomb=self.coulomb,
-            integrate_gamma=self.integrate_gamma)
+            integrate_gamma=self.integrate_gamma,
+            q0_correction=self.q0_correction)
 
     @timer('calculate_screened_potential')
     def calculate_screened_potential(self):
@@ -826,6 +828,7 @@ class BSEBackend:
 
     @timer('get_spectral_weights')
     def get_spectral_weights(self, eig_data, df_S, mode_c):
+        from gpaw.old.matrix import suggest_blocking
         if mode_c is None:
             rho_S = self.rhoG0_S
         else:
@@ -1236,6 +1239,10 @@ class BSE(BSEBackend):
         truncation: str or None
             Coulomb truncation scheme. Can be None or 2D.
         integrate_gamma: dict
+        q0_correction: bool
+            Whether to use analytical correction at q=0 in the
+            calculation of W, applicable for 2D systems.
+            Will raise an error if used without truncation='2D'
         txt: str
             txt output
         mode: str

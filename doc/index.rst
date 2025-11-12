@@ -39,7 +39,7 @@ Force: -0.639 eV/Å
     :target: https://pypi.org/project/gpaw/
 
 .. _Python: https://www.python.org
-.. _ASE: https://wiki.fysik.dtu.dk/ase
+.. _ASE: https://ase-lib.org
 
 
 .. _news:
@@ -247,3 +247,4 @@ News
    summerschools/summerschools
    workshops/workshops
    bugs
+   roadmap

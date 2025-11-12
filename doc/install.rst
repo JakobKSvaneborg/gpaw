@@ -80,7 +80,7 @@ See :ref:`releasenotes` for version requirements.
 .. _ScaLAPACK: https://www.netlib.org/scalapack/
 .. _PyPI: https://pypi.org/project/gpaw
 .. _PIP: https://pip.pypa.io/en/stable/
-.. _ASE: https://wiki.fysik.dtu.dk/ase
+.. _ASE: https://ase-lib.org
 .. _FFTW: https://www.fftw.org/
 .. _docker image: https://hub.docker.com/r/marcindulak/gpaw-openmpi
 

@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import numbers
-from typing import Sequence, overload, Literal
+from typing import Literal, Sequence, overload
 
 import numpy as np
+from gpaw import debug
 from gpaw.core.matrix import Matrix
-from gpaw.gpu import cupy as cp, XP
+from gpaw.gpu import XP
+from gpaw.gpu import cupy as cp
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import prod, zips
-from gpaw.typing import Array1D, ArrayLike1D
 from gpaw.new.c import dH_aii_times_P_ani_gpu
+from gpaw.typing import Array1D, ArrayLike1D
 from gpaw.utilities import as_real_dtype
 
 
@@ -48,6 +50,14 @@ class AtomArraysLayout(XP):
             self.myindices.append((a, I1, I2))
             self.mysize += I2 - I1
             I1 = I2
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, AtomArraysLayout):
+            return NotImplemented
+        return (self.shape_a == other.shape_a and
+                self.atomdist == other.atomdist and
+                self.dtype == other.dtype and
+                self.xp is other.xp)
 
     def __len__(self):
         return len(self.shape_a)
@@ -119,6 +129,11 @@ class AtomDistribution:
 
     def __len__(self) -> int:
         return len(self.rank_a)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, AtomDistribution):
+            return NotImplemented
+        return (self.rank_a == other.rank_a).all()
 
     @classmethod
     def from_number_of_atoms(cls,
@@ -253,7 +268,7 @@ class AtomArrays:
 
         return self._matrix
 
-    def new(self, *, layout=None, data=None, xp=None):
+    def new(self, *, comm='inherit', layout=None, data=None, xp=None):
         """Create new AtomArrays object of same kind.
 
         Parameters
@@ -268,9 +283,10 @@ class AtomArrays:
             assert data is None
             if self.layout.xp is not xp:
                 layout = self.layout.new(xp=xp)
+        comm = self.comm if comm == 'inherit' else (comm or serial_comm)
         return AtomArrays(layout or self.layout,
                           self.dims,
-                          self.comm,
+                          comm=comm,
                           data=data)
 
     def to_cpu(self):
@@ -377,6 +393,15 @@ class AtomArrays:
 
         return aa
 
+    def gathergather(self) -> AtomArrays | None:
+        """Gather all atoms and extra dimensions on master."""
+        a_axi = self.gather()  # gather a (atoms)
+        if a_axi is not None:
+            m_xI = a_axi.matrix.gather()  # gather x
+            if m_xI.dist.comm.rank == 0:
+                return AtomArrays(a_axi.layout, self.dims, data=m_xI.data)
+        return None
+
     def scatter_from(self,
                      data: np.ndarray | AtomArrays | None = None) -> None:
         """Scatter atoms."""
@@ -416,6 +441,13 @@ class AtomArrays:
 
         for request, _ in requests:
             comm.wait(request)
+
+    def scatter_everything_from(self,
+                                a_axi: AtomArrays | None = None) -> None:
+        """Scatter atoms and extra dimension."""
+        b_axi = self.new(comm=None)
+        b_axi.scatter_from(a_axi)
+        b_axi.matrix.redist(self.matrix)
 
     def to_lower_triangle(self):
         """Convert `N*N` matrices to `N*(N+1)/2` vectors.
@@ -531,6 +563,11 @@ class AtomArrays:
         If index is not None, ``block_diag_matrix_axii`` must have an extra
         dimension: :math:`B_{ij}^{ax}` and x=index is used.
         """
+        if debug:
+            assert self.layout == out_ani.layout
+            assert (block_diag_matrix_axii.layout.atomdist ==
+                    self.layout.atomdist)
+
         xp = self.layout.xp
         if xp is np:
             if index is not None:

@@ -3,7 +3,7 @@ from math import pi
 from gpaw.response.q0_correction import Q0Correction
 from ase.units import Ha
 from ase.dft.kpoints import monkhorst_pack
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.response.temp import DielectricFunctionCalculator
 from gpaw.response.hilbert import GWHilbertTransforms
 from gpaw.response.mpa_interpolation import RESolver
@@ -278,6 +278,13 @@ class WCalculator(WBaseCalculator):
                                                     chi0.chi0_WxvG[W],
                                                     chi0.chi0_Wvv[W],
                                                     sqrtV_G)
+
+                # The q0 correction returns only correlation results
+                # and thus we add the Coulomb interaction here manually
+                if not only_correlation:
+                    W_GG[0, 0] += V0
+                    W_GG[1:, 1:] += np.diag(sqrtV_G[1:]**2)
+
             elif (self.integrate_gamma.is_analytical and chi0.optical_limit) \
                     or self.integrate_gamma.is_numerical:
                 self.apply_gamma_correction(W_GG, einvt_GG,

@@ -11,34 +11,38 @@ from gpaw.new.c import GPU_AWARE_MPI
 @pytest.mark.gpu
 @pytest.mark.serial
 @pytest.mark.parametrize('dtype', [float, complex])
-@pytest.mark.parametrize('gpu', [False, True])
+@pytest.mark.parametrize('gpu', [True, False])
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
-@pytest.mark.parametrize('random', [False, True])
+@pytest.mark.parametrize('random', [True, False])
 def test_gpu(dtype, gpu, mode, random):
-    atoms = Atoms('H2')
-    atoms.positions[1, 0] = 0.75
-    atoms.center(vacuum=1.0)
-    if mode == 'fd':
-        kwargs = {'poissonsolver': FDPoissonSolver(),
-                  'h': 0.17}
-    else:
-        kwargs = {}
-    dft = DFT(
-        atoms,
-        mode={'name': mode,
-              'force_complex_dtype': dtype == complex},
-        random=random,
-        convergence={'density': 1e-8},
-        parallel={'gpu': gpu},
-        setups='paw',
-        **kwargs)
-    dft.converge()
-    dft.energy()
-    energy = dft.results['energy'] * Ha
-    if mode == 'pw':
-        assert energy == pytest.approx(-16.032945, abs=1e-6)
-    else:
-        assert energy == pytest.approx(5.07197289, abs=1e-6)
+    from gpaw.gpu import cupy
+    stream = cupy.cuda.stream.Stream(non_blocking=mode == 'pw',
+                                     null=mode != 'pw')
+    with stream:
+        atoms = Atoms('H2')
+        atoms.positions[1, 0] = 0.75
+        atoms.center(vacuum=1.0)
+        if mode == 'fd':
+            kwargs = {'poissonsolver': FDPoissonSolver(),
+                      'h': 0.17}
+        else:
+            kwargs = {}
+        dft = DFT(
+            atoms,
+            mode={'name': mode,
+                  'force_complex_dtype': dtype == complex},
+            random=random,
+            convergence={'density': 1e-8},
+            parallel={'gpu': gpu},
+            setups='paw',
+            **kwargs)
+        dft.converge()
+        dft.energy()
+        energy = dft.results['energy'] * Ha
+        if mode == 'pw':
+            assert energy == pytest.approx(-16.032945, abs=1e-6)
+        else:
+            assert energy == pytest.approx(5.07197289, abs=1e-6)
 
 
 @pytest.mark.gpu
@@ -102,10 +106,10 @@ def test_gpu_k(gpu, par, mode, xc):
 def test_2d():
     atoms = Atoms('H', pbc=[True, True, False], cell=[1, 1, 5])
     atoms.center(axis=2)
-
     dft = DFT(
         atoms,
         mode={'name': 'pw'},
+        mixer={'backend': 'fft'},  # avoid FD-stencil in mixer-metric
         spinpol=True,
         xc='LDA',
         convergence={'density': 1e-8},

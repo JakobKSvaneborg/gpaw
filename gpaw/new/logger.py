@@ -10,6 +10,9 @@ from typing import IO, Any, Sequence
 
 from gpaw.mpi import MPIComm, world
 
+GREEN = '\x1b[32m'
+RESET = '\x1b[0m'
+
 
 def indent(text: Any, indentation='  ') -> str:
     r"""Indent text blob.
@@ -52,8 +55,8 @@ class Logger:
 
         self.use_colors = can_colorize(file=self.fd)
         if self.use_colors:
-            self.green = '\x1b[32m'
-            self.reset = '\x1b[0m'
+            self.green = GREEN
+            self.reset = RESET
         else:
             self.green = ''
             self.reset = ''
@@ -72,7 +75,7 @@ class Logger:
         yield
         self.indentation = self.indentation[2:]
 
-    def __call__(self, *args, end=None, flush=False) -> None:
+    def __call__(self, *args, end=None, flush=False, parallel=False) -> None:
         if self.fd.closed:
             return
         i = self.indentation
@@ -80,6 +83,14 @@ class Logger:
         if i:
             text = (i + text.replace('\n', '\n' + i)).rstrip(' ')
         print(text, file=self.fd, end=end, flush=flush)
+        if parallel:
+            from gpaw.mpi import send_string, receive_string
+            if self.comm.rank:
+                send_string(text, 0, comm=self.comm)
+            else:
+                for rank in range(1, self.comm.size):
+                    self(receive_string(rank, comm=self.comm),
+                         end=end, flush=flush, parallel=False)
 
 
 def can_colorize(*, file: IO[str] | IO[bytes] | None = None) -> bool:

@@ -2,20 +2,21 @@ import numpy as np
 from ase.units import Ha, Bohr
 from gpaw.fd_operators import Gradient
 from gpaw.new.c import add_to_density
-from gpaw.new.environment import Environment
 from gpaw.new.poisson import PoissonSolver, PoissonSolverWrapper
+from gpaw.core import PWDesc
 from gpaw.solvation.poisson import WeightedFDPoissonSolver
 from gpaw.solvation.cavity import Cavity
 from gpaw.solvation.dielectric import Dielectric
 from gpaw.solvation.interactions import Interaction
-from gpaw.dft import Parameter
+from gpaw.dft import ExtensionInput
+from gpaw.new.extensions import Extension
+from gpaw.new.builder import DFTComponentsBuilder
 
 
-class Solvation(Parameter):
+class Solvation(ExtensionInput):
     name = 'solvation'
 
     def __init__(self, cavity, dielectric, interactions=None):
-        print(cavity)
         self.cavity = Cavity.from_dict(cavity)
         self.dielectric = Dielectric.from_dict(dielectric)
         self.interactions = [Interaction.from_dict(i)
@@ -28,21 +29,21 @@ class Solvation(Parameter):
                     {'name': i.__class__.__name__, **i.todict()}
                     for i in self.interactions]}
 
-    def build(self,
-              setups,
-              grid,
-              relpos_ac,
-              log,
-              comm):
-        return SolvationEnvironment(
+    def build(self, builder: DFTComponentsBuilder):
+        return SolvationExtension(
             cavity=self.cavity,
             dielectric=self.dielectric,
             interactions=self.interactions,
-            setups=setups, grid=grid, relpos_ac=relpos_ac,
-            log=log, comm=comm)
+            setups=builder.setups,
+            grid=builder.fine_grid,
+            relpos_ac=builder.relpos_ac,
+            log=builder.log,
+            comm=builder.communicators['w'])
 
 
-class SolvationEnvironment(Environment):
+class SolvationExtension(Extension):
+    name = 'solvation'
+
     def __init__(self,
                  *,
                  cavity,
@@ -68,21 +69,32 @@ class SolvationEnvironment(Environment):
                            scaled_positions=relpos_ac,
                            cell=grid.cell * Bohr,
                            pbc=grid.pbc)
+        self.natoms = len(self.atoms)
         self.cavity.update_atoms(self.atoms, log)
         for ia in self.interactions:
             ia.update_atoms(self.atoms, log)
         self.grad_v = [Gradient(grid, v, 1.0, n=3) for v in range(3)]
         self.vt_ia_r = grid.empty()  # self.finegd.zeros()
         self.e_interactions = np.nan
-        super().__init__(len(self.atoms))
+        # super().__init__(len(self.atoms))
 
     def interaction_energy(self):
         return self.e_interactions * Ha
 
-    def create_poisson_solver(self, grid, *, xp, **kwargs) -> PoissonSolver:
+    def create_poisson_solver(self,
+                              grid,
+                              pw,
+                              *,
+                              charge,
+                              xp) -> PoissonSolver:
+        if isinstance(pw, PWDesc):
+            from gpaw.new.pw.poisson import ConjugateGradientPoissonSolver
+            return ConjugateGradientPoissonSolver(
+                pw, grid, self.dielectric, zero_vacuum=True)
+
         psolver = WeightedFDPoissonSolver()
         psolver.set_dielectric(self.dielectric)
-        psolver.set_grid_descriptor(self.grid._gd)
+        psolver.set_grid_descriptor(grid._gd)
         return PoissonSolverWrapper(psolver)
 
     def update1(self, nt_r, kin_en_using_band=True):
@@ -130,7 +142,7 @@ class SolvationEnvironment(Environment):
         self.atoms = None
         return self.e_interactions
 
-    def forces(self, nt_r, vHt_r):
+    def force_contribution(self, nt_r, vHt_r):
         F_av = np.zeros((self.natoms, 3))
         add_el_force_correction(
             nt_r, vHt_r, self.grad_v, self.cavity, self.dielectric, F_av)
@@ -153,6 +165,7 @@ class SolvationEnvironment(Environment):
                         ia.get_del_r_vg(a, density))
                     F_v -= del_E_del_r_vr.integrate(skip_sum=True)
 
+        nt_r.desc.comm.sum(F_av)
         return F_av
 
 

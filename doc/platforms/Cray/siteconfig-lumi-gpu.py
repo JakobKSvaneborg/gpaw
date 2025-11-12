@@ -1,7 +1,5 @@
 """Custom GPAW siteconfig for LUMI-G."""
 
-parallel_python_interpreter = True
-
 mpi = True
 compiler = 'cc'
 compiler_args = []  # remove all default args
@@ -32,6 +30,10 @@ scalapack = True
 libraries += ['xc']
 
 define_macros += [('GPAW_ASYNC', 1)]
+
+# Use MAGMA eigensolvers (defines GPAW_WITH_MAGMA)
+magma = True
+libraries += ['magma']
 
 # hip
 gpu = True
