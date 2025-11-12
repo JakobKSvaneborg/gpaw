@@ -45,8 +45,9 @@ def test_mom_lcao_forces(in_tmp_dir):
 
         # Test overlaps
         occ.initialize_reference_orbitals()
+        occ_sn = calc.occupations()[:, 0, :]
         for kpt in calc.wfs.kpt_u:
-            f_n = calc.get_occupation_numbers(spin=kpt.s)
+            f_n = occ_sn[kpt.s]
             P = occ.calculate_weights(kpt, 1.0)
             assert (np.allclose(P, f_n))
 

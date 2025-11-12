@@ -42,14 +42,12 @@ class Davidson(PWFDEigensolver):
         self._allocate_work_arrays(ibzwfs, shape=(1,))
         self._allocate_buffer_arrays(ibzwfs, shape=(1,))
 
-        wfs = ibzwfs.wfs_qs[0][0]
-        assert isinstance(wfs, PWFDWaveFunctions)
-        domain_comm = wfs.psit_nX.desc.comm
-        band_comm = wfs.band_comm
+        domain_comm = ibzwfs.domain_comm
+        band_comm = ibzwfs.band_comm
 
         B = ibzwfs.nbands
         xp = ibzwfs.xp
-        dtype = wfs.psit_nX.desc.dtype
+        dtype = ibzwfs.dtype
         if domain_comm.rank == 0 and band_comm.rank == 0:
             self.H_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp)
             self.S_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp)
@@ -78,7 +76,6 @@ class Davidson(PWFDEigensolver):
 
         psit2_nX = psit_nX.new(data=self.work_arrays[0, :b])
         data_buffer = self.data_buffers[0]
-
         wfs.subspace_diagonalize(Ht, dH,
                                  psit2_nX=psit2_nX,
                                  data_buffer=data_buffer)
@@ -176,7 +173,7 @@ class Davidson(PWFDEigensolver):
                             # print(S_NN.data)
                             eig_N[:] = H_NN.eigh(S_NN)
                             # print(eig_N, self.niter)
-                            wfs._eig_n = as_np(eig_N[:B])
+                            wfs.eig_n = as_np(eig_N[:B])
                 if domain_comm.rank == 0:
                     band_comm.broadcast(wfs.eig_n, 0)
                 domain_comm.broadcast(wfs.eig_n, 0)

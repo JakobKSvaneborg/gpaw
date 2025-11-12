@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Callable
+from collections.abc import Callable
 
 import numpy as np
 
@@ -14,8 +14,8 @@ from gpaw.utilities import as_complex_dtype, as_real_dtype
 
 
 class PWHamiltonian(Hamiltonian):
-    def __init__(self, grid, pw, xp=np):
-        self.grid_local = grid.new(comm=None, dtype=pw.dtype)
+    def __init__(self, grid, dtype, xp=np):
+        self.grid_local = grid.new(comm=None, dtype=dtype)
         self.plan = self.grid_local.fft_plans(xp=xp)
         # It's a bit too expensive to create all the local PW-descriptors
         # for all the k-points every time we apply the Hamiltonian, so we
@@ -50,12 +50,16 @@ class PWHamiltonian(Hamiltonian):
         mynbands = psit_nG.mydims[0]
         vtpsit_G = pw_local.empty(xp=xp)
 
+        # apply_local_potential_gpu doesn't work with domain parallisation
+        # So we force vt_R to be the right type here.
+        vt_R_data = xp.asarray(vt_R.data)
+
         for n1 in range(0, mynbands, domain_comm.size):
             n2 = min(n1 + domain_comm.size, mynbands)
             psit_nG[n1:n2].gather_all(psit_G)
             if domain_comm.rank < n2 - n1:
                 psit_G.ifft(out=tmp_R, plan=self.plan)
-                tmp_R.data *= vt_R.data
+                tmp_R.data *= vt_R_data
                 tmp_R.fft(out=vtpsit_G, plan=self.plan)
                 psit_G.data *= e_kin_G
                 vtpsit_G.data += psit_G.data

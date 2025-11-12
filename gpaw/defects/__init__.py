@@ -3,6 +3,7 @@ import numbers
 from scipy.optimize import minimize
 from scipy.integrate import simpson
 from gpaw import GPAW, PW
+from gpaw.mpi import serial_comm
 from ase.parallel import parprint
 import scipy.integrate as integrate
 from scipy.interpolate import InterpolatedUnivariateSpline
@@ -15,18 +16,27 @@ class ElectrostaticCorrections():
     Calculate the electrostatic corrections for charged defects.
     """
     def __init__(self, pristine, charged,
-                 q=None, sigma=None, r0=None, dimensionality='3d'):
+                 q=None, sigma=None, r0=None,
+                 dimensionality='3d', comm=serial_comm,
+                 check_cell=True):
+
         if isinstance(pristine, str):
             pristine = GPAW(pristine, txt=None, parallel={'domain': 1})
         if isinstance(charged, str):
             charged = GPAW(charged, txt=None)
+
         calc = GPAW(mode=PW(500, force_complex_dtype=True),
                     kpts={'size': (1, 1, 1),
                           'gamma': True},
                     parallel={'domain': 1},
                     symmetry='off',
+                    communicator=comm,
                     txt=None)
+
         atoms = pristine.atoms.copy()
+        if check_cell:
+            assert np.allclose(atoms.cell.angles(), [90., 90., 90.])
+
         calc.initialize(atoms)
 
         self.pristine = pristine
@@ -315,14 +325,19 @@ class ElectrostaticCorrections():
         return np.array(zs), np.array(Vs)
 
     def average(self, V, z):
+        assert len(V) == len(z)
         N = len(V)
+        deltaN = N // 8
+
         if self.dimensionality == '3d':
+            # as far away as possible from the defect
             middle = np.argmin(np.abs(z + self.z0)) + N // 2
-            middle = middle % len(z)
-            points = range(middle - N // 8, middle + N // 8 + 1)
-            restricted = V[points]
+            middle = middle % N
         elif self.dimensionality == '2d':
-            points = list(range(0, N // 8)) + list(range(7 * N // 8, N))
+            middle = 0
+
+        points = np.arange(middle - deltaN, middle + deltaN + 1)
+        points = points % N
         restricted = V[points]
         V_mean = np.mean(restricted)
         return V_mean

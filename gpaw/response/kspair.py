@@ -382,8 +382,7 @@ class KohnShamKPointPairExtractor:
         gs = self.gs
         # Find out where data is in GS
         k, s = divmod(u, gs.nspins)
-        kptrank, q = gs.kd.who_has(k)
-        myu = q * gs.nspins + s
+        kptrank, myu = gs.kd.who_has(k, s)
         r1_ct, myn_ct = [], []
         for n in n_ct:
             bandrank, myn = gs.bd.who_has(n)

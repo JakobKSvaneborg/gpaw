@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import contextlib
 from pathlib import Path
-from typing import List, Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 import warnings
 
 
@@ -28,7 +28,8 @@ boolean_envvars = {
     'GPAW_TRACE',
     'GPAW_NO_C_EXTENSION',
     'GPAW_MPI4PY',
-    'GPAW_DEBUG'}
+    'GPAW_DEBUG',
+    'GPAW_NO_GPU_MPI'}
 allowed_envvars = {
     *boolean_envvars,
     'GPAW_MPI_OPTIONS',
@@ -48,6 +49,9 @@ def _get_gpaw_env_vars(attr: str) -> bool | str:
 
 # When type-checking, we want the debug-wrappers enabled:
 debug = TYPE_CHECKING or _get_gpaw_env_vars('GPAW_DEBUG')
+
+# Debug envvar for disabling GPU aware MPI
+ENVVAR_GPAW_NO_GPU_MPI = _get_gpaw_env_vars('GPAW_NO_GPU_MPI')
 
 
 @contextlib.contextmanager
@@ -115,7 +119,7 @@ def __getattr__(attr: str) -> Any:
     raise _module_attr_error(attr)
 
 
-def __dir__() -> List[str]:
+def __dir__() -> list[str]:
     """
     Get the (1) normally-present module attributes, (2) lazily-imported
     objects, and (3) envrionmental variables starting with `GPAW_`.

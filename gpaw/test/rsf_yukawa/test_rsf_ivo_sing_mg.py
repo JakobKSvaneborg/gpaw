@@ -17,8 +17,7 @@ from gpaw.test import gen
 def test_rsf_yukawa_rsf_ivo_sing_mg(in_tmp_dir, add_cwd_to_setup_paths):
     libxc_version = getattr(cgpaw, 'libxc_version', '2.x.y')
     if int(libxc_version.split('.')[0]) < 3:
-        from unittest import SkipTest
-        raise SkipTest
+        pytest.skip('libxc too old')
 
     h = 0.35  # Gridspacing
     e_singlet = 4.61

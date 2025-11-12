@@ -128,7 +128,7 @@ class DFTCalculation:
         ibzwfs = builder.create_ibz_wave_functions(
             basis_set, potential)
 
-        if ibzwfs.wfs_qs[0][0]._eig_n is not None:
+        if ibzwfs._wfs_u[0].has_eigs:
             nelectrons = density.nvalence - density.charge + pot_calc.charge
             ibzwfs.calculate_occs(scf_loop.occ_calc, nelectrons)
 
@@ -171,6 +171,7 @@ class DFTCalculation:
         if self.ibzwfs.has_wave_functions():
             self.density.update(self.ibzwfs)
         self.potential.move(atomdist)
+        self.scf_loop.hamiltonian.move(self.relpos_ac)
 
         self.potential, self.energies, _ = self.pot_calc.calculate(
             self.density, self.ibzwfs, self.potential.vHt_x)
@@ -269,8 +270,9 @@ class DFTCalculation:
         xc = self.pot_calc.xc
         assert not hasattr(xc.xc, 'setup_force_corrections')
 
-        # Force from projector functions (and basis set):
-        F_av = self.ibzwfs.forces(self.potential)
+        # Force from projector functions (and basis set, hybrids):
+        F_av = self.ibzwfs.forces(self.potential, self.scf_loop.hamiltonian,
+                                  self.density.D_asii)
 
         getattr(xc.xc, 'add_forces', lambda F_av: None)(F_av)  # QNA
 
@@ -448,7 +450,7 @@ class DFTCalculation:
         old_ibzwfs = ibzwfs
 
         def create_wfs(spin, q, k, kpt_c, weight):
-            wfs = old_ibzwfs.wfs_qs[q][spin]
+            wfs = old_ibzwfs._get_wfs(k, spin)
             return wfs.morph(
                 builder.wf_desc,
                 builder.relpos_ac,

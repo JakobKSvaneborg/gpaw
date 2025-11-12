@@ -4,12 +4,16 @@ import pytest
 import numpy as np
 from gpaw.mpi import size
 from gpaw.gpu import cupy_is_fake
+from gpaw import GPAW_NO_C_EXTENSION
 
 
 @pytest.mark.gpu
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.skipif(size == 8, reason='Fails at the moment for size=8')
 def test_poisson():
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
+
     import cupy
     phis = []
     for xp in [np, cupy]:

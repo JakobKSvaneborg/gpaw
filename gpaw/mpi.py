@@ -9,8 +9,8 @@ import time
 import traceback
 from contextlib import contextmanager
 from typing import Any
+from pathlib import Path
 
-import gpaw.cgpaw as cgpaw
 import numpy as np
 import warnings
 from ase.parallel import MPI as ASE_MPI
@@ -632,7 +632,7 @@ class _Communicator:
         This method corresponds to MPI_Comm_compare."""
         if isinstance(self.comm, SerialCommunicator):
             return self.comm.compare(othercomm.comm)  # argh!
-        result = self.comm.compare(othercomm.get_c_object())
+        result = self.comm.compare(othercomm.comm)
         assert result in ['ident', 'congruent', 'similar', 'unequal']
         return result
 
@@ -650,7 +650,7 @@ class _Communicator:
         assert all(rank < self.size for rank in ranks)
         if isinstance(self.comm, SerialCommunicator):
             return self.comm.translate_ranks(other.comm, ranks)  # argh!
-        otherranks = self.comm.translate_ranks(other.get_c_object(), ranks)
+        otherranks = self.comm.translate_ranks(other.comm, ranks)
         assert all(-1 <= rank for rank in otherranks)
         assert ranks.dtype == otherranks.dtype
         return otherranks
@@ -686,10 +686,7 @@ class _Communicator:
         implementation which returns itself; thus, always call
         comm.get_c_object() and pass the resulting object to the C code.
         """
-        c_obj = self.comm.get_c_object()
-        if isinstance(c_obj, cgpaw.Communicator):
-            return c_obj
-        return c_obj.get_c_object()
+        return self.comm.get_c_object()
 
 
 MPIComm = _Communicator  # for type hints
@@ -803,7 +800,7 @@ class SerialCommunicator:
     def get_c_object(self):
         if gpaw.dry_run:
             return None  # won't actually be passed to C
-        return _world
+        return _world.get_c_object()
 
 
 _serial_comm = SerialCommunicator()
@@ -1276,6 +1273,30 @@ def print_mpi_stack_trace(type, value, tb):
     for lineno, line in enumerate(lines):
         lineno = ('%%0%dd' % line_ndigits) % lineno
         sys.stderr.write(f'rank={rankstring} L{lineno}: {line}\n')
+
+
+def pretty_print_parallel_traceback_file(path: Path) -> None:
+    """Pretty-print rank-0 part of traceback files.
+
+    See print_mpi_stack_trace() exception hook.
+    """
+    lines = []
+    with path.open() as fd:
+        for line in fd:
+            if line.startswith('rank='):
+                x, line = line.split(': ', 1)
+                rank = int(x[5:].split()[0])
+                if rank == 0:
+                    lines.append(line)
+    text = ''.join(lines)
+    try:
+        from pygments import highlight
+        from pygments.lexers.python import PythonTracebackLexer
+        from pygments.formatters import TerminalFormatter
+    except ImportError:
+        print(text)
+    else:
+        print(highlight(text, PythonTracebackLexer(), TerminalFormatter()))
 
 
 if world.size > 1:  # Triggers for dry-run communicators too, but we care not.

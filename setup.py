@@ -6,6 +6,7 @@ from __future__ import annotations
 import functools
 import os
 import re
+import runpy
 import shlex
 import sys
 import tempfile
@@ -23,11 +24,11 @@ from distutils.sysconfig import customize_compiler
 from setuptools import Extension, find_packages, setup
 from setuptools.command.build_ext import build_ext as _build_ext
 
-from config import build_gpu, check_dependencies, write_configuration
+config = runpy.run_path(Path(__file__).parent / 'config.py')
 
-python_min_version = (3, 9)
-assert sys.version_info >= python_min_version, sys.version_info
-python_requires = '>=' + '.'.join(str(num) for num in python_min_version)
+build_gpu = config['build_gpu']
+check_dependencies = config['check_dependencies']
+write_configuration = config['write_configuration']
 
 
 def warn_deprecated(msg):
@@ -43,14 +44,6 @@ def raise_error(msg):
 def config_args(key):
     return shlex.split(get_config_var(key))
 
-
-# Get the current version number:
-txt = Path('gpaw/__init__.py').read_text()
-version = re.search("__version__ = '(.*)'", txt)[1]
-ase_version_required = re.search("__ase_version_required__ = '(.*)'", txt)[1]
-
-description = 'GPAW: DFT and beyond within the projector-augmented wave method'
-long_description = Path('README.rst').read_text()
 
 # Deprecation check
 for i, arg in enumerate(sys.argv):
@@ -203,10 +196,6 @@ if parallel_python_interpreter is not PLACEHOLDER:
 
 if mpi:
     print('Building GPAW with MPI support.')
-
-platform_id = os.getenv('CPU_ARCH')
-if platform_id:
-    os.environ['_PYTHON_HOST_PLATFORM'] = get_platform() + '-' + platform_id
 
 if gpu:
     valid_gpu_targets = ['cuda', 'hip-amd', 'hip-cuda']
@@ -487,50 +476,5 @@ class build_ext(_build_ext):
         print("Build lib: ", self.build_lib)
 
 
-files = ['gpaw-analyse-basis', 'gpaw-basis',
-         'gpaw-plot-parallel-timings', 'gpaw-runscript',
-         'gpaw-setup', 'gpaw-upfplot']
-scripts = [str(Path('tools') / script) for script in files]
-
 data = 'git+https://gitlab.com/gpaw/gpaw-web-page-data.git'
-setup(name='gpaw',
-      version=version,
-      description=description,
-      long_description=long_description,
-      maintainer='GPAW-community',
-      maintainer_email='gpaw-users@listserv.fysik.dtu.dk',
-      url='https://gpaw.readthedocs.io/',
-      license='GPLv3+',
-      platforms=['unix'],
-      packages=find_packages(),
-      package_data={'gpaw': ['py.typed']},
-      entry_points={
-          'console_scripts': ['gpaw = gpaw.cli.main:main']},
-      setup_requires=['numpy'],
-      python_requires=python_requires,
-      install_requires=[f'ase>={ase_version_required}',
-                        'numpy',
-                        'scipy>=1.6.0',
-                        'gpaw-data'],
-      extras_require={
-          'docs': ['sphinx-rtd-theme',
-                   'sphinxcontrib-jquery',
-                   'plotly',
-                   'kaleido',
-                   'graphviz',
-                   'scikit-image',
-                   f'gpaw-web-page-data @ {data}'],
-          'devel': ['flake8',
-                    'mypy',
-                    'pytest>=7.0.0',
-                    'pytest-xdist']},
-      ext_modules=extensions,
-      scripts=scripts,
-      cmdclass={'build_ext': build_ext},
-      classifiers=[
-          'Development Status :: 6 - Mature',
-          'License :: OSI Approved :: '
-          'GNU General Public License v3 or later (GPLv3+)',
-          'Operating System :: OS Independent',
-          'Programming Language :: Python :: 3',
-          'Topic :: Scientific/Engineering :: Physics'])
+setup(ext_modules=extensions, cmdclass={'build_ext': build_ext})

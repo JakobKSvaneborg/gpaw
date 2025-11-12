@@ -225,7 +225,8 @@ class LocalizedFunctionsCollection(BaseLFC):
 
     """
     def __init__(self, gd, spline_aj, kd=None, cut=False, dtype=float,
-                 integral=None, forces=None, xp=np):
+                 integral=None, forces=None, xp=np,
+                 gpu_add_and_integrate=True):
         self.gd = gd
         self.kd = kd
         self.sphere_a = [Sphere(spline_j) for spline_j in spline_aj]
@@ -233,6 +234,10 @@ class LocalizedFunctionsCollection(BaseLFC):
         self.dtype = dtype
         self.Mmax = None
         self.xp = xp
+
+        # There is a legacy GPU LFC object code for two functions,
+        # this enables them.
+        self.gpu_add_and_integrate = gpu_add_and_integrate
 
         if kd is None:
             self.ibzk_qc = np.zeros((1, 3))
@@ -381,7 +386,8 @@ class LocalizedFunctionsCollection(BaseLFC):
                     next(iterator)
 
         self.lfc = cgpaw.LFC(self.A_Wgm, self.M_W, self.G_B, self.W_B,
-                             self.gd.dv, self.phase_qW, self.xp is not np)
+                             self.gd.dv, self.phase_qW,
+                             self.gpu_add_and_integrate and self.xp is not np)
 
         return sdisp_Wc
 
@@ -425,6 +431,7 @@ class LocalizedFunctionsCollection(BaseLFC):
             elif cupy_is_fake:
                 self.lfc.add(c_xM._data, a_xG._data, q)
             else:
+                assert self.gpu_add_and_integrate
                 self.lfc.add_gpu(c_xM.data.ptr,
                                  c_xM.shape,
                                  a_xG.data.ptr,
@@ -594,6 +601,7 @@ class LocalizedFunctionsCollection(BaseLFC):
         elif cupy_is_fake:
             self.lfc.integrate(a_xG._data, c_xM._data, q)
         else:
+            assert self.gpu_add_and_integrate
             self.lfc.integrate_gpu(a_xG.data.ptr,
                                    a_xG.shape,
                                    c_xM.data.ptr,
@@ -961,13 +969,15 @@ class LocalizedFunctionsCollection(BaseLFC):
 
 class BasisFunctions(LocalizedFunctionsCollection):
     def __init__(self, gd, spline_aj, kd=None, cut=False, dtype=float,
-                 integral=None, forces=None, xp=np):
-        LocalizedFunctionsCollection.__init__(self, gd, spline_aj,
-                                              kd, cut,
-                                              dtype, integral,
-                                              forces, xp=xp)
+                 integral=None, forces=None, xp=np,
+                 gpu_add_and_integrate=True):
+        LFC = LocalizedFunctionsCollection
+        LFC.__init__(self, gd, spline_aj,
+                     kd, cut,
+                     dtype, integral,
+                     forces, xp=xp,
+                     gpu_add_and_integrate=gpu_add_and_integrate)
         self.use_global_indices = True
-
         self.Mstart = None
         self.Mstop = None
 

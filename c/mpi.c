@@ -62,7 +62,7 @@ static void maybeSynchronize(PyObject* a)
 #ifdef GPAW_GPU_AWARE_MPI
     if (!PyArray_Check(a))
     {
-        gpawDeviceSynchronize();
+      gpawDeviceSynchronize();
     }
 #endif
 }
@@ -1111,7 +1111,7 @@ static PyObject * get_members(MPIObject *self, PyObject *args)
 // for the purpose of this function (gpaw/mpi/__init__.py)
 static PyObject * get_c_object(MPIObject *self, PyObject *args)
 {
-  return Py_BuildValue("O", self);
+  return PyLong_FromVoidPtr(&self->comm);
 }
 
 // Forward declaration of MPI_Communicator because it needs MPIType

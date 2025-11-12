@@ -43,5 +43,5 @@ def test_fft():
                             (fftw.FFTWPlan, fftw.PATIENT),
                             (fftw.FFTWPlan, fftw.EXHAUSTIVE)]:
             tplan, tfft = check(Plan, flags, input, output, sign)
-            print(('%-12s %3d %10.6f %10.6f' %
-                  (Plan.__name__, flags, tplan, tfft)))
+            print('%-12s %3d %10.6f %10.6f' %
+                  (Plan.__name__, flags, tplan, tfft))

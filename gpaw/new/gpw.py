@@ -23,7 +23,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Any, Union, Callable
+from typing import IO, Any
+from collections.abc import Callable
 
 import ase.io.ulm as ulm
 import gpaw
@@ -170,9 +171,9 @@ def write_wave_function_indices(writer, ibzwfs, grid):
     if np.issubdtype(ibzwfs.dtype, np.floating):
         size = (size[0], size[1], size[2] // 2 + 1)
 
-    for k, rank in enumerate(ibzwfs.rank_k):
+    for k, rank in enumerate(ibzwfs.rank_ks[:, 0]):
         if rank == kpt_comm.rank:
-            wfs = ibzwfs.wfs_qs[ibzwfs.q_k[k]][0]
+            wfs = ibzwfs._get_wfs(k, 0)
             i_G = wfs.psit_nX.desc.indices(size)
             index_G[:len(i_G)] = i_G
             index_G[len(i_G):] = -1
@@ -185,9 +186,9 @@ def write_wave_function_indices(writer, ibzwfs, grid):
             writer.fill(index_G)
 
 
-def read_gpw(filename: Union[str, Path, IO[str]],
+def read_gpw(filename: str | Path | IO[str],
              *,
-             log: Union[Logger, str, Path, IO[str]] = None,
+             log: Logger | str | Path | IO[str] | None = None,
              comm=None,
              parallel: dict[str, Any] = None,
              dtype=None,
@@ -226,7 +227,11 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     if dtype is not None:
         kwargs['dtype'] = dtype
 
-    # kwargs['nbands'] = reader.wave_functions.eigenvalues.shape[-1]
+    shape = reader.wave_functions.eigenvalues.shape
+    if len(shape) == 3:
+        kwargs['nbands'] = shape[-1]
+    else:
+        kwargs['nbands'] = shape[-1] // 2
 
     for old_keyword in ['fixdensity', 'txt']:
         kwargs.pop(old_keyword, None)
@@ -267,7 +272,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     dft.results = results
 
     if builder.mode in ['pw', 'fd']:  # fd = finite-difference
-        data = ibzwfs.wfs_qs[0][0].psit_nX.data
+        data = ibzwfs._wfs_u[0].psit_nX.data
         if not hasattr(data, 'fd'):  # fd = file-descriptor
             reader.close()
     else:

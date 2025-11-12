@@ -103,7 +103,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
         self.log('Converting LCAO to grid', flush=True)
 
         def create_wfs(spin, q, k, kpt_c, weight):
-            lcaowfs = lcao_ibzwfs.wfs_qs[q][spin]
+            lcaowfs = lcao_ibzwfs._get_wfs(k, spin)
             assert lcaowfs.spin == spin
 
             # Convert to PW-coefs in PW-mode:
@@ -113,7 +113,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
             mylcaonbands, nao = lcaowfs.C_nM.dist.shape
             mynbands = len(psit_nX.data)
             eig_n = np.empty(self.nbands)
-            eig_n[:lcaonbands] = lcaowfs._eig_n
+            eig_n[:lcaonbands] = lcaowfs.eig_n
             eig_n[lcaonbands:] = 100.0  # set high value for random wfs.
             if mylcaonbands < mynbands:
                 psit_nX[mylcaonbands:].randomize(
@@ -129,7 +129,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                 atomdist=self.atomdist,
                 ncomponents=self.ncomponents,
                 qspiral_v=self.qspiral_v)
-            wfs._eig_n = eig_n
+            wfs.eig_n = eig_n
             return wfs
 
         return PWFDIBZWaveFunctions.create(
@@ -145,8 +145,11 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
 
         def create_wfs(spin, q, k, kpt_c, weight):
             desc = self.wf_desc.new(kpt=kpt_c)
+            dims = (self.nbands,)
+            if self.ncomponents == 4:
+                dims = (self.nbands, 2)
             psit_nX = desc.empty(
-                dims=(self.nbands,),
+                dims=dims,
                 comm=self.communicators['b'],
                 xp=self.xp)
             psit_nX.randomize()

@@ -1,5 +1,4 @@
 from functools import wraps
-from typing import Tuple
 
 import gpaw.mpi as mpi
 import numpy as np
@@ -20,7 +19,7 @@ def print_reference(data_i, name='ref_i', fmt='%.12le'):
         print('\b]')
 
 
-def findpeak(x: Array1D, y: Array1D) -> Tuple[float, float]:
+def findpeak(x: Array1D, y: Array1D) -> tuple[float, float]:
     """Find peak.
 
     >>> x = np.linspace(1, 5, 10)

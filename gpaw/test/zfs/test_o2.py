@@ -10,7 +10,7 @@ from gpaw.zero_field_splitting import WaveFunctions, zfs1, zfs
 
 
 def test_zfs_o2(gpw_files):
-    calc = GPAW(gpw_files['o2_pw'])
+    calc = GPAW(gpw_files['o2_pw'], parallel={'kpt': 1})
     D1 = zfs(calc) * 1e6  # ueV
     print(D1)
     assert D1 == pytest.approx(np.diag([117, -59, -59]), abs=1)

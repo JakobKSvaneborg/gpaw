@@ -15,6 +15,7 @@ def nv_minus(n: int, relax: bool = False) -> None:
     atoms.calc = GPAW(xc='PBE',
                       mode=PW(ecut=400),
                       charge=-1,
+                      parallel={'kpt': 1},
                       txt=name + '.txt')
     atoms.get_forces()
     # atoms.calc.write(name + '.gpw', 'all')
