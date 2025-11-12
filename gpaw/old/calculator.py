@@ -4,7 +4,7 @@ The central object that glues everything together.
 """
 
 import warnings
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 from ase import Atoms
@@ -59,7 +59,7 @@ class GPAW(Calculator):
                               'forces', 'stress',
                               'dipole', 'magmom', 'magmoms']
 
-    default_parameters: Dict[str, Any] = {
+    default_parameters: dict[str, Any] = {
         'mode': None,  # issue #897: start deprecating reliance on default mode
         'xc': 'LDA',
         'occupations': None,
@@ -98,7 +98,7 @@ class GPAW(Calculator):
         'fixdensity': False,  # deprecated
         'dtype': None}  # deprecated
 
-    default_parallel: Dict[str, Any] = {
+    default_parallel: dict[str, Any] = {
         'kpt': None,
         'domain': None,
         'band': None,
@@ -210,7 +210,7 @@ class GPAW(Calculator):
                       update_fermi_level: bool = False,
                       communicator=None,
                       txt='-',
-                      parallel: Dict[str, Any] = None,
+                      parallel: dict[str, Any] = None,
                       **kwargs) -> 'GPAW':
         """Create new calculator and do SCF calculation with fixed density.
 

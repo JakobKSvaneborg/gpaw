@@ -14,7 +14,6 @@ See:
 """
 import argparse
 from math import pi
-from typing import List
 
 import ase.units as units
 import numpy as np
@@ -193,7 +192,7 @@ def paw_correction(density_sii: Array3D,
 
 
 def expand(D_ii: Array2D,
-           l_j: List[int],
+           l_j: list[int],
            l: int) -> Array3D:
     """Get expansion coefficients."""
     G_LLm = gaunt(lmax=2)[:, :, l**2:(l + 1)**2]
@@ -319,7 +318,7 @@ gyromagnetic_ratios = {'H': (1, 42.577478518),
                        'Xe': (129, -11.777)}
 
 
-def main(argv: List[str] = None) -> None:
+def main(argv: list[str] = None) -> None:
     """Command-line interface."""
     parser = argparse.ArgumentParser(
         prog='python3 -m gpaw.hyperfine',

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Callable, Generator, Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
+from collections.abc import Callable, Generator
 
 import numpy as np
 from ase.io.ulm import Writer
@@ -166,7 +167,7 @@ class IBZWaveFunctions(Generic[WFT]):
                 f'    domain: {self.domain_comm.size}\n'
                 f'    band:   {self.band_comm.size}\n')
 
-    def __iter__(self) -> Generator[WFT, None, None]:
+    def __iter__(self) -> Generator[WFT]:
         yield from self._wfs_u
 
     def move(self, relpos_ac, atomdist):

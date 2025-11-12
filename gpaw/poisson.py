@@ -326,7 +326,7 @@ class FDPoissonSolver(BasePoissonSolver):
                  remove_moment=None, use_charge_center=False,
                  metallic_electrodes=False,
                  use_charged_periodic_corrections=False, **kwargs):
-        super(FDPoissonSolver, self).__init__(
+        super().__init__(
             remove_moment=remove_moment,
             use_charge_center=use_charge_center,
             metallic_electrodes=metallic_electrodes,

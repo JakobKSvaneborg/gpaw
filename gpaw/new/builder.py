@@ -188,9 +188,9 @@ class DFTComponentsBuilder:
             a, b, c = angles
             warnings.warn(
                 'The angles between your unit-cell vectors are '
-                f'{a:.1}, {b:.1} and {c:.1} degrees.  '
+                f'{a:.1f}, {b:.1f} and {c:.1f} degrees.  '
                 'Results may be wrong!  '
-                'Please Niggli-reduce your unit-cell so that the angle '
+                'Please Niggli-reduce your unit-cell so that the angles '
                 'are closer to 90 degrees:\n\n'
                 '  from ase.build import niggli_reduce\n'
                 '  niggli_reduce(atoms)\n')

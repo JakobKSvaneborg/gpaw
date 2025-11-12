@@ -1,7 +1,6 @@
 # Tests of GPU functionality
 
 import numpy as np
-from typing import Union
 from gpaw.gpu import cupy as cp
 
 # Comparing eigenvectors from different solvers is challenging because of
@@ -28,8 +27,8 @@ def assert_eigenpairs(A, eigvals, eigvecs, rtol=1e-12, atol=1e-12) -> None:
     #
 
 
-def fill_uplo(matrix: Union[np.ndarray, cp.ndarray],
-              from_uplo: str) -> Union[np.ndarray, cp.ndarray]:
+def fill_uplo(matrix: np.ndarray | cp.ndarray,
+              from_uplo: str) -> np.ndarray | cp.ndarray:
     """Fills in lower/upper half of the input matrix so that it becomes
     Hermitian. If 'from_uplo' == 'U', fills in the lower half, and vice
     versa for 'L'."""

@@ -10,7 +10,7 @@ For radial grid descriptors, look atom/radialgd.py.
 
 import numbers
 from math import pi
-from typing import Sequence
+from collections.abc import Sequence
 from numpy import lcm
 from fractions import Fraction
 

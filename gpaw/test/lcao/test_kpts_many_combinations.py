@@ -67,7 +67,7 @@ def test_lcao_kpts_many_combinations(in_tmp_dir):
                 basis='sz(dzp)',
                 xc='PBE', h=0.3,
                 symmetry={'point_group': False},  # No symmetry here anyway
-                txt='gpaw.{:02d}.spin{}.txt'.format(int(spinpol), i),
+                txt=f'gpaw.{int(spinpol):02d}.spin{i}.txt',
                 kpts=(4, 1, 1),
                 convergence={'maximum iterations': 2},
                 **kwargs)
@@ -93,7 +93,7 @@ def test_lcao_kpts_many_combinations(in_tmp_dir):
                 eerrs.append(eerr)
                 ferrs.append(ferr)
                 if world.rank == 0:
-                    print('Eerr {} Ferr {}'.format(eerr, ferr))
+                    print(f'Eerr {eerr} Ferr {ferr}')
                     print()
 
         if world.rank == 0:

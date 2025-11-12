@@ -227,7 +227,7 @@ def main(args, parser):
 
     # We could do all this by importing the rcfile as well and checking
     # whether things are okay or not.
-    rcline = "setup_paths.insert(0, {!r})".format(setup_path)
+    rcline = f"setup_paths.insert(0, {setup_path!r})"
 
     # Run interactive mode unless someone specified a flag requiring otherwise
     interactive_mode = args.register is None

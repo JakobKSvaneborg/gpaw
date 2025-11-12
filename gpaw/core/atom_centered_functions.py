@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
+from collections.abc import Callable
 
 import numpy as np
 from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
