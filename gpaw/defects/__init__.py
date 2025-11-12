@@ -1,6 +1,7 @@
 """ Defects module """
 
 # TODO
+# - check tutorial value
 # - check small deviations
 # - fix parallelization
 # - check fft
