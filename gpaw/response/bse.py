@@ -77,7 +77,7 @@ class BSEMatrix:
         return w_T, v_RT, exclude_S
 
     def diagonalize_tammdancoff(self, bse, deps_max=None, backend='scalapack'):
-        known_backends = {'scalapack', 'elpa', None}
+        known_backends = {'scalapack', 'elpa'}
         if backend not in known_backends:
             raise ValueError(f"'backend' must be one of {known_backends}")
         if deps_max is None:
