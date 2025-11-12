@@ -101,7 +101,7 @@ class ElectrostaticCorrections():
 
     def calculate_gaussian_potential(self):
         phi_G = np.zeros_like(self.rho_G)
-        zero = np.abs(self.G2_G) < 1e-4
+        zero = np.abs(self.G2_G) < 1e-8
         phi_G[~zero] = self.rho_G[~zero] / self.G2_G[~zero]
         return 4. * np.pi * phi_G * Hartree / self.epsilon
 
