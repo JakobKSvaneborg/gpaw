@@ -124,10 +124,18 @@ class ElectrostaticCorrections():
     def calculate_model_potential(self, r_vR):
         # need to backtransform phi_G -> phi_r = sum_G exp(i G * r) phi_G
 
+        G_Gv = self.G_Gv
+        phi_G = self.phi_G
+        if self.method is not None and 'planar' in self.method:
+            # lets try to get away with only G_z vector
+            mask_G = (G_Gv[:, 0] == 0) & (G_Gv[:, 1] == 0)
+            G_Gv = G_Gv[mask_G]
+            phi_G = phi_G[mask_G]
+
         # assuming G: (ng, 3), r: (3, nx, ny, nz), phi_G: (ng,)
         # compute G * r for all G and grid points
         # shape: (ng, nx, ny, nz)
-        Gr = np.einsum('gi,i...->g...', self.G_Gv, r_vR)
+        Gr = np.einsum('gi,i...->g...', G_Gv, r_vR)
 
         # compute exp(i * G * r)
         # shape: (ng, nx, ny, nz)
@@ -135,7 +143,7 @@ class ElectrostaticCorrections():
 
         # weighted sum over G
         # shape: (nx, ny, nz)
-        phi_r = np.einsum('g,g...->...', self.phi_G, exp_Gr)
+        phi_r = np.einsum('g,g...->...', phi_G, exp_Gr)
 
         assert np.abs(phi_r.imag).max() < 1e-8
 

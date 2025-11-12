@@ -104,11 +104,13 @@ def test_fnv_3d(in_tmp_dir):
                                    r0=r0,
                                    charge=charge,
                                    sigma=sigma,
-                                   epsilon=epsilon)
+                                   epsilon=epsilon,
+                                   method='full-planar')
     E_corr = elc.calculate_corrected_formation_energy()
     E_uncorr = elc.calculate_uncorrected_formation_energy()
     E_fnv = E_corr - E_uncorr
 
+    print(E_uncorr, E_corr, E_fnv)
     assert E_fnv == pytest.approx(E_fnv_t, abs=3e-2)
     assert E_corr == pytest.approx(E_corr_t, abs=2e-2)
     assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-2)
@@ -161,13 +163,15 @@ def test_fnv_cell(P, in_tmp_dir):
                                    r0=r0,
                                    charge=charge,
                                    sigma=sigma,
-                                   epsilon=epsilon)
+                                   epsilon=epsilon,
+                                   method='full-planar')
     E_corr = elc.calculate_corrected_formation_energy()
     E_uncorr = elc.calculate_uncorrected_formation_energy()
     E_fnv = E_corr - E_uncorr
 
     # changed tolerance to pass ortho-rhombic case
     # switching symmetry off does not help to improve accuracy
+    print(E_uncorr, E_corr, E_fnv)
     assert E_fnv == pytest.approx(E_fnv_t, abs=4e-2)
     assert E_corr == pytest.approx(E_corr_t, abs=2e-1)
     assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-1)
