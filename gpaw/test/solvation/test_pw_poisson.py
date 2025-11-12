@@ -234,11 +234,12 @@ def spherical_dielectric_function(grid, box, epsinf=80.0, eps1=1.0,
     return eps, eps_gradeps
 
 
-@pytest.mark.parametrize("density_generator", [
-    generate_dipole_charges,
-    lambda grid, pw, box: generate_quadrupole_charges(grid, pw, box, seed=0),
-    lambda grid, pw, box: generate_quadrupole_charges(grid, pw, box, seed=1),
-])
+@pytest.mark.parametrize(
+    "density_generator",
+    [generate_dipole_charges,
+     lambda grid, pw, box: generate_quadrupole_charges(grid, pw, box, seed=0),
+     lambda grid, pw, box: generate_quadrupole_charges(grid, pw, box, seed=1)],
+    ids=['dip', 'quad0', 'quad1'])
 def test_cg_poisson_solver_constant_dielectric(density_generator):
     """Test the conjugate gradient Poisson solver with constant dielectric."""
     box = BOX
