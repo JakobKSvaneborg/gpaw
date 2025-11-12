@@ -5,6 +5,7 @@ from ase.build.supercells import make_supercell
 from gpaw import GPAW
 from gpaw.defects import ElectrostaticCorrections
 from gpaw.defects.old_electrostatic import OldElectrostaticCorrections
+from pathlib import Path
 
 
 def test_fnv_2d():
@@ -67,6 +68,9 @@ def test_fnv_3d():
     E_uncorr_t = 18.31
     E_fnv_t = E_corr_t - E_uncorr_t
 
+    prs_path = Path('prs.gpw')
+    def_path = Path('def.gpw')
+
     a0 = 5.628      # lattice parameter
     sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
     epsilon = 12.7  # dielectric constant
@@ -83,17 +87,19 @@ def test_fnv_3d():
     pristine = bulk('GaAs', crystalstructure='zincblende', a=a0, cubic=True)
     pristine.calc = calc_neutral
     pristine.get_potential_energy()
+    pristine.calc.write(prs_path)
 
     defect = pristine.copy()
     defect.pop(0)  # make a Ga vacancy
     defect.calc = calc_charged
     defect.get_potential_energy()
+    defect.calc.write(def_path)
 
     # defect position
     r0 = pristine.positions[0, :]
 
-    elc = ElectrostaticCorrections(pristine=pristine.calc,
-                                   defect=defect.calc,
+    elc = ElectrostaticCorrections(pristine=prs_path,
+                                   defect=def_path,
                                    r0=r0,
                                    charge=charge,
                                    sigma=sigma,

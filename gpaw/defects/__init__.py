@@ -241,21 +241,21 @@ class ElectrostaticCorrections():
     def define_averaging_region(self, region_min=500):
         if self.method is None:
             if self.is_monoclin:
-                parprint('planar average')
+                print('planar average')
                 self.planar_average()
             else:
                 # average around "bulk atom"
-                parprint('bulk atom average')
+                print('bulk atom average')
                 self.bulk_atom_average()
         elif self.method == 'full-planar':
-            parprint('full-planar average')
+            print('full-planar average')
             self.full_planar_average()
         elif self.method == 'planar':
-            parprint('planar average')
+            print('planar average')
             self.planar_average()
         elif self.method == 'atoms':
             # average around "bulk atom"
-            parprint('bulk atom average')
+            print('bulk atom average')
             self.bulk_atom_average()
 
     def coarsen_grid(self, nfreq):
@@ -331,7 +331,7 @@ class ElectrostaticCorrections():
         Eli = self.calculate_isolated_correction()
         Elp = self.calculate_periodic_correction()
         Delta_V = self.calculate_potential_alignment()
-        parprint('Eli=', Eli, 'Elp=', Elp, 'Delta_V=', Delta_V)
+        print('Eli=', Eli, 'Elp=', Elp, 'Delta_V=', Delta_V)
         return E_X - E_0 - (Elp - Eli) + Delta_V * self.charge
 
     @parallel_method
