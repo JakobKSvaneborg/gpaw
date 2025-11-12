@@ -72,7 +72,7 @@ class Mode(Parameter):
         self.name = self.__class__.__name__.lower()
 
     def todict(self) -> dict:
-        dct = self._not_none('dtype')
+        dct = {}
         if self.force_complex_dtype:
             dct['force_complex_dtype'] = True
         if self.dtype == 'single':
