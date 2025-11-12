@@ -6,6 +6,7 @@ from gpaw import GPAW
 from gpaw.defects import ElectrostaticCorrections
 
 
+@pytest.mark.serial
 def test_fnv_2d():
 
     E_corr_t = 4.892
@@ -60,6 +61,7 @@ def test_fnv_2d():
     assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-2)
 
 
+@pytest.mark.serial
 def test_fnv_3d():
 
     E_corr_t = 23.55
@@ -105,6 +107,7 @@ def test_fnv_3d():
     assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-2)
 
 
+@pytest.mark.serial
 @pytest.mark.parametrize('P', [[[1, 0, 0], [1, -1, 0], [0, 0, 1]]])
 # [[1, 0, -1], [1, -1, 0], [0, 0, 1]]  # fails
 def test_fnv_cell(P, gpaw_new):
