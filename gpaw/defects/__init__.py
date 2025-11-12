@@ -200,7 +200,7 @@ class ElectrostaticCorrections():
         # set region as sphere with radius self.ravg
         self.region = np.where(dist < self.ravg)
 
-    def planar_average(self, nsample=25, nmin=3):
+    def planar_average(self, nsample=25, nmin=2):
         # check that ortho-rhombic
         assert self.is_monoclin
 
