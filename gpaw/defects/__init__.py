@@ -29,23 +29,27 @@ def parallel_method(fun):
     return wrapper
 
 
+_avg_methods_ = ['atoms', 'planar', 'full-planar']
+
+
 class ElectrostaticCorrections():
     """
     Calculate the electrostatic corrections for charged defects.
     """
     def __init__(self, pristine, defect,
                  charge=None, epsilon=None, sigma=None, r0=None,
-                 ravg=2.5, method=None, comm=world):
+                 ravg=2.5, method='full-planar', comm=world):
         self.comm = comm
         if comm.rank != 0:
             return
 
-        if isinstance(pristine, (str, Path)):
-            pristine = GPAW(pristine, txt=None,
-                            parallel={'domain': 1}, communicator=serial_comm)
-        if isinstance(defect, (str, Path)):
-            defect = GPAW(defect, txt=None,
-                          parallel={'domain': 1}, communicator=serial_comm)
+        # need to read from file to ensure all on master
+        assert isinstance(pristine, (str, Path))
+        assert isinstance(defect, (str, Path))
+        pristine = GPAW(pristine, txt=None,
+                        parallel={'domain': 1}, communicator=serial_comm)
+        defect = GPAW(defect, txt=None,
+                      parallel={'domain': 1}, communicator=serial_comm)
 
         calc = GPAW(mode=PW(500, force_complex_dtype=True),
                     kpts={'size': (1, 1, 1),
@@ -54,6 +58,8 @@ class ElectrostaticCorrections():
                     symmetry='off',
                     communicator=serial_comm,
                     txt=None)
+
+        assert method in _avg_methods_
 
         atoms = pristine.atoms.copy()
         calc.initialize(atoms)
@@ -71,14 +77,15 @@ class ElectrostaticCorrections():
         self.is_monoclin = np.allclose(self.cell_prs.angles()[:2], [90., 90.])
         self.method = method
 
+        # set grid coarsening
         self.nfreq = 4              # grid coarsening
-        if (method is not None) and ('full' in method):
-            print('fine grid')
+        if 'full' in method:
             self.nfreq = 1          # no coarsening
 
         # volume
         self.Omega = self.atoms_prs.get_volume() / Bohr ** 3
 
+        # get G vectors
         self.pd = self.calc.wfs.pd
         self.G_Gv = self.pd.get_reciprocal_vectors(q=0, add_q=False)
         self.G2_G = self.pd.G2_qG[0]  # |\vec{G}|^2 in Bohr^-2
@@ -243,16 +250,8 @@ class ElectrostaticCorrections():
 
         self.region = (igx, igy, igz)
 
-    def define_averaging_region(self, region_min=500):
-        if self.method is None:
-            if self.is_monoclin:
-                print('planar average')
-                self.planar_average()
-            else:
-                # average around "bulk atom"
-                print('bulk atom average')
-                self.bulk_atom_average()
-        elif self.method == 'full-planar':
+    def define_averaging_region(self):
+        if self.method == 'full-planar':
             print('full-planar average')
             self.full_planar_average()
         elif self.method == 'planar':
