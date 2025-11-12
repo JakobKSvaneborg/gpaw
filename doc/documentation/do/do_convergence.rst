@@ -11,8 +11,7 @@ troubleshoot and improve convergence.
 In general, LCAO calculations tend to converge more easily. When convergence
 becomes challenging, it is recommended to use :ref:`do-gmf`. If GMF is still
 insufficient, the LCAO mode allows for a constrained optimization by freezing
-the hole and the excited electron. See the example in See the example in
-:ref:`ppexample`.
+the hole and the excited electron. See the example in :ref:`ppexample`.
 
 FD and PW calculations, on the other hand, may experience convergence problems
 for excited states because the unoccupied orbitals are not optimized, unlike in
