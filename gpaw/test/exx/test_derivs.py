@@ -31,12 +31,9 @@ class Setup:
     ghat_l = [Spline.from_data(0, 1.0, 1 - r2 * (1 - 2 * r2))]
 
 
+@pytest.serial
 @pytest.mark.xfail  # XXX: reason=...
 def test_exx_derivs():
-    if world.size > 1:
-        from unittest import SkipTest
-        raise SkipTest
-
     N = 20
     L = 2.5
     nb = 2
