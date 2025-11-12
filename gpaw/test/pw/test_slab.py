@@ -6,6 +6,7 @@ from gpaw import PW
 from gpaw.new.ase_interface import GPAW as NewGPAW
 from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.mpi import world
+from gpaw import GPAW_NO_C_EXTENSION
 
 
 @pytest.mark.parametrize(
@@ -26,6 +27,9 @@ def test_pw_slab(gpu, GPAW):
     calc = GPAW(mode=PW(200),
                 eigensolver='rmm-diis',
                 parallel=parallel,
+                **{'random': True,
+                   'symmetry': 'off',
+                   'mixer': {'backend': 'fft'}} if GPAW_NO_C_EXTENSION else {},
                 kpts=(k, k, 1))
     slab.calc = calc
     BFGS(slab).run(fmax=0.01)
