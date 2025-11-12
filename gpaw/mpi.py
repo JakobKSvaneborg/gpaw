@@ -1276,7 +1276,7 @@ def print_mpi_stack_trace(type, value, tb):
 
 
 def pretty_print_parallel_traceback_file(path: Path) -> None:
-    """Pretty-print rank-0 part of tracback files.
+    """Pretty-print rank-0 part of traceback files.
 
     See print_mpi_stack_trace() exception hook.
     """
@@ -1318,10 +1318,3 @@ def exit(error='Manual exit'):
 
 
 atexit.register(cleanup)
-
-
-if __name__ == '__main__':
-    # Usage:
-    #
-    #   python -m gpaw.mpi script.2340987.err
-    pretty_print_parallel_traceback_file(Path(sys.argv[1]))
