@@ -328,11 +328,9 @@ class ElectrostaticCorrections():
         dphi = phi_model - (phi_def - phi_prs)
         dphi_avg = np.average(dphi)
         # standard deviation of the mean
-        dphi_dev = np.std(dphi) / (np.prod(dphi.shape)) ** 0.5
+        dphi_dev = np.std(dphi)
 
-        if dphi_dev > 0.1 * np.abs(dphi_avg):
-            print('Warning: averaging region dphi_avg =',
-                  '{dphi_avg} +- {dphi_dev}')
+        print('averaging region dphi_avg =', f'{dphi_avg} +- {dphi_dev}')
         self.dphi = dphi_avg
 
         return self.dphi
