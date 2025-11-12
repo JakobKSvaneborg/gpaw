@@ -15,7 +15,6 @@ from gpaw.new import zips as zip
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
-from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.setup import Setups
 from gpaw.utilities import unpack_hermitian
 from gpaw.new.logger import Logger
@@ -81,6 +80,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
     """Compute BZ from IBZ and distribute."""
     log = log or Logger(None)
     nocc = number_of_non_empty_bands(ibzwfs)
+    nspins = ibzwfs.nspins
     ibz = ibzwfs.ibz
     log(ibz)
     log('Occupied bands:', nocc)
@@ -90,33 +90,26 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
     nbzk = len(ibz.bz)
     comm = ibzwfs.comm
     symmetries = ibzwfs.ibz.symmetries
-    rank_K = np.zeros(nbzk, int)
+    rank_Ks = np.zeros((nbzk, nspins), int)
     kpt_Kc = np.zeros((nbzk, 3))
     psit_KsnG = {}
-    for wfs1_s in ibzwfs.wfs_qs:
-        wfs_s: list[PWFDWaveFunctions] = []
-        for wfs1 in wfs1_s:
-            wfs = wfs1.collect(0, nocc)
-            if wfs is not None:
-                wfs_s.append(wfs)
-        if len(wfs_s) == 0:
+    for wfs1 in ibzwfs:
+        wfs = wfs1.collect(0, nocc)
+        if wfs is None:
             continue
         for K, k in enumerate(ibz.bz2ibz_K):
-            if k != wfs_s[0].k:
+            if k != wfs.k:
                 continue
-            rank_K[K] = comm.rank
+            rank_Ks[K, wfs.spin] = comm.rank
             s = ibz.s_K[K]
             U_cc = symmetries.rotation_scc[s]
             complex_conjugate = ibz.time_reversal_K[K]
-            psit_snG = []
-            for wfs in wfs_s:
-                psit1_nG = wfs.psit_nX
-                assert isinstance(psit1_nG, PWArray)
-                psit2_nG = psit1_nG.transform(U_cc, complex_conjugate)
-                psit_snG.append(psit2_nG)
-                kpt_Kc[K] = psit2_nG.desc.kpt_c
-            psit_KsnG[K] = psit_snG
-    comm.sum(rank_K)
+            psit1_nG = wfs.psit_nX
+            assert isinstance(psit1_nG, PWArray)
+            psit2_nG = psit1_nG.transform(U_cc, complex_conjugate)
+            kpt_Kc[K] = psit2_nG.desc.kpt_c
+            psit_KsnG[(K, wfs.spin)] = psit2_nG
+    comm.sum(rank_Ks)
     comm.sum(kpt_Kc)
     t2 = time()
     log(f'{t2 - t1:.3f} seconds')
@@ -136,17 +129,16 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
     log('Distributing wave functions and iFFT-ing to real space: ', end='')
     t1 = time()
     requests = []
-    for K, psit_snG in psit_KsnG.items():
+    for (K, spin), psit_nG in psit_KsnG.items():
         for rank, KK, (na, nb) in blocks:
             if KK != K:
                 continue
             if rank != comm.rank:
-                for psit_nG in psit_snG:
-                    requests.append(
-                        comm.send(psit_nG.data[na:nb], rank,
-                                  block=False, tag=K))
+                requests.append(
+                    comm.send(psit_nG.data[na:nb], rank,
+                              block=False, tag=K * nspins + spin))
 
-    pw = ibzwfs.wfs_qs[0][0].psit_nX.desc.new(comm=None)
+    pw = ibzwfs._wfs_u[0].psit_nX.desc.new(comm=None)
     _, occ_skn = ibzwfs.get_all_eigs_and_occs(broadcast=True)
 
     mypsits = []
@@ -154,12 +146,13 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
         if rank != comm.rank:
             continue
         pt_aiG = None
-        for spin in range(ibzwfs.nspins):
-            if rank_K[K] == rank:
-                psit_nG = psit_KsnG[K][spin][na:nb]
+        for spin in range(nspins):
+            if rank_Ks[K, spin] == rank:
+                psit_nG = psit_KsnG[(K, spin)][na:nb]
             else:
                 psit_nG = pw.new(kpt=kpt_Kc[K]).empty(nb - na)
-                comm.receive(psit_nG.data, rank_K[K], tag=K)
+                comm.receive(psit_nG.data, rank_Ks[K, spin],
+                             tag=K * nspins + spin)
             pt_aiG = pt_aiG or psit_nG.desc.atom_centered_functions(
                 [setup.pt_j for setup in setups],
                 relpos_ac)
@@ -288,8 +281,9 @@ class PWHybridHamiltonian(PWHamiltonian):
         ekin = -evc - 2 * evv
 
         # Find projectors and k-point weight for psit2_nG:
-        for wfs_s in ibzwfs.wfs_qs:
-            wfs = wfs_s[spin]
+        for wfs in ibzwfs:
+            if wfs.spin != spin:
+                continue
             if np.allclose(wfs.psit_nX.desc.kpt_c, psit2_nG.desc.kpt_c):
                 pt_aiG = wfs.pt_aiX
                 assert isinstance(pt_aiG, PWAtomCenteredFunctions)

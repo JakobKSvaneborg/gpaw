@@ -8,6 +8,7 @@ from gpaw.defects.old_electrostatic import OldElectrostaticCorrections
 from pathlib import Path
 
 
+@pytest.mark.serial
 def test_fnv_2d():
 
     E_corr_t = 4.892
@@ -118,7 +119,11 @@ def test_fnv_3d(in_tmp_dir):
 
 @pytest.mark.parametrize('P', [[[1, 0, 0], [1, 1, 0], [0, 0, 1]]])
 # [[1, 0, 0], [1, -1, 0], [0, 0, 1]] passes
-def test_fnv_cell(P, in_tmp_dir):
+def test_fnv_cell(P, in_tmp_dir, gpaw_new):
+
+    if gpaw_new:
+        pytest.skip('Transformed cell [90, 90, 45] not supported by GPAW new')
+
     P = np.array(P)
 
     E_corr_t = 23.55

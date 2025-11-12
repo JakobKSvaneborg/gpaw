@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Tuple
 import warnings
 
 import numpy as np
@@ -98,7 +97,7 @@ class GeneralizedSuscetibilityCalculator(PairFunctionIntegrator):
                 'susceptibilities with two different matrix elements'
 
     @abstractmethod
-    def create_matrix_element_calculators(self) -> Tuple[
+    def create_matrix_element_calculators(self) -> tuple[
             PlaneWaveMatrixElementCalculator,
             PlaneWaveMatrixElementCalculator]:
         """Create the desired site matrix element calculators."""

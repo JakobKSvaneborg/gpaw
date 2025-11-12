@@ -7,7 +7,7 @@ import xml.sax
 from glob import glob
 from math import pi, sqrt
 from pathlib import Path
-from typing import IO, Tuple
+from typing import IO
 
 import numpy as np
 from ase.data import atomic_names, atomic_numbers
@@ -431,7 +431,7 @@ def read_maybe_unzipping(path: Path | str) -> bytes:
         return fd.read()
 
 
-def search_for_file(name: str, world=None) -> Tuple[str, bytes]:
+def search_for_file(name: str, world=None) -> tuple[str, bytes]:
     """Traverse gpaw setup paths to find file.
 
     Returns the file path and file contents.  If the file is not

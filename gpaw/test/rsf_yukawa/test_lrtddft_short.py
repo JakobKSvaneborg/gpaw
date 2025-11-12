@@ -16,8 +16,7 @@ from gpaw.occupations import FermiDirac
 def test_rsf_yukawa_lrtddft_short(in_tmp_dir):
     libxc_version = getattr(cgpaw, 'libxc_version', '2.x.y')
     if int(libxc_version.split('.')[0]) < 3:
-        from unittest import SkipTest
-        raise SkipTest
+        pytest.skip('libxc too old')
 
     o_plus = Atoms('Be', positions=[[0, 0, 0]])
     o_plus.set_initial_magnetic_moments([1.0])

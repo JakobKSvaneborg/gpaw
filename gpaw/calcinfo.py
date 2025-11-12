@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Union
 
 from ase import Atoms
 
@@ -24,10 +23,10 @@ class CalcInfo:
     nelectrons: float
     setups: Setups
     grid: UGDesc
-    wf_description: Union[Domain, None]
-    communicators: Union[dict[str, MPIComm], None]
-    comm: Union[MPIComm, None]
-    log: Union[Logger, str, None]
+    wf_description: Domain | None
+    communicators: dict[str, MPIComm] | None
+    comm: MPIComm | None
+    log: Logger | str | None
 
     def update_params(self, **updated_params):
         params = self.input_params.copy()

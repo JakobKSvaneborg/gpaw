@@ -47,6 +47,7 @@ if __name__ == '__main__':
         atoms.calc = GPAW(mode='lcao',
                           basis='dzp',
                           xc='PBE',
+                          parallel={'kpt': 1},
                           txt=name + '.txt')
         atoms.get_potential_energy()
         atoms.calc.write(name + '.gpw', 'all')

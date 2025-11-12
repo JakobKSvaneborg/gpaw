@@ -3,7 +3,6 @@
 # Wits University
 # Please see the accompanying LICENSE file for further information.
 from fractions import Fraction
-from typing import Tuple
 
 import numpy as np
 
@@ -14,7 +13,7 @@ import gpaw.mpi as mpi
 def frac(f: float,
          *,
          max_denominator: int = 50,
-         tol: float = 1e-6) -> Tuple[int, int]:
+         tol: float = 1e-6) -> tuple[int, int]:
     """Convert to fraction.
 
     >>> frac(0.5)

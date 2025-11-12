@@ -170,9 +170,9 @@ class FDWaveFunctions(FDPWWaveFunctions):
             for s in range(self.nspins):
                 # Index of symmetry related point in the IBZ
                 ik = self.kd.bz2ibz_k[k]
-                r, q = self.kd.get_rank_and_index(ik)
+                r, u = self.kd.get_rank_and_index(ik, s)
                 assert r == 0
-                kpt = self.kpt_qs[q][s]
+                kpt = self.kpt_u[u]
 
                 phase_cd = np.exp(2j * np.pi * self.gd.sdisp_cd *
                                   kd.bzk_kc[k, :, np.newaxis])

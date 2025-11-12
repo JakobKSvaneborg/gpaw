@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import Any, Callable, Generator
+from typing import Any
+from collections.abc import Callable, Generator
 
 import numpy as np
 from ase import Atoms
 from ase.units import Ha
 from gpaw import __version__
 from gpaw.core import UGArray
-from gpaw.core.arrays import XArrayWithNoData
 from gpaw.dft import GPAW, Parameters
 from gpaw.dos import DOSCalculator
 from gpaw.mpi import broadcast, synchronize_atoms
@@ -110,7 +110,7 @@ class ASECalculator:
 
     def iconverge(self, atoms: Atoms | None,
                   *,
-                  need_wfs: bool = False) -> Generator[SCFContext, None, None]:
+                  need_wfs: bool = False) -> Generator[SCFContext]:
         """Iterate to self-consistent solution.
 
         Will also calculate "cheap" properties: energy, magnetic moments
@@ -447,7 +447,7 @@ class ASECalculator:
         return None if n_sr is None else n_r.data
 
     def get_eigenvalues(self, kpt=0, spin=0, broadcast=True):
-        eig_n = self.dft.ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[0] * Ha
+        eig_n = self.dft.ibzwfs.get_eigs_and_occs(kpt=kpt, spin=spin)[0] * Ha
         assert eig_n.dtype == np.float64
         if broadcast:
             if self.comm.rank != 0:
@@ -458,7 +458,7 @@ class ASECalculator:
     def get_occupation_numbers(self, kpt=0, spin=0, broadcast=True,
                                raw=False):
         ibzwfs = self.dft.ibzwfs
-        occ_n = ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[1]
+        occ_n = ibzwfs.get_eigs_and_occs(kpt=kpt, spin=spin)[1]
         if not raw:
             weight = ibzwfs.ibz.weight_k[kpt] * ibzwfs.spin_degeneracy
             occ_n *= weight
@@ -566,7 +566,7 @@ class ASECalculator:
         xc = create_functional(xcparams, pot_calc.fine_grid)
         if xc.type == 'MGGA' and density.taut_sR is None:
             dft.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
-            if isinstance(dft.ibzwfs.wfs_qs[0][0].psit_nX, XArrayWithNoData):
+            if not dft.ibzwfs.has_wave_functions():
                 builder = self.params.dft_component_builder(self.atoms,
                                                             log=dft.log)
                 basis_set = builder.create_basis_set()

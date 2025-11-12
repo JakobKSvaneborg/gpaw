@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Callable, Generator, Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
+from collections.abc import Callable, Generator
 
 import numpy as np
 from ase.io.ulm import Writer
@@ -30,7 +31,7 @@ class IBZWaveFunctions(Generic[WFT]):
                  ibz: IBZ,
                  *,
                  ncomponents: int,
-                 wfs_qs: list[list[WFT]],
+                 wfs_u: list[WFT],
                  kpt_comm: MPIComm = serial_comm,
                  kpt_band_comm: MPIComm = serial_comm,
                  comm: MPIComm = serial_comm):
@@ -44,13 +45,12 @@ class IBZWaveFunctions(Generic[WFT]):
         self.spin_degeneracy = ncomponents % 2 + 1
         self.nspins = ncomponents % 3
 
-        self.rank_k = ibz.ranks(kpt_comm)
+        self.rank_ks = ibz.ranks(kpt_comm, self.nspins)
 
-        self.wfs_qs = wfs_qs
-
-        self.q_k = {}  # IBZ-index to local index
-        for wfs in self:
-            self.q_k[wfs.k] = wfs.q
+        self._wfs_u = wfs_u
+        wfs = wfs_u[0]
+        self.u0 = wfs.k * self.nspins + wfs.spin
+        self.u_q = {wfs.q: u for u, wfs in enumerate(wfs_u)}
 
         self.band_comm = wfs.band_comm
         self.domain_comm = wfs.domain_comm
@@ -59,7 +59,7 @@ class IBZWaveFunctions(Generic[WFT]):
 
         self.fermi_levels: Array1D | None = None  # hartree
 
-        self.xp = self.wfs_qs[0][0].xp
+        self.xp = wfs.xp
         if self.xp is not np:
             if not GPU_AWARE_MPI:
                 self.kpt_comm = CuPyMPI(self.kpt_comm)  # type: ignore
@@ -78,31 +78,29 @@ class IBZWaveFunctions(Generic[WFT]):
                kpt_band_comm: MPIComm = serial_comm,
                comm: MPIComm = serial_comm,
                ) -> Self:
-        rank_k = ibz.ranks(kpt_comm)
-        mask_k = (rank_k == kpt_comm.rank)
-        k_q = np.arange(len(ibz))[mask_k]
-
         nspins = ncomponents % 3
+        rank_ks = ibz.ranks(kpt_comm, nspins)
 
-        wfs_qs: list[list[WFT]] = []
-        for q, k in enumerate(k_q):
-            wfs_s = []
+        wfs_u: list[WFT] = []
+        q = 0
+        for k in range(len(ibz)):
             for spin in range(nspins):
-                wfs = create_wfs_func(spin, q, k,
-                                      ibz.kpt_kc[k], ibz.weight_k[k])
-                wfs_s.append(wfs)
-            wfs_qs.append(wfs_s)
-
+                if kpt_comm.rank == rank_ks[k, spin]:
+                    wfs = create_wfs_func(spin, q, k,
+                                          ibz.kpt_kc[k], ibz.weight_k[k])
+                    wfs_u.append(wfs)
+                    if spin == nspins - 1:
+                        q += 1
         return cls(ibz,
                    ncomponents=ncomponents,
-                   wfs_qs=wfs_qs,
+                   wfs_u=wfs_u,
                    kpt_comm=kpt_comm,
                    kpt_band_comm=kpt_band_comm,
                    comm=comm)
 
     @cached_property
     def mode(self):
-        wfs = self.wfs_qs[0][0]
+        wfs = self._wfs_u[0]
         if isinstance(wfs, PWFDWaveFunctions):
             if hasattr(wfs.psit_nX.desc, 'ecut'):
                 return 'pw'
@@ -132,10 +130,10 @@ class IBZWaveFunctions(Generic[WFT]):
 
     def __str__(self):
         shape = self.get_max_shape(global_shape=True)
-        wfs = self.wfs_qs[0][0]
+        wfs = self._wfs_u[0]
         nbytes = (len(self.ibz) *
                   self.nbands *
-                  len(self.wfs_qs[0]) *
+                  self.nspins *
                   wfs.bytes_per_band)
         ncores = (self.kpt_comm.size *
                   self.domain_comm.size *
@@ -158,9 +156,8 @@ class IBZWaveFunctions(Generic[WFT]):
                 f'    domain: {self.domain_comm.size}\n'
                 f'    band:   {self.band_comm.size}\n')
 
-    def __iter__(self) -> Generator[WFT, None, None]:
-        for wfs_s in self.wfs_qs:
-            yield from wfs_s
+    def __iter__(self) -> Generator[WFT]:
+        yield from self._wfs_u
 
     def move(self, relpos_ac, atomdist):
         self.ibz.symmetries.check_positions(relpos_ac)
@@ -184,6 +181,7 @@ class IBZWaveFunctions(Generic[WFT]):
             nelectrons=nelectrons / degeneracy,
             eigenvalues=[wfs.eig_n * Ha for wfs in self],
             weights=[wfs.weight for wfs in self],
+            spins=[wfs.spin for wfs in self],
             fermi_levels_guess=(None
                                 if self.fermi_levels is None else
                                 self.fermi_levels * Ha),
@@ -247,15 +245,20 @@ class IBZWaveFunctions(Generic[WFT]):
 
         return psi_r
 
+    def _get_wfs(self, kpt, spin):
+        u = kpt * self.nspins + spin - self.u0
+        assert u >= 0, (kpt, spin, self.nspins, self.u0)
+        return self._wfs_u[u]
+
     def get_wfs(self,
                 *,
                 kpt: int = 0,
                 spin: int = 0,
                 n1=0,
                 n2=0):
-        rank = self.rank_k[kpt]
+        rank = self.rank_ks[kpt][spin]
         if rank == self.kpt_comm.rank:
-            wfs = self.wfs_qs[self.q_k[kpt]][spin]
+            wfs = self._get_wfs(kpt, spin)
             wfs2 = wfs.collect(n1, n2)
             if rank == 0:
                 return wfs2
@@ -263,14 +266,14 @@ class IBZWaveFunctions(Generic[WFT]):
                 wfs2.send(0, self.kpt_comm)
             return
         if self.comm.rank == 0:
-            return self.wfs_qs[0][0].receive(rank, self.kpt_comm)
+            return self._wfs_u[0].receive(rank, self.kpt_comm)
         return None
 
-    def get_eigs_and_occs(self, k=0, s=0):
+    def get_eigs_and_occs(self, kpt=0, spin=0):
         if self.domain_comm.rank == 0 and self.band_comm.rank == 0:
-            rank = self.rank_k[k]
+            rank = self.rank_ks[kpt, spin]
             if rank == self.kpt_comm.rank:
-                wfs = self.wfs_qs[self.q_k[k]][s]
+                wfs = self._get_wfs(kpt, spin)
                 if rank == 0:
                     return wfs.eig_n, wfs._occ_n
                 self.kpt_comm.send(wfs.eig_n, 0)
@@ -340,7 +343,7 @@ class IBZWaveFunctions(Generic[WFT]):
             translations=ibz.symmetries.translation_sc,
             weights=ibz.weight_k)
 
-        nproj = self.wfs_qs[0][0].P_ani.layout.size
+        nproj = self._wfs_u[0].P_ani.layout.size
 
         spin_k_shape: tuple[int, ...]
         proj_shape: tuple[int, ...]
@@ -357,9 +360,9 @@ class IBZWaveFunctions(Generic[WFT]):
             writer.add_array('projections', spin_k_shape + proj_shape,
                              proj_dtype)
             for spin in range(self.nspins):
-                for k, rank in enumerate(self.rank_k):
+                for k, rank in enumerate(self.rank_ks[:, spin]):
                     if rank == self.kpt_comm.rank:
-                        wfs = self.wfs_qs[self.q_k[k]][spin]
+                        wfs = self._get_wfs(k, spin)
                         P_ani = wfs.P_ani.to_cpu().gather()  # gather atoms
                         if P_ani is not None:
                             P_nI = P_ani.matrix.gather()  # gather bands
@@ -391,9 +394,9 @@ class IBZWaveFunctions(Generic[WFT]):
         buf_nX = np.empty((self.nbands,) + xshape, dtype=dtype)
 
         for spin in range(self.nspins):
-            for k, rank in enumerate(self.rank_k):
+            for k, rank in enumerate(self.rank_ks[:, spin]):
                 if rank == self.kpt_comm.rank:
-                    wfs = self.wfs_qs[self.q_k[k]][spin]
+                    wfs = self._get_wfs(k, spin)
                     coef_nX = wfs.gather_wave_function_coefficients()
                     if coef_nX is not None:
                         coef_nX = as_np(coef_nX)
@@ -492,7 +495,7 @@ class IBZWaveFunctions(Generic[WFT]):
     def get_homo_lumo(self, spin: int = None) -> Array1D:
         """Return HOMO and LUMO eigenvalues."""
         if self.ncomponents == 1:
-            assert spin != 1
+            assert spin == 0 or spin is None
             spin = 0
         elif self.ncomponents == 2:
             if spin is None:
@@ -500,26 +503,28 @@ class IBZWaveFunctions(Generic[WFT]):
                 h1, l1 = self.get_homo_lumo(1)
                 return np.array([max(h0, h1), min(l0, l1)])
         else:
-            assert spin != 1
+            assert spin == 0 or spin is None
             spin = 0
 
         nocc = 0.0
-        for wfs_s in self.wfs_qs:
-            wfs = wfs_s[spin]
-            nocc += wfs.occ_n.sum() * wfs.weight
+        for wfs in self:
+            if wfs.spin == spin:
+                nocc += wfs.occ_n.sum() * wfs.weight
         nocc = self.kpt_comm.sum_scalar(nocc)
         n = int(round(nocc))
 
         homo = -np.inf
         if n > 0:
-            for wfs_s in self.wfs_qs:
-                homo = max(homo, wfs_s[spin].eig_n[n - 1])
+            for wfs in self:
+                if wfs.spin == spin:
+                    homo = max(homo, wfs.eig_n[n - 1])
         homo = self.kpt_comm.max_scalar(homo)
 
         lumo = np.inf
         if n < self.nbands:
-            for wfs_s in self.wfs_qs:
-                lumo = min(lumo, wfs_s[spin].eig_n[n])
+            for wfs in self:
+                if wfs.spin == spin:
+                    lumo = min(lumo, wfs.eig_n[n])
         lumo = self.kpt_comm.min_scalar(lumo)
 
         return np.array([homo, lumo])

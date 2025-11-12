@@ -8,8 +8,7 @@ def collect_uX(kd, comm, a_uX, s, k):
     # Comm is a communicator orthogonal to kd.comm (ie, domainband_comm)
     Xshape = a_uX[0].shape
     dtype = a_uX[0].dtype
-    kpt_rank, q = kd.get_rank_and_index(k)
-    u = q * kd.nspins + s
+    kpt_rank, u = kd.get_rank_and_index(k, s)
     if kd.comm.rank == kpt_rank:
         a_X = a_uX[u]
         # Comm master send to the global master
@@ -91,8 +90,7 @@ def collect_wuMM(kd, ksl, a_wuMM, w, s, k):
 
     dtype = a_wuMM[0][0].dtype
     NM = ksl.nao
-    kpt_rank, q = kd.get_rank_and_index(k)
-    u = q * kd.nspins + s
+    kpt_rank, u = kd.get_rank_and_index(k, s)
     if kd.comm.rank == kpt_rank:
         a_MM = a_wuMM[w][u]
 

@@ -1,4 +1,3 @@
-
 from gpaw.utilities.tools import coordinates
 from gpaw.utilities.gauss import Gaussian
 from gpaw.old.grid_descriptor import GridDescriptor

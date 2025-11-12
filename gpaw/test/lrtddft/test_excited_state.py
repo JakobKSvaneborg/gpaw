@@ -58,7 +58,7 @@ def test_split(in_tmp_dir):
     if world.rank == 0:
         with open(fname) as f:
             string = f.read()
-            assert 'Total number of cores used: {0}'.format(n) in string
+            assert f'Total number of cores used: {n}' in string
             assert 'Total number of cores used: 1' in string
 
 

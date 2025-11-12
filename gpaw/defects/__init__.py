@@ -39,6 +39,7 @@ class ElectrostaticCorrections():
     def __init__(self, pristine, defect,
                  charge=None, epsilon=None, sigma=None, r0=None,
                  ravg=2.5, method='full-planar', comm=world):
+
         self.comm = comm
         if comm.rank != 0:
             return
