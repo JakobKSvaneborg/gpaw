@@ -13,7 +13,8 @@ from gpaw import GPAW_NO_C_EXTENSION
     'gpu, GPAW',
     [(False, OldGPAW),
      (False, NewGPAW),
-     pytest.param(True, NewGPAW, marks=pytest.mark.gpu)])
+     pytest.param(True, NewGPAW, marks=pytest.mark.gpu)],
+    ids=['old', 'new', 'gpu'])
 def test_pw_slab(gpu, GPAW):
     a = 2.65
     slab = Atoms('Li2',
