@@ -2,7 +2,6 @@
 # Please see the accompanying LICENSE file for further information.
 
 """This module defines a ``KPoint`` class."""
-from typing import Optional
 from gpaw.old.projections import Projections
 
 
@@ -56,7 +55,7 @@ class KPoint:
 
         self.eps_n = None
         self.f_n = None
-        self._projections: Optional[Projections] = None
+        self._projections: Projections | None = None
 
         # Only one of these two will be used:
         self.psit = None  # UniformGridMatrix/PWExpansionMatrix

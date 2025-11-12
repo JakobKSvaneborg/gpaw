@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from time import ctime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 from ase.units import Ha
@@ -114,7 +114,7 @@ class Chi0Calculator:
     def update_chi0(self,
                     chi0: Chi0Data,
                     *,
-                    n1: int = 0, n2: Optional[int] = None,
+                    n1: int = 0, n2: int | None = None,
                     m1: int, m2: int,
                     spins: list
                     ) -> Chi0Data:

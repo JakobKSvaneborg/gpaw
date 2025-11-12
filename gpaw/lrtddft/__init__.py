@@ -2,7 +2,7 @@
 import numbers
 import sys
 from math import sqrt
-from typing import Dict, Any
+from typing import Any
 import numpy as np
 
 from ase.units import Hartree
@@ -48,7 +48,7 @@ class LrTDDFT(ExcitationList):
     read from a file
     """
 
-    default_parameters: Dict[str, Any] = {
+    default_parameters: dict[str, Any] = {
         'nspins': None,
         'restrict': {},
         'xc': None,
