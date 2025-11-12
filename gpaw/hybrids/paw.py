@@ -65,5 +65,9 @@ def pawexxvv(M_pp, D_ii):
     return V_ii
 
 
+# Sometimes, we need this function (to test the pawexxvv C-version)
+# So we preserve it for the sake of this test
+python_pawexxvv = pawexxvv
+
 if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
     from _gpaw import pawexxvv  # noqa: F811
