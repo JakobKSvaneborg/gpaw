@@ -194,11 +194,11 @@ def summary(folders: list[Path], mode: int) -> None:
     alldata = [read(folder, mode) for folder in folders]
     for i, folder in enumerate(folders):
         print(i + 1, folder)
-    print('------------' + '+---------------------' * len(folders))
+    print('-----------------' + '+---------------------' * len(folders))
     scores = [0.0] * len(folders)
     N = 0
-    for name in REFERENCES:
-        print(f'{name:12} ', end='')
+    for r, name in enumerate(REFERENCES):
+        print(f'{r + 1:2} {name:12} ', end='')
         times = [data[name][0] for data in alldata]
         iters = [data[name][1] for data in alldata]
         t0 = min(times)
@@ -219,7 +219,7 @@ def summary(folders: list[Path], mode: int) -> None:
             if max(times) < np.inf:
                 scores[n] += t / t0
         print()
-    print('------------' + '+---------------------' * len(folders) +
+    print('-----------------' + '+---------------------' * len(folders) +
           '\n           ', end='')
     for s in scores:
         print(f'{(s / N - 1) * 100:+21.1f}%', end='')
