@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 import warnings
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Sequence, Union, Literal
+from typing import IO, TYPE_CHECKING, Any, Sequence, Union, Literal, Dict
 
 import numpy as np
 from ase import Atoms
@@ -72,7 +72,7 @@ class Mode(Parameter):
         self.name = self.__class__.__name__.lower()
 
     def todict(self) -> dict:
-        dct = {}
+        dct: Dict[str, Any] = {}
         if self.force_complex_dtype:
             dct['force_complex_dtype'] = True
         if self.dtype == 'single':
