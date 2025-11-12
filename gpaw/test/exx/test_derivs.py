@@ -31,7 +31,7 @@ class Setup:
     ghat_l = [Spline.from_data(0, 1.0, 1 - r2 * (1 - 2 * r2))]
 
 
-@pytest.serial
+@pytest.mark.serial
 @pytest.mark.xfail  # XXX: reason=...
 def test_exx_derivs():
     N = 20
