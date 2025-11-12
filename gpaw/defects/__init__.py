@@ -1,5 +1,10 @@
 """ Defects module """
 
+# TODO
+# - check small deviations
+# - fix parallelization
+# - check fft
+
 import numpy as np
 from gpaw import GPAW, PW
 from gpaw.mpi import serial_comm
