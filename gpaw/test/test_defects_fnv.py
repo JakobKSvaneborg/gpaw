@@ -79,10 +79,11 @@ def test_fnv_3d(in_tmp_dir):
     params = {'mode': {'name': 'pw', 'ecut': 400},
               'xc': 'LDA',
               'kpts': {'size': (2, 2, 2), 'gamma': False},
-              'occupations': {'name': 'fermi-dirac', 'width': 0.01}}
+              'occupations': {'name': 'fermi-dirac', 'width': 0.01},
+              'txt': 'fnv.txt'}
 
-    calc_charged = GPAW(charge=charge, **params, txt=None)
-    calc_neutral = GPAW(charge=0, **params, txt=None)
+    calc_charged = GPAW(charge=charge, **params)
+    calc_neutral = GPAW(charge=0, **params)
 
     pristine = bulk('GaAs', crystalstructure='zincblende', a=a0, cubic=True)
     pristine.calc = calc_neutral
