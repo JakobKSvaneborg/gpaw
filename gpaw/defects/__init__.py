@@ -8,11 +8,30 @@
 
 import numpy as np
 from gpaw import GPAW, PW
-from gpaw.mpi import serial_comm
-from ase.parallel import parprint
+from gpaw.mpi import serial_comm, world, ibarrier
+from ase.parallel import broadcast
 from ase.units import Bohr, Hartree
 from ase.geometry import find_mic
 from pathlib import Path
+import functools
+
+def parallel_method(fun):
+    @functools.wraps(fun)
+    def wrapper(self, *args, serial=False, **kwargs):
+        if serial or self.comm.size == 1:
+            return fun(self, *args, **kwargs) 
+        
+        # This parallel method needs to be called with all ranks of comm
+        # ibarrier will inform user if this is not the case
+        ibarrier(timeout=60, comm=self.comm)
+
+        if self.comm.rank == 0:
+            result = fun(self, *args, **kwargs)
+        else:
+            result = None
+
+        return broadcast(result, root=0, comm=self.comm) 
+    return wrapper 
 
 
 class ElectrostaticCorrections():
@@ -21,19 +40,22 @@ class ElectrostaticCorrections():
     """
     def __init__(self, pristine, defect,
                  charge=None, epsilon=None, sigma=None, r0=None,
-                 ravg=2.5, method=None, comm=serial_comm):
+                 ravg=2.5, method=None, comm=world):
+        self.comm = comm
+        if comm.rank != 0:
+            return
 
         if isinstance(pristine, (str, Path)):
-            pristine = GPAW(pristine, txt=None, parallel={'domain': 1})
+            pristine = GPAW(pristine, txt=None, parallel={'domain': 1}, communicator=serial_comm)
         if isinstance(defect, (str, Path)):
-            defect = GPAW(defect, txt=None, parallel={'domain': 1})
+            defect = GPAW(defect, txt=None, parallel={'domain': 1}, communicator=serial_comm)
 
         calc = GPAW(mode=PW(500, force_complex_dtype=True),
                     kpts={'size': (1, 1, 1),
                           'gamma': True},
                     parallel={'domain': 1},
                     symmetry='off',
-                    communicator=comm,
+                    communicator=serial_comm,
                     txt=None)
 
         atoms = pristine.atoms.copy()
@@ -54,7 +76,7 @@ class ElectrostaticCorrections():
 
         self.nfreq = 4              # grid coarsening
         if (method is not None) and ('full' in method):
-            parprint('fine grid')
+            print('fine grid')
             self.nfreq = 1          # no coarsening
 
         # volume
@@ -242,6 +264,7 @@ class ElectrostaticCorrections():
         self.rc_vR = self.r_vR[:, ::nfreq, ::nfreq, ::nfreq]
         self.ngc_v = np.array(self.rc_vR.shape[1:])
 
+    @parallel_method
     def calculate_potential_profile(self, nfreq=2, nsample=8):
         self.extract_electrostatic_potentials()
         self.coarsen_grid(nfreq=nfreq)
@@ -301,6 +324,7 @@ class ElectrostaticCorrections():
         self.dphi = np.average(phi_model - (phi_def - phi_prs))
         return self.dphi
 
+    @parallel_method
     def calculate_corrected_formation_energy(self):
         E_0 = self.pristine.get_potential_energy()
         E_X = self.defect.get_potential_energy()
@@ -310,6 +334,7 @@ class ElectrostaticCorrections():
         parprint('Eli=', Eli, 'Elp=', Elp, 'Delta_V=', Delta_V)
         return E_X - E_0 - (Elp - Eli) + Delta_V * self.charge
 
+    @parallel_method
     def calculate_uncorrected_formation_energy(self):
         E_0 = self.pristine.get_potential_energy()
         E_X = self.defect.get_potential_energy()
