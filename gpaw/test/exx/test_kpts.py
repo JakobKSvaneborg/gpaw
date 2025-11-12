@@ -1,6 +1,4 @@
 """Test case where q=k1-k2 has component outside 0<=q<1 range."""
-from typing import Tuple
-
 import pytest
 import numpy as np
 from ase import Atoms
@@ -32,7 +30,7 @@ def atoms() -> Atoms:
     return a
 
 
-def bandgap(eps: np.ndarray) -> Tuple[int, int, float]:
+def bandgap(eps: np.ndarray) -> tuple[int, int, float]:
     """Find band-gap."""
     k1 = eps[0, :, 0].argmax()
     k2 = eps[0, :, 1].argmin()

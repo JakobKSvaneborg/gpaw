@@ -3,7 +3,8 @@ from __future__ import annotations
 import importlib
 import warnings
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Sequence, Union, Literal
+from typing import IO, TYPE_CHECKING, Any, Union, Literal
+from collections.abc import Sequence
 
 import numpy as np
 from ase import Atoms

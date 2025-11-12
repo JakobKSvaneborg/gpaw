@@ -1508,7 +1508,7 @@ class SJMDipoleCorrection(DipoleCorrection):
                            broadcast=True)
         eps_z = eps_g.mean(0).mean(0)
 
-        saw = np.zeros((int(L / gd.h_cv[c, c])))
+        saw = np.zeros(int(L / gd.h_cv[c, c]))
         for i, eps in enumerate(eps_z):
             saw[i + 1] = saw[i] + step / eps
         saw /= saw[-1] + step / eps_z[-1] - saw[0]

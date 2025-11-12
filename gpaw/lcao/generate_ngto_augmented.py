@@ -1,4 +1,4 @@
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import numpy as np
 
@@ -15,7 +15,7 @@ from gpaw.basis_data import parse_basis_name
 # GTOs are truncated and represented numerically.
 
 
-def create_GTO_dictionary(l: Union[int, str], exponent: float):
+def create_GTO_dictionary(l: int | str, exponent: float):
     """Dictionary representing Gaussian type orbital.
 
     Parameters
@@ -28,7 +28,7 @@ def create_GTO_dictionary(l: Union[int, str], exponent: float):
     return create_CGTO_dictionary(l, [exponent], [1.0])
 
 
-def create_CGTO_dictionary(l: Union[int, str],
+def create_CGTO_dictionary(l: int | str,
                            exponents: Sequence[float],
                            coefficients: Sequence[float]):
     """Dictionary representing contracted Gaussian type orbital.

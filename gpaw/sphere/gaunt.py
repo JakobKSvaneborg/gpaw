@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from typing import Dict
-
 import numpy as np
 
 from gpaw.typing import Array3D, Array4D
 
-_gaunt: Dict[int, np.ndarray] = {}
-_nabla: Dict[int, np.ndarray] = {}
-_super_gaunt: Dict[int, np.ndarray] = {}
+_gaunt: dict[int, np.ndarray] = {}
+_nabla: dict[int, np.ndarray] = {}
+_super_gaunt: dict[int, np.ndarray] = {}
 
 
 def gaunt(lmax: int = 2) -> Array3D:

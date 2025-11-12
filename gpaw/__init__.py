@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import contextlib
 from pathlib import Path
-from typing import List, Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 import warnings
 
 
@@ -119,7 +119,7 @@ def __getattr__(attr: str) -> Any:
     raise _module_attr_error(attr)
 
 
-def __dir__() -> List[str]:
+def __dir__() -> list[str]:
     """
     Get the (1) normally-present module attributes, (2) lazily-imported
     objects, and (3) envrionmental variables starting with `GPAW_`.

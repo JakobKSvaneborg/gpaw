@@ -1,6 +1,5 @@
 import pickle
 from math import log, pi, sqrt, ceil
-from typing import List, Tuple, Union
 
 import numpy as np
 
@@ -267,10 +266,10 @@ class XAS:
         return proj_3
 
     def get_oscillator_strength(
-            self, dks: Union[float, List], kpoint=None,
+            self, dks: float | list, kpoint=None,
             proj=None, proj_xyz: bool = True,
             w: Array1D = None,
-            raw: bool = False) -> Tuple[Array1D, ArrayND]:
+            raw: bool = False) -> tuple[Array1D, ArrayND]:
         """Calculate stick spectra.
 
         Parameters:
@@ -340,7 +339,7 @@ class XAS:
             energy_n = energy_kn[kpoint, :]
             f_cmn = f_cmkn[:, :, kpoint, :]
         else:
-            energy_n = np.zeros((k_pts * n * len(dks)))
+            energy_n = np.zeros(k_pts * n * len(dks))
             f_cmn = np.zeros((sigma2_cmkn.shape[0],
                               sigma2_cmkn.shape[1],
                               k_pts * n * len(dks)))
@@ -357,7 +356,7 @@ class XAS:
 
     def get_spectra(self, fwhm=0.5, E_in=None, linbroad=None,
                     N=1000, kpoint=None, proj=None, proj_xyz=True,
-                    stick=False, dks: Union[float, List] = [0],
+                    stick=False, dks: float | list = [0],
                     w: Array1D = None):
         """Calculate spectra.
 
@@ -420,9 +419,9 @@ class XAS:
                     fwhm, linbroad, energy_n, f_cmn, energy_i)
 
     def variable_broadening(
-            self, fwhm: float, linbroad: List[float],
+            self, fwhm: float, linbroad: list[float],
             eps_n: Array1D, f_cmn: Array3D,
-            e: Array1D) -> Tuple[Array1D, Array2D]:
+            e: Array1D) -> tuple[Array1D, Array2D]:
         """mpirun -n 6 python3 -m pytest  test_xas_parallel.py
         fwhm:
           the full width half maximum in eV for gaussian broadening
@@ -463,7 +462,7 @@ class XAS:
 
     def constant_broadening(
             self, fwhm: float, eps_n: Array1D, f_cmn,
-            energy_i: Array1D) -> Tuple[Array1D, Array2D]:
+            energy_i: Array1D) -> tuple[Array1D, Array2D]:
         """
         fwhm:
           the full width half maximum in eV for gaussian broadening
