@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 from sys import version_info
 
-if version_info < (3, 9):
+if version_info < (3, 10):
     raise ValueError('Please use Python-3.9 or later')
 
 # Python version in the venv that we are creating
