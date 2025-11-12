@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import partial
 from math import pi
-from typing import Optional, Callable
+from collections.abc import Callable
 
 import numpy as np
 from gpaw.core.arrays import DistributedArrays as XArray
@@ -51,11 +51,12 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                          dtype=psit_nX.desc.dtype,
                          domain_comm=psit_nX.desc.comm,
                          band_comm=psit_nX.comm)
-        self._pt_aiX: Optional[AtomCenteredFunctions] = None
+        self._pt_aiX: AtomCenteredFunctions | None = None
         self.orthonormalized = False
         self.bytes_per_band = (prod(self.array_shape(global_shape=True)) *
                                psit_nX.desc.itemsize)
         XP.__init__(self, self.psit_nX.xp)
+        self.other_spin: PWFDWaveFunctions | None = None
 
     @classmethod
     def from_wfs(cls,
@@ -104,12 +105,15 @@ class PWFDWaveFunctions(WaveFunctions, XP):
              i
         """
         if self._pt_aiX is None:
-            self._pt_aiX = self.psit_nX.desc.atom_centered_functions(
-                [setup.pt_j for setup in self.setups],
-                self.relpos_ac,
-                atomdist=self.atomdist,
-                qspiral_v=self.qspiral_v,
-                xp=self.psit_nX.xp)
+            if self.other_spin is not None:
+                self._pt_aiX = self.other_spin.pt_aiX
+            else:
+                self._pt_aiX = self.psit_nX.desc.atom_centered_functions(
+                    [setup.pt_j for setup in self.setups],
+                    self.relpos_ac,
+                    atomdist=self.atomdist,
+                    qspiral_v=self.qspiral_v,
+                    xp=self.psit_nX.xp)
         return self._pt_aiX
 
     @property
@@ -143,8 +147,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                 self.setups)
         super().move(relpos_ac, atomdist, move_wave_functions)
         self.orthonormalized = False
-        assert self.pt_aiX is not None
-        self.pt_aiX.move(relpos_ac, atomdist)
+        if self.other_spin is None and self._pt_aiX is not None:
+            self._pt_aiX.move(relpos_ac, atomdist)
 
     def add_to_density(self,
                        nt_sR: UGArray,

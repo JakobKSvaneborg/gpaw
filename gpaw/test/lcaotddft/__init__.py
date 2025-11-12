@@ -88,7 +88,7 @@ def check_wfs(wf_ref_fpath, wf_fpath, atol=1e-12):
 
 
 def copy_and_cut_file(src, dst, *, cut_lines=0):
-    with open(src, 'r', encoding='utf-8') as fd:
+    with open(src, encoding='utf-8') as fd:
         lines = fd.readlines()
         if cut_lines > 0:
             lines = lines[:-cut_lines]

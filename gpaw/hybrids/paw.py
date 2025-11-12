@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from typing import NamedTuple, Dict, List
+from typing import NamedTuple
 
 import numpy as np
 
@@ -11,12 +11,12 @@ from gpaw import GPAW_NO_C_EXTENSION
 
 
 class PAWThings(NamedTuple):
-    VC_aii: Dict[int, np.ndarray | None]
-    VV_aii: Dict[int, np.ndarray]  # distributed
-    Delta_aiiL: List[np.ndarray]
+    VC_aii: dict[int, np.ndarray | None]
+    VV_aii: dict[int, np.ndarray]  # distributed
+    Delta_aiiL: list[np.ndarray]
 
 
-def calculate_paw_stuff(wfs, dens) -> List[PAWThings]:
+def calculate_paw_stuff(wfs, dens) -> list[PAWThings]:
     D_asp = dens.D_asp
     comm = D_asp.partition.comm
     if comm.size != wfs.world.size:
@@ -28,7 +28,7 @@ def calculate_paw_stuff(wfs, dens) -> List[PAWThings]:
         D_asp = {a: D_sp for a, D_sp in D_asp.items()
                  if rank_a[a] == wfs.world.rank}
 
-    VV_saii: List[Dict[int, np.ndarray]] = [{} for s in range(dens.nspins)]
+    VV_saii: list[dict[int, np.ndarray]] = [{} for s in range(dens.nspins)]
     for a, D_sp in D_asp.items():
         data = wfs.setups[a]
         for VV_aii, D_p in zip(VV_saii, D_sp):
@@ -37,7 +37,7 @@ def calculate_paw_stuff(wfs, dens) -> List[PAWThings]:
             VV_aii[a] = VV_ii
 
     Delta_aiiL = []
-    VC_aii: Dict[int, np.ndarray | None] = {}
+    VC_aii: dict[int, np.ndarray | None] = {}
     for a, data in enumerate(wfs.setups):
         Delta_aiiL.append(data.Delta_iiL)
         if data.X_p is None:

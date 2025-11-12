@@ -69,7 +69,7 @@ def test_parallel_fd_parallel():
                 stderr = devnull
             if eerr > tolerance:
                 print('Failed!', file=stderr)
-                print('E = %f, Eref = %f' % (E, Eref), file=stderr)
+                print(f'E = {E:f}, Eref = {Eref:f}', file=stderr)
                 msg = 'Energy err larger than tolerance: %f' % eerr
             if ferr > tolerance:
                 print('Failed!', file=stderr)

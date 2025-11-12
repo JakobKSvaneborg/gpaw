@@ -1410,44 +1410,85 @@ class SJMDipoleCorrection(DipoleCorrection):
         self.pwsolve(pot, dens)
 
     def fd_solv_solve(self, vHt_g, rhot_g, **kwargs):
+        """
+        This is an iterative method that adds a correction potential
+        until the slope of the potential at the cell boundary is below
+        slope_lim.
+        The while loop below always converges after 3 attempts but the
+        resulting corrterm is varying during the scf cycle, i.e. it depends
+        on the degree of solvation of the electron density.
+        Also the dipole correction should not add significat computational load
+        as the poisson equation is only solved once per scf cycle.
+        """
 
         gd = self.poissonsolver.gd
-        slope_lim = 1e-8
+        # Maximum slope allowed on the cell boundary
+        slope_lim = 1e-13
+
+        # Set slope to value that makes the while loop run at least once
         slope = slope_lim * 10
 
+        # Calculate dipole moment
         dipmom = gd.calculate_dipole_moment(rhot_g)[2]
 
+        # Remove the correction potential from the previous iteration
         if self.elcorr is not None:
             vHt_g[:, :] -= self.elcorr
 
+        # Solve the Poisson equation without the correction potential
         iters2 = self.poissonsolver.solve(vHt_g, rhot_g, **kwargs)
+
+        # Define the base shape of the correction potential
         sawtooth_z = self.sjm_sawtooth(dirichlet=self.dirichlet)
         L = gd.cell_cv[2, 2]
 
+        count = 0
+
+        # Scale the correction potential until the slope of the potential
+        # at the left cell boundary is below slope_lim.
         while abs(slope) > slope_lim:
+            count += 1
+
+            # define the potential on the grid we will mess with in the loop
             vHt_g2 = vHt_g.copy()
+
+            # Define the actual correction to the potential
             self.correction = 2 * np.pi * dipmom * L / \
                 gd.volume * self.corrterm
-            elcorr = -2 * self.correction
 
-            elcorr *= sawtooth_z
+            # Apply the correction magnitude to the sawtooth
+            elcorr = -2 * self.correction * sawtooth_z
+
+            # parallelize the correction potential - this is
+            # needed because this is what will be added to the
+            # potential later on
             elcorr2 = elcorr[gd.beg_c[2]:gd.end_c[2]]
             vHt_g2[:, :] += elcorr2
 
+            # Collect the potential to measure the slope on the boundary
+            # This is not particularly memory friendy
             VHt_g = gd.collect(vHt_g2, broadcast=True)
             VHt_z = VHt_g.mean(0).mean(0)
-            slope = VHt_z[2] - VHt_z[10]
 
+            # The slope on the left will be used as a probe as it
+            # is the most sensitive to the correction potential (no solvent)
+            # Ideally we would be able to get abs(slope_l) + abs(slope_r) = 0
+            # but this is not possible with the current implementation
+            # However, the remaining slope is minimal
+            slope = (VHt_z[3] - VHt_z[8]) / (gd.h_cv[2][2] * Bohr)
+
+            # Optimize the corrterm based on the slope using a simple
+            # linear rootfinder
             if abs(slope) > slope_lim:
-                if self.last_corrterm is not None:
+                if self.last_corrterm is None:
+                    self.last_corrterm = self.corrterm
+                    self.corrterm -= slope * 10.
+                else:
                     ds = (slope - self.last_slope) / \
                         (self.corrterm - self.last_corrterm)
                     con = slope - (ds * self.corrterm)
                     self.last_corrterm = self.corrterm
                     self.corrterm = -con / ds
-                else:
-                    self.last_corrterm = self.corrterm
-                    self.corrterm -= slope * 10.
                 self.last_slope = slope
             else:
                 vHt_g[:, :] += elcorr2
@@ -1467,7 +1508,7 @@ class SJMDipoleCorrection(DipoleCorrection):
                            broadcast=True)
         eps_z = eps_g.mean(0).mean(0)
 
-        saw = np.zeros((int(L / gd.h_cv[c, c])))
+        saw = np.zeros(int(L / gd.h_cv[c, c]))
         for i, eps in enumerate(eps_z):
             saw[i + 1] = saw[i] + step / eps
         saw /= saw[-1] + step / eps_z[-1] - saw[0]

@@ -1,6 +1,5 @@
 # MQ: cores=4
 """Check non self-consistent SOC calculation with and without symmetry."""
-from typing import Dict
 from ase import Atoms
 from gpaw import GPAW, PW
 from gpaw.spinorbit import soc_eigenstates
@@ -21,7 +20,7 @@ def check(array1_mx, array2_mx, k, tol=1e-6):
         m += 1
 
 
-def soc(params: Dict) -> list:
+def soc(params: dict) -> list:
     """Do DFT + SOC calculations in memory and from gpw-file."""
     name = 'Fe-sym-' + params.get('symmetry', 'on')
     atoms.calc = GPAW(txt=name + '.txt', **params)
