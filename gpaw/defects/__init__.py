@@ -1,9 +1,5 @@
 """ Defects module """
 
-# TODO
-# - check small deviations
-# - check fft
-
 import numpy as np
 from gpaw import GPAW, PW
 from gpaw.mpi import serial_comm, world, ibarrier
@@ -229,7 +225,7 @@ class ElectrostaticCorrections():
         self.region = (igx, igy, igz)
 
     def full_planar_average(self):
-        # check that ortho-rhombic
+        # check that monoclinic: z-axis is 90 deg on the plane
         assert self.is_monoclin
 
         nx, ny, nz = self.ngc_v
