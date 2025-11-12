@@ -1,9 +1,7 @@
 """ Defects module """
 
 # TODO
-# - check tutorial value
 # - check small deviations
-# - fix parallelization
 # - check fft
 
 import numpy as np
@@ -15,13 +13,14 @@ from ase.geometry import find_mic
 from pathlib import Path
 import functools
 
+
 def parallel_method(fun):
     @functools.wraps(fun)
     def wrapper(self, *args, serial=False, **kwargs):
         if serial or self.comm.size == 1:
-            return fun(self, *args, **kwargs) 
-        
-        # This parallel method needs to be called with all ranks of comm
+            return fun(self, *args, **kwargs)
+
+        # this parallel method needs to be called with all ranks of comm
         # ibarrier will inform user if this is not the case
         ibarrier(timeout=60, comm=self.comm)
 
@@ -30,8 +29,8 @@ def parallel_method(fun):
         else:
             result = None
 
-        return broadcast(result, root=0, comm=self.comm) 
-    return wrapper 
+        return broadcast(result, root=0, comm=self.comm)
+    return wrapper
 
 
 class ElectrostaticCorrections():
@@ -46,9 +45,11 @@ class ElectrostaticCorrections():
             return
 
         if isinstance(pristine, (str, Path)):
-            pristine = GPAW(pristine, txt=None, parallel={'domain': 1}, communicator=serial_comm)
+            pristine = GPAW(pristine, txt=None,
+                            parallel={'domain': 1}, communicator=serial_comm)
         if isinstance(defect, (str, Path)):
-            defect = GPAW(defect, txt=None, parallel={'domain': 1}, communicator=serial_comm)
+            defect = GPAW(defect, txt=None,
+                          parallel={'domain': 1}, communicator=serial_comm)
 
         calc = GPAW(mode=PW(500, force_complex_dtype=True),
                     kpts={'size': (1, 1, 1),
