@@ -1,7 +1,7 @@
 """Scissors operator for LCAO."""
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 from ase.units import Ha
@@ -104,7 +104,7 @@ class ScissorsLCAOEigensolver(LCAOEigensolver):
         eps_error, _, energies = \
             super().iterate(ibzwfs, density, potential,
                             hamiltonian, pot_calc, energies)
-        if ibzwfs.wfs_qs[0][0]._occ_n is None:
+        if ibzwfs._wfs_u[0]._occ_n is None:
             wfs_error = np.nan
         else:
             wfs_error = 0.0

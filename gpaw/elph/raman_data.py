@@ -2,7 +2,6 @@
 Calculates Raman matrices from Raman tensor
 """
 import numpy as np
-from typing import Tuple
 
 from ase.units import invcm
 from ase.utils.filecache import MultiFileJSONCache
@@ -84,7 +83,7 @@ class RamanData:
 
     def calculate_raman_spectrum(self,
                                  entries, T=300, sigma=5.0
-                                 ) -> Tuple[ArrayND, ArrayND]:
+                                 ) -> tuple[ArrayND, ArrayND]:
         """
         Calculates Raman intensities from Raman tensor.
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import IO, Any, Union
+from typing import Any, IO
 from pathlib import Path
 
 from ase import Atoms
@@ -62,9 +62,9 @@ def write_rttddft(filename: str | Path,
     comm.barrier()
 
 
-def read_rttddft(filename: Union[str, Path, IO[str]],
+def read_rttddft(filename: str | Path | IO[str],
                  *,
-                 log: Union[Logger, str, Path, IO[str]] = None,
+                 log: Logger | str | Path | IO[str] | None = None,
                  comm=None,
                  parallel: dict[str, Any] = None,
                  ) -> tuple[Atoms,
@@ -108,7 +108,7 @@ def read_rttddft(filename: Union[str, Path, IO[str]],
     state = RTTDDFTState(*dft_state)
 
     if builder.mode in ['pw', 'fd']:  # fd = finite-difference
-        data = ibzwfs.wfs_qs[0][0].psit_nX.data
+        data = ibzwfs._wfs_u[0].psit_nX.data
         if not hasattr(data, 'fd'):  # fd = file-descriptor
             reader.close()
     else:

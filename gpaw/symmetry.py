@@ -3,7 +3,6 @@
 # Wits University
 # Please see the accompanying LICENSE file for further information.
 from fractions import Fraction
-from typing import Tuple
 
 import numpy as np
 
@@ -14,7 +13,7 @@ import gpaw.mpi as mpi
 def frac(f: float,
          *,
          max_denominator: int = 50,
-         tol: float = 1e-6) -> Tuple[int, int]:
+         tol: float = 1e-6) -> tuple[int, int]:
     """Convert to fraction.
 
     >>> frac(0.5)
@@ -413,10 +412,8 @@ def reduce_kpts(bzk_kc,
                 tol):
     nbzkpts = len(bzk_kc)
     nsym = len(U_scc)
-
     bz2bz_ks = map_k_points_fast(bzk_kc, U_scc, use_time_reversal,
                                  comm, tol)
-
     bz2bz_k = -np.ones(nbzkpts + 1, int)
     ibz2bz_k = []
     for k in range(nbzkpts - 1, -1, -1):
@@ -427,10 +424,9 @@ def reduce_kpts(bzk_kc,
     ibz2bz_k = np.array(ibz2bz_k[::-1])
     bz2bz_k = bz2bz_k[:-1].copy()
 
-    bz2ibz_k = np.empty(nbzkpts, int)
+    bz2ibz_k = np.zeros(nbzkpts, int) - 1
     bz2ibz_k[ibz2bz_k] = np.arange(len(ibz2bz_k))
     bz2ibz_k = bz2ibz_k[bz2bz_k]
-
     weight_k = np.bincount(bz2ibz_k) * (1.0 / nbzkpts)
 
     # Symmetry operation mapping IBZ to BZ:
@@ -519,7 +515,9 @@ def map_k_points_fast(bzk_kc, U_scc, time_reversal, comm=None, tol=1e-7):
                            order[1:][equivalentpairs_k]])
 
         # This has to be true.
-        assert (orders[0] < nbzkpts).all()
+        if not (orders[0] < nbzkpts).all():
+            raise ValueError("Duplicate kpoints detected, "
+                             "set symmetry='off'.")
         assert (orders[1] >= nbzkpts).all()
         bz2bz_ks[orders[1] - nbzkpts, s] = orders[0]
 

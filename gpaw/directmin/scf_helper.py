@@ -31,7 +31,7 @@ def do_if_converged(eigensolver_name, wfs, ham, dens, log):
         constraints = None
 
     if eigensolver_name == 'etdm-lcao':
-        with ((wfs.timer('Get canonical representation'))):
+        with (wfs.timer('Get canonical representation')):
             for kpt in wfs.kpt_u:
                 solver.dm_helper.update_to_canonical_orbitals(
                     wfs, ham, kpt, False, False)

@@ -23,7 +23,7 @@ requires-python = '>=3.10'
 
 dependencies = [
     'ase >= 3.25.0',  # what about __ase_version_required__?
-    'numpy',
+    'numpy >= 1.20.0',  # Must match build requirement, otherwise older version may be left in place due to "build isolation"
     'scipy >= 1.6.0',
     'gpaw-data',
 ]
@@ -68,3 +68,8 @@ version = {attr = 'gpaw.__version__'}
 
 [tool.setuptools.package-data]
 gpaw = ['py.typed']
+
+[tool.coverage.report]
+exclude_also = [
+    'if __name__ == .__main__.:'
+]

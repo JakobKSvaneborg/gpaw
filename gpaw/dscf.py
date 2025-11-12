@@ -91,6 +91,7 @@ class OccupationsDSCF:
                   nelectrons,
                   eigenvalues,
                   weights,
+                  spins,
                   fermi_levels_guess,
                   fix_fermi_level=False):
         assert not fix_fermi_level

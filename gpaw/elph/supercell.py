@@ -1,7 +1,6 @@
 """Module for electron-phonon supercell properties."""
 
 import numpy as np
-from typing import Tuple
 
 from ase import Atoms
 from ase.parallel import parprint
@@ -279,7 +278,7 @@ class Supercell:
 
     @classmethod
     def calculate_gradient(cls, fd_name: str,
-                           indices=None) -> Tuple[ArrayND, list]:
+                           indices=None) -> tuple[ArrayND, list]:
         """Calculate gradient of effective potential and projector coefs.
 
         This function loads the generated json files and calculates
@@ -329,7 +328,7 @@ class Supercell:
 
     @classmethod
     def load_supercell_matrix(cls, name: str = "supercell"
-                              ) -> Tuple[ArrayND, dict]:
+                              ) -> tuple[ArrayND, dict]:
         """Load supercell matrix from cache.
 
         Parameters

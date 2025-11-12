@@ -1,5 +1,4 @@
 import hashlib
-from typing import Dict
 
 import numpy as np
 from ase.data import atomic_numbers
@@ -10,8 +9,8 @@ from gpaw.atom.configurations import configurations
 from gpaw.pseudopotential import PseudoPotential, get_radial_hartree_energy
 
 
-setups: Dict[str, 'HGHParameterSet'] = {}  # Filled out during parsing below
-sc_setups: Dict[str, 'HGHParameterSet'] = {}  # Semicore
+setups: dict[str, 'HGHParameterSet'] = {}  # Filled out during parsing below
+sc_setups: dict[str, 'HGHParameterSet'] = {}  # Semicore
 
 
 # Tabulated values of Gamma(m + 1/2)

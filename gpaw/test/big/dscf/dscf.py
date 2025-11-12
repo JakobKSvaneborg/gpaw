@@ -1,18 +1,29 @@
 from ase.io import read
-from gpaw import GPAW
+from gpaw import GPAW, GPAW_NEW
 import gpaw.dscf as dscf
 from gpaw.mixer import MixerSum
 from numpy import reshape, dot
 
 filename = 'excited'
 
-c_mol = GPAW(mode='fd', nbands=8, h=0.2, xc='RPBE', kpts=(4, 6, 1),
-             eigensolver='cg', spinpol=True,
-             convergence={'bands': -2}, txt='CO.txt')
+c_mol = GPAW(mode='fd',
+             nbands=8,
+             h=0.2,
+             xc='RPBE',
+             kpts=(4, 6, 1),
+             eigensolver='ppcg' if GPAW_NEW else 'cg',
+             spinpol=True,
+             convergence={'bands': -2},
+             txt='CO.txt')
 
-calc = GPAW(mode='fd', nbands=120, h=0.2, xc='RPBE', kpts=(4, 6, 1),
+calc = GPAW(mode='fd',
+            nbands=120,
+            h=0.2,
+            xc='RPBE',
+            kpts=(4, 6, 1),
             setups={'Pt': '10'},
-            eigensolver='cg', spinpol=True,
+            eigensolver='ppcg' if GPAW_NEW else 'cg',
+            spinpol=True,
             mixer=MixerSum(nmaxold=5, beta=0.1, weight=100),
             convergence={'eigenstates': 1.0e-4,
                          'bands': -10}, txt=filename + '.txt')

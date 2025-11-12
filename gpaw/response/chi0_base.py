@@ -165,9 +165,9 @@ class Chi0Integrand(Integrand):
 
         ik1 = kd.bz2ibz_k[K1]
         ik2 = kd.bz2ibz_k[K2]
-        kpt1 = gs.kpt_qs[ik1][point.spin]
+        kpt1 = gs.kpt_ks[ik1][point.spin]
         assert kd.comm.size == 1
-        kpt2 = gs.kpt_qs[ik2][point.spin]
+        kpt2 = gs.kpt_ks[ik2][point.spin]
         deps_nm = np.subtract(kpt1.eps_n[self.n1:self.n2][:, np.newaxis],
                               kpt2.eps_n[self.m1:self.m2])
         return deps_nm.reshape(-1)

@@ -30,7 +30,7 @@ class FakeTDHamiltonian:
         hamiltonian = self._rttddft.hamiltonian
         ham_calc = hamiltonian.create_hamiltonian_matrix_calculator(
             self._rttddft.state.potential)
-        wfs = self._rttddft.state.ibzwfs.wfs_qs[kpt.q][kpt.s]
+        wfs = self._rttddft.state.ibzwfs._get_wfs(kpt.k, kpt.s)
         H_MM = ham_calc.calculate_matrix(wfs)
         return H_MM.data
 

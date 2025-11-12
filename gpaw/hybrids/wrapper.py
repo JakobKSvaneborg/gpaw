@@ -1,5 +1,3 @@
-from typing import Tuple, Dict
-
 import numpy as np
 
 from gpaw.xc import XC
@@ -42,7 +40,7 @@ class HybridXC:
         self.description += f'{fraction} * EXX(omega = {omega} bohr^-1)'
 
         self.vlda_sR = None
-        self.v_sknG: Dict[Tuple[int, int], np.ndarray] = {}
+        self.v_sknG: dict[tuple[int, int], np.ndarray] = {}
 
         self.ecc = np.nan
         self.evc = np.nan

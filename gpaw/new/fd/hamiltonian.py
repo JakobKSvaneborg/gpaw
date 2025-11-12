@@ -90,7 +90,7 @@ class FDKickHamiltonian(FDHamiltonian):
         r_Rv = grid.xyz()
         # This is a shifted grid, compared to ext.calculate_potential
         self.vext_R.data[:] = np.einsum('xyzv,v->xyz', r_Rv, ext.field_v)
-        wfs = ibzwfs.wfs_qs[0][0]
+        wfs = ibzwfs._wfs_u[0]
         positions_av = wfs.relpos_ac @ grid.cell_cv
         potential_a = positions_av @ ext.field_v
 

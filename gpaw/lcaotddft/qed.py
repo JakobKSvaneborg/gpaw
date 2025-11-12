@@ -268,8 +268,7 @@ class RRemission:
         -------
         The radiation reaction potential matrix.
         """
-        kpt_rank, q = self.wfs.kd.get_rank_and_index(kpt.k)
-        u = q * self.wfs.nspins + kpt.s
+        kpt_rank, u = self.wfs.kd.get_rank_and_index(kpt.k, kpt.s)
 
         Ni = len(self.V_iuMM)
         Vrr_MM = -field_v[0] * self.V_iuMM[0][u]

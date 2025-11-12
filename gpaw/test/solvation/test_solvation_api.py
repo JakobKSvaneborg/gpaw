@@ -87,9 +87,9 @@ def test_solvation_api():
     atoms.center(vacuum=vac)
 
     def print_results(atoms):
-        parprint('E = %.3f eV' % (atoms.get_potential_energy(), ))
-        parprint('V = %.3f Ang ** 3' % (atoms.calc.get_cavity_volume(), ))
-        parprint('A = %.3f Ang ** 2' % (atoms.calc.get_cavity_surface(), ))
+        parprint(f'E = {atoms.get_potential_energy():.3f} eV')
+        parprint(f'V = {atoms.calc.get_cavity_volume():.3f} Ang ** 3')
+        parprint(f'A = {atoms.calc.get_cavity_surface():.3f} Ang ** 2')
         parprint('Forces:')
         parprint(atoms.get_forces())
         parprint('')

@@ -2,18 +2,22 @@ from __future__ import annotations
 import contextlib
 import atexit
 from time import time
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
+from collections.abc import Generator
 from types import ModuleType
 from collections.abc import Iterable
 from gpaw.new.timer import trace
 
 import numpy as np
-import warnings
 
-from gpaw.cgpaw import have_magma
-from gpaw import debug, ENVVAR_GPAW_NO_GPU_MPI
+from gpaw import ENVVAR_GPAW_NO_GPU_MPI
 
 device_id = None
+"""Device id"""
+
+device_count: int = 0
+"""Number of GPUs visible to this process"""
+
 
 if TYPE_CHECKING:
     import gpaw.gpu.cpupy as cupy
@@ -291,7 +295,7 @@ def synchronize():
 
 @contextlib.contextmanager
 def as_numpy(a: np.ndarray | cupy.ndarray
-             ) -> Generator[np.ndarray, None, None]:
+             ) -> Generator[np.ndarray]:
     """Copy array to CPU and back to GPU when done."""
     if isinstance(a, np.ndarray):
         yield a
@@ -301,7 +305,7 @@ def as_numpy(a: np.ndarray | cupy.ndarray
     a[:] = cupy.asarray(b)
 
 
-def as_np(array: np.ndarray | cupy.ndarray) -> np.ndarray:
+def as_np(array: np.ndarray | cupy.ndarray, dtype=None) -> np.ndarray:
     """Transfer array to CPU (if not already there).
 
     Parameters
@@ -309,9 +313,13 @@ def as_np(array: np.ndarray | cupy.ndarray) -> np.ndarray:
     array:
         Numpy or CuPy array.
     """
-    if isinstance(array, np.ndarray):
-        return array
-    return cupy.asnumpy(array)
+    if not isinstance(array, np.ndarray):
+        array = cupy.asnumpy(array)
+
+    if dtype is None:
+        return np.asarray(array)
+
+    return np.asarray(array, dtype=dtype)
 
 
 def as_xp(array, xp):
@@ -338,50 +346,6 @@ def einsum(subscripts, *operands, out):
         np.einsum(subscripts, *operands, out=out)
     else:
         out[:] = cupy.einsum(subscripts, *operands)
-
-
-@trace(gpu=True)
-def cupy_eigh(a: cupy.ndarray, UPLO: str) -> tuple[cupy.ndarray, cupy.ndarray]:
-    """Wrapper for ``eigh()``.
-
-    Usually CUDA > MAGMA > HIP, so we try to choose the best one.
-    HIP native solver is questionably slow so for now do it on the CPU if
-    MAGMA is not available.
-    """
-
-    if debug and np.issubdtype(a.dtype, np.complexfloating):
-        # Check that the diagonal is real. If not:
-        # 1) matrix cannot be Hermitian
-        # 2) eigh backends may behave differently => hard-to-detect bugs
-        diagonal = cupy.diag(a)
-        atol = 1e-6 if a.dtype is np.complex64 else 1e-12
-        try:
-            cupy.testing.assert_allclose(diagonal.imag,
-                                         cupy.zeros(diagonal.shape),
-                                         atol=atol)
-        except AssertionError:
-            warnings.warn("Using eigh() on matrix that has complex diagonal")
-
-    from scipy.linalg import eigh
-    if not is_hip:
-        return cupy.linalg.eigh(a, UPLO=UPLO)
-
-    elif have_magma and a.ndim == 2 and a.shape[0] > 1:
-        # import here to avoid circular import.
-        # magma needs cupy (possibly fake),
-        # which must be imported from this file
-        from gpaw.new.magma import eigh_magma_gpu
-
-        return eigh_magma_gpu(a, UPLO)
-
-    else:
-        print('CPU eigh fallback')
-        # fallback to CPU
-        eigs, evals = eigh(cupy.asnumpy(a),
-                           lower=(UPLO == 'L'),
-                           check_finite=False)
-
-    return cupy.asarray(eigs), cupy.asarray(evals)
 
 
 class XP:

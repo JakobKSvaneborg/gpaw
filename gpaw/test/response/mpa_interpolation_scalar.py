@@ -1,7 +1,7 @@
 from __future__ import annotations
+
 import numpy as np
-from numpy.linalg import eigvals
-from typing import List, Tuple
+
 from gpaw.typing import Array1D, Array2D
 
 
@@ -71,8 +71,8 @@ def pole_is_out(i, wmax, thr, E):
     return is_out
 
 
-def mpa_cond(npols: int, z: List[complex], E) ->\
-        Tuple[int, List[bool], List[complex]]:
+def mpa_cond(npols: int, z: list[complex], E) ->\
+        tuple[int, list[bool], list[complex]]:
     PPcond = np.full(npols, False)
     npr = npols
     wmax = np.max(np.real(np.emath.sqrt(z))) * 1.5
@@ -157,7 +157,7 @@ def mpa_E_solver_Pade(npols, z, x):
     Companion = np.polynomial.polynomial.polycompanion(b[:npols + 1])
     # DALV: /b[npols] it is carried inside
 
-    E = eigvals(Companion)
+    E = np.linalg.eigvals(Companion)
 
     # DALV: here we need to force real(E) to be positive.
     # This is because of the way the residue integral is performed, later.

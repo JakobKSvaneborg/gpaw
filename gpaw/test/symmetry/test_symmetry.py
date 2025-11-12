@@ -1,8 +1,9 @@
 from math import sqrt
-import numpy as np
 
-from gpaw.new.symmetry import Symmetries
+import numpy as np
+import pytest
 from gpaw.new.brillouin import MonkhorstPackKPoints
+from gpaw.new.symmetry import Symmetries, SymmetryAnalysisBug
 
 
 def test_si():
@@ -98,3 +99,31 @@ def test_new():
     sym2 = sym.analyze_positions([[0, 0, 0], [0, 0, 0.5]],
                                  ids=[1, 2])
     assert len(sym2) == 8
+
+
+def test_5x5():
+    # This system should have 6 symmetries (identity, two rotations
+    # and three mirrors), but our code finds only 4.
+    # Following that, k-point reduction of a 5x5 Monkhorst-Pack
+    # grid blows up!
+    a = 5.6
+    with pytest.raises(SymmetryAnalysisBug):
+        sym = Symmetries.from_cell_and_atoms(
+            [a, a, 9, 90, 90, 60],
+            pbc=(1, 1, 0),
+            _backwards_compatible=True,
+            relative_positions=[[0.33333333, 0.3333333, 0.50058348],
+                                [0.66666666, 0.6666666, 0.55294505],
+                                [0.0, 0.0, 0.44741016],
+                                [0.0, 0.0, 0.68013199],
+                                [0.33333333, 0.33333333, 0.31908923],
+                                [0.66666667, 0.66666667, 0.64723956],
+                                [0.0, 0.0, 0.35260054]],
+            ids=[0, 1, 1, 1, 1, 2, 2],
+            symmorphic=True)
+
+    if 0:
+        mp = MonkhorstPackKPoints((5, 5, 1))
+        ibz = mp.reduce(sym)
+        print(ibz)
+        assert (ibz.weight_k > 0.0).all()

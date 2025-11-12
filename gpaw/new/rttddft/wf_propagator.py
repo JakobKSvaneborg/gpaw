@@ -145,7 +145,7 @@ class FDNumpyPropagator(WaveFunctionPropagator):
         else:
             self.dH = state.potential.dH
 
-        wfs = state.ibzwfs.wfs_qs[0][0]
+        wfs = state.ibzwfs._wfs_u[0]
         self.dS = partial(wfs.setups.get_overlap_corrections,
                           wfs.P_ani.layout.atomdist,
                           wfs.xp)
