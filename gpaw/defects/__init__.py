@@ -325,7 +325,16 @@ class ElectrostaticCorrections():
         # get model potential inside the averaging region
         phi_model = self.calculate_model_potential(r_vR)
 
-        self.dphi = np.average(phi_model - (phi_def - phi_prs))
+        dphi = phi_model - (phi_def - phi_prs)
+        dphi_avg = np.average(dphi)
+        # standard deviation of the mean
+        dphi_dev = np.std(dphi) / (np.prod(dphi.shape)) ** 0.5
+
+        if dphi_dev > 0.1 * np.abs(dphi_avg):
+            print('Warning: averaging region dphi_avg =',
+                  '{dphi_avg} +- {dphi_dev}')
+        self.dphi = dphi_avg
+
         return self.dphi
 
     @parallel_method
