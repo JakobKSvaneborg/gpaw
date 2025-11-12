@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import numbers
-from typing import Literal, Sequence, overload
+from typing import Literal, overload
+from collections.abc import Sequence
 
 import numpy as np
 from gpaw import debug

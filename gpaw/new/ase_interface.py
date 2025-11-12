@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import Any, Callable, Generator
+from typing import Any
+from collections.abc import Callable, Generator
 
 import numpy as np
 from ase import Atoms
@@ -109,7 +110,7 @@ class ASECalculator:
 
     def iconverge(self, atoms: Atoms | None,
                   *,
-                  need_wfs: bool = False) -> Generator[SCFContext, None, None]:
+                  need_wfs: bool = False) -> Generator[SCFContext]:
         """Iterate to self-consistent solution.
 
         Will also calculate "cheap" properties: energy, magnetic moments

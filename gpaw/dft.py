@@ -3,7 +3,8 @@ from __future__ import annotations
 import importlib
 import warnings
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Sequence, Union, Literal, Dict
+from typing import IO, TYPE_CHECKING, Any, Union, Literal, Dict
+from collections.abc import Sequence
 
 import numpy as np
 from ase import Atoms
@@ -226,12 +227,13 @@ class PPCG(PWFDEigensolverParamater):
     cls = PPCGEigensolver
 
     def __init__(self,
-                 niter: int = 2,
-                 min_niter: int | None = None,
+                 niter: int = 5,
+                 min_niter: int | None = 2,
                  max_buffer_mem: int = 200 * 1024**2,
                  blocksize=None,
                  rr_modulo=5,
                  include_cg=True,
+                 promote_inner_dtype=False,
                  tolerances: tuple[float] | None = None):
         self.niter = niter
         self.min_niter = min_niter
@@ -239,6 +241,7 @@ class PPCG(PWFDEigensolverParamater):
         self.blocksize = blocksize
         self.rr_modulo = rr_modulo
         self.include_cg = include_cg
+        self.promote_inner_dtype = promote_inner_dtype
         self.tolerances = tolerances
 
     def todict(self):
@@ -248,6 +251,7 @@ class PPCG(PWFDEigensolverParamater):
                 'blocksize': self.blocksize,
                 'rr_modulo': self.rr_modulo,
                 'include_cg': self.include_cg,
+                'promote_inner_dtype': self.promote_inner_dtype,
                 'tolerances': self.tolerances}
 
     def build(self,
@@ -270,6 +274,7 @@ class PPCG(PWFDEigensolverParamater):
             blocksize=self.blocksize,
             rr_modulo=self.rr_modulo,
             include_cg=self.include_cg,
+            promote_inner_dtype=self.promote_inner_dtype,
             tolerances=self.tolerances)
 
 

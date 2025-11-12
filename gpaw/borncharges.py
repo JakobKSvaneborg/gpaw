@@ -46,7 +46,7 @@ def born_charges_wf(atoms, calc, delta=0.01, cleanup=False,
 
             else:
                 # all ranks can read
-                with open(berryname, 'r') as fd:
+                with open(berryname) as fd:
                     phase_c = read_json(fd)
 
             if cleanup:

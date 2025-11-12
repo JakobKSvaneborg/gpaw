@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Generator, NamedTuple
+from typing import NamedTuple
+from collections.abc import Generator
 
 import numpy as np
 
@@ -357,7 +358,7 @@ class RTTDDFT:
     def ipropagate(self,
                    time_step: float = 1e-3,
                    maxiter: int = 2000,
-                   ) -> Generator[RTTDDFTResult, None, None]:
+                   ) -> Generator[RTTDDFTResult]:
         """Propagate the electronic system.
 
         Parameters

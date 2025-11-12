@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from collections import defaultdict
 from functools import cached_property
-from typing import Any, Iterable, Sequence
+from typing import Any
+from collections.abc import Iterable, Sequence
 
 import numpy as np
 from ase import Atoms

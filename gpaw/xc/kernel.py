@@ -32,7 +32,8 @@ class XCKernel:
             self.type = 'MGGA'
         else:
             self.type = 'GGA'
-        from _gpaw import XCFunctional
+
+        from gpaw.cgpaw import XCFunctional
         self.xc = XCFunctional(codes[name])
 
     def calculate(self, e_g, n_sg, dedn_sg,

@@ -4,7 +4,7 @@
 """K-point descriptor."""
 
 from __future__ import annotations
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 import numpy as np
 from ase.calculators.calculator import kptdensity2monkhorstpack
@@ -121,8 +121,8 @@ class KPointDescriptor:
         ===================  =================================================
         """
 
-        self.N_c: Optional[Array1D] = None
-        self.offset_c: Optional[Array1D] = None
+        self.N_c: Array1D | None = None
+        self.offset_c: Array1D | None = None
 
         if kpts is None:
             self.bzk_kc = np.zeros((1, 3))

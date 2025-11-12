@@ -10,7 +10,7 @@ formula (See App. A of Ref. [1]).
 [1] DA. Leon et al, PRB 104, 115157 (2021)
 """
 from __future__ import annotations
-from typing import Tuple, no_type_check
+from typing import no_type_check
 from gpaw.typing import Array1D, Array2D, Array3D
 import numpy as np
 from numpy.linalg import eigvals
@@ -93,7 +93,7 @@ class SinglePoleSolver(Solver):
     def __init__(self, omega_w: Array1D):
         Solver.__init__(self, omega_w=omega_w)
 
-    def solve(self, X_wGG: Array3D) -> Tuple[Array2D, Array2D]:
+    def solve(self, X_wGG: Array3D) -> tuple[Array2D, Array2D]:
         """
         This interpolates X_wGG using a single pole (E_GG, R_GG)
         """
@@ -127,7 +127,7 @@ class MultipoleSolver(Solver):
     def __init__(self, omega_w: Array1D):
         Solver.__init__(self, omega_w=omega_w)
 
-    def solve(self, X_wGG: Array3D) -> Tuple[Array3D, Array3D]:
+    def solve(self, X_wGG: Array3D) -> tuple[Array3D, Array3D]:
         """
         This interpolates X_wGG using a sveral poles (E_pGG, R_pGG)
         """
@@ -154,7 +154,7 @@ def RESolver(omega_w: Array1D):
 
 def mpa_cond_vectorized(
     npols: int, z_w: Array1D, E_GGp: Array3D, pole_resolution: float = 1e-5
-) -> Tuple[Array3D, Array2D]:
+) -> tuple[Array3D, Array2D]:
     wmax = np.max(np.real(np.emath.sqrt(z_w))) * 1.5
 
     E_GGp = np.emath.sqrt(E_GGp)
@@ -188,7 +188,7 @@ def mpa_cond_vectorized(
 
 
 @no_type_check
-def pade_solve(X_wGG: Array3D, z_w: Array1D) -> Tuple[Array3D, Array2D]:
+def pade_solve(X_wGG: Array3D, z_w: Array1D) -> tuple[Array3D, Array2D]:
     nw, nG1, nG2 = X_wGG.shape
     npols = nw // 2
     nm = npols + 1

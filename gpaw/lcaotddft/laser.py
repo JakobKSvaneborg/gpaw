@@ -1,12 +1,11 @@
 from __future__ import annotations
 import numpy as np
 
-from typing import Type
 from gpaw.mpi import world
 from gpaw.tddft.units import as_to_au, eV_to_au
 
 
-known_lasers: dict[str, Type[Laser]] = dict()
+known_lasers: dict[str, type[Laser]] = dict()
 
 
 def create_laser(name, **kwargs):
@@ -28,7 +27,7 @@ def create_laser(name, **kwargs):
 
 
 def register_custom_laser(name: str,
-                          cls: Type[Laser]):
+                          cls: type[Laser]):
     """ Register a custom laser object
 
     This function must be used when restarting TDDFT calculations using

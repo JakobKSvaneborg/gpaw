@@ -1,6 +1,6 @@
 from pathlib import Path
 import numpy as np
-from typing import Dict, Any
+from typing import Any
 
 from ase.units import Hartree
 from ase.utils.timing import Timer
@@ -20,7 +20,7 @@ from gpaw.old.wavefunctions.lcao import LCAOWaveFunctions
 class ExcitedState(GPAW):
     nparts = 1
     implemented_properties = ['energy', 'forces']
-    default_parameters: Dict[str, Any] = {}
+    default_parameters: dict[str, Any] = {}
 
     def __init__(self, lrtddft, index, d=0.001, log=None, txt='-',
                  parallel=1, communicator=None):

@@ -1,6 +1,7 @@
 import pytest
 from gpaw.xc import XC
 from gpaw.gpu import cupy as cp, cupy_is_fake
+from gpaw import GPAW_NO_C_EXTENSION
 
 
 @pytest.mark.gpu
@@ -22,7 +23,11 @@ def test_gpu_pbe(nspins):
     cpue_g = cp.asnumpy(e_g)
     cpusigma_xg = cp.asnumpy(sigma_xg)
     cpudedsigma_xg = cp.asnumpy(dedsigma_xg)
-    xc = XC('PBE')
+
+    # The implementation are different and give different numbers!
+    # Therefore one needs to use the exact functional
+    xc = XC('pyPBE') if GPAW_NO_C_EXTENSION else XC('PBE')
+
     import time
     start = time.time()
     xc.kernel.calculate(cpue_g, cpun_sg, cpuv_sg, cpusigma_xg, cpudedsigma_xg)
@@ -61,7 +66,7 @@ def test_gpu_lda(nspins):
     cpun_sg = cp.asnumpy(n_sg)
     cpuv_sg = cp.asnumpy(v_sg)
     cpue_g = cp.asnumpy(e_g)
-    xc = XC('LDA')
+    xc = XC('PPLDA') if GPAW_NO_C_EXTENSION else XC('LDA')
     import time
     start = time.time()
     xc.calculate_impl(None, cpun_sg, cpuv_sg, cpue_g)

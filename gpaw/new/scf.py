@@ -4,7 +4,8 @@ import itertools
 import warnings
 from math import inf
 from types import SimpleNamespace
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 

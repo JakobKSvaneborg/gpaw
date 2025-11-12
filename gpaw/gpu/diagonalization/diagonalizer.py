@@ -8,7 +8,7 @@ import numpy as np
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from copy import copy
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 from warnings import warn
 
 if TYPE_CHECKING:
@@ -57,7 +57,7 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
         """
         pass
 
-    def check_matrix(self, mat: Union[cp.ndarray, np.ndarray]):
+    def check_matrix(self, mat: cp.ndarray | np.ndarray):
         """"""
 
         xp = cp if isinstance(mat, cp.ndarray) else np

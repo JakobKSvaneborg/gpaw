@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from functools import cached_property
 from math import pi
-from typing import Sequence, Literal, TYPE_CHECKING
+from typing import Literal, TYPE_CHECKING
+from collections.abc import Sequence
 import numpy as np
 
 import gpaw.fftw as fftw

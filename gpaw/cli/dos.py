@@ -1,6 +1,5 @@
 """CLI-code for dos-subcommand."""
 from pathlib import Path
-from typing import Union, List, Tuple, Optional
 
 import numpy as np
 
@@ -57,12 +56,12 @@ class CLICommand:
 
 
 def parse_projection_string(projection: str,
-                            symbols: List[str],
-                            setups: List[Setup]
-                            ) -> List[Tuple[str,
-                                            List[Tuple[int,
+                            symbols: list[str],
+                            setups: list[Setup]
+                            ) -> list[tuple[str,
+                                            list[tuple[int,
                                                        int,
-                                                       Union[None, int]]]]]:
+                                                       None | int]]]]:
     """Create labels and lists of (a, l, m)-tuples.
 
     Example:
@@ -81,7 +80,7 @@ def parse_projection_string(projection: str,
     * "Li-p(y)" will have contributions from l=1, m=0 and atoms 0 and 1
 
     """
-    result: List[Tuple[str, List[Tuple[int, int, Union[None, int]]]]] = []
+    result: list[tuple[str, list[tuple[int, int, None | int]]]] = []
     for proj in projection.split(','):
         s, ll = proj.split('-')
         if s.isdigit():
@@ -103,7 +102,7 @@ def parse_projection_string(projection: str,
     return result
 
 
-def parse_lm_string(s: str) -> List[Tuple[int, Union[None, int]]]:
+def parse_lm_string(s: str) -> list[tuple[int, None | int]]:
     """Parse 'spdf' kind of string to numbers.
 
     Return list of (l, m) tuples with m=None if not specified:
@@ -116,7 +115,7 @@ def parse_lm_string(s: str) -> List[Tuple[int, Union[None, int]]]:
     result = []
     while s:
         l = 'spdfg'.index(s[0])
-        m: Union[None, int]
+        m: None | int
         if s[1:2].isnumeric():
             m = int(s[1:2])
             s = s[2:]
@@ -127,7 +126,7 @@ def parse_lm_string(s: str) -> List[Tuple[int, Union[None, int]]]:
     return result
 
 
-def dos(filename: Union[Path, str],
+def dos(filename: Path | str,
         *,
         plot=False,
         width=0.1,
@@ -159,7 +158,7 @@ def dos(filename: Union[Path, str],
     energies = doscalc.get_energies(emin, emax, npoints)
     nspins = doscalc.nspins
     spinlabels = [''] if nspins == 1 else [' up', ' dn']
-    spins: List[Optional[int]] = [None] if nspins == 1 else [0, 1]
+    spins: list[int | None] = [None] if nspins == 1 else [0, 1]
 
     dosobjs = GridDOSCollection([], energies)
 

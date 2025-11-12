@@ -23,12 +23,12 @@ if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
                                 pw_insert_gpu, pwlfc_expand_gpu,
                                 pw_norm_kinetic_gpu, pw_norm_gpu)
 
-        from cupy.cuda.stream import get_current_stream
         import functools
 
         def s(fun):
             @functools.wraps(fun)
             def wrapper(*args):
+                from cupy.cuda.stream import get_current_stream
                 return fun(*args, get_current_stream().ptr)
             return wrapper
 
