@@ -5,7 +5,8 @@ Tools for directmin
 import numpy as np
 import scipy.linalg as lalg
 from copy import deepcopy
-from typing import Callable, cast
+from typing import cast
+from collections.abc import Callable
 from gpaw.typing import ArrayND, IntVector, RNG
 
 

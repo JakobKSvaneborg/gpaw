@@ -51,11 +51,11 @@ Splitting the integral in radial and angular parts, we get:
   (r^{\ell'}Y_{\ell'm'}),
 
 where `G_{\ell m,\ell'm'}^{\ell''m''}` are Gaunt coefficents calculated with
-the :func:`~gpaw.gaunt.gaunt` function and the last angular integral has been
-calculated with the :func:`~gpaw.gaunt.nabla` function.
+the :func:`~gpaw.sphere.gaunt.gaunt` function and the last angular integral has been
+calculated with the :func:`~gpaw.sphere.gaunt.nabla` function.
 
-.. autofunction:: gpaw.gaunt.gaunt
-.. autofunction:: gpaw.gaunt.nabla
+.. autofunction:: gpaw.sphere.gaunt.gaunt
+.. autofunction:: gpaw.sphere.gaunt.nabla
 
 
 More stuff

@@ -6,7 +6,7 @@ from gpaw.utilities import devnull
 
 from gpaw import GPAW, LCAO, FermiDirac, KohnShamConvergenceError
 from gpaw.utilities import compiled_with_sl
-from gpaw.forces import calculate_forces
+from gpaw.old.forces import calculate_forces
 from gpaw.mpi import world
 
 # Calculates energy and forces for various parallelizations
@@ -77,7 +77,7 @@ def test_lcao_lcao_parallel_kpt():
                 stderr = devnull
             if eerr > tolerance:
                 print('Failed!', file=stderr)
-                print('E = %f, Eref = %f' % (E, Eref), file=stderr)
+                print(f'E = {E:f}, Eref = {Eref:f}', file=stderr)
                 msg = 'Energy err larger than tolerance: %f' % eerr
             if ferr > tolerance:
                 print('Failed!', file=stderr)

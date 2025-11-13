@@ -12,8 +12,6 @@ x   r or h
 
 from __future__ import annotations
 
-import functools
-import operator
 from collections import defaultdict
 from typing import DefaultDict
 
@@ -25,7 +23,6 @@ from gpaw.core.uniform_grid import UGArray
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import trace, zips
 from gpaw.new.energies import DFTEnergies
-from gpaw.new.environment import Environment
 from gpaw.new.logger import indent
 from gpaw.new.potential import Potential
 from gpaw.new.xc import Functional
@@ -42,7 +39,6 @@ class PotentialCalculator:
                  setups: list[Setup],
                  *,
                  relpos_ac: Array2D,
-                 environment: Environment,
                  extensions: list | None = None,
                  soc: bool = False):
         self.poisson_solver = poisson_solver
@@ -50,12 +46,15 @@ class PotentialCalculator:
         self.setups = setups
         self.relpos_ac = relpos_ac
         self.soc = soc
-        self.environment = environment or Environment(len(relpos_ac))
         self.extensions: list = extensions or []
 
     def __str__(self):
         return (f'{self.poisson_solver}\n'
                 f'xc functional:\n{indent(self.xc)}\n')
+
+    @property
+    def charge(self):
+        return sum(ext.charge for ext in self.extensions)
 
     def calculate_pseudo_potential(self,
                                    density,
@@ -72,20 +71,8 @@ class PotentialCalculator:
     def move(self, relpos_ac, atomdist):
         for ext in self.extensions:
             ext.move_atoms(relpos_ac)
-
-    @property
-    def extensions_force_av(self):
-        if not self.extensions:
-            return np.zeros((len(self.setups), 3))
-        return functools.reduce(operator.add, [ext.force_contribution()
-                                for ext in self.extensions])
-
-    @property
-    def extensions_stress_contribution(self):
-        if not self.extensions:
-            return np.zeros((3, 3))
-        return functools.reduce(operator.add, [ext.stress_contribution()
-                                for ext in self.extensions])
+        # Special case for QNA:
+        getattr(self.xc.xc, 'set_positions', lambda relpos_ac: None)(relpos_ac)
 
     def calculate_charges(self, vHt_x):
         raise NotImplementedError
@@ -240,7 +227,7 @@ def calculate_non_local_potential1(setup: Setup,
         dH_sp[1:4] = pack_hermitian(dHsoc_sii)
 
     dH_sp[:ndensities] = dH_p
-    e_xc = xc.calculate_paw_correction(setup, D_sp, dH_sp)
+    e_xc = xc.calculate_paw_correction(setup, D_sp, dH_sp, a=atom_index)
 
     # e_external = ext_pot.add_paw_correction(setup.Delta_pL[:, 0], dH_sp)
 

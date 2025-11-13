@@ -1,4 +1,5 @@
-from typing import Any, Union, Sequence
+from typing import Any, Union
+from collections.abc import Sequence
 import numpy as np
 
 try:

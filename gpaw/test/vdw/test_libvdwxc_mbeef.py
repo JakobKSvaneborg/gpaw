@@ -12,6 +12,8 @@ pytestmark = pytest.mark.skipif(not compiled_with_libvdwxc(),
                                 reason='not compiled_with_libvdwxc()')
 
 
+@pytest.mark.filterwarnings(
+    'ignore:libxc should be compiled with --disable-fhc')
 @pytest.mark.old_gpaw_only
 @pytest.mark.mgga
 def test_vdw_libvdwxc_mbeef():
@@ -29,7 +31,7 @@ def test_vdw_libvdwxc_mbeef():
     e = system.get_potential_energy()
     ref = -60.53662105617721
     err = abs(e - ref)
-    print('e=%r ref=%r err=%r' % (e, ref, err))
+    print(f'e={e!r} ref={ref!r} err={err!r}')
     # It would be reasonable to put 1e-6 as tolerance,
     # but the value changes by 4e-4 depending on libxc version.
     # See https://gitlab.com/gpaw/gpaw/issues/161 .

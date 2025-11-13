@@ -6,7 +6,7 @@ from ase.units import Hartree, Bohr
 from ase.io.ulm import Reader
 from gpaw.io import Writer
 from gpaw.external import ConstantElectricField
-from gpaw.kpoint import KPoint
+from gpaw.old.kpoint import KPoint
 from gpaw.lcaotddft.hamiltonian import KickHamiltonian
 from gpaw.lcaotddft.utilities import collect_MM
 from gpaw.lcaotddft.utilities import distribute_nM

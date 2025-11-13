@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from math import pi
-from typing import TYPE_CHECKING, Literal, Sequence
+from typing import TYPE_CHECKING, Literal
+from collections.abc import Sequence
 
 import numpy as np
 from ase.units import Ha
@@ -18,7 +19,7 @@ from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import prod, zips
 from gpaw.new.c import (add_to_density, add_to_density_gpu, pw_insert,
                         pw_insert_gpu)
-from gpaw.pw.descriptor import pad
+from gpaw.old.pw.descriptor import pad
 from gpaw.typing import (Array1D, Array2D, Array3D, ArrayLike1D, ArrayLike2D,
                          Vector)
 from gpaw.fftw import get_efficient_fft_size
@@ -517,7 +518,7 @@ class PWArray(DistributedArrays[PWDesc]):
                        out.data, rsize_r, roffset_r)
 
     def scatter_from(self, data: Array1D | PWArray | None = None) -> None:
-        """Scatter data from rank-0 to all ranks."""
+        """Scatter plane-wave coefficients from rank-0 to all ranks."""
         if isinstance(data, PWArray):
             data = data.data
         comm = self.desc.comm
@@ -538,6 +539,18 @@ class PWArray(DistributedArrays[PWDesc]):
             for to in self._arrays():
                 comm.scatter(None, buf, 0)
                 to[:] = buf[:len(to)]
+
+    def scatter_everything_from(self, array: PWArray, comm: MPIComm) -> None:
+        """Scatter everything from rank-0 to all ranks."""
+        assert len(self.dims) == 1
+        shape = (self.dims[0], self.desc.shape[0])
+        fro = Matrix(*shape,
+                     data=array.data)
+        print(comm.size, self.comm.size, self.desc.comm.size)
+        to = Matrix(*shape,
+                    data=self.data,
+                    dist=(comm, self.comm.size, self.desc.comm.size))
+        fro.redist(to)
 
     def scatter_from_all(self, a_G: PWArray) -> None:
         """Scatter all coefficients from rank r to self on other cores."""
@@ -976,7 +989,8 @@ def find_reciprocal_vectors(ecut: float,
 def abs_square_gpu(psit_nG, weight_n, nt_R):
     from gpaw.gpu import cupyx
     pw = psit_nG.desc
-    plan = nt_R.desc.fft_plans(xp=cp, dtype=complex)
+    dtype = as_complex_dtype(psit_nG.data.dtype)
+    plan = nt_R.desc.fft_plans(xp=cp, dtype=dtype)
     Q_G = cp.asarray(plan.indices(pw))
     weight_n = cp.asarray(weight_n)
     N = len(weight_n)

@@ -84,7 +84,7 @@ class KPointPairFactory:
 
         ik = kd.bz2ibz_k[K]
         assert kd.comm.size == 1
-        kpt = gs.kpt_qs[ik][s]
+        kpt = gs.kpt_ks[ik][s]
 
         assert n2 <= len(kpt.eps_n), \
             'Increase GS-nbands or decrease chi0-nbands!'
@@ -397,7 +397,7 @@ class ActualPairDensityCalculator:
         M_vv = np.dot(np.dot(A_cv.T, U_cc.T), np.linalg.inv(A_cv).T)
         ik = gs.kd.bz2ibz_k[K]
         assert gs.kd.comm.size == 1
-        kpt = gs.kpt_qs[ik][s]
+        kpt = gs.kpt_ks[ik][s]
         psit_nG = kpt.psit_nG
         iG_Gv = 1j * gs.pd.get_reciprocal_vectors(q=ik, add_q=False)
         ut_nvR = gs.gd.zeros((n2 - n1, 3), complex)
@@ -450,7 +450,7 @@ def phase_shifted_fft_indices(k1_c, k2_c, qpd, coordinate_transformation=None):
 def get_gs_and_context(calc, txt, world, timer):
     """Interface to initialize gs and context from old input arguments.
     Should be phased out in the future!"""
-    from gpaw.calculator import GPAW as OldGPAW
+    from gpaw.old.calculator import GPAW as OldGPAW
     from gpaw.new.ase_interface import ASECalculator as NewGPAW
 
     context = ResponseContext(txt=txt, timer=timer, comm=world)

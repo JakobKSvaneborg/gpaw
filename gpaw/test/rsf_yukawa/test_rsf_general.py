@@ -14,8 +14,7 @@ import gpaw.cgpaw as cgpaw
 def test_rsf_yukawa_rsf_general(in_tmp_dir, add_cwd_to_setup_paths):
     libxc_version = getattr(cgpaw, 'libxc_version', '2.x.y')
     if int(libxc_version.split('.')[0]) < 3:
-        from unittest import SkipTest
-        raise SkipTest
+        pytest.skip('libxc too old')
 
     for atom in ['Be']:
         gen(atom, xcname='PBE', scalarrel=True, exx=True,

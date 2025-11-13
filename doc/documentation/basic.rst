@@ -185,7 +185,7 @@ given in the following sections.
       - ``'LDA'``
       - :ref:`manual_xc`
     * - ``extensions``
-      - ``List[ExtensionParameter]``
+      - ``list[ExtensionInput]``
       - ``[]``
       - :ref:`extensions`
 

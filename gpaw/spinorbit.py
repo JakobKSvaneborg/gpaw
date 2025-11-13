@@ -2,29 +2,29 @@ from __future__ import annotations
 from math import nan
 from operator import attrgetter
 from pathlib import Path
-from typing import (TYPE_CHECKING, Callable, Dict, Iterable, Iterator, List,
-                    Optional, Tuple)
+from typing import TYPE_CHECKING
+from collections.abc import Callable, Iterable, Iterator
 
 import numpy as np
 from ase.units import Bohr, Ha, alpha
 
-from gpaw.band_descriptor import BandDescriptor
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.band_descriptor import BandDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.ibz2bz import IBZ2BZMaps
-from gpaw.kpoint import KPoint
-from gpaw.kpt_descriptor import KPointDescriptor
+from gpaw.old.kpoint import KPoint
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.mpi import broadcast_array, serial_comm
 from gpaw.occupations import OccupationNumberCalculator, ParallelLayout
-from gpaw.projections import Projections
+from gpaw.old.projections import Projections
 from gpaw.setup import Setup
 from gpaw.typing import Array1D, Array2D, Array3D, Array4D, ArrayND
 from gpaw.utilities.partition import AtomPartition
 
 if TYPE_CHECKING:
-    from gpaw.calculator import GPAW  # noqa
+    from gpaw.old.calculator import GPAW as OldGPAW
     from gpaw.new.ase_interface import ASECalculator
 
-_L_vlmm: List[List[np.ndarray]] = []  # see get_L_vlmm() below
+_L_vlmm: list[list[np.ndarray]] = []  # see get_L_vlmm() below
 
 
 class WaveFunction:
@@ -34,8 +34,8 @@ class WaveFunction:
                  bz_index: int = None):
         self.eig_m = eigenvalues
         self.projections = projections
-        self.spin_projection_mv: Optional[Array2D] = None
-        self.v_mn: Optional[Array2D] = None
+        self.spin_projection_mv: Array2D | None = None
+        self.v_mn: Array2D | None = None
         self.f_m = np.empty_like(self.eig_m)
         self.f_m[:] = nan
         self.bz_index = bz_index
@@ -52,8 +52,8 @@ class WaveFunction:
         return WaveFunction(self.eig_m.copy(), projections, self.bz_index)
 
     def add_soc(self,
-                dVL_avii: Dict[int, Array3D],
-                s_vss: List[Array2D],
+                dVL_avii: dict[int, Array3D],
+                s_vss: list[Array2D],
                 C_ss: Array2D) -> None:
         """Evaluate H in a basis of S_z eigenstates."""
         if self.projections.bcomm.rank > 0:
@@ -146,7 +146,7 @@ class WaveFunction:
 
     def pdos_weights(self,
                      a: int,
-                     indices: List[int]
+                     indices: list[int]
                      ) -> Array3D:
         """PDOS weights."""
         dos_ms = np.zeros((self.projections.nbands, 2))
@@ -163,11 +163,11 @@ class BZWaveFunctions:
     """Container for eigenvalues and PAW projections (all of BZ)."""
     def __init__(self,
                  kd: KPointDescriptor,
-                 wfs: Dict[int, WaveFunction],
-                 occ: Optional[OccupationNumberCalculator],
+                 wfs: dict[int, WaveFunction],
+                 occ: OccupationNumberCalculator | None,
                  nelectrons: float,
-                 n_aj: List[List[int]],
-                 l_aj: List[List[int]]):
+                 n_aj: list[list[int]],
+                 l_aj: list[list[int]]):
         self.wfs = wfs
         self.occ = occ
         self.nelectrons = nelectrons
@@ -298,7 +298,7 @@ class BZWaveFunctions:
 
     def pdos_weights(self,
                      a: int,
-                     indices: List[int],
+                     indices: list[int],
                      broadcast: bool = True
                      ) -> Array4D:
         """Projections for PDOS.
@@ -316,7 +316,7 @@ class BZWaveFunctions:
 
     def _collect(self,
                  func: Callable[[WaveFunction], ArrayND],
-                 shape: Tuple[int, ...] = None,
+                 shape: tuple[int, ...] = None,
                  dtype=float,
                  broadcast: bool = True,
                  sum_over_domain: bool = False) -> ArrayND:
@@ -363,12 +363,12 @@ class BZWaveFunctions:
         return np.empty(shape=())
 
 
-def soc_eigenstates_raw(ibzwfs: Iterable[Tuple[int, WaveFunction]],
-                        dVL_avii: Dict[int, Array3D],
+def soc_eigenstates_raw(ibzwfs: Iterable[tuple[int, WaveFunction]],
+                        dVL_avii: dict[int, Array3D],
                         ibz2bzmaps: IBZ2BZMaps,
                         atom_partition,
                         theta: float = 0.0,
-                        phi: float = 0.0) -> Dict[int, WaveFunction]:
+                        phi: float = 0.0) -> dict[int, WaveFunction]:
 
     theta *= np.pi / 180
     phi *= np.pi / 180
@@ -403,13 +403,13 @@ def soc_eigenstates_raw(ibzwfs: Iterable[Tuple[int, WaveFunction]],
     return bzwfs
 
 
-def extract_ibz_wave_functions(kpt_qs: List[List[KPoint]],
+def extract_ibz_wave_functions(kpt_qs: list[list[KPoint]],
                                bd: BandDescriptor,
                                gd: GridDescriptor,
                                n1: int,
                                n2: int,
                                eigenvalues: Array3D = None
-                               ) -> Iterator[Tuple[int, WaveFunction]]:
+                               ) -> Iterator[tuple[int, WaveFunction]]:
     """Yield tuples of IBZ-index and wave functions.
 
     All atoms and bands will be on rank == 0 of gd.comm and bd.comm
@@ -471,7 +471,7 @@ def extract_ibz_wave_functions(kpt_qs: List[List[KPoint]],
         yield ibz_index, WaveFunction(eig_m, projections)
 
 
-def soc_eigenstates(calc: ASECalculator | GPAW | str | Path,
+def soc_eigenstates(calc: ASECalculator | OldGPAW | str | Path,
                     n1: int = None,
                     n2: int = None,
                     scale: float = 1.0,
@@ -507,8 +507,7 @@ def soc_eigenstates(calc: ASECalculator | GPAW | str | Path,
 
     Returns a BZWaveFunctions object covering the whole BZ.
     """
-
-    from gpaw.calculator import GPAW  # noqa
+    from gpaw import GPAW
 
     if isinstance(calc, (str, Path)):
         calc = GPAW(calc)
@@ -541,7 +540,8 @@ def soc_eigenstates(calc: ASECalculator | GPAW | str | Path,
     if eigenvalues is not None:
         assert eigenvalues.shape == (kd.nspins, kd.nibzkpts, n2 - n1)
 
-    ibzwfs = extract_ibz_wave_functions(calc.wfs.kpt_qs,
+    kpt_qs = get_both_spins(calc.wfs)
+    ibzwfs = extract_ibz_wave_functions(kpt_qs,
                                         bd, gd, n1, n2, eigenvalues)
     ibz2bzmaps = IBZ2BZMaps.from_calculator(calc)
 
@@ -935,3 +935,39 @@ def get_L_vlmm():
     f[4, 2] = -1.0j
     _L_vlmm.append([s, p, d, f])
     return _L_vlmm
+
+
+def get_both_spins(wfs):
+    if hasattr(wfs, 'kpt_qs'):
+        return wfs.kpt_qs
+    if wfs.nspins == 1:
+        return [[wfs] for wfs in wfs.kpt_u]
+    kpt_u = wfs.kpt_u.copy()
+    kpt1 = kpt_u[0]
+    kpt2 = kpt_u[-1]
+    kpt_comm = wfs.kd.comm
+    if kpt1.s == 1:
+        reqs = [
+            kpt_comm.send(kpt1.f_n.copy(), kpt_comm.rank - 1, block=False),
+            kpt_comm.send(kpt1.eps_n, kpt_comm.rank - 1, block=False),
+            kpt_comm.send(kpt1.projections.array, kpt_comm.rank - 1,
+                          block=False)]
+        del kpt_u[0]
+    if kpt2.s == 0:
+        kpt3 = KPoint(kpt2.weightk,
+                      kpt2.weight,
+                      1,
+                      kpt2.k,
+                      kpt2.q,
+                      kpt2.phase_cd)
+        kpt3.f_n = np.empty_like(kpt2.f_n)
+        kpt3.eps_n = np.empty_like(kpt2.eps_n)
+        kpt3._projections = kpt2.projections.new()
+        kpt_comm.receive(kpt3.f_n, kpt_comm.rank + 1)
+        kpt_comm.receive(kpt3.eps_n, kpt_comm.rank + 1)
+        kpt_comm.receive(kpt3._projections.array, kpt_comm.rank + 1)
+        kpt_u.append(kpt3)
+    if kpt1.s == 1:
+        kpt_comm.waitall(reqs)
+    kpt_qs = [[up, dn] for up, dn in zip(kpt_u[::2], kpt_u[1::2])]
+    return kpt_qs

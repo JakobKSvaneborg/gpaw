@@ -7,7 +7,7 @@ from gpaw.utilities import devnull
 from gpaw import GPAW, FermiDirac
 from gpaw import KohnShamConvergenceError
 from gpaw.utilities import compiled_with_sl
-from gpaw.forces import calculate_forces
+from gpaw.old.forces import calculate_forces
 
 from ase.build import molecule
 
@@ -81,7 +81,7 @@ def test_parallel_fd_parallel_kpt():
                 stderr = devnull
             if eerr > tolerance:
                 print('Failed!', file=stderr)
-                print('E = %f, Eref = %f' % (E, Eref), file=stderr)
+                print(f'E = {E:f}, Eref = {Eref:f}', file=stderr)
                 msg = 'Energy err larger than tolerance: %f' % eerr
             if ferr > tolerance:
                 print('Failed!', file=stderr)

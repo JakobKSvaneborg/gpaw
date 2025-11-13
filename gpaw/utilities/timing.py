@@ -8,8 +8,6 @@ import math
 import numpy as np
 from ase.utils.timing import Timer
 
-import gpaw.mpi as mpi
-
 
 class NullTimer:
     """Compatible with Timer and StepTimer interfaces.  Does nothing."""
@@ -51,7 +49,9 @@ nulltimer = NullTimer()
 
 
 class DebugTimer(Timer):
-    def __init__(self, print_levels=1000, comm=mpi.world, txt=sys.stdout):
+    def __init__(self, print_levels=1000, comm=None, txt=sys.stdout):
+        import gpaw.mpi as mpi
+        comm = comm or mpi.world
         Timer.__init__(self, print_levels)
         ndigits = 1 + int(math.log10(comm.size))
         self.srank = '%0*d' % (ndigits, comm.rank)
@@ -173,6 +173,7 @@ class ParallelTimer(DebugTimer):
 
     See the tool gpaw-plot-parallel-timings."""
     def __init__(self, prefix='timings', flush=False):
+        import gpaw.mpi as mpi
         fname = f'{prefix}.{ranktxt(mpi.world)}.txt'
         txt = open(fname, 'w', buffering=1 if flush else -1)
         DebugTimer.__init__(self, comm=mpi.world, txt=txt)
@@ -198,12 +199,12 @@ class ParallelTimer(DebugTimer):
 
 
 class Profiler(Timer):
-    def __init__(self, prefix, comm=mpi.world):
+    def __init__(self, prefix, comm=None):
         import atexit
-
+        import gpaw.mpi as mpi
         self.prefix = prefix
-        self.comm = comm
-        self.ranktxt = ranktxt(comm)
+        self.comm = comm or mpi.world
+        self.ranktxt = ranktxt(self.comm)
         fname = f'{prefix}.{self.ranktxt}.json'
         self.txt = open(fname, 'w', buffering=-1)
         self.pid = 0  # os.getpid() creates more confusing output
@@ -233,7 +234,7 @@ class Profiler(Timer):
             for i in range(self.comm.size):
                 fname = f'{self.prefix}.{ranktxt(self.comm, rank=i)}.json'
                 print('Processing', fname)
-                with open(fname, 'r') as f:
+                with open(fname) as f:
                     out.writelines(f.readlines())
             out.write("] }\n")
             out.close()
@@ -243,7 +244,7 @@ class Profiler(Timer):
         Timer.start(self, name)
         self.txt.write(
             f"""{{"name": "{name}", "cat": "PERF", "ph": "B","""
-            f""" "pid": {self.pid}, "tid": {self.ranktxt}, """
+            f""" "pid": {self.pid}, "tid": "{self.ranktxt}", """
             f""""ts": {int((time.time() - self.ref) * self.u)} }},\n""")
 
     def stop(self, name=None):
@@ -251,14 +252,15 @@ class Profiler(Timer):
             name = self.running[-1]
         self.txt.write(
             f"""{{"name": "{name}", "cat": "PERF", "ph": "E", """
-            f""""pid": {self.pid}, "tid": {self.ranktxt}, """
+            f""""pid": {self.pid}, "tid": "{self.ranktxt}", """
             f""""ts": {int((time.time() - self.ref) * self.u)}}},\n""")
         Timer.stop(self, name)
 
 
 class GPUProfiler(Profiler, GPUTimerBase):
-    def __init__(self, prefix, comm=mpi.world):
-        Profiler.__init__(self, prefix, comm=comm)
+    def __init__(self, prefix, comm=None):
+        import gpaw.mpi as mpi
+        Profiler.__init__(self, prefix, comm=comm or mpi.world)
         GPUTimerBase.__init__(self)
 
     def synchronize(self):
@@ -350,8 +352,9 @@ class HPMTimer(Timer):
 
 class CrayPAT_timer(Timer):
     """Interface to CrayPAT API. In addition to regular timers,
-    the corresponding regions are profiled by CrayPAT. The gpaw-python has
-    to be compiled under CrayPAT.
+    the corresponding regions are profiled by CrayPAT. The gpaw-python had
+    to be compiled under CrayPAT, so maybe this does not work now that
+    gpaw-python is no longer a thing.
     """
 
     def __init__(self, print_levels=4):

@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.spline import Spline
 
 
@@ -19,7 +19,7 @@ def test_lfc_second_derivative():
     psi = gd.zeros()
     c.add(psi, c_ai)
 
-    d_avv = dict([(a, np.zeros((3, 3))) for a in c.my_atom_indices])
+    d_avv = {a: np.zeros((3, 3)) for a in c.my_atom_indices}
     c.second_derivative(psi, d_avv)
 
     if 0 in d_avv:

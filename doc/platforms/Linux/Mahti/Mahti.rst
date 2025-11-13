@@ -5,7 +5,7 @@ Mahti (mahti.csc.fi)
 ====================
 
 .. note::
-   These instructions are up-to-date as of July 2025.
+   These instructions are up-to-date as of September 2025.
 
 Stable GPAW releases
 ====================
@@ -14,11 +14,11 @@ Mahti has several versions of GPAW available as modules. You can load the
 most recent module with ``module load gpaw``, and browse other available versions
 with ``module spider gpaw``.
 
-Currently the most up-to-date module is for GPAW version 25.1.0 with **CPU support only**.
-A manual installation is needed for GPU support.
+Currently the pre-installed modules have **CPU support only**.
+A manual (developer) installation is needed for GPU support.
 
-Manual installation on Mahti
-============================
+Developer installation on Mahti
+===============================
 
 GPAW for CPUs
 -------------
@@ -50,15 +50,19 @@ Do the following in a new terminal session.
     # Activate venv
     source venv-gpaw-cpu/bin/activate
 
+    # Freeze the system-provided packages
+    pip freeze | tee $(dirname $(which pip))/../constraints.txt
+
     # Clone GPAW development repository
-    git clone git@gitlab.com:gpaw/gpaw.git
+    git clone https://gitlab.com/gpaw/gpaw.git
     cd gpaw
-    rm -rf build _gpaw.*.so gpaw.egg-info
 
     export GPAW_CONFIG=$(readlink -f doc/platforms/Linux/Mahti/siteconfig-mahti-cpu.py)
 
-    # Install GPAW. Leave out '-e' if you don't want an editable install
-    pip install -v --log build-cpu.log -e .
+    # Install GPAW, with a constraint to ensure we use system-provided packages.
+    # Leave the '-e' out if you don't want an editable install
+    rm -rf build _gpaw.*.so gpaw.egg-info
+    pip install --no-build-isolation --constraint $(dirname $(which pip))/../constraints.txt -v --log build-cpu.log -e .
 
 The above gets ``siteconfig.py`` from the cloned Git repository.
 Alternatively, you can download it from here:

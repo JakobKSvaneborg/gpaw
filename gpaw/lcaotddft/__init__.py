@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 from ase.units import Bohr, Hartree
 
 from gpaw import GPAW_NEW
-from gpaw.calculator import GPAW
+from gpaw.old.calculator import GPAW
 from gpaw.external import ConstantElectricField, ExternalPotential
 from gpaw.lcaotddft.hamiltonian import TimeDependentHamiltonian
 from gpaw.lcaotddft.logger import TDDFTLogger
@@ -17,16 +15,19 @@ from gpaw.typing import Any, Vector
 
 def LCAOTDDFT(filename: str, **kwargs) -> Any:
     if GPAW_NEW:
-        from gpaw.new.rttddft import RTTDDFT
-        assert kwargs.get('propagator', None) in [None, 'ecn'], \
-            'Not implemented yet'
-        assert kwargs.get('rremisison', None) in [None], 'Not implemented yet'
-        assert kwargs.get('fxc', None) in [None], 'Not implemented yet'
-        assert kwargs.get('scale', None) in [None], 'Not implemented yet'
-        assert kwargs.get('parallel', None) in [None], 'Not implemented yet'
-        assert kwargs.get('communicator', None) in [None], \
-            'Not implemented yet'
-        new_tddft = RTTDDFT.from_dft_file(filename)
+        from gpaw.new.rttddft.backwards_compatibility import RTTDDFTAdapter
+        kwargs.pop('txt', None)  # Ignore silently
+        kwargs.pop('parallel', None)  # Ignore silently
+        kwargs.pop('communicator', None)  # Ignore silently
+        assert kwargs.pop('td_potential', None) in [None], \
+            'td_potential not implemented yet'
+        assert kwargs.pop('rremission', None) in [None], \
+            'rremission not implemented yet'
+        assert kwargs.pop('fxc', None) in [None], \
+            'fxc not implemented yet'
+        assert kwargs.pop('scale', None) in [None], \
+            'scale not implemented yet'
+        new_tddft = RTTDDFTAdapter.from_file(filename, **kwargs)
         return new_tddft
     return OldLCAOTDDFT(filename, **kwargs)
 
@@ -72,7 +73,7 @@ class OldLCAOTDDFT(GPAW):
         self.niter = 0
         # TODO: deprecate kick keywords (and store them as td_potential)
         self.kick_strength = np.zeros(3)
-        self.kick_ext: Optional[ExternalPotential] = None
+        self.kick_ext: ExternalPotential | None = None
         self.tddft_initialized = False
         self.action = ''
         tdh = TimeDependentHamiltonian(fxc=fxc, td_potential=td_potential,

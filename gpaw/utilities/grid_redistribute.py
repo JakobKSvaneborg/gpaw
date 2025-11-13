@@ -1,6 +1,6 @@
 import itertools
 import numpy as np
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 
 
 class AlignedGridRedistributor:

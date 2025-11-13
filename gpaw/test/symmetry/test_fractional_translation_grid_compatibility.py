@@ -1,4 +1,4 @@
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 import pytest
 import numpy as np
 

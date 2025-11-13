@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 from ase.data import covalent_radii
 from ase.data.colors import jmol_colors
 from ase.units import Bohr, Hartree
-from gpaw.calculator import GPAW
+from gpaw.old.calculator import GPAW
 from gpaw.lcao.tightbinding import TightBinding  # as LCAOTightBinding
 from gpaw.lcao.tools import get_bfi
 from gpaw.typing import Array1D, Array2D, Array4D

@@ -9,8 +9,8 @@ from ase.units import Bohr
 from gpaw.core.atom_arrays import AtomArrays, AtomArraysLayout
 from gpaw.core.uniform_grid import UGArray
 from gpaw.setup import Setups
-from gpaw.spherical_harmonics import Y
 from gpaw.spline import Spline
+from gpaw.sphere.spherical_harmonics import Y
 from gpaw.typing import Array1D, Array3D, Vector, Array2D
 from gpaw.new import zips as zip
 
@@ -167,7 +167,7 @@ def add(R_v: Vector,
         D_sii: Array3D) -> Array1D:
     """Add PAW corrections to real-space grid.
 
-    Returns number of elctrons added.
+    Returns number of electrons added.
     """
     ug = a_sR.desc
     R_Rv = ug.xyz()

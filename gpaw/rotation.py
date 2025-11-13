@@ -5,7 +5,7 @@ from math import sqrt, cos, sin
 
 import numpy as np
 
-from gpaw.spherical_harmonics import Y
+from gpaw.sphere.spherical_harmonics import Y
 
 
 s = sqrt(0.5)

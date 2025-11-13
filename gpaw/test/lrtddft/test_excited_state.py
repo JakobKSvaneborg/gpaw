@@ -58,7 +58,7 @@ def test_split(in_tmp_dir):
     if world.rank == 0:
         with open(fname) as f:
             string = f.read()
-            assert 'Total number of cores used: {0}'.format(n) in string
+            assert f'Total number of cores used: {n}' in string
             assert 'Total number of cores used: 1' in string
 
 
@@ -131,8 +131,8 @@ def test_io(in_tmp_dir):
     parprint('----------- write trajectory')
     ftraj = 'H2exst.traj'
     F = H2.get_forces()
-    traj = io.Trajectory(ftraj, 'w')
-    traj.write(H2)
+    with io.Trajectory(ftraj, 'w') as traj:
+        traj.write(H2)
 
     parprint('----------- write')
     fname = 'exst_test_io'

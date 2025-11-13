@@ -42,13 +42,12 @@ if GPAW_MPI4PY:
     from mpi4py.MPI import COMM_WORLD
     world = MPI4PYWrapper(COMM_WORLD)
 elif hasattr(cgpaw, 'Communicator'):
-    if '_gpaw' not in sys.builtin_module_names:
-        libmpi = os.environ.get('GPAW_MPI', 'libmpi.so')
-        import ctypes
-        try:
-            ctypes.CDLL(libmpi, ctypes.RTLD_GLOBAL)
-        except OSError:
-            pass
+    libmpi = os.environ.get('GPAW_MPI', 'libmpi.so')
+    import ctypes
+    try:
+        ctypes.CDLL(libmpi, ctypes.RTLD_GLOBAL)
+    except OSError:
+        pass
     world = cgpaw.Communicator()
 else:
     world = None  # type: ignore

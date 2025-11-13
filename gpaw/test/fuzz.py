@@ -9,13 +9,14 @@ import subprocess
 import sys
 from pathlib import Path
 from time import time
-from typing import Any, TypeVar, Callable, TYPE_CHECKING
+from typing import Any, TypeVar, TYPE_CHECKING
+from collections.abc import Callable
 
 import numpy as np
 from ase import Atoms
 from ase.build import bulk
 from ase.units import Bohr, Ha
-from gpaw.calculator import GPAW as OldGPAW
+from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW as NewGPAW
 

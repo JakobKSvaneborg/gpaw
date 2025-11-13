@@ -22,7 +22,7 @@ from gpaw.utilities.timing import nulltimer
 from gpaw.xc.libxc import LibXC
 from gpaw.xc.gga import GGA, gga_vars, add_gradient_correction
 from gpaw.xc.mgga import MGGA
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.utilities.tools import construct_reciprocal
 from gpaw import setup_paths
 import gpaw.mpi as mpi

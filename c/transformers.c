@@ -227,7 +227,7 @@ PyObject * NewTransformerObject(PyObject *obj, PyObject *args)
 
   MPI_Comm comm = MPI_COMM_NULL;
   if (comm_obj != Py_None)
-    comm = ((MPIObject*)comm_obj)->comm;
+    comm = *((MPI_Comm*) PyLong_AsVoidPtr(comm_obj));
 
   const long (*nb)[2] = (const long (*)[2])LONGP(neighbors);
   const long (*pad)[2] = (const long (*)[2])LONGP(paddings);
