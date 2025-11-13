@@ -28,8 +28,11 @@ def ibzwfs_from_new_gpaw(tmp_path_factory):
     return ibzwfs
 
 
-def test_er_localize_reproducibility(ibzwfs_from_new_gpaw):
+def test_er_localize_reproducibility(ibzwfs_from_new_gpaw, gpaw_new):
     """Test that ER localization is reproducible."""
+    if not gpaw_new:
+        pytest.skip('Does not work for old GPAW')
+
     ibzwfs = ibzwfs_from_new_gpaw
 
     seed = 42

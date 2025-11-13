@@ -12,11 +12,14 @@ from scipy.linalg import expm
         (3, complex),
     ],
 )
-def test_skewhermitian_rotation(ndim, dtype):
+def test_skewhermitian_rotation(ndim, dtype, gpaw_new):
     """
     Test that SkewHermitian rotation_mat correctly computes
     the matrix exponential of a manually reconstructed skew-Hermitian matrix.
     """
+    if not gpaw_new:
+        pytest.skip('Does not work for old GPAW')
+
     # Step 1: Create a random parameter vector
     if dtype == float:
         vec_len = (ndim * (ndim - 1)) // 2
