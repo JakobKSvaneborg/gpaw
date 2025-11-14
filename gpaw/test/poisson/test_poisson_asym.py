@@ -5,6 +5,7 @@ from gpaw.utilities.gauss import Gaussian
 
 # Initialize classes
 
+
 def test_poisson_poisson_asym():
     a = 20.0  # Size of cell
     inv_width = 19  # inverse width of the gaussian

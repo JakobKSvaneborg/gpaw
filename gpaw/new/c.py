@@ -12,15 +12,14 @@ GPU_AWARE_MPI = (getattr(cgpaw, 'gpu_aware_mpi', False)
 GPU_ENABLED = getattr(cgpaw, 'GPU_ENABLED', False)
 
 if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
-    from gpaw.cgpaw import (add_to_density, pw_insert, pw_precond,  # noqa
+    from gpaw.cgpaw import (add_to_density, pw_insert, pw_precond,
                             pwlfc_expand, symmetrize_ft)
 
     if GPU_ENABLED:
         import functools
 
-        from gpaw.cgpaw import add_to_density_gpu  # noqa
-        from gpaw.cgpaw import calculate_residuals_gpu  # noqa
-        from gpaw.cgpaw import (dH_aii_times_P_ani_gpu, evaluate_lda_gpu,
+        from gpaw.cgpaw import (add_to_density_gpu, calculate_residuals_gpu,
+                                dH_aii_times_P_ani_gpu, evaluate_lda_gpu,
                                 evaluate_pbe_gpu, pw_amend_insert_realwf_gpu,
                                 pw_insert_gpu, pw_norm_gpu,
                                 pw_norm_kinetic_gpu, pwlfc_expand_gpu)
@@ -55,19 +54,17 @@ if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
         pw_norm_kinetic_gpu = w(pw_norm_kinetic_gpu)
         pw_norm_gpu = w(pw_norm_gpu)
     else:
-        from gpaw.purepython import calculate_residuals_gpu  # noqa
         from gpaw.purepython import (add_to_density_gpu,
+                                     calculate_residuals_gpu,
                                      dH_aii_times_P_ani_gpu, evaluate_lda_gpu,
                                      evaluate_pbe_gpu,
                                      pw_amend_insert_realwf_gpu, pw_insert_gpu,
                                      pw_norm_gpu, pw_norm_kinetic_gpu,
                                      pwlfc_expand_gpu)
 else:
-    from gpaw.purepython import add_to_density_gpu  # noqa
-    from gpaw.purepython import (add_to_density,  # noqa
-                                 calculate_residuals_gpu,
-                                 dH_aii_times_P_ani_gpu, evaluate_lda_gpu,
-                                 evaluate_pbe_gpu, pw_amend_insert_realwf_gpu,
-                                 pw_insert, pw_insert_gpu, pw_norm_gpu,
-                                 pw_norm_kinetic_gpu, pw_precond, pwlfc_expand,
-                                 pwlfc_expand_gpu, symmetrize_ft)
+    from gpaw.purepython import (  # noqa: F401, isort:skip
+        add_to_density, add_to_density_gpu, calculate_residuals_gpu,
+        dH_aii_times_P_ani_gpu, evaluate_lda_gpu, evaluate_pbe_gpu,
+        pw_amend_insert_realwf_gpu, pw_insert, pw_insert_gpu, pw_norm_gpu,
+        pw_norm_kinetic_gpu, pw_precond, pwlfc_expand, pwlfc_expand_gpu,
+        symmetrize_ft)

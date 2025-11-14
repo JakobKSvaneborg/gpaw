@@ -10,8 +10,6 @@ from gpaw.utilities.scalapack import scalapack_set, scalapack_zero
 # Set-up a simple matrix in parallel, diagonalize using ScaLAPACK
 # D&C driver then compare *eigenvalues* with serial LAPACK diagonlize
 
-
-
 switch_uplo = {'U': 'L', 'L': 'U'}
 rank = world.rank
 tol = 5e-12  # eigenvalue tolerance

@@ -16,10 +16,6 @@ from gpaw.test.gpwfile import response_band_cutoff
 from gpaw.test.response.test_chiks import (generate_nblocks_n, generate_qrel_q,
                                            generate_system_s, get_q_c)
 
-# import matplotlib.pyplot as plt
-
-
-
 
 @pytest.mark.response
 @pytest.mark.kspair
@@ -70,6 +66,7 @@ def test_jdos(in_tmp_dir, gpw_files, system, qrel):
                 jdos_w = jdos.array
                 assert jdos_w == pytest.approx(jdosref_w)
 
+        # import matplotlib.pyplot as plt
         # plt.subplot()
         # plt.plot(wd.omega_w * Hartree, jdos_w)
         # plt.plot(wd.omega_w * Hartree, jdosref_w)

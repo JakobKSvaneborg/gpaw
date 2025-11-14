@@ -9,7 +9,6 @@ from gpaw.elph import ElectronPhononMatrix
 # from ase.phonons import Phonons
 
 
-
 @pytest.mark.serial
 @pytest.mark.elph
 def test_gmatrix(module_tmp_path, supercell_cache):

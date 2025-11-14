@@ -7,11 +7,12 @@ from ase.build import molecule
 from ase.parallel import parprint
 from ase.units import Bohr, Pascal, m
 
-from gpaw.solvation import (  # calculator; cavities; custom classes for the cavities; dielectric; non-el interactions; surface and volume calculators
-    ADM12SmoothStepCavity, EffectivePotentialCavity, ElDensity,
-    FG02SmoothStepCavity, GradientSurface, KB51Volume,
-    LeakedDensityInteraction, LinearDielectric, Power12Potential,
-    SolvationGPAW, SSS09Density, SurfaceInteraction, VolumeInteraction)
+from gpaw.solvation import (ADM12SmoothStepCavity, EffectivePotentialCavity,
+                            ElDensity, FG02SmoothStepCavity, GradientSurface,
+                            KB51Volume, LeakedDensityInteraction,
+                            LinearDielectric, Power12Potential, SolvationGPAW,
+                            SSS09Density, SurfaceInteraction,
+                            VolumeInteraction)
 # poisson solver
 from gpaw.solvation.poisson import ADM12PoissonSolver
 

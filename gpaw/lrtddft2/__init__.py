@@ -25,11 +25,6 @@ from gpaw.xc import XC
 # from gpaw.lrtddft2.ks_singles import KohnShamSingleExcitation
 
 
-
-
-
-
-
 class LrTDDFT2:
     """Linear response TDDFT (Casida) class with indexed K-matrix storage."""
 

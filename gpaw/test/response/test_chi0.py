@@ -9,9 +9,6 @@ from gpaw.mpi import serial_comm
 from gpaw.response.chi0 import Chi0Calculator
 from gpaw.response.frequencies import FrequencyDescriptor
 
-# from ase.units import Bohr
-
-
 
 @pytest.mark.response
 @pytest.mark.slow
