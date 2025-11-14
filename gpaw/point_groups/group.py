@@ -1,5 +1,6 @@
 """Point-group object."""
 import numpy as np
+
 from gpaw.typing import Array2D
 
 

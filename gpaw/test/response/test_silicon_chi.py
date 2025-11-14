@@ -1,20 +1,19 @@
 import time
-import pytest
-import numpy as np
 
+import numpy as np
+import pytest
 from ase.build import bulk
 from ase.parallel import parprint
 from ase.utils.timing import Timer
 
 from gpaw import GPAW, PW, FermiDirac
-from gpaw.test import findpeak
 from gpaw.mpi import size, world
-
 from gpaw.response import ResponseGroundStateAdapter
-from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.response.chiks import ChiKSCalculator
-from gpaw.response.susceptibility import ChiFactory
+from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.response.pair_functions import read_pair_function
+from gpaw.response.susceptibility import ChiFactory
+from gpaw.test import findpeak
 
 
 @pytest.mark.dielectricfunction

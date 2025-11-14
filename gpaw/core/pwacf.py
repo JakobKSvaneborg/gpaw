@@ -21,7 +21,7 @@ from gpaw.utilities import as_complex_dtype, as_real_dtype
 from gpaw.utilities.blas import mmm
 
 if TYPE_CHECKING:
-    from gpaw.core.plane_waves import PWDesc, PWArray
+    from gpaw.core.plane_waves import PWArray, PWDesc
 
 
 class PWAtomCenteredFunctions(AtomCenteredFunctions):

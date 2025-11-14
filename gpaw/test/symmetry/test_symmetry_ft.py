@@ -1,8 +1,9 @@
 from math import sqrt
+
 import numpy as np
+from ase.dft.kpoints import monkhorst_pack
 
 from gpaw.symmetry import Symmetry
-from ase.dft.kpoints import monkhorst_pack
 
 # Primitive diamond lattice, with Si lattice parameter
 

@@ -1,6 +1,6 @@
 import re
-import numpy as np
 
+import numpy as np
 from ase.utils import IOContext
 
 from gpaw.lcaotddft.observer import TDDFTObserver

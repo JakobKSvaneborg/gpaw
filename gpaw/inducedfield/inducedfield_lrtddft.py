@@ -1,12 +1,11 @@
-import numpy as np
 from copy import copy
 
+import numpy as np
 from ase.parallel import parprint
 
+from gpaw.inducedfield.inducedfield_base import BaseInducedField
 from gpaw.lrtddft import LrTDDFT
 from gpaw.utilities.folder import Folder
-
-from gpaw.inducedfield.inducedfield_base import BaseInducedField
 
 
 class LrTDDFTInducedField(BaseInducedField):

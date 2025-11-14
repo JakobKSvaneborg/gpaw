@@ -1,9 +1,10 @@
 import numpy as np
 import pytest
+
 from gpaw import GPAW, restart
-from gpaw.mom import prepare_mom_calculation
 from gpaw.directmin.etdm_lcao import LCAOETDM
 from gpaw.directmin.tools import excite
+from gpaw.mom import prepare_mom_calculation
 
 
 @pytest.mark.mom

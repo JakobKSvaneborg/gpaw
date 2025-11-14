@@ -1,7 +1,8 @@
 import pytest
-from gpaw.mpi import world
 from ase import Atoms
+
 from gpaw import GPAW, restart
+from gpaw.mpi import world
 from gpaw.utilities.kspot import CoreEigenvalues
 
 pytestmark = pytest.mark.skipif(world.size > 1,

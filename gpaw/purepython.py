@@ -4,6 +4,7 @@ Used if GPAW_NO_C_EXTENSION=1.  See also the gpaw.cgpaw module.
 """
 import numpy as np
 from scipy.interpolate import CubicSpline
+
 from gpaw.typing import Array1D, ArrayND
 
 have_openmp = False
@@ -220,7 +221,8 @@ def evaluate_pbe_gpu(nt_sr, vxct_sr, e_r, sigma_xr, dedsigma_xr) -> None:
 
 
 def pw_norm_gpu(result_x, C_xG):
-    from gpaw.gpu import cupy_is_fake, cupy as cp
+    from gpaw.gpu import cupy as cp
+    from gpaw.gpu import cupy_is_fake
     if cupy_is_fake:
         result_x._data[:] = np.sum(np.abs(C_xG._data)**2, axis=1)
     else:
@@ -228,7 +230,8 @@ def pw_norm_gpu(result_x, C_xG):
 
 
 def pw_norm_kinetic_gpu(result_x, a_xG, kin_G):
-    from gpaw.gpu import cupy_is_fake, cupy as cp
+    from gpaw.gpu import cupy as cp
+    from gpaw.gpu import cupy_is_fake
     if cupy_is_fake:
         result_x._data[:] = np.sum(
             np.abs(a_xG._data)**2 * kin_G._data[None, :],
@@ -256,8 +259,9 @@ def r2k_gpu(stream, alpha, a, b, beta, c, lda, ldb, ldc):
 def axpy_gpu(alpha, xptr, xshape,
              yptr, yshape,
              dtype):
+    from cupy.cuda.memory import MemoryPointer, UnownedMemory
+
     from gpaw.gpu import cupy
-    from cupy.cuda.memory import UnownedMemory, MemoryPointer
     xmem = UnownedMemory(xptr, np.prod(xshape) * dtype.itemsize, None)
     ymem = UnownedMemory(yptr, np.prod(yshape) * dtype.itemsize, None)
     x = cupy.ndarray(shape=xshape, dtype=dtype, memptr=MemoryPointer(xmem, 0))
@@ -273,8 +277,9 @@ def mmm_gpu(alpha, aptr, lda, opa, bptr, ldb, opb,
             beta, cptr, ldc, itemsize, m, n, k):
     assert opa == 'N'
     assert opb == 'N'
+    from cupy.cuda.memory import MemoryPointer, UnownedMemory
+
     from gpaw.gpu import cupy as cp
-    from cupy.cuda.memory import UnownedMemory, MemoryPointer
     amem = UnownedMemory(aptr, itemsize * m * lda, None)
     bmem = UnownedMemory(bptr, itemsize * n * ldb, None)
     cmem = UnownedMemory(cptr, itemsize * m * ldc, None)

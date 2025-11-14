@@ -1,7 +1,8 @@
 import numpy as np
+
+from gpaw.external import NoExternalPotential
 from gpaw.old.arraydict import ArrayDict
 from gpaw.old.density import Density
-from gpaw.external import NoExternalPotential
 from gpaw.old.hamiltonian import Hamiltonian
 from gpaw.old.pw.lfc import PWLFC
 from gpaw.old.pw.poisson import (ChargedReciprocalSpacePoissonSolver,

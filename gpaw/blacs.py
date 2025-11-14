@@ -91,14 +91,16 @@ this module or gpaw.utilities.blacs will be renamed at some point.
 import numpy as np
 
 import gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw.mpi import SerialCommunicator
 from gpaw.old.matrix_descriptor import MatrixDescriptor
-from gpaw.utilities.scalapack import scalapack_inverse_cholesky, \
-    scalapack_diagonalize_ex, scalapack_general_diagonalize_ex, \
-    scalapack_diagonalize_dc, scalapack_general_diagonalize_dc, \
-    scalapack_diagonalize_mr3, scalapack_general_diagonalize_mr3
-import gpaw.cgpaw as cgpaw
-
+from gpaw.utilities.scalapack import (scalapack_diagonalize_dc,
+                                      scalapack_diagonalize_ex,
+                                      scalapack_diagonalize_mr3,
+                                      scalapack_general_diagonalize_dc,
+                                      scalapack_general_diagonalize_ex,
+                                      scalapack_general_diagonalize_mr3,
+                                      scalapack_inverse_cholesky)
 
 INACTIVE = -1
 BLOCK_CYCLIC_2D = 1

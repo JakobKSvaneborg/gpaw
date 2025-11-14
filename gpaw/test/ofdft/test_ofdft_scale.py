@@ -1,9 +1,10 @@
 import pytest
 from ase import Atoms
+
 from gpaw import GPAW
+from gpaw.eigensolvers import CG
 from gpaw.mixer import Mixer
 from gpaw.test import gen
-from gpaw.eigensolvers import CG
 
 
 @pytest.mark.ofdft

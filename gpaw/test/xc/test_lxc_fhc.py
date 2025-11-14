@@ -1,7 +1,8 @@
 """check if fhc can be disabled for libxc >= 7.x.x (needed for mggas)."""
 import pytest
-import gpaw.cgpaw as cgpaw
 from ase.build import molecule
+
+import gpaw.cgpaw as cgpaw
 from gpaw import GPAW
 from gpaw.utilities.adjust_cell import adjust_cell
 

@@ -1,8 +1,9 @@
-import pytest
 import numpy as np
+import pytest
+
 from gpaw.lcaotddft import LCAOTDDFT
-from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
-from gpaw.lcaotddft.dipolemomentwriter import VelocityGaugeWriter
+from gpaw.lcaotddft.dipolemomentwriter import (DipoleMomentWriter,
+                                               VelocityGaugeWriter)
 
 
 @pytest.mark.filterwarnings('ignore:Using compabilitity wrapper for RTTDDFT')

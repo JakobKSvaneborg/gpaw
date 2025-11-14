@@ -1,10 +1,11 @@
-from gpaw import GPAW
-from gpaw.utilities.adjust_cell import adjust_cell
 import pytest
 from ase.build import molecule
-from ase.units import mol, kcal
+from ase.units import kcal, mol
+
+from gpaw import GPAW
 from gpaw.directmin.etdm_lcao import LCAOETDM
 from gpaw.solvation import SolvationGPAW, get_HW14_water_kwargs
+from gpaw.utilities.adjust_cell import adjust_cell
 
 
 @pytest.mark.old_gpaw_only

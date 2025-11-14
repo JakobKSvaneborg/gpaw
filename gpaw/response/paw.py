@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-import numpy as np
-from scipy.special import spherical_jn
 from dataclasses import dataclass
 
-from gpaw.spline import Spline
-from gpaw.ffbt import rescaled_fourier_bessel_transform
-from gpaw.sphere.gaunt import gaunt, super_gaunt
-from gpaw.sphere.spherical_harmonics import Y
-from gpaw.atom.radialgd import RadialGridDescriptor
-from gpaw.sphere.rshe import RealSphericalHarmonicsExpansion
-from gpaw.response.pw_parallelization import Blocks1D
+import numpy as np
+from scipy.special import spherical_jn
 
+from gpaw.atom.radialgd import RadialGridDescriptor
+from gpaw.ffbt import rescaled_fourier_bessel_transform
+from gpaw.response.pw_parallelization import Blocks1D
+from gpaw.sphere.gaunt import gaunt, super_gaunt
+from gpaw.sphere.rshe import RealSphericalHarmonicsExpansion
+from gpaw.sphere.spherical_harmonics import Y
+from gpaw.spline import Spline
 
 # Important note: The test suite monkeypatches this value to 2**10 so
 # you may get different results in tests and production until we

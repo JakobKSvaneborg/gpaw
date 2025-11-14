@@ -1,7 +1,7 @@
+import pytest
 from ase import Atom, Atoms
 
-from gpaw import GPAW, Mixer, RMMDIIS
-import pytest
+from gpaw import GPAW, RMMDIIS, Mixer
 
 
 @pytest.mark.legacy

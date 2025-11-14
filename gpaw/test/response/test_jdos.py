@@ -1,25 +1,24 @@
 # General modules
-import pytest
-
 from itertools import product
 
 import numpy as np
-
-# import matplotlib.pyplot as plt
-
+import pytest
 # Script modules
 from ase.units import Hartree
 
-from gpaw import GPAW
 import gpaw.mpi as mpi
+from gpaw import GPAW
 from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.jdos import JDOSCalculator
 from gpaw.response.kpoints import KPointFinder
-from gpaw.test.response.test_chiks import (generate_system_s,
-                                           generate_qrel_q, get_q_c,
-                                           generate_nblocks_n)
 from gpaw.test.gpwfile import response_band_cutoff
+from gpaw.test.response.test_chiks import (generate_nblocks_n, generate_qrel_q,
+                                           generate_system_s, get_q_c)
+
+# import matplotlib.pyplot as plt
+
+
 
 
 @pytest.mark.response

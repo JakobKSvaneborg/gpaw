@@ -1,15 +1,15 @@
 import time
-import pytest
-import numpy as np
 
+import numpy as np
+import pytest
 from ase.build import bulk
 from ase.parallel import parprint
 
 from gpaw import GPAW, PW
-from gpaw.test import findpeak
 from gpaw.bztools import find_high_symmetry_monkhorst_pack
-from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.mpi import size, world
+from gpaw.response.df import DielectricFunction, read_response_function
+from gpaw.test import findpeak
 
 
 # Affected by https://gitlab.com/gpaw/gpaw/-/issues/840

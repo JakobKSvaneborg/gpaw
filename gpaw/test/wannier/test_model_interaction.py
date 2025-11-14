@@ -1,13 +1,15 @@
+import os
+
 import numpy as np
 import pytest
+
 from gpaw import GPAW
+from gpaw.mpi import serial_comm, world
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
+from gpaw.response.chi0 import Chi0Calculator
 from gpaw.response.frequencies import FrequencyDescriptor
 from gpaw.response.modelinteraction import initialize_w_model
-from gpaw.response.chi0 import Chi0Calculator
 from gpaw.wannier.wannier90 import Wannier90
-import os
-from gpaw.mpi import world, serial_comm
 
 
 @pytest.mark.serial  # See issue 1447

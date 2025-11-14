@@ -4,7 +4,6 @@ import numpy as np
 
 from gpaw.typing import Array1D, Array2D
 
-
 null_pole_thr = 1e-5
 pole_resolution = 1e-5
 epsilon = 1e-8

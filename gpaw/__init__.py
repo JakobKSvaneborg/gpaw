@@ -2,12 +2,12 @@
 # Please see the accompanying LICENSE file for further information.
 """Main gpaw module."""
 from __future__ import annotations
-import os
-import contextlib
-from pathlib import Path
-from typing import Any, TYPE_CHECKING
-import warnings
 
+import contextlib
+import os
+import warnings
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 __version__ = '25.7.1b1'
 __ase_version_required__ = '3.25.0'
@@ -69,6 +69,7 @@ def disable_dry_run():
 
 def get_scipy_version():
     import scipy
+
     # This is in a function because we don't like to have the scipy
     # import at module level
     return [int(x) for x in scipy.__version__.split('.')[:2]]

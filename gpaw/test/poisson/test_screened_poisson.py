@@ -1,7 +1,7 @@
-from gpaw.utilities.tools import coordinates
-from gpaw.utilities.gauss import Gaussian
-from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.helmholtz import HelmholtzSolver, ScreenedPoissonGaussian
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.utilities.gauss import Gaussian
+from gpaw.utilities.tools import coordinates
 
 # Initialize classes
 

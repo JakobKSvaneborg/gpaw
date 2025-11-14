@@ -1,12 +1,12 @@
-import pytest
 import numpy as np
+import pytest
 
+from gpaw import GPAW_NO_C_EXTENSION
 from gpaw.core import UGDesc
 from gpaw.gpu import cupy as cp
 from gpaw.mpi import world
-from gpaw.spline import Spline
 from gpaw.new.c import GPU_AWARE_MPI
-from gpaw import GPAW_NO_C_EXTENSION
+from gpaw.spline import Spline
 
 
 @pytest.mark.gpu

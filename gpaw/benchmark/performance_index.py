@@ -4,6 +4,7 @@ from time import time
 
 import numpy as np
 from ase.geometry.cell import cell_to_cellpar
+
 from gpaw import GPAW, GPAW_NEW
 from gpaw.benchmark.systems import systems
 from gpaw.calcinfo import get_calculation_info

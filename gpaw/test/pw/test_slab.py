@@ -2,11 +2,10 @@ import pytest
 from ase import Atoms
 from ase.optimize import BFGS
 
-from gpaw import PW
+from gpaw import GPAW_NO_C_EXTENSION, PW
+from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW as NewGPAW
 from gpaw.old.calculator import GPAW as OldGPAW
-from gpaw.mpi import world
-from gpaw import GPAW_NO_C_EXTENSION
 
 
 @pytest.mark.parametrize(

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import importlib
 import warnings
-from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Union, Literal
 from collections.abc import Sequence
+from pathlib import Path
+from typing import IO, TYPE_CHECKING, Any, Literal, Union
 
 import numpy as np
 from ase import Atoms
@@ -14,10 +14,10 @@ from numpy.typing import DTypeLike
 from gpaw.mpi import MPIComm
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.logger import Logger
-from gpaw.new.symmetry import Symmetries, create_symmetries_object
 from gpaw.new.pwfd.davidson import Davidson as DavidsonEigensolver
 from gpaw.new.pwfd.ppcg import PPCG as PPCGEigensolver
 from gpaw.new.pwfd.rmmdiis import RMMDIIS as RMMDIISEigensolver
+from gpaw.new.symmetry import Symmetries, create_symmetries_object
 
 if TYPE_CHECKING:
     from gpaw.new.ase_interface import ASECalculator

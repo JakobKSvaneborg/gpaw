@@ -1,11 +1,9 @@
-from ase.constraints import FixBondLengths
-from ase.calculators.tip3p import TIP3P
-from ase.calculators.tip3p import qH, sigma0, epsilon0
-
-from gpaw.cgpaw import adjust_positions, adjust_momenta, calculate_forces_H2O
-from ase.calculators.calculator import Calculator, all_changes
-
 import numpy as np
+from ase.calculators.calculator import Calculator, all_changes
+from ase.calculators.tip3p import TIP3P, epsilon0, qH, sigma0
+from ase.constraints import FixBondLengths
+
+from gpaw.cgpaw import adjust_momenta, adjust_positions, calculate_forces_H2O
 
 A = 4 * epsilon0 * sigma0**12
 B = -4 * epsilon0 * sigma0**6

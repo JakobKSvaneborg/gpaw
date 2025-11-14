@@ -9,15 +9,15 @@ import numpy as np
 from ase.units import Bohr
 
 from gpaw import debug
-from gpaw.mixer import get_mixer_from_keywords, MixerWrapper
-from gpaw.transformers import Transformer
 from gpaw.lfc import LFC, BasisFunctions
+from gpaw.mixer import MixerWrapper, get_mixer_from_keywords
+from gpaw.old.arraydict import ArrayDict
 from gpaw.old.wavefunctions.lcao import LCAOWaveFunctions
-from gpaw.utilities import (unpack_density, unpack_atomic_matrices,
-                            pack_atomic_matrices)
+from gpaw.transformers import Transformer
+from gpaw.utilities import (pack_atomic_matrices, unpack_atomic_matrices,
+                            unpack_density)
 from gpaw.utilities.partition import AtomPartition
 from gpaw.utilities.timing import nulltimer
-from gpaw.old.arraydict import ArrayDict
 
 
 class CompensationChargeExpansionCoefficients:

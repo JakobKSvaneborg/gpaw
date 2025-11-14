@@ -5,9 +5,9 @@ from ase.units import Bohr
 
 import gpaw.cgpaw as cgpaw
 from gpaw import debug
-from gpaw.old.grid_descriptor import GridDescriptor, GridBoundsError
-from gpaw.gpu import cupy_is_fake, as_numpy, as_np, as_xp
+from gpaw.gpu import as_np, as_numpy, as_xp, cupy_is_fake
 from gpaw.new import trace
+from gpaw.old.grid_descriptor import GridBoundsError, GridDescriptor
 from gpaw.utilities import smallest_safe_grid_spacing
 
 """

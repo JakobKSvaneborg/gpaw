@@ -1,9 +1,9 @@
-import pytest
 import numpy as np
+import pytest
 from ase.build import molecule
-from gpaw import GPAW
-from gpaw.mpi import world, serial_comm, broadcast_exception
 
+from gpaw import GPAW
+from gpaw.mpi import broadcast_exception, serial_comm, world
 from gpaw.test.lcaotddft.test_molecule import only_on_master
 
 pytestmark = [pytest.mark.usefixtures('module_tmp_path'),

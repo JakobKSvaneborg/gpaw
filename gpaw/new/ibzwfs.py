@@ -1,24 +1,25 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Generator
 from functools import cached_property
 from typing import TYPE_CHECKING, Generic, TypeVar
-from collections.abc import Callable, Generator
 
 import numpy as np
 from ase.io.ulm import Writer
 from ase.units import Bohr, Ha
+
 from gpaw.gpu import as_np
 from gpaw.gpu.mpi import CuPyMPI
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import zips
-from gpaw.new.timer import trace
 from gpaw.new.brillouin import IBZ
 from gpaw.new.c import GPU_AWARE_MPI
 from gpaw.new.potential import Potential
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
+from gpaw.new.timer import trace
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.typing import Array1D, Array2D, Self
-from gpaw.utilities import pack_density, as_complex_dtype
+from gpaw.utilities import as_complex_dtype, pack_density
 
 if TYPE_CHECKING:
     from gpaw.new.density import Density

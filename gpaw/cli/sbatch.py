@@ -1,6 +1,6 @@
+import os
 import subprocess
 import sys
-import os
 
 usage = """gpaw sbatch [-0] -- [sbatch options] script.py [script options]
    or: gpaw sbatch [-0] -- [sbatch options] python -m module [module options]

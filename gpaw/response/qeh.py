@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import numpy as np
 from ase.units import pi
+
 from gpaw.response.df import DielectricFunction
+
 try:
     from qeh.bb_calculator.chicalc import ChiCalc, QPoint
 except ImportError:

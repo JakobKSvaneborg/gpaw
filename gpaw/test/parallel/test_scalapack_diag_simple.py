@@ -3,13 +3,13 @@ from time import time
 import numpy as np
 from scipy.linalg import eigh
 
+from gpaw.blacs import BlacsGrid
+from gpaw.mpi import world
+from gpaw.utilities.scalapack import scalapack_set, scalapack_zero
+
 # Set-up a simple matrix in parallel, diagonalize using ScaLAPACK
 # D&C driver then compare *eigenvalues* with serial LAPACK diagonlize
 
-from gpaw.blacs import BlacsGrid
-from gpaw.mpi import world
-from gpaw.utilities.scalapack import scalapack_set, \
-    scalapack_zero
 
 
 switch_uplo = {'U': 'L', 'L': 'U'}

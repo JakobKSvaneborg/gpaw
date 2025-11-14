@@ -4,9 +4,10 @@
 
 # flake8: noqa
 
-from ase.units import Hartree, Bohr
-from gpaw.fd_operators import Gradient
 import numpy as np
+from ase.units import Bohr, Hartree
+
+from gpaw.fd_operators import Gradient
 
 # in atomic units, 1/(4*pi*e_0) = 1
 _eps0_au = 1.0 / (4.0 * np.pi)

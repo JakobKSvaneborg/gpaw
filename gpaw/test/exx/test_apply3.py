@@ -1,10 +1,12 @@
-from gpaw.new.pw.hybrids import PWHybridHamiltonian, Psit
-from gpaw.core import UGDesc, PWDesc
-from gpaw.setup import Setups
-from gpaw.core.atom_arrays import AtomDistribution, AtomArraysLayout
-import numpy as np
-from gpaw.mpi import world
 from time import time
+
+import numpy as np
+
+from gpaw.core import PWDesc, UGDesc
+from gpaw.core.atom_arrays import AtomArraysLayout, AtomDistribution
+from gpaw.mpi import world
+from gpaw.new.pw.hybrids import Psit, PWHybridHamiltonian
+from gpaw.setup import Setups
 
 
 def test_apply3(a=5.0, N=10, dtype=float):

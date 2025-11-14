@@ -1,34 +1,33 @@
 """Module for linear response TDDFT class with indexed K-matrix storage."""
 
-import os
 import datetime
 import glob
+import os
 
 import numpy as np
-
 from ase.units import Hartree
 from ase.utils import IOContext
 
+# Matrix Kip,jq <ia|f_Hxc|jq>
+from gpaw.lrtddft2.k_matrix import Kmatrix
+# a list of KS determinants with single occ-uncc excitations
+from gpaw.lrtddft2.ks_singles import KohnShamSingles
+# communicators
+from gpaw.lrtddft2.lr_communicators import LrCommunicators
+# a linear combination of KS single determinants
+# for a CW laser with Lorentzian width (in energy)
+from gpaw.lrtddft2.lr_response import LrResponse
+# a set of linear combinations of KS single determinants
+from gpaw.lrtddft2.lr_transitions import LrtddftTransitions
 from gpaw.xc import XC
 
 # a KS determinant with a single occ-uncc excitation
 # from gpaw.lrtddft2.ks_singles import KohnShamSingleExcitation
 
-# a list of KS determinants with single occ-uncc excitations
-from gpaw.lrtddft2.ks_singles import KohnShamSingles
 
-# Matrix Kip,jq <ia|f_Hxc|jq>
-from gpaw.lrtddft2.k_matrix import Kmatrix
 
-# a set of linear combinations of KS single determinants
-from gpaw.lrtddft2.lr_transitions import LrtddftTransitions
 
-# a linear combination of KS single determinants
-# for a CW laser with Lorentzian width (in energy)
-from gpaw.lrtddft2.lr_response import LrResponse
 
-# communicators
-from gpaw.lrtddft2.lr_communicators import LrCommunicators
 
 
 class LrTDDFT2:

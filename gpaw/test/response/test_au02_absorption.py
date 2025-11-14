@@ -1,7 +1,8 @@
-import pytest
 import numpy as np
+import pytest
 from ase import Atoms
-from gpaw import GPAW, FermiDirac, PW
+
+from gpaw import GPAW, PW, FermiDirac
 from gpaw.response.df import DielectricFunction
 from gpaw.test import findpeak
 

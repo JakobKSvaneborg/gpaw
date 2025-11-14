@@ -1,12 +1,10 @@
 import pytest
-from gpaw.utilities import compiled_with_libvdwxc
-
 from ase.build import bulk
 
-from gpaw import GPAW, Davidson, Mixer, PW
-from gpaw.xc.libvdwxc import vdw_mbeef
-
+from gpaw import GPAW, PW, Davidson, Mixer
 from gpaw.test import gen
+from gpaw.utilities import compiled_with_libvdwxc
+from gpaw.xc.libvdwxc import vdw_mbeef
 
 pytestmark = pytest.mark.skipif(not compiled_with_libvdwxc(),
                                 reason='not compiled_with_libvdwxc()')

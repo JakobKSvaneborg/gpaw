@@ -3,6 +3,7 @@ from itertools import product
 import numpy as np
 from ase.dft.kpoints import monkhorst_pack
 from scipy.spatial import ConvexHull, Delaunay, Voronoi
+
 try:
     from scipy.spatial import QhullError
 except ImportError:  # scipy < 1.8
@@ -10,8 +11,8 @@ except ImportError:  # scipy < 1.8
 
 import gpaw.mpi as mpi
 from gpaw import GPAW, restart
-from gpaw.old.kpt_descriptor import kpts2sizeandoffsets, to1bz
 from gpaw.mpi import world
+from gpaw.old.kpt_descriptor import kpts2sizeandoffsets, to1bz
 from gpaw.symmetry import Symmetry, aglomerate_points
 
 

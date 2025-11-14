@@ -1,11 +1,11 @@
 import numpy as np
 
-from gpaw.mpi import world, broadcast_float
 from gpaw.lcaotddft import LCAOTDDFT
-from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
-from gpaw.lcaotddft.wfwriter import WaveFunctionWriter, WaveFunctionReader
 from gpaw.lcaotddft.densitymatrix import DensityMatrix
+from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.lcaotddft.frequencydensitymatrix import FrequencyDensityMatrix
+from gpaw.lcaotddft.wfwriter import WaveFunctionReader, WaveFunctionWriter
+from gpaw.mpi import broadcast_float, world
 from gpaw.tddft.folding import frequencies
 from gpaw.utilities import compiled_with_sl
 

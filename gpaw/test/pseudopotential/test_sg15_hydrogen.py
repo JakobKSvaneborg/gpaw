@@ -2,6 +2,7 @@
 # agrees with PAW for the H2 eigenvalue.
 
 from ase.build import molecule
+
 from gpaw import GPAW, Davidson, Mixer
 
 

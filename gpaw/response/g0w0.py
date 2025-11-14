@@ -1,36 +1,32 @@
 from __future__ import annotations
+
 import pickle
 import warnings
-from math import pi, isclose
-from pathlib import Path
 from collections.abc import Iterable
+from contextlib import ExitStack
+from math import isclose, pi
+from pathlib import Path
 
 import numpy as np
-
-from ase.parallel import paropen
+from ase.parallel import broadcast, paropen
 from ase.units import Ha
-
-from gpaw import GPAW, debug
-import gpaw.mpi as mpi
-from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
-from gpaw.old.pw.descriptor import (count_reciprocal_vectors, PWMapping)
-from gpaw.utilities.progressbar import ProgressBar
-
-from gpaw.response import ResponseContext, ResponseGroundStateAdapter
-from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
-from gpaw.response.pair import phase_shifted_fft_indices
-from gpaw.response.qpd import SingleQPWDescriptor
-from gpaw.response.pw_parallelization import Blocks1D
-from gpaw.response.screened_interaction import (initialize_w_calculator,
-                                                GammaIntegrationMode)
-from gpaw.response.coulomb_kernels import CoulombKernel
-from gpaw.response import timer
-from gpaw.response.mpa_sampling import mpa_frequency_sampling
-from gpaw.mpi import broadcast_exception
-
 from ase.utils.filecache import MultiFileJSONCache as FileCache
-from contextlib import ExitStack
-from ase.parallel import broadcast
+
+import gpaw.mpi as mpi
+from gpaw import GPAW, debug
+from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
+from gpaw.mpi import broadcast_exception
+from gpaw.old.pw.descriptor import PWMapping, count_reciprocal_vectors
+from gpaw.response import ResponseContext, ResponseGroundStateAdapter, timer
+from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
+from gpaw.response.coulomb_kernels import CoulombKernel
+from gpaw.response.mpa_sampling import mpa_frequency_sampling
+from gpaw.response.pair import phase_shifted_fft_indices
+from gpaw.response.pw_parallelization import Blocks1D
+from gpaw.response.qpd import SingleQPWDescriptor
+from gpaw.response.screened_interaction import (GammaIntegrationMode,
+                                                initialize_w_calculator)
+from gpaw.utilities.progressbar import ProgressBar
 
 
 def compare_inputs(inp1, inp2, rel_tol=1e-14, abs_tol=1e-14):

@@ -1,11 +1,11 @@
-import pytest
 import numpy as np
-from ase.units import Bohr
+import pytest
 from ase.build import bulk
+from ase.units import Bohr
+
 from gpaw import GPAW, FermiDirac
 from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.test import findpeak
-
 
 lcao = pytest.param('lcao', marks=pytest.mark.old_gpaw_only)
 
