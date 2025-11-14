@@ -1,7 +1,9 @@
 """Symmetry checking code."""
+from __future__ import annotations
+
 import sys
 from collections.abc import Sequence
-from typing import Any, Union
+from typing import TYPE_CHECKING, Any, Union
 
 import numpy as np
 from ase import Atoms
@@ -10,9 +12,9 @@ from scipy.ndimage import map_coordinates
 
 from gpaw.typing import Array1D, Array2D, Array3D, ArrayLike
 
-from . import PointGroup
-
-Axis = Union[str, Sequence[float], Array1D, None]
+if TYPE_CHECKING:
+    Axis = Union[str, Sequence[float], Array1D, None]
+    from . import PointGroup
 
 
 class SymmetryChecker:
@@ -30,6 +32,7 @@ class SymmetryChecker:
         *x*, *y*, *z* can be specified.
         """
         if isinstance(group, str):
+            from . import PointGroup
             group = PointGroup(group)
         self.group = group
         self.normalized_table = group.get_normalized_table()
