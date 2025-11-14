@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from time import time
+from io import StringIO
 
 import numpy as np
 from ase.geometry.cell import cell_to_cellpar
@@ -122,16 +123,23 @@ def work(name: str, params: dict | None = None) -> None:
             params['parallel'] = {'kpt': 24}
             del params['magmoms']
 
-    calc = GPAW(
-        txt=f'{name}.txt',
+    # Warmup:
+    atoms.calc = GPAW(
+        txt=None,
+        convergence={'maximum iterations': 3},
         **params)
-    atoms.calc = calc
+    atoms.get_potential_energy()
+
+    output = StringIO()  # don't touch the file system
+    atoms.calc = GPAW(
+        txt=output,
+        **params)
 
     # First step:
     t1 = time()
     e1 = atoms.get_potential_energy()
     f1 = atoms.get_forces()
-    i1 = get_number_of_iterations(calc)
+    i1 = get_number_of_iterations(atoms.calc)
 
     if abs(f1).max() < 0.0001:
         s1 = atoms.get_stress(voigt=False)
@@ -145,11 +153,14 @@ def work(name: str, params: dict | None = None) -> None:
     t2 = time()
     e2 = atoms.get_potential_energy()
     _ = atoms.get_forces()
-    i2 = get_number_of_iterations(calc)
+    i2 = get_number_of_iterations(atoms.calc)
     t2 = time() - t2
     m2 = maxrss()
 
+    atoms.calc.__del__()  # make sure we get timing info in log-file
+
     if world.rank == 0:
+        Path(f'{name}.txt').write_text(output.getvalue())
         Path(f'{name}.json').write_text(json.dumps([e1, t1, i1, m1,
                                                     e2, t2, i2, m2]))
 
