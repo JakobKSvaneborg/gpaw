@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from time import time
 from io import StringIO
+from collections import defaultdict
 
 import numpy as np
 from ase.geometry.cell import cell_to_cellpar
@@ -28,24 +29,24 @@ PARAMS = dict(
 # Initial set of 13 materials for the first bechmark-run
 # with old GPAW (master branch Nov. 11 2025):
 REFERENCES1 = {
-    'Bi2Se3-3': (-21.46195, -0.18655, 24, 49.76),
-    'C60-0': (-530.92535, -0.44820, 24, 214.34),
-    'C72-2': (-530.92535, -0.44820, 24, 396.39),
-    'C2-3': (-18.19611, -0.00000, 24, 12.47),
-    'Ga2F4N4H10-3': (-99.08900, 0.00013, 40, 83.74),
-    'H2-0': (-6.77477, 0.11710, 24, 5.78),
-    'LiC8-3': (-75.37653, 0.66102, 24, 33.72),
-    'Fe8-3M': (-72.37710, -0.00713, 24, 115.45),
-    'Al96-2': (-350.06299, -0.01156, 40, 1428.15),
-    'Mo60S120-1': (-1291.31046, 7.55276, 56, 6290.67),
-    'OPt24-2': (-153.25143, -1.61599, 40, 999.35),
-    'CrSi2As4-2M': (-38.89434, -0.17154, 24, 102.59),
-    'Ti2Br6-3': (-32.64699, -0.00286, 24, 159.83)}
+    'Bi2Se3-3': (-21.46195, -0.18655, 24, 46.74),
+    'C60-0': (-530.92535, -0.44820, 24, 204.56),
+    'C72-2': (-530.92535, -0.44820, 24, 389.18),
+    'C2-3': (-18.19611, -0.00000, 24, 11.11),
+    'Ga2F4N4H10-3': (-99.08900, 0.00013, 40, 80.28),
+    'H2-0': (-6.77477, 0.11710, 24, 3.78),
+    'LiC8-3': (-75.37653, 0.66102, 24, 32.01),
+    'Fe8-3M': (-72.37710, -0.00713, 24, 114.55),
+    'Al96-2': (-350.06299, -0.01156, 40, 1434.00),
+    'Mo60S120-1': (-1291.31046, 7.55276, 56, 6239.00),
+    'OPt24-2': (-153.25143, -1.61599, 40, 999.75),
+    'CrSi2As4-2M': (-38.89434, -0.17154, 24, 100.10),
+    'Ti2Br6-3': (-32.64699, -0.00286, 24, 155.44)}
 
 # New materials for second run:
 REFERENCES2 = {
-    'MnVS2-2M': (-29.11777, -0.00014, 24, 120.03),
-    'VI2-2M': (-9.29013, -0.77486, 24, 3090),
+    'MnVS2-2M': (-29.11777, -0.00014, 24, 114.44),
+    'VI2-2M': (-9.29013, -0.77486, 24, 31.65),
     'PtLi2O6-2M': (0.0, 0.0, 24, 2500),
     'ErGe-2M': (0.0, 0.0, 24, 2500),
     'V3Cl6-2N': (0.0, 0.0, 24, 333),
@@ -241,6 +242,20 @@ def summary(folders: list[Path], mode: int) -> None:
     print()
 
 
+def average(folders: list[Path]) -> None:
+    data = defaultdict(float)
+    for folder in folders:
+        for path in folder.glob('*.json'):
+            x = json.loads(path.read_text())
+            data[path.stem] += np.array(x)
+    for name, x in data.items():
+        e1, t1, i1, m1, e2, t2, i2, m2 = x / len(folders)
+        print(
+            f'    {name!r}: ('
+            f'{e1:.6f}, {t1:.3f}, {round(i1):.0f}, {int(m1)}, '
+            f'{e2:.6f}, {t2:.3f}, {round(i2):.0f}, {int(m2)}),')
+
+
 def main(arguments: list[str] | None = None):
     from argparse import ArgumentParser
     parser = ArgumentParser()
@@ -250,10 +265,15 @@ def main(arguments: list[str] | None = None):
     parser.add_argument(
         'folder', nargs='*',
         help='Folder with <name>.json files.')
+    parser.add_argument(
+        '-a', '--average', action='store_true',
+        help='Write average.')
     args = parser.parse_args(arguments)
     if args.folder:
-        summary(folders=[Path(folder) for folder in args.folder],
-                mode=args.mode)
+        folders = [Path(folder) for folder in args.folder]
+        summary(folders=folders, mode=args.mode)
+        if args.average:
+            average(folders)
         return
 
     print('name       natoms ndim IBZ spin bands cores  vol '
@@ -273,3 +293,4 @@ def main(arguments: list[str] | None = None):
 
 if __name__ == '__main__':
     main()
+
