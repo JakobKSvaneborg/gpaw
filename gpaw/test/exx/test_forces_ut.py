@@ -91,7 +91,7 @@ class WFS:
         kpt.projections = proj
         kpt.f_n = f_n
         self.kpt_u = [kpt]
-        self.kpt_qs = [[kpt]]
+        # self.kpt_qs = [[kpt]]
 
 
 class Ham:

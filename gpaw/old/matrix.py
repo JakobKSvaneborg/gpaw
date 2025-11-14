@@ -1,5 +1,4 @@
 """BLACS distributed matrix object."""
-from typing import Dict, Tuple
 import numpy as np
 import scipy.linalg as linalg
 
@@ -9,7 +8,7 @@ from gpaw.mpi import serial_comm, _Communicator
 import gpaw.utilities.blas as blas
 
 
-_global_blacs_context_store: Dict[Tuple[_Communicator, int, int], int] = {}
+_global_blacs_context_store: dict[tuple[_Communicator, int, int], int] = {}
 
 
 def matrix_matrix_multiply(alpha, a, opa, b, opb, beta=0.0, c=None,

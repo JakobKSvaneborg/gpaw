@@ -258,6 +258,17 @@ class LCAOWaveFunctions(WaveFunctions):
         self.decomposed_S_qMM = [None] * len(self.S_qMM)
         self.set_orthonormalized(False)
 
+    def planewavefy(self, lazy=False, *, ecut):
+        import gpaw.fftw as fftw
+        from gpaw.old.pw.descriptor import PWDescriptor
+        from gpaw.old.wavefunctions.pw import PWWaveFunctions
+        self.pd = PWDescriptor(ecut, self.gd, self.dtype, self.kd,
+                               fftw.MEASURE)
+        PWWaveFunctions.initialize_from_lcao_coefficients(self,
+                                                          self.basis_functions,
+                                                          lazy=lazy,
+                                                          reset_C_nM=False)
+
     def initialize(self, density, hamiltonian, spos_ac):
         # Note: The above line exists also in set_positions.
         # This is guaranteed to be correct, but we can probably remove one.
@@ -313,8 +324,7 @@ class LCAOWaveFunctions(WaveFunctions):
         self.initialize_wave_functions_from_lcao()
 
     def add_orbital_density(self, nt_G, kpt, n):
-        rank, q = self.kd.get_rank_and_index(kpt.k)
-        u = q * self.nspins + kpt.s
+        rank, u = self.kd.get_rank_and_index(kpt.k, kpt.s)
         assert rank == self.kd.comm.rank
         assert self.kpt_u[u] is kpt
         psit_G = self._get_wave_function_array(u, n, realspace=True)

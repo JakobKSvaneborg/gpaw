@@ -117,7 +117,8 @@ class TightBinding:
                 # Broadcast Gamma component
                 gamma = np.where(abs(self.ibzk_kc).sum(axis=1) < 1e-13)[0]
                 if gamma.size > 0:
-                    rank, myu = self.kd.get_rank_and_index(gamma[0])
+                    rank, myu = self.kd.get_rank_and_index(gamma[0], 0)
+                    assert self.kd.nspins == 1
 
                     if self.kd.comm.rank == rank:
                         A0_xMM = A_qxMM[myu]

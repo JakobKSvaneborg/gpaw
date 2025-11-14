@@ -30,7 +30,8 @@ functionals (Perdew-Zunger).
 """
 
 from math import pi
-from typing import Callable, cast
+from typing import cast
+from collections.abc import Callable
 
 import numpy as np
 from ase.units import Bohr, Hartree

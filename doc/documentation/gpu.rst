@@ -137,7 +137,6 @@ The gpaw.gpu module
 .. autodata:: is_hip
 .. autofunction:: as_np
 .. autofunction:: as_xp
-.. autofunction:: cupy_eigh
 
 
 Fake cupy library

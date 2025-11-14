@@ -25,11 +25,9 @@ commands = [
 
 
 def hook(parser, args):
-    parser.color = True
     parser.suggest_on_error = True
     parser.add_argument('-P', '--parallel', type=int, metavar='N',
                         help='Run on N CPUs.')
-    parser.color = True
     args = parser.parse_args(args)
 
     if args.command == 'python':
@@ -84,6 +82,11 @@ def main(args=None):
 
         from ase.cli.main import main as ase_main
         from gpaw import __version__
+
+    pre_exec = os.environ.get('GPAW_PREEXEC_SCRIPT')
+    if pre_exec is not None:
+        import runpy
+        runpy.run_path(pre_exec)
 
     ase_main('gpaw', 'GPAW command-line tool', __version__,
              commands, hook, args)

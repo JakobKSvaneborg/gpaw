@@ -1,6 +1,5 @@
 from math import pi, sqrt
 from warnings import warn
-from typing import Optional, List, Dict
 
 import numpy as np
 from ase.units import Bohr, Ha
@@ -66,7 +65,7 @@ class PS2AE:
         gd2 = self.gd = GridDescriptor(N_c, gd.cell_cv, comm=serial_comm)
         self.interpolator = Interpolator(gd1, gd2, self.calc.wfs.dtype)
 
-        self._dphi: Optional[LFC] = None  # PAW correction
+        self._dphi: LFC | None = None  # PAW correction
 
         self.dv = self.gd.dv * Bohr**3
 
@@ -75,7 +74,7 @@ class PS2AE:
         if self._dphi is not None:
             return self._dphi
 
-        splines: Dict[Setup, List[Spline]] = {}
+        splines: dict[Setup, list[Spline]] = {}
         dphi_aj = []
         for setup in self.calc.wfs.setups:
             dphi_j = splines.get(setup)

@@ -166,7 +166,7 @@ def info() -> None:
     warning_header = 'WARNING ({}):'.format
     header_width = max(len(warning_header(item)) for item in warnings) + 1
     for item, message in warnings.items():
-        topic = 'WARNING ({}):'.format(item)
+        topic = f'WARNING ({item}):'
         message = fill(message,
                        initial_indent=' ' * header_width,
                        subsequent_indent=' ' * header_width,

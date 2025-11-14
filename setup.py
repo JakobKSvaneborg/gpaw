@@ -197,10 +197,6 @@ if parallel_python_interpreter is not PLACEHOLDER:
 if mpi:
     print('Building GPAW with MPI support.')
 
-platform_id = os.getenv('CPU_ARCH')
-if platform_id:
-    os.environ['_PYTHON_HOST_PLATFORM'] = get_platform() + '-' + platform_id
-
 if gpu:
     valid_gpu_targets = ['cuda', 'hip-amd', 'hip-cuda']
     if gpu_target not in valid_gpu_targets:
