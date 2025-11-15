@@ -26,7 +26,7 @@ PARAMS = dict(
 # 3) number of cores
 # 4) time in seconds
 #
-# Initial set of 13 materials for the first bechmark-run
+# Initial set of 14 materials for the first bechmark-run
 # with old GPAW (master branch Nov. 11 2025):
 REFERENCES1 = {
     'Bi2Se3-3': (-21.46195, -0.18655, 24, 46.74),
@@ -41,12 +41,12 @@ REFERENCES1 = {
     'Mo60S120-1': (-1291.31046, 7.55276, 56, 6239.00),
     'OPt24-2': (-153.25143, -1.61599, 40, 999.75),
     'CrSi2As4-2M': (-38.89434, -0.17154, 24, 100.10),
+    'VI2-2M': (-9.29013, -0.77486, 24, 31.65),
     'Ti2Br6-3': (-32.64699, -0.00286, 24, 155.44)}
 
 # New materials for second run:
 REFERENCES2 = {
     'MnVS2-2M': (-29.11777, -0.00014, 24, 114.44),
-    'VI2-2M': (-9.29013, -0.77486, 24, 31.65),
     'PtLi2O6-2M': (0.0, 0.0, 24, 2500),
     'ErGe-2M': (0.0, 0.0, 24, 2500),
     'V3Cl6-2N': (0.0, 0.0, 24, 333),
