@@ -1388,7 +1388,7 @@ class G0W0(G0W0Calculator):
             fxc_modes.append('GW')
 
         exx_vxc_calculator = EXXVXCCalculator(
-            gpwfile,
+            gpwfile, world=world,
             snapshotfile_prefix=filename)
 
         super().__init__(filename=filename,
@@ -1422,12 +1422,14 @@ class G0W0(G0W0Calculator):
 class EXXVXCCalculator:
     """EXX and Kohn-Sham XC contribution."""
 
-    def __init__(self, gpwfile, snapshotfile_prefix):
+    def __init__(self, gpwfile, snapshotfile_prefix, world=None):
         self._gpwfile = gpwfile
         self._snapshotfile_prefix = snapshotfile_prefix
+        self.world = world
 
     def calculate(self, n1, n2, kpt_indices):
-        calc = GPAW(self._gpwfile, parallel={'kpt': 1, 'band': 1})
+        calc = GPAW(self._gpwfile, parallel={'kpt': 1, 'band': 1}, 
+                **(dict(communicator=self.world) if self.world is not None else dict()))
 
         # To convert the LCAO wave functions, we need to add the
         # custom psit to all k-points which know how to convert
