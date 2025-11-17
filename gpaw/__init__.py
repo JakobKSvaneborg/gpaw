@@ -226,9 +226,9 @@ if debug:
 if TYPE_CHECKING:
     from gpaw.new.ase_interface import GPAW
 elif GPAW_NEW:
-    all_lazy_imports['GPAW'] = 'gpaw.new.ase_interface.GPAW'
+    all_lazy_imports['GPAW'] = 'gpaw.dft.GPAW'
 else:
-    all_lazy_imports['GPAW'] = 'gpaw.calculator.GPAW'
+    all_lazy_imports['GPAW'] = 'gpaw.old.calculator.GPAW'
 
 all_lazy_imports['get_calculation_info'] = 'gpaw.calcinfo.get_calculation_info'
 
