@@ -2,6 +2,7 @@ from datetime import date
 from pathlib import Path
 
 from ase.geometry.cell import cell_to_cellpar
+
 from gpaw.benchmark.performance_index import PARAMS, REFERENCES
 from gpaw.benchmark.systems import systems
 from gpaw.calcinfo import get_calculation_info

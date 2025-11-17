@@ -1,8 +1,8 @@
 import json
+from collections import defaultdict
+from io import StringIO
 from pathlib import Path
 from time import time
-from io import StringIO
-from collections import defaultdict
 
 import numpy as np
 from ase.geometry.cell import cell_to_cellpar
