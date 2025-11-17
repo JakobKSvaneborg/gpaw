@@ -7,6 +7,7 @@ import numpy as np
 from gpaw.mpi import broadcast
 from gpaw.utilities import (pack_atomic_matrices, unpack_atomic_matrices,
                             unpack_density, unpack_hermitian, packed_index)
+from gpaw import GPAW_NO_C_EXTENSION
 
 
 class PAWThings(NamedTuple):
@@ -48,7 +49,7 @@ def calculate_paw_stuff(wfs, dens) -> list[PAWThings]:
             for VV_aii in VV_saii]
 
 
-def python_pawexxvv(M_pp, D_ii):
+def pawexxvv(M_pp, D_ii):
     """PAW correction for valence-valence EXX energy."""
     ni = len(D_ii)
     V_ii = np.empty((ni, ni))
@@ -64,13 +65,9 @@ def python_pawexxvv(M_pp, D_ii):
     return V_ii
 
 
-pawexxvv = python_pawexxvv
+# Sometimes, we need this function (to test the pawexxvv C-version)
+# So we preserve it for the sake of this test
+python_pawexxvv = pawexxvv
 
-
-if not TYPE_CHECKING:
-    try:
-        from _gpaw import pawexxvv  # noqa: F811
-    except ImportError:
-        import warnings
-        warnings.warn('Please recompile GPAW binary. Using python '
-                      'version of pawexxvv instead of faster c version.')
+if not TYPE_CHECKING and not GPAW_NO_C_EXTENSION:
+    from _gpaw import pawexxvv  # noqa: F811

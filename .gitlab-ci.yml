@@ -431,6 +431,23 @@ test-cuda:
     - python -c 'import cupy; import cupyx; from cupy.cuda import runtime'
     - pytest -v -m gpu
 
+test-cuda-no-c:
+  image: $IMAGE_CUDA
+  extends:
+    - .test
+    - .gpu-job
+  needs:
+    - build-cuda
+  tags:
+    - cuda
+  script:
+    - nvidia-smi
+    - gpaw info
+    - python -c 'import cupy; import cupyx; from cupy.cuda import runtime'
+    - rm _gpaw.cpython-311-x86_64-linux-gnu.so
+    - python -c "import importlib; assert not importlib.util.find_spec('_gpaw'), '_gpaw module found'"
+    - GPAW_NO_C_EXTENSION=1 pytest -v -m gpu
+
 
 test-cuda-mpi:
   image: $IMAGE_CUDA

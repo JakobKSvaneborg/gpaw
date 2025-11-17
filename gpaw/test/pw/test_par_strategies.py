@@ -5,6 +5,8 @@ from gpaw import PW, FermiDirac
 from gpaw.new.ase_interface import GPAW as NewGPAW
 from gpaw import GPAW as AnyGPAW
 from gpaw.mpi import world
+from gpaw import GPAW_NO_C_EXTENSION
+
 
 # Domain and k-point parallelization:
 dk = []
@@ -41,6 +43,9 @@ def test_pw_par_strategies(in_tmp_dir, d, k, gpu, gpaw_new):
                       parallel=parallel,
                       kpts={'size': kpoints},
                       convergence={'density': 1e-6},
+                      **{'mixer': {'backend': 'fft'},
+                         'symmetry': 'off',
+                         'random': True} if GPAW_NO_C_EXTENSION else {},
                       occupations=FermiDirac(width=0.1))
 
     e = atoms.get_potential_energy()
@@ -50,9 +55,10 @@ def test_pw_par_strategies(in_tmp_dir, d, k, gpu, gpaw_new):
     assert f == pytest.approx(np.array([[0, 0, -0.776],
                                         [0, 0, 0.776]]), abs=0.001)
 
-    s = atoms.get_stress()
-    assert s == pytest.approx(
-        [0.0043, 0.0043, 0.0005, 0, 0, 0], abs=0.0001)
+    if not GPAW_NO_C_EXTENSION:
+        s = atoms.get_stress()
+        assert s == pytest.approx([0.0043, 0.0043, 0.0005, 0, 0, 0],
+                                  abs=0.0001)
 
     atoms.calc.write('hli.gpw', mode='all')
     GPAW('hli.gpw', txt=None)

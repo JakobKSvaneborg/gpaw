@@ -5,12 +5,16 @@ from gpaw.fd_operators import Laplace
 from gpaw.gpu import cupy as cp, cupy_is_fake
 from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.mpi import world
+from gpaw import GPAW_NO_C_EXTENSION
 
 
 @pytest.mark.gpu
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.parametrize('pbc', [True, False])
 def test_fd_laplace(pbc):
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
+
     if world.size > 4:
         # Grid is so small that domain decomposition cannot exceed 4 domains
         assert world.size % 4 == 0
