@@ -1,12 +1,11 @@
-import json
-import sys
-from collections import defaultdict
 from datetime import date
 from pathlib import Path
 
+from gpaw.benchmark.performance_index import REFERENCES
+
 data = [
     ('25.7.0',
-     date(2025, 7, 12),
+     date(2025, 7, 29),
      100.0,
      {'Bi2Se3-3': (-8.910533, 36.856, 27, 409858048,
                    -8.911295, 9.887, 7, 409858048),
@@ -35,12 +34,10 @@ data = [
       'LiC8-3': (-75.376528, 17.925, 15, 330757461,
                  -74.726254, 14.084, 15, 334673237),
       'Mo60S120-1': (-1291.310450, 3425.628, 26, 3817028266,
-                     -1283.968875, 2813.367, 23, 4080690517),
-      'Mn2O2-3M': (-6.155030, 91.080, 56, 87688533,
-                   -6.197848, 27.597, 17, 87972522)}),
+                     -1283.968875, 2813.367, 23, 4080690517)}),
     ('New-GPAW',
      date(2025, 11, 11),
-     96.0,
+     94.34,
      {'Ga2F4N4H10-3': (-99.089000, 83.415, 24, 604422144,
                        -99.088953, 25.010, 7, 605115733),
       'Bi2Se3-3': (-8.910534, 42.696, 27, 368381952,
@@ -71,83 +68,71 @@ data = [
                   -154.864683, 522.907, 38, 811485866),
       'Al96-2': (-350.062998, 1631.705, 58, 1342618282,
                  -350.074434, 418.302, 14, 1366504789),
-      'Mn2O2-3M': (-18.502299, 403.637, 209, 297435136,
-                   -18.519176, 43.579, 22, 297747797),
       'V3Cl6-2N': (-51.117282, 1386.783, 28, 612604586,
                    -51.218978, 1977.256, 41, 679058090),
       'Mo60S120-1': (-1291.310449, 3731.036, 28, 3222213973,
                      -1284.105503, 3209.293, 24, 3222213973)})]
 
 
-def compare(files: list[str]) -> None:
+def table() -> None:
+    tag, day, score, results = data[-1]
+    names = set()
+    for name in results:
+        names.add(name)
+    names = sorted(names, key=lambda name: name.split('-')[::-1])
+    lines = ['name, T1 [sec], I1, T2 [sec], I2, memory [Gbytes]']
+    for name in names:
+        e1, t1, i1, m1, e2, t2, i2, m2 = results[name]
+        lines.append(
+            f'{name:12}, '
+            f'{t1:6.1f}, {i1:3}, '
+            f'{t2:6.1f}, {i2:3}, '
+            f'{m2 * 1e-9:.2f}')
+    Path('benchmark.csv').write_text('\n'.join(lines) + '\n')
+
+
+def plot() -> None:
     import matplotlib.pyplot as plt
-
-    paths = [Path(f) for f in files]
-    data: defaultdict[
-        tuple[str, str, str, str],
-        dict[str, tuple[float, float, float]]] = defaultdict(dict)
-    versions = []
-    refname = f'{paths[0].stem}-new'
-    for path in paths:
-        for age in ['old', 'new']:
-            version = f'{path.stem}-{age}'
-            versions.append(version)
-            for d in json.loads(path.read_text()):
-                if d['calcinfo'] == age:
-                    cpus = str(d['mpi-ranks'])
-                    if d['mpi-ranks'] <= 4:
-                        cpus += 'G'
-                    id = (d['shortname'],
-                          d['longname'],
-                          d['processor'],
-                          cpus)
-                    data[id][version] = (d['First step'],
-                                         d['Second step'],
-                                         d['max_rss'])
-                    print(id, version)
-    versions.sort()
-    rows = [['number',
-             'name', 'processor', 'cores',
-             'step 1 [s]', 'step 2 [s]', 'max rss [GB]']]
-    for i, id in enumerate(sorted(data)):
-        d = data[id]
-        row = [str(i)] + list(id[1:])
-        if refname in d:
-            t1, t2, m = d[refname]
-            row += [f'{t1:.0f}', f'{t2:.0f}', f'{m * 1e-9:.1f}']
-            rows.append(row)
-    Path('table.csv').write_text(
-        '\n'.join(', '.join(row) for row in rows) + '\n')
-
-    X = [id[0] + ((' ' + id[3]) if id[3].endswith('G') else '')
-         for id in sorted(data)]
     fig, axs = plt.subplots(3, 1, figsize=(9, 9))
-    for n, (name, ax) in enumerate(zip(['First step',
-                                        'Second step',
-                                        'max_rss'],
-                                       axs)):
-        for version in versions:
+    titles = [
+        'Total time [%]',
+        'Second step [%]',
+        'max_rss [Gbytes]']
+    names = set()
+    for tag, day, score, results in data:
+        for name in results:
+            names.add(name)
+    names = sorted(names, key=lambda name: name.split('-')[::-1])
+
+    for n, (title, ax) in enumerate(zip(titles, axs)):
+        for tag, day, score, results in data:
             Y = []
-            for id in sorted(data):
-                d = data[id]
-                if version in d and refname in d:
-                    y = d[version][n] / d[refname][n] * 100 - 100
+            for name in names:
+                if name in results:
+                    r = results[name]
+                    if n == 0:
+                        y = 100 * (r[1] + r[5]) / REFERENCES[name][3]
+                    elif n == 1:
+                        y = 100 * r[5] / (r[1] + r[5])
+                    else:
+                        y = r[7] * 1e-9
                 else:
                     y = None
                 Y.append(y)
-            ax.plot(Y, 'x-', label=version)
-        ax.set_ylabel(name + ' [%]')
+            ax.plot(Y, 'x-', label=f'{day} ({score:.1f})')
+        ax.set_ylabel(title)
         if n == 2:
-            ax.set_xticks(range(len(X)), X, rotation=70, ha='center')
+            ax.set_xticks(range(len(names)), names, rotation=70, ha='center')
             ax.legend()
         else:
             ax.set_xticklabels([])
 
     plt.tight_layout()
-    plt.savefig('table.png')
+    plt.savefig('benchmark.png')
 
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    compare(sys.argv[1:])
+    table()
+    plot()
     plt.show()

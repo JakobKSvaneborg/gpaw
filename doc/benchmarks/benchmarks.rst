@@ -1,11 +1,22 @@
 Benchmarks
 ==========
 
-Reference results for version 25.1.0 (:ref:`newgpaw`):
+===== ============
+cores architecture
+===== ============
+24    xeon...
+40
+56
+===== ============
+
+* Python
+* Numpy
+* Scipy
+* 2025b
+
+.. image:: benchmark.png
+
+Results for latest development version :
 
 .. csv-table::
-    :file: table.csv
-
-Changes relative to 25.1.0 (:ref:`newgpaw`):
-
-.. image:: table.png
+    :file: benchmark.csv

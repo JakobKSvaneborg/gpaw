@@ -27,8 +27,8 @@ PARAMS = dict(
 # 4) time in seconds
 #
 # Initial set of 14 materials for the first bechmark-run
-# with old GPAW (master branch Nov. 11 2025):
-REFERENCES1 = {
+# with old GPAW (version 25.7.0):
+REFERENCES0 = {
     'Bi2Se3-3': (-21.46195, -0.18655, 24, 46.74),
     'C60-0': (-530.92535, -0.44820, 24, 204.56),
     'C72-2': (-530.92535, -0.44820, 24, 389.18),
@@ -44,17 +44,18 @@ REFERENCES1 = {
     'VI2-2M': (-9.29013, -0.77486, 24, 31.65),
     'Ti2Br6-3': (-32.64699, -0.00286, 24, 155.44)}
 
-# New materials for second run:
-REFERENCES2 = {
-    'MnVS2-2M': (-29.11777, -0.00014, 24, 114.44),
-    'PtLi2O6-2M': (0.0, 0.0, 24, 2500),
-    'ErGe-2M': (0.0, 0.0, 24, 2500),
-    'V3Cl6-2N': (0.0, 0.0, 24, 333),
-    'Mn2O2-3M': (0.0, 0.0, 24, 439.9),
-    'Fe8O8-3M': (0.0, 0.0, 40, 1000)}
+# New materials for second run
+# (new GPAW, master branch Nov. 11 2025):
+REFERENCES0 |= {
+    'MnVS2-2M': (-29.11777, -0.00014, 24, 98.608),
+    'PtLi2O6-2M': (0.0, 0.0, 24, 454.22),
+    'V3Cl6-2N': (0.0, 0.0, 24, 3364.039)}
+RESCALE_FACTOR = 17 * 0.9434 / (14 * 0.9434 + 3)
 
-REFERENCES = REFERENCES1 | REFERENCES2
-RESCALE_FACTOR = 1.0
+REFERENCES = REFERENCES0 | {
+    'ErGe-2M': (0.0, 0.0, 24, 9999999),
+    'Mn2O2-3M': (0.0, 0.0, 24, 9999999),
+    'Fe8O8-3M': (0.0, 0.0, 40, 9999999)}
 
 
 def score(data: dict[str, float]) -> tuple[float, int]:
@@ -76,11 +77,11 @@ def score(data: dict[str, float]) -> tuple[float, int]:
     """
     s = 0.0
     n = 0
-    for name, (_, _, _, tref) in REFERENCES1.items():
+    for name, (_, _, _, tref) in REFERENCES0.items():
         if name in data:
             s += tref / data[name]
             n += 1
-    return 100 * RESCALE_FACTOR * s / len(REFERENCES1), n
+    return 100 * RESCALE_FACTOR * s / len(REFERENCES0), n
 
 
 def workflow():
@@ -293,4 +294,3 @@ def main(arguments: list[str] | None = None):
 
 if __name__ == '__main__':
     main()
-

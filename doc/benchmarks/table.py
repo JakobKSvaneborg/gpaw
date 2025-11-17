@@ -1,3 +1,4 @@
-# creates: table.csv, table.png
-from gpaw.benchmark.plot import compare
-compare(['25.1.0.json', 'master.json'])
+# creates: benchmark.csv, benchmark.png
+from gpaw.benchmark.plot import table, plot
+plot()
+table()
