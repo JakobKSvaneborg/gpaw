@@ -21,6 +21,7 @@ GPAW calculator:
    lcao/lcao
    mom/mom
    do/do
+   do/do_convergence
    do-gmf/do-gmf
    smearing
    ofdft/ofdft

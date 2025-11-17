@@ -15,6 +15,7 @@ from gpaw.new.pw.poisson import PWPoissonSolver
 from gpaw.mpi import world
 from gpaw.gpu import cupy as cp
 from gpaw.gpu.mpi import CuPyMPI
+from gpaw import GPAW_NO_C_EXTENSION
 
 
 def g(rc, rgd):
@@ -62,6 +63,9 @@ def force(charges, a):
                           pytest.param(cp, marks=pytest.mark.gpu)])
 def test_psolve(xp):
     """Unit-test for Blöchl's fast Poisson-solver."""
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
+
     comm = CuPyMPI(world)
     rgd = RGD(0.01, 500)
     rc1 = 0.6
