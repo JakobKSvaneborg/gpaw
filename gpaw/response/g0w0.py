@@ -1429,8 +1429,7 @@ class EXXVXCCalculator:
 
     def calculate(self, n1, n2, kpt_indices):
         calc = GPAW(self._gpwfile, parallel={'kpt': 1, 'band': 1},
-                    **(dict(communicator=self.world)
-                       if self.world is not None else dict()))
+                    communicator=self.world)
 
         # To convert the LCAO wave functions, we need to add the
         # custom psit to all k-points which know how to convert
