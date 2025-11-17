@@ -1,7 +1,12 @@
 from datetime import date
 from pathlib import Path
 
-from gpaw.benchmark.performance_index import REFERENCES
+from ase.geometry.cell import cell_to_cellpar
+from gpaw.benchmark.performance_index import PARAMS, REFERENCES
+from gpaw.benchmark.systems import systems
+from gpaw.calcinfo import get_calculation_info
+
+NAMES = sorted(REFERENCES, key=lambda name: name.split('-')[::-1])
 
 data = [
     ('25.7.0',
@@ -74,14 +79,12 @@ data = [
                      -1284.105503, 3209.293, 24, 3222213973)})]
 
 
-def table() -> None:
+def tables() -> None:
     tag, day, score, results = data[-1]
-    names = set()
-    for name in results:
-        names.add(name)
-    names = sorted(names, key=lambda name: name.split('-')[::-1])
     lines = ['name, T1 [sec], I1, T2 [sec], I2, memory [Gbytes]']
-    for name in names:
+    for name in NAMES:
+        if name not in results:
+            continue
         e1, t1, i1, m1, e2, t2, i2, m2 = results[name]
         lines.append(
             f'{name:12}, '
@@ -89,6 +92,23 @@ def table() -> None:
             f'{t2:6.1f}, {i2:3}, '
             f'{m2 * 1e-9:.2f}')
     Path('benchmark.csv').write_text('\n'.join(lines) + '\n')
+
+    lines = [
+        'name, cores, IBZ, bands, '
+        'a [Å], b [Å], c [Å], '
+        'A [°], B [°], C [°]']
+    for name in NAMES:
+        e, de, cores, t = REFERENCES[name]
+        atoms = systems[name]()
+        atoms.write(f'{name}.xyz')
+        info = get_calculation_info(atoms, **PARAMS)
+        a, b, c, A, B, C = cell_to_cellpar(atoms.cell)
+        lines.append(
+            f':download:`{name} <{name}.xyz>`, {cores}, '
+            f'{len(info.ibz)}, {info.nbands}, '
+            f'{a:.1f}, {b:.1f}, {c:.1f}, '
+            f'{A:.1f}, {B:.1f}, {C:.1f}')
+    Path('systems.csv').write_text('\n'.join(lines) + '\n')
 
 
 def plot() -> None:
@@ -98,16 +118,11 @@ def plot() -> None:
         'Total time [%]',
         'Second step [%]',
         'max_rss [Gbytes]']
-    names = set()
-    for tag, day, score, results in data:
-        for name in results:
-            names.add(name)
-    names = sorted(names, key=lambda name: name.split('-')[::-1])
 
     for n, (title, ax) in enumerate(zip(titles, axs)):
         for tag, day, score, results in data:
             Y = []
-            for name in names:
+            for name in NAMES:
                 if name in results:
                     r = results[name]
                     if n == 0:
@@ -122,7 +137,7 @@ def plot() -> None:
             ax.plot(Y, 'x-', label=f'{day} ({score:.1f})')
         ax.set_ylabel(title)
         if n == 2:
-            ax.set_xticks(range(len(names)), names, rotation=70, ha='center')
+            ax.set_xticks(range(len(NAMES)), NAMES, rotation=70, ha='center')
             ax.legend()
         else:
             ax.set_xticklabels([])
@@ -133,6 +148,6 @@ def plot() -> None:
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    table()
+    tables()
     plot()
     plt.show()

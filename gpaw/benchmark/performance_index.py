@@ -89,10 +89,12 @@ def workflow():
     from myqueue.workflow import run
     for name, (_, _, cores, _) in REFERENCES.items():
         tmax = '1h'
-        nodename = None
+        if cores == 24:
+            nodename = 'xeon25el8'
         if cores == 40:
             nodename = 'xeon40el8_clx'
         elif cores == 56:
+            nodename = 'xeon56'
             tmax = '3h'
 
         run(function=work,
@@ -244,7 +246,7 @@ def summary(folders: list[Path], mode: int) -> None:
 
 
 def average(folders: list[Path]) -> None:
-    data = defaultdict(float)
+    data: dict[str, np.ndarray] = defaultdict(lambda: np.zeros(8))
     for folder in folders:
         for path in folder.glob('*.json'):
             x = json.loads(path.read_text())
