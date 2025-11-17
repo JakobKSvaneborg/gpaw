@@ -243,7 +243,7 @@ class GPAW(Calculator):
             # Backwards compatibility
             params['gpts'] = self.density.gd.N_c
 
-        calc = GPAW(communicator=communicator,
+        calc = GPAW(communicator=communicator or self.world,
                     txt=txt,
                     parallel=parallel,
                     **params)
