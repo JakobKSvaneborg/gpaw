@@ -208,7 +208,6 @@ class GPAW(Calculator):
 
     def fixed_density(self, *,
                       update_fermi_level: bool = False,
-                      communicator=None,
                       txt='-',
                       parallel: dict[str, Any] = None,
                       **kwargs) -> 'GPAW':
@@ -243,7 +242,7 @@ class GPAW(Calculator):
             # Backwards compatibility
             params['gpts'] = self.density.gd.N_c
 
-        calc = GPAW(communicator=communicator,
+        calc = GPAW(communicator=self.world,
                     txt=txt,
                     parallel=parallel,
                     **params)

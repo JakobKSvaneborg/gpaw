@@ -10,6 +10,7 @@ Git master branch
 
 :git:`master <>`.
 
+* Minimum version requirements: Python 3.10, ASE 3.25.0.
 
 * :ref:`newgpaw`: Calculations can now be parallelized over
   spins.

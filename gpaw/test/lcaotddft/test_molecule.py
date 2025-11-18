@@ -40,7 +40,6 @@ def initialize_system(nacl_nospin):
 
     # Calculate ground state with full unoccupied space
     unocc_calc = calc.fixed_density(nbands='nao',
-                                    communicator=comm,
                                     txt='unocc.out')
     unocc_calc.write('unocc.gpw', mode='all')
     return unocc_calc, fdm
