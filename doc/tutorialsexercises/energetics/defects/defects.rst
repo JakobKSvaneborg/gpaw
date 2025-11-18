@@ -233,7 +233,7 @@ the data using the following script
 
 This gives the following plot:
 
-.. image:: planaraverages.png
+.. image:: planar_averages.png
            :scale: 50 %
 
 According to the recipe introduced above, we extract the constant `\Delta V`

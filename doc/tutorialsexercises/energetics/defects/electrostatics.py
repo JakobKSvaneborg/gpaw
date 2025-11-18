@@ -10,7 +10,7 @@ epsilon = 12.7
 corrected = []
 uncorrected = []
 profiles = []
-repeats = [1, 2]
+repeats = [1, 2, 3]
 for N in repeats:
     label = f'GaAs_{N}x{N}x{N}'
     prs_path = Path(f'{label}_prs.gpw')
