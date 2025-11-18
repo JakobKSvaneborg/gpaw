@@ -127,9 +127,16 @@ def pw_insert_gpu(psit_nG,
 def pwlfc_expand(f_Gs, Gk_Gv, pos_av, eikR_a,
                  Y_GL, l_s, a_J, s_J,
                  cc, f_GI, xp=np):
-    emiGR_Ga = Gk_Gv @ pos_av.T
-    emiGR_Ga = \
-        (xp.cos(emiGR_Ga) - 1j * xp.sin(emiGR_Ga)) * eikR_a
+    GkR_Ga = Gk_Gv @ pos_av.T
+    emiGR_Ga = np.exp(-1j * GkR_Ga) * eikR_a
+    pwlfc_expand_old(f_Gs, emiGR_Ga,
+                     Y_GL, l_s, a_J, s_J,
+                     cc, f_GI, xp=xp)
+
+
+def pwlfc_expand_old(f_Gs, emiGR_Ga,
+                     Y_GL, l_s, a_J, s_J,
+                     cc, f_GI, xp=np):
     real = np.issubdtype(f_GI.dtype, np.floating)
     I1 = 0
     for J, (a, s) in enumerate(zip(a_J, s_J)):
