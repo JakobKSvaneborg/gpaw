@@ -26,6 +26,14 @@ Default parameters except:
 * 14 electron potential for Cr
 
 
+PW-mode performance index
+=========================
+
+.. autofunction:: gpaw.benchmark.performance_index.score
+
+.. image:: score.png
+
+
 Results
 =======
 
