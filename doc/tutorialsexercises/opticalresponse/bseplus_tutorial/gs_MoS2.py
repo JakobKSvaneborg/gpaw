@@ -1,7 +1,7 @@
 from gpaw import GPAW, PW, FermiDirac
 from ase.build import mx2
 
-slab = mx2('MoS2', a=3.1841, thickness=3.1271, vacuum=7.5)
+slab = mx2('MoS2', kind='2H', a=3.1841, thickness=3.1271, vacuum=7.5)
 
 name_calc = 'calc_MoS2_BSEPlus'
 calc_bse = 'fixed_density_calc_MoS2_bse'
