@@ -320,7 +320,3 @@ References
 
 .. [#Komsa] H.-P. Komsa, T. T. Rantala and A. Pasquarello
               *Phys. Rev. B* **86**, 045112 (2012)
-
-.. [#KomsaErratum] H.-P. Komsa, N. Berseneva, A. V. Krasheninnikov and
-              R. M. Nieminen
-              *Phys Rev X* **4**, 031044 (2014)
