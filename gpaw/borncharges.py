@@ -1,9 +1,11 @@
-import numpy as np
-from gpaw.mpi import world
-from gpaw.berryphase import polarization_phase, ionic_phase
-from ase.parallel import paropen, parprint
-from ase.io.jsonio import write_json, read_json
 from pathlib import Path
+
+import numpy as np
+from ase.io.jsonio import read_json, write_json
+from ase.parallel import paropen, parprint
+
+from gpaw.berryphase import ionic_phase, polarization_phase
+from gpaw.mpi import world
 
 
 def born_charges_wf(atoms, calc, delta=0.01, cleanup=False,

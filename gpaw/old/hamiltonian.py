@@ -5,9 +5,9 @@ import functools
 import numpy as np
 from ase.units import Ha
 
-from gpaw.old.arraydict import ArrayDict
 from gpaw.external import create_external_potential
 from gpaw.lfc import LFC
+from gpaw.old.arraydict import ArrayDict
 from gpaw.poisson import PoissonSolver
 from gpaw.spinorbit import soc
 from gpaw.transformers import Transformer

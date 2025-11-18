@@ -30,7 +30,13 @@ Example
 
 If you want to converge the unoccupied orbitals too then set:
 
-* ``converge_unocc=True``.
+* ``converge_unocc=True``
+
+.. warning::
+
+   The use of ``converge_unocc=True`` is **not recommended**, as it may lead
+   to incorrect results.  
+   It is safer to always keep ``converge_unocc=False``.
 
 LCAO mode
 ----------

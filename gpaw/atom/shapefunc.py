@@ -1,4 +1,5 @@
 import numpy as np
+
 from .radialgd import RadialGridDescriptor
 
 
@@ -39,10 +40,11 @@ def shape_functions(rgd: RadialGridDescriptor,
 
 
 if __name__ == '__main__':
-    from .radialgd import EquidistantRadialGridDescriptor as RGD
-    from scipy.special import spherical_jn as jn
-    from scipy.optimize import root
     import matplotlib.pyplot as plt
+    from scipy.optimize import root
+    from scipy.special import spherical_jn as jn
+
+    from .radialgd import EquidistantRadialGridDescriptor as RGD
 
     r = np.linspace(0, 1.2, 200)
 

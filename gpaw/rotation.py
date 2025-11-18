@@ -1,12 +1,11 @@
 # Copyright (C) 2003  CAMP
 # Please see the accompanying LICENSE file for further information.
 
-from math import sqrt, cos, sin
+from math import cos, sin, sqrt
 
 import numpy as np
 
 from gpaw.sphere.spherical_harmonics import Y
-
 
 s = sqrt(0.5)
 t = sqrt(3) / 3

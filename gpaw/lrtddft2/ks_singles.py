@@ -1,18 +1,13 @@
+import io
 import os
 
-import io
-
+import ase.units
 import numpy as np
 
-import ase.units
-
 import gpaw.mpi
-
-from gpaw.utilities.tools import coordinates
-from gpaw.utilities.tools import pick
-from gpaw.utilities import pack_density
-
 from gpaw.fd_operators import Gradient
+from gpaw.utilities import pack_density
+from gpaw.utilities.tools import coordinates, pick
 
 
 class KohnShamSingleExcitation:

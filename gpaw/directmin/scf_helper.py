@@ -1,10 +1,9 @@
 import warnings
-import numpy as np
 
+import numpy as np
 from ase.units import Ha
 
-from gpaw.directmin.tools import (sort_orbitals_according_to_energies,
-                                  get_n_occ)
+from gpaw.directmin.tools import get_n_occ, sort_orbitals_according_to_energies
 
 
 def do_if_converged(eigensolver_name, wfs, ham, dens, log):

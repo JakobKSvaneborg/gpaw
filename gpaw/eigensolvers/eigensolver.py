@@ -6,8 +6,8 @@ from ase.dft.bandgap import _bandgap
 from ase.units import Ha
 from ase.utils.timing import timer
 
-from gpaw.old.matrix import matrix_matrix_multiply as mmm
 from gpaw.mpi import broadcast_exception
+from gpaw.old.matrix import matrix_matrix_multiply as mmm
 from gpaw.utilities.blas import axpy
 from gpaw.xc.hybrid import HybridXC
 

@@ -26,12 +26,12 @@ FD and PW modes:
 
 import time
 
+import numpy as np
 from ase.parallel import parprint
 from ase.units import Hartree
 from ase.utils import basestring
-import numpy as np
 
-from gpaw.directmin import search_direction, line_search_algorithm
+from gpaw.directmin import line_search_algorithm, search_direction
 from gpaw.directmin.fdpw.etdm_inner_loop import ETDMInnerLoop
 from gpaw.directmin.fdpw.pz_localization import PZLocalization
 from gpaw.directmin.functional.fdpw import get_functional

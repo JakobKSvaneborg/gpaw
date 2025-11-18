@@ -1,8 +1,8 @@
 import numpy as np
 from ase.units import Ha
 
-from gpaw.xc import XC
 from gpaw.utilities import pack_hermitian, unpack_density, unpack_hermitian
+from gpaw.xc import XC
 
 
 def vxc(gs, xc=None, coredensity=True, n1=0, n2=0):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+
 from gpaw.core import UGArray, UGDesc
 from gpaw.new.builder import create_uniform_grid
 from gpaw.new.fd.hamiltonian import FDHamiltonian

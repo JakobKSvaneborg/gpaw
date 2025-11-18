@@ -1,7 +1,8 @@
-import pytest
 import numpy as np
-from gpaw.response.df import DielectricFunction
+import pytest
+
 from gpaw.response.bse import BSE, read_spectrum
+from gpaw.response.df import DielectricFunction
 from gpaw.test import findpeak
 
 

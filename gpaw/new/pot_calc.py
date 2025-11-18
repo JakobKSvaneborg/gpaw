@@ -17,6 +17,7 @@ from typing import DefaultDict
 
 import numpy as np
 from ase.units import Ha
+
 from gpaw.core.arrays import DistributedArrays
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.uniform_grid import UGArray

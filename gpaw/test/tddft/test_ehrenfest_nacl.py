@@ -1,6 +1,7 @@
+import pytest
+
 from gpaw.tddft import TDDFT
 from gpaw.tddft.ehrenfest import EhrenfestVelocityVerlet
-import pytest
 
 
 @pytest.mark.old_gpaw_only

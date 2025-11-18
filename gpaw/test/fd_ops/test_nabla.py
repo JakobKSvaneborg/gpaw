@@ -1,9 +1,10 @@
 import numpy as np
+
+from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
 from gpaw.old.grid_descriptor import GridDescriptor
-from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
-from gpaw.spline import Spline
 from gpaw.setup import Setup
+from gpaw.spline import Spline
 
 
 def test_fd_ops_nabla():

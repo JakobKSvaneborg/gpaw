@@ -1,22 +1,16 @@
 # flake8: noqa
+import numpy as np
 import pytest
 from ase import Atoms
-from ase.units import Pascal, m
 from ase.data.vdw import vdw_radii
-from gpaw.mpi import rank
-from gpaw import Mixer
-from gpaw.solvation import (
-    SolvationGPAW,
-    EffectivePotentialCavity,
-    Power12Potential,
-    LinearDielectric,
-    KB51Volume,
-    GradientSurface,
-    VolumeInteraction,
-    SurfaceInteraction,
-    LeakedDensityInteraction)
+from ase.units import Pascal, m
 
-import numpy as np
+from gpaw import Mixer
+from gpaw.mpi import rank
+from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
+                            KB51Volume, LeakedDensityInteraction,
+                            LinearDielectric, Power12Potential, SolvationGPAW,
+                            SurfaceInteraction, VolumeInteraction)
 
 SKIP_ENERGY_CALCULATION = True
 F_max_err = 0.005

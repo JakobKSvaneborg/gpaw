@@ -21,11 +21,11 @@ from gpaw.new.lcao.builder import create_lcao_ibzwfs
 from gpaw.new.lcao.hamiltonian import CollinearHamiltonianMatrixCalculator
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.new.pot_calc import PotentialCalculator
+from gpaw.new.scf import SCFContext
 from gpaw.setup import Setup
 from gpaw.spline import Spline
-from gpaw.utilities.timing import NullTimer
 from gpaw.typing import Array3D
-from gpaw.new.scf import SCFContext
+from gpaw.utilities.timing import NullTimer
 
 
 class TBHamiltonianMatrixCalculator(CollinearHamiltonianMatrixCalculator):

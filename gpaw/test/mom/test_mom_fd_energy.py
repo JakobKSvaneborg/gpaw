@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from ase.build import molecule
+
 from gpaw import GPAW, restart
 from gpaw.mom import prepare_mom_calculation
 

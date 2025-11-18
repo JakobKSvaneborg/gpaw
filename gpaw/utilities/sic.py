@@ -3,10 +3,10 @@ from math import pi
 import numpy as np
 from ase.units import Hartree
 
-from gpaw.xc.sic import SIC
-from gpaw.atom.generator import Generator
 from gpaw.atom.configurations import parameters
+from gpaw.atom.generator import Generator
 from gpaw.utilities import hartree
+from gpaw.xc.sic import SIC
 
 
 class NSCFSIC:

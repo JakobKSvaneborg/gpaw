@@ -1,11 +1,10 @@
 from math import pi, sqrt
 
 import numpy as np
-
 from ase.units import Bohr
 
 from gpaw.atom.all_electron import AllElectron
-from gpaw.sphere.lebedev import weight_n, R_nv
+from gpaw.sphere.lebedev import R_nv, weight_n
 
 
 # XXX why on earth is this necessary?

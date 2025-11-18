@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from math import pi
 from typing import TYPE_CHECKING, Literal
-from collections.abc import Sequence
 
 import numpy as np
 from ase.units import Ha
@@ -13,17 +13,16 @@ from gpaw.core.arrays import DistributedArrays
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
 from gpaw.core.pwacf import PWAtomCenteredFunctions
+from gpaw.fftw import get_efficient_fft_size
 from gpaw.gpu import cupy as cp
-from gpaw.new.c import pw_norm_kinetic_gpu, pw_norm_gpu
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import prod, zips
 from gpaw.new.c import (add_to_density, add_to_density_gpu, pw_insert,
-                        pw_insert_gpu)
+                        pw_insert_gpu, pw_norm_gpu, pw_norm_kinetic_gpu)
 from gpaw.old.pw.descriptor import pad
 from gpaw.typing import (Array1D, Array2D, Array3D, ArrayLike1D, ArrayLike2D,
                          Vector)
-from gpaw.fftw import get_efficient_fft_size
-from gpaw.utilities import as_real_dtype, as_complex_dtype
+from gpaw.utilities import as_complex_dtype, as_real_dtype
 
 if TYPE_CHECKING:
     from gpaw.core import UGArray, UGDesc
@@ -262,13 +261,15 @@ class PWDesc(Domain['PWArray']):
                                 qspiral_v=None,
                                 atomdist=None,
                                 integrals=None,
+                                save_memory=True,
                                 cut=False,
                                 xp=None):
         """Create PlaneWaveAtomCenteredFunctions object."""
         if qspiral_v is None:
             return PWAtomCenteredFunctions(functions, positions, self,
                                            atomdist=atomdist,
-                                           xp=xp, integrals=integrals)
+                                           xp=xp, integrals=integrals,
+                                           save_memory=save_memory)
 
         from gpaw.new.spinspiral import SpiralPWACF
         return SpiralPWACF(functions, positions, self,

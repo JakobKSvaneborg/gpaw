@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from ase import Atoms
+
 from gpaw import FermiDirac
 from gpaw.new.ase_interface import GPAW
 from gpaw.new.sjm import SJM

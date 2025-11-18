@@ -4,11 +4,12 @@ from math import pi
 
 import numpy as np
 from ase.units import Bohr, Ha
-from gpaw.core import PWArray, PWDesc, UGDesc
-from gpaw.new.poisson import PoissonSolver
 from scipy.sparse.linalg import LinearOperator, cg
 from scipy.special import erf
+
 from gpaw import get_scipy_version
+from gpaw.core import PWArray, PWDesc, UGDesc
+from gpaw.new.poisson import PoissonSolver
 
 if get_scipy_version() >= [1, 14]:
     RTOL = 'rtol'

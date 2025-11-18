@@ -1,7 +1,8 @@
 import numpy as np
+
 from gpaw.core import PWDesc
 from gpaw.mpi import broadcast_float
-from gpaw.new import zips, spinsum, trace
+from gpaw.new import spinsum, trace, zips
 from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.pw.stress import calculate_stress
 from gpaw.setup import Setups

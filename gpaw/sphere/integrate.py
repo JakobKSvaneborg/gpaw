@@ -1,10 +1,9 @@
 import numpy as np
-
 from scipy.optimize import minimize
 
-from gpaw.spline import Spline
 from gpaw.lfc import LocalizedFunctionsCollection
 from gpaw.sphere.lebedev import weight_n
+from gpaw.spline import Spline
 
 
 def integrate_lebedev(f_nx):

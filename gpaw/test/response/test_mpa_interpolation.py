@@ -1,10 +1,11 @@
-import numpy as np
 from time import time
 
-from gpaw.response.mpa_sampling import mpa_frequency_sampling
-from gpaw.response.mpa_interpolation import RESolver, fit_residue
+import numpy as np
 
-from .mpa_interpolation_scalar import mpa_RE_solver, mpa_R_fit, Xeval
+from gpaw.response.mpa_interpolation import RESolver, fit_residue
+from gpaw.response.mpa_sampling import mpa_frequency_sampling
+
+from .mpa_interpolation_scalar import Xeval, mpa_R_fit, mpa_RE_solver
 
 
 def test_pole_reduction(in_tmp_dir):

@@ -1,8 +1,8 @@
 import pytest
 from ase import Atoms
 
-from gpaw.dft import GPAW
 from gpaw import GPAW_NO_C_EXTENSION
+from gpaw.dft import GPAW
 
 
 @pytest.mark.gpu

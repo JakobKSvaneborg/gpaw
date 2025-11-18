@@ -1,6 +1,7 @@
-import pytest
 import numpy as np
+import pytest
 from ase.parallel import parprint
+
 from gpaw import GPAW
 from gpaw.mpi import world
 

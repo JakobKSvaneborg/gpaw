@@ -4,6 +4,7 @@ import numpy as np
 from ase import Atoms
 from ase.build import add_adsorbate, bulk, fcc111, graphene, molecule, mx2
 from ase.lattice.hexagonal import Graphene
+
 from gpaw.benchmark.generate_twisted import make_heterostructure
 
 
@@ -135,7 +136,7 @@ def lic8():
 
 def vii():
     atoms = mx2('VII', a=4.12, kind='1T', thickness=3.13)
-    atoms.center(vacuum=5.0)
+    atoms.center(vacuum=5.0, axis=2)
     atoms[0].magmom = 3.0
     return atoms
 
@@ -351,7 +352,7 @@ systems = {'H2': system_H2,
            'C2-3': system_diamond,
            'magbulk': system_magbulk,
            'Fe8-3M': system_magbulk,
-           'LiC8-2': lic8,
+           'LiC8-3': lic8,
            'VI2-2M': vii,
            'Bi2Se3-3': bi2se3,
            'Ga2F4N4H10-3': ganfh,

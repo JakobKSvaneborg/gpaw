@@ -1,6 +1,7 @@
 """Test EXX/HFT implementation."""
 import pytest
 from ase import Atoms
+
 from gpaw import GPAW
 from gpaw.xc import XC
 from gpaw.xc.hybrid import HybridXC

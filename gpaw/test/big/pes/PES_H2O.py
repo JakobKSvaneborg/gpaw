@@ -2,6 +2,7 @@
 
 import numpy as np
 from ase import Atom, Atoms
+
 from gpaw import GPAW, MixerDif, mpi
 from gpaw.lrtddft import LrTDDFT
 from gpaw.pes.dos import DOSPES

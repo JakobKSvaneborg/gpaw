@@ -57,6 +57,7 @@ class TCM:
 
     def __getattr__(self, attr):
         import matplotlib.pyplot as plt
+
         # Generate axis only when needed
         if attr in ['ax_occ_dos', 'ax_unocc_dos', 'ax_tcm']:
             gs = generate_gridspec(hspace=0.05, wspace=0.05)
@@ -78,7 +79,7 @@ class TCM:
                  log=False, colorbar=True, lw=None):
         import matplotlib as mpl
         import matplotlib.pyplot as plt
-        from matplotlib.colors import Normalize, LogNorm
+        from matplotlib.colors import LogNorm, Normalize
         if lw is None:
             lw = mpl.rcParams['lines.linewidth']
         energy_o = self.energy_o

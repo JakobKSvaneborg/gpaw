@@ -1,7 +1,8 @@
-import pytest
 import numpy as np
+import pytest
 from ase.build import bulk, graphene
 from ase.build.supercells import make_supercell
+
 from gpaw import GPAW
 from gpaw.defects import ElectrostaticCorrections
 from gpaw.defects.old_electrostatic import OldElectrostaticCorrections

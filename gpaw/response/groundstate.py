@@ -1,24 +1,23 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Union
-from pathlib import Path
-from functools import cached_property
-from types import SimpleNamespace
-from typing import TYPE_CHECKING
-import numpy as np
 
-from ase.units import Ha, Bohr
+from dataclasses import dataclass
+from functools import cached_property
+from pathlib import Path
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Union
+
+import numpy as np
+from ase.units import Bohr, Ha
 
 import gpaw.mpi as mpi
 from gpaw.ibz2bz import IBZ2BZMaps
-from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.new.ase_interface import ASECalculator as NewGPAW
+from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.response.paw import LeanPAWDataset
-
 from gpaw.utilities.gpts import pw_ecut_from_lcao_grid
 
 if TYPE_CHECKING:
-    from gpaw.setup import Setups, LeanSetup
+    from gpaw.setup import LeanSetup, Setups
 
 
 class PAWDatasetCollection:
@@ -388,6 +387,7 @@ class ResponseGroundStateAdapter:
     def get_ibz_vertices(self):
         # For the tetrahedron method in Chi0
         from gpaw.bztools import get_bz
+
         # NB: We are ignoring the pbc_c keyword to get_bz() in order to mimic
         # find_high_symmetry_monkhorst_pack() in gpaw.bztools. XXX
         _, ibz_vertices_kc, _ = get_bz(self._calc)

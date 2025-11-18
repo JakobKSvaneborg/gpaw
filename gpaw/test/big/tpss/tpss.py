@@ -1,7 +1,8 @@
 from ase import Atoms
 from ase.build import molecule
 from ase.parallel import paropen
-from gpaw import GPAW, Mixer, MixerDif, GPAW_NEW
+
+from gpaw import GPAW, GPAW_NEW, Mixer, MixerDif
 from gpaw.utilities.tools import split_formula
 
 cell = [14.4, 14.4, 14.4]

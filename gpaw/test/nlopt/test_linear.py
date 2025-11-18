@@ -1,5 +1,5 @@
-import pytest
 import numpy as np
+import pytest
 
 from gpaw.mpi import world
 from gpaw.nlopt.basic import NLOData

@@ -1,14 +1,13 @@
 from pathlib import Path
+
 import numpy as np
-
 from ase.units import Hartree
-
-from gpaw.response.qpd import SingleQPWDescriptor
 
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.pair_integrator import DynamicPairFunction
 from gpaw.response.pw_parallelization import (Blocks1D,
                                               PlaneWaveBlockDistributor)
+from gpaw.response.qpd import SingleQPWDescriptor
 
 
 class LatticePeriodicPairFunction(DynamicPairFunction):

@@ -1,17 +1,18 @@
 """Test functionality to compute the four-component susceptibility tensor for
 the Kohn-Sham system."""
 
-from itertools import product, combinations
+from itertools import combinations, product
 
 import numpy as np
 import pytest
+
 from gpaw import GPAW
 from gpaw.mpi import world
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
+from gpaw.response.chi0 import Chi0Calculator
+from gpaw.response.chiks import ChiKSCalculator, SelfEnhancementCalculator
 from gpaw.response.frequencies import (ComplexFrequencyDescriptor,
                                        FrequencyDescriptor)
-from gpaw.response.chiks import ChiKSCalculator, SelfEnhancementCalculator
-from gpaw.response.chi0 import Chi0Calculator
 from gpaw.response.pair_functions import (get_inverted_pw_mapping,
                                           get_pw_coordinates)
 from gpaw.test.gpwfile import response_band_cutoff

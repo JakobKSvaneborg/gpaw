@@ -1,17 +1,15 @@
-import pytest
-
 import numpy as np
+import pytest
 
 from gpaw import GPAW
 from gpaw.mpi import world
-from gpaw.response import ResponseGroundStateAdapter, ResponseContext
+from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator, SelfEnhancementCalculator
-from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.dyson import DysonSolver
-from gpaw.response.susceptibility import (spectral_decomposition,
-                                          read_eigenmode_lineshapes)
+from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.pair_functions import read_pair_function
-
+from gpaw.response.susceptibility import (read_eigenmode_lineshapes,
+                                          spectral_decomposition)
 from gpaw.test import findpeak
 from gpaw.test.gpwfile import response_band_cutoff
 

@@ -1,4 +1,5 @@
 import pytest
+
 from gpaw import GPAW
 from gpaw.response.bse import BSE
 

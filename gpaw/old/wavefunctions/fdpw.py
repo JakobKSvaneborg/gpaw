@@ -3,11 +3,12 @@ from ase.utils.timing import timer
 
 from gpaw.lcao.eigensolver import DirectLCAO
 from gpaw.lfc import BasisFunctions
-from gpaw.old.matrix import Matrix, matrix_matrix_multiply as mmm
-from gpaw.utilities import unpack_hermitian
-from gpaw.utilities.timing import nulltimer
+from gpaw.old.matrix import Matrix
+from gpaw.old.matrix import matrix_matrix_multiply as mmm
 from gpaw.old.wavefunctions.base import WaveFunctions
 from gpaw.old.wavefunctions.lcao import LCAOWaveFunctions, update_phases
+from gpaw.utilities import unpack_hermitian
+from gpaw.utilities.timing import nulltimer
 
 
 class NullWfsMover:

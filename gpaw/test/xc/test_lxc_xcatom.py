@@ -1,9 +1,10 @@
-import pytest
 import numpy as np
 import numpy.random as ra
+import pytest
+
 from gpaw.setup import create_setup
-from gpaw.xc import XC
 from gpaw.test import gen
+from gpaw.xc import XC
 
 
 @pytest.mark.libxc

@@ -1,7 +1,9 @@
 import pytest
-from gpaw.xc import XC
-from gpaw.gpu import cupy as cp, cupy_is_fake
+
 from gpaw import GPAW_NO_C_EXTENSION
+from gpaw.gpu import cupy as cp
+from gpaw.gpu import cupy_is_fake
+from gpaw.xc import XC
 
 
 @pytest.mark.gpu

@@ -2,10 +2,10 @@ import os
 import sys
 import time
 
-import numpy as np
 import ase
+import numpy as np
 from ase import __version__ as ase_version
-from ase.utils import search_current_git_hash, IOContext
+from ase.utils import IOContext, search_current_git_hash
 
 import gpaw
 import gpaw.cgpaw as cgpaw
