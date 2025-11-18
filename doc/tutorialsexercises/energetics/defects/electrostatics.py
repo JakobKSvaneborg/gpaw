@@ -1,4 +1,5 @@
 import numpy as np
+from ase.io.jsonio import write_json
 from gpaw import GPAW
 from gpaw.defects import ElectrostaticCorrections
 from pathlib import Path
@@ -8,7 +9,8 @@ charge = -3
 epsilon = 12.7
 corrected = []
 uncorrected = []
-repeats = [1]
+profiles = []
+repeats = [1, 2]
 for N in repeats:
     label = f'GaAs_{N}x{N}x{N}'
     prs_path = Path(f'{label}_prs.gpw')
@@ -28,12 +30,13 @@ for N in repeats:
                                    method='full-planar')
     E_corr = elc.calculate_corrected_formation_energy()
     E_uncorr = elc.calculate_uncorrected_formation_energy()
-    E_fnv = E_corr - E_uncorr
+    profile = elc.calculate_potential_profile()
 
     corrected.append(E_corr)
     uncorrected.append(E_uncorr)
+    profiles.append(profile)
 
-np.savez('formation_energies.npz',
-         repeats=np.array(repeats),
-         corrected=np.array(corrected),
-         uncorrected=np.array(uncorrected))
+res = {'repeats': repeats, 'corrected': corrected,
+       'uncorrected': uncorrected, 'profiles': profiles}
+
+write_json('electrostatics.json', res)
