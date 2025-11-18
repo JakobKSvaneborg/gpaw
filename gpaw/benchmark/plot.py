@@ -192,7 +192,7 @@ def plot_score() -> None:
     for tag, day, score, results in data[1:]:
         X.append(day)
         Y.append(score)
-    ax.plot(X, Y, 'o-')
+    ax.plot(X, Y, 'o-')  # type: ignore
     ax.axhline(100.0, ls=':', color='black', label='gpaw-25.7.0')
     ax.legend()
     ax.set_xlabel('date')
