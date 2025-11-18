@@ -1,5 +1,4 @@
-# web-page: planaraverages.png
-import numpy as np
+# web-page: planar_averages.png
 from ase.io.jsonio import read_json
 import matplotlib.pyplot as plt
 
