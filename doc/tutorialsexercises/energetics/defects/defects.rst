@@ -103,7 +103,8 @@ In principle more exotic model distributions can be used, e.g. a combination
 of a gaussian and an exponential [#Komsa]_ .
 
 The calculation of `E_{\mathrm{lat}}` is most conveniently done in Fourier space,
-where we denote the Fourier transformed quantities with a tilde.
+where we denote the Fourier transformed quantities with a tilde, e.g.
+`\rho(r) \leftrightarrow \tilde\rho(k)`.
 Within a linear, isotropic and homogeneous dielectric characterised
 by `\varepsilon`, `\rho^m` generates
 an electrostatic potential given by
