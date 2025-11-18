@@ -260,8 +260,11 @@ def calculate_pair_density_correction(qG_Gv: np.ndarray, *,
     return Qbar_Gii
 
 
+@parallel
 def calculate_matrix_element_correction(qG_Gv, pawdata,
-                                        rshe: RealSphericalHarmonicsExpansion):
+                                        rshe: RealSphericalHarmonicsExpansion,
+                                        *,
+                                        comm):
     r"""Calculate the atom-centered correction to a generalized matrix element.
 
     For matrix elements corresponding to the expectation value of a plane wave
@@ -354,7 +357,7 @@ def calculate_matrix_element_correction(qG_Gv, pawdata,
                         continue
                     # Calculate radial part of the correction
                     dnf_G = parallel_fourier_bessel_transform(
-                        k_G, lp, rgd, dnf_g)
+                        k_G, lp, rgd, dnf_g, comm=comm)
 
                     # Calculate angular part of the correction
                     x_G = 4 * np.pi * (-1j)**lp * dnf_G
@@ -519,7 +522,8 @@ def get_pair_density_paw_corrections(pawdatasets, qpd, spos_ac, atomrotations):
                                atomrotations=atomrotations)
 
 
-def get_matrix_element_paw_corrections(qpd, pawdata_a, rshe_a, spos_ac):
+@parallel
+def get_matrix_element_paw_corrections(qpd, pawdata_a, rshe_a, spos_ac, comm):
     r"""Calculate the PAW correction to a generalized matrix element.
 
     For a given functional of the electron (spin-)density f[n](r), the PAW
@@ -535,7 +539,7 @@ def get_matrix_element_paw_corrections(qpd, pawdata_a, rshe_a, spos_ac):
     for pawdata, rshe, spos_c in zip(pawdata_a.by_atom, rshe_a, spos_ac):
         # Calculate atom-centered PAW correction
         Fbar_Gii = calculate_matrix_element_correction(
-            qG_Gv, pawdata, rshe)
+            qG_Gv, pawdata, rshe, comm=comm)
 
         # XXX Can time be saved by doing some of the processing per species
         # rather than per atom?

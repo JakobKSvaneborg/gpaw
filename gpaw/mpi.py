@@ -1302,6 +1302,13 @@ if world.size > 1:  # Triggers for dry-run communicators too, but we care not.
     sys.excepthook = print_mpi_stack_trace
 
 
+_NO_TOUCH_WORLD = False  # Monkeypatchable from test suite
+
+
+class DontDoThat(Exception):
+    pass
+
+
 def parallel(func):
     """Decorator for functions that take comm=world.
 
@@ -1314,6 +1321,10 @@ def parallel(func):
     @functools.wraps(func)
     def wrapper(*args, comm=None, **kwargs):
         if comm is None:
+            if _NO_TOUCH_WORLD:
+                raise DontDoThat(
+                    'Must call method with keyword comm=<communicator>'
+                )
             comm = world
         return func(*args, comm=comm, **kwargs)
 

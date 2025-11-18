@@ -415,6 +415,13 @@ def pytest_report_header(config, start_path):
     yield f'Cache directory including gpw files: {cachedir}'
 
 
+@pytest.fixture(autouse=True)
+def no_touch_world(monkeypatch):
+    import gpaw.mpi as mpi
+
+    monkeypatch.setattr(mpi, '_NO_TOUCH_WORLD', True)
+
+
 @pytest.fixture
 def rng():
     """Seeded random number generator.

@@ -291,10 +291,11 @@ class ResponseGroundStateAdapter:
             pawdatasets=self.pawdatasets, qpd=qpd, spos_ac=self.spos_ac,
             atomrotations=self.atomrotations)
 
-    def matrix_element_paw_corrections(self, qpd, rshe_a):
+    @mpi.parallel
+    def matrix_element_paw_corrections(self, qpd, rshe_a, comm):
         from gpaw.response.paw import get_matrix_element_paw_corrections
         return get_matrix_element_paw_corrections(
-            qpd, self.pawdatasets, rshe_a, self.spos_ac)
+            qpd, self.pawdatasets, rshe_a, self.spos_ac, comm=comm)
 
     def get_pos_av(self):
         # gd.cell_cv must always be the same as pd.gd.cell_cv, right??
