@@ -69,12 +69,12 @@ convergence by employing the following correction:
 .. math::
 
   E[X^q] - E_0  =
-  (E[X^q] - E_0)_\mathrm{uncorrected} - E_{\mathrm{l}} + q\Delta V
+  (E[X^q] - E_0)_\mathrm{uncorrected} - E_{\mathrm{lat}} + q\Delta V
 
 The uncorrected term in brackets is the total energy difference one obtains
 from calculations employing periodic boundary conditions, which include the
 background charge. The first correction term, the *lattice term*
-`E_{\mathrm{l}}`, is the electrostatic energy per unit cell of a
+`E_{\mathrm{lat}}`, is the electrostatic energy per unit cell of a
 periodically repeated array of model charges immersed in the neutralising
 background, minus the interaction of the model charge with itself. The second
 correction term, the *alignment term* `q\Delta V`, ensures that the zero
@@ -102,22 +102,23 @@ bulk and defect calculations, `\rho^{X^q}(\vec{r}) - \rho^0(\vec{r})`.
 In principle more exotic model distributions can be used, e.g. a combination
 of a gaussian and an exponential [#Komsa]_ .
 
-The calculation of `E_{\mathrm{l}}` is most conveniently done in Fourier space.
+The calculation of `E_{\mathrm{lat}}` is most conveniently done in Fourier space,
+where we denote the Fourier transformed quantities with a tilde.
 Within a linear, isotropic and homogeneous dielectric characterised
 by `\varepsilon`, `\rho^m` generates
 an electrostatic potential given by
 
 .. math::
-  V(\vec{G}\neq0) = \frac{4\pi}{\varepsilon G^2} \rho^m(\vec{G})
+  \tilde V(\vec{G}\neq0) = \frac{4\pi}{\varepsilon G^2} \tilde\rho^m(\vec{G})
 
-where the `\vec{G}`'s are reciprocal lattice vectors. `E_{\mathrm{l}}` is then
+where the `\vec{G}`'s are reciprocal lattice vectors. `E_{\mathrm{lat}}` is then
 obtained as
 
 .. math::
-  E_{\mathrm{l}} = \frac{2\pi} {\varepsilon \Omega} \sum_{\vec{G} \neq 0}
-  \frac{|\rho^m(\vec{G})|^2}{G^2} -
+  E_{\mathrm{lat}} = \frac{2\pi} {\varepsilon \Omega} \sum_{\vec{G} \neq 0}
+  \frac{|\tilde\rho^m(\vec{G})|^2}{G^2} -
   \frac{1}{\pi\varepsilon} \int_0^{\infty} \mathrm{d}g
-  |\rho^{m}(g)|^2.
+  |\tilde\rho^{m}(g)|^2.
 
 
 The first term is the energy of all the periodic repeats of `\rho^m`; the
@@ -129,12 +130,12 @@ spherically symmetric.
 For the case of the gaussian,
 
 .. math::
-  \rho^m(G) = q e^{-G^2\sigma^2/2}
+  \tilde\rho^m(G) = q e^{-G^2\sigma^2/2}
 
 so
 
 .. math::
-  E_{\mathrm{l}} = \frac{2\pi} {\varepsilon \Omega} \sum_{\vec{G} \neq 0}
+  E_{\mathrm{lat}} = \frac{2\pi} {\varepsilon \Omega} \sum_{\vec{G} \neq 0}
   \frac{q^2 e^{-G^2\sigma^2}}{G^2}
   -
   \frac{q^2}{2\sqrt{\pi}\varepsilon\sigma}.
@@ -217,7 +218,7 @@ charge centred at (0, 0, 0) with a standard deviation of 0.72 Bohr
 The script ``electrostatics.py`` takes the gpw files of the defective and
 pristine calculation as input, as well as the gaussian parameters and
 dielectric constant, and calculates the different terms in the correction
-scheme. For this case, the calculated value of `E_{\mathrm{l}}` is -1.28 eV.
+scheme. For this case, the calculated value of `E_{\mathrm{lat}}` is -1.28 eV.
 
 .. literalinclude:: electrostatics.py
 
@@ -329,13 +330,13 @@ finding a robust correction scheme in 2D is that much more necessary. The
 starting point is the same as before, and we write:
 
 .. math::
-  E[X^q] - E_0  = (E[X^q] - E_0)_{\mathrm{uncorrected}} - E_{\mathrm{l}} + q\Delta V.
+  E[X^q] - E_0  = (E[X^q] - E_0)_{\mathrm{uncorrected}} - E_{\mathrm{lat}} + q\Delta V.
 
-The main problem arises in the `E_{\mathrm{l}}` term, and in particular, in
+The main problem arises in the `E_{\mathrm{lat}}` term, and in particular, in
 finding an appropriate expression for the screened Coulomb interaction of the
 system.
 
-Recall that `E_{\mathrm{l}}` consists of two terms: The energy (per unit
+Recall that `E_{\mathrm{lat}}` consists of two terms: The energy (per unit
 cell) associated with the interaction between the model charge distribution
 and all its periodic images, and the energy of the isolated charge
 distribution in the same dielectric environment. The first step in
