@@ -223,7 +223,7 @@ scheme. For this case, the calculated value of `E_{\mathrm{lat}}` is -1.28 eV.
 
 .. literalinclude:: electrostatics.py
 
-The script also produces an output file ``electrostatic_data.npz`` which
+The script also produces an output file ``electrostatics.json`` which
 gives the function `\Delta V(z)` introduced above, and also the planar
 averages of the model potential and the difference between the planar
 averages of the defective and pristine electrostatic potentials. We can plot
