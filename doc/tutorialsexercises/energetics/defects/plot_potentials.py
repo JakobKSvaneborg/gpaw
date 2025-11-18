@@ -4,7 +4,9 @@ import matplotlib.pyplot as plt
 
 data = read_json('electrostatics.json')
 
-index = data['repeats'].index(2)
+# select one of the repeats to be plotted
+nsel = 2
+index = data['repeats'].index(nsel)
 profile = data['profiles'][index]
 z = profile['z']
 V_m = profile['model']
