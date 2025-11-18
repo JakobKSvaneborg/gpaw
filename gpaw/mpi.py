@@ -1238,7 +1238,7 @@ class Parallelization:
 def cleanup():
     error = getattr(sys, 'last_type', None)
     if error is not None:  # else: Python script completed or raise SystemExit
-        if parallel and not (gpaw.dry_run > 1):
+        if size > 1 and not (gpaw.dry_run > 1):
             sys.stdout.flush()
             sys.stderr.write(('GPAW CLEANUP (node %d): %s occurred.  '
                               'Calling MPI_Abort!\n') % (world.rank, error))
