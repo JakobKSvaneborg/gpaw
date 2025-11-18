@@ -1,8 +1,9 @@
 from ase.io import read
-from gpaw import GPAW, GPAW_NEW
+from numpy import dot, reshape
+
 import gpaw.dscf as dscf
+from gpaw import GPAW, GPAW_NEW
 from gpaw.mixer import MixerSum
-from numpy import reshape, dot
 
 filename = 'excited'
 

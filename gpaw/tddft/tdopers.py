@@ -4,10 +4,10 @@ operators."""
 
 import numpy as np
 
-from gpaw.utilities import unpack_hermitian
-from gpaw.fd_operators import Laplace, Gradient
-from gpaw.overlap import Overlap
+from gpaw.fd_operators import Gradient, Laplace
 from gpaw.old.wavefunctions.fd import FDWaveFunctions
+from gpaw.overlap import Overlap
+from gpaw.utilities import unpack_hermitian
 
 
 class TimeDependentHamiltonian:

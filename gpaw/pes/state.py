@@ -1,8 +1,8 @@
 from math import exp, pi, sqrt
 
 import numpy as np
-
 from ase.units import Bohr, Hartree, alpha
+
 from gpaw.pes import ds_prefactor
 
 

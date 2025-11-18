@@ -7,8 +7,9 @@ representation.
 """
 
 import numpy as np
-from gpaw.lcao.eigensolver import DirectLCAO
+
 from gpaw.directmin.functional.lcao import get_functional
+from gpaw.lcao.eigensolver import DirectLCAO
 from gpaw.utilities.tools import tri2full
 
 

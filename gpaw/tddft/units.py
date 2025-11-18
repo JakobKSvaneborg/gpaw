@@ -2,7 +2,7 @@
 
 from math import pi
 
-from ase.units import _hbar, _eps0, _me, _e, _c, Bohr, Hartree, s
+from ase.units import Bohr, Hartree, _c, _e, _eps0, _hbar, _me, s
 
 _a0 = Bohr * 1e-10
 _autime = _hbar**3 * (4 * pi * _eps0)**2 / (_me * _e**4

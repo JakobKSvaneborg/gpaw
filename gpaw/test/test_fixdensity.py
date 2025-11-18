@@ -1,11 +1,11 @@
+import numpy as np
 import pytest
 from ase import Atoms
-import numpy as np
 
 from gpaw import GPAW
-from gpaw.old.calculator import DeprecatedParameterWarning as OldDPW
 from gpaw.dft import DeprecatedParameterWarning as NewDPW
-from gpaw.mpi import world, ibarrier
+from gpaw.mpi import ibarrier, world
+from gpaw.old.calculator import DeprecatedParameterWarning as OldDPW
 
 
 @pytest.mark.ci

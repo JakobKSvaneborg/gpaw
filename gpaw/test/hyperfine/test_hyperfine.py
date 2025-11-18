@@ -1,17 +1,18 @@
 from math import pi
 
+import ase.units as units
 import numpy as np
 import pytest
 from scipy.special import expn
-import ase.units as units
 
-from gpaw.old.grid_descriptor import GridDescriptor
-from gpaw.hyperfine import (hyperfine_parameters, paw_correction, smooth_part,
-                            integrate, alpha, G_FACTOR_E, core_contribution)
 from gpaw import GPAW
 from gpaw.atom.aeatom import AllElectronAtom
 from gpaw.atom.radialgd import RadialGridDescriptor
+from gpaw.hyperfine import (G_FACTOR_E, alpha, core_contribution,
+                            hyperfine_parameters, integrate, paw_correction,
+                            smooth_part)
 from gpaw.lfc import LFC
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.setup import create_setup
 from gpaw.xc import XC
 
@@ -142,7 +143,7 @@ def test_h(gpw_files):
 
 def thomson():
     """Analytic integrals for testing."""
-    from sympy import var, integrate, oo, E, expint
+    from sympy import E, expint, integrate, oo, var
     x, a, b = var('x, a, b')
     print(integrate(E**(-b * x) / (1 + x)**2, (x, 0, oo)))
     print(expint(2, 1.0))

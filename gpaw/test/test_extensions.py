@@ -1,7 +1,8 @@
-import pytest
-from gpaw.new.extensions import Extension
-from ase.units import Hartree, Bohr
 import numpy as np
+import pytest
+from ase.units import Bohr, Hartree
+
+from gpaw.new.extensions import Extension
 
 
 class Spring:
@@ -57,9 +58,9 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
         pytest.skip('Only GPAW new')
     ktot = 20
 
-    from gpaw.new.ase_interface import GPAW
     from gpaw import restart
     from gpaw.mpi import world
+    from gpaw.new.ase_interface import GPAW
     domain, band = parallel
     if world.size < domain * band:
         pytest.skip('Not enough cores for this test.')

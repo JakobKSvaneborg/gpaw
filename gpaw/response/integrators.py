@@ -1,14 +1,15 @@
 from abc import ABC, abstractmethod
 from functools import cached_property
+
 import numpy as np
-from gpaw.response import timer
-from scipy.spatial import Delaunay
 from scipy.linalg.blas import zher
+from scipy.spatial import Delaunay
 
 import gpaw.cgpaw as cgpaw
-from gpaw.utilities.blas import rk, mmm
-from gpaw.utilities.progressbar import ProgressBar
+from gpaw.response import timer
 from gpaw.response.pw_parallelization import Blocks1D
+from gpaw.utilities.blas import mmm, rk
+from gpaw.utilities.progressbar import ProgressBar
 
 
 class Integrand(ABC):
@@ -48,6 +49,7 @@ class Integrator:
 
     def mydomain(self, domain):
         from gpaw.response.pw_parallelization import Blocks1D
+
         # This function does the same as distribute_domain
         # but on a flat list and without all the fluff.
         #

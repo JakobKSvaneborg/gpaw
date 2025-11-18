@@ -2,9 +2,8 @@
 import numpy as np
 from ase import Atoms
 
-from gpaw.analyse.hirshfeld import HirshfeldPartitioning
 from gpaw import GPAW, FermiDirac
-
+from gpaw.analyse.hirshfeld import HirshfeldPartitioning
 
 c = 3
 a = 1.42

@@ -3,9 +3,9 @@ import pytest
 from ase import Atoms
 
 from gpaw import PW, FermiDirac
-from gpaw.old.calculator import GPAW
-from gpaw.new.calculation import DFTCalculation
 from gpaw.mpi import rank
+from gpaw.new.calculation import DFTCalculation
+from gpaw.old.calculator import GPAW
 
 
 @pytest.mark.old_gpaw_only

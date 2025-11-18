@@ -1,14 +1,15 @@
 import json
+from collections import defaultdict
+from io import StringIO
 from pathlib import Path
 from time import time
-from io import StringIO
-from collections import defaultdict
 
 import numpy as np
 from ase.geometry.cell import cell_to_cellpar
-from gpaw.dft import GPAW
+
 from gpaw.benchmark.systems import systems
 from gpaw.calcinfo import get_calculation_info
+from gpaw.dft import GPAW
 from gpaw.mpi import world
 from gpaw.utilities.memory import maxrss
 

@@ -19,15 +19,17 @@ Real-valued spherical harmonics
 For a more complete list, see c/bmgs/sharmonic.py
 """
 
+from collections import defaultdict
+from math import pi
+
 import numpy as np
 
-from math import pi
-from collections import defaultdict
 from gpaw import debug
 
 __all__ = ['Y', 'YL', 'nablarlYL', 'Yl']
 
 from gpaw.cgpaw import spherical_harmonics
+
 if debug:
     def Yl(l: int, R_v: np.ndarray, rlY_m: np.ndarray) -> None:
         assert R_v.dtype == float and R_v.shape == (3,)
@@ -92,7 +94,10 @@ def gam(n0, n1, n2):
 def Y0(l, m):
     """Sympy version of spherical harmonics."""
     from fractions import Fraction
-    from sympy import assoc_legendre, sqrt, simplify, factorial as fac, I, pi
+
+    from sympy import I, assoc_legendre
+    from sympy import factorial as fac
+    from sympy import pi, simplify, sqrt
     from sympy.abc import x, y, z
     c = sqrt((2 * l + 1) * fac(l - m) / fac(l + m) / 4 / pi)
     if m > 0:

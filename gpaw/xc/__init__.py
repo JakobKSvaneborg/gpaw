@@ -6,7 +6,6 @@ from gpaw.xc.libxc import LibXC
 from gpaw.xc.mgga import MGGA
 from gpaw.xc.noncollinear import NonCollinearLDAKernel
 
-
 libraries = get_libraries()
 
 

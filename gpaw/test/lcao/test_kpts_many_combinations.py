@@ -1,6 +1,8 @@
-import pytest
 from itertools import count
+
+import pytest
 from ase.build import bulk
+
 from gpaw import GPAW
 from gpaw.mpi import world
 from gpaw.utilities import compiled_with_sl

@@ -3,8 +3,8 @@ from functools import partial
 
 import numpy as np
 
-from gpaw.utilities.blas import axpy
 from gpaw.eigensolvers.eigensolver import Eigensolver
+from gpaw.utilities.blas import axpy
 
 
 class RMMDIIS(Eigensolver):

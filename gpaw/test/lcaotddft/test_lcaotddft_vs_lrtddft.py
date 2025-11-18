@@ -1,16 +1,15 @@
-import pytest
 import numpy as np
-
+import pytest
 from ase.units import Hartree
+
 from gpaw import GPAW
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
-from gpaw.tddft.spectrum import photoabsorption_spectrum as spec_td
 from gpaw.lrtddft import LrTDDFT
 from gpaw.lrtddft import photoabsorption_spectrum as spec_lr
 from gpaw.lrtddft2 import LrTDDFT2
 from gpaw.mpi import world
-
+from gpaw.tddft.spectrum import photoabsorption_spectrum as spec_td
 
 pytestmark = [pytest.mark.usefixtures('module_tmp_path')]
 

@@ -1,8 +1,8 @@
 import sys
 
+import pytest
 from ase import Atoms
 from ase.utils.timing import Timer
-import pytest
 
 from gpaw import GPAW
 from gpaw.xc.hybrid import HybridXC

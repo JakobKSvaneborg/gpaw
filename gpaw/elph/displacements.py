@@ -40,13 +40,13 @@ Use with care.
 
 """
 from __future__ import annotations
-import numpy as np
 
+import numpy as np
 from ase import Atoms
 from ase.phonons import Displacement
 
-from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.new.ase_interface import ASECalculator
+from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.utilities import pack_hermitian
 
 dr_version = 1

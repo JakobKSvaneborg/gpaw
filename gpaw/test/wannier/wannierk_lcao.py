@@ -5,7 +5,7 @@ from ase.build import bulk
 from ase.dft.wannier import Wannier
 
 from gpaw import GPAW
-from gpaw.mpi import world, serial_comm
+from gpaw.mpi import serial_comm, world
 
 
 @pytest.mark.wannier
@@ -37,8 +37,8 @@ def test_wannierk_lcao():
         c = sorted(c.round().astype(int).tolist())
         assert c == [[0, 0, 0], [0, 0, 1], [0, 1, 0], [1, 0, 0]]
         if 0:
-            from ase.visualize import view
             from ase import Atoms
+            from ase.visualize import view
             watoms = calc.atoms + Atoms(symbols='X4',
                                         scaled_positions=centers,
                                         cell=calc.atoms.cell)

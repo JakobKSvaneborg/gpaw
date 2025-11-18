@@ -1,19 +1,20 @@
 """Kohn-Sham single particle excitations realated objects.
 
 """
-import sys
 import json
-import numpy as np
+import sys
 from copy import copy
 
+import numpy as np
 from ase.units import Bohr, Hartree, alpha
 
 import gpaw.mpi as mpi
-from gpaw.utilities import packed_index
+from gpaw.fd_operators import Gradient
 from gpaw.lrtddft.excitation import Excitation, ExcitationList, get_filehandle
 from gpaw.pair_density import PairDensity
-from gpaw.fd_operators import Gradient
+from gpaw.utilities import packed_index
 from gpaw.utilities.tools import coordinates
+
 from .kssrestrictor import KSSRestrictor
 
 

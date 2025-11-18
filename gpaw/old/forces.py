@@ -1,6 +1,5 @@
 import numpy as np
-
-from ase.units import Hartree, Bohr
+from ase.units import Bohr, Hartree
 
 from gpaw.directmin.tools import get_n_occ
 from gpaw.utilities import unpack_hermitian

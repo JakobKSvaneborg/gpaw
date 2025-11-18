@@ -1,10 +1,11 @@
-import numpy as np
-from math import sqrt, pi
+from math import pi, sqrt
 
-from gpaw.xc.pawcorrection import rnablaY_nLv
+import numpy as np
+
 from gpaw.sphere.lebedev import weight_n
 from gpaw.xc import XC
 from gpaw.xc.gllb.contribution import Contribution
+from gpaw.xc.pawcorrection import rnablaY_nLv
 
 
 class C_GLLBScr(Contribution):

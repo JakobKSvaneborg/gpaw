@@ -1,10 +1,11 @@
 import pytest
-from ase.units import Bohr
 from ase.parallel import parprint
-from gpaw.lrtddft import LrTDDFT
-from gpaw.mpi import world
-from gpaw.lrtddft.excited_state import ExcitedState
+from ase.units import Bohr
+
 from gpaw import GPAW
+from gpaw.lrtddft import LrTDDFT
+from gpaw.lrtddft.excited_state import ExcitedState
+from gpaw.mpi import world
 
 
 @pytest.fixture

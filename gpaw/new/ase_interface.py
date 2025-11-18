@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Callable, Generator
 from pathlib import Path
 from typing import Any
-from collections.abc import Callable, Generator
 
 import numpy as np
 from ase import Atoms
 from ase.units import Ha
+
 from gpaw import __version__
 from gpaw.core import UGArray
 from gpaw.dft import GPAW, Parameters

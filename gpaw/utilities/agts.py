@@ -1,6 +1,7 @@
-from gpaw.utilities.acwf import work
 import json
 from pathlib import Path
+
+from gpaw.utilities.acwf import work
 
 
 def workflow():

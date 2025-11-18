@@ -1,5 +1,7 @@
 from math import sqrt
+
 from ase import Atoms
+
 from gpaw import GPAW, FermiDirac
 
 

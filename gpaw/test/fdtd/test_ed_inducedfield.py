@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+
 from gpaw import GPAW
 from gpaw.inducedfield.inducedfield_base import BaseInducedField
 from gpaw.inducedfield.inducedfield_fdtd import (

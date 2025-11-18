@@ -1,15 +1,15 @@
-from math import sqrt, pi
+from math import pi, sqrt
 
 import numpy as np
 from scipy.special import eval_legendre
 
-from gpaw.xc.gga import (add_gradient_correction, gga_vars,
-                         GGARadialExpansion, GGARadialCalculator,
-                         get_gradient_ops, stress_gga_term)
+from gpaw.sphere.lebedev import weight_n
+from gpaw.xc.functional import XCFunctional
+from gpaw.xc.gga import (GGARadialCalculator, GGARadialExpansion,
+                         add_gradient_correction, get_gradient_ops, gga_vars,
+                         stress_gga_term)
 from gpaw.xc.lda import (calculate_paw_correction, stress_integral,
                          stress_lda_term)
-from gpaw.xc.functional import XCFunctional
-from gpaw.sphere.lebedev import weight_n
 
 
 class MGGA(XCFunctional):

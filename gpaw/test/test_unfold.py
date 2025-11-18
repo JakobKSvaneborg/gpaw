@@ -1,5 +1,6 @@
-from ase import Atoms
 import pytest
+from ase import Atoms
+
 from gpaw.new.ase_interface import GPAW
 from gpaw.unfold import Unfold, find_K_from_k
 

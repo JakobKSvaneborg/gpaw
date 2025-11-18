@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
-
 from ase.utils.filecache import MultiFileJSONCache
+
 from gpaw import GPAW
-from gpaw.lcao.dipoletransition import get_momentum_transitions
 from gpaw.elph import ResonantRamanCalculator
+from gpaw.lcao.dipoletransition import get_momentum_transitions
 from gpaw.mpi import world
 
 

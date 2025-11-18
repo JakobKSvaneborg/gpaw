@@ -1,15 +1,14 @@
 import numpy as np
 import pytest
-
 from ase.build import fcc111
 
 from gpaw import GPAW
-from gpaw.mpi import world, serial_comm
 from gpaw.lcaotddft.wfwriter import WaveFunctionReader
-
+from gpaw.mpi import serial_comm, world
 from gpaw.test import only_on_master
-from . import (parallel_options, calculate_error, calculate_time_propagation,
-               check_wfs)
+
+from . import (calculate_error, calculate_time_propagation, check_wfs,
+               parallel_options)
 
 pytestmark = pytest.mark.usefixtures('module_tmp_path')
 

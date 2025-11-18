@@ -1,8 +1,9 @@
+import pytest
 from ase import Atom, Atoms
+
 from gpaw import GPAW
 from gpaw.eigensolvers.davidson import Davidson
 from gpaw.mpi import size
-import pytest
 
 
 def test_eigen_davidson():

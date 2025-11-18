@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from gpaw.cgpaw import pwlfc_expand_old
 from gpaw.core.atom_arrays import AtomArraysLayout, AtomDistribution
 from gpaw.core.atom_centered_functions import AtomCenteredFunctions
 from gpaw.core.matrix import Matrix
@@ -19,9 +20,9 @@ from gpaw.spline import Spline
 from gpaw.typing import ArrayLike1D
 from gpaw.utilities import as_complex_dtype, as_real_dtype
 from gpaw.utilities.blas import mmm
-from gpaw.cgpaw import pwlfc_expand_old
+
 if TYPE_CHECKING:
-    from gpaw.core.plane_waves import PWDesc, PWArray
+    from gpaw.core.plane_waves import PWArray, PWDesc
 
 
 class PWAtomCenteredFunctions(AtomCenteredFunctions):

@@ -1,10 +1,10 @@
 import numpy as np
-from ase.units import kB, Hartree, Bohr
 from ase.data.vdw import vdw_radii
+from ase.units import Bohr, Hartree, kB
 
-from gpaw.solvation.gridmem import NeedsGD
 from gpaw.fd_operators import Gradient
 from gpaw.old.logger import indent
+from gpaw.solvation.gridmem import NeedsGD
 
 BAD_RADIUS_MESSAGE = 'All atomic radii have to be finite and >= zero.'
 

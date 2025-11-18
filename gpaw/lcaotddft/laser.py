@@ -1,9 +1,9 @@
 from __future__ import annotations
+
 import numpy as np
 
 from gpaw.mpi import world
 from gpaw.tddft.units import as_to_au, eV_to_au
-
 
 known_lasers: dict[str, type[Laser]] = dict()
 

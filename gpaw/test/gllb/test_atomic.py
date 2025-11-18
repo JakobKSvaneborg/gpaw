@@ -1,4 +1,5 @@
 import pytest
+
 from gpaw.atom.all_electron import AllElectron
 
 

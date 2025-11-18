@@ -1,8 +1,8 @@
 import pytest
-
 from ase.build import molecule
-from gpaw.new.ase_interface import GPAW
+
 from gpaw.mpi import world
+from gpaw.new.ase_interface import GPAW
 
 
 @pytest.mark.parametrize('mode', ['pw', 'fd'])

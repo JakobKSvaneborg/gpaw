@@ -1,5 +1,6 @@
 from ase.build import molecule
 from ase.units import Pascal, m
+
 from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
                             LinearDielectric, Power12Potential, SolvationGPAW,
                             SurfaceInteraction)

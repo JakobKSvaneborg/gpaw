@@ -2,34 +2,31 @@
 Test with unrealisticly loose parameters to catch if the numerics change.
 """
 
+import numpy as np
 # General modules
 import pytest
-import numpy as np
-
 # Script modules
 from ase.build import bulk
 
 from gpaw import GPAW, PW, FermiDirac
-
-from gpaw.response import ResponseGroundStateAdapter, ResponseContext
+from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator
+from gpaw.response.heisenberg import (calculate_fm_magnon_energies,
+                                      calculate_single_site_magnon_energies)
 from gpaw.response.localft import LocalFTCalculator, LocalPAWFTCalculator
-from gpaw.response.site_data import (AtomicSites,
-                                     get_site_radii_range,
-                                     calculate_site_magnetization,
-                                     calculate_site_zeeman_energy)
-from gpaw.response.mft import (IsotropicExchangeCalculator,
-                               HeisenbergExchangeCalculator,
-                               calculate_single_particle_site_magnetization,
+from gpaw.response.mft import (HeisenbergExchangeCalculator,
+                               IsotropicExchangeCalculator,
+                               calculate_exchange_parameters,
                                calculate_pair_site_magnetization,
-                               calculate_single_particle_site_zeeman_energy,
                                calculate_pair_site_zeeman_energy,
-                               calculate_exchange_parameters)
-from gpaw.response.site_kernels import (SphericalSiteKernels,
-                                        CylindricalSiteKernels,
-                                        ParallelepipedicSiteKernels)
-from gpaw.response.heisenberg import (calculate_single_site_magnon_energies,
-                                      calculate_fm_magnon_energies)
+                               calculate_single_particle_site_magnetization,
+                               calculate_single_particle_site_zeeman_energy)
+from gpaw.response.site_data import (AtomicSites, calculate_site_magnetization,
+                                     calculate_site_zeeman_energy,
+                                     get_site_radii_range)
+from gpaw.response.site_kernels import (CylindricalSiteKernels,
+                                        ParallelepipedicSiteKernels,
+                                        SphericalSiteKernels)
 from gpaw.test.gpwfile import response_band_cutoff
 from gpaw.test.response.test_chiks import generate_qrel_q, get_q_c
 
@@ -502,6 +499,7 @@ def test_heisenberg_distribution_over_transitions(in_tmp_dir, gpw_files):
 
 def get_co_sites(gs):
     from gpaw.response.site_data import get_site_radii_range
+
     # Set up site radii
     rmin_a, _ = get_site_radii_range(gs)
     # Make sure that the two sites do not overlap

@@ -9,6 +9,8 @@ from math import pi
 
 import numpy as np
 from ase.neighborlist import primitive_neighbor_list
+from scipy.special import erf
+
 from gpaw.atom.radialgd import EquidistantRadialGridDescriptor as RGD
 from gpaw.atom.shapefunc import shape_functions
 from gpaw.core import PWArray, PWDesc
@@ -17,9 +19,8 @@ from gpaw.lcao.overlap import (FourierTransformer, LazySphericalHarmonics,
                                LazySphericalHarmonicsDerivative,
                                ManySiteOverlapCalculator,
                                TwoSiteOverlapCalculator)
-from gpaw.spline import Spline
-from scipy.special import erf
 from gpaw.new.pw.paw_poisson import PAWPoissonSolver
+from gpaw.spline import Spline
 
 
 def vg(r_r: np.ndarray, rc: float) -> np.ndarray:

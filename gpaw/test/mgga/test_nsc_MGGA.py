@@ -1,6 +1,7 @@
 import pytest
 from ase import Atoms
-from gpaw import GPAW, Mixer, Davidson
+
+from gpaw import GPAW, Davidson, Mixer
 
 # ??? g = Generator('H', 'TPSS', scalarrel=True, nofiles=True)
 

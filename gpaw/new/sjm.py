@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import numpy as np
 from ase.units import Bohr
+
 from gpaw.core import PWArray, PWDesc, UGArray
+from gpaw.new.builder import DFTComponentsBuilder
 from gpaw.new.extensions import (Extension, FixedPotentialJelliumExtension,
                                  JelliumExtension)
 from gpaw.new.poisson import PoissonSolverWrapper
 from gpaw.new.pw.poisson import PWPoissonSolver
 from gpaw.new.solvation import Solvation, SolvationExtension
-from gpaw.new.builder import DFTComponentsBuilder
 
 
 class SJM(Solvation):

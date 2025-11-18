@@ -1,10 +1,10 @@
 from math import pi
 
+import pytest
 from ase import Atoms
 from ase.parallel import parprint
 
 from gpaw import GPAW
-import pytest
 from gpaw.analyse.expandyl import AngularIntegral, ExpandYl
 
 

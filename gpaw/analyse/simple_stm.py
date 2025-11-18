@@ -2,9 +2,9 @@ from math import sqrt
 
 import numpy as np
 from ase.atoms import Atoms
-from ase.units import Bohr, Hartree
-from ase.io.cube import read_cube_data, write_cube
 from ase.dft.stm import STM
+from ase.io.cube import read_cube_data, write_cube
+from ase.units import Bohr, Hartree
 
 import gpaw.mpi as mpi
 from gpaw.old.grid_descriptor import GridDescriptor

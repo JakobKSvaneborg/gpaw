@@ -1,15 +1,10 @@
 import numpy as np
-
 from ase.io.ulm import Reader
-from gpaw.io import Writer
 
-from gpaw.tddft.folding import Frequency
-from gpaw.tddft.folding import FoldedFrequencies
+from gpaw.io import Writer
 from gpaw.lcaotddft.observer import TDDFTObserver
-from gpaw.lcaotddft.utilities import read_uMM
-from gpaw.lcaotddft.utilities import read_wuMM
-from gpaw.lcaotddft.utilities import write_uMM
-from gpaw.lcaotddft.utilities import write_wuMM
+from gpaw.lcaotddft.utilities import read_uMM, read_wuMM, write_uMM, write_wuMM
+from gpaw.tddft.folding import FoldedFrequencies, Frequency
 
 
 def generate_freq_w(foldedfreqs_f):

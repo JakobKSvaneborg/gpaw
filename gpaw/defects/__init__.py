@@ -1,14 +1,16 @@
-import numpy as np
 import numbers
-from scipy.optimize import minimize
+
+import numpy as np
+import scipy.integrate as integrate
+from ase.parallel import parprint
+from ase.units import Bohr
+from ase.units import Hartree as Ha
 from scipy.integrate import simpson
+from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy.optimize import minimize
+
 from gpaw import GPAW, PW
 from gpaw.mpi import serial_comm
-from ase.parallel import parprint
-import scipy.integrate as integrate
-from scipy.interpolate import InterpolatedUnivariateSpline
-from ase.units import Hartree as Ha
-from ase.units import Bohr
 
 
 class ElectrostaticCorrections():

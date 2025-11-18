@@ -1,7 +1,7 @@
+import numpy as np
 import pytest
 
 from gpaw import GPAW
-import numpy as np
 from gpaw.mpi import world
 
 

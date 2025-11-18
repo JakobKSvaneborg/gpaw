@@ -1,8 +1,9 @@
 import numpy as np
 import pytest
+
+import gpaw.mpi as mpi
 from gpaw import GPAW
 from gpaw.ibz2bz import IBZ2BZMaps, get_overlap, get_overlap_coefficients
-import gpaw.mpi as mpi
 from gpaw.test.gpwfile import response_band_cutoff
 
 
