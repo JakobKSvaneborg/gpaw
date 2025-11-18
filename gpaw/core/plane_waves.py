@@ -858,7 +858,9 @@ class PWArray(DistributedArrays[PWDesc]):
                 if xp is np:
                     add_to_density(0.5 * f, dpsit1_R.data, taut1_R.data)
                 else:
-                    taut1_R.data += float(0.5 * f) * xp.abs(dpsit1_R.data)**2
+                    add_to_density_gpu(cp.array([0.5 * f]),
+                                       dpsit1_R.data[np.newaxis],
+                                       taut1_R.data)
         domain_comm.sum(taut1_R.data)
         tmp_R = taut_R.new()
         tmp_R.scatter_from(taut1_R)
