@@ -825,7 +825,6 @@ else:
 
 rank = world.rank
 size = world.size
-parallel = (size > 1)
 
 
 def verify_ase_world():
@@ -1301,6 +1300,24 @@ def pretty_print_parallel_traceback_file(path: Path) -> None:
 
 if world.size > 1:  # Triggers for dry-run communicators too, but we care not.
     sys.excepthook = print_mpi_stack_trace
+
+
+def parallel(func):
+    """Decorator for functions that take comm=world.
+
+    We want this decorator so as to control access to world and prevent
+    deadlocks when callers of these functions forget to set the
+    communicator."""
+    import functools
+    from gpaw.mpi import world
+
+    @functools.wraps(func)
+    def wrapper(*args, comm=None, **kwargs):
+        if comm is None:
+            comm = world
+        return func(*args, comm=comm, **kwargs)
+
+    return wrapper
 
 
 def exit(error='Manual exit'):

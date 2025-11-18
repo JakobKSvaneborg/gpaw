@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from gpaw.spline import Spline
 from gpaw.ffbt import rescaled_fourier_bessel_transform
+from gpaw.mpi import parallel
 from gpaw.sphere.gaunt import gaunt, super_gaunt
 from gpaw.sphere.spherical_harmonics import Y
 from gpaw.atom.radialgd import RadialGridDescriptor
@@ -385,20 +386,7 @@ def calculate_matrix_element_correction(qG_Gv, pawdata,
     return Fbar_Gii
 
 
-def comm_keyword(func):
-    import functools
-    from gpaw.mpi import world
-
-    @functools.wraps(func)
-    def wrapper(*args, comm=None, **kwargs):
-        if comm is None:
-            comm = world
-        return func(*args, comm=comm, **kwargs)
-
-    return wrapper
-
-
-@comm_keyword
+@parallel
 def parallel_fourier_bessel_transform(k_G, *args, comm):
     """Distribute FBT plane-wave components over a given communicator."""
     # NB: If we need to do something similar elsewhere, we can generalize this

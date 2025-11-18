@@ -756,7 +756,7 @@ class RecursionMethod:
 
     def get_spectra(self, eps_s, delta=0.1, imax=None, kpoint=None, fwhm=None,
                     linbroad=None, spin=0):
-        assert not mpi.parallel
+        assert mpi.size == 1  # XXX not great
 
         # the following lines are to stop the user to make mistakes
         # if spin == 1:
