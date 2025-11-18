@@ -1,10 +1,11 @@
 from functools import cached_property
+
 import numpy as np
 import pytest
-
-from gpaw.test import findpeak
-from gpaw.response.df import DielectricFunction
 from ase.units import Bohr, Hartree
+
+from gpaw.response.df import DielectricFunction
+from gpaw.test import findpeak
 
 
 class Helper:

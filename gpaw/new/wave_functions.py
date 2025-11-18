@@ -3,6 +3,7 @@ from __future__ import annotations
 from types import ModuleType
 
 import numpy as np
+
 from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.core.uniform_grid import UGArray
 from gpaw.mpi import MPIComm, serial_comm

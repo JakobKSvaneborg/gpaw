@@ -1,10 +1,11 @@
+import numpy as np
+import pytest
+
+from gpaw import GPAW_NO_C_EXTENSION
+from gpaw.gpu import cupy_is_fake
+from gpaw.mpi import size
 from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.poisson import FDPoissonSolver
-import pytest
-import numpy as np
-from gpaw.mpi import size
-from gpaw.gpu import cupy_is_fake
-from gpaw import GPAW_NO_C_EXTENSION
 
 
 @pytest.mark.gpu

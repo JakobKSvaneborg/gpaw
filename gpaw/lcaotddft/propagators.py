@@ -1,13 +1,11 @@
 import numpy as np
-
+from ase.utils.timing import timer
 from numpy.linalg import inv, solve
 
-from ase.utils.timing import timer
-
-from gpaw.lcaotddft.hamiltonian import KickHamiltonian
 from gpaw import debug
+from gpaw.lcaotddft.hamiltonian import KickHamiltonian
 from gpaw.tddft.units import au_to_as
-from gpaw.utilities.scalapack import (pblas_simple_hemm, pblas_simple_gemm,
+from gpaw.utilities.scalapack import (pblas_simple_gemm, pblas_simple_hemm,
                                       scalapack_inverse, scalapack_solve,
                                       scalapack_tri2full)
 

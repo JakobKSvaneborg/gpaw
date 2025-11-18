@@ -1,9 +1,9 @@
 import pytest
 from ase.units import Bohr
 
-from gpaw.old.calculator import GPAW as GPAW1
 from gpaw.mpi import size
 from gpaw.new.ase_interface import GPAW as GPAW2
+from gpaw.old.calculator import GPAW as GPAW1
 from gpaw.utilities.ps2ae import PS2AE
 
 

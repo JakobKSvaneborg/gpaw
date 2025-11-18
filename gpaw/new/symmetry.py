@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable, Sequence
 from functools import cached_property
 from typing import Any
-from collections.abc import Iterable, Sequence
 
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr
+
 from gpaw import debug
 from gpaw.core.domain import normalize_cell
 from gpaw.new import zips
 from gpaw.rotation import rotation
-from gpaw.symmetry import Symmetry as OldSymmetry, frac
+from gpaw.symmetry import Symmetry as OldSymmetry
+from gpaw.symmetry import frac
 from gpaw.typing import Array2D, Array3D, ArrayLike1D, ArrayLike2D, ArrayLike3D
 
 
@@ -734,6 +736,7 @@ def safe_id(magmom_av, tolerance=1e-3):
 
 def main() -> None:
     import argparse
+
     from ase.io import read
     parser = argparse.ArgumentParser(
         description='Analyze symmetry.')

@@ -1,9 +1,10 @@
 """ Tests extrapolation to infinite energy cutoff + block parallelization.
 It takes ~10 s on one core"""
 
-import pytest
-from gpaw.response.g0w0 import G0W0
 import numpy as np
+import pytest
+
+from gpaw.response.g0w0 import G0W0
 
 
 @pytest.mark.response

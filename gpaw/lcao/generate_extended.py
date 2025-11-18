@@ -3,8 +3,8 @@ from optparse import OptionParser
 
 from gpaw.atom.basis import BasisMaker
 from gpaw.atom.configurations import parameters, parameters_extra
-from gpaw.setup_data import SetupData
 from gpaw.mpi import world
+from gpaw.setup_data import SetupData
 
 # Module for generating basis sets more suitable for excited states.
 #

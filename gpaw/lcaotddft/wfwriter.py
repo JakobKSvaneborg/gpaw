@@ -1,7 +1,6 @@
 import ase.io.ulm as ulm
 
 from gpaw.io import Writer
-
 from gpaw.lcaotddft.observer import TDDFTObserver
 
 

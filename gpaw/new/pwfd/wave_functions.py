@@ -1,17 +1,18 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import partial
 from math import pi
-from collections.abc import Callable
 
 import numpy as np
+
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.core.atom_centered_functions import AtomCenteredFunctions
 from gpaw.core.plane_waves import PWArray
 from gpaw.core.uniform_grid import UGArray, UGDesc
 from gpaw.fftw import get_efficient_fft_size
-from gpaw.gpu import as_np, XP
+from gpaw.gpu import XP, as_np
 from gpaw.mpi import receive, send
 from gpaw.new import prod, trace, zips
 from gpaw.new.potential import Potential

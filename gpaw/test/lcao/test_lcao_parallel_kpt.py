@@ -2,12 +2,11 @@ import sys
 
 import pytest
 from ase.build import molecule
-from gpaw.utilities import devnull
 
 from gpaw import GPAW, LCAO, FermiDirac, KohnShamConvergenceError
-from gpaw.utilities import compiled_with_sl
-from gpaw.old.forces import calculate_forces
 from gpaw.mpi import world
+from gpaw.old.forces import calculate_forces
+from gpaw.utilities import compiled_with_sl, devnull
 
 # Calculates energy and forces for various parallelizations
 

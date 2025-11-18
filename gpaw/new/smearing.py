@@ -1,5 +1,6 @@
 from __future__ import annotations
-from gpaw.occupations import create_occ_calc, ParallelLayout
+
+from gpaw.occupations import ParallelLayout, create_occ_calc
 from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.typing import Array2D
 

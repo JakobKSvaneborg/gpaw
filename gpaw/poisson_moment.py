@@ -1,16 +1,14 @@
-from typing import Any, Union
 from collections.abc import Sequence
+from typing import Any, Union
 
 import numpy as np
 from ase.units import Bohr
-from ase.utils.timing import Timer
+from ase.utils.timing import Timer, timer
+
 from gpaw.poisson import _PoissonSolver, create_poisson_solver
-from gpaw.utilities.gauss import Gaussian
 from gpaw.typing import Array1D
-from gpaw.utilities.timing import nulltimer, NullTimer
-
-from ase.utils.timing import timer
-
+from gpaw.utilities.gauss import Gaussian
+from gpaw.utilities.timing import NullTimer, nulltimer
 
 MomentCorrectionsType = Union[int, list[dict[str, Any]]]
 

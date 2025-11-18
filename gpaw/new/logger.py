@@ -4,10 +4,10 @@ import contextlib
 import io
 import os
 import sys
+from collections.abc import Sequence
 from functools import cache
 from pathlib import Path
 from typing import IO, Any
-from collections.abc import Sequence
 
 from gpaw.mpi import MPIComm, world
 
@@ -85,7 +85,7 @@ class Logger:
             text = (i + text.replace('\n', '\n' + i)).rstrip(' ')
         print(text, file=self.fd, end=end, flush=flush)
         if parallel:
-            from gpaw.mpi import send_string, receive_string
+            from gpaw.mpi import receive_string, send_string
             if self.comm.rank:
                 send_string(text, 0, comm=self.comm)
             else:

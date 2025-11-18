@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import numpy as np
+from scipy import sparse
+
 from gpaw.core.matrix import Matrix, MatrixWithNoData
 from gpaw.dft import Parameters
 from gpaw.lcao.tci import TCIExpansions
@@ -12,7 +14,6 @@ from gpaw.new.lcao.hybrids import HybridXCFunctional
 from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.utilities.timing import NullTimer
-from scipy import sparse
 
 
 class LCAODFTComponentsBuilder(DFTComponentsBuilder):

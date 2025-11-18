@@ -1,10 +1,12 @@
 import numpy as np
 import pytest
+
 from gpaw.core.matrix import Matrix
-from gpaw.gpu import cupy as cp, as_np, as_xp
+from gpaw.gpu import as_np, as_xp
+from gpaw.gpu import cupy as cp
+from gpaw.gpu.mpi import CuPyMPI
 from gpaw.mpi import world
 from gpaw.new.c import GPU_AWARE_MPI
-from gpaw.gpu.mpi import CuPyMPI
 
 
 @pytest.mark.gpu

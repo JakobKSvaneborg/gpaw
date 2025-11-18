@@ -1,9 +1,10 @@
 import numpy as np
 import pytest
+
 from gpaw.core.atom_arrays import AtomArraysLayout, AtomDistribution
+from gpaw.gpu import cupy as cp
 from gpaw.mpi import world
 from gpaw.test.core.test_matrix_elements import comms
-from gpaw.gpu import cupy as cp
 
 
 def test_aa_to_full():

@@ -1,17 +1,16 @@
 from __future__ import annotations
-from typing import Union
-from pathlib import Path
-from time import ctime
-from sys import stdout
 
-from inspect import isgeneratorfunction
 from functools import wraps
+from inspect import isgeneratorfunction
+from pathlib import Path
+from sys import stdout
+from time import ctime
+from typing import Union
 
 from ase.utils import IOContext
 from ase.utils.timing import Timer
 
 import gpaw.mpi as mpi
-
 
 TXTFilename = Union[Path, str]
 ResponseContextInput = Union['ResponseContext', dict, TXTFilename]

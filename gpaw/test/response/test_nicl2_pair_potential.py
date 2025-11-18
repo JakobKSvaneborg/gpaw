@@ -1,15 +1,13 @@
-import pytest
-
 import numpy as np
+import pytest
 
 from gpaw import GPAW
 from gpaw.mpi import world
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
-from gpaw.response.pw_parallelization import block_partition
 from gpaw.response.matrix_elements import TransversePairPotentialCalculator
-
-from gpaw.test.response.test_parallel_kptpair_extraction import \
-    initialize_extractor, initialize_transitions, initialize_integral
+from gpaw.response.pw_parallelization import block_partition
+from gpaw.test.response.test_parallel_kptpair_extraction import (
+    initialize_extractor, initialize_integral, initialize_transitions)
 
 
 @pytest.mark.response

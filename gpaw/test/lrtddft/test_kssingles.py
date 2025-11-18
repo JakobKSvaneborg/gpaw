@@ -1,10 +1,9 @@
 import pytest
-
 from ase.build import molecule
 
-from gpaw.mpi import world
 from gpaw import GPAW
 from gpaw.lrtddft.kssingle import KSSingles
+from gpaw.mpi import world
 
 
 @pytest.mark.new_gpaw_ready

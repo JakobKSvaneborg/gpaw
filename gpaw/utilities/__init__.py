@@ -11,12 +11,13 @@ from contextlib import contextmanager
 from math import sqrt
 from pathlib import Path
 
-import gpaw.cgpaw as cgpaw
 import numpy as np
 from ase import Atoms
-from ase.units import Bohr
 from ase.data import covalent_radii
 from ase.neighborlist import neighbor_list
+from ase.units import Bohr
+
+import gpaw.cgpaw as cgpaw
 from gpaw import GPAW_NO_C_EXTENSION, debug
 from gpaw.typing import DTypeLike
 

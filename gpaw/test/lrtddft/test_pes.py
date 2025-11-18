@@ -4,9 +4,9 @@ from ase.parallel import parprint
 
 from gpaw import GPAW, mpi
 from gpaw.lrtddft import LrTDDFT
-from gpaw.poisson import FDPoissonSolver
 from gpaw.pes.dos import DOSPES
 from gpaw.pes.tddft import TDDFTPES
+from gpaw.poisson import FDPoissonSolver
 
 
 @pytest.mark.lrtddft

@@ -5,22 +5,20 @@ from math import pi
 from time import time
 
 import numpy as np
-from scipy.linalg.blas import get_blas_funcs
 from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.pwacf import PWAtomCenteredFunctions
 from gpaw.hybrids.paw import pawexxvv
 from gpaw.mpi import broadcast
-# from gpaw.new import zips as zip
 from gpaw.new.ibzwfs import IBZWaveFunctions
+from gpaw.new.logger import Logger
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.setup import Setups
 from gpaw.utilities import unpack_hermitian
-from gpaw.new.logger import Logger
 from gpaw.utilities.blas import mmm
-# from line_profiler import profile
+from scipy.linalg.blas import get_blas_funcs
 
 
 @dataclass

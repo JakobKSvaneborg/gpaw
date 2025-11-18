@@ -1,6 +1,6 @@
 """Poly-ethylene 1-d chain."""
-import pytest
 import numpy as np
+import pytest
 from ase.neighborlist import neighbor_list
 
 from gpaw import GPAW

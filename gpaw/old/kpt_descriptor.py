@@ -4,6 +4,7 @@
 """K-point descriptor."""
 
 from __future__ import annotations
+
 from collections.abc import Sequence
 
 import numpy as np
@@ -13,8 +14,8 @@ from ase.dft.kpoints import get_monkhorst_pack_size_and_offset, monkhorst_pack
 import gpaw.cgpaw as cgpaw
 import gpaw.mpi as mpi
 from gpaw import KPointError
-from gpaw.typing import Array1D
 from gpaw.old.kpoint import KPoint
+from gpaw.typing import Array1D
 
 
 def to1bz(bzk_kc, cell_cv):

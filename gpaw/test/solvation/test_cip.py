@@ -1,15 +1,12 @@
-import pytest
-from gpaw.solvation.sjm import SJM, SJMPower12Potential
 import numpy as np
+import pytest
 from ase.build import fcc111
-from gpaw import FermiDirac
 
+from gpaw import FermiDirac
 # Import solvation modules
-from gpaw.solvation import (
-    EffectivePotentialCavity,
-    LinearDielectric,
-    GradientSurface,
-    SurfaceInteraction)
+from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
+                            LinearDielectric, SurfaceInteraction)
+from gpaw.solvation.sjm import SJM, SJMPower12Potential
 
 
 @pytest.mark.slow

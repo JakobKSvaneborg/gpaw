@@ -1,5 +1,6 @@
 """check if an error is raised if the laplacian is needed (mgga)."""
 import pytest
+
 from gpaw.xc import LibXC
 from gpaw.xc.libxc import FunctionalNeedsLaplacianError
 

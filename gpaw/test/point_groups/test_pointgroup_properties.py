@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 from pytest import approx
 
-from gpaw.point_groups import (PointGroup, SymmetryChecker,
-                               point_group_names as names)
+from gpaw.point_groups import PointGroup, SymmetryChecker
+from gpaw.point_groups import point_group_names as names
 
 
 @pytest.mark.serial

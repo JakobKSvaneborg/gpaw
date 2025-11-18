@@ -2,7 +2,8 @@ from math import pi
 
 import numpy as np
 import pytest
-from gpaw.core import UGDesc, PWDesc, UGArray
+
+from gpaw.core import PWDesc, UGArray, UGDesc
 from gpaw.fd_operators import Laplace
 from gpaw.mpi import world
 
@@ -88,7 +89,7 @@ def test_moment():
     f = py(a)
 
     if 0:  # Analytic result
-        from sympy import integrate, exp, oo, var, Symbol, sqrt, pi
+        from sympy import Symbol, exp, integrate, oo, pi, sqrt, var
         x = var('x')
         a = Symbol('a', positive=True)
         m = 8 * (integrate(exp(-a * x**2) * x**2, (x, 0, oo)) *

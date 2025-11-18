@@ -1,15 +1,15 @@
-from math import sqrt, pi
+from math import pi, sqrt
 
-import pytest
 import numpy as np
+import pytest
 from ase import Atoms
 from ase.units import Bohr, Hartree
 
-from gpaw.mpi import rank, size
 from gpaw import GPAW
 from gpaw.external import ConstantElectricField
-from gpaw.utilities import packed_index
+from gpaw.mpi import rank, size
 from gpaw.pair_density import PairDensity
+from gpaw.utilities import packed_index
 
 # Three ways to compute the polarizability of hydrogen:
 # 1. Perturbation theory

@@ -7,26 +7,23 @@ diagonalized in parallel, and eigenvalues are compared
 against LAPACK. Eigenvectors are not compared.
 """
 
-import pytest
 import numpy as np
-from scipy.linalg import eigh, inv, cholesky
+import pytest
+from scipy.linalg import cholesky, eigh, inv
 
-from gpaw.mpi import world, rank
 from gpaw.blacs import BlacsGrid, Redistributor
-from gpaw.utilities.tools import tri2full
+from gpaw.mpi import rank, world
 from gpaw.utilities import compiled_with_sl
 from gpaw.utilities.blas import rk
-from gpaw.utilities.scalapack import \
-    scalapack_general_diagonalize_dc, \
-    scalapack_diagonalize_dc, \
-    scalapack_inverse_cholesky, \
-    scalapack_inverse, \
-    scalapack_solve
+from gpaw.utilities.scalapack import (scalapack_diagonalize_dc,
+                                      scalapack_general_diagonalize_dc,
+                                      scalapack_inverse,
+                                      scalapack_inverse_cholesky,
+                                      scalapack_solve)
+from gpaw.utilities.tools import tri2full
 
-from .test_pblas import \
-    initialize_random, initialize_matrix, \
-    calculate_error, mnprocs_i
-
+from .test_pblas import (calculate_error, initialize_matrix, initialize_random,
+                         mnprocs_i)
 
 pytestmark = pytest.mark.skipif(not compiled_with_sl(),
                                 reason='not compiled with scalapack')

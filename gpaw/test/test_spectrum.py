@@ -1,8 +1,9 @@
 from math import exp, pi, sqrt
+
 import numpy as np
+import pytest
 
 from gpaw.gauss import Gauss
-import pytest
 from gpaw.utilities.folder import Folder, Lorentz, Voigt  # noqa
 
 # Gauss and Lorentz functions

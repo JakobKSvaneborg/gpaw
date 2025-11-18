@@ -1,6 +1,7 @@
-from dataclasses import replace
-from gpaw.basis_data import BasisFunction
 from collections import defaultdict
+from dataclasses import replace
+
+from gpaw.basis_data import BasisFunction
 
 
 def generate_ri_basis(basis, accuracy):

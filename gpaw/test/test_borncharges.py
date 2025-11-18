@@ -1,8 +1,9 @@
-import pytest
-import numpy as np
 from glob import glob
 
-from ase.build import mx2, molecule
+import numpy as np
+import pytest
+from ase.build import molecule, mx2
+
 from gpaw import GPAW
 from gpaw.borncharges import born_charges_wf
 from gpaw.mpi import world

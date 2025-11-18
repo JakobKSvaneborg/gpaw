@@ -1,15 +1,17 @@
+import numpy as np
 import pytest
 from ase import Atoms
+
 from gpaw import GPAW
 from gpaw.mpi import size
-import numpy as np
 
 
 @pytest.mark.new_gpaw_ready
 @pytest.mark.hybrids
 def test_pawexxvv():
-    from gpaw.hybrids.paw import python_pawexxvv
     from _gpaw import pawexxvv
+
+    from gpaw.hybrids.paw import python_pawexxvv
     for i in range(20):
         D_ii = np.random.rand(i, i)
         p = i * (i + 1) // 2

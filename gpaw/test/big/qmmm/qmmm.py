@@ -1,11 +1,12 @@
-from math import cos, sin, pi
+from math import cos, pi, sin
 
 from ase import Atoms
-from ase.calculators.tip4p import TIP4P, epsilon0, sigma0, rOH, angleHOH
-from ase.calculators.qmmm import EIQMMM, LJInteractions, Embedding
+from ase.calculators.qmmm import EIQMMM, Embedding, LJInteractions
+from ase.calculators.tip4p import TIP4P, angleHOH, epsilon0, rOH, sigma0
 from ase.constraints import FixBondLengths
 from ase.optimize import LBFGS
-from ase.optimize.precon import PreconLBFGS, Exp
+from ase.optimize.precon import Exp, PreconLBFGS
+
 from gpaw import GPAW
 
 r = rOH

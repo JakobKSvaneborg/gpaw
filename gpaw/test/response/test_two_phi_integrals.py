@@ -1,8 +1,9 @@
+import numpy as np
 import pytest
+
 from gpaw import GPAW
 from gpaw.response.groundstate import ResponsePAWDataset
 from gpaw.response.paw import calculate_pair_density_correction
-import numpy as np
 
 
 @pytest.mark.response

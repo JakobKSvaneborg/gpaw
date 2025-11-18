@@ -4,9 +4,9 @@ from pathlib import Path
 import numpy as np
 
 from gpaw import GPAW
+from gpaw.dos import DOSCalculator
 from gpaw.setup import Setup
 from gpaw.sphere.spherical_harmonics import names as ylmnames
-from gpaw.dos import DOSCalculator
 
 
 class CLICommand:
@@ -149,8 +149,8 @@ def dos(filename: Path | str,
         Calculate integrated DOS.
 
     """
-    from ase.spectrum.dosdata import GridDOSData
     from ase.spectrum.doscollection import GridDOSCollection
+    from ase.spectrum.dosdata import GridDOSData
 
     calc = GPAW(filename)
 

@@ -1,4 +1,5 @@
 import pytest
+
 from gpaw._broadcast_imports import broadcast_imports
 
 # These tests would be better if we could find a way to call them

@@ -1,10 +1,11 @@
+import numpy as np
 import pytest
+from ase import Atoms
+
+from gpaw import restart
 from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW
-from gpaw import restart
 from gpaw.new.extensions import D3
-import numpy as np
-from ase import Atoms
 
 
 @pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
@@ -127,10 +128,11 @@ def test_d3_extensions(mode, parallel, in_tmp_dir, gpaw_new, dftd3):
 
 @pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
 def test_d3_stress(parallel, in_tmp_dir, dftd3):
-    from ase.calculators.dftd3 import DFTD3
-    from ase.optimize import CellAwareBFGS
     from ase.build import bulk
+    from ase.calculators.dftd3 import DFTD3
     from ase.filters import FrechetCellFilter
+    from ase.optimize import CellAwareBFGS
+
     from gpaw.new.ase_interface import GPAW
 
     domain, band = parallel

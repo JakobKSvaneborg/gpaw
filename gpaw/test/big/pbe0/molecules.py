@@ -1,6 +1,7 @@
 import numpy as np
 from ase import Atoms
-from gpaw import GPAW, PW, RMMDIIS, GPAW_NEW
+
+from gpaw import GPAW, GPAW_NEW, PW, RMMDIIS
 from gpaw.hybrids import HybridXC
 from gpaw.mpi import world
 

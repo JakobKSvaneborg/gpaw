@@ -3,10 +3,10 @@ import numpy.linalg as la
 from ase.units import Hartree
 
 from gpaw.lcao.overlap import NewTwoCenterIntegrals as TwoCenterIntegrals
+from gpaw.lcao.tools import basis_subset2
 from gpaw.lfc import BasisFunctions
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.tools import dagger, lowdin, tri2full
-from gpaw.lcao.tools import basis_subset2
 
 
 def dots(*args):

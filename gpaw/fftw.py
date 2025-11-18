@@ -14,11 +14,11 @@ import numpy as np
 from scipy.fft import fftn, ifftn, irfftn, rfftn
 
 import gpaw.cgpaw as cgpaw
-from gpaw.utilities import as_complex_dtype, as_real_dtype, get_dtype_precision
-from gpaw.new.c import pw_insert_gpu
-from gpaw.new import trace
-from gpaw.typing import Array1D, Array3D, DTypeLike, IntVector
 from gpaw.gpu import is_hip
+from gpaw.new import trace
+from gpaw.new.c import pw_insert_gpu
+from gpaw.typing import Array1D, Array3D, DTypeLike, IntVector
+from gpaw.utilities import as_complex_dtype, as_real_dtype, get_dtype_precision
 
 ESTIMATE = 64
 MEASURE = 0
@@ -223,8 +223,9 @@ def rfftn_patch(tmp_R):
 
 
 def irfftn_patch(B, shape):
-    from gpaw.gpu import cupyx
     import cupy as xp
+
+    from gpaw.gpu import cupyx
     A = xp.empty(shape, dtype=complex)
     A[:, :, :B.shape[2]] = B
     inv_ind1 = -xp.arange(B.shape[0])[:, None, None]
@@ -283,7 +284,7 @@ class CuPyFFTPlans(FFTPlans):
 
     @trace
     def ifft_sphere(self, coef_G, pw, out_R=None):
-        from gpaw.gpu import cupyx, cupy
+        from gpaw.gpu import cupy, cupyx
         if out_R is not None:
             assert isinstance(out_R.data, cupy.ndarray)
 

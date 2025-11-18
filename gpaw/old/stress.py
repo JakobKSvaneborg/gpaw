@@ -1,8 +1,8 @@
-import numpy as np
 import ase.units as units
+import numpy as np
 
-from gpaw.utilities import unpack_hermitian
 from gpaw.old.wavefunctions.pw import PWWaveFunctions
+from gpaw.utilities import unpack_hermitian
 
 
 def calculate_stress(calc):

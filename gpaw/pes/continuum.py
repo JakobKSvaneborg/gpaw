@@ -1,11 +1,12 @@
-from math import pi, sin, cos
-import numpy as np
+from math import cos, pi, sin
 
+import numpy as np
 from ase.units import Bohr
+
 import gpaw.cgpaw as cgpaw
-from gpaw.poisson import PoissonSolver
-from gpaw.pes.state import State
 from gpaw.analyse.expandyl import AngularIntegral
+from gpaw.pes.state import State
+from gpaw.poisson import PoissonSolver
 
 
 class PlaneWave(State):

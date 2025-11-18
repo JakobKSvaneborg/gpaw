@@ -1,30 +1,29 @@
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import cached_property
-from time import time, ctime
+from time import ctime, time
 
-from ase.units import Hartree, Bohr
-from ase.dft import monkhorst_pack
 import numpy as np
+from ase.dft import monkhorst_pack
+from ase.units import Bohr, Hartree
 from scipy.linalg import eigh
 
-from gpaw.blacs import BlacsGrid, Redistributor, BlacsDescriptor
+from gpaw.blacs import BlacsDescriptor, BlacsGrid, Redistributor
+from gpaw.mpi import serial_comm, world
 from gpaw.old.kpt_descriptor import KPointDescriptor
-from gpaw.mpi import world, serial_comm
 from gpaw.response import ResponseContext
-from gpaw.response.groundstate import CellDescriptor
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
 from gpaw.response.context import timer
 from gpaw.response.coulomb_kernels import CoulombKernel
-from gpaw.response.df import Chi0DysonEquations
-from gpaw.response.df import write_response_function
+from gpaw.response.df import Chi0DysonEquations, write_response_function
 from gpaw.response.frequencies import FrequencyDescriptor
+from gpaw.response.groundstate import CellDescriptor
 from gpaw.response.pair import KPointPairFactory, get_gs_and_context
-from gpaw.response.qpd import SingleQPWDescriptor
-from gpaw.response.screened_interaction import (initialize_w_calculator,
-                                                GammaIntegrationMode)
-from gpaw.utilities.elpa import LibElpa
 from gpaw.response.pw_parallelization import Blocks1D
+from gpaw.response.qpd import SingleQPWDescriptor
+from gpaw.response.screened_interaction import (GammaIntegrationMode,
+                                                initialize_w_calculator)
+from gpaw.utilities.elpa import LibElpa
 
 
 def decide_whether_tammdancoff(val_m, con_m):

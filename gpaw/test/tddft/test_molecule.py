@@ -1,14 +1,12 @@
 import pytest
-
 from ase.build import molecule
 
 from gpaw import GPAW
+from gpaw.mpi import serial_comm, world
 from gpaw.tddft import TDDFT, DipoleMomentWriter
-from gpaw.mpi import world, serial_comm
 from gpaw.utilities import compiled_with_sl
 
 from ..lcaotddft.test_molecule import only_on_master
-
 
 pytestmark = pytest.mark.usefixtures('module_tmp_path')
 

@@ -1,9 +1,8 @@
 import numpy as np
-
 from ase import Atoms
 
-from gpaw.utilities import h2gpts
 from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.utilities import h2gpts
 
 
 def adjust_cell(atoms: Atoms,

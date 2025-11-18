@@ -1,13 +1,13 @@
 import pytest
-from gpaw.mpi import world
-from ase import Atoms, Atom
+from ase import Atom, Atoms
 from ase.build import molecule
-from ase.units import Hartree, mol, kcal
+from ase.units import Hartree, kcal, mol
+
 from gpaw import GPAW
 from gpaw.mixer import Mixer, MixerSum
+from gpaw.mpi import world
 from gpaw.occupations import FermiDirac
 from gpaw.test import gen
-
 
 pytestmark = pytest.mark.skipif(world.size < 4,
                                 reason='world.size < 4')

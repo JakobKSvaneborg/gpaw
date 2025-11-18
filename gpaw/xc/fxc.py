@@ -1,22 +1,22 @@
 from abc import ABC, abstractmethod
-from time import time
 from pathlib import Path
+from time import time
 
 import ase.io.ulm as ulm
 import numpy as np
 from ase.units import Ha
-from gpaw.response import timer
 from scipy.special import p_roots, sici
 
 from gpaw.blacs import BlacsGrid, Redistributor
 from gpaw.fd_operators import Gradient
 from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.old.pw.descriptor import PWDescriptor
+from gpaw.response import timer
 from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.utilities.blas import axpy, gemmdot
+from gpaw.xc.fxc_kernels import (get_fHxc_Gr, get_fspinHxc_Gr_rALDA,
+                                 get_fspinHxc_Gr_rAPBE, get_pbe_fxc)
 from gpaw.xc.rpa import RPACorrelation
-from gpaw.xc.fxc_kernels import (
-    get_fHxc_Gr, get_pbe_fxc, get_fspinHxc_Gr_rALDA, get_fspinHxc_Gr_rAPBE)
 
 
 def heg_rs2qF(rs: float) -> float:

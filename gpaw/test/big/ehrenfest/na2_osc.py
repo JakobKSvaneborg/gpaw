@@ -1,18 +1,18 @@
 
 import os
 import time
-import numpy as np
 
+import numpy as np
 from ase import Atoms
-from ase.parallel import paropen
-from ase.units import Hartree, Bohr
-from ase.io import Trajectory
 from ase.calculators.singlepoint import SinglePointCalculator
+from ase.io import Trajectory
+from ase.parallel import paropen
+from ase.units import Bohr, Hartree
+
 from gpaw import GPAW
 from gpaw.mpi import world
 from gpaw.tddft import TDDFT
 from gpaw.tddft.ehrenfest import EhrenfestVelocityVerlet
-
 
 name = 'na2_osc'
 

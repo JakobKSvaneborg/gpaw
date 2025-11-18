@@ -1,25 +1,24 @@
-import pytest
 import numpy as np
+import pytest
 from ase import Atoms
-from ase.units import Ha, Bohr
+from ase.units import Bohr, Ha
 
-from gpaw.old.kpt_descriptor import KPointDescriptor
-from gpaw.old.grid_descriptor import GridDescriptor
-from gpaw.old.kpoint import KPoint
-from gpaw.symmetry import Symmetry
-from gpaw.old.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
-from gpaw.old.pw.descriptor import PWDescriptor
-from gpaw.old.pw.lfc import PWLFC
-from gpaw.old.projections import Projections
-from gpaw.mpi import world
-from gpaw.spline import Spline
+from gpaw.hybrids.coulomb import coulomb_interaction
 from gpaw.hybrids.energy import calculate_energy
 from gpaw.hybrids.forces import calculate_forces
-from gpaw.hybrids.coulomb import coulomb_interaction
+from gpaw.hybrids.kpts import get_kpt
 from gpaw.hybrids.paw import calculate_paw_stuff
 from gpaw.hybrids.symmetry import Symmetry as Sym
-from gpaw.hybrids.kpts import get_kpt
-
+from gpaw.mpi import world
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.old.kpoint import KPoint
+from gpaw.old.kpt_descriptor import KPointDescriptor
+from gpaw.old.projections import Projections
+from gpaw.old.pw.descriptor import PWDescriptor
+from gpaw.old.pw.lfc import PWLFC
+from gpaw.old.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
+from gpaw.spline import Spline
+from gpaw.symmetry import Symmetry
 
 N = 20
 L = 2.5

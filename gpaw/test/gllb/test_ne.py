@@ -1,8 +1,9 @@
 import pytest
-from ase import Atoms, Atom
+from ase import Atom, Atoms
+
 from gpaw import GPAW
-from gpaw.atom.generator import Generator
 from gpaw.atom.configurations import parameters
+from gpaw.atom.generator import Generator
 from gpaw.mpi import world
 
 

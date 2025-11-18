@@ -4,6 +4,7 @@ import numpy as np
 from ase import Atoms
 from ase.build import add_adsorbate, bulk, fcc111, graphene, molecule, mx2
 from ase.lattice.hexagonal import Graphene
+
 from gpaw.benchmark.generate_twisted import make_heterostructure
 
 

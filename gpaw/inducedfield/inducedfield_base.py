@@ -2,12 +2,12 @@ import numpy as np
 from ase.units import Bohr, Hartree
 
 import gpaw.mpi as mpi
-from gpaw.tddft.units import eV_to_aufrequency
-from gpaw.poisson import PoissonSolver
 from gpaw.fd_operators import Gradient
 from gpaw.old.grid_descriptor import GridDescriptor
-from gpaw.utilities.extend_grid import extended_grid_descriptor, \
-    extend_array, deextend_array, move_atoms
+from gpaw.poisson import PoissonSolver
+from gpaw.tddft.units import eV_to_aufrequency
+from gpaw.utilities.extend_grid import (deextend_array, extend_array,
+                                        extended_grid_descriptor, move_atoms)
 
 
 def sendreceive_dict(comm, a_i, dest, b_i, src_i, iitems):

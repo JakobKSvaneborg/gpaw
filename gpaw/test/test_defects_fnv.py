@@ -1,9 +1,12 @@
-import pytest
 import numpy as np
+import pytest
 from ase.build import bulk, graphene
 from ase.build.supercells import make_supercell
+
 from gpaw import GPAW
 from gpaw.defects import ElectrostaticCorrections
+from gpaw.defects.old_electrostatic import OldElectrostaticCorrections
+from pathlib import Path
 
 
 @pytest.mark.serial
@@ -47,12 +50,12 @@ def test_fnv_2d():
     # defect position
     r0 = pristine.positions[0, :]
 
-    elc = ElectrostaticCorrections(pristine=pristine.calc,
-                                   charged=defect.calc,
-                                   r0=r0,
-                                   q=charge,
-                                   sigma=sigma,
-                                   dimensionality='2d')
+    elc = OldElectrostaticCorrections(pristine=pristine.calc,
+                                      charged=defect.calc,
+                                      r0=r0,
+                                      q=charge,
+                                      sigma=sigma,
+                                      dimensionality='2d')
     elc.set_epsilons(epsilons)
     E_corr = elc.calculate_corrected_formation_energy()
     E_uncorr = elc.calculate_uncorrected_formation_energy()
@@ -61,11 +64,14 @@ def test_fnv_2d():
     assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-2)
 
 
-@pytest.mark.serial
-def test_fnv_3d():
+def test_fnv_3d(in_tmp_dir):
 
     E_corr_t = 23.55
     E_uncorr_t = 18.31
+    E_fnv_t = E_corr_t - E_uncorr_t
+
+    prs_path = Path('prs.gpw')
+    def_path = Path('def.gpw')
 
     a0 = 5.628      # lattice parameter
     sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
@@ -75,7 +81,8 @@ def test_fnv_3d():
     params = {'mode': {'name': 'pw', 'ecut': 400},
               'xc': 'LDA',
               'kpts': {'size': (2, 2, 2), 'gamma': False},
-              'occupations': {'name': 'fermi-dirac', 'width': 0.01}}
+              'occupations': {'name': 'fermi-dirac', 'width': 0.01},
+              'txt': 'fnv.txt'}
 
     calc_charged = GPAW(charge=charge, **params)
     calc_neutral = GPAW(charge=0, **params)
@@ -83,34 +90,38 @@ def test_fnv_3d():
     pristine = bulk('GaAs', crystalstructure='zincblende', a=a0, cubic=True)
     pristine.calc = calc_neutral
     pristine.get_potential_energy()
+    pristine.calc.write(prs_path)
 
     defect = pristine.copy()
     defect.pop(0)  # make a Ga vacancy
     defect.calc = calc_charged
     defect.get_potential_energy()
+    defect.calc.write(def_path)
 
     # defect position
     r0 = pristine.positions[0, :]
 
-    # need to convert Path -> str
-    elc = ElectrostaticCorrections(pristine=pristine.calc,
-                                   charged=defect.calc,
+    elc = ElectrostaticCorrections(pristine=prs_path,
+                                   defect=def_path,
                                    r0=r0,
-                                   q=charge,
+                                   charge=charge,
                                    sigma=sigma,
-                                   dimensionality='3d')
-    elc.set_epsilons(epsilon)
+                                   epsilon=epsilon,
+                                   method='full-planar')
     E_corr = elc.calculate_corrected_formation_energy()
     E_uncorr = elc.calculate_uncorrected_formation_energy()
+    E_fnv = E_corr - E_uncorr
 
+    print(E_uncorr, E_corr, E_fnv)
+    assert E_fnv == pytest.approx(E_fnv_t, abs=3e-2)
     assert E_corr == pytest.approx(E_corr_t, abs=2e-2)
     assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-2)
 
 
-@pytest.mark.serial
-@pytest.mark.parametrize('P', [[[1, 0, 0], [1, -1, 0], [0, 0, 1]]])
-# [[1, 0, -1], [1, -1, 0], [0, 0, 1]]  # fails
-def test_fnv_cell(P, gpaw_new):
+@pytest.mark.parametrize('P', [[[1, 0, 0], [1, 1, 0], [0, 0, 1]]])
+# [[1, 0, 0], [1, -1, 0], [0, 0, 1]] passes
+def test_fnv_cell(P, in_tmp_dir, gpaw_new):
+
     if gpaw_new:
         pytest.skip('Transformed cell [90, 90, 45] not supported by GPAW new')
 
@@ -118,6 +129,10 @@ def test_fnv_cell(P, gpaw_new):
 
     E_corr_t = 23.55
     E_uncorr_t = 18.31
+    E_fnv_t = E_corr_t - E_uncorr_t
+
+    prs_path = Path('prs.gpw')
+    def_path = Path('def.gpw')
 
     a0 = 5.628      # lattice parameter
     sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
@@ -138,34 +153,35 @@ def test_fnv_cell(P, gpaw_new):
     pristine = make_supercell(pristine, P)
     pristine.calc = calc_neutral
     pristine.get_potential_energy()
+    pristine.calc.write(prs_path)
 
     defect = pristine.copy()
     defect.pop(0)  # make a Ga vacancy
     defect.calc = calc_charged
     defect.get_potential_energy()
+    defect.calc.write(def_path)
 
     # defect position
     r0 = pristine.positions[0, :]
 
-    # need to convert Path -> str
-    elc = ElectrostaticCorrections(pristine=pristine.calc,
-                                   charged=defect.calc,
+    elc = ElectrostaticCorrections(pristine=prs_path,
+                                   defect=def_path,
                                    r0=r0,
-                                   q=charge,
+                                   charge=charge,
                                    sigma=sigma,
-                                   dimensionality='3d',
-                                   check_cell=False)
-    elc.set_epsilons(epsilon)
+                                   epsilon=epsilon,
+                                   method='full-planar')
     E_corr = elc.calculate_corrected_formation_energy()
     E_uncorr = elc.calculate_uncorrected_formation_energy()
+    E_fnv = E_corr - E_uncorr
 
     # changed tolerance to pass ortho-rhombic case
     # switching symmetry off does not help to improve accuracy
-    print('E_corr', E_corr)
-    print('E_uncorr', E_uncorr)
-    assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-1)
+    print(E_uncorr, E_corr, E_fnv)
+    assert E_fnv == pytest.approx(E_fnv_t, abs=4e-2)
     assert E_corr == pytest.approx(E_corr_t, abs=2e-1)
+    assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-1)
 
 
 if __name__ == "__main__":
-    test_fnv_2d()
+    test_fnv_3d()
