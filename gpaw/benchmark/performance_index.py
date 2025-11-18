@@ -64,8 +64,8 @@ def score(data: dict[str, float]) -> tuple[float, int]:
     """GPAW's PW-index (or score).
 
     With `N` materials and times for completion of each
-    material `t_i`, we get this index normalized to 100
-    for the first run with reference times `t_i^0`:::
+    material `t_i`, we get this index (normalized to 100
+    for the first run with reference times `t_i^0`):::
 
                    0
               N   t
@@ -74,7 +74,7 @@ def score(data: dict[str, float]) -> tuple[float, int]:
          N   ---  t
              i=1   i
 
-    The rescaling factor `\alpha` is used for rescaling the
+    The rescaling factor α is used for rescaling the
     index when new materials are added or hardware is updated.
     """
     s = 0.0
