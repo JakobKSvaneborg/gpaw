@@ -90,7 +90,7 @@ def workflow():
     for name, (_, _, cores, _) in REFERENCES.items():
         tmax = '1h'
         if cores == 24:
-            nodename = 'xeon25el8'
+            nodename = 'xeon24el8'
         if cores == 40:
             nodename = 'xeon40el8_clx'
         elif cores == 56:
