@@ -385,12 +385,24 @@ def calculate_matrix_element_correction(qG_Gv, pawdata,
     return Fbar_Gii
 
 
-def parallel_fourier_bessel_transform(k_G, *args, comm=None):
+def comm_keyword(func):
+    import functools
+    from gpaw.mpi import world
+
+    @functools.wraps(func)
+    def wrapper(*args, comm=None, **kwargs):
+        if comm is None:
+            comm = world
+        return func(*args, comm=comm, **kwargs)
+
+    return wrapper
+
+
+@comm_keyword
+def parallel_fourier_bessel_transform(k_G, *args, comm):
     """Distribute FBT plane-wave components over a given communicator."""
     # NB: If we need to do something similar elsewhere, we can generalize this
     # function to a decorator!
-    if comm is None:
-        from gpaw.mpi import world as comm
     Gblocks = Blocks1D(comm, len(k_G))
     f_myG = fourier_bessel_transform(k_G[Gblocks.myslice], *args)
     return Gblocks.all_gather(f_myG)
