@@ -4,10 +4,8 @@ import matplotlib.pyplot as plt
 
 data = read_json('electrostatics.json')
 
-# select one of the repeats to be plotted
-nsel = 2
-index = data['repeats'].index(nsel)
-profile = data['profiles'][index]
+# obtain potential profile (only generated for N=2)
+profile = data['profile']
 z = profile['z']
 V_m = profile['model']
 dV_defprs = profile['def'] - profile['prs']

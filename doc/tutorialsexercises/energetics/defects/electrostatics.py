@@ -9,7 +9,6 @@ charge = -3
 epsilon = 12.7
 corrected = []
 uncorrected = []
-profiles = []
 repeats = [1, 2, 3]
 for N in repeats:
     label = f'GaAs_{N}x{N}x{N}'
@@ -30,13 +29,14 @@ for N in repeats:
                                    method='full-planar')
     E_corr = elc.calculate_corrected_formation_energy()
     E_uncorr = elc.calculate_uncorrected_formation_energy()
-    profile = elc.calculate_potential_profile()
+
+    if N == 2:
+        profile = elc.calculate_potential_profile()
 
     corrected.append(E_corr)
     uncorrected.append(E_uncorr)
-    profiles.append(profile)
 
 res = {'repeats': repeats, 'corrected': corrected,
-       'uncorrected': uncorrected, 'profiles': profiles}
+       'uncorrected': uncorrected, 'profile': profile}
 
 write_json('electrostatics.json', res)
