@@ -5,14 +5,16 @@ See:
   https://journals.aps.org/prb/abstract/10.1103/PhysRevB.98.155433
 """
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 from ase.build import mx2
-from gpaw import GPAW
+
 import gpaw.mpi as mpi
-from gpaw.spinorbit import soc_eigenstates
+from gpaw import GPAW
 from gpaw.berryphase import polarization_phase
-from pathlib import Path
+from gpaw.spinorbit import soc_eigenstates
 
 
 def check(E, hsplit, lsplit):

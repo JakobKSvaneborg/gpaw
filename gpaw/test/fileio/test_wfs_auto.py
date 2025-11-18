@@ -1,7 +1,8 @@
 """Test automagical calculation of wfs"""
 
-from gpaw import GPAW
 from ase import Atoms
+
+from gpaw import GPAW
 
 # H2
 

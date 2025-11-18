@@ -1,6 +1,6 @@
 import numpy as np
-
 import pytest
+
 from gpaw.lrtddft.apmb import sqrt_matrix
 
 # check sqrt of a matrix

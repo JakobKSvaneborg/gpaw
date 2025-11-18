@@ -4,11 +4,11 @@ import numpy as np
 from ase.units import Bohr, Hartree
 
 from gpaw import GPAW_NEW
-from gpaw.old.calculator import GPAW
 from gpaw.external import ConstantElectricField, ExternalPotential
 from gpaw.lcaotddft.hamiltonian import TimeDependentHamiltonian
 from gpaw.lcaotddft.logger import TDDFTLogger
 from gpaw.lcaotddft.propagators import create_propagator
+from gpaw.old.calculator import GPAW
 from gpaw.tddft.units import attosec_to_autime
 from gpaw.typing import Any, Vector
 

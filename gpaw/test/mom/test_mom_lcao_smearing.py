@@ -1,4 +1,5 @@
 import pytest
+
 from gpaw import GPAW, restart
 from gpaw.mom import prepare_mom_calculation
 

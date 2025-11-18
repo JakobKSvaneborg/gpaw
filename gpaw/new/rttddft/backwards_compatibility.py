@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import warnings
-
 from functools import cached_property
 from types import SimpleNamespace
 from typing import Any
 
-from gpaw.new.backwards_compatibility import FakePoisson
 from gpaw.mpi import world
 from gpaw.new.ase_interface import ASECalculator
+from gpaw.new.backwards_compatibility import FakePoisson
 from gpaw.new.rttddft.rttddft import RTTDDFT
 from gpaw.new.rttddft.td_algorithm import TDAlgorithmLike
 from gpaw.tddft.units import as_to_au, autime_to_asetime

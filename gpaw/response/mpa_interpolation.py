@@ -10,10 +10,13 @@ formula (See App. A of Ref. [1]).
 [1] DA. Leon et al, PRB 104, 115157 (2021)
 """
 from __future__ import annotations
+
 from typing import no_type_check
-from gpaw.typing import Array1D, Array2D, Array3D
+
 import numpy as np
 from numpy.linalg import eigvals
+
+from gpaw.typing import Array1D, Array2D, Array3D
 
 
 def fit_residue(

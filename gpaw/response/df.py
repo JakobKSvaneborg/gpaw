@@ -1,26 +1,25 @@
 from __future__ import annotations
+
+import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-import sys
+from typing import TYPE_CHECKING
 
 import numpy as np
 from ase.units import Hartree
 
 import gpaw.mpi as mpi
-
-from gpaw.response.pw_parallelization import Blocks1D
-from gpaw.response.coulomb_kernels import CoulombKernel
-from gpaw.response.dyson import DysonEquation
-from gpaw.response.density_kernels import DensityXCKernel
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
 from gpaw.response.chi0_data import Chi0Data
+from gpaw.response.coulomb_kernels import CoulombKernel
+from gpaw.response.density_kernels import DensityXCKernel
+from gpaw.response.dyson import DysonEquation
 from gpaw.response.pair import get_gs_and_context
-
-from typing import TYPE_CHECKING
+from gpaw.response.pw_parallelization import Blocks1D
 
 if TYPE_CHECKING:
-    from gpaw.response.groundstate import CellDescriptor
     from gpaw.response.frequencies import FrequencyDescriptor
+    from gpaw.response.groundstate import CellDescriptor
     from gpaw.response.qpd import SingleQPWDescriptor
 
 

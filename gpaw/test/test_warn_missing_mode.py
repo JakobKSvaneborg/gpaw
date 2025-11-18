@@ -1,8 +1,9 @@
 """Make sure we get a warning when mode is not supplied."""
-from ase.build import molecule
-from gpaw.old.calculator import DeprecatedParameterWarning
-from gpaw import GPAW
 import pytest
+from ase.build import molecule
+
+from gpaw import GPAW
+from gpaw.old.calculator import DeprecatedParameterWarning
 
 
 @pytest.mark.ci

@@ -1,8 +1,9 @@
 import warnings
-from math import sqrt, pi
-import numpy as np
+from math import pi, sqrt
 
+import numpy as np
 from ase.units import Ha
+
 from gpaw import BadParallelization
 from gpaw.mpi import world
 from gpaw.old.density import redistribute_array, redistribute_atomic_matrices

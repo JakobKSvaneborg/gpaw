@@ -1,7 +1,8 @@
 from functools import wraps
 
-import gpaw.mpi as mpi
 import numpy as np
+
+import gpaw.mpi as mpi
 from gpaw.atom.configurations import parameters, tf_parameters
 from gpaw.atom.generator import Generator
 from gpaw.typing import Array1D

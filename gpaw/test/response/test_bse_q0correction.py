@@ -1,9 +1,9 @@
 import pytest
-from gpaw.response.pair import get_gs_and_context
+from ase.units import Hartree
+
 from gpaw.mpi import world
 from gpaw.response.bse import BSE
-
-from ase.units import Hartree
+from gpaw.response.pair import get_gs_and_context
 
 
 @pytest.mark.response

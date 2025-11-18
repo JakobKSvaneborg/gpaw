@@ -1,12 +1,12 @@
-import os
-import glob
 import datetime
+import glob
+import os
 
 import numpy as np
 
 import gpaw.mpi
-from gpaw.utilities import pack_density
 from gpaw.lrtddft2.eta import QuadraticETA
+from gpaw.utilities import pack_density
 
 
 class Kmatrix:

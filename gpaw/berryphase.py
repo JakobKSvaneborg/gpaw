@@ -1,21 +1,20 @@
 from __future__ import annotations
+
 import warnings
 from pathlib import Path
 
 import numpy as np
+from ase import Atoms
 from ase.dft.bandgap import bandgap
 from ase.dft.kpoints import get_monkhorst_pack_size_and_offset
+from ase.parallel import parprint
 
 from gpaw import GPAW
-from gpaw.ibz2bz import get_overlap
-from gpaw.ibz2bz import (get_overlap_coefficients,
+from gpaw.ibz2bz import (get_overlap, get_overlap_coefficients,
                          get_phase_shifted_overlap_coefficients)
 from gpaw.mpi import rank, serial_comm, world
 from gpaw.spinorbit import soc_eigenstates
 from gpaw.utilities.blas import gemmdot
-
-from ase import Atoms
-from ase.parallel import parprint
 
 
 class ZeroBandgap(Exception):

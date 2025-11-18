@@ -1,4 +1,5 @@
 import numpy as np
+
 from gpaw import GPAW_NO_C_EXTENSION
 from gpaw.core import PWDesc, UGDesc
 from gpaw.lfc import BasisFunctions

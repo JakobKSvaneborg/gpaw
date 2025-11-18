@@ -9,8 +9,8 @@ from typing import ContextManager
 
 import pytest
 
-from gpaw.setup_data import search_for_file
 from gpaw.atom.plot_dataset import CLICommand, read_setup_file
+from gpaw.setup_data import search_for_file
 
 
 @dataclasses.dataclass

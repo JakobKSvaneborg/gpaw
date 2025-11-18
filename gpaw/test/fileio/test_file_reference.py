@@ -1,5 +1,6 @@
 """Test the reading of wave functions as file references."""
 import numpy as np
+
 from gpaw import GPAW
 from gpaw.mpi import rank, world
 

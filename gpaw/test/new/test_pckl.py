@@ -1,10 +1,11 @@
 import pickle
 
-from gpaw.core import UGDesc, PWDesc
+import numpy as np
+
+from gpaw.core import PWDesc, UGDesc
+from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.setup import Setups
-import numpy as np
-from gpaw.core.atom_arrays import AtomDistribution
 
 
 def test_pckl(in_tmp_dir):

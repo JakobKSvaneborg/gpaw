@@ -1,13 +1,12 @@
 import numpy as np
 
 from gpaw import debug
-from gpaw.transformers import Transformer
-from gpaw.lfc import BasisFunctions
+from gpaw.inducedfield.inducedfield_base import (BaseInducedField,
+                                                 sendreceive_dict)
 from gpaw.lcaotddft.observer import TDDFTObserver
-from gpaw.utilities import unpack_density, is_contiguous
-
-from gpaw.inducedfield.inducedfield_base import BaseInducedField, \
-    sendreceive_dict
+from gpaw.lfc import BasisFunctions
+from gpaw.transformers import Transformer
+from gpaw.utilities import is_contiguous, unpack_density
 
 
 class TDDFTInducedField(BaseInducedField, TDDFTObserver):

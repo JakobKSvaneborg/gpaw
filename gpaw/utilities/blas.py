@@ -12,15 +12,16 @@ https://www.netlib.org/lapack/lug/node145.html
 """
 from typing import TypeVar
 
-import gpaw.cgpaw as cgpaw
 import numpy as np
 import scipy.linalg.blas as blas
+
+import gpaw.cgpaw as cgpaw
 from gpaw import debug
 from gpaw.gpu import cupy_is_fake
 from gpaw.new import prod
+from gpaw.new.timer import trace
 from gpaw.typing import Array2D, ArrayND
 from gpaw.utilities import is_contiguous
-from gpaw.new.timer import trace
 
 
 def is_finite(array, tril=False):

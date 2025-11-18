@@ -5,17 +5,17 @@ import pytest
 from ase import Atoms
 from scipy.special import erf
 
+from gpaw import GPAW_NO_C_EXTENSION
 from gpaw.atom.radialgd import EquidistantRadialGridDescriptor as RGD
 from gpaw.core import PWDesc
+from gpaw.gpu import cupy as cp
+from gpaw.gpu.mpi import CuPyMPI
+from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW
 from gpaw.new.pw.bloechl_poisson import BloechlPAWPoissonSolver
 from gpaw.new.pw.paw_poisson import (SimplePAWPoissonSolver,
                                      SlowPAWPoissonSolver)
 from gpaw.new.pw.poisson import PWPoissonSolver
-from gpaw.mpi import world
-from gpaw.gpu import cupy as cp
-from gpaw.gpu.mpi import CuPyMPI
-from gpaw import GPAW_NO_C_EXTENSION
 
 
 def g(rc, rgd):

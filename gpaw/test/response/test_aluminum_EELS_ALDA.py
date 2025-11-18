@@ -1,12 +1,12 @@
 import time
 
-import pytest
 import numpy as np
+import pytest
 from ase.parallel import parprint
 
-from gpaw.test import findpeak
-from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.mpi import size, world
+from gpaw.response.df import DielectricFunction, read_response_function
+from gpaw.test import findpeak
 
 
 @pytest.mark.dielectricfunction

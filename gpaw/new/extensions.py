@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import os
 import uuid
 from pathlib import Path
@@ -6,6 +7,7 @@ from pathlib import Path
 import numpy as np
 from ase.calculators.calculator import PropertyNotImplementedError
 from ase.units import Bohr, Ha
+
 from gpaw.core import PWArray, PWDesc, UGArray
 from gpaw.core.domain import Domain
 from gpaw.dft import ExtensionInput

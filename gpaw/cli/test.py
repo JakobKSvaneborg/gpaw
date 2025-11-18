@@ -4,9 +4,10 @@ from pathlib import Path
 from ase import Atoms
 from ase.parallel import parprint
 
-from .info import info
 from gpaw import GPAW, PW, setup_paths
 from gpaw.mpi import size
+
+from .info import info
 
 
 class CLICommand:

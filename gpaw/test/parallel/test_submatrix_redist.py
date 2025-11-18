@@ -1,5 +1,5 @@
-from gpaw.mpi import world
 from gpaw.blacs import BlacsGrid, Redistributor
+from gpaw.mpi import world
 
 
 def test_parallel_submatrix_redist(scalapack):

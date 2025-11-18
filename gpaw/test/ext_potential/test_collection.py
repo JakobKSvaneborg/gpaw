@@ -1,6 +1,6 @@
-from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.external import (ConstantElectricField, PointChargePotential,
                            PotentialCollection, create_external_potential)
+from gpaw.old.grid_descriptor import GridDescriptor
 
 
 def test_collection():

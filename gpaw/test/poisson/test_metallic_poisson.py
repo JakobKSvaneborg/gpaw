@@ -1,7 +1,8 @@
-from gpaw import GPAW, restart
-from ase.build import bcc111
-from gpaw.poisson import PoissonSolver
 import numpy as np
+from ase.build import bcc111
+
+from gpaw import GPAW, restart
+from gpaw.poisson import PoissonSolver
 
 
 def test_poisson_metallic_poisson(in_tmp_dir):

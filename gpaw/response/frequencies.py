@@ -5,6 +5,7 @@ from typing import Any
 
 import numpy as np
 from ase.units import Ha
+
 from gpaw.typing import ArrayLike1D
 
 

@@ -1,5 +1,6 @@
-from gpaw.gpu import cupy as cp
 import numpy as np
+
+from gpaw.gpu import cupy as cp
 
 
 class CuPyMPI:

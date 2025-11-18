@@ -6,9 +6,9 @@ from ase import Atoms
 from ase.build import add_adsorbate, fcc100, fcc111, molecule
 from ase.io import read
 from ase.lattice.cubic import FaceCenteredCubic
+
 from gpaw import FermiDirac
 from gpaw.utilities import h2gpts
-
 
 _functions = {}
 

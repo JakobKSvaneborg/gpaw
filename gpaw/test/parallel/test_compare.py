@@ -1,4 +1,5 @@
 from ase import Atoms
+
 from gpaw import GPAW
 from gpaw.mpi import rank, size
 

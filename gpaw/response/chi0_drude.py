@@ -1,15 +1,16 @@
 from __future__ import annotations
-from time import ctime
 
+from time import ctime
 from typing import TYPE_CHECKING
+
 import numpy as np
 from ase.units import Ha
 
-from gpaw.response.symmetrize import HeadSymmetryOperators
-from gpaw.response.integrators import Integrand, HilbertTetrahedron, Intraband
 from gpaw.response.chi0_base import Chi0ComponentCalculator
 from gpaw.response.chi0_data import Chi0DrudeData
 from gpaw.response.frequencies import FrequencyGridDescriptor
+from gpaw.response.integrators import HilbertTetrahedron, Integrand, Intraband
+from gpaw.response.symmetrize import HeadSymmetryOperators
 
 if TYPE_CHECKING:
     from gpaw.response.kpoints import KPointDomainGenerator

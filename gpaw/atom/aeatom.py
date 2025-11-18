@@ -3,20 +3,19 @@ import sys
 from itertools import cycle
 from math import pi
 
+import ase.units as units
 import numpy as np
+from ase.data import atomic_names, atomic_numbers, chemical_symbols
+from ase.utils import seterr
 from numpy.linalg import eigh
 from scipy.special import gamma
-import ase.units as units
-from ase.data import atomic_numbers, atomic_names, chemical_symbols
-from ase.utils import seterr
 
 import gpaw.cgpaw as cgpaw
-from gpaw.xc import XC
-from gpaw.sphere.gaunt import gaunt
 from gpaw.atom.configurations import configurations
-from gpaw.atom.radialgd import (AERadialGridDescriptor,
-                                AbinitRadialGridDescriptor)
-
+from gpaw.atom.radialgd import (AbinitRadialGridDescriptor,
+                                AERadialGridDescriptor)
+from gpaw.sphere.gaunt import gaunt
+from gpaw.xc import XC
 
 # Velocity of light in atomic units:
 c = 2 * units._hplanck / (units._mu0 * units._c * units._e**2)

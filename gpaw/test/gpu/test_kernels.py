@@ -1,9 +1,11 @@
-import pytest
 import numpy as np
+import pytest
 
-from gpaw.utilities import as_real_dtype
-from gpaw.gpu import cupy as cp, cupy_is_fake
 from gpaw import GPAW_NO_C_EXTENSION
+from gpaw.gpu import cupy as cp
+from gpaw.gpu import cupy_is_fake
+from gpaw.utilities import as_real_dtype
+
 seed = 42
 
 
@@ -15,6 +17,7 @@ def test_dH_aii_times_P_ani(dtype):
     if GPAW_NO_C_EXTENSION:
         pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import dH_aii_times_P_ani_gpu as kernel_call
+
     from gpaw.purepython import dH_aii_times_P_ani_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -48,6 +51,7 @@ def test_pwlfc_expand(dtype, cc):
     if GPAW_NO_C_EXTENSION:
         pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import pwlfc_expand_gpu as kernel_call
+
     from gpaw.purepython import pwlfc_expand_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -110,6 +114,7 @@ def test_pw_amend_insert_realwf(dtype):
     if GPAW_NO_C_EXTENSION:
         pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import pw_amend_insert_realwf_gpu as kernel_call
+
     from gpaw.purepython import pw_amend_insert_realwf_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -140,6 +145,7 @@ def test_calculate_residuals(dtype):
     if GPAW_NO_C_EXTENSION:
         pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import calculate_residuals_gpu as kernel_call
+
     from gpaw.purepython import calculate_residuals_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -169,6 +175,7 @@ def test_add_to_density(dtype):
     if GPAW_NO_C_EXTENSION:
         pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import add_to_density_gpu as kernel_call
+
     from gpaw.purepython import add_to_density_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -199,6 +206,7 @@ def test_pw_norm(dtype):
     if GPAW_NO_C_EXTENSION:
         pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import pw_norm_gpu as kernel_call
+
     from gpaw.purepython import pw_norm_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -227,6 +235,7 @@ def test_pw_norm_kinetic(dtype):
     if GPAW_NO_C_EXTENSION:
         pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import pw_norm_kinetic_gpu as kernel_call
+
     from gpaw.purepython import pw_norm_kinetic_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -257,6 +266,7 @@ def test_pw_insert(dtype):
     if GPAW_NO_C_EXTENSION:
         pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import pw_insert_gpu as kernel_call
+
     from gpaw.purepython import pw_insert_gpu as cupy_call
     assert cupy_call is not kernel_call
 

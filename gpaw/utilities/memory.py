@@ -5,6 +5,7 @@
 # https://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/286222
 
 import os
+
 import numpy as np
 
 _proc_status = '/proc/%d/status' % os.getpid()
@@ -148,10 +149,11 @@ def monkey_patch_timer():
 
     to see where the memory is allocated."""
 
+    from time import time
+
     from ase.utils.timing import Timer
 
     from gpaw.mpi import rank
-    from time import time
 
     i = Timer.__init__
     st = Timer.start

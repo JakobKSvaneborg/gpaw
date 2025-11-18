@@ -1,20 +1,21 @@
 from __future__ import annotations
 
-from typing import Any, IO
 from pathlib import Path
+from typing import IO, Any
 
-from ase import Atoms
 import ase.io.ulm as ulm
+from ase import Atoms
 from ase.io.trajectory import read_atoms, write_atoms
 from ase.units import Bohr, Ha
+
 import gpaw
 import gpaw.mpi as mpi
 from gpaw.dft import Parameters
 from gpaw.new.builder import DFTComponentsBuilder
-from gpaw.new.gpw import GPWFlags, write_dft_state, read_dft_state
+from gpaw.new.gpw import GPWFlags, read_dft_state, write_dft_state
+from gpaw.new.logger import Logger
 from gpaw.new.rttddft.history import RTTDDFTHistory
 from gpaw.new.rttddft.state import RTTDDFTState
-from gpaw.new.logger import Logger
 
 
 def write_rttddft(filename: str | Path,

@@ -1,10 +1,11 @@
+import inspect
+from collections.abc import Callable
 from contextlib import contextmanager
 from functools import wraps
 from io import StringIO
 from typing import TypeVar, overload
-from collections.abc import Callable
+
 from gpaw import GPAW_TRACE
-import inspect
 
 
 class GlobalTimer:

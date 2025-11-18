@@ -3,24 +3,25 @@ from __future__ import annotations
 import sys
 from functools import partial
 from math import exp, log, pi, sqrt
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from ase.data import atomic_numbers, chemical_symbols
 from ase.units import Ha
+from scipy.linalg import eigh
+from scipy.optimize import fsolve
+from scipy.special import erf
+
 from gpaw import __version__ as version
 from gpaw.atom.aeatom import (AllElectronAtom, Channel, GaussianBasis, colors,
                               parse_ld_str)
 from gpaw.basis_data import Basis, BasisFunction
-from gpaw.sphere.gaunt import gaunt
 from gpaw.setup_data import SetupData
+from gpaw.sphere.gaunt import gaunt
 from gpaw.typing import Array2D
 from gpaw.utilities import pack_hermitian
 from gpaw.xc.ri.ribasis import generate_ri_basis
 from gpaw.xc.ri.spherical_hse_kernel import RadialHSE
-from scipy.linalg import eigh
-from scipy.optimize import fsolve
-from scipy.special import erf
 
 if TYPE_CHECKING:
     from matplotlib import pyplot as plt
@@ -797,20 +798,20 @@ class PAWSetupGenerator:
         projectors: plt.Axes | None = None,
     ) -> None:
         if potential_components is not None:
-            from .plot_dataset import (
-                plot_potential_components,
-                get_plot_pot_comps_params_from_generator as get_pc_args)
+            from .plot_dataset import \
+                get_plot_pot_comps_params_from_generator as get_pc_args
+            from .plot_dataset import plot_potential_components
             plot_potential_components(potential_components, *get_pc_args(self))
         if partial_waves is not None:
-            from .plot_dataset import (
-                plot_partial_waves,
-                get_plot_pwaves_params_from_generator as get_ppw_args)
+            from .plot_dataset import \
+                get_plot_pwaves_params_from_generator as get_ppw_args
+            from .plot_dataset import plot_partial_waves
 
             plot_partial_waves(partial_waves, *get_ppw_args(self))
         if projectors is not None:
-            from .plot_dataset import (
-                plot_projectors,
-                get_plot_projs_params_from_generator as get_pp_args)
+            from .plot_dataset import \
+                get_plot_projs_params_from_generator as get_pp_args
+            from .plot_dataset import plot_projectors
 
             plot_projectors(projectors, *get_pp_args(self))
 
@@ -1508,6 +1509,7 @@ def main(args):
 
     if should_plot_dataset:
         from matplotlib import pyplot as plt
+
         from .plot_dataset import plot_dataset
 
         assert setup is not None

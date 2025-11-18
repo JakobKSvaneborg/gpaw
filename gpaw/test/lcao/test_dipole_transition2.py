@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
-
-from ase.parallel import world, parprint
+from ase.parallel import parprint, world
 from ase.units import Bohr
+
 from gpaw import GPAW
 from gpaw.lcao.dipoletransition import get_dipole_transitions
 from gpaw.lrtddft.kssingle import KSSingles

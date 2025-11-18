@@ -1,8 +1,10 @@
-import pytest
-from gpaw.mpi import world
-import numpy as np
-from gpaw.response.g0w0 import G0W0
 import pickle
+
+import numpy as np
+import pytest
+
+from gpaw.mpi import world
+from gpaw.response.g0w0 import G0W0
 
 
 @pytest.mark.response

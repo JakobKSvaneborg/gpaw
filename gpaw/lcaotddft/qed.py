@@ -4,7 +4,8 @@ import warnings
 from abc import ABC, abstractmethod
 
 import numpy as np
-from ase.units import alpha, Hartree, Bohr
+from ase.units import Bohr, Hartree, alpha
+
 from gpaw.external import ConstantElectricField
 from gpaw.lcaotddft.hamiltonian import KickHamiltonian
 

@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import numpy as np
-
 from ase.units import Ha
 
+from gpaw.mpi import broadcast_float
 from gpaw.new.density import Density
-from gpaw.new.hamiltonian import Hamiltonian
-from gpaw.new.potential import Potential
 from gpaw.new.energies import DFTEnergies
+from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pot_calc import PotentialCalculator
-from gpaw.mpi import broadcast_float
+from gpaw.new.potential import Potential
 from gpaw.typing import Array1D
 
 

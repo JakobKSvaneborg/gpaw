@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import itertools
 import warnings
+from collections.abc import Callable
 from math import inf
 from types import SimpleNamespace
 from typing import Any
-from collections.abc import Callable
 
 import numpy as np
 
@@ -13,8 +13,8 @@ from gpaw import KohnShamConvergenceError
 from gpaw.convergence_criteria import (Criterion, check_convergence,
                                        dict2criterion)
 from gpaw.new.energies import DFTEnergies
-from gpaw.new.logger import indent
 from gpaw.new.ibzwfs import IBZWaveFunctions
+from gpaw.new.logger import indent
 from gpaw.scf import write_iteration
 from gpaw.typing import Array2D
 

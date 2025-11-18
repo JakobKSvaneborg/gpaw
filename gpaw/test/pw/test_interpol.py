@@ -1,7 +1,8 @@
 import pytest
+
+from gpaw.mpi import world
 from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.old.pw.descriptor import PWDescriptor
-from gpaw.mpi import world
 
 
 @pytest.mark.ci

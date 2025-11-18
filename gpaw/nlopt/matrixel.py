@@ -1,10 +1,11 @@
 from __future__ import annotations
+
+from pathlib import Path
 from typing import TYPE_CHECKING
 
+import numpy as np
 from ase.parallel import parprint
 from ase.utils.timing import Timer
-from pathlib import Path
-import numpy as np
 
 from gpaw.new.ase_interface import ASECalculator
 from gpaw.nlopt.basic import NLOData

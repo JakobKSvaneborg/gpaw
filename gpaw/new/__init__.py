@@ -1,13 +1,14 @@
 """New ground-state DFT code."""
 from __future__ import annotations
+
 from collections import defaultdict
+from collections.abc import Iterable
 from contextlib import contextmanager
 from time import time
 from typing import TYPE_CHECKING
-from collections.abc import Iterable
+
 if TYPE_CHECKING:
     from gpaw.core import UGArray
-
 
 from gpaw.new.timer import trace, tracectx  # noqa
 

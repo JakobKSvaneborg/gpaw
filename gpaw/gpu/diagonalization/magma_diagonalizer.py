@@ -1,10 +1,12 @@
 import numpy as np
-from gpaw.gpu.diagonalization.diagonalizer import (NonDistributedDiagonalizer,
-                                                   DiagonalizerOptions)
-from gpaw.gpu import cupy as cp, cupy_is_fake
+
+from gpaw.cgpaw import have_magma
+from gpaw.gpu import cupy as cp
+from gpaw.gpu import cupy_is_fake
+from gpaw.gpu.diagonalization.diagonalizer import (DiagonalizerOptions,
+                                                   NonDistributedDiagonalizer)
 from gpaw.new.timer import trace
 from gpaw.utilities import as_real_dtype
-from gpaw.cgpaw import have_magma
 
 
 class MagmaDiagonalizer(NonDistributedDiagonalizer):

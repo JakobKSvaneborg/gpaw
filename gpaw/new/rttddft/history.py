@@ -1,11 +1,11 @@
 from __future__ import annotations
+
 from dataclasses import asdict, dataclass
 from typing import Any, Union
 
 import numpy as np
 
 from gpaw.typing import Vector
-
 
 RTTDDFTKickLike = Union['RTTDDFTKick', dict[str, Any]]
 

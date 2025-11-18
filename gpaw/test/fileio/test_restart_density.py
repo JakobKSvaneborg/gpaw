@@ -1,7 +1,8 @@
 import numpy as np
-from gpaw import GPAW, restart
 import pytest
 from ase.io.ulm import ulmopen
+
+from gpaw import GPAW, restart
 
 
 def get_restart_test_values(calc, skip_forces):

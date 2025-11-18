@@ -1,17 +1,18 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, TypeVar, Literal
 from collections.abc import Callable
+from typing import TYPE_CHECKING, Generic, Literal, TypeVar
 
-import gpaw.fftw as fftw
 import numpy as np
 from ase.io.ulm import NDArrayReader
+
+import gpaw.fftw as fftw
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
-from gpaw.mpi import MPIComm
-from gpaw.typing import Array1D, Self, ArrayND
 from gpaw.gpu import XP
+from gpaw.mpi import MPIComm
 from gpaw.new import trace
+from gpaw.typing import Array1D, ArrayND, Self
 
 if TYPE_CHECKING:
     from gpaw.core.uniform_grid import UGArray, UGDesc

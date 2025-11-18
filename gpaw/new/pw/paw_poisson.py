@@ -5,6 +5,7 @@ Adds smooth compensation charges to the pseudo density.
 from __future__ import annotations
 
 import numpy as np
+
 from gpaw.atom.radialgd import EquidistantRadialGridDescriptor as RGD
 from gpaw.atom.shapefunc import shape_functions
 from gpaw.core import PWArray, PWDesc

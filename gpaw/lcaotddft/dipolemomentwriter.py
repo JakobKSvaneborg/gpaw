@@ -1,11 +1,9 @@
 import re
 
 import numpy as np
-
 from ase.utils import IOContext
 
 from gpaw.lcaotddft.magneticmomentwriter import parse_header
-
 from gpaw.lcaotddft.observer import TDDFTObserver
 
 

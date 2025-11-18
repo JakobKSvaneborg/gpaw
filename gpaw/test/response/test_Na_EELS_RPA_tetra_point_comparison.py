@@ -1,11 +1,11 @@
-import pytest
 import numpy as np
+import pytest
 
 from gpaw import GPAW
-from gpaw.test import findpeak
 from gpaw.bztools import find_high_symmetry_monkhorst_pack
-from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.mpi import world
+from gpaw.response.df import DielectricFunction, read_response_function
+from gpaw.test import findpeak
 
 
 @pytest.mark.dielectricfunction

@@ -1,15 +1,15 @@
 import pickle
 
 import numpy as np
-from ase.units import Ha
 from ase.calculators.singlepoint import SinglePointCalculator
+from ase.units import Ha
 
-from gpaw.utilities import pack_density
-from gpaw.utilities.tools import tri2full
-from gpaw.utilities.blas import rk, mmm, mmmx
 from gpaw.basis_data import Basis
+from gpaw.mpi import rank, world
 from gpaw.setup import types2atomtypes
-from gpaw.mpi import world, rank
+from gpaw.utilities import pack_density
+from gpaw.utilities.blas import mmm, mmmx, rk
+from gpaw.utilities.tools import tri2full
 
 
 def get_bf_centers(atoms, basis=None):
@@ -63,9 +63,10 @@ def get_realspace_hs(h_skmm, s_kmm, bzk_kc, weight_k,
                      R_c=(0, 0, 0), direction='x',
                      symmetry={'enabled': False}):
 
+    from ase.dft.kpoints import (get_monkhorst_pack_size_and_offset,
+                                 monkhorst_pack)
+
     from gpaw.symmetry import Symmetry
-    from ase.dft.kpoints import get_monkhorst_pack_size_and_offset, \
-        monkhorst_pack
 
     if symmetry['point_group']:
         raise NotImplementedError('Point group symmetry not implemented')

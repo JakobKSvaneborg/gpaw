@@ -4,6 +4,8 @@
 import re
 
 import numpy as np
+from scipy.linalg import eigh
+
 from gpaw import debug
 from gpaw.blacs import BlacsGrid, Redistributor
 from gpaw.mpi import broadcast_exception
@@ -13,7 +15,6 @@ from gpaw.utilities.scalapack import (pblas_simple_gemm, pblas_tran,
                                       scalapack_tri2full)
 from gpaw.utilities.timing import nulltimer
 from gpaw.utilities.tools import tri2full
-from scipy.linalg import eigh
 
 
 def uncamelcase(name):

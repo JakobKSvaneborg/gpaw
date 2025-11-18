@@ -1,19 +1,19 @@
 # General modules
-import pytest
 import numpy as np
+import pytest
 
 # Script modules
 from gpaw import GPAW
-from gpaw.test import findpeak
-from gpaw.response import ResponseGroundStateAdapter, ResponseContext
+from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator
-from gpaw.response.susceptibility import (ChiFactory, spectral_decomposition,
-                                          EigendecomposedSpectrum,
-                                          read_full_spectral_weight,
-                                          read_eigenmode_lineshapes)
 from gpaw.response.fxc_kernels import AdiabaticFXCCalculator
 from gpaw.response.goldstone import FMGoldstoneScaling
 from gpaw.response.pair_functions import read_susceptibility_array
+from gpaw.response.susceptibility import (ChiFactory, EigendecomposedSpectrum,
+                                          read_eigenmode_lineshapes,
+                                          read_full_spectral_weight,
+                                          spectral_decomposition)
+from gpaw.test import findpeak
 from gpaw.test.gpwfile import response_band_cutoff
 
 
