@@ -188,6 +188,7 @@ class UGDesc(Domain['UGArray']):
                                 qspiral_v=None,
                                 atomdist=None,
                                 integrals=None,
+                                save_memory=True,
                                 cut=False,
                                 xp=None):
         """Create UGAtomCenteredFunctions object."""

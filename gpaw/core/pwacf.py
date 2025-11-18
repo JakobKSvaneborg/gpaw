@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from gpaw.cgpaw import pwlfc_expand_old
 from gpaw.core.atom_arrays import AtomArraysLayout, AtomDistribution
 from gpaw.core.atom_centered_functions import AtomCenteredFunctions
 from gpaw.core.matrix import Matrix
@@ -30,12 +31,15 @@ class PWAtomCenteredFunctions(AtomCenteredFunctions):
                  relpos,
                  pw,
                  atomdist=None,
+                 *,
                  integrals=None,
-                 xp=None):
+                 xp=None,
+                 save_memory: bool = True):
         AtomCenteredFunctions.__init__(self, functions, relpos, atomdist)
         self.pw = pw
         self.xp = xp or np
         self.integrals = integrals
+        self.save_memory = save_memory
 
     def new(self, pw, atomdist):
         return PWAtomCenteredFunctions(
@@ -50,7 +54,8 @@ class PWAtomCenteredFunctions(AtomCenteredFunctions):
             return
 
         self._lfc = PWLFC(self.functions, self.pw, xp=self.xp,
-                          integrals=self.integrals)
+                          integrals=self.integrals,
+                          save_memory=self.save_memory)
         if self._atomdist is None:
             self._atomdist = AtomDistribution.from_number_of_atoms(
                 len(self.relpos_ac), self.pw.comm)
@@ -105,6 +110,7 @@ class PWLFC:  # (BaseLFC)
                  *,
                  xp,
                  integrals: ArrayLike1D | float | None = None,
+                 save_memory: bool = True,
                  blocksize: int | None = 5000):
         """Reciprocal-space plane-wave localized function collection.
 
@@ -156,6 +162,10 @@ class PWLFC:  # (BaseLFC)
             self.integral_a = np.zeros(len(functions))
         else:
             self.integral_a = np.array(integrals)
+
+        # Compute emiGR_Ga on the fly?
+        self.save_memory = save_memory or xp is not np
+        self.emiGR_Ga = None
 
     @trace
     def initialize(self) -> None:
@@ -240,10 +250,12 @@ class PWLFC:  # (BaseLFC)
         self.pos_av = xp.asarray(np.dot(spos_ac, self.pw.cell),
                                  dtype=as_real_dtype(self.dtype))
 
-        self.pos_avT = xp.asarray(self.pos_av.T,
-                                  as_real_dtype(self.dtype))
         self.G_plus_k_Gv = self.xp.asarray(self.pw.G_plus_k_Gv,
                                            as_real_dtype(self.dtype))
+
+        if not self.save_memory:
+            GkR_Ga = self.G_plus_k_Gv @ self.pos_av.T
+            self.emiGR_Ga = np.exp(-1j * GkR_Ga) * self.eikR_a
 
         rank_a = atomdist.rank_a
 
@@ -299,8 +311,11 @@ class PWLFC:  # (BaseLFC)
             f_GI = xp.empty((2 * (G2 - G1), self.nI),
                             as_real_dtype(self.dtype))
 
-        if xp is np:
-            # Fast C-code:
+        if not self.save_memory:
+            pwlfc_expand_old(f_Gs, self.emiGR_Ga[G1:G2], Y_GL,
+                             self.l_s, self.a_J, self.s_J,
+                             cc, f_GI)
+        elif xp is np:
             pwlfc_expand(f_Gs, Gk_Gv, pos_av, eikR_a, Y_GL,
                          self.l_s, self.a_J, self.s_J,
                          cc, f_GI)
@@ -333,13 +348,6 @@ class PWLFC:  # (BaseLFC)
         else:
             yield 0, nG
 
-    @trace
-    def get_emiGR_Ga(self, G1, G2):
-        Gk_Gv = self.G_plus_k_Gv[G1:G2]
-        GkR_Ga = Gk_Gv @ self.pos_avT
-        return self.xp.exp(-1j * GkR_Ga) * self.eikR_a
-
-    @trace
     def add(self, a_xG, c_axi=1.0, q=None):
         if self.nI == 0:
             return
@@ -546,7 +554,11 @@ class PWLFC:  # (BaseLFC)
                                     G_Gv, a_xG, c_axi, Z_LvG):
         xp = self.xp
         f_IG = xp.empty((self.nI, G2 - G1), as_complex_dtype(self.dtype))
-        emiGR_Ga = self.get_emiGR_Ga(G1, G2)
+        if not self.save_memory:
+            emiGR_Ga = self.emiGR_Ga[G1:G2]
+        else:
+            GkR_Ga = self.G_plus_k_Gv[G1:G2] @ self.pos_av.T
+            emiGR_Ga = xp.exp(-1j * GkR_Ga) * self.eikR_a
         Y_LG = self.Y_GL.T
         for a, l, I1, I2, f_G, dfdGoG_G in things:
             L1 = l**2
