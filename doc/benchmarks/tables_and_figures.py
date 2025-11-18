@@ -1,4 +1,5 @@
-# creates: benchmark.csv, benchmark.png, systems.csv, H2-0.xyz
-from gpaw.benchmark.plot import tables, plot
+# creates: benchmark.csv, benchmark.png, systems.csv, score.png, H2-0.xyz
+from gpaw.benchmark.plot import tables, plot, plot_score
 plot()
+plot_score()
 tables()

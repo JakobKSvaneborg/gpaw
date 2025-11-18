@@ -146,8 +146,25 @@ def plot() -> None:
     plt.savefig('benchmark.png')
 
 
+def plot_score() -> None:
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    X = []
+    Y = []
+    for tag, day, score, results in data[1:]:
+        X.append(day)
+        Y.append(score)
+    ax.plot(X, Y, 'o-')
+    ax.axhline(100.0, ls=':', color='black')
+    ax.set_xlabel('date')
+    ax.set_ylabel('score')
+    plt.tight_layout()
+    plt.savefig('score.png')
+
+
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     tables()
     plot()
+    plot_score()
     plt.show()

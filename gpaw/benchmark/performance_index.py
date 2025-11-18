@@ -6,7 +6,7 @@ from collections import defaultdict
 
 import numpy as np
 from ase.geometry.cell import cell_to_cellpar
-from gpaw import GPAW, GPAW_NEW
+from gpaw.dft import GPAW
 from gpaw.benchmark.systems import systems
 from gpaw.calcinfo import get_calculation_info
 from gpaw.mpi import world
@@ -50,6 +50,8 @@ REFERENCES0 |= {
     'MnVS2-2M': (-29.11777, -0.00014, 24, 98.608),
     'PtLi2O6-2M': (0.0, 0.0, 24, 454.22),
     'V3Cl6-2N': (0.0, 0.0, 24, 3364.039)}
+# Score for the 14 systems was 94.34.
+# Rescaling to 17 systems:
 RESCALE_FACTOR = 17 * 0.9434 / (14 * 0.9434 + 3)
 
 REFERENCES = REFERENCES0 | {
@@ -62,7 +64,7 @@ def score(data: dict[str, float]) -> tuple[float, int]:
     """GPAW's PW-index (or score).
 
     With `N` materials and times for completion of each
-    material `t_i`, we get this indix normalized to 100
+    material `t_i`, we get this index normalized to 100
     for the first run with reference times `t_i^0`:::
 
                    0
@@ -122,10 +124,6 @@ def work(name: str, params: dict | None = None) -> None:
             magmoms=atoms._magmoms,
             symmetry='off',
             xc='LDA')
-        if not GPAW_NEW:
-            params['experimental'] = {'magmoms': atoms._magmoms}
-            params['parallel'] = {'kpt': 24}
-            del params['magmoms']
 
     # Warmup:
     atoms.calc = GPAW(
@@ -143,7 +141,7 @@ def work(name: str, params: dict | None = None) -> None:
     t1 = time()
     e1 = atoms.get_potential_energy()
     f1 = atoms.get_forces()
-    i1 = get_number_of_iterations(atoms.calc)
+    i1 = atoms.calc.dft.scf_loop.niter
 
     if abs(f1).max() < 0.0001:
         s1 = atoms.get_stress(voigt=False)
@@ -157,7 +155,7 @@ def work(name: str, params: dict | None = None) -> None:
     t2 = time()
     e2 = atoms.get_potential_energy()
     _ = atoms.get_forces()
-    i2 = get_number_of_iterations(atoms.calc)
+    i2 = atoms.calc.dft.scf_loop.niter
     t2 = time() - t2
     m2 = maxrss()
 
@@ -167,12 +165,6 @@ def work(name: str, params: dict | None = None) -> None:
         Path(f'{name}.txt').write_text(output.getvalue())
         Path(f'{name}.json').write_text(json.dumps([e1, t1, i1, m1,
                                                     e2, t2, i2, m2]))
-
-
-def get_number_of_iterations(calc) -> int:
-    if calc.old:
-        return calc.scf.niter
-    return calc.dft.scf_loop.niter
 
 
 def read(folder: Path,
