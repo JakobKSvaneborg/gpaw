@@ -116,7 +116,7 @@ data = [
       'Mo60S120-1': (-1291.310449, 3701.859, 28, 3241897984,
                      -1284.105503, 3180.145, 24, 3256709120)}),
     ('!2931',
-     date(2025, 11, 19),
+     date(2025, 11, 20),
      103.56,
      {'Ga2F4N4H10-3': (-99.089000, 74.687, 24, 614633472,
                        -99.088953, 22.468, 7, 615163221),
@@ -156,7 +156,7 @@ data = [
 
 def tables() -> None:
     tag, day, score, results = data[-1]
-    lines = ['name, T1 [sec], I1, T2 [sec], I2, memory [Gbytes]']
+    lines = ['name, dt1 [sec], iter1, dt2 [sec], iter2, memory [Gbytes]']
     for name in NAMES:
         if name not in results:
             continue
