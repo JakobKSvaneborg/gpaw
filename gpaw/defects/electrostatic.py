@@ -6,7 +6,6 @@ from gpaw.mpi import serial_comm, world, ibarrier
 from ase.parallel import broadcast
 from ase.units import Bohr, Hartree
 from ase.geometry import find_mic
-from pathlib import Path
 import functools
 
 
@@ -35,22 +34,44 @@ _avg_methods_ = ['atoms', 'planar', 'full-planar']
 class ElectrostaticCorrections():
     """
     Calculate the electrostatic corrections for charged defects.
+
+    atoms_prs ... (defect) strucure
+    rphi_prs  ... tuple of cartesian finegrid vectors [Bohr]
+                  - as obtained from
+                  calc.wfs.pd.gd.refine().get_grid_point_coordinates()
+                  and corresponding electrostatic potential [eV]
+                  - as obtained from
+                  calc.get_electrostatic_potential()
+                  (rgd_vR, phi_R)_prs
+    rphi_def  ... tuple for defective system
+    charge    ... charge state of the defect calculation
+    epsilon   ... macroscopic electrostatic constant of the host system
+    sigma     ... spread of the Gaussian model charge distribution [Bohr]
+    r0        ... defect position [Angstrom]
+    ravg      ... average radius for bulk-atom average
+    method    ... method selection string
+    comm      ... communicator
+
     """
-    def __init__(self, pristine, defect,
+    def __init__(self, atoms_prs, rphi_prs, rphi_def,
                  charge=None, epsilon=None, sigma=None, r0=None,
                  ravg=2.5, method='full-planar', comm=world):
 
         self.comm = comm
-        if comm.rank != 0:
+        if comm.rank != 0:  # instead we should XXX assert comm.size = 1
             return
 
-        # need to read from file to ensure all on master
-        assert isinstance(pristine, (str, Path))
-        assert isinstance(defect, (str, Path))
-        pristine = GPAW(pristine, txt=None,
-                        parallel={'domain': 1}, communicator=serial_comm)
-        defect = GPAW(defect, txt=None,
-                      parallel={'domain': 1}, communicator=serial_comm)
+        self.atoms_prs = atoms_prs.copy()
+
+        # read and check electrostatic potentials
+        self.phi_prs = - rphi_prs[1]
+        self.phi_def = - rphi_def[1]
+        self.rgd_vR = rphi_prs[0]       # XXX here: Bohr
+        self.ng_v = np.array(self.rgd_vR.shape[1:])
+        rgd_vR_def = rphi_def[0]
+        assert np.allclose(self.rgd_vR, rgd_vR_def)
+        assert np.allclose(self.phi_prs.shape, self.phi_def.shape)
+        assert np.allclose(self.phi_prs.shape, self.ng_v)
 
         calc = GPAW(mode=PW(500, force_complex_dtype=True),
                     kpts={'size': (1, 1, 1),
@@ -60,22 +81,14 @@ class ElectrostaticCorrections():
                     communicator=serial_comm,
                     txt=None)
 
-        assert method in _avg_methods_
-
-        atoms = pristine.atoms.copy()
-        calc.initialize(atoms)
-
-        self.pristine = pristine
-        self.atoms_prs = pristine.get_atoms()
         self.cell_prs = self.atoms_prs.get_cell()
-        self.defect = defect
-        self.calc = calc
         self.charge = charge
-        self.sigma = sigma          # Bohr ? XXX consistency?
+        self.sigma = sigma          # XXX here: Bohr
         self.epsilon = epsilon
         self.r0 = np.array(r0)      # Angstrom
         self.ravg = ravg            # Angstrom
-        self.is_monoclin = np.allclose(self.cell_prs.angles()[:2], [90., 90.])
+
+        assert method in _avg_methods_
         self.method = method
 
         # set grid coarsening
@@ -86,14 +99,17 @@ class ElectrostaticCorrections():
         # volume
         self.Omega = self.atoms_prs.get_volume() / Bohr ** 3
 
+        # monoclin check
+        self.is_monoclin = np.allclose(self.cell_prs.angles()[:2], [90., 90.])
+
         # get G vectors
-        self.pd = self.calc.wfs.pd
-        self.G_Gv = self.pd.get_reciprocal_vectors(q=0, add_q=False)
-        self.G2_G = self.pd.G2_qG[0]  # |\vec{G}|^2 in Bohr^-2
+        # init calculator
+        calc.initialize(self.atoms_prs)
+        pd = calc.wfs.pd
+        self.G_Gv = pd.get_reciprocal_vectors(q=0, add_q=False)
+        self.G2_G = pd.G2_qG[0]  # |\vec{G}|^2 in Bohr^-2
 
         # potential alignment
-        self.phi_prs = None
-        self.phi_def = None
         self.dphi = None
 
     def calculate_gaussian_density(self):
@@ -152,20 +168,6 @@ class ElectrostaticCorrections():
         assert np.abs(phi_r.imag).max() < 1e-8
 
         return phi_r.real / self.Omega  # XXX right normalization ?
-
-    def extract_electrostatic_potentials(self):
-        if self.phi_prs is not None:
-            return
-        self.phi_prs = - self.pristine.get_electrostatic_potential()
-        self.phi_def = - self.defect.get_electrostatic_potential()
-        finegrid = self.pristine.wfs.pd.gd.refine()
-        self.rgd_vR = finegrid.get_grid_point_coordinates()
-        self.ng_v = np.array(self.rgd_vR.shape[1:])
-        finegrid_def = self.defect.wfs.pd.gd.refine()
-        rgd_vR = finegrid_def.get_grid_point_coordinates()
-        assert np.allclose(self.rgd_vR, rgd_vR)
-        assert np.allclose(self.phi_prs.shape, self.phi_def.shape)
-        assert np.allclose(self.phi_prs.shape, self.ng_v)
 
     def prs_mic_dist(self, r_v):
 
@@ -271,7 +273,6 @@ class ElectrostaticCorrections():
 
     @parallel_method
     def calculate_potential_profile(self, nfreq=2, nsample=8):
-        self.extract_electrostatic_potentials()
         self.coarsen_grid(nfreq=nfreq)
 
         # restrict to z-axis
@@ -308,9 +309,7 @@ class ElectrostaticCorrections():
         if self.dphi is not None:
             return self.dphi
 
-        # extract electro-static potential and grid from
-        # pristine and defect
-        self.extract_electrostatic_potentials()
+        # coarsen grid
         self.coarsen_grid(nfreq=self.nfreq)
 
         # define region away from defect
@@ -336,18 +335,9 @@ class ElectrostaticCorrections():
 
         return self.dphi
 
-    @parallel_method
-    def calculate_corrected_formation_energy(self):
-        E_0 = self.pristine.get_potential_energy()
-        E_X = self.defect.get_potential_energy()
+    def calculate_correction(self):
         Eli = self.calculate_isolated_correction()
         Elp = self.calculate_periodic_correction()
         Delta_V = self.calculate_potential_alignment()
         print('Eli=', Eli, 'Elp=', Elp, 'Delta_V=', Delta_V)
-        return E_X - E_0 - (Elp - Eli) + Delta_V * self.charge
-
-    @parallel_method
-    def calculate_uncorrected_formation_energy(self):
-        E_0 = self.pristine.get_potential_energy()
-        E_X = self.defect.get_potential_energy()
-        return E_X - E_0
+        return - (Elp - Eli) + Delta_V * self.charge

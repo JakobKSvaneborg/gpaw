@@ -98,19 +98,29 @@ def test_fnv_3d(in_tmp_dir):
     defect.get_potential_energy()
     defect.calc.write(def_path)
 
+    atoms_prs = pristine.copy()
+    rgd_prs = pristine.calc.wfs.pd.gd.refine().get_grid_point_coordinates()
+    rgd_def = defect.calc.wfs.pd.gd.refine().get_grid_point_coordinates()
+    phi_prs = pristine.calc.get_electrostatic_potential()
+    phi_def = defect.calc.get_electrostatic_potential()
+
     # defect position
     r0 = pristine.positions[0, :]
 
-    elc = ElectrostaticCorrections(pristine=prs_path,
-                                   defect=def_path,
+    elc = ElectrostaticCorrections(atoms_prs=atoms_prs,
+                                   rphi_prs=(rgd_prs, phi_prs),
+                                   rphi_def=(rgd_def, phi_def),
                                    r0=r0,
                                    charge=charge,
                                    sigma=sigma,
                                    epsilon=epsilon,
                                    method='full-planar')
-    E_corr = elc.calculate_corrected_formation_energy()
-    E_uncorr = elc.calculate_uncorrected_formation_energy()
-    E_fnv = E_corr - E_uncorr
+    E_fnv = elc.calculate_correction()
+
+    E_0 = pristine.calc.get_potential_energy()
+    E_X = defect.calc.get_potential_energy()
+    E_uncorr = E_X - E_0
+    E_corr = E_uncorr + E_fnv
 
     print(E_uncorr, E_corr, E_fnv)
     assert E_fnv == pytest.approx(E_fnv_t, abs=3e-2)
@@ -161,19 +171,29 @@ def test_fnv_cell(P, in_tmp_dir, gpaw_new):
     defect.get_potential_energy()
     defect.calc.write(def_path)
 
+    atoms_prs = pristine.copy()
+    rgd_prs = pristine.calc.wfs.pd.gd.refine().get_grid_point_coordinates()
+    rgd_def = defect.calc.wfs.pd.gd.refine().get_grid_point_coordinates()
+    phi_prs = pristine.calc.get_electrostatic_potential()
+    phi_def = defect.calc.get_electrostatic_potential()
+
     # defect position
     r0 = pristine.positions[0, :]
 
-    elc = ElectrostaticCorrections(pristine=prs_path,
-                                   defect=def_path,
+    elc = ElectrostaticCorrections(atoms_prs=atoms_prs,
+                                   rphi_prs=(rgd_prs, phi_prs),
+                                   rphi_def=(rgd_def, phi_def),
                                    r0=r0,
                                    charge=charge,
                                    sigma=sigma,
                                    epsilon=epsilon,
                                    method='full-planar')
-    E_corr = elc.calculate_corrected_formation_energy()
-    E_uncorr = elc.calculate_uncorrected_formation_energy()
-    E_fnv = E_corr - E_uncorr
+    E_fnv = elc.calculate_correction()
+
+    E_0 = pristine.calc.get_potential_energy()
+    E_X = defect.calc.get_potential_energy()
+    E_uncorr = E_X - E_0
+    E_corr = E_uncorr + E_fnv
 
     # changed tolerance to pass ortho-rhombic case
     # switching symmetry off does not help to improve accuracy
