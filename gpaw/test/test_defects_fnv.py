@@ -108,26 +108,25 @@ def test_fnv_3d(in_tmp_dir):
     # defect position
     r0 = pristine.positions[0, :]
 
-    if comm.rank == 0:
-        elc = ElectrostaticCorrections(atoms_prs=atoms_prs,
-                                       rphi_prs=(rvR_prs, phi_prs),
-                                       rphi_def=(rvR_def, phi_def),
-                                       r0=r0,
-                                       charge=charge,
-                                       sigma=sigma,
-                                       epsilon=epsilon,
-                                       method='full-planar')
-        E_fnv = elc.calculate_correction()
+    elc = ElectrostaticCorrections(atoms_prs=atoms_prs,
+                                   rphi_prs=(rvR_prs, phi_prs),
+                                   rphi_def=(rvR_def, phi_def),
+                                   r0=r0,
+                                   charge=charge,
+                                   sigma=sigma,
+                                   epsilon=epsilon,
+                                   method='full-planar')
+    E_fnv = elc.calculate_correction()
 
-        E_0 = pristine.calc.get_potential_energy()
-        E_X = defect.calc.get_potential_energy()
-        E_uncorr = E_X - E_0
-        E_corr = E_uncorr + E_fnv
+    E_0 = pristine.calc.get_potential_energy()
+    E_X = defect.calc.get_potential_energy()
+    E_uncorr = E_X - E_0
+    E_corr = E_uncorr + E_fnv
 
-        print(E_uncorr, E_corr, E_fnv)
-        assert E_fnv == pytest.approx(E_fnv_t, abs=3e-2)
-        assert E_corr == pytest.approx(E_corr_t, abs=2e-2)
-        assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-2)
+    print(E_uncorr, E_corr, E_fnv)
+    assert E_fnv == pytest.approx(E_fnv_t, abs=3e-2)
+    assert E_corr == pytest.approx(E_corr_t, abs=2e-2)
+    assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-2)
 
 
 @pytest.mark.parametrize('P', [[[1, 0, 0], [1, 1, 0], [0, 0, 1]]])
@@ -181,28 +180,27 @@ def test_fnv_cell(P, in_tmp_dir, gpaw_new):
     # defect position
     r0 = pristine.positions[0, :]
 
-    if comm.rank == 0:
-        elc = ElectrostaticCorrections(atoms_prs=atoms_prs,
-                                       rphi_prs=(rvR_prs, phi_prs),
-                                       rphi_def=(rvR_def, phi_def),
-                                       r0=r0,
-                                       charge=charge,
-                                       sigma=sigma,
-                                       epsilon=epsilon,
-                                       method='full-planar')
-        E_fnv = elc.calculate_correction()
+    elc = ElectrostaticCorrections(atoms_prs=atoms_prs,
+                                   rphi_prs=(rvR_prs, phi_prs),
+                                   rphi_def=(rvR_def, phi_def),
+                                   r0=r0,
+                                   charge=charge,
+                                   sigma=sigma,
+                                   epsilon=epsilon,
+                                   method='full-planar')
+    E_fnv = elc.calculate_correction()
 
-        E_0 = pristine.calc.get_potential_energy()
-        E_X = defect.calc.get_potential_energy()
-        E_uncorr = E_X - E_0
-        E_corr = E_uncorr + E_fnv
+    E_0 = pristine.calc.get_potential_energy()
+    E_X = defect.calc.get_potential_energy()
+    E_uncorr = E_X - E_0
+    E_corr = E_uncorr + E_fnv
 
-        # changed tolerance to pass ortho-rhombic case
-        # switching symmetry off does not help to improve accuracy
-        print(E_uncorr, E_corr, E_fnv)
-        assert E_fnv == pytest.approx(E_fnv_t, abs=4e-2)
-        assert E_corr == pytest.approx(E_corr_t, abs=2e-1)
-        assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-1)
+    # changed tolerance to pass ortho-rhombic case
+    # switching symmetry off does not help to improve accuracy
+    print(E_uncorr, E_corr, E_fnv)
+    assert E_fnv == pytest.approx(E_fnv_t, abs=4e-2)
+    assert E_corr == pytest.approx(E_corr_t, abs=2e-1)
+    assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-1)
 
 
 if __name__ == "__main__":
