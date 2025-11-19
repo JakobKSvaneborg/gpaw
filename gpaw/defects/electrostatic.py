@@ -125,7 +125,7 @@ class ElectrostaticCorrections():
         Eli = 0.5 * self.charge ** 2 * Hartree / np.pi ** 0.5 / eps / sgm
         return Eli
 
-    def calculate_model_potential(self, r_vR):
+    def calculate_model_potential(self, rgd_vR):
         # need to backtransform phi_G -> phi_r = sum_G exp(i G * r) phi_G
 
         G_Gv = self.G_Gv
@@ -139,7 +139,7 @@ class ElectrostaticCorrections():
         # assuming G: (ng, 3), r: (3, nx, ny, nz), phi_G: (ng,)
         # compute G * r for all G and grid points
         # shape: (ng, nx, ny, nz)
-        Gr = np.einsum('gi,i...->g...', G_Gv, r_vR)
+        Gr = np.einsum('gi,i...->g...', G_Gv, rgd_vR)
 
         # compute exp(i * G * r)
         # shape: (ng, nx, ny, nz)
@@ -159,11 +159,11 @@ class ElectrostaticCorrections():
         self.phi_prs = - self.pristine.get_electrostatic_potential()
         self.phi_def = - self.defect.get_electrostatic_potential()
         finegrid = self.pristine.wfs.pd.gd.refine()
-        self.r_vR = finegrid.get_grid_point_coordinates()
-        self.ng_v = np.array(self.r_vR.shape[1:])
+        self.rgd_vR = finegrid.get_grid_point_coordinates()
+        self.ng_v = np.array(self.rgd_vR.shape[1:])
         finegrid_def = self.defect.wfs.pd.gd.refine()
-        r_vR = finegrid_def.get_grid_point_coordinates()
-        assert np.allclose(self.r_vR, r_vR)
+        rgd_vR = finegrid_def.get_grid_point_coordinates()
+        assert np.allclose(self.rgd_vR, rgd_vR)
         assert np.allclose(self.phi_prs.shape, self.phi_def.shape)
         assert np.allclose(self.phi_prs.shape, self.ng_v)
 
@@ -178,7 +178,7 @@ class ElectrostaticCorrections():
     def grid_mic_dist(self, r_v):
         grid_shape = self.ngc_v
         # convert grid to Angstrom such we can use find_mic
-        rg_vR = self.rc_vR * Bohr
+        rg_vR = self.rgdc_vR * Bohr
 
         dR = rg_vR.T - r_v[None, None, None, :]
         # flatten grid and reshape
@@ -192,7 +192,7 @@ class ElectrostaticCorrections():
         ng_v = self.ngc_v
 
         # r0_v cartesian vector in Angstrom
-        # assumes self.r_vR being on a regular grid
+        # assumes self.rgd_vR being on a regular grid
         # evaluate grid index of cartesian vector
         # convert to reduced (fractional) coordinates
         s0_v = np.linalg.solve(self.cell_prs.T, r0_v)
@@ -266,8 +266,8 @@ class ElectrostaticCorrections():
     def coarsen_grid(self, nfreq):
         self.phic_prs = self.phi_prs[::nfreq, ::nfreq, ::nfreq]
         self.phic_def = self.phi_def[::nfreq, ::nfreq, ::nfreq]
-        self.rc_vR = self.r_vR[:, ::nfreq, ::nfreq, ::nfreq]
-        self.ngc_v = np.array(self.rc_vR.shape[1:])
+        self.rgdc_vR = self.rgd_vR[:, ::nfreq, ::nfreq, ::nfreq]
+        self.ngc_v = np.array(self.rgdc_vR.shape[1:])
 
     @parallel_method
     def calculate_potential_profile(self, nfreq=2, nsample=8):
@@ -288,11 +288,11 @@ class ElectrostaticCorrections():
         iy = np.linspace(0, ny - 1, nsample, dtype=int)
         igx, igy = np.meshgrid(ix, iy)
 
-        z_vR = self.rc_vR[:, igx, igy, :]
+        z_vR = self.rgdc_vR[:, igx, igy, :]
         phi_model = self.calculate_model_potential(z_vR)
         phiz_model = np.mean(phi_model, axis=(0, 1))
 
-        zaxis = self.rc_vR[2, 0, 0, :]
+        zaxis = self.rgdc_vR[2, 0, 0, :]
         sz = np.argsort(zaxis)
 
         dphi = self.calculate_potential_alignment()
@@ -321,10 +321,10 @@ class ElectrostaticCorrections():
         ix, iy, iz = self.region
         phi_prs = self.phic_prs[ix, iy, iz]
         phi_def = self.phic_def[ix, iy, iz]
-        r_vR = self.rc_vR[:, ix, iy, iz]
+        rgd_vR = self.rgdc_vR[:, ix, iy, iz]
 
         # get model potential inside the averaging region
-        phi_model = self.calculate_model_potential(r_vR)
+        phi_model = self.calculate_model_potential(rgd_vR)
 
         dphi = phi_model - (phi_def - phi_prs)
         dphi_avg = np.average(dphi)
