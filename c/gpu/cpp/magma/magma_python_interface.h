@@ -4,19 +4,20 @@
 // C99 compliant header that can safely be included from main GPAW.
 
 #include "../../../gpaw_utils.h"
+#include "../../gpu_interface.h"
 
 // MAGMA needs stdbool.h but it is not properly included by their own headers.
 // Can remove this include once it's fixed in MAGMA.
 // See https://github.com/icl-utk-edu/magma/pull/41
 #include <stdbool.h>
 #include <magma_v2.h>
-#include <Python.h>
+#include "../../../python_utils.h"
 
 /* Initializes MAGMA library. Must be called come AFTER any calls to cudaSetValidDevices
 * and cudaSetDeviceFlags. Call only if GPUs are available.
 */
-CLINKAGE void gpaw_magma_init();
-CLINKAGE void gpaw_magma_finalize();
+GPAW_GPU_LINKAGE void gpaw_magma_init();
+GPAW_GPU_LINKAGE void gpaw_magma_finalize();
 
 /* Solves symmetric/Hermitian eigenvalue on GPU, using Numpy arrays as input
 and output. In other words, all input and output arrays are in CPU memory and
@@ -37,7 +38,7 @@ allocated to correct size before calling this function.
 Input conventions are as in Numpy, but output eigenvectors are still in Magma
 conventions => take conjugate transpose on Python side to get them in Numpy convention.
 */
-CLINKAGE PyObject* eigh_magma_numpy(PyObject* self, PyObject* args);
+GPAW_GPU_LINKAGE PyObject* eigh_magma_numpy(PyObject* self, PyObject* args);
 
 /* Solves symmetric/Hermitian eigenvalue on single GPU, using CuPy arrays as input
 and output. Differences to `eigh_magma_numpy` are:
@@ -55,6 +56,6 @@ allocated to correct size before calling this function.
 Input conventions are as in Cupy, but output eigenvectors are still in Magma
 conventions => take conjugate transpose on Python side to get them in Cupy convention.
 */
-CLINKAGE PyObject* eigh_magma_cupy(PyObject* self, PyObject* args);
+GPAW_GPU_LINKAGE PyObject* eigh_magma_cupy(PyObject* self, PyObject* args);
 
 #endif

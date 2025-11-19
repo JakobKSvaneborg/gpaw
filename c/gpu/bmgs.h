@@ -4,6 +4,10 @@
 #include "gpu.h"
 #include "gpu-complex.h"
 
+#include "gpu_interface.h"
+
+GPAW_GPU_LINKAGE_BEGIN
+
 int bmgs_fd_boundary_test(const bmgsstencil_gpu* s, int boundary,
                           int ndouble);
 
@@ -93,5 +97,7 @@ void bmgs_interpolate_stencil_gpuz(int k, int skip[3][2],
 void reducemap_dotuz(const gpuDoubleComplex* a_gpu,
                      const gpuDoubleComplex* b_gpu, gpuDoubleComplex* result,
                      int n, int nvec);
+
+GPAW_GPU_LINKAGE_END
 
 #endif

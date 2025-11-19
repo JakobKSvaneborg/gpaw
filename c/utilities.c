@@ -4,10 +4,7 @@
  *  Copyright (C) 2011  Argonne National Laboratory
  *  Please see the accompanying LICENSE file for further information. */
 
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
+#include "python_utils.h"
 #include "extensions.h"
 #include <math.h>
 #include <stdlib.h>
@@ -18,6 +15,11 @@
 
 #ifdef _OPENMP
 #include <omp.h>
+#endif
+
+#ifdef GPAW_GPU
+  // Needed because this calls add_to_density_gpu
+  #include "gpu/gpu_interface.h"
 #endif
 
 #ifdef GPAW_HPM
@@ -304,8 +306,6 @@ double distance(double *a, double *b)
   return sqrt(sum);
 }
 
-
-PyObject* add_to_density_gpu(PyObject* self, PyObject* args);
 // Equivalent to:
 //
 //     nt_R += f * abs(psit_R)**2

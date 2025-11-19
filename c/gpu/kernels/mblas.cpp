@@ -1,8 +1,3 @@
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -13,6 +8,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
+#include "../../python_utils.h"
 #include "../gpu-complex.h"
 
 #ifndef GPU_USE_COMPLEX

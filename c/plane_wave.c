@@ -1,6 +1,6 @@
 #include "extensions.h"
 #include <stdlib.h>
-#include <numpy/arrayobject.h>
+#include "python_utils.h"
 
 
 void _pw_insert(int nG,

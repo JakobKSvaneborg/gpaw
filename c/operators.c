@@ -6,10 +6,7 @@
 //*** Double buffering code based on original code by             ***//
 //*** Mads R. B. Kristensen - madsbk@diku.dk                      ***//
 
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
+#include "python_utils.h"
 #include <stdlib.h>
 #include "extensions.h"
 #include "bc.h"

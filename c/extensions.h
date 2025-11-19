@@ -7,10 +7,7 @@
 #define H_EXTENSIONS
 
 
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
+#include "python_utils.h"
 #include <stdlib.h>
 #include <stdbool.h>
 

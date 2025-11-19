@@ -6,7 +6,7 @@
 #ifndef LFC_H
 #define LFC_H
 
-#include <Python.h>
+#include "python_utils.h"
 
 typedef struct
 {
