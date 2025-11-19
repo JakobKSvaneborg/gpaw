@@ -6,6 +6,7 @@ from ase.build.supercells import make_supercell
 from gpaw import GPAW
 from gpaw.defects import ElectrostaticCorrections
 from gpaw.defects.old_electrostatic import OldElectrostaticCorrections
+from gpaw.mpi import world
 from pathlib import Path
 
 
@@ -70,6 +71,7 @@ def test_fnv_3d(in_tmp_dir):
     E_uncorr_t = 18.31
     E_fnv_t = E_corr_t - E_uncorr_t
 
+    comm = world
     prs_path = Path('prs.gpw')
     def_path = Path('def.gpw')
 
@@ -104,28 +106,30 @@ def test_fnv_3d(in_tmp_dir):
     phi_prs = pristine.calc.get_electrostatic_potential()
     phi_def = defect.calc.get_electrostatic_potential()
 
-    # defect position
-    r0 = pristine.positions[0, :]
+    if comm.rank == 0:
 
-    elc = ElectrostaticCorrections(atoms_prs=atoms_prs,
-                                   rphi_prs=(rgd_prs, phi_prs),
-                                   rphi_def=(rgd_def, phi_def),
-                                   r0=r0,
-                                   charge=charge,
-                                   sigma=sigma,
-                                   epsilon=epsilon,
-                                   method='full-planar')
-    E_fnv = elc.calculate_correction()
+        # defect position
+        r0 = pristine.positions[0, :]
 
-    E_0 = pristine.calc.get_potential_energy()
-    E_X = defect.calc.get_potential_energy()
-    E_uncorr = E_X - E_0
-    E_corr = E_uncorr + E_fnv
+        elc = ElectrostaticCorrections(atoms_prs=atoms_prs,
+                                       rphi_prs=(rgd_prs, phi_prs),
+                                       rphi_def=(rgd_def, phi_def),
+                                       r0=r0,
+                                       charge=charge,
+                                       sigma=sigma,
+                                       epsilon=epsilon,
+                                       method='full-planar')
+        E_fnv = elc.calculate_correction()
 
-    print(E_uncorr, E_corr, E_fnv)
-    assert E_fnv == pytest.approx(E_fnv_t, abs=3e-2)
-    assert E_corr == pytest.approx(E_corr_t, abs=2e-2)
-    assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-2)
+        E_0 = pristine.calc.get_potential_energy()
+        E_X = defect.calc.get_potential_energy()
+        E_uncorr = E_X - E_0
+        E_corr = E_uncorr + E_fnv
+
+        print(E_uncorr, E_corr, E_fnv)
+        assert E_fnv == pytest.approx(E_fnv_t, abs=3e-2)
+        assert E_corr == pytest.approx(E_corr_t, abs=2e-2)
+        assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-2)
 
 
 @pytest.mark.parametrize('P', [[[1, 0, 0], [1, 1, 0], [0, 0, 1]]])
