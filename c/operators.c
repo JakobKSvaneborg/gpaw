@@ -19,10 +19,7 @@
 #include <omp.h>
 #endif
 #include "threading.h"
-
-#define __OPERATORS_C
 #include "operators.h"
-#undef __OPERATORS_C
 
 #ifdef GPAW_ASYNC
   #define GPAW_ASYNC3 3

@@ -6,9 +6,7 @@
 #include <pthread.h>
 
 #include "../extensions.h"
-#define __OPERATORS_C
 #include "../operators.h"
-#undef __OPERATORS_C
 #include "bmgs.h"
 #include "gpu.h"
 
