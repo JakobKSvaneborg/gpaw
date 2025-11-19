@@ -7,7 +7,7 @@ from ase.units import Bohr, Hartree
 from ase.geometry import find_mic
 
 
-_avg_methods_ = ['atoms', 'planar', 'full-planar']
+_avg_methods_ = ['atoms', 'sparse-planar', 'full-planar']
 
 
 def gather_electrostatic_potential(calc):
@@ -203,26 +203,8 @@ class ElectrostaticCorrections():
         # set region as sphere with radius self.ravg
         self.region = np.where(dist < self.ravg)
 
+
     def planar_average(self, nsample=25, nmin=2):
-        # check that ortho-rhombic
-        assert self.is_monoclin
-
-        nx, ny, nz = self.ngc_v
-
-        # find defect grid index
-        _, _, idef_z = self.find_grid_index(self.r0)
-        iblk_z = (idef_z + nz // 2) % nz
-
-        deltan = np.min([np.max([nz // 8, nmin]), nsample])
-        ix = np.linspace(0, nx - 1, nsample, dtype=int)
-        iy = np.linspace(0, ny - 1, nsample, dtype=int)
-        iz = np.arange(iblk_z - deltan, iblk_z + deltan + 1) % nz
-
-        igx, igy, igz = np.meshgrid(ix, iy, iz)
-
-        self.region = (igx, igy, igz)
-
-    def full_planar_average(self):
         # check that monoclinic: z-axis is 90 deg on the plane
         assert self.is_monoclin
 
@@ -232,9 +214,17 @@ class ElectrostaticCorrections():
         _, _, idef_z = self.find_grid_index(self.r0)
         iblk_z = (idef_z + nz // 2) % nz
 
-        deltan = nz // 8
-        ix = np.linspace(0, nx - 1, nx, dtype=int)
-        iy = np.linspace(0, ny - 1, ny, dtype=int)
+        if 'full' in self.method:
+            deltan = nz // 8
+            nxmax = nx
+            nymax = ny
+        else:
+            deltan = np.min([np.max([nz // 8, nmin]), nsample])
+            nxmax = nsample
+            nymax = nsample
+
+        ix = np.linspace(0, nx - 1, nxmax, dtype=int)
+        iy = np.linspace(0, ny - 1, nymax, dtype=int)
         iz = np.arange(iblk_z - deltan, iblk_z + deltan + 1) % nz
 
         igx, igy, igz = np.meshgrid(ix, iy, iz)
@@ -242,16 +232,13 @@ class ElectrostaticCorrections():
         self.region = (igx, igy, igz)
 
     def define_averaging_region(self):
-        if self.method == 'full-planar':
-            print('full-planar average')
-            self.full_planar_average()
-        elif self.method == 'planar':
-            print('planar average')
-            self.planar_average()
-        elif self.method == 'atoms':
+        if self.method == 'atoms':
             # average around "bulk atom"
             print('bulk atom average')
             self.bulk_atom_average()
+        else:
+            print(f'{self.method} average')
+            self.planar_average()
 
     def coarsen_grid(self, nfreq):
         self.phic_prs = self.phi_prs[::nfreq, ::nfreq, ::nfreq]
