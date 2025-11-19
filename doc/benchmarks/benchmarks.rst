@@ -46,7 +46,7 @@ Results
 Figure shows:
 
 * `t_i^0 / t_i`
-* `\Delta t_2 / t)`
+* `\Delta t_2 / t`
 * Memory usage per core
 
 .. image:: benchmark.png
@@ -64,7 +64,7 @@ History
 2025, July
 ----------
 
-* Initial run with 13 systems (score set to 100.0).
+* Initial run with 14 systems (score set to 100.0).
 * Niflheim (``xeon24el8``, ``xeon40el8_clx``, ``xeon56``).
 * Easy-build foss-2025b toolchain
   (Python-3.13.5, Numpy-2.3.2, Scipy-1.16.1, Libxc-7.0).
