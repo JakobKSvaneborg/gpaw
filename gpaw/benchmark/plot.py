@@ -189,9 +189,9 @@ def tables() -> None:
 
 def plot() -> None:
     import matplotlib.pyplot as plt
-    fig, axs = plt.subplots(3, 1, figsize=(9, 9))
+    fig, axs = plt.subplots(3, 1, figsize=(9, 9), sharex=True)
     titles = [
-        'Total time [%]',
+        '$t_i^0/t_i$',
         'Second step [%]',
         'max_rss [Gbytes]']
 
@@ -202,7 +202,7 @@ def plot() -> None:
                 if name in results:
                     r = results[name]
                     if n == 0:
-                        y = 100 * (r[1] + r[5]) / REFERENCES[name][3]
+                        y = REFERENCES[name][3] / (r[1] + r[5])
                     elif n == 1:
                         y = 100 * r[5] / (r[1] + r[5])
                     else:

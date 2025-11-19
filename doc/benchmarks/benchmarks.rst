@@ -28,6 +28,13 @@ Paramaters
 PW-mode performance index
 =========================
 
+The total time for one material is the sum of two steps
+(`t=\Delta t_1 + \Delta t_2`):
+
+1) time for for a complete SCF calculation
+2) time for second SCF calculation after a small displacement
+   of positions (or cell)
+
 .. autofunction:: gpaw.benchmark.performance_index.score
 
 .. image:: score.png
@@ -38,9 +45,7 @@ Results
 
 Figure shows:
 
-* `t=\Delta t_1 + \Delta t_2`: time for for SCF calculation (`\Delta t_1`)
-  plus time for second SCF
-  calculation after small displacement of positions or cell (`\Delta t_2`)
+* `t_i^0 / t_i`
 * `\Delta t_2 / t)`
 * Memory usage per core
 
