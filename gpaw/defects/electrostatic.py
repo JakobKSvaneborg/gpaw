@@ -2,30 +2,9 @@
 
 import numpy as np
 from gpaw import GPAW, PW
-from gpaw.mpi import serial_comm, world, ibarrier
-from ase.parallel import broadcast
+from gpaw.mpi import serial_comm, world
 from ase.units import Bohr, Hartree
 from ase.geometry import find_mic
-import functools
-
-
-def parallel_method(fun):
-    @functools.wraps(fun)
-    def wrapper(self, *args, serial=False, **kwargs):
-        if serial or self.comm.size == 1:
-            return fun(self, *args, **kwargs)
-
-        # this parallel method needs to be called with all ranks of comm
-        # ibarrier will inform user if this is not the case
-        ibarrier(timeout=60, comm=self.comm)
-
-        if self.comm.rank == 0:
-            result = fun(self, *args, **kwargs)
-        else:
-            result = None
-
-        return broadcast(result, root=0, comm=self.comm)
-    return wrapper
 
 
 _avg_methods_ = ['atoms', 'planar', 'full-planar']
@@ -57,9 +36,8 @@ class ElectrostaticCorrections():
                  charge=None, epsilon=None, sigma=None, r0=None,
                  ravg=2.5, method='full-planar', comm=world):
 
-        self.comm = comm
-        if comm.rank != 0:  # instead we should XXX assert comm.size = 1
-            return
+        # require serial
+        assert comm.size == 1
 
         self.atoms_prs = atoms_prs.copy()
 
@@ -271,7 +249,6 @@ class ElectrostaticCorrections():
         self.rgdc_vR = self.rgd_vR[:, ::nfreq, ::nfreq, ::nfreq]
         self.ngc_v = np.array(self.rgdc_vR.shape[1:])
 
-    @parallel_method
     def calculate_potential_profile(self, nfreq=2, nsample=8):
         self.coarsen_grid(nfreq=nfreq)
 
