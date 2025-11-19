@@ -54,7 +54,8 @@ def phi_center(Q=1.0, alpha=0.1, L0=10.0, ng=64):
     r_vR = np.stack((X, Y, Z), axis=0)
 
     # charge at center
-    r0_v = np.array([L/2, L/2, L/2])
+    L2 = L / 2
+    r0_v = np.array([L2, L2, L2])
 
     # potential in eV
     return r_vR, phi_infty(r_vR, r0_v, Q, alpha) * Hartree
@@ -116,7 +117,6 @@ def test_fnv():
         plt.show()
 
     assert E_fnv == pytest.approx(E_fnv_t, abs=1e-2)
-
 
 
 @pytest.mark.serial
