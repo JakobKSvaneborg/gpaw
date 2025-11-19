@@ -203,7 +203,6 @@ class ElectrostaticCorrections():
         # set region as sphere with radius self.ravg
         self.region = np.where(dist < self.ravg)
 
-
     def planar_average(self, nsample=25, nmin=2):
         # check that monoclinic: z-axis is 90 deg on the plane
         assert self.is_monoclin
