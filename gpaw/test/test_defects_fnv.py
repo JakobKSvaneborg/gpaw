@@ -102,16 +102,16 @@ def test_fnv_3d(in_tmp_dir):
     defect.calc.write(def_path)
 
     atoms_prs = pristine.copy()
-    rgd_prs, phi_prs = gather_electrostatic_potential(pristine.calc)
-    rgd_def, phi_def = gather_electrostatic_potential(defect.calc)
+    rvR_prs, phi_prs = gather_electrostatic_potential(pristine.calc)
+    rvR_def, phi_def = gather_electrostatic_potential(defect.calc)
 
     # defect position
     r0 = pristine.positions[0, :]
 
     if comm.rank == 0:
         elc = ElectrostaticCorrections(atoms_prs=atoms_prs,
-                                       rphi_prs=(rgd_prs, phi_prs),
-                                       rphi_def=(rgd_def, phi_def),
+                                       rphi_prs=(rvR_prs, phi_prs),
+                                       rphi_def=(rvR_def, phi_def),
                                        r0=r0,
                                        charge=charge,
                                        sigma=sigma,
@@ -143,6 +143,7 @@ def test_fnv_cell(P, in_tmp_dir, gpaw_new):
     E_uncorr_t = 18.31
     E_fnv_t = E_corr_t - E_uncorr_t
 
+    comm = world
     prs_path = Path('prs.gpw')
     def_path = Path('def.gpw')
 
@@ -174,16 +175,16 @@ def test_fnv_cell(P, in_tmp_dir, gpaw_new):
     defect.calc.write(def_path)
 
     atoms_prs = pristine.copy()
-    rgd_prs, phi_prs = gather_electrostatic_potential(pristine.calc)
-    rgd_def, phi_def = gather_electrostatic_potential(defect.calc)
+    rvR_prs, phi_prs = gather_electrostatic_potential(pristine.calc)
+    rvR_def, phi_def = gather_electrostatic_potential(defect.calc)
 
     # defect position
     r0 = pristine.positions[0, :]
 
     if comm.rank == 0:
         elc = ElectrostaticCorrections(atoms_prs=atoms_prs,
-                                       rphi_prs=(rgd_prs, phi_prs),
-                                       rphi_def=(rgd_def, phi_def),
+                                       rphi_prs=(rvR_prs, phi_prs),
+                                       rphi_def=(rvR_def, phi_def),
                                        r0=r0,
                                        charge=charge,
                                        sigma=sigma,
