@@ -7,7 +7,6 @@ from gpaw import GPAW
 from gpaw.defects import ElectrostaticCorrections
 from gpaw.defects.electrostatic import gather_electrostatic_potential
 from gpaw.defects.old_electrostatic import OldElectrostaticCorrections
-from gpaw.mpi import world
 from pathlib import Path
 
 
@@ -72,7 +71,6 @@ def test_fnv_3d(in_tmp_dir):
     E_uncorr_t = 18.31
     E_fnv_t = E_corr_t - E_uncorr_t
 
-    comm = world
     prs_path = Path('prs.gpw')
     def_path = Path('def.gpw')
 
@@ -142,7 +140,6 @@ def test_fnv_cell(P, in_tmp_dir, gpaw_new):
     E_uncorr_t = 18.31
     E_fnv_t = E_corr_t - E_uncorr_t
 
-    comm = world
     prs_path = Path('prs.gpw')
     def_path = Path('def.gpw')
 
