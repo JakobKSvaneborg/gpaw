@@ -376,6 +376,7 @@ class _Communicator:
 
         assert np.all(0 <= sdispls)
         assert np.all(0 <= rdispls)
+        # what if scounts is zeros?
         assert np.all(sdispls + scounts <= sbuffer.size)
         assert np.all(rdispls + rcounts <= rbuffer.size)
         self.comm.alltoallv(sbuffer, scounts, sdispls,

@@ -18,12 +18,11 @@ Test systems
 Paramaters
 ==========
 
-Default parameters except:
-
 * PBE
 * 800 eV plane-wave cutoff
 * k-point density: 5.0 Å
 * 14 electron potential for Cr
+* default parameters for everything else
 
 
 PW-mode performance index
@@ -39,9 +38,10 @@ Results
 
 Figure shows:
 
-* Time for for SCF calculation (`t_1`) plus time for second SCF
-  calculation after small displacement of positions or cell (`t_2`)
-* `t_2 / (t_1 + t_2)`
+* `t=\Delta t_1 + \Delta t_2`: time for for SCF calculation (`\Delta t_1`)
+  plus time for second SCF
+  calculation after small displacement of positions or cell (`\Delta t_2`)
+* `\Delta t_2 / t)`
 * Memory usage per core
 
 .. image:: benchmark.png

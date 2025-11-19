@@ -492,7 +492,7 @@ class PWArray(DistributedArrays[PWDesc]):
 
         return out if not isinstance(out, Empty) else None
 
-    def gather_all(self, out: PWArray) -> None:
+    def gather_all(self, out: np.ndarray | PWArray) -> None:
         """Gather coefficients from self[r] on rank r.
 
         On rank r, an array of all G-vector coefficients will be returned.
@@ -501,8 +501,12 @@ class PWArray(DistributedArrays[PWDesc]):
         assert len(self.dims) == 1
         pw = self.desc
         comm = pw.comm
+
+        if isinstance(out, PWArray):
+            out = out.data
+
         if comm.size == 1:
-            out.data[:] = self.data[0]
+            out[:] = self.data[0]
             return
 
         N = self.dims[0]
@@ -516,7 +520,7 @@ class PWArray(DistributedArrays[PWDesc]):
             comm, N, ng, myng, maxmyng)
 
         comm.alltoallv(self.data, ssize_r, soffset_r,
-                       out.data, rsize_r, roffset_r)
+                       out, rsize_r, roffset_r)
 
     def scatter_from(self, data: Array1D | PWArray | None = None) -> None:
         """Scatter plane-wave coefficients from rank-0 to all ranks."""
@@ -547,19 +551,18 @@ class PWArray(DistributedArrays[PWDesc]):
         shape = (self.dims[0], self.desc.shape[0])
         fro = Matrix(*shape,
                      data=array.data)
-        print(comm.size, self.comm.size, self.desc.comm.size)
         to = Matrix(*shape,
                     data=self.data,
                     dist=(comm, self.comm.size, self.desc.comm.size))
         fro.redist(to)
 
-    def scatter_from_all(self, a_G: PWArray) -> None:
+    def scatter_from_all(self, a_G: np.ndarray) -> None:
         """Scatter all coefficients from rank r to self on other cores."""
         assert len(self.dims) == 1
         pw = self.desc
         comm = pw.comm
         if comm.size == 1:
-            self.data[:] = a_G.data
+            self.data[:] = a_G
             return
 
         N = self.dims[0]
@@ -572,7 +575,7 @@ class PWArray(DistributedArrays[PWDesc]):
         rsize_r, roffset_r, ssize_r, soffset_r = a2a_stuff(
             comm, N, ng, myng, maxmyng)
 
-        comm.alltoallv(a_G.data, ssize_r, soffset_r,
+        comm.alltoallv(a_G, ssize_r, soffset_r,
                        self.data, rsize_r, roffset_r)
 
     def integrate(self, other: PWArray | None = None) -> np.ndarray:
