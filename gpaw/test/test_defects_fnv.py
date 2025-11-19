@@ -1,5 +1,7 @@
 import numpy as np
 import pytest
+from ase import Atoms
+from ase.units import Bohr, Hartree
 from ase.build import bulk, graphene
 from ase.build.supercells import make_supercell
 
@@ -20,7 +22,7 @@ def phi_infty(r_vR, r0_v, Q, alpha):
     """
 
     # radius
-    r = np.sqrt(np.sum(r_vR**2 - r0_v[:, None, None, None], axis=0))
+    r = np.linalg.norm(r_vR - r0_v[:, None, None, None], axis=0)
     phi = np.empty_like(r)
 
     # mask for nonzero r
@@ -38,10 +40,12 @@ def phi_infty(r_vR, r0_v, Q, alpha):
     return phi
 
 
-def phi_center(Q=1.0, alpha=1.0, L=10.0, ng=32):
+def phi_center(Q=1.0, alpha=1.0, L0=10.0, ng=32):
 
     # convert to Bohr
-    x = np.linspace(0, L, ng) / Bohr
+    L = L0 / Bohr
+
+    x = np.linspace(0, L, ng)
     X, Y, Z = np.meshgrid(x, x, x, indexing='ij')
 
     # construct r_vR with shape (3, ng, ng, ng)
@@ -56,7 +60,7 @@ def phi_center(Q=1.0, alpha=1.0, L=10.0, ng=32):
 
 def test_fnv():
 
-    L = 10.0
+    L = 15.0
     epsilon = 1.0
     charge = -2.0
     sigma = 1.0
@@ -65,7 +69,7 @@ def test_fnv():
     pristine.center()
 
     atoms_prs = pristine.copy()
-    rvR_def, phi_def = phi_center(L=L, Q=charge)
+    rvR_def, phi_def = phi_center(L0=L, Q=charge)
     rvR_prs = rvR_def.copy()
     phi_prs = np.zeros_like(phi_def)
 
