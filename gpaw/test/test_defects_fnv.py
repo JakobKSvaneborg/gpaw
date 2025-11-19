@@ -92,7 +92,7 @@ def test_fnv(method):
                                    method=method)
     E_fnv = elc.calculate_correction()
 
-    if 1:
+    if 0:
         from matplotlib import pyplot as plt
         profile = elc.calculate_potential_profile()
 
