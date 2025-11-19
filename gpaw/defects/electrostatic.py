@@ -2,12 +2,23 @@
 
 import numpy as np
 from gpaw import GPAW, PW
-from gpaw.mpi import serial_comm, world
+from gpaw.mpi import serial_comm
 from ase.units import Bohr, Hartree
 from ase.geometry import find_mic
 
 
 _avg_methods_ = ['atoms', 'planar', 'full-planar']
+
+
+def gather_electrostatic_potential(calc):
+    if calc.old:
+        rgd = calc.wfs.pd.gd.refine().get_grid_point_coordinates()
+    else:
+        fine_grid = calc.dft.pot_calc.fine_grid
+        # make new serial grid descriptor
+        rgd = fine_grid.new(comm=None).xyz().transpose(3, 0, 1, 2)
+    phi = calc.get_electrostatic_potential()
+    return rgd, phi
 
 
 class ElectrostaticCorrections():
@@ -34,10 +45,7 @@ class ElectrostaticCorrections():
     """
     def __init__(self, atoms_prs, rphi_prs, rphi_def,
                  charge=None, epsilon=None, sigma=None, r0=None,
-                 ravg=2.5, method='full-planar', comm=world):
-
-        # require serial
-        assert comm.size == 1
+                 ravg=2.5, method='full-planar', comm=serial_comm):
 
         self.atoms_prs = atoms_prs.copy()
 
@@ -47,6 +55,7 @@ class ElectrostaticCorrections():
         self.rgd_vR = rphi_prs[0]       # XXX here: Bohr
         self.ng_v = np.array(self.rgd_vR.shape[1:])
         rgd_vR_def = rphi_def[0]
+
         assert np.allclose(self.rgd_vR, rgd_vR_def)
         assert np.allclose(self.phi_prs.shape, self.phi_def.shape)
         assert np.allclose(self.phi_prs.shape, self.ng_v)
@@ -56,7 +65,7 @@ class ElectrostaticCorrections():
                           'gamma': True},
                     parallel={'domain': 1},
                     symmetry='off',
-                    communicator=serial_comm,
+                    communicator=comm,
                     txt=None)
 
         self.cell_prs = self.atoms_prs.get_cell()
