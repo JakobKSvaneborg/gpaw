@@ -37,8 +37,6 @@ def phi_infty(r_vR, r0_v, Q, alpha):
     phi0 = Q * 2.0 * np.sqrt(alpha / np.pi)
     phi[~mask] = phi0
 
-    phi -= phi[0, 0, 0]
-
     return phi
 
 
@@ -61,17 +59,20 @@ def phi_center(Q=1.0, alpha=0.1, L0=10.0, ng=64):
     return r_vR, phi_infty(r_vR, r0_v, Q, alpha) * Hartree
 
 
-def test_fnv():
+@pytest.mark.parametrize('method', ['atoms', 'sparse-planar'])
+def test_fnv(method):
 
     L = 20.0
     epsilon = 1.0
     charge = -2.0
     sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
-    E_fnv_t = 7.603
+    E_fnv_t = {'atoms': 10.207, 'sparse-planar': 10.929}
 
-    pristine = Atoms('H', cell=[L, L, L])
+    L2 = L / 2
+    L4 = L / 4
+    pos = [[L2, L2, L2], [L4, L4, L4]]
+    pristine = Atoms('H2', positions=pos, cell=[L, L, L])
     pristine.set_pbc(True)
-    pristine.center()
 
     atoms_prs = pristine.copy()
     rvR_def, phi_def = phi_center(L0=L, Q=charge)
@@ -79,7 +80,7 @@ def test_fnv():
     phi_prs = np.zeros_like(phi_def)
 
     # defect position
-    r0 = pristine.positions[0, :]
+    r0 = np.array([L2, L2, L2])
 
     elc = ElectrostaticCorrections(atoms_prs=atoms_prs,
                                    rphi_prs=(rvR_prs, phi_prs),
@@ -88,10 +89,10 @@ def test_fnv():
                                    charge=charge,
                                    sigma=sigma,
                                    epsilon=epsilon,
-                                   method='sparse-planar')
+                                   method=method)
     E_fnv = elc.calculate_correction()
 
-    if 0:
+    if 1:
         from matplotlib import pyplot as plt
         profile = elc.calculate_potential_profile()
 
@@ -116,7 +117,7 @@ def test_fnv():
 
         plt.show()
 
-    assert E_fnv == pytest.approx(E_fnv_t, abs=1e-2)
+    assert E_fnv == pytest.approx(E_fnv_t[method], abs=1e-2)
 
 
 @pytest.mark.serial
