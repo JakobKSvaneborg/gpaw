@@ -37,10 +37,12 @@ def phi_infty(r_vR, r0_v, Q, alpha):
     phi0 = Q * 2.0 * np.sqrt(alpha / np.pi)
     phi[~mask] = phi0
 
+    phi -= phi[0, 0, 0]
+
     return phi
 
 
-def phi_center(Q=1.0, alpha=1.0, L0=10.0, ng=32):
+def phi_center(Q=1.0, alpha=0.1, L0=10.0, ng=64):
 
     # convert to Bohr
     L = L0 / Bohr
@@ -60,12 +62,14 @@ def phi_center(Q=1.0, alpha=1.0, L0=10.0, ng=32):
 
 def test_fnv():
 
-    L = 15.0
+    L = 20.0
     epsilon = 1.0
     charge = -2.0
-    sigma = 1.0
+    sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
+    E_fnv_t = 7.603
 
     pristine = Atoms('H', cell=[L, L, L])
+    pristine.set_pbc(True)
     pristine.center()
 
     atoms_prs = pristine.copy()
@@ -83,9 +87,35 @@ def test_fnv():
                                    charge=charge,
                                    sigma=sigma,
                                    epsilon=epsilon,
-                                   method='full-planar')
+                                   method='sparse-planar')
     E_fnv = elc.calculate_correction()
-    print(E_fnv)
+
+    if 0:
+        from matplotlib import pyplot as plt
+        profile = elc.calculate_potential_profile()
+
+        z = profile['z']
+        V_m = profile['model']
+        dV_defprs = profile['def'] - profile['prs']
+        dV = V_m - dV_defprs
+        dphi_avg = profile['dphi']
+
+        plt.plot(z, dV, '-', label=r'$\Delta V(z)$')
+        plt.plot(z, V_m, '-', label='$V(z)$')
+        plt.plot(z, dV_defprs, '-',
+                 label=(r'$[V^{V_\mathrm{Ga}^{-3}}_\mathrm{el}(z) -'
+                        r'V^{0}_\mathrm{el}(z) ]$'))
+
+        plt.axhline(dphi_avg, ls='dashed')
+        plt.axhline(0.0, ls='-', color='grey')
+        plt.xlabel(r'$z\enspace (\mathrm{\AA})$', fontsize=18)
+        plt.ylabel('Planar averages (eV)', fontsize=18)
+        plt.legend(loc='upper right')
+        plt.xlim((z[0], z[-1]))
+
+        plt.show()
+
+    assert E_fnv == pytest.approx(E_fnv_t, abs=1e-2)
 
 
 
