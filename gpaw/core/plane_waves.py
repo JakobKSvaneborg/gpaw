@@ -3,6 +3,7 @@ from __future__ import annotations
 from math import pi
 from typing import TYPE_CHECKING, Literal
 from collections.abc import Sequence
+from functools import cached_property
 
 import numpy as np
 from ase.units import Ha
@@ -110,9 +111,15 @@ class PWDesc(Domain['PWArray']):
         """Tuple with one element: number of plane waves."""
         return self.shape
 
-    def reciprocal_vectors(self) -> Array2D:
+    def reciprocal_vectors(self, xp=np) -> Array2D:
         """Returns reciprocal lattice vectors, G + k, in xyz coordinates."""
-        return self.G_plus_k_Gv
+        if xp is np:
+            return self.G_plus_k_Gv
+        return self._cupy_G_plus_k_Gv
+
+    @cached_property
+    def _cupy_G_plus_k_Gv(self):
+        return cp.asarray(self.G_plus_k_Gv)
 
     def kinetic_energies(self) -> Array1D:
         """Kinetic energy of plane waves.
