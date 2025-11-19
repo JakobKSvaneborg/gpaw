@@ -7,7 +7,82 @@ from gpaw import GPAW
 from gpaw.defects import ElectrostaticCorrections
 from gpaw.defects.electrostatic import gather_electrostatic_potential
 from gpaw.defects.old_electrostatic import OldElectrostaticCorrections
+from scipy.special import erf
 from pathlib import Path
+
+
+def phi_infty(r_vR, r0_v, Q, alpha):
+    """
+    Electrostatic potential in atomic units (Hartree) from a Gaussian charge:
+        phi(r) = Q * erf(sqrt(alpha)*r) / r
+    r in Bohr, phi in Hartree.
+    r_vR has shape (3, nx, ny, nz).
+    """
+
+    # radius
+    r = np.sqrt(np.sum(r_vR**2 - r0_v[:, None, None, None], axis=0))
+    phi = np.empty_like(r)
+
+    # mask for nonzero r
+    mask = r > 0.0
+    sqrt_a = np.sqrt(alpha)
+
+    # normal points
+    phi[mask] = Q * erf(sqrt_a * r[mask]) / r[mask]
+
+    # center point: analytic limit
+    # lim_{r -> 0} erf(sqrt(a) r)/r = 2 * sqrt(a/pi)
+    phi0 = Q * 2.0 * np.sqrt(alpha / np.pi)
+    phi[~mask] = phi0
+
+    return phi
+
+
+def phi_center(Q=1.0, alpha=1.0, L=10.0, ng=32):
+
+    # convert to Bohr
+    x = np.linspace(0, L, ng) / Bohr
+    X, Y, Z = np.meshgrid(x, x, x, indexing='ij')
+
+    # construct r_vR with shape (3, ng, ng, ng)
+    r_vR = np.stack((X, Y, Z), axis=0)
+
+    # charge at center
+    r0_v = np.array([L/2, L/2, L/2])
+
+    # potential in eV
+    return r_vR, phi_infty(r_vR, r0_v, Q, alpha) * Hartree
+
+
+def test_fnv():
+
+    L = 10.0
+    epsilon = 1.0
+    charge = -2.0
+    sigma = 1.0
+
+    pristine = Atoms('H', cell=[L, L, L])
+    pristine.center()
+
+    atoms_prs = pristine.copy()
+    rvR_def, phi_def = phi_center(L=L, Q=charge)
+    rvR_prs = rvR_def.copy()
+    phi_prs = np.zeros_like(phi_def)
+
+    # defect position
+    r0 = pristine.positions[0, :]
+
+    elc = ElectrostaticCorrections(atoms_prs=atoms_prs,
+                                   rphi_prs=(rvR_prs, phi_prs),
+                                   rphi_def=(rvR_def, phi_def),
+                                   r0=r0,
+                                   charge=charge,
+                                   sigma=sigma,
+                                   epsilon=epsilon,
+                                   method='full-planar')
+    E_fnv = elc.calculate_correction()
+    print(E_fnv)
+
 
 
 @pytest.mark.serial
@@ -201,4 +276,4 @@ def test_fnv_cell(P, in_tmp_dir, gpaw_new):
 
 
 if __name__ == "__main__":
-    test_fnv_3d()
+    test_fnv()
