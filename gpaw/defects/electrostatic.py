@@ -12,13 +12,14 @@ _avg_methods_ = ['atoms', 'planar', 'full-planar']
 
 def gather_electrostatic_potential(calc):
     if calc.old:
-        rgd = calc.wfs.pd.gd.refine().get_grid_point_coordinates()
+        fine_grid = calc.wfs.pd.gd.refine()
+        r_vR = fine_grid.get_grid_point_coordinates(global_array=True)
     else:
         fine_grid = calc.dft.pot_calc.fine_grid
         # make new serial grid descriptor
-        rgd = fine_grid.new(comm=None).xyz().transpose(3, 0, 1, 2)
+        r_vR = fine_grid.new(comm=serial_comm).xyz().transpose(3, 0, 1, 2)
     phi = calc.get_electrostatic_potential()
-    return rgd, phi
+    return r_vR, phi
 
 
 class ElectrostaticCorrections():
