@@ -97,45 +97,24 @@ def test_fnv_model(method):
     assert E_fnv == pytest.approx(E_fnv_t[method], abs=1e-2)
 
 
-def test_fnv_3d(in_tmp_dir):
+def test_fnv_3d(gpw_files):
 
     E_corr_t = 23.55
     E_uncorr_t = 18.31
     E_fnv_t = E_corr_t - E_uncorr_t
 
-    prs_path = Path('prs.gpw')
-    def_path = Path('def.gpw')
-
-    a0 = 5.628      # lattice parameter
     sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
     epsilon = 12.7  # dielectric constant
     charge = -3     # defect charge
+    calc_prs = GPAW(gpw_files['gaas_cubic_pristine'])
+    calc_def = GPAW(gpw_files['gaas_cubic_defect'])
 
-    params = {'mode': {'name': 'pw', 'ecut': 400},
-              'xc': 'LDA',
-              'kpts': {'size': (2, 2, 2), 'gamma': False},
-              'occupations': {'name': 'fermi-dirac', 'width': 0.01},
-              'txt': 'fnv.txt'}
-
-    calc_charged = GPAW(charge=charge, **params)
-    calc_neutral = GPAW(charge=0, **params)
-
-    pristine = bulk('GaAs', crystalstructure='zincblende', a=a0, cubic=True)
-    pristine.calc = calc_neutral
-    pristine.get_potential_energy()
-    pristine.calc.write(prs_path)
-
-    defect = pristine.copy()
-    defect.pop(0)  # make a Ga vacancy
-    defect.calc = calc_charged
-    defect.get_potential_energy()
-    defect.calc.write(def_path)
-
-    phiR_prs = gather_electrostatic_potential(pristine.calc)
-    phiR_def = gather_electrostatic_potential(defect.calc)
+    atoms = calc_prs.get_atoms()
+    phiR_prs = gather_electrostatic_potential(calc_prs)
+    phiR_def = gather_electrostatic_potential(calc_def)
 
     # defect position
-    r0 = pristine.positions[0, :]
+    r0 = atoms.positions[0, :]
 
     elc = ElectrostaticCorrections(phi_pristine=phiR_prs,
                                    phi_defect=phiR_def,
@@ -144,11 +123,11 @@ def test_fnv_3d(in_tmp_dir):
                                    sigma=sigma,
                                    epsilon=epsilon,
                                    method='full-planar',
-                                   atoms_pristine=pristine)
+                                   atoms_pristine=atoms)
     E_fnv = elc.calculate_correction()
 
-    E_0 = pristine.calc.get_potential_energy()
-    E_X = defect.calc.get_potential_energy()
+    E_0 = calc_prs.get_potential_energy()
+    E_X = calc_def.get_potential_energy()
     E_uncorr = E_X - E_0
     E_corr = E_uncorr + E_fnv
     print(E_uncorr, E_corr, E_fnv)

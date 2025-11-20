@@ -2345,6 +2345,14 @@ class GPWFiles(CachedFilesHandler):
     def gaas_pw(self):
         return self._gaas()
 
+    @gpwfile
+    def gaas_cubic_pristine(self):
+        return self._gaas_cubic()
+
+    @gpwfile
+    def gaas_cubic_defect(self):
+        return self._gaas_cubic(charge=-3, vac_idx=0)
+
     @with_band_cutoff(gpw='gaas_pw',
                       band_cutoff=8)
     def _gaas(self, *, band_cutoff, symmetry=None):
@@ -2366,6 +2374,24 @@ class GPWFiles(CachedFilesHandler):
                     kpts={'size': (nk, nk, nk), 'gamma': True},
                     txt=self.folder / f'gs_GaAs{tag}.txt',
                     symmetry=symmetry)
+
+        atoms.calc = calc
+        atoms.get_potential_energy()
+        return atoms.calc
+
+    def _gaas_cubic(self, *, charge=0, vac_idx=None):
+        nk = 2
+        atoms = bulk('GaAs', crystalstructure='zincblende', a=5.628, cubic=True)
+        atoms.set_pbc(True)
+        if vac_idx is not None:
+            atoms.pop(vac_idx)
+
+        calc = GPAW(mode=PW(400),
+                    xc='LDA',
+                    charge=charge,
+                    occupations=FermiDirac(width=0.01),
+                    kpts={'size': (nk, nk, nk), 'gamma': False},
+                    symmetry='off')
 
         atoms.calc = calc
         atoms.get_potential_energy()
