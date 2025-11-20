@@ -45,19 +45,21 @@ class ElectrostaticCorrections():
                  ravg=2.5, method='full-planar'):
 
         # read and check electrostatic potentials
-        self.phi_prs = - phi_pristine.data
-        self.phi_def = - phi_defect.data
-        self.r_vR = phi_pristine.desc.xyz().transpose(3, 0, 1, 2)
-        self.ng_v = np.array(self.r_vR.shape[1:])
+        self.phi_prs = - phi_pristine.data              # eV
+        self.phi_def = - phi_defect.data                # eV
+        r_vR = phi_pristine.desc.xyz().transpose(3, 0, 1, 2)
+        self.r_vR = r_vR / Bohr                         # Bohr
+        self.ng_v = np.array(r_vR.shape[1:])
 
+        assert np.allclose(self.ng_v, self.phi_def.shape)
         assert np.allclose(self.phi_prs.shape, self.phi_def.shape)
 
-        self.cell_cv = phi_pristine.desc.cell
+        self.cell_cv = phi_pristine.desc.cell / Bohr    # Bohr
+        self.sigma = sigma                              # Bohr
+        self.r0 = np.array(r0) / Bohr                   # Bohr
+        self.ravg = ravg / Bohr                         # Bohr
         self.charge = charge
-        self.sigma = sigma          # XXX here: Bohr
         self.epsilon = epsilon
-        self.r0 = np.array(r0)      # Angstrom
-        self.ravg = ravg            # Angstrom
 
         assert method in _avg_methods_
         self.method = method
@@ -67,8 +69,8 @@ class ElectrostaticCorrections():
         if 'full' in method:
             self.nfreq = 1          # no coarsening
 
-        # volume
-        self.Omega = np.linalg.det(self.cell_cv) / Bohr ** 3
+        # volume Bohr^3
+        self.Omega = np.linalg.det(self.cell_cv)    # Bohr^3
 
         # monoclin check
         cross_ab = np.cross(self.cell_cv[0, :], self.cell_cv[1, :])
@@ -77,10 +79,11 @@ class ElectrostaticCorrections():
         self.is_monoclin = np.abs(np.dot(cross_ab, norm_c) - 1.) < 1e-6
 
         # get G vectors
-        pw_desc = PWDesc(cell=self.cell_cv, ecut=ecut / Hartree)
-        self.G_Gv = pw_desc.reciprocal_vectors()
-        print(self.G_Gv.shape)
-        self.G2_G = np.linalg.norm(self.G_Gv, axis=-1)**2
+        pw_desc = PWDesc(cell=self.cell_cv, ecut=ecut / Hartree,
+                         comm=serial_comm, dtype=complex)
+        self.G_Gv = pw_desc.reciprocal_vectors()        # Bohr^-1 ?
+        # G2
+        self.G2_G =  np.sum(np.abs(self.G_Gv)**2, axis=-1)
 
         # potential alignment
         self.dphi = None
@@ -143,6 +146,7 @@ class ElectrostaticCorrections():
         return phi_r.real / self.Omega  # XXX right normalization ?
 
     def prs_mic_dist(self, r_v):
+        # no atoms given
 
         atoms = self.atoms_prs
         dR = atoms.positions - r_v[None, :]
@@ -152,8 +156,6 @@ class ElectrostaticCorrections():
 
     def grid_mic_dist(self, r_v):
         grid_shape = self.ngc_v
-        # convert grid to Angstrom such we can use find_mic
-        rg_vR = self.rc_vR * Bohr
 
         dR = rg_vR.T - r_v[None, None, None, :]
         # flatten grid and reshape
@@ -166,7 +168,7 @@ class ElectrostaticCorrections():
     def find_grid_index(self, r0_v):
         ng_v = self.ngc_v
 
-        # r0_v cartesian vector in Angstrom
+        # r0_v cartesian vector in Bohr
         # assumes self.r_vR being on a regular grid
         # evaluate grid index of cartesian vector
         # convert to reduced (fractional) coordinates
