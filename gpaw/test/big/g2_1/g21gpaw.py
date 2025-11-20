@@ -1,10 +1,9 @@
 import ase.db
 from ase.build import molecule
+from ase.data.g2_1 import atom_names, molecule_names
 from ase.optimize.bfgs import BFGS
-from ase.data.g2_1 import molecule_names, atom_names
 
 from gpaw import GPAW, PW, Mixer
-
 
 c = ase.db.connect('g2-1.db')
 

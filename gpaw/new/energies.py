@@ -1,7 +1,7 @@
 """PAW-DFT energy-contributions."""
 
-from ase.units import Ha
 import numpy as np
+from ase.units import Ha
 
 # Contributions to free energy:
 NAMES = ['kinetic', 'coulomb', 'zero', 'external', 'xc', 'entropy',

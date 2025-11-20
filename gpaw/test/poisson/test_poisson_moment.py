@@ -1,11 +1,11 @@
 import numpy as np
 import pytest
-
 from ase.units import Bohr
-from gpaw.poisson import PoissonSolver, NoInteractionPoissonSolver
-from gpaw.poisson_moment import MomentCorrectionPoissonSolver, MomentCorrection
-from gpaw.poisson_extravacuum import ExtraVacuumPoissonSolver
+
 from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.poisson import NoInteractionPoissonSolver, PoissonSolver
+from gpaw.poisson_extravacuum import ExtraVacuumPoissonSolver
+from gpaw.poisson_moment import MomentCorrection, MomentCorrectionPoissonSolver
 
 
 @pytest.mark.parametrize('moment_corrections, expected_len', [

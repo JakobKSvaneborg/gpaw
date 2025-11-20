@@ -13,25 +13,26 @@ import textwrap
 from collections import deque
 
 import ase.io
-import gpaw.mpi
 import numpy as np
 from ase.calculators.calculator import (InputError, Parameters,
                                         PropertyNotPresent, equal)
 from ase.parallel import paropen
 from ase.units import Bohr, Ha, _e, kB
+from scipy.ndimage import uniform_filter1d
+from scipy.signal import find_peaks
+from scipy.stats import linregress
+
+import gpaw.mpi
 from gpaw import GPAW_NEW, ConvergenceError
 from gpaw.dipole_correction import DipoleCorrection
 from gpaw.fd_operators import Gradient
+from gpaw.jellium import Jellium, JelliumSlab
 from gpaw.old.hamiltonian import RealSpaceHamiltonian
 from gpaw.old.logger import indent
-from gpaw.jellium import Jellium, JelliumSlab
 from gpaw.solvation.calculator import OldSolvationGPAW
 from gpaw.solvation.cavity import Power12Potential
 from gpaw.solvation.hamiltonian import SolvationRealSpaceHamiltonian
 from gpaw.solvation.poisson import WeightedFDPoissonSolver
-from scipy.ndimage import uniform_filter1d
-from scipy.signal import find_peaks
-from scipy.stats import linregress
 
 
 def SJM(*args, **kwargs):

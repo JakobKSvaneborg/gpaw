@@ -1,13 +1,13 @@
-import pytest
 import numpy as np
-
+import pytest
 from ase import Atoms
+
 from gpaw import GPAW, PW
 from gpaw.mpi import world
-from gpaw.test import findpeak
-from gpaw.utilities import compiled_with_sl
 from gpaw.response.df import DielectricFunction
 from gpaw.response.symmetry import QSymmetryAnalyzer
+from gpaw.test import findpeak
+from gpaw.utilities import compiled_with_sl
 
 # Comparing the plasmon peaks found in bulk sodium for two different
 # atomic structures. Testing for identical plasmon peaks. Not using

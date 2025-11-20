@@ -15,9 +15,9 @@ From:
 import numpy as np
 from ase.utils import seterr
 
-from gpaw.xc.mgga import MGGA, weight_n
-from gpaw.xc.libxc import LibXC
 from gpaw.fd_operators import Laplace
+from gpaw.xc.libxc import LibXC
+from gpaw.xc.mgga import MGGA, weight_n
 
 
 class TB09Kernel:

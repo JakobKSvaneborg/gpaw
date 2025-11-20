@@ -1,16 +1,15 @@
 import pickle
-import numpy as np
 from os.path import isfile
 
+import numpy as np
 from ase.parallel import parprint
 from ase.units import Bohr, Ha
 
+from gpaw.lcao.projected_wannier import dots
+from gpaw.lfc import LocalizedFunctionsCollection as LFC
 from gpaw.mpi import world
 from gpaw.utilities import unpack_hermitian
-from gpaw.lcao.projected_wannier import dots
 from gpaw.utilities.tools import tri2full
-from gpaw.lfc import LocalizedFunctionsCollection as LFC
-
 
 """This module is used to calculate the electron-phonon coupling matrix,
     expressed in terms of GPAW LCAO orbitals.
@@ -367,8 +366,9 @@ def get_grid2_dP_aMix(spos_ac, wfs, q, *args, **kwargs):  # XXXXXX q
 def get_tci_dP_aMix(spos_ac, wfs, q, *args, **kwargs):
     # container for spline expansions of basis function-projector pairs
     # (note to self: remember to conjugate/negate because of that)
-    from gpaw.lcao.overlap import ManySiteDictionaryWrapper, \
-        TwoCenterIntegralCalculator, NewTwoCenterIntegrals
+    from gpaw.lcao.overlap import (ManySiteDictionaryWrapper,
+                                   NewTwoCenterIntegrals,
+                                   TwoCenterIntegralCalculator)
 
     if not isinstance(wfs.tci, NewTwoCenterIntegrals):
         raise RuntimeError('Please remember --gpaw=usenewtci=True')

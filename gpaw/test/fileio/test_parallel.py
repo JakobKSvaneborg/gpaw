@@ -1,8 +1,9 @@
 import pytest
-from gpaw.mpi import world
+from ase.build import bulk
+
 from gpaw import GPAW, ConvergenceError, restart
 from gpaw.mixer import MixerSum
-from ase.build import bulk
+from gpaw.mpi import world
 
 # bulk Fe with k-point, band, and domain parallelization
 pytestmark = pytest.mark.skipif(world.size < 4,

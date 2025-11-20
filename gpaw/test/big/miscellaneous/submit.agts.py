@@ -2,6 +2,7 @@
 too long."""
 
 from myqueue.workflow import run
+
 from gpaw import GPAW_NEW
 
 

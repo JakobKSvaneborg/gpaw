@@ -1,13 +1,12 @@
-import os
-import fnmatch
-from io import BytesIO, StringIO
-import tarfile
-import re
-from urllib.request import urlopen
-import ssl
 import contextlib
+import fnmatch
+import os
+import re
 import shlex
-
+import ssl
+import tarfile
+from io import BytesIO, StringIO
+from urllib.request import urlopen
 
 sources = [('gpaw', 'official GPAW setups releases'),
            ('sg15', 'SG15 pseudopotentials'),

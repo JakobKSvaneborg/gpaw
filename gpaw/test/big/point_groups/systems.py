@@ -1,7 +1,6 @@
 import math
 
 import numpy as np
-
 from ase import Atom, Atoms
 from ase.build import molecule
 

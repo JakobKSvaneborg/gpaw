@@ -1,5 +1,6 @@
-import pytest
 import numpy as np
+import pytest
+
 from gpaw.response.g0w0 import G0W0
 
 

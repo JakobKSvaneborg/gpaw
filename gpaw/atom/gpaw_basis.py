@@ -4,8 +4,8 @@ from argparse import ArgumentParser
 from collections.abc import Sequence
 
 from .basis import BasisMaker
-from .basisfromfile import (BasisGetter, add_common_args,
-                            get_basis_getter, read_setup_and_generate_basis)
+from .basisfromfile import (BasisGetter, add_common_args, get_basis_getter,
+                            read_setup_and_generate_basis)
 
 
 def get_parser() -> ArgumentParser:

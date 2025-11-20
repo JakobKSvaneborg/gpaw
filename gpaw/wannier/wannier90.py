@@ -1,9 +1,9 @@
 import numpy as np
-from gpaw.utilities.blas import gemmdot
-from gpaw.ibz2bz import (get_overlap, get_overlap_coefficients,
-                         get_phase_shifted_overlap_coefficients,
-                         IBZ2BZMaps)
+
+from gpaw.ibz2bz import (IBZ2BZMaps, get_overlap, get_overlap_coefficients,
+                         get_phase_shifted_overlap_coefficients)
 from gpaw.spinorbit import soc_eigenstates
+from gpaw.utilities.blas import gemmdot
 
 
 class Wannier90:

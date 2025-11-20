@@ -1,8 +1,10 @@
 """Calculate dipole matrix elements."""
 from __future__ import annotations
+
 import numpy as np
 from ase.units import Bohr
-from gpaw.new.ase_interface import ASECalculator, GPAW
+
+from gpaw.new.ase_interface import GPAW, ASECalculator
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 

@@ -2,10 +2,11 @@
 
 import numpy as np
 
+from gpaw.mpi import broadcast, serial_comm
 from gpaw.old.kpt_descriptor import KPointDescriptor
-from gpaw.mpi import serial_comm, broadcast
 from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.old.pw.lfc import PWLFC
+
 from .kpts import get_kpt
 
 

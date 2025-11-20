@@ -5,6 +5,7 @@ the AiiDA common workflows (ACWF) benchmark:
 DIAMOND, FCC, SC, BCC, XO3, XO, X4O6, XO2, X4O10, X2O.
 """
 from __future__ import annotations
+
 import json
 from pathlib import Path
 from typing import Any
@@ -12,10 +13,11 @@ from typing import Any
 import numpy as np
 from ase import Atoms
 from ase.data import atomic_numbers
+
 from gpaw.atom.check import all_names
+from gpaw.dft import Parameters
 from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW
-from gpaw.dft import Parameters
 
 
 def eos(atoms: Atoms,

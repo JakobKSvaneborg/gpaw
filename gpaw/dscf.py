@@ -12,13 +12,13 @@ Kohn-Sham orbitals.
 """
 
 import sys
-import numpy as np
 
+import numpy as np
 from ase.parallel import paropen
-from gpaw.utilities import devnull
 from ase.units import Ha
 
 from gpaw.occupations import FermiDiracCalculator
+from gpaw.utilities import devnull
 
 
 def dscf_calculation(paw, orbitals, atoms):

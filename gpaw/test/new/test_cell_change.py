@@ -1,8 +1,10 @@
+from io import StringIO
+
 import pytest
 from ase import Atoms
-from gpaw.new.ase_interface import GPAW
+
 from gpaw.mpi import broadcast_string, world
-from io import StringIO
+from gpaw.new.ase_interface import GPAW
 
 
 @pytest.mark.parametrize('gpu', [False, True])

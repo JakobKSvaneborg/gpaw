@@ -3,6 +3,7 @@
 # running with python (uses cgpaw.so) gives right (non-zero) results!
 
 import numpy as np
+
 from gpaw.utilities.blas import mmm
 
 

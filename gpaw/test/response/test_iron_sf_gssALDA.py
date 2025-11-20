@@ -6,22 +6,23 @@ Fast test, where the kernel is scaled to fulfill the Goldstone theorem.
 
 # Workflow modules
 from pathlib import Path
-import pytest
+
 import numpy as np
+import pytest
 
-# Script modules
-from gpaw.test import findpeak
 from gpaw.mpi import world
-
 from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator
-from gpaw.response.susceptibility import (ChiFactory, spectral_decomposition,
-                                          read_eigenmode_lineshapes)
-from gpaw.response.localft import LocalGridFTCalculator, LocalPAWFTCalculator
-from gpaw.response.fxc_kernels import FXCKernel, AdiabaticFXCCalculator
 from gpaw.response.dyson import HXCKernel
+from gpaw.response.fxc_kernels import AdiabaticFXCCalculator, FXCKernel
 from gpaw.response.goldstone import FMGoldstoneScaling
+from gpaw.response.localft import LocalGridFTCalculator, LocalPAWFTCalculator
 from gpaw.response.pair_functions import read_pair_function
+from gpaw.response.susceptibility import (ChiFactory,
+                                          read_eigenmode_lineshapes,
+                                          spectral_decomposition)
+# Script modules
+from gpaw.test import findpeak
 
 
 def set_up_fxc_calculators(gs, context):

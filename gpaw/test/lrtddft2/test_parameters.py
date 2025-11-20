@@ -1,5 +1,6 @@
-import pytest
 from contextlib import contextmanager
+
+import pytest
 
 from gpaw import GPAW
 from gpaw.lrtddft2 import LrTDDFT2

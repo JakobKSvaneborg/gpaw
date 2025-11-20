@@ -1,9 +1,10 @@
 import numpy as np
-from gpaw.gpu import cupy as cp
-from gpaw.gpu import cupyx as cupyx
-from gpaw.gpu import cupy_is_fake
-import scipy
 import pytest
+import scipy
+
+from gpaw.gpu import cupy as cp
+from gpaw.gpu import cupy_is_fake
+from gpaw.gpu import cupyx as cupyx
 
 """Tests for Cupy's FFT routines (in practice, cuFFT/hipFFT).
 In principle it shouldn't be our responsibility to test these,

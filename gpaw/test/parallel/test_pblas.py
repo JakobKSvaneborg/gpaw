@@ -6,19 +6,18 @@ BLACS grid, BLAS operations are performed in parallel, and
 results are compared against BLAS.
 """
 
-import pytest
 import numpy as np
+import pytest
 
-from gpaw.mpi import world, rank, broadcast_float
 from gpaw.blacs import BlacsGrid, Redistributor
+from gpaw.mpi import broadcast_float, rank, world
 from gpaw.utilities import compiled_with_sl
 from gpaw.utilities.blas import r2k, rk
-from gpaw.utilities.scalapack import \
-    pblas_simple_gemm, pblas_gemm, \
-    pblas_simple_gemv, pblas_gemv, \
-    pblas_simple_r2k, pblas_simple_rk, \
-    pblas_simple_hemm, pblas_hemm, \
-    pblas_simple_symm, pblas_symm
+from gpaw.utilities.scalapack import (pblas_gemm, pblas_gemv, pblas_hemm,
+                                      pblas_simple_gemm, pblas_simple_gemv,
+                                      pblas_simple_hemm, pblas_simple_r2k,
+                                      pblas_simple_rk, pblas_simple_symm,
+                                      pblas_symm)
 from gpaw.utilities.tools import tri2full
 
 pytestmark = pytest.mark.skipif(not compiled_with_sl(),

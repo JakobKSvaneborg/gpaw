@@ -1,13 +1,14 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
-from typing import NamedTuple
+
+from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
 
-from gpaw.mpi import broadcast
-from gpaw.utilities import (pack_atomic_matrices, unpack_atomic_matrices,
-                            unpack_density, unpack_hermitian, packed_index)
 from gpaw import GPAW_NO_C_EXTENSION
+from gpaw.mpi import broadcast
+from gpaw.utilities import (pack_atomic_matrices, packed_index,
+                            unpack_atomic_matrices, unpack_density,
+                            unpack_hermitian)
 
 
 class PAWThings(NamedTuple):

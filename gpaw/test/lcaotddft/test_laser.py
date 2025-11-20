@@ -1,11 +1,11 @@
 import numpy as np
 import pytest
-
 from ase.units import Bohr, Hartree
+
 from gpaw.external import ConstantElectricField
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
-from gpaw.lcaotddft.laser import create_laser, register_custom_laser, Laser
+from gpaw.lcaotddft.laser import Laser, create_laser, register_custom_laser
 from gpaw.mpi import world
 from gpaw.tddft.units import as_to_au
 

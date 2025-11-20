@@ -1,6 +1,6 @@
-import gpaw.cgpaw as cgpaw
 import numpy as np
 
+import gpaw.cgpaw as cgpaw
 from gpaw import debug
 from gpaw.fd_operators import Laplace
 from gpaw.transformers import Transformer

@@ -1,7 +1,8 @@
+import numpy as np
+
+from gpaw.blacs import BlacsGrid, Redistributor
 from gpaw.mpi import broadcast_exception, world
 from gpaw.response.bse import parallel_delete
-import numpy as np
-from gpaw.blacs import BlacsGrid, Redistributor
 
 
 def test_bse_parallel_delete(in_tmp_dir):

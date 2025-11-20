@@ -1,10 +1,10 @@
 """Test functionality to expand a function on a spherical grid in real
 spherical harmonics."""
 
-import pytest
 import itertools
 
 import numpy as np
+import pytest
 
 from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
 from gpaw.sphere.lebedev import Y_nL

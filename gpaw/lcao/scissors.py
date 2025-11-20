@@ -6,11 +6,11 @@ from collections.abc import Sequence
 import numpy as np
 from ase.units import Ha
 
+from gpaw.core.matrix import Matrix
 from gpaw.lcao.eigensolver import DirectLCAO
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.lcao.eigensolver import LCAOEigensolver
 from gpaw.new.symmetry import Symmetries
-from gpaw.core.matrix import Matrix
 
 
 def non_self_consistent_scissors_shift(

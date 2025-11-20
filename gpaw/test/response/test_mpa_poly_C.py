@@ -1,6 +1,7 @@
-import pytest
 import numpy as np
+import pytest
 from ase.units import Hartree as Ha
+
 from gpaw.cgpaw import evaluate_mpa_poly as mpa_C
 
 

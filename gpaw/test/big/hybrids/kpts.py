@@ -1,11 +1,12 @@
 from ase import Atoms
+
 # from ase.units import Ha
 from gpaw import GPAW, PW
+from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
 # from gpaw.hybrids import HybridXC
 # from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
 from gpaw.hybrids.energy import non_self_consistent_energy
-from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
-from gpaw.mpi import world, serial_comm
+from gpaw.mpi import serial_comm, world
 
 
 def test(kpts, setup, spinpol, symmetry):

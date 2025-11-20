@@ -1,7 +1,7 @@
+import pytest
 from ase import Atoms
 
 from gpaw import GPAW, FermiDirac
-import pytest
 
 
 def test_spin_spinFe3plus():

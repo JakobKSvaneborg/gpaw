@@ -7,13 +7,14 @@ import numpy as np
 from ase.data import covalent_radii
 from ase.data.colors import jmol_colors
 from ase.units import Bohr, Hartree
-from gpaw.old.calculator import GPAW
+from scipy.linalg import eigh
+
 from gpaw.lcao.tightbinding import TightBinding  # as LCAOTightBinding
 from gpaw.lcao.tools import get_bfi
+from gpaw.old.calculator import GPAW
 from gpaw.typing import Array1D, Array2D, Array4D
 from gpaw.utilities.blas import r2k
 from gpaw.utilities.tools import lowdin, tri2full
-from scipy.linalg import eigh
 
 
 def get_subspace(A_MM: Array2D, indices: Sequence[int]):

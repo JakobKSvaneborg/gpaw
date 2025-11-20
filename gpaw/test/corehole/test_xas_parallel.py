@@ -1,9 +1,8 @@
 import pytest
 
+import gpaw.mpi as mpi
 from gpaw import GPAW
 from gpaw.xas import XAS
-import gpaw.mpi as mpi
-
 
 dks = 20
 

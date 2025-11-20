@@ -36,6 +36,7 @@ Enable if-statement in the bottom for nice plots
 import numpy as np
 from ase.build import molecule
 from ase.units import Hartree
+
 from gpaw import GPAW, Mixer
 from gpaw.mpi import rank
 

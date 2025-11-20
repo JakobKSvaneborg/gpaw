@@ -1,14 +1,14 @@
 """GPAW wannier example for ethylene corresponding to the ASE Wannier
 tutorial.
 """
-import pytest
 import numpy as np
+import pytest
 from ase import Atoms
 
 from gpaw import GPAW
 from gpaw.mpi import size
-from gpaw.wannier.overlaps import calculate_overlaps
 from gpaw.wannier.edmiston_ruedenberg import localize
+from gpaw.wannier.overlaps import calculate_overlaps
 
 pytestmark = pytest.mark.ci
 

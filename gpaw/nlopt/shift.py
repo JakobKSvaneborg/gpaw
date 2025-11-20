@@ -1,6 +1,6 @@
 import numpy as np
 from ase.parallel import parprint
-from ase.units import _e, _hbar, Ha, J
+from ase.units import Ha, J, _e, _hbar
 from ase.utils.timing import Timer
 
 from gpaw.mpi import world

@@ -1,10 +1,10 @@
 """Module defining  ``Eigensolver`` classes."""
 
-from math import pi, sqrt, sin, cos, atan2
+from math import atan2, cos, pi, sin, sqrt
 
 import numpy as np
-from numpy import dot
 from ase.units import Hartree
+from numpy import dot
 
 from gpaw.eigensolvers.eigensolver import Eigensolver
 from gpaw.utilities import unpack_hermitian

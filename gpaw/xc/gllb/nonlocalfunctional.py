@@ -1,5 +1,6 @@
 import numpy as np
 from ase.units import Ha
+
 from gpaw.xc.functional import XCFunctional
 
 

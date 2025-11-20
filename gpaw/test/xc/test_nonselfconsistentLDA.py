@@ -1,7 +1,8 @@
+import pytest
 from ase import Atom, Atoms
 from ase.units import Bohr
+
 from gpaw import GPAW
-import pytest
 
 
 def test_xc_nonselfconsistentLDA(in_tmp_dir):

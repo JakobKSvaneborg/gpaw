@@ -2,6 +2,7 @@ from math import pi
 
 import numpy as np
 import pytest
+
 from gpaw.core import PWDesc, UGDesc
 from gpaw.core.plane_waves import find_reciprocal_vectors
 from gpaw.gpu import cupy as cp

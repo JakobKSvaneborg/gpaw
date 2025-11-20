@@ -1,6 +1,7 @@
 import numpy as np
 
 from gpaw.xc import XC
+
 from .coulomb import coulomb_interaction
 from .forces import calculate_forces
 from .paw import calculate_paw_stuff

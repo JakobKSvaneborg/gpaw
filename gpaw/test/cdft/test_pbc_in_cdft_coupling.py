@@ -1,7 +1,8 @@
+import numpy as np
 import pytest
 from ase import Atoms
-import numpy as np
-from gpaw import GPAW, FermiDirac, Davidson, Mixer
+
+from gpaw import GPAW, Davidson, FermiDirac, Mixer
 from gpaw.cdft.cdft import CDFT
 from gpaw.cdft.cdft_coupling import CouplingParameters
 from gpaw.mpi import world

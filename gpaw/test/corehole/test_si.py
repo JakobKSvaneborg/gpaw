@@ -1,10 +1,10 @@
-import pytest
 import numpy as np
+import pytest
 
+import gpaw.mpi as mpi
 from gpaw import GPAW
 from gpaw.test import gen
 from gpaw.xas import XAS, RecursionMethod
-import gpaw.mpi as mpi
 
 
 @pytest.mark.old_gpaw_only

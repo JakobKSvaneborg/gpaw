@@ -10,15 +10,16 @@ Computes:
 lambda = E_a(Rb)-E_a(Ra)
 '''
 
-import numpy as np
-from gpaw.cdft.cdft import (WeightFunc, get_ks_energy_wo_external,
-                            get_all_weight_functions)
-from ase.units import kB as kb
-from gpaw.utilities.ps2ae import PS2AE, interpolate_weight
-from ase.units import Bohr
-from gpaw.mpi import rank
 import warnings
 
+import numpy as np
+from ase.units import Bohr
+from ase.units import kB as kb
+
+from gpaw.cdft.cdft import (WeightFunc, get_all_weight_functions,
+                            get_ks_energy_wo_external)
+from gpaw.mpi import rank
+from gpaw.utilities.ps2ae import PS2AE, interpolate_weight
 
 spin_state_error = ('The cDFT wave functions have\n' +
                     'different spin states! Similar\n' +

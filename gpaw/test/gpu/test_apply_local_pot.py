@@ -1,7 +1,8 @@
 import pytest
-from gpaw.core import UGDesc, PWDesc
-from gpaw.new.pw.hamiltonian import apply_local_potential_gpu
+
+from gpaw.core import PWDesc, UGDesc
 from gpaw.gpu import cupy as cp
+from gpaw.new.pw.hamiltonian import apply_local_potential_gpu
 
 
 @pytest.mark.gpu

@@ -1,5 +1,6 @@
 import pytest
 from ase.build import fcc111
+
 from gpaw import FermiDirac
 from gpaw.mpi import size
 from gpaw.new.ase_interface import GPAW

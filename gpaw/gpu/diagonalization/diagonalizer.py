@@ -1,15 +1,16 @@
+from abc import ABC, abstractmethod
+from copy import copy
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+from warnings import warn
+
+import numpy as np
+
+from gpaw import debug
 from gpaw.gpu import cupy as cp
 from gpaw.gpu import cupy_is_fake
 from gpaw.new.timer import trace
 from gpaw.utilities import as_real_dtype
-from gpaw import debug
-
-import numpy as np
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from copy import copy
-from typing import TYPE_CHECKING
-from warnings import warn
 
 if TYPE_CHECKING:
     from gpaw.core.matrix import Matrix

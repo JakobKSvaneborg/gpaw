@@ -1,6 +1,7 @@
 # MQ: cores=4
 """Check non self-consistent SOC calculation with and without symmetry."""
 from ase import Atoms
+
 from gpaw import GPAW, PW
 from gpaw.spinorbit import soc_eigenstates
 
