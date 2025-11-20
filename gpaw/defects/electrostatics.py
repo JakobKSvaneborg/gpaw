@@ -74,6 +74,8 @@ class ElectrostaticCorrections():
 
     ravg: average radius for bulk-atom average [Angstrom]
 
+    ecut: energy cutoff for ``calculate_model_potential`` [eV]
+
     method: method selection string
 
     atoms_pristine: ``Atoms`` pristine atomic structure
