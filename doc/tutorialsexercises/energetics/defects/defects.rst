@@ -210,11 +210,15 @@ By subtracting the energy of the pristine system from the energy of the
 defective system, we obtain an uncorrected total energy difference `(E[X^q] -
 E_0)_\mathrm{uncorrected}` of 21.78 eV.
 
-We now calculate the FNV corrections. Here we take a dielectric constant of
+We now calculate the FNV corrections using
+:meth:`~gpaw.defects.electrostatics.ElectrostaticCorrections`.
+Here we take a dielectric constant of
 12.7 which is the clamped-ion static limit (i.e. the low frequency dielectric
 constant excluding the effects of ionic relaxation). We use a Gaussian model
 charge centred at (0, 0, 0) with a standard deviation of 0.72 Bohr
 (corresponding to a FWHM of 2 Bohr).
+
+.. autoclass:: gpaw.defects.electrostatics.ElectrostaticCorrections
 
 The script ``electrostatics.py`` takes the gpw files of the defective and
 pristine calculation as input, as well as the gaussian parameters and
@@ -227,13 +231,13 @@ The script also produces an output file ``electrostatics.json`` which
 gives the function `\Delta V(z)` introduced above, and also the planar
 averages of the model potential and the difference between the planar
 averages of the defective and pristine electrostatic potentials. We can plot
-the data using the following script
+the data using the following script which uses
+:meth:`~gpaw.defects.electrostatics.plot_potentials`.
+
+.. autoclass:: gpaw.defects.electrostatics.plot_potentials
 
 .. literalinclude:: plot_potentials.py
 
-.. autoclass:: gpaw.defects.electrostatics.ElectrostaticCorrection
-
-See here: :meth:`~gpaw.defects.electrostatics.ElectrostaticCorrection`.
 
 This gives the following plot:
 
