@@ -46,7 +46,9 @@ bmgsstencil bmgs_laplace(int k, double scale,
   double f2 = 1.0 / (h[1] * h[1]);
   double f3 = 1.0 / (h[2] * h[2]);
   int r = (k - 1) / 2;   // range
-  double s[3] = {(n[2] + 2 * r) * (n[1] + 2 * r), n[2] + 2 * r, 1};
+  double s[3] = { (double)((n[2] + 2 * r) * (n[1] + 2 * r)),
+                  (double)(n[2] + 2 * r),
+                  1.0 };
   int m = 0;
   for (int j = 1; j <= r; j++)
     {
@@ -85,7 +87,9 @@ bmgsstencil bmgs_mslaplaceA(double scale,
   double g[3] = {10.0 * e[0] + 0.125 * f,
 		 10.0 * e[1] + 0.125 * f,
 		 10.0 * e[2] + 0.125 * f};
-  double s[3] = {(n[2] + 2) * (n[1] + 2), n[2] + 2, 1};
+  double s[3] = { (double)((n[2] + 2) * (n[1] + 2)),
+                  (double)(n[2] + 2),
+                  1.0 };
   int m = 0;
   coefs[m] = f;
   offsets[m++] = 0;
@@ -111,7 +115,7 @@ bmgsstencil bmgs_mslaplaceA(double scale,
   bmgsstencil stencil = 
     {ncoefs, coefs, offsets,
      {n[0], n[1], n[2]},
-     {2 * s[0], 2 * s[1], 2}};
+     {2 * (long)s[0], 2 * (long)s[1], 2}};
   return stencil;
 }
 
@@ -122,7 +126,9 @@ bmgsstencil bmgs_mslaplaceB(const long n[3])
   double* coefs = (double*)malloc(ncoefs * sizeof(double));
   long* offsets = (long*)malloc(ncoefs * sizeof(long));
   assert((coefs != NULL) && (offsets != NULL));
-  double s[3] = {(n[2] + 2) * (n[1] + 2), n[2] + 2, 1};
+  double s[3] = { (double)((n[2] + 2) * (n[1] + 2)),
+                  (double)(n[2] + 2),
+                  1.0 };
   int k = 0;
   coefs[k] = 0.5;
   offsets[k++] = 0;
@@ -138,7 +144,7 @@ bmgsstencil bmgs_mslaplaceB(const long n[3])
   bmgsstencil stencil = 
     {ncoefs, coefs, offsets,
      {n[0], n[1], n[2]},
-     {2 * s[0], 2 * s[1], 2}};
+     {2 * (long)s[0], 2 * (long)s[1], 2}};
   return stencil;
 }
 
@@ -151,14 +157,16 @@ bmgsstencil bmgs_gradient(int k, int i, double h,
   long* offsets = (long*)malloc(ncoefs * sizeof(long));
   assert((coefs != NULL) && (offsets != NULL));
   int r = 1;
-  double s[3] = {(n[2] + 2 * r) * (n[1] + 2 * r), n[2] + 2 * r, 1};
+  double s[3] = { (double)((n[2] + 2 * r) * (n[1] + 2 * r)),
+                  (double)(n[2] + 2 * r),
+                  1.0 };
   double c = 0.5 / h;
   coefs[0] = +c; offsets[0] = +s[i];
   coefs[1] = -c; offsets[1] = -s[i];
   bmgsstencil stencil = 
     {ncoefs, coefs, offsets,
      {n[0], n[1], n[2]},
-     {2 * r * s[0], 2 * r * s[1], 2 * r}};
+     {2 * r * (long)s[0], 2 * r * (long)s[1], 2 * r}};
   return stencil;
 }
 

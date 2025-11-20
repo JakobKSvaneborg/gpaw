@@ -5,10 +5,6 @@
 #include "xc_mgga.h"
 #include "xc_gpaw.h"
 
-extern const mgga_func_info m06l_info;
-extern const mgga_func_info tpss_info;
-extern const mgga_func_info revtpss_info;
-
 static void init_common(common_params* params, int code, int nspin, const mgga_func_info *finfo) {
   params->code = code;
   params->nspin = nspin;
@@ -29,7 +25,7 @@ void init_mgga(void** params, int code, int nspin) {
     finfo = NULL;
   }
   *params = malloc(finfo->size);
-  init_common(*params, code, nspin, finfo);
+  init_common((common_params*) *params, code, nspin, finfo);
   finfo->init(*params);
 }
 

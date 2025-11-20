@@ -17,10 +17,6 @@
 #include <omp.h>
 #endif
 
-#ifdef GPAW_GPU
-  // Needed because this calls add_to_density_gpu
-  #include "gpu/gpu_interface.h"
-#endif
 
 #ifdef GPAW_HPM
 void HPM_Start(char *);
@@ -306,6 +302,7 @@ double distance(double *a, double *b)
   return sqrt(sum);
 }
 
+PyObject* add_to_density_gpu(PyObject* self, PyObject* args);
 // Equivalent to:
 //
 //     nt_R += f * abs(psit_R)**2
@@ -320,8 +317,8 @@ PyObject* add_to_density(PyObject *self, PyObject *args)
 
     if (PyArray_Check(psit_R_obj))
     {
-        const double* psit_R = PyArray_DATA(psit_R_obj);
-        double* nt_R = PyArray_DATA(nt_R_obj);
+        const double* psit_R = (double*) PyArray_DATA(psit_R_obj);
+        double* nt_R = (double*) PyArray_DATA(nt_R_obj);
         int n = PyArray_SIZE(nt_R_obj);
         if (PyArray_ITEMSIZE(psit_R_obj) == 8) {
             // Real wave functions

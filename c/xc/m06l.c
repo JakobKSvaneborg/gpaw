@@ -480,7 +480,7 @@ static void
 XC(mgga_c_m06l)(void *p, const double *rho, const double *sigma, const double *tau,
                 double *e, double *dedd, double *vsigma, double *dedtau)
 {
-  c_m06l_para(p, rho, sigma, tau, e, dedd, vsigma, dedtau);
+  c_m06l_para((m06l_params*) p, rho, sigma, tau, e, dedd, vsigma, dedtau);
 }
 
 /* derivatives of x and z with respect to rho, grho and tau: Eq.(1) and Eq.(3)*/
@@ -691,7 +691,7 @@ XC(mgga_x_m06l)(void *p, const double *rho, const double *sigma, const double *t
   m06l_params *par = (m06l_params*)p;
   if(par->common.nspin == XC_UNPOLARIZED){
     double en;
-    x_m06l_para(p, rho[0], sigma[0], tau[0], &en, dedd, vsigma, dedtau);
+    x_m06l_para((m06l_params*) p, rho[0], sigma[0], tau[0], &en, dedd, vsigma, dedtau);
     *e = en/(rho[0]+rho[1]);
 
   }else{
@@ -711,9 +711,9 @@ XC(mgga_x_m06l)(void *p, const double *rho, const double *sigma, const double *t
 
 
 
-    x_m06l_para(p, rhoa[0], 4*sigma[0], 2.0*tau[0], &e2na, &(dedd[0]), &(vsigmapart[0]), &(dedtau[0]));
+    x_m06l_para((m06l_params*) p, rhoa[0], 4*sigma[0], 2.0*tau[0], &e2na, &(dedd[0]), &(vsigmapart[0]), &(dedtau[0]));
 
-    x_m06l_para(p, rhob[0], 4*sigma[2], 2.0*tau[1], &e2nb, &(dedd[1]), &(vsigmapart[2]), &(dedtau[1]));
+    x_m06l_para((m06l_params*) p, rhob[0], 4*sigma[2], 2.0*tau[1], &e2nb, &(dedd[1]), &(vsigmapart[2]), &(dedtau[1]));
 
     *e = (e2na + e2nb )/(2.*(rho[0]+rho[1]));
     vsigma[0] = 2*vsigmapart[0];

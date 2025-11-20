@@ -197,7 +197,7 @@ template <bool gga> __device__ double pbe_exchange(double n, double rs, double a
 }
 
 
-__device__ double G(double rtrs, double A, double alpha1,
+__device__ double compute_G(double rtrs, double A, double alpha1,
 		    double beta1, double beta2, double beta3, double beta4,
 		    double* dGdrs)
 {
@@ -220,7 +220,7 @@ template <bool gga, int nspin> __device__ double pbe_correlation(double n, doubl
   bool spinpol = nspin == 2;
   double rtrs = sqrt(rs);
   double de0drs;
-  double e0 = G(rtrs, GAMMA, 0.21370, 7.5957, 3.5876, 1.6382, 0.49294,
+  double e0 = compute_G(rtrs, GAMMA, 0.21370, 7.5957, 3.5876, 1.6382, 0.49294,
 		&de0drs);
   double e;
   double xp = 117.0;
@@ -228,10 +228,10 @@ template <bool gga, int nspin> __device__ double pbe_correlation(double n, doubl
   if (spinpol)
     {
       double de1drs;
-      double e1 = G(rtrs, 0.015545, 0.20548, 14.1189, 6.1977, 3.3662,
+      double e1 = compute_G(rtrs, 0.015545, 0.20548, 14.1189, 6.1977, 3.3662,
 		    0.62517, &de1drs);
       double dalphadrs;
-      double alpha = -G(rtrs, 0.016887, 0.11125, 10.357, 3.6231, 0.88026,
+      double alpha = -compute_G(rtrs, 0.016887, 0.11125, 10.357, 3.6231, 0.88026,
 			0.49671, &dalphadrs);
       dalphadrs = -dalphadrs;
       double zp = 1.0 + zeta;

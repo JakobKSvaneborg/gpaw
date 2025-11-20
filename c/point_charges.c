@@ -1,3 +1,4 @@
+#include "python_utils.h"
 #include "extensions.h"
 //#include <stdlib.h>
 
@@ -19,25 +20,27 @@ PyObject *pc_potential(PyObject *self, PyObject *args)
                           &vext_G_obj, &dcom_pv_obj, &rhot_G_obj, &F_pv_obj))
     return NULL;
 
-    const long *beg_v = PyArray_DATA(beg_v_obj);
-    const double *h_v = PyArray_DATA(h_v_obj);
-    const double *q_p = PyArray_DATA(q_p_obj);
-    const double *R_pv = PyArray_DATA(R_pv_obj);
-    const double *dcom_pv = 0;
+    const long *beg_v = (long*) PyArray_DATA(beg_v_obj);
+    const double *h_v = (double*) PyArray_DATA(h_v_obj);
+    const double *q_p = (double*) PyArray_DATA(q_p_obj);
+    const double *R_pv = (double*) PyArray_DATA(R_pv_obj);
+    const double *dcom_pv = NULL;
     if ((PyObject*)dcom_pv_obj != Py_None)
-        dcom_pv = PyArray_DATA(dcom_pv_obj);
-    double *vext_G = PyArray_DATA(vext_G_obj);
+    {
+        dcom_pv = (const double*) PyArray_DATA(dcom_pv_obj);
+    }
+    double *vext_G = (double*) PyArray_DATA(vext_G_obj);
 
     int np = PyArray_DIM(R_pv_obj, 0);
     npy_intp* n = PyArray_DIMS(vext_G_obj);
 
-    const double* rhot_G = 0;
+    const double* rhot_G = NULL;
     double* F_pv = 0;
     double dV = 0.0;
     if (F_pv_obj != 0) {
         // Handle the two extra arguments for the force calculation:
-        rhot_G = PyArray_DATA(rhot_G_obj);
-        F_pv = PyArray_DATA(F_pv_obj);
+        rhot_G = (const double*) PyArray_DATA(rhot_G_obj);
+        F_pv = (double*) PyArray_DATA(F_pv_obj);
         dV = h_v[0] * h_v[1] * h_v[2];
     }
 

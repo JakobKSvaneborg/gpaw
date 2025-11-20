@@ -1,7 +1,7 @@
 #if defined(GPAW_WITH_SL) && defined(PARALLEL) && defined(GPAW_WITH_ELPA)
 
 #include "extensions.h"
-#include <elpa/elpa.h>
+#include "gpaw_elpa.h"
 #include <mpi.h>
 #include "mympi.h"
 

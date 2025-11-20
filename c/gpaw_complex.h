@@ -15,7 +15,11 @@
     // Computes the complex base-e exponential of z. Provided for compatibility with C99 code
     inline double_complex cexp(const double_complex& z) { return std::exp(z); }
     // NB: std::exp is not constexpr until C++26
-    
+
+    /* DO NOT USE IN NEW CODE!
+    Global shorthand for the imaginary unit, needed for compatibility with legacy C code. */
+    constexpr double_complex I(0.0, 1.0);
+
 #else
     // C99
     #include <complex.h>
