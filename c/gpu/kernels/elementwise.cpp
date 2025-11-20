@@ -2,6 +2,7 @@
 
 #include "../gpu.h"
 #include "../gpu-complex.h"
+#include "../gpu_interface.h"
 
 #ifndef GPU_USE_COMPLEX
 #  define BLOCK_X  128
@@ -105,7 +106,6 @@ __global__ void fill_kernelz(double real, double imag, gpuDoubleComplex *z,
  *   shape         -- shape of the arrays
  *   type          -- datatype of elements in the arrays
  */
-extern "C"
 PyObject* axpbyz_gpu(PyObject *self, PyObject *args)
 {
     double a, b;
@@ -152,7 +152,6 @@ PyObject* axpbyz_gpu(PyObject *self, PyObject *args)
  *   shape      -- shape of the arrays
  *   type       -- datatype of elements in the arrays
  */
-extern "C"
 PyObject* axpbz_gpu(PyObject *self, PyObject *args)
 {
     double a, b;
@@ -197,7 +196,6 @@ PyObject* axpbz_gpu(PyObject *self, PyObject *args)
  *   shape    -- shape of the arrays
  *   type     -- datatype of elements in the arrays
  */
-extern "C"
 PyObject* fill_gpu(PyObject *self, PyObject *args)
 {
     PyObject *value;

@@ -11,7 +11,7 @@ GPAW_GPU_LINKAGE_BEGIN
 int bmgs_fd_boundary_test(const bmgsstencil_gpu* s, int boundary,
                           int ndouble);
 
-bmgsstencil_gpu bmgs_stencil_to_gpu(bmgsstencil *s);
+bmgsstencil_gpu bmgs_stencil_to_gpu(const bmgsstencil *s);
 
 void bmgs_fd_gpu(const bmgsstencil_gpu* s, const double* adev,
                  double* bdev, int boundary, int blocks,
@@ -36,7 +36,7 @@ void bmgs_translate_gpu(double* a, const int sizea[3], const int size[3],
                         const int start1[3], const int start2[3],
                         int blocks, gpuStream_t stream);
 
-void bmgs_restrict_gpu(int k, double* a, const int n[3], double* b,
+void bmgs_restrict_gpu(int k, const double* a, const int n[3], double* b,
                        const int nb[3], int blocks);
 
 void bmgs_restrict_stencil_gpu(int k, double* a, const int na[3],

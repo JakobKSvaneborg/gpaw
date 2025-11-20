@@ -1,6 +1,7 @@
 #include "../../python_utils.h"
 #include "../gpu.h"
 #include "../gpu-complex.h"
+#include "../gpu_interface.h"
 
 #ifndef GPU_USE_COMPLEX
 #  define BLOCK_X  128
@@ -120,7 +121,6 @@ __global__ void multi_elmenwise_mul_add_kernel2zz(
     }
 }
 
-extern "C"
 PyObject* elementwise_multiply_add_gpu(PyObject *self, PyObject *args)
 {
     void *x_gpu;
@@ -173,7 +173,6 @@ PyObject* elementwise_multiply_add_gpu(PyObject *self, PyObject *args)
         Py_RETURN_NONE;
 }
 
-extern "C"
 PyObject* multi_elementwise_multiply_add_gpu(PyObject *self,
                                              PyObject *args)
 {
@@ -270,7 +269,6 @@ PyObject* multi_elementwise_multiply_add_gpu(PyObject *self,
         Py_RETURN_NONE;
 }
 
-extern "C"
 PyObject* ax2py_gpu(PyObject *self, PyObject *args)
 {
     double alpha;
@@ -308,7 +306,6 @@ PyObject* ax2py_gpu(PyObject *self, PyObject *args)
         Py_RETURN_NONE;
 }
 
-extern "C"
 PyObject* csign_gpu(PyObject *self, PyObject *args)
 {
     void *x_gpu;
@@ -343,7 +340,6 @@ PyObject* csign_gpu(PyObject *self, PyObject *args)
         Py_RETURN_NONE;
 }
 
-extern "C"
 PyObject* multi_ax2py_gpu(PyObject *self, PyObject *args)
 {
     void *alpha_gpu;

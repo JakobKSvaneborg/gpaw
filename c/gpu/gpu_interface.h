@@ -7,6 +7,7 @@
 * Old builds: Main GPAW is C code, GPU code is C++ => GPU functions called from GPAW extension need C-linkage
 * New builds: All of GPAW is C++ => No need for C-linkage in GPU code either.
 * To handle both options we define GPAW_GPU_LINKAGE that sets the correct linkage for GPU functions.
+* No need to specify the linkage again when defining the function, assuming this header gets included in the file that defines it.
 *
 * TODO: When removing the old C build path, simply remove the definition of GPAW_GPU_LINKAGE.
 */

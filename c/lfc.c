@@ -9,6 +9,10 @@
 #include "bmgs/spherical_harmonics.h"
 #include "bmgs/bmgs.h"
 
+#ifdef GPAW_GPU
+#include "gpu/lfc_gpu.h"
+#endif
+
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -37,13 +41,6 @@ void myzgemm(char *transa, char *transb, int *m, int * n,
                 c_xG[*ldc * x + G] += (conj(a_GM[*lda * G + M]) *
                                        b_xM[*ldb * x + M]);
 }
-#endif
-
-#ifdef GPAW_GPU
-void lfc_dealloc_gpu(LFCObject *self);
-PyObject* NewLFCObject_gpu(LFCObject *self, PyObject *args);
-PyObject* add_gpu(LFCObject *self, PyObject *args);
-PyObject* integrate_gpu(LFCObject *self, PyObject *args);
 #endif
 
 static void lfc_dealloc(LFCObject *self)

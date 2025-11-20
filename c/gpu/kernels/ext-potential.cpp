@@ -7,6 +7,7 @@
 
 #include "../gpu.h"
 #include "../gpu-complex.h"
+#include "../gpu_interface.h"
 
 #ifndef GPU_USE_COMPLEX
 #define BLOCK_SIZEX 32
@@ -55,7 +56,6 @@ __global__ void Zgpu(add_linear_field_kernel)(
 #define GPU_USE_COMPLEX
 #include "ext-potential.cpp"
 
-extern "C"
 PyObject* add_linear_field_gpu(PyObject *self, PyObject *args)
 {
     void *a_gpu;
