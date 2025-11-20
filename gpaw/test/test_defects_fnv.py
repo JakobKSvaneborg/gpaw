@@ -177,7 +177,8 @@ def test_fnv_data():
 
     sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
 
-    from ase.io.jsonio import write_json, read_json
+    from ase.io.jsonio import read_json
+    # from ase.io.jsonio import write_json
     # data = {'E_corr': E_corr_t, 'E_uncorr': E_uncorr_t,
     #         'epsilon': epsilon, 'charge': charge, 'r0': r0,
     #         'atoms_prs': atoms_prs, 'rvR': rvR_prs,
@@ -203,7 +204,7 @@ def test_fnv_data():
                                    charge=charge,
                                    sigma=sigma,
                                    epsilon=epsilon,
-                                   method='full-planar')
+                                   method=method)
     E_fnv = elc.calculate_correction()
 
     assert E_fnv == pytest.approx(E_fnv_t, abs=3e-2)
