@@ -43,7 +43,7 @@ name(type *x, int start, int end, int size)                             \
 }
 
 ARRAY_NEGATE(array_negate,  double)
-ARRAY_NEGATE(array_negatez, double complex)
+ARRAY_NEGATE(array_negatez, double_complex)
 
 #define ARRAY_SUB(name, type)                                           \
 static void                                                             \
@@ -58,7 +58,7 @@ name(type *x, const type *y, int start, int end, int size)              \
 }
 
 ARRAY_SUB(array_sub,  double)
-ARRAY_SUB(array_subz, double complex)
+ARRAY_SUB(array_subz, double_complex)
 
 #define ARRAY_SUB_MULT(name, type)                                      \
 static void                                                             \
@@ -73,7 +73,7 @@ name(type *x, const type *y, double a, int start, int end, int size)    \
 }
 
 ARRAY_SUB_MULT(array_sub_mult,  double)
-ARRAY_SUB_MULT(array_sub_multz, double complex)
+ARRAY_SUB_MULT(array_sub_multz, double_complex)
 
 #define ARRAY_MULTO(name, type)                                         \
 static void                                                             \
@@ -88,7 +88,7 @@ name(type *x, const type *y, double a, int start, int end, int size)    \
 }
 
 ARRAY_MULTO(array_multo,  double)
-ARRAY_MULTO(array_multoz, double complex)
+ARRAY_MULTO(array_multoz, double_complex)
 
 /*
  * Implements the computational part of the preconditioner in C. In overall,

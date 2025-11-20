@@ -76,7 +76,7 @@ void bmgs_translate_gpuz(gpuDoubleComplex* a, const int sizea[3],
                          const int start2[3], gpuDoubleComplex,
                          int blocks, gpuStream_t stream);
 
-void bmgs_restrict_gpuz(int k, gpuDoubleComplex* a, const int n[3],
+void bmgs_restrict_gpuz(int k, const gpuDoubleComplex* a, const int n[3],
                         gpuDoubleComplex* b, const int nb[3],
                         int blocks);
 

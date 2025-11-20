@@ -470,8 +470,8 @@ PyObject* pack(PyObject *self, PyObject *args)
                 *b++ = a[r + n * c] + a[c + n * r];
         }
     } else {
-        double complex* a = (double complex*)PyArray_DATA(a_obj);
-        double complex* b = (double complex*)PyArray_DATA(b_obj);
+        double_complex* a = (double_complex*)PyArray_DATA(a_obj);
+        double_complex* b = (double_complex*)PyArray_DATA(b_obj);
         for (int r = 0; r < n; r++) {
             *b++ = a[r + n * r];
             for (int c = r + 1; c < n; c++)
@@ -568,7 +568,7 @@ PyObject* localize(PyObject *self, PyObject *args)
     return NULL;
 
   int n = PyArray_DIMS(U_nn)[0];
-  double complex (*Z)[n][3] = (double complex (*)[n][3])COMPLEXP(Z_nnc);
+  double_complex (*Z)[n][3] = (double_complex (*)[n][3])COMPLEXP(Z_nnc);
   double (*U)[n] = (double (*)[n])DOUBLEP(U_nn);
 
   double value = 0.0;
@@ -576,9 +576,9 @@ PyObject* localize(PyObject *self, PyObject *args)
     {
       for (int b = a + 1; b < n; b++)
         {
-          double complex* Zaa = Z[a][a];
-          double complex* Zab = Z[a][b];
-          double complex* Zbb = Z[b][b];
+          double_complex* Zaa = Z[a][a];
+          double_complex* Zab = Z[a][b];
+          double_complex* Zbb = Z[b][b];
           double x = 0.0;
           double y = 0.0;
           for (int c = 0; c < 3; c++)
@@ -595,15 +595,15 @@ PyObject* localize(PyObject *self, PyObject *args)
           for (int i = 0; i < a; i++)
             for (int c = 0; c < 3; c++)
               {
-                double complex Ziac = Z[i][a][c];
+                double_complex Ziac = Z[i][a][c];
                 Z[i][a][c] = C * Ziac + S * Z[i][b][c];
                 Z[i][b][c] = C * Z[i][b][c] - S * Ziac;
               }
           for (int c = 0; c < 3; c++)
             {
-              double complex Zaac = Zaa[c];
-              double complex Zabc = Zab[c];
-              double complex Zbbc = Zbb[c];
+              double_complex Zaac = Zaa[c];
+              double_complex Zabc = Zab[c];
+              double_complex Zbbc = Zbb[c];
               Zaa[c] = C * C * Zaac + 2 * C * S * Zabc + S * S * Zbbc;
               Zbb[c] = C * C * Zbbc - 2 * C * S * Zabc + S * S * Zaac;
               Zab[c] = S * C * (Zbbc - Zaac) + (C * C - S * S) * Zabc;
@@ -611,14 +611,14 @@ PyObject* localize(PyObject *self, PyObject *args)
           for (int i = a + 1; i < b; i++)
             for (int c = 0; c < 3; c++)
               {
-                double complex Zaic = Z[a][i][c];
+                double_complex Zaic = Z[a][i][c];
                 Z[a][i][c] = C * Zaic + S * Z[i][b][c];
                 Z[i][b][c] = C * Z[i][b][c] - S * Zaic;
               }
           for (int i = b + 1; i < n; i++)
             for (int c = 0; c < 3; c++)
               {
-                double complex Zaic = Z[a][i][c];
+                double_complex Zaic = Z[a][i][c];
                 Z[a][i][c] = C * Zaic + S * Z[b][i][c];
                 Z[b][i][c] = C * Z[b][i][c] - S * Zaic;
               }
@@ -629,7 +629,7 @@ PyObject* localize(PyObject *self, PyObject *args)
               U[i][b] = C * U[i][b] - S * Uia;
             }
         }
-      double complex* Zaa = Z[a][a];
+      double_complex* Zaa = Z[a][a];
       for (int c = 0; c < 3; c++)
         value += creal(Zaa[c] * conj(Zaa[c]));
     }

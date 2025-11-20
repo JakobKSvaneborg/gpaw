@@ -4,11 +4,11 @@
 #include <math.h>
 #include <time.h>
 #include <float.h>
-#include <complex.h>
 #include <sys/types.h>
 #include <sys/time.h>
 
 #include "../../python_utils.h"
+#include "../../gpaw_complex.h"
 #include "../gpu-complex.h"
 #include "../gpu_interface.h"
 

@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
-#include </usr/include/complex.h>
+#include "../../gpaw_complex.h"
 #include "../../python_utils.h"
 #include "../lfc_gpu.h"
 #include "../gpu.h"

@@ -8,23 +8,13 @@
 
 
 #include "python_utils.h"
+#include "gpaw_complex.h"
 #include <stdlib.h>
 #include <stdbool.h>
 
 /* If strict ANSI, then some useful macros are not defined */
 #if defined(__STRICT_ANSI__) && !defined(__DARWIN_UNIX03)
 # define M_PI           3.14159265358979323846  /* pi */
-#endif
-
-#ifndef DOUBLECOMPLEXDEFINED
-#  define DOUBLECOMPLEXDEFINED 1
-#  include <complex.h>
-   typedef double complex double_complex;
-   /* Numpy 2.0 undefines I (see Numpy PR 26789), so we have to put it
-    * back */
-#  ifndef I
-#    define I _Complex_I
-#  endif
 #endif
 
 static inline void* gpaw_malloc(size_t n)
