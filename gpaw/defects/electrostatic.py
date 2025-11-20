@@ -3,6 +3,7 @@
 import numpy as np
 from gpaw import GPAW, PW
 from gpaw.mpi import serial_comm
+from gpaw.core import PWDesc, UGDesc, UGArray
 from ase.units import Bohr, Hartree
 from ase.geometry import find_mic
 
@@ -12,29 +13,23 @@ _avg_methods_ = ['atoms', 'sparse-planar', 'full-planar']
 
 def gather_electrostatic_potential(calc):
     if calc.old:
-        fine_grid = calc.wfs.pd.gd.refine()
-        r_vR = fine_grid.get_grid_point_coordinates(global_array=True)
+        phi_r = calc.get_electrostatic_potential()
+        atoms = calc.get_atoms()
+        grid = UGDesc(cell=atoms.cell, size=phi_r.shape, pbc=atoms.pbc)
+        phi_R = UGArray(grid, data=phi_r)
     else:
-        fine_grid = calc.dft.pot_calc.fine_grid
-        # make new serial grid descriptor
-        r_vR = fine_grid.new(comm=serial_comm).xyz().transpose(3, 0, 1, 2)
-    phi = calc.get_electrostatic_potential()
-    return r_vR, phi
+        phi_R = calc.dft.electrostatic_potential().pseudo_potential()
+
+    # XXX should get rid of broadcast
+    return phi_R.gather(broadcast=True)
 
 
 class ElectrostaticCorrections():
     """
     Calculate the electrostatic corrections for charged defects.
 
-    atoms_prs ... (defect) strucure
-    rphi_prs  ... tuple of cartesian finegrid vectors [Bohr]
-                  - as obtained from
-                  calc.wfs.pd.gd.refine().get_grid_point_coordinates()
-                  and corresponding electrostatic potential [eV]
-                  - as obtained from
-                  calc.get_electrostatic_potential()
-                  (r_vR, phi_R)_prs
-    rphi_def  ... tuple for defective system
+    phi_prs  ... UGArray
+    phi_def  ... UGArray
     charge    ... charge state of the defect calculation
     epsilon   ... macroscopic electrostatic constant of the host system
     sigma     ... spread of the Gaussian model charge distribution [Bohr]
@@ -44,32 +39,19 @@ class ElectrostaticCorrections():
     comm      ... communicator
 
     """
-    def __init__(self, atoms_prs, rphi_prs, rphi_def,
+    def __init__(self, phi_prs, phi_def, ecut=500,
                  charge=None, epsilon=None, sigma=None, r0=None,
-                 ravg=2.5, method='full-planar', comm=serial_comm):
-
-        self.atoms_prs = atoms_prs.copy()
+                 ravg=2.5, method='full-planar'):
 
         # read and check electrostatic potentials
-        self.phi_prs = - rphi_prs[1]
-        self.phi_def = - rphi_def[1]
-        self.r_vR = rphi_prs[0]       # XXX here: Bohr
+        self.phi_prs = - phi_prs.data
+        self.phi_def = - phi_def.data
+        self.r_vR = phi_prs.desc.xyz().transpose(3, 0, 1, 2)
         self.ng_v = np.array(self.r_vR.shape[1:])
-        r_vR_def = rphi_def[0]
 
-        assert np.allclose(self.r_vR, r_vR_def)
         assert np.allclose(self.phi_prs.shape, self.phi_def.shape)
-        assert np.allclose(self.phi_prs.shape, self.ng_v)
 
-        calc = GPAW(mode=PW(500, force_complex_dtype=True),
-                    kpts={'size': (1, 1, 1),
-                          'gamma': True},
-                    parallel={'domain': 1},
-                    symmetry='off',
-                    communicator=comm,
-                    txt=None)
-
-        self.cell_prs = self.atoms_prs.get_cell()
+        self.cell_cv = phi_prs.cell
         self.charge = charge
         self.sigma = sigma          # XXX here: Bohr
         self.epsilon = epsilon
@@ -85,17 +67,15 @@ class ElectrostaticCorrections():
             self.nfreq = 1          # no coarsening
 
         # volume
-        self.Omega = self.atoms_prs.get_volume() / Bohr ** 3
+        self.Omega = self.cell_cv.volume / Bohr ** 3
 
         # monoclin check
-        self.is_monoclin = np.allclose(self.cell_prs.angles()[:2], [90., 90.])
+        self.is_monoclin = np.allclose(self.cell.angles()[:2], [90., 90.])
 
         # get G vectors
-        # init calculator
-        calc.initialize(self.atoms_prs)
-        pd = calc.wfs.pd
-        self.G_Gv = pd.get_reciprocal_vectors(q=0, add_q=False)
-        self.G2_G = pd.G2_qG[0]  # |\vec{G}|^2 in Bohr^-2
+        pw_desc = PWDesc(cell=self.cell_cv, ecut=ecut / Hartree)
+        self.G_Gv = pw_desc.get_reciprocal_vectors()
+        self.G2_G = np.linalg.norm(self.G_Gv, axis=-1)**2
 
         # potential alignment
         self.dphi = None
