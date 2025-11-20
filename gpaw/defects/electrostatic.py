@@ -1,7 +1,6 @@
 """ Defects module """
 
 import numpy as np
-from gpaw import GPAW, PW
 from gpaw.mpi import serial_comm
 from gpaw.core import PWDesc, UGDesc, UGArray
 from ase.units import Bohr, Hartree
@@ -83,7 +82,7 @@ class ElectrostaticCorrections():
                          comm=serial_comm, dtype=complex)
         self.G_Gv = pw_desc.reciprocal_vectors()        # Bohr^-1 ?
         # G2
-        self.G2_G =  np.sum(np.abs(self.G_Gv)**2, axis=-1)
+        self.G2_G = np.sum(np.abs(self.G_Gv) ** 2, axis=-1)
 
         # potential alignment
         self.dphi = None
@@ -157,7 +156,7 @@ class ElectrostaticCorrections():
     def grid_mic_dist(self, r_v):
         grid_shape = self.ngc_v
 
-        dR = rg_vR.T - r_v[None, None, None, :]
+        dR = self.r_vR.T - r_v[None, None, None, :]
         # flatten grid and reshape
         dR = dR.reshape((np.prod(grid_shape), 3))
         _, dist = find_mic(dR, self.cell_cv)
