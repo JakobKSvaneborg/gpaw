@@ -244,16 +244,14 @@ def test_fnv_3d(in_tmp_dir):
     defect.get_potential_energy()
     defect.calc.write(def_path)
 
-    atoms_prs = pristine.copy()
-    rvR_prs, phi_prs = gather_electrostatic_potential(pristine.calc)
-    rvR_def, phi_def = gather_electrostatic_potential(defect.calc)
+    phiR_prs = gather_electrostatic_potential(pristine.calc)
+    phiR_def = gather_electrostatic_potential(defect.calc)
 
     # defect position
     r0 = pristine.positions[0, :]
 
-    elc = ElectrostaticCorrections(atoms_prs=atoms_prs,
-                                   rphi_prs=(rvR_prs, phi_prs),
-                                   rphi_def=(rvR_def, phi_def),
+    elc = ElectrostaticCorrections(phi_pristine=phiR_prs,
+                                   phi_defect=phiR_def,
                                    r0=r0,
                                    charge=charge,
                                    sigma=sigma,

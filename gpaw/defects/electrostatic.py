@@ -52,7 +52,7 @@ class ElectrostaticCorrections():
 
         assert np.allclose(self.phi_prs.shape, self.phi_def.shape)
 
-        self.cell_cv = phi_prs.cell
+        self.cell_cv = phi_pristine.desc.cell
         self.charge = charge
         self.sigma = sigma          # XXX here: Bohr
         self.epsilon = epsilon
@@ -68,7 +68,7 @@ class ElectrostaticCorrections():
             self.nfreq = 1          # no coarsening
 
         # volume
-        self.Omega = self.cell_cv.volume / Bohr ** 3
+        self.Omega = np.linalg.det(self.cell_cv) / Bohr ** 3
 
         # monoclin check
         cross_ab = np.cross(self.cell_cv[0, :], self.cell_cv[1, :])
@@ -78,7 +78,8 @@ class ElectrostaticCorrections():
 
         # get G vectors
         pw_desc = PWDesc(cell=self.cell_cv, ecut=ecut / Hartree)
-        self.G_Gv = pw_desc.get_reciprocal_vectors()
+        self.G_Gv = pw_desc.reciprocal_vectors()
+        print(self.G_Gv.shape)
         self.G2_G = np.linalg.norm(self.G_Gv, axis=-1)**2
 
         # potential alignment
@@ -145,7 +146,7 @@ class ElectrostaticCorrections():
 
         atoms = self.atoms_prs
         dR = atoms.positions - r_v[None, :]
-        _, dist = find_mic(dR, self.cell_prs)
+        _, dist = find_mic(dR, self.cell_cv)
 
         return dist
 
@@ -157,7 +158,7 @@ class ElectrostaticCorrections():
         dR = rg_vR.T - r_v[None, None, None, :]
         # flatten grid and reshape
         dR = dR.reshape((np.prod(grid_shape), 3))
-        _, dist = find_mic(dR, self.cell_prs)
+        _, dist = find_mic(dR, self.cell_cv)
         dist = dist.reshape(grid_shape)
 
         return dist
@@ -169,7 +170,7 @@ class ElectrostaticCorrections():
         # assumes self.r_vR being on a regular grid
         # evaluate grid index of cartesian vector
         # convert to reduced (fractional) coordinates
-        s0_v = np.linalg.solve(self.cell_prs.T, r0_v)
+        s0_v = np.linalg.solve(self.cell_cv.T, r0_v)
         return np.array(np.round(ng_v * s0_v, 0), dtype=int) % ng_v
 
     def bulk_atom_average(self):
