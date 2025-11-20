@@ -76,7 +76,8 @@ class ElectrostaticCorrections():
 
     method: method selection string
 
-    atoms_pristine: ``Atoms`` pristine atomic structure (only used for bulk-atom average)
+    atoms_pristine: ``Atoms`` pristine atomic structure
+    (only used for bulk-atom average)
 
     """
     def __init__(self, phi_pristine, phi_defect, ecut=500,
