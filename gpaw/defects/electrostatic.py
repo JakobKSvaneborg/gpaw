@@ -13,6 +13,7 @@ _avg_methods_ = ['atoms', 'sparse-planar', 'full-planar']
 
 def gather_electrostatic_potential(calc):
     if calc.old:
+        # create UGArray from old GPAW data
         phi_r = calc.get_electrostatic_potential()
         atoms = calc.get_atoms()
         grid = UGDesc(cell=atoms.cell, size=phi_r.shape, pbc=atoms.pbc)
@@ -28,8 +29,8 @@ class ElectrostaticCorrections():
     """
     Calculate the electrostatic corrections for charged defects.
 
-    phi_prs  ... UGArray
-    phi_def  ... UGArray
+    phi_pristine  ... UGArray electrostatic_potential pristine [eV]
+    phi_defect    ... UGArray electrostatic_potential defect [eV]
     charge    ... charge state of the defect calculation
     epsilon   ... macroscopic electrostatic constant of the host system
     sigma     ... spread of the Gaussian model charge distribution [Bohr]
@@ -39,14 +40,14 @@ class ElectrostaticCorrections():
     comm      ... communicator
 
     """
-    def __init__(self, phi_prs, phi_def, ecut=500,
+    def __init__(self, phi_pristine, phi_defect, ecut=500,
                  charge=None, epsilon=None, sigma=None, r0=None,
                  ravg=2.5, method='full-planar'):
 
         # read and check electrostatic potentials
-        self.phi_prs = - phi_prs.data
-        self.phi_def = - phi_def.data
-        self.r_vR = phi_prs.desc.xyz().transpose(3, 0, 1, 2)
+        self.phi_prs = - phi_pristine.data
+        self.phi_def = - phi_defect.data
+        self.r_vR = phi_pristine.desc.xyz().transpose(3, 0, 1, 2)
         self.ng_v = np.array(self.r_vR.shape[1:])
 
         assert np.allclose(self.phi_prs.shape, self.phi_def.shape)
@@ -70,7 +71,10 @@ class ElectrostaticCorrections():
         self.Omega = self.cell_cv.volume / Bohr ** 3
 
         # monoclin check
-        self.is_monoclin = np.allclose(self.cell.angles()[:2], [90., 90.])
+        cross_ab = np.cross(self.cell_cv[0, :], self.cell_cv[1, :])
+        cross_ab = cross_ab / np.linalg.norm(cross_ab)
+        norm_c = self.cell_cv[2, :] / np.linalg.norm(self.cell_cv[2, :])
+        self.is_monoclin = np.abs(np.dot(cross_ab, norm_c) - 1.) < 1e-6
 
         # get G vectors
         pw_desc = PWDesc(cell=self.cell_cv, ecut=ecut / Hartree)
