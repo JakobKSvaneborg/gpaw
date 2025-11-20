@@ -49,7 +49,7 @@ PyObject* libvdwxc_has(PyObject* self, PyObject* args)
     return pyval;
 }
 
-PyObject* libvdwxc_create(PyObject* self, PyObject* args, PyObject* kwargs)
+PyObject* libvdwxc_create(PyObject* self, PyObject* args)
 {
     PyObject* vdwxc_obj;
     int vdwxc_code;
