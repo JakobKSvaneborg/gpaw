@@ -173,6 +173,42 @@ def test_fnv_2d():
     assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-2)
 
 
+def test_fnv_data():
+
+    sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
+
+    from ase.io.jsonio import write_json, read_json
+    # data = {'E_corr': E_corr_t, 'E_uncorr': E_uncorr_t,
+    #         'epsilon': epsilon, 'charge': charge, 'r0': r0,
+    #         'atoms_prs': atoms_prs, 'rvR': rvR_prs,
+    #         'phi_prs': phi_prs, 'phi_def': phi_def,
+    #         'method': 'full-planar'}
+    # write_json('test_fnv_3d.json', data)
+
+    data = read_json('test_fnv_3d.json')
+    E_fnv_t = data['E_corr'] - data['E_uncorr']
+    epsilon = data['epsilon']
+    charge = data['charge']
+    r0 = data['r0']
+    atoms_prs = data['atoms_prs']
+    rvR = data['rvR']
+    phi_prs = data['phi_prs']
+    phi_def = data['phi_def']
+    method = data['method']
+
+    elc = ElectrostaticCorrections(atoms_prs=atoms_prs,
+                                   rphi_prs=(rvR, phi_prs),
+                                   rphi_def=(rvR, phi_def),
+                                   r0=r0,
+                                   charge=charge,
+                                   sigma=sigma,
+                                   epsilon=epsilon,
+                                   method='full-planar')
+    E_fnv = elc.calculate_correction()
+
+    assert E_fnv == pytest.approx(E_fnv_t, abs=3e-2)
+
+
 def test_fnv_3d(in_tmp_dir):
 
     E_corr_t = 23.55
@@ -309,4 +345,4 @@ def test_fnv_cell(P, in_tmp_dir, gpaw_new):
 
 
 if __name__ == "__main__":
-    test_fnv()
+    test_fnv_data()
