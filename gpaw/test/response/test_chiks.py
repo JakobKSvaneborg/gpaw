@@ -470,7 +470,7 @@ class GSAdapterWithPAWCache(ResponseGroundStateAdapter):
         self._cached_corrections = []
         self._cached_parameters = []
 
-    def matrix_element_paw_corrections(self, qpd, rshe_a):
+    def matrix_element_paw_corrections(self, qpd, rshe_a, comm):
         """Overwrite method with a cached version."""
         cache_index = self._cache_lookup(qpd)
         if cache_index is not None:

@@ -826,7 +826,6 @@ else:
 
 rank = world.rank
 size = world.size
-parallel = (size > 1)
 
 
 def verify_ase_world():
@@ -1240,7 +1239,7 @@ class Parallelization:
 def cleanup():
     error = getattr(sys, 'last_type', None)
     if error is not None:  # else: Python script completed or raise SystemExit
-        if parallel and not (gpaw.dry_run > 1):
+        if size > 1 and not (gpaw.dry_run > 1):
             sys.stdout.flush()
             sys.stderr.write(('GPAW CLEANUP (node %d): %s occurred.  '
                               'Calling MPI_Abort!\n') % (world.rank, error))
@@ -1304,10 +1303,39 @@ if world.size > 1:  # Triggers for dry-run communicators too, but we care not.
     sys.excepthook = print_mpi_stack_trace
 
 
+_NO_TOUCH_WORLD = False  # Monkeypatchable from test suite
+
+
+class DontDoThat(Exception):
+    pass
+
+
+def parallel(func):
+    """Decorator for functions that take comm=world.
+
+    We want this decorator so as to control access to world and prevent
+    deadlocks when callers of these functions forget to set the
+    communicator."""
+    import functools
+    from gpaw.mpi import world
+
+    @functools.wraps(func)
+    def wrapper(*args, comm=None, **kwargs):
+        if comm is None:
+            if _NO_TOUCH_WORLD:
+                raise DontDoThat(
+                    'Must call method with keyword comm=<communicator>'
+                )
+            comm = world
+        return func(*args, comm=comm, **kwargs)
+
+    return wrapper
+
+
 def exit(error='Manual exit'):
     # Note that exit must be called on *all* MPI tasks
     atexit._exithandlers = []  # not needed because we are intentially exiting
-    if parallel and not (gpaw.dry_run > 1):
+    if size > 1 and not (gpaw.dry_run > 1):
         sys.stdout.flush()
         sys.stderr.write(('GPAW CLEANUP (node %d): %s occurred.  ' +
                           'Calling MPI_Finalize!\n') % (world.rank, error))

@@ -259,7 +259,7 @@ class PlaneWaveMatrixElementCalculator(MatrixElementCalculator):
            or not np.allclose(qpd.q_c, self._currentq_c):
             with self.context.timer('Initialize PAW corrections'):
                 self._F_aGii = self.gs.matrix_element_paw_corrections(
-                    qpd, self.rshe_a)
+                    qpd, self.rshe_a, comm=self.context.comm)
                 self._currentq_c = qpd.q_c
         return self._F_aGii
 

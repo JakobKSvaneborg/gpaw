@@ -420,6 +420,34 @@ def pytest_report_header(config, start_path):
 
 
 @pytest.fixture
+def no_touch_world(monkeypatch, _not_world):
+    # We might also need module-scoped/session-scoped
+    import gpaw.mpi as mpi
+
+    monkeypatch.setattr(mpi, '_NO_TOUCH_WORLD', True)
+
+    # We monkeypatch mpi.world.comm and sabotage it.
+    # But the C communicator object is immutable.  We want to wrap it
+    # to intercept any calls and raise an error.
+    #
+    # With GPAW_DEBUG it will be wrapped, so in that case we can:
+    if debug:
+        monkeypatch.setattr(mpi.world, 'comm', None)
+
+
+@pytest.fixture(scope='session')
+def _not_world():
+    from gpaw.mpi import world
+
+    return world.new_communicator(range(world.size))
+
+
+@pytest.fixture
+def comm(_not_world, no_touch_world):
+    return _not_world
+
+
+@pytest.fixture
 def rng():
     """Seeded random number generator.
 
