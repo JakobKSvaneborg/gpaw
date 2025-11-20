@@ -2381,7 +2381,8 @@ class GPWFiles(CachedFilesHandler):
 
     def _gaas_cubic(self, *, charge=0, vac_idx=None):
         nk = 2
-        atoms = bulk('GaAs', crystalstructure='zincblende', a=5.628, cubic=True)
+        atoms = bulk('GaAs', crystalstructure='zincblende',
+                     a=5.628, cubic=True)
         atoms.set_pbc(True)
         if vac_idx is not None:
             atoms.pop(vac_idx)

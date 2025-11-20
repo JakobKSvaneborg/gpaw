@@ -2,14 +2,12 @@ import numpy as np
 import pytest
 from ase import Atoms
 from ase.units import Bohr, Hartree
-from ase.build import bulk
 
 from gpaw import GPAW
 from gpaw.defects import ElectrostaticCorrections
 from gpaw.defects.electrostatic import (gather_electrostatic_potential,
                                         build_ugarray, plot_potentials)
 from scipy.special import erf
-from pathlib import Path
 
 
 def phi_infty(r_vR, r0_v, Q, alpha):
@@ -142,4 +140,4 @@ def test_fnv_3d(gpw_files):
 
 
 if __name__ == "__main__":
-    test_fnv_data()
+    test_fnv_model()
