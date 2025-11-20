@@ -20,15 +20,14 @@ for N in repeats:
     calc_def = GPAW(def_path)
 
     atoms_prs = calc_prs.get_atoms()
-    rvR_prs, phi_prs = gather_electrostatic_potential(calc_prs)
-    rvR_def, phi_def = gather_electrostatic_potential(calc_def)
+    phiR_prs = gather_electrostatic_potential(calc_prs)
+    phiR_def = gather_electrostatic_potential(calc_def)
 
     # defect position
     r0 = atoms_prs.positions[0, :]
 
-    elc = ElectrostaticCorrections(atoms_prs=atoms_prs,
-                                   rphi_prs=(rvR_prs, phi_prs),
-                                   rphi_def=(rvR_def, phi_def),
+    elc = ElectrostaticCorrections(phi_pristine=phiR_prs,
+                                   phi_defect=phiR_def,
                                    r0=r0,
                                    charge=charge,
                                    sigma=sigma,

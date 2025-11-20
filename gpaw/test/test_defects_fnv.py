@@ -7,7 +7,7 @@ from ase.build import bulk
 from gpaw import GPAW
 from gpaw.defects import ElectrostaticCorrections
 from gpaw.defects.electrostatic import (gather_electrostatic_potential,
-                                        build_ugarray, plot_potential)
+                                        build_ugarray, plot_potentials)
 from scipy.special import erf
 from pathlib import Path
 
@@ -92,7 +92,7 @@ def test_fnv_model(method):
 
     if 0:
         profile = elc.calculate_potential_profile()
-        plot_potential(profile)
+        plot_potentials(profile)
 
     assert E_fnv == pytest.approx(E_fnv_t[method], abs=1e-2)
 
@@ -155,7 +155,7 @@ def test_fnv_3d(in_tmp_dir):
 
     if 0:
         profile = elc.calculate_potential_profile()
-        plot_potential(profile)
+        plot_potentials(profile)
 
     assert E_fnv == pytest.approx(E_fnv_t, abs=3e-2)
     assert E_corr == pytest.approx(E_corr_t, abs=2e-2)

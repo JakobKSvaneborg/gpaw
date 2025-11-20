@@ -28,7 +28,7 @@ def gather_electrostatic_potential(calc):
     return phi_R.gather(broadcast=True)
 
 
-def plot_potential(profile):
+def plot_potentials(profile, png=None):
     from matplotlib import pyplot as plt
 
     z = profile['z']
@@ -50,7 +50,10 @@ def plot_potential(profile):
     plt.legend(loc='upper right')
     plt.xlim((z[0], z[-1]))
 
-    plt.show()
+    if png is not None:
+        plt.savefig(png, bbox_inches='tight', dpi=300)
+    else:
+        plt.show()
 
 
 class ElectrostaticCorrections():
