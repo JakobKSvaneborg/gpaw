@@ -419,7 +419,7 @@ def pytest_report_header(config, start_path):
     yield f'Cache directory including gpw files: {cachedir}'
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def no_touch_world(monkeypatch):
     import gpaw.mpi as mpi
 
