@@ -1,9 +1,10 @@
+import pytest
 from ase import Atoms
 from ase.units import Hartree
+
+import gpaw.mpi as mpi
 from gpaw import GPAW
 from gpaw.test import gen
-import pytest
-import gpaw.mpi as mpi
 
 # Generate non-scalar-relativistic setup for Cu:
 

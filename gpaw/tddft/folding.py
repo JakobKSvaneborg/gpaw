@@ -1,7 +1,6 @@
 import numpy as np
 
-from gpaw.tddft.units import au_to_eV
-from gpaw.tddft.units import eV_to_au
+from gpaw.tddft.units import au_to_eV, eV_to_au
 
 
 def frequencies(frequencies, foldings, widths, units='eV'):

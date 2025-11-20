@@ -1,7 +1,8 @@
 # see changeset 4891
-import pytest
 import numpy as np
+import pytest
 from ase import Atoms
+
 from gpaw import GPAW
 from gpaw.mpi import world
 

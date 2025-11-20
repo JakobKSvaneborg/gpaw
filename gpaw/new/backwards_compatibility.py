@@ -7,7 +7,6 @@ import numpy as np
 from ase import Atoms
 from ase.units import Bohr
 
-from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.densities import Densities
 from gpaw.fftw import MEASURE
 from gpaw.new import prod, zips
@@ -17,12 +16,13 @@ from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.potential import Potential
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
+from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.old.projections import Projections
 from gpaw.old.pw.descriptor import PWDescriptor
-from gpaw.utilities import pack_density
-from gpaw.utilities.timing import nulltimer
 from gpaw.old.wavefunctions.arrays import (PlaneWaveExpansionWaveFunctions,
                                            UniformGridWaveFunctions)
+from gpaw.utilities import pack_density
+from gpaw.utilities.timing import nulltimer
 
 
 class PT:

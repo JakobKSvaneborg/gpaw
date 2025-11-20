@@ -1,13 +1,13 @@
+from itertools import product
+
 import pytest
 from ase.build import bulk
 from ase.dft.kpoints import monkhorst_pack
-# from ase.units import Bohr
 
-from gpaw import GPAW, FermiDirac, PW
-from gpaw.response.frequencies import FrequencyDescriptor
-from gpaw.response.chi0 import Chi0Calculator
+from gpaw import GPAW, PW, FermiDirac
 from gpaw.mpi import serial_comm
-from itertools import product
+from gpaw.response.chi0 import Chi0Calculator
+from gpaw.response.frequencies import FrequencyDescriptor
 
 
 @pytest.mark.response

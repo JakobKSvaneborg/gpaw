@@ -2,11 +2,11 @@ import pytest
 from ase import Atoms
 from ase.units import Ha
 
+from gpaw import GPAW_NO_C_EXTENSION
 from gpaw.dft import DFT
 from gpaw.mpi import size
-from gpaw.poisson import FDPoissonSolver
 from gpaw.new.c import GPU_AWARE_MPI
-from gpaw import GPAW_NO_C_EXTENSION
+from gpaw.poisson import FDPoissonSolver
 
 
 @pytest.mark.gpu

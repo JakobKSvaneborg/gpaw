@@ -247,7 +247,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             return psit_nsG
 
     def read_ibz_wave_functions(self, reader):
-        from gpaw.utilities import get_dtype_precision, as_dtype_precision
+        from gpaw.utilities import as_dtype_precision, get_dtype_precision
 
         def convert_precision(array):
             """Convert array to match calculation precision."""

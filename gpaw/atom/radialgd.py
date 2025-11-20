@@ -4,11 +4,12 @@ from math import factorial as fac
 from math import pi
 
 import numpy as np
+from scipy.interpolate import make_interp_spline, splder
+
 from gpaw.sphere.integrate import integrate_radial_grid
 from gpaw.spline import Spline
 from gpaw.typing import Array1D
 from gpaw.utilities import divrl, hartree
-from scipy.interpolate import make_interp_spline, splder
 
 
 def radial_grid_descriptor(eq: str, **kwargs) -> 'RadialGridDescriptor':

@@ -2,8 +2,8 @@
 
 """
 from math import sqrt
-import numpy as np
 
+import numpy as np
 from ase.units import Ha
 
 import gpaw.mpi as mpi

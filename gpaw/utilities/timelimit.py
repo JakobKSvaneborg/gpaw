@@ -1,4 +1,5 @@
 import time
+
 import numpy as np
 
 from gpaw.analyse.observers import Observer

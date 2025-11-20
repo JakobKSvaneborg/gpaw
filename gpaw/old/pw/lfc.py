@@ -1,10 +1,11 @@
 from math import pi
 
-import gpaw.cgpaw as cgpaw
 import numpy as np
+
+import gpaw.cgpaw as cgpaw
+from gpaw.ffbt import rescaled_fourier_bessel_transform
 from gpaw.lfc import BaseLFC
 from gpaw.sphere.spherical_harmonics import Y, nablarlYL
-from gpaw.ffbt import rescaled_fourier_bessel_transform
 from gpaw.utilities.blas import mmm
 
 

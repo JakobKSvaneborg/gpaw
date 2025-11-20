@@ -1,8 +1,9 @@
+import pytest
 from ase.build import molecule
 from ase.parallel import parprint
+
 from gpaw import GPAW
 from gpaw.utilities.adjust_cell import adjust_cell
-import pytest
 
 
 def test_fixocc():

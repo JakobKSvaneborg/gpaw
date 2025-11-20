@@ -1,6 +1,6 @@
+import re
 from collections.abc import Generator
 from pathlib import Path
-import re
 
 import numpy as np
 

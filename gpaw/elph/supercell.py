@@ -1,14 +1,13 @@
 """Module for electron-phonon supercell properties."""
 
 import numpy as np
-
 from ase import Atoms
 from ase.parallel import parprint
 from ase.units import Bohr
 from ase.utils.filecache import MultiFileJSONCache
 
-from gpaw.old.calculator import GPAW
 from gpaw.lcao.tightbinding import TightBinding
+from gpaw.old.calculator import GPAW
 from gpaw.typing import ArrayND
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.tools import tri2full

@@ -2,10 +2,9 @@
 
 from math import pi
 
+import ase.units as units
 import numpy as np
 import scipy.linalg as sla
-
-import ase.units as units
 
 from gpaw.utilities.tools import tri2full
 

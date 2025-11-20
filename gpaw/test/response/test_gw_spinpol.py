@@ -2,8 +2,9 @@
 
 # General modules
 import pytest
-from gpaw.response.g0w0 import G0W0
+
 from gpaw.mpi import world
+from gpaw.response.g0w0 import G0W0
 
 
 @pytest.mark.response

@@ -1,9 +1,9 @@
 import numpy as np
 
-from gpaw.sphere.gaunt import gaunt
 from gpaw.hubbard import aoom
-from gpaw.sphere.rshe import RealSphericalHarmonicsExpansion
+from gpaw.sphere.gaunt import gaunt
 from gpaw.sphere.integrate import radial_truncation_function
+from gpaw.sphere.rshe import RealSphericalHarmonicsExpansion
 from gpaw.utilities import unpack_density
 
 

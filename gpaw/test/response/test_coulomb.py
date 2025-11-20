@@ -1,15 +1,16 @@
-import pytest
-from gpaw.old.grid_descriptor import GridDescriptor
-from gpaw import PoissonSolver
-from gpaw.spline import Spline
-from gpaw.lfc import LocalizedFunctionsCollection as LFC
-from gpaw.response.qpd import SingleQPWDescriptor
 import numpy as np
-from gpaw.response.coulomb_kernels import (get_coulomb_kernel,
-                                           get_integrated_kernel)
+import pytest
+
+from gpaw import PoissonSolver
+from gpaw.lfc import LocalizedFunctionsCollection as LFC
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.poisson_extravacuum import ExtraVacuumPoissonSolver
 from gpaw.poisson_moment import MomentCorrectionPoissonSolver
+from gpaw.response.coulomb_kernels import (get_coulomb_kernel,
+                                           get_integrated_kernel)
+from gpaw.response.qpd import SingleQPWDescriptor
+from gpaw.spline import Spline
 
 
 class ExtraVacuum2DPoisson:

@@ -1,8 +1,8 @@
-import pytest
 import numpy as np
+import pytest
 from ase.build import bulk
-from gpaw import GPAW
 
+from gpaw import GPAW
 
 refs = {'GLLBSC':
         [[-6.96783989, 5.3992398, 5.40304598, 5.40304598, 8.50339453,

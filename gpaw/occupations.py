@@ -2,16 +2,16 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Callable
 from math import inf, nan, pi
 from typing import Any, NamedTuple, cast
-from collections.abc import Callable
 
 import numpy as np
 from ase.units import Ha
 from scipy.special import erf
 
-from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.mpi import MPIComm, broadcast_float, serial_comm
+from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.typing import Array1D, Array2D, ArrayLike2D
 
 

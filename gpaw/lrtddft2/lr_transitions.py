@@ -1,9 +1,9 @@
-import numpy as np
 import ase.units
+import numpy as np
 from scipy.linalg import eigh
 
-from gpaw.mpi import world
 from gpaw.lrtddft2.lr_layouts import LrDiagonalizeLayout
+from gpaw.mpi import world
 
 
 class LrtddftTransitions:

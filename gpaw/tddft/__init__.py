@@ -9,29 +9,23 @@ from math import log
 import numpy as np
 
 from gpaw import GPAW_NEW
-from gpaw.old.calculator import GPAW
-from gpaw.mixer import DummyMixer
-from gpaw.preconditioner import Preconditioner
-from gpaw.tddft.units import (attosec_to_autime, autime_to_attosec,
-                              aufrequency_to_eV)
-from gpaw.tddft.utils import MultiBlas
-from gpaw.tddft.solvers import create_solver
-from gpaw.tddft.propagators import \
-    create_propagator, \
-    AbsorptionKick
-from gpaw.tddft.tdopers import \
-    TimeDependentHamiltonian, \
-    TimeDependentOverlap, \
-    TimeDependentWaveFunctions, \
-    TimeDependentDensity, \
-    AbsorptionKickHamiltonian
-from gpaw.old.wavefunctions.fd import FD
-
-from gpaw.tddft.spectrum import photoabsorption_spectrum
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.lcaotddft.magneticmomentwriter import MagneticMomentWriter
 from gpaw.lcaotddft.restartfilewriter import RestartFileWriter
-
+from gpaw.mixer import DummyMixer
+from gpaw.old.calculator import GPAW
+from gpaw.old.wavefunctions.fd import FD
+from gpaw.preconditioner import Preconditioner
+from gpaw.tddft.propagators import AbsorptionKick, create_propagator
+from gpaw.tddft.solvers import create_solver
+from gpaw.tddft.spectrum import photoabsorption_spectrum
+from gpaw.tddft.tdopers import (AbsorptionKickHamiltonian,
+                                TimeDependentDensity, TimeDependentHamiltonian,
+                                TimeDependentOverlap,
+                                TimeDependentWaveFunctions)
+from gpaw.tddft.units import (attosec_to_autime, aufrequency_to_eV,
+                              autime_to_attosec)
+from gpaw.tddft.utils import MultiBlas
 
 __all__ = ['TDDFT', 'photoabsorption_spectrum',
            'DipoleMomentWriter', 'MagneticMomentWriter',

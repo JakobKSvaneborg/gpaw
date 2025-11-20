@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 
 from gpaw.core import PWDesc, UGDesc
-from gpaw.gpu import cupy as cp, cupy_is_fake
+from gpaw.gpu import cupy as cp
+from gpaw.gpu import cupy_is_fake
 from gpaw.mpi import world
 from gpaw.new.c import GPU_AWARE_MPI
 

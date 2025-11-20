@@ -1,4 +1,5 @@
 from ase.build import molecule
+
 from gpaw import GPAW, PW
 from gpaw.mpi import world
 

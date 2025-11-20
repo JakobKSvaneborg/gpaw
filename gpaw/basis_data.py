@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
 import xml.sax
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 
-from gpaw.setup_data import search_for_file
 from gpaw.atom.radialgd import RadialGridDescriptor, radial_grid_descriptor
-
+from gpaw.setup_data import search_for_file
 
 _basis_letter2number = {'s': 1, 'd': 2, 't': 3, 'q': 4}
 _basis_number2letter = 'Xsdtq56789'
@@ -415,6 +414,7 @@ class CLICommand:
     @staticmethod
     def run(args):
         from pathlib import Path
+
         import matplotlib.pyplot as plt
         path = Path(args.file)
 

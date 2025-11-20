@@ -1,6 +1,7 @@
 import pytest
-from .base_calc import calculator
 from ase.build import fcc111
+
+from .base_calc import calculator
 
 
 @pytest.fixture

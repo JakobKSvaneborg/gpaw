@@ -1,8 +1,8 @@
-import pytest
 import numpy as np
-
-from gpaw import GPAW, PW, FD
+import pytest
 from ase import Atoms
+
+from gpaw import FD, GPAW, PW
 from gpaw.mpi import world
 
 

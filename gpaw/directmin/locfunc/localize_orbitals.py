@@ -1,9 +1,10 @@
+import numpy as np
+
+from gpaw.directmin.fdpw.er_localization import ERLocalization as ERL
+from gpaw.directmin.functional.fdpw import \
+    get_functional as get_functional_fdpw
 from gpaw.directmin.locfunc.etdm_localization_fdpw import FDPWETDMLocalize
 from gpaw.directmin.locfunc.etdm_localization_lcao import LCAOETDMLocalize
-from gpaw.directmin.fdpw.er_localization import ERLocalization as ERL
-from gpaw.directmin.functional.fdpw import get_functional \
-    as get_functional_fdpw
-import numpy as np
 
 
 def localize_orbitals(

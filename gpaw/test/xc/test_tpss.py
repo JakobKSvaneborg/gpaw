@@ -1,5 +1,6 @@
 import pytest
 from ase.build import molecule
+
 from gpaw import GPAW, Davidson, Mixer, PoissonSolver
 from gpaw.utilities.tools import split_formula
 

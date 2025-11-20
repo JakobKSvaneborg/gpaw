@@ -5,8 +5,8 @@ for complex symmetric matrices. Requires Numpy and GPAW's own BLAS."""
 
 import numpy as np
 
-from gpaw.utilities.blas import axpy
 from gpaw.mpi import rank
+from gpaw.utilities.blas import axpy
 
 from .base import BaseSolver
 

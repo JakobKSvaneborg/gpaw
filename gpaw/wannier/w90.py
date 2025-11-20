@@ -2,12 +2,13 @@ import subprocess
 from pathlib import Path
 from typing import IO, Any, cast
 
-from ase import Atoms
 import numpy as np
+from ase import Atoms
 
-from .overlaps import WannierOverlaps
-from .functions import WannierFunctions
 from gpaw.typing import Array3D
+
+from .functions import WannierFunctions
+from .overlaps import WannierOverlaps
 
 
 class Wannier90Error(Exception):

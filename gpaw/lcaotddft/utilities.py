@@ -1,7 +1,6 @@
 import numpy as np
 
-from gpaw.blacs import BlacsGrid
-from gpaw.blacs import Redistributor
+from gpaw.blacs import BlacsGrid, Redistributor
 
 
 def collect_uX(kd, comm, a_uX, s, k):

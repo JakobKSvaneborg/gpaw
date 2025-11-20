@@ -1,30 +1,29 @@
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import cached_property
-from time import time, ctime
+from time import ctime, time
 
-from ase.units import Hartree, Bohr
-from ase.dft import monkhorst_pack
 import numpy as np
+from ase.dft import monkhorst_pack
+from ase.units import Bohr, Hartree
 from scipy.linalg import eigh
 
-from gpaw.blacs import BlacsGrid, Redistributor, BlacsDescriptor
+from gpaw.blacs import BlacsDescriptor, BlacsGrid, Redistributor
+from gpaw.mpi import serial_comm, world
 from gpaw.old.kpt_descriptor import KPointDescriptor
-from gpaw.mpi import world, serial_comm
 from gpaw.response import ResponseContext
-from gpaw.response.groundstate import CellDescriptor
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
 from gpaw.response.context import timer
 from gpaw.response.coulomb_kernels import CoulombKernel
-from gpaw.response.df import Chi0DysonEquations
-from gpaw.response.df import write_response_function
+from gpaw.response.df import Chi0DysonEquations, write_response_function
 from gpaw.response.frequencies import FrequencyDescriptor
+from gpaw.response.groundstate import CellDescriptor
 from gpaw.response.pair import KPointPairFactory, get_gs_and_context
-from gpaw.response.qpd import SingleQPWDescriptor
-from gpaw.response.screened_interaction import (initialize_w_calculator,
-                                                GammaIntegrationMode)
-from gpaw.utilities.elpa import LibElpa
 from gpaw.response.pw_parallelization import Blocks1D
+from gpaw.response.qpd import SingleQPWDescriptor
+from gpaw.response.screened_interaction import (GammaIntegrationMode,
+                                                initialize_w_calculator)
+from gpaw.utilities.elpa import LibElpa
 
 
 def decide_whether_tammdancoff(val_m, con_m):
@@ -55,13 +54,14 @@ class BSEMatrix:
         H_SS = bse.collect_A_SS(H_sS)
         w_T = np.zeros(bse.nS - len(exclude_S), complex)
         v_ST = None
-        if world.rank == 0:
+        comm = bse.context.comm
+        if comm.rank == 0:
             H_SS = np.delete(H_SS, exclude_S, axis=0)
             H_SS = np.delete(H_SS, exclude_S, axis=1)
             w_T, v_ST = np.linalg.eig(H_SS)
         else:
             v_ST = None
-        world.broadcast(w_T, 0)
+        comm.broadcast(w_T, 0)
         return w_T, v_ST, exclude_S
 
     def diagonalize_tammdancoff(self, bse, deps_max=None, elpa=False):
@@ -69,7 +69,8 @@ class BSEMatrix:
             deps_max = self.deps_max
         exclude_S = np.where(np.abs(self.deps_S) > deps_max)[0]
         H_rr, new_grid_desc = self.exclude_states(bse, exclude_S)
-        if world.size == 1:
+        comm = bse.context.comm
+        if comm.size == 1:
             bse.context.print('  Using lapack...')
             w_T, v_Rt = eigh(H_rr)
             return w_T, v_Rt, exclude_S
@@ -87,12 +88,11 @@ class BSEMatrix:
         # redistribute eigenvectors
         # we want them to be parallelized over the last index only
 
-        grid_tR = BlacsGrid(world, world.size, 1)
-        nt = -((-nR) // world.size)
+        grid_tR = BlacsGrid(comm, comm.size, 1)
+        nt = -((-nR) // comm.size)
         desc_tR = grid_tR.new_descriptor(nR, nR, nt, nR)
         v_tR = desc_tR.zeros(dtype=complex)
-        Redistributor(world, new_grid_desc,
-                      desc_tR).redistribute(v_rt, v_tR)
+        Redistributor(comm, new_grid_desc, desc_tR).redistribute(v_rt, v_tR)
         v_Rt = v_tR.conj().T
         return w_T, v_Rt, exclude_S
 
@@ -103,7 +103,8 @@ class BSEMatrix:
         transition energy eps_c - eps_v is greater than deps_max
         """
         H_sS = self.H_sS
-        grid = BlacsGrid(world, world.size, 1)
+        comm = bse.context.comm
+        grid = BlacsGrid(comm, comm.size, 1)
         nS = bse.nS
         ns = bse.ns
         desc = grid.new_descriptor(nS, nS, ns, nS)
@@ -147,12 +148,12 @@ def parallel_delete(A_nn: np.ndarray,
     dtype = A_nn.dtype
     # redistribute matrix, so it is distributed over first index only.
     # then we can safely delete entries from the second index.
-    grid_mN = BlacsGrid(world, world.size, 1)
-    m = -((-N) // world.size)
+    comm = grid_desc.blacsgrid.comm
+    grid_mN = BlacsGrid(comm, comm.size, 1)
+    m = -((-N) // comm.size)
     desc_mN = grid_mN.new_descriptor(N, N, m, N)
     A_mN = desc_mN.zeros(dtype=dtype)
-    Redistributor(world, grid_desc,
-                  desc_mN).redistribute(A_nn, A_mN)
+    Redistributor(comm, grid_desc, desc_mN).redistribute(A_nn, A_mN)
 
     # delete, and ensure that array is still contiguous in memory
     A_mR = np.delete(A_mN, deleteN, axis=1)
@@ -160,12 +161,11 @@ def parallel_delete(A_nn: np.ndarray,
     desc_mR = grid_mN.new_descriptor(N, R, m, R)
 
     # now distribute over second index, so we can delete entries from 1st
-    r = -((-R) // world.size)
-    grid_Nr = BlacsGrid(world, 1, world.size)
+    r = -((-R) // comm.size)
+    grid_Nr = BlacsGrid(comm, 1, comm.size)
     desc_Nr = grid_Nr.new_descriptor(N, R, N, r)
     A_Nr = desc_Nr.zeros(dtype=dtype)
-    Redistributor(world, desc_mR,
-                  desc_Nr).redistribute(A_mR, A_Nr)
+    Redistributor(comm, desc_mR, desc_Nr).redistribute(A_mR, A_Nr)
     A_Rr = np.delete(A_Nr, deleteN, axis=0)
     A_Rr = np.ascontiguousarray(A_Rr)
     desc_Rr = grid_Nr.new_descriptor(R, R, R, r)
@@ -174,12 +174,11 @@ def parallel_delete(A_nn: np.ndarray,
     # If this is not specified by the user, we try to find the most
     # efficient grid using the suggest_blocking function.
     if new_desc is None:
-        nrows, ncols, blocksize = suggest_blocking(R, world.size)
-        new_grid = BlacsGrid(world, nrows, ncols)
+        nrows, ncols, blocksize = suggest_blocking(R, comm.size)
+        new_grid = BlacsGrid(comm, nrows, ncols)
         new_desc = new_grid.new_descriptor(R, R, blocksize, blocksize)
     A_rr = new_desc.zeros(dtype=dtype)
-    Redistributor(world, desc_Rr,
-                  new_desc).redistribute(A_Rr, A_rr)
+    Redistributor(comm, desc_Rr, new_desc).redistribute(A_Rr, A_rr)
 
     return A_rr, new_desc
 
@@ -272,13 +271,13 @@ class BSEBackend:
                  integrate_gamma='reciprocal',
                  q0_correction=False,
                  mode='BSE',
-                 q_c=[0.0, 0.0, 0.0],
+                 q_c=(0.0, 0.0, 0.0),
                  direction=0):
 
         integrate_gamma = GammaIntegrationMode(integrate_gamma)
 
         self.gs = gs
-        self.q_c = q_c
+        self.q_c = list(q_c)
         self.direction = direction
         self.context = context
         self.add_soc = add_soc
@@ -351,7 +350,8 @@ class BSEBackend:
         # the same everywhere and adds up to a value that is larger that nS.
         # This is required for BlacsGrids in the ScalaPack diagonalization.
         self.nS = self.nK * self.nv * self.nc
-        self.ns = -(-self.nK // world.size) * self.nv * self.nc
+        comm = self.context.comm
+        self.ns = -(-self.nK // comm.size) * self.nv * self.nc
 
         # Print all the details
         self.print_initialization(self.use_tammdancoff, self.eshift,
@@ -582,14 +582,15 @@ class BSEBackend:
             deps_kmm[np.where(df_Kmm[self.myKrange] < -1e-3)] -= self.eshift
         deps_Kmm[self.myKrange] = deps_kmm
 
-        world.sum(deps_Kmm)
-        world.sum(df_Kmm)
-        world.sum(rhoex_KmmG)
+        comm = self.context.comm
+        comm.sum(deps_Kmm)
+        comm.sum(df_Kmm)
+        comm.sum(rhoex_KmmG)
 
         self.rhoG0_S = np.reshape(rhoex_KmmG[:, :, :, 0], -1)
         self.rho_SG = np.reshape(rhoex_KmmG, (len(self.rhoG0_S), -1))
         if self.susc_component != '00':
-            world.sum(rhomag_KmmG)
+            comm.sum(rhomag_KmmG)
             self.rhomag_SG = np.reshape(rhomag_KmmG, (self.nS, -1))
             G_Gv = qpd0.get_reciprocal_vectors(add_q=False)
             self.G_Gc = np.dot(G_Gv, qpd0.gd.cell_cv.T / (2 * np.pi))
@@ -605,7 +606,7 @@ class BSEBackend:
 
             self.context.print(
                 '  Finished %s pair orbitals in %s - Estimated %s left'
-                % ((iK1 + 1) * self.nv * self.nc * world.size,
+                % ((iK1 + 1) * self.nv * self.nc * comm.size,
                     timedelta(seconds=round(dt)),
                     timedelta(seconds=round(tleft))))
 
@@ -754,7 +755,9 @@ class BSEBackend:
 
     @cached_property
     def wcontext(self):
-        return ResponseContext(txt='w.txt', comm=world)
+        # XXX This was world but I changed it to self.context.comm.
+        # Why was it world??  --askhl
+        return ResponseContext(txt='w.txt', comm=self.context.comm)
 
     @cached_property
     def _wcalc(self):
@@ -819,8 +822,9 @@ class BSEBackend:
 
         w_T, v_St = eig_data[0], eig_data[1]
         exclude_S = eig_data[2]
+        comm = self.context.comm
         nS = self.nS - len(exclude_S)
-        ns = -(-nS // world.size)
+        ns = -(-nS // comm.size)
         dft_S = np.delete(df_S, exclude_S)
         rhot_S = np.delete(rho_S, exclude_S)
         C_T = np.zeros(nS, complex)
@@ -828,25 +832,25 @@ class BSEBackend:
         if self.use_tammdancoff:
             A_t = np.dot(rhot_S, v_St)
             B_t = np.dot(rhot_S * dft_S, v_St)
-            if world.size == 1:
+            if comm.size == 1:
                 C_T = B_t.conj() * A_t
             else:
-                grid = BlacsGrid(world, world.size, 1)
+                grid = BlacsGrid(comm, comm.size, 1)
                 desc = grid.new_descriptor(nS, 1, ns, 1)
                 C_t = desc.empty(dtype=complex)
                 C_t[:, 0] = B_t.conj() * A_t
                 C_T = desc.collect_on_master(C_t)[:, 0]
-                if world.rank != 0:
+                if comm.rank != 0:
                     C_T = np.empty(nS, dtype=complex)
-                world.broadcast(C_T, 0)
+                comm.broadcast(C_T, 0)
         else:
-            if world.rank == 0:
+            if comm.rank == 0:
                 A_T = np.dot(rhot_S, v_St)
                 B_T = np.dot(rhot_S * dft_S, v_St)
                 tmp = np.dot(v_St.conj().T, v_St)
                 overlap_TT = np.linalg.inv(tmp)
                 C_T = np.dot(B_T.conj(), overlap_TT.T) * A_T
-            world.broadcast(C_T, 0)
+            comm.broadcast(C_T, 0)
 
         return w_T, C_T
 
@@ -877,7 +881,7 @@ class BSEBackend:
         if write_eig is not None:
             assert isinstance(write_eig, str)
             filename = write_eig
-            if world.rank == 0:
+            if self.context.comm.rank == 0:
                 write_bse_eigenvalues(filename, self.mode,
                                       w_T * Hartree, C_T)
 
@@ -922,18 +926,19 @@ class BSEBackend:
         df_R = np.delete(df_S, exclude_S)
         rho_RG = np.delete(rho_SG, exclude_S, axis=0)
 
+        comm = self.context.comm
         nG = rho_RG.shape[-1]
         nR = self.nS - len(exclude_S)
-        nr = -(-nR // world.size)
+        nr = -(-nR // comm.size)
         # nr is the local size of the array
 
         self.context.print('Calculating response function at %s frequency '
                            'points' % len(w_w))
-        self.blocks = Blocks1D(world, len(w_T))
+        self.blocks = Blocks1D(comm, len(w_T))
         w_t = w_T[self.blocks.myslice]
 
         if not self.use_tammdancoff:
-            if world.rank == 0:
+            if comm.rank == 0:
                 v_RT = v_Rt
                 A_GT = rho_RG.T @ v_RT
                 B_GT = rho_RG.T * df_R[np.newaxis] @ v_RT
@@ -945,7 +950,7 @@ class BSEBackend:
                 flat_C_tGG = C_tGG.ravel()
             else:
                 flat_C_tGG = np.empty(nR * nG * nG, dtype=complex)
-            world.broadcast(flat_C_tGG, 0)
+            comm.broadcast(flat_C_tGG, 0)
             C_tGG = flat_C_tGG.reshape((nR, nG, nG))[self.blocks.myslice]
             C_tGG1 = None
         else:
@@ -955,7 +960,7 @@ class BSEBackend:
                C_tGG1 = A_Gt.T.conj()[..., np.newaxis] * B_Gt.T[:, np.newaxis]
                C_tGG = B_Gt.T.conj()[..., np.newaxis] * A_Gt.T[:, np.newaxis]
                '''
-            grid = BlacsGrid(world, world.size, 1)
+            grid = BlacsGrid(comm, comm.size, 1)
             desc = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
             C_tGG = desc.empty(dtype=complex)
             np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt,
@@ -982,7 +987,7 @@ class BSEBackend:
 
             chi_wGG_local *= 1 / self.gs.volume
 
-        world.sum(chi_wGG_local)
+        comm.sum(chi_wGG_local)
         chi_wGG = chi_wGG_local
 
         return np.swapaxes(chi_wGG, -1, -2)
@@ -1036,26 +1041,28 @@ class BSEBackend:
         return VChi(self.gs.cd, self.context, w_w, vchi_w, optical=optical)
 
     def collect_A_SS(self, A_sS):
-        if world.rank == 0:
+        comm = self.context.comm
+        if comm.rank == 0:
             A_SS = np.zeros((self.nS, self.nS), dtype=complex)
             A_SS[:len(A_sS)] = A_sS
             Ntot = len(A_sS)
-            for rank in range(1, world.size):
+            for rank in range(1, comm.size):
                 buf = np.empty((self.ns, self.nS), dtype=complex)
-                world.receive(buf, rank, tag=123)
+                comm.receive(buf, rank, tag=123)
                 A_SS[Ntot:Ntot + self.ns] = buf
                 Ntot += self.ns
         else:
-            world.send(A_sS, 0, tag=123)
-        world.barrier()
-        if world.rank == 0:
+            comm.send(A_sS, 0, tag=123)
+        comm.barrier()
+        if comm.rank == 0:
             return A_SS
 
     def parallelisation_kpoints(self, rank=None):
+        comm = self.context.comm
         if rank is None:
-            rank = world.rank
+            rank = comm.rank
         nK = self.kd.nbzkpts
-        myKsize = -(-nK // world.size)
+        myKsize = -(-nK // comm.size)
         myKrange = range(rank * myKsize,
                          min((rank + 1) * myKsize, nK))
         myKsize = len(myKrange)
@@ -1101,21 +1108,22 @@ class BSEBackend:
             integrate_gamma += '2D'
         isl.append(
             f'Coulomb integration scheme     : {integrate_gamma}')
+        worldsize = self.context.comm.size
         isl.extend([
             '',
             '----------------------------------------------------------',
             '----------------------------------------------------------',
             '',
-            f'Parallelization - Total number of CPUs   : {world.size}',
+            f'Parallelization - Total number of CPUs   : {worldsize}',
             '  Screened potential',
-            f'    K-point/band decomposition           : {world.size}',
+            f'    K-point/band decomposition           : {worldsize}',
             '  Hamiltonian',
-            f'    Pair orbital decomposition           : {world.size}'])
+            f'    Pair orbital decomposition           : {worldsize}'])
         self.context.print('\n'.join(isl))
 
 
 class BSE(BSEBackend):
-    def __init__(self, calc=None, timer=None, txt='-', **kwargs):
+    def __init__(self, calc=None, timer=None, txt='-', comm=world, **kwargs):
         """Creates the BSE object
 
         calc: str or calculator object
@@ -1169,7 +1177,7 @@ class BSE(BSEBackend):
             Theory level used. can be RPA TDHF or BSE. Only BSE is screened.
         """
         gs, context = get_gs_and_context(
-            calc, txt, world=world, timer=timer)
+            calc, txt, world=comm, timer=timer)
 
         super().__init__(gs=gs, context=context, **kwargs)
 
@@ -1279,7 +1287,8 @@ class VChi:
         return self._hackywrite(self.susceptibility(), filename)[1]
 
     def _hackywrite(self, array, filename):
-        if world.rank == 0 and filename is not None:
+        comm = self.context.comm
+        if comm.rank == 0 and filename is not None:
             if array.dtype == complex:
                 write_response_function(filename, self.w_w, array.real,
                                         array.imag)
@@ -1287,7 +1296,7 @@ class VChi:
                 assert array.dtype == float
                 write_spectrum(filename, self.w_w, array)
 
-        world.barrier()
+        comm.barrier()
 
         self.context.print('Calculation completed at:', ctime(), flush=False)
         self.context.print('')
@@ -1321,13 +1330,15 @@ class BSEPlus:
                   q_c=self.q_c,
                   direction=self.bse_direction,
                   add_soc=self.bse_add_soc,
-                  txt='bse_calculation.txt')
+                  txt='bse_calculation.txt',
+                  comm=self.comm)
 
         return bse
 
     def create_chi0_limited_calculator(self):
+        # XXX changed from world to self.context.comm.  --askhl
         self.gs, self.context = get_gs_and_context(
-            self.rpa_gpw, txt=None, world=world, timer=None)
+            self.rpa_gpw, txt=None, world=self.comm, timer=None)
         self.wd = get_frequency_descriptor(
             self.w_w, gs=self.gs, nbands=self.rpa_nbands)
         chi0calc_limited = Chi0Calculator(self.gs, self.context,
@@ -1363,10 +1374,11 @@ class BSEPlus:
                  eshift=0.0,
                  bse_add_soc=False,
                  eta=0.1,
-                 q_c=[0.0, 0.0, 0.0],
+                 q_c=(0.0, 0.0, 0.0),
                  direction=0,
                  truncation=None,
-                 ecut=10):
+                 ecut=10,
+                 comm=world):
 
         """ BSE+ calculation of chi. BSE+ offers a way to improve
         the convergence of the BSE by including transitions outside
@@ -1418,11 +1430,12 @@ class BSEPlus:
         self.eshift = eshift
         self.bse_add_soc = bse_add_soc
         self.eta = eta
-        self.q_c = q_c
+        self.q_c = list(q_c)
         self.bse_direction = direction
         self.rpa_direction = ('x', 'y', 'z')[direction]
         self.truncation = truncation
         self.ecut = ecut
+        self.comm = comm
 
         self.n1_BSE = self.bse_valence_bands[0]
         self.m2_BSE = self.bse_conduction_bands[-1]
@@ -1441,7 +1454,7 @@ class BSEPlus:
             'Large chi0 calculation should contain more ' \
             'bands than the BSE calculation'
 
-    def calculate_chi_wGG(self, optical=True, xc_kernel=None, comm=None,
+    def calculate_chi_wGG(self, optical=True, xc_kernel=None,
                           bsep_name='chi_BSEPlus',
                           save_chi_BSE=False, save_chi_RPA=False):
 
@@ -1490,10 +1503,9 @@ class BSEPlus:
 
         del self.chi0_data
 
-        if comm is None:
-            comm = world
         nR = len(self.w_w)
-        self.blocks = Blocks1D(comm, nR)
+        # XXX Should this be another communicator?
+        self.blocks = Blocks1D(self.comm, nR)
 
         chi_irr_BSE_wGG = chi_irr_BSE_WGG[self.blocks.myslice]
         chi0_full_wGG = chi0_full_WGG[self.blocks.myslice]
@@ -1512,7 +1524,7 @@ class BSEPlus:
 
         chi_BSEPlus_WGG = self.blocks.gather(chi_BSEPlus_wGG, 0)
 
-        if world.rank == 0:
+        if self.comm.rank == 0:
             np.save(bsep_name + '.npy', chi_BSEPlus_WGG)
             del chi_BSEPlus_WGG
         del chi_BSEPlus_wGG, chi0_limited_wGG
@@ -1527,7 +1539,7 @@ class BSEPlus:
 
             chi_BSE_WGG = self.blocks.gather(chi_BSE_wGG, 0)
 
-            if world.rank == 0:
+            if self.comm.rank == 0:
                 np.save('chi_BSE.npy' if save_chi_BSE is True else
                         save_chi_BSE, chi_BSE_WGG)
                 del chi_BSE_WGG
@@ -1543,7 +1555,7 @@ class BSEPlus:
 
             chi_full_WGG = self.blocks.gather(chi_full_wGG, 0)
 
-            if world.rank == 0:
+            if self.comm.rank == 0:
                 np.save('chi_RPA.npy' if save_chi_RPA is True else
                         save_chi_RPA, chi_full_WGG)
                 del chi_full_WGG

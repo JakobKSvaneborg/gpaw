@@ -1,11 +1,12 @@
 import numpy as np
 import pytest
 
-from gpaw.fd_operators import Laplace
-from gpaw.gpu import cupy as cp, cupy_is_fake
-from gpaw.old.grid_descriptor import GridDescriptor
-from gpaw.mpi import world
 from gpaw import GPAW_NO_C_EXTENSION
+from gpaw.fd_operators import Laplace
+from gpaw.gpu import cupy as cp
+from gpaw.gpu import cupy_is_fake
+from gpaw.mpi import world
+from gpaw.old.grid_descriptor import GridDescriptor
 
 
 @pytest.mark.gpu

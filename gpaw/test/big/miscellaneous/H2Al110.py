@@ -1,4 +1,5 @@
 from ase import Atoms
+
 from gpaw import GPAW
 
 a = 4.00

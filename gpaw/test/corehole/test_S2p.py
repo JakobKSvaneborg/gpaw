@@ -1,6 +1,7 @@
 import pytest
 from ase.build import molecule
 from ase.units import Bohr
+
 from gpaw import GPAW
 from gpaw.test import gen
 

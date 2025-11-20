@@ -1,5 +1,6 @@
-import pytest
 import numpy as np
+import pytest
+
 from gpaw.response.bse import BSE
 from gpaw.response.groundstate import ResponseGroundStateAdapter
 

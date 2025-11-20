@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from math import pi
 from typing import TYPE_CHECKING, Literal
-from collections.abc import Sequence
 from functools import cached_property
 
 import numpy as np
@@ -14,17 +14,16 @@ from gpaw.core.arrays import DistributedArrays
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
 from gpaw.core.pwacf import PWAtomCenteredFunctions
+from gpaw.fftw import get_efficient_fft_size
 from gpaw.gpu import cupy as cp
-from gpaw.new.c import pw_norm_kinetic_gpu, pw_norm_gpu
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import prod, zips
 from gpaw.new.c import (add_to_density, add_to_density_gpu, pw_insert,
-                        pw_insert_gpu)
+                        pw_insert_gpu, pw_norm_gpu, pw_norm_kinetic_gpu)
 from gpaw.old.pw.descriptor import pad
 from gpaw.typing import (Array1D, Array2D, Array3D, ArrayLike1D, ArrayLike2D,
                          Vector)
-from gpaw.fftw import get_efficient_fft_size
-from gpaw.utilities import as_real_dtype, as_complex_dtype
+from gpaw.utilities import as_complex_dtype, as_real_dtype
 
 if TYPE_CHECKING:
     from gpaw.core import UGArray, UGDesc
@@ -269,13 +268,15 @@ class PWDesc(Domain['PWArray']):
                                 qspiral_v=None,
                                 atomdist=None,
                                 integrals=None,
+                                save_memory=True,
                                 cut=False,
                                 xp=None):
         """Create PlaneWaveAtomCenteredFunctions object."""
         if qspiral_v is None:
             return PWAtomCenteredFunctions(functions, positions, self,
                                            atomdist=atomdist,
-                                           xp=xp, integrals=integrals)
+                                           xp=xp, integrals=integrals,
+                                           save_memory=save_memory)
 
         from gpaw.new.spinspiral import SpiralPWACF
         return SpiralPWACF(functions, positions, self,
@@ -498,7 +499,7 @@ class PWArray(DistributedArrays[PWDesc]):
 
         return out if not isinstance(out, Empty) else None
 
-    def gather_all(self, out: PWArray) -> None:
+    def gather_all(self, out: np.ndarray | PWArray) -> None:
         """Gather coefficients from self[r] on rank r.
 
         On rank r, an array of all G-vector coefficients will be returned.
@@ -507,8 +508,12 @@ class PWArray(DistributedArrays[PWDesc]):
         assert len(self.dims) == 1
         pw = self.desc
         comm = pw.comm
+
+        if isinstance(out, PWArray):
+            out = out.data
+
         if comm.size == 1:
-            out.data[:] = self.data[0]
+            out[:] = self.data[0]
             return
 
         N = self.dims[0]
@@ -522,7 +527,7 @@ class PWArray(DistributedArrays[PWDesc]):
             comm, N, ng, myng, maxmyng)
 
         comm.alltoallv(self.data, ssize_r, soffset_r,
-                       out.data, rsize_r, roffset_r)
+                       out, rsize_r, roffset_r)
 
     def scatter_from(self, data: Array1D | PWArray | None = None) -> None:
         """Scatter plane-wave coefficients from rank-0 to all ranks."""
@@ -553,19 +558,18 @@ class PWArray(DistributedArrays[PWDesc]):
         shape = (self.dims[0], self.desc.shape[0])
         fro = Matrix(*shape,
                      data=array.data)
-        print(comm.size, self.comm.size, self.desc.comm.size)
         to = Matrix(*shape,
                     data=self.data,
                     dist=(comm, self.comm.size, self.desc.comm.size))
         fro.redist(to)
 
-    def scatter_from_all(self, a_G: PWArray) -> None:
+    def scatter_from_all(self, a_G: np.ndarray) -> None:
         """Scatter all coefficients from rank r to self on other cores."""
         assert len(self.dims) == 1
         pw = self.desc
         comm = pw.comm
         if comm.size == 1:
-            self.data[:] = a_G.data
+            self.data[:] = a_G
             return
 
         N = self.dims[0]
@@ -578,7 +582,7 @@ class PWArray(DistributedArrays[PWDesc]):
         rsize_r, roffset_r, ssize_r, soffset_r = a2a_stuff(
             comm, N, ng, myng, maxmyng)
 
-        comm.alltoallv(a_G.data, ssize_r, soffset_r,
+        comm.alltoallv(a_G, ssize_r, soffset_r,
                        self.data, rsize_r, roffset_r)
 
     def integrate(self, other: PWArray | None = None) -> np.ndarray:

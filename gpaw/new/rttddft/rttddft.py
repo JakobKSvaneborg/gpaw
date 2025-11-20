@@ -1,33 +1,31 @@
 from __future__ import annotations
 
-from typing import NamedTuple
 from collections.abc import Generator
+from typing import NamedTuple
 
 import numpy as np
-
 from ase import Atoms
-from ase.units import Bohr, Hartree
 from ase.io.ulm import Reader
+from ase.units import Bohr, Hartree
 
 from gpaw.dft import Parameters
-from gpaw.external import ExternalPotential, ConstantElectricField
+from gpaw.external import ConstantElectricField, ExternalPotential
 from gpaw.mpi import broadcast, world
 from gpaw.new.ase_interface import ASECalculator
 from gpaw.new.fd.hamiltonian import FDHamiltonian, FDKickHamiltonian
 from gpaw.new.fd.pot_calc import FDPotentialCalculator
 from gpaw.new.gpw import read_gpw
-from gpaw.new.rttddft.gpw import read_rttddft, write_rttddft
 from gpaw.new.hamiltonian import Hamiltonian
-from gpaw.new.lcao.hamiltonian import LCAOKickHamiltonian, LCAOHamiltonian
+from gpaw.new.lcao.hamiltonian import LCAOHamiltonian, LCAOKickHamiltonian
 from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
 from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
-from gpaw.new.rttddft.td_algorithm import create_td_algorithm, TDAlgorithmLike
+from gpaw.new.rttddft.gpw import read_rttddft, write_rttddft
 from gpaw.new.rttddft.history import RTTDDFTHistory
 from gpaw.new.rttddft.state import RTTDDFTState
-from gpaw.tddft.units import (asetime_to_autime,
-                              autime_to_asetime, au_to_eA)
+from gpaw.new.rttddft.td_algorithm import TDAlgorithmLike, create_td_algorithm
+from gpaw.tddft.units import asetime_to_autime, au_to_eA, autime_to_asetime
 from gpaw.typing import Vector
 from gpaw.utilities import reconstruct_atoms
 from gpaw.utilities.timing import nulltimer

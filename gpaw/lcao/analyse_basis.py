@@ -26,6 +26,7 @@ def main(argv=sys.argv[1:]):
     opts, files = parser.parse_args(argv)
 
     import matplotlib.pyplot as plt
+
     from gpaw.basis_data import Basis, BasisPlotter
 
     plotter = BasisPlotter(premultiply=not opts.literal,

@@ -2,14 +2,12 @@
 
 """
 import numpy as np
-
 from ase.units import Hartree
+from numpy import pi, sqrt
 
 from gpaw.pes import BasePES
 from gpaw.pes.state import State
 from gpaw.utilities import packed_index
-
-from numpy import sqrt, pi
 
 
 class TDDFTPES(BasePES):

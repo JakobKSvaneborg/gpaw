@@ -11,14 +11,13 @@ The numbers are compared to:
   DOI: 10.1103/PhysRevB.81.195117
 """
 
-import numpy as np
 import ase.db
+import numpy as np
 from ase.build import bulk
 from ase.dft.kpoints import monkhorst_pack
 
 from gpaw import GPAW, PW
 from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues as nsceigs
-
 
 # Data from Betzinger, Friedrich and Blügel:
 bfb = {

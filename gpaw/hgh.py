@@ -3,11 +3,10 @@ import hashlib
 import numpy as np
 from ase.data import atomic_numbers
 
-from gpaw.utilities import pack_hermitian
-from gpaw.atom.radialgd import AERadialGridDescriptor
 from gpaw.atom.configurations import configurations
+from gpaw.atom.radialgd import AERadialGridDescriptor
 from gpaw.pseudopotential import PseudoPotential, get_radial_hartree_energy
-
+from gpaw.utilities import pack_hermitian
 
 setups: dict[str, 'HGHParameterSet'] = {}  # Filled out during parsing below
 sc_setups: dict[str, 'HGHParameterSet'] = {}  # Semicore

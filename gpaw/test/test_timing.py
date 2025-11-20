@@ -1,8 +1,9 @@
 # Copyright (C) 2003  CAMP
 # Please see the accompanying LICENSE file for further information.
+from time import perf_counter as clock
+
 from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.transformers import Transformer
-from time import perf_counter as clock
 
 
 def test_timing():

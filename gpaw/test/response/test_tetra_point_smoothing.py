@@ -1,10 +1,9 @@
-from ase import Atoms
-from scipy.ndimage import gaussian_filter1d
 import numpy as np
 import pytest
+from ase import Atoms
+from scipy.ndimage import gaussian_filter1d
 
-from gpaw import GPAW, FermiDirac
-from gpaw import PW
+from gpaw import GPAW, PW, FermiDirac
 from gpaw.bztools import find_high_symmetry_monkhorst_pack
 from gpaw.response.df import DielectricFunction
 from gpaw.test import findpeak

@@ -1,11 +1,10 @@
-import pytest
 import numpy as np
+import pytest
 from ase import Atoms
-from ase.units import Hartree, Bohr
+from ase.units import Bohr, Hartree
 
 from gpaw import GPAW
-from gpaw.external import ConstantElectricField
-from gpaw.external import static_polarizability
+from gpaw.external import ConstantElectricField, static_polarizability
 
 
 @pytest.mark.old_gpaw_only

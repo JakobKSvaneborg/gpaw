@@ -1,12 +1,15 @@
+from copy import deepcopy
+from typing import Any
+
 import numpy as np
-from gpaw.directmin.tools import get_n_occ, get_indices, random_a, \
-    sort_orbitals_according_to_occ, sort_orbitals_according_to_energies
 from ase.units import Hartree
+
+from gpaw.directmin.tools import (get_indices, get_n_occ, random_a,
+                                  sort_orbitals_according_to_energies,
+                                  sort_orbitals_according_to_occ)
 from gpaw.mpi import world
 from gpaw.old.logger import GPAWLogger
 from gpaw.typing import RNG
-from copy import deepcopy
-from typing import Any
 
 
 class Derivatives:

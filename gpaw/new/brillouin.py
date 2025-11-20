@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from ase.dft.kpoints import monkhorst_pack
+
 from gpaw.mpi import MPIComm
 from gpaw.symmetry import reduce_kpts
 from gpaw.typing import Array1D, Array2D, ArrayLike2D

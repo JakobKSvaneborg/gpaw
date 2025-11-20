@@ -1,9 +1,11 @@
 """Test ITM with half-filled 1-d cosine band."""
 from math import pi
-import pytest
+
 import numpy as np
-from gpaw.tetrahedron import TetrahedronMethod
+import pytest
+
 from gpaw.dos import DOSCalculator
+from gpaw.tetrahedron import TetrahedronMethod
 
 
 def f(N: int, i: bool):

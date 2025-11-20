@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from ase.build import bulk
+
 from gpaw import GPAW
 from gpaw.test import gen
 

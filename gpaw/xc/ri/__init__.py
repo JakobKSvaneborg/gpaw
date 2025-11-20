@@ -1,7 +1,8 @@
-from gpaw.xc import XC
-from gpaw.utilities import pack_hermitian, unpack_density
-from gpaw.hybrids.paw import pawexxvv
 import numpy as np
+
+from gpaw.hybrids.paw import pawexxvv
+from gpaw.utilities import pack_hermitian, unpack_density
+from gpaw.xc import XC
 
 
 def RI(name, **args):

@@ -1,9 +1,9 @@
-import pytest
 import numpy as np
+import pytest
 
 from gpaw import GPAW
-from gpaw.directmin.etdm_fdpw import FDPWETDM
 from gpaw.directmin.derivatives import Derivatives
+from gpaw.directmin.etdm_fdpw import FDPWETDM
 from gpaw.mom import prepare_mom_calculation
 
 

@@ -1,16 +1,17 @@
 import os
+import subprocess
 from contextlib import contextmanager
 from functools import cached_property
 
 import numpy as np
 import pytest
-from gpaw import setup_paths, GPAW_NEW, debug
+
+from gpaw import GPAW_NEW, debug, setup_paths
 from gpaw.cli.info import info
 from gpaw.mpi import broadcast, world
 from gpaw.test.gpwfile import GPWFiles, _all_gpw_methodnames
 from gpaw.test.mmefile import MMEFiles
 from gpaw.utilities import devnull
-import subprocess
 
 
 @contextmanager
@@ -86,6 +87,7 @@ def sessionscoped_monkeypatch():
 @pytest.fixture(autouse=True, scope='session')
 def monkeypatch_response_spline_points(sessionscoped_monkeypatch):
     import gpaw.response.paw as paw
+
     # https://gitlab.com/gpaw/gpaw/-/issues/984
     sessionscoped_monkeypatch.setattr(paw, 'DEFAULT_RADIAL_POINTS', 2**10)
 
@@ -109,7 +111,7 @@ def monkeypatch_allow_cpupy(sessionscoped_monkeypatch):
 
 @pytest.fixture(autouse=True, scope='session')
 def use_fftw_estimate_flag(sessionscoped_monkeypatch):
-    from gpaw.fftw import FFTWPlans, ESTIMATE
+    from gpaw.fftw import ESTIMATE, FFTWPlans
     sessionscoped_monkeypatch.setattr(FFTWPlans, '_overwrite_flags', ESTIMATE)
 
 
@@ -334,8 +336,10 @@ class GPAWPlugin:
 @pytest.fixture
 def sg15_hydrogen():
     from io import StringIO
+
     from gpaw.test.pseudopotential.H_sg15 import pp_text
     from gpaw.upf import read_sg15
+
     # We can't easily load a non-python file from the test suite.
     # Therefore we load the pseudopotential from a Python file.
     return read_sg15(StringIO(pp_text))

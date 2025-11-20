@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 
 import numpy as np
+
 from gpaw.core import UGArray
 from gpaw.fd_operators import Gradient
 from gpaw.new.ase_interface import GPAW, ASECalculator

@@ -1,10 +1,10 @@
 from math import sqrt
 
+import pytest
 from ase import Atoms
 from ase.dft.bandgap import bandgap
 
 from gpaw import GPAW, FermiDirac
-import pytest
 
 
 def test_Hubbard_U(in_tmp_dir):

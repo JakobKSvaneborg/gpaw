@@ -1,14 +1,15 @@
 import collections.abc
+from collections import defaultdict
 from copy import deepcopy
-from pprint import pp
-import numpy as np
-from gpaw.mpi import world
-from time import time
 from json import dumps, loads
 from pathlib import Path
-from collections import defaultdict
+from pprint import pp
+from time import time
+
+import numpy as np
 
 from gpaw.benchmark.systems import parse_system
+from gpaw.mpi import world
 from gpaw.utilities.memory import maxrss
 
 pw_default_parameters = {'mode': {'name': 'pw', 'ecut': 400}}

@@ -1,12 +1,12 @@
-import pytest
 import numpy as np
+import pytest
 from ase import Atoms
 
 from gpaw import GPAW, PW, FermiDirac, Mixer
-from gpaw.utilities import compiled_with_sl
+from gpaw.mpi import world
 from gpaw.response.df import DielectricFunction
 from gpaw.response.symmetry import QSymmetryAnalyzer
-from gpaw.mpi import world
+from gpaw.utilities import compiled_with_sl
 
 # This test assures that some things that
 # should be equal, are.

@@ -2,14 +2,14 @@ from dataclasses import dataclass
 
 from ase import Atoms
 
+from gpaw.core import UGDesc
+from gpaw.core.domain import Domain
+from gpaw.dft import Parameters
+from gpaw.mpi import MPIComm
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.ibzwfs import IBZ
 from gpaw.new.logger import Logger
-from gpaw.core import UGDesc
-from gpaw.core.domain import Domain
 from gpaw.setup import Setups
-from gpaw.mpi import MPIComm
-from gpaw.dft import Parameters
 
 
 @dataclass

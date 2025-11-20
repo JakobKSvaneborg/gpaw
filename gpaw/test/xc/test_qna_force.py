@@ -1,4 +1,5 @@
 from ase.parallel import parprint
+
 from gpaw import GPAW
 
 

@@ -10,9 +10,9 @@ See::
 
 import numpy as np
 
+from gpaw.basis_data import Basis
 from gpaw.setup import BaseSetup
 from gpaw.spline import Spline
-from gpaw.basis_data import Basis
 
 
 class AppelbaumHamann(BaseSetup):

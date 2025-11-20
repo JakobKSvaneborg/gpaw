@@ -1,20 +1,20 @@
 from pathlib import Path
-import numpy as np
 from typing import Any
 
+import numpy as np
+from ase.calculators.calculator import Calculator
 from ase.units import Hartree
 from ase.utils.timing import Timer
-from ase.calculators.calculator import Calculator
 
 import gpaw.mpi as mpi
-from gpaw.old.calculator import GPAW
 from gpaw import __version__, restart
-from gpaw.old.density import RealSpaceDensity
 from gpaw.lrtddft import LrTDDFT
-from gpaw.lrtddft.finite_differences import FiniteDifference
 from gpaw.lrtddft.excitation import ExcitationLogger
-from gpaw.utilities.blas import axpy
+from gpaw.lrtddft.finite_differences import FiniteDifference
+from gpaw.old.calculator import GPAW
+from gpaw.old.density import RealSpaceDensity
 from gpaw.old.wavefunctions.lcao import LCAOWaveFunctions
+from gpaw.utilities.blas import axpy
 
 
 class ExcitedState(GPAW):

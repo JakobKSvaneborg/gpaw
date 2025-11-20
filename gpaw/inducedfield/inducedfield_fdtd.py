@@ -1,14 +1,12 @@
 import numpy as np
-
 from ase.units import Bohr
 
 from gpaw import debug
+from gpaw.inducedfield.inducedfield_base import BaseInducedField
+from gpaw.lcaotddft.observer import TDDFTObserver
 from gpaw.tddft import aufrequency_to_eV
 from gpaw.transformers import Transformer
-from gpaw.lcaotddft.observer import TDDFTObserver
 from gpaw.utilities import is_contiguous
-
-from gpaw.inducedfield.inducedfield_base import BaseInducedField
 
 
 class FDTDInducedField(BaseInducedField, TDDFTObserver):

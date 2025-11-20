@@ -1,13 +1,13 @@
-from math import sin, cos, pi, sqrt
+from math import cos, pi, sin, sqrt
 
 import numpy as np
-
 from ase.units import Bohr, Hartree, alpha
+
 from gpaw.fd_operators import Gradient
-from gpaw.utilities.gl_quadrature import GaussLegendre
 from gpaw.pes import ds_prefactor
-from gpaw.pes.state import H1s
 from gpaw.pes.continuum import PlaneWave
+from gpaw.pes.state import H1s
+from gpaw.utilities.gl_quadrature import GaussLegendre
 
 # debug
 # from gpaw.mpi import rank
