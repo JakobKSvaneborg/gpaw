@@ -231,6 +231,10 @@ the data using the following script
 
 .. literalinclude:: plot_potentials.py
 
+.. autoclass:: gpaw.defects.electrostatics.ElectrostaticCorrection
+
+See here: :meth:`~gpaw.defects.electrostatics.ElectrostaticCorrection`.
+
 This gives the following plot:
 
 .. image:: planar_averages.png

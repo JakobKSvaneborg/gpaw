@@ -1,6 +1,6 @@
 # web-page: planar_averages.png
 from ase.io.jsonio import read_json
-from defects.electrostatic import plot_potentials
+from defects.electrostatics import plot_potentials
 
 data = read_json('electrostatics.json')
 

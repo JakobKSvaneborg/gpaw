@@ -5,8 +5,8 @@ from ase.units import Bohr, Hartree
 
 from gpaw import GPAW
 from gpaw.defects import ElectrostaticCorrections
-from gpaw.defects.electrostatic import (gather_electrostatic_potential,
-                                        build_ugarray, plot_potentials)
+from gpaw.defects.electrostatics import (gather_electrostatic_potential,
+                                         build_ugarray, plot_potentials)
 from scipy.special import erf
 
 
