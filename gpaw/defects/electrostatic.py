@@ -37,7 +37,6 @@ class ElectrostaticCorrections():
     r0        ... defect position [Angstrom]
     ravg      ... average radius for bulk-atom average
     method    ... method selection string
-    comm      ... communicator
 
     """
     def __init__(self, phi_pristine, phi_defect, ecut=500,
@@ -45,8 +44,9 @@ class ElectrostaticCorrections():
                  ravg=2.5, method='full-planar'):
 
         # read and check electrostatic potentials
-        self.phi_prs = - phi_pristine.data              # eV
-        self.phi_def = - phi_defect.data                # eV
+        # conversion to Hartree and Bohr
+        self.phi_prs = - phi_pristine.data / Hartree    # Hartree
+        self.phi_def = - phi_defect.data / Hartree      # Hartree
         r_vR = phi_pristine.desc.xyz().transpose(3, 0, 1, 2)
         self.r_vR = r_vR / Bohr                         # Bohr
         self.ng_v = np.array(r_vR.shape[1:])
@@ -78,7 +78,7 @@ class ElectrostaticCorrections():
         norm_c = self.cell_cv[2, :] / np.linalg.norm(self.cell_cv[2, :])
         self.is_monoclin = np.abs(np.dot(cross_ab, norm_c) - 1.) < 1e-6
 
-        # get G vectors
+        # get G vectors, cut-off in Hartree
         pw_desc = PWDesc(cell=self.cell_cv, ecut=ecut / Hartree,
                          comm=serial_comm, dtype=complex)
         self.G_Gv = pw_desc.reciprocal_vectors()        # Bohr^-1 ?
@@ -96,7 +96,7 @@ class ElectrostaticCorrections():
         phi_G = np.zeros_like(self.rho_G)
         zero = np.abs(self.G2_G) < 1e-8
         phi_G[~zero] = self.rho_G[~zero] / self.G2_G[~zero]
-        return 4. * np.pi * phi_G * Hartree / self.epsilon
+        return 4. * np.pi * phi_G / self.epsilon
 
     def calculate_periodic_correction(self):
         self.rho_G = self.calculate_gaussian_density()
@@ -114,7 +114,7 @@ class ElectrostaticCorrections():
         # gaussian model charge distribution
         eps = self.epsilon
         sgm = self.sigma
-        Eli = 0.5 * self.charge ** 2 * Hartree / np.pi ** 0.5 / eps / sgm
+        Eli = 0.5 * self.charge ** 2 / np.pi ** 0.5 / eps / sgm
         return Eli
 
     def calculate_model_potential(self, r_vR):
@@ -258,10 +258,12 @@ class ElectrostaticCorrections():
 
         dphi = self.calculate_potential_alignment()
 
-        # sorting and conversion to Angstrom
-        profile = {'z': zaxis[sz] * Bohr, 'model': phiz_model[sz],
-                   'prs': phiz_prs[sz], 'def': phiz_def[sz],
-                   'dphi': dphi}
+        # sorting and conversion to Angstrom and eV
+        profile = {'z': zaxis[sz] * Bohr,
+                   'model': phiz_model[sz] * Hartree,
+                   'prs': phiz_prs[sz] * Hartree,
+                   'def': phiz_def[sz] * Hartree,
+                   'dphi': dphi * Hartree}
 
         return profile
 
@@ -290,14 +292,16 @@ class ElectrostaticCorrections():
         # standard deviation of the mean
         dphi_dev = np.std(dphi)
 
-        print('averaging region dphi_avg =', f'{dphi_avg} +- {dphi_dev}')
+        print('averaging region dphi_avg =',
+              f'{dphi_avg * Hartree} +- {dphi_dev * Hartree}')
         self.dphi = dphi_avg
 
         return self.dphi
 
     def calculate_correction(self):
-        Eli = self.calculate_isolated_correction()
-        Elp = self.calculate_periodic_correction()
-        Delta_V = self.calculate_potential_alignment()
+        # conversion to eV
+        Eli = self.calculate_isolated_correction() * Hartree
+        Elp = self.calculate_periodic_correction() * Hartree
+        Delta_V = self.calculate_potential_alignment() * Hartree
         print('Eli=', Eli, 'Elp=', Elp, 'Delta_V=', Delta_V)
         return - (Elp - Eli) + Delta_V * self.charge
