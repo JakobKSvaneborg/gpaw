@@ -256,7 +256,8 @@ def test_fnv_3d(in_tmp_dir):
                                    charge=charge,
                                    sigma=sigma,
                                    epsilon=epsilon,
-                                   method='full-planar')
+                                   method='full-planar',
+                                   atoms_pristine=pristine)
     E_fnv = elc.calculate_correction()
 
     E_0 = pristine.calc.get_potential_energy()

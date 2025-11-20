@@ -40,7 +40,7 @@ class ElectrostaticCorrections():
     """
     def __init__(self, phi_pristine, phi_defect, ecut=500,
                  charge=None, epsilon=None, sigma=None, r0=None,
-                 ravg=2.5, method='full-planar'):
+                 ravg=2.5, method='full-planar', atoms_pristine=None):
 
         # read and check electrostatic potentials
         # conversion to Hartree and Bohr
@@ -62,11 +62,14 @@ class ElectrostaticCorrections():
 
         assert method in _avg_methods_
         self.method = method
+        self.atoms_prs = atoms_pristine
 
         # set grid coarsening
         self.nfreq = 4              # grid coarsening
         if 'full' in method:
             self.nfreq = 1          # no coarsening
+        if 'atoms' in method:
+            assert self.atoms_prs is not None
 
         # volume Bohr^3
         self.Omega = np.linalg.det(self.cell_cv)    # Bohr^3
@@ -144,19 +147,19 @@ class ElectrostaticCorrections():
 
         return phi_r.real / self.Omega  # XXX right normalization ?
 
-    def prs_mic_dist(self, r_v):
-        # no atoms given
+    def prs_mic_dist(self, r0_v):
 
         atoms = self.atoms_prs
-        dR = atoms.positions - r_v[None, :]
+        dR = atoms.positions / Bohr - r0_v[None, :]
         _, dist = find_mic(dR, self.cell_cv)
 
         return dist
 
     def grid_mic_dist(self, r_v):
+        # coarse grid
         grid_shape = self.ngc_v
 
-        dR = self.r_vR.T - r_v[None, None, None, :]
+        dR = self.rc_vR.T - r_v[None, None, None, :]
         # flatten grid and reshape
         dR = dR.reshape((np.prod(grid_shape), 3))
         _, dist = find_mic(dR, self.cell_cv)
@@ -178,12 +181,12 @@ class ElectrostaticCorrections():
         # in pristine obtain atom positions closest to the defect_site
         defect_index = np.argmin(self.prs_mic_dist(self.r0))
 
-        # locate atom farest away from the defect
-        rdefect_v = self.atoms_prs.positions[defect_index, :]
+        # locate atom farest away from the defect [Bohr]
+        rdefect_v = self.atoms_prs.positions[defect_index, :] / Bohr
         bulk_index = np.argmax(self.prs_mic_dist(rdefect_v))
 
-        # return grid indices of region around the bulk atoms
-        rbulk_v = self.atoms_prs.positions[bulk_index, :]
+        # return grid indices of region around the bulk atoms [Bohr]
+        rbulk_v = self.atoms_prs.positions[bulk_index, :] / Bohr
         dist = self.grid_mic_dist(rbulk_v)
 
         # set region as sphere with radius self.ravg
