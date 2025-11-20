@@ -60,14 +60,23 @@ class ElectrostaticCorrections():
     """
     Calculate the electrostatic corrections for charged defects.
 
-    phi_pristine  ... UGArray electrostatic_potential pristine [eV]
-    phi_defect    ... UGArray electrostatic_potential defect [eV]
-    charge    ... charge state of the defect calculation
-    epsilon   ... macroscopic electrostatic constant of the host system
-    sigma     ... spread of the Gaussian model charge distribution [Bohr]
-    r0        ... defect position [Angstrom]
-    ravg      ... average radius for bulk-atom average
-    method    ... method selection string
+    phi_pristine: ``UGArray`` pristine electrostatic_potential [eV]
+
+    phi_defect: ``UGArray`` defect electrostatic_potential [eV]
+
+    charge: charge state of the defect calculation
+
+    epsilon: macroscopic electrostatic constant of the host system
+
+    sigma: spread of the Gaussian model charge distribution [Angstrom]
+
+    r0: defect position [Angstrom]
+
+    ravg: average radius for bulk-atom average [Angstrom]
+
+    method: method selection string
+
+    atoms_pristine: ``Atoms`` pristine atomic structure (only used for bulk-atom average)
 
     """
     def __init__(self, phi_pristine, phi_defect, ecut=500,
@@ -86,7 +95,7 @@ class ElectrostaticCorrections():
         assert np.allclose(self.phi_prs.shape, self.phi_def.shape)
 
         self.cell_cv = phi_pristine.desc.cell / Bohr    # Bohr
-        self.sigma = sigma                              # Bohr
+        self.sigma = sigma / Bohr                       # Bohr
         self.r0 = np.array(r0) / Bohr                   # Bohr
         self.ravg = ravg / Bohr                         # Bohr
         self.charge = charge

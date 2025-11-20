@@ -60,7 +60,7 @@ def test_fnv_model(method):
     L = 20.0
     epsilon = 1.0
     charge = -2.0
-    sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
+    sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0))) * Bohr
     E_fnv_t = {'atoms': 10.287, 'sparse-planar': 10.852}
 
     L2 = L / 2
@@ -101,7 +101,7 @@ def test_fnv_3d(gpw_files):
     E_uncorr_t = 18.31
     E_fnv_t = E_corr_t - E_uncorr_t
 
-    sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
+    sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0))) * Bohr
     epsilon = 12.7  # dielectric constant
     charge = -3     # defect charge
     calc_prs = GPAW(gpw_files['gaas_cubic_pristine'])

@@ -1,11 +1,12 @@
 import numpy as np
 from ase.io.jsonio import write_json
+from ase.units import Bohr
 from gpaw import GPAW
 from gpaw.defects import ElectrostaticCorrections
 from gpaw.defects.electrostatics import gather_electrostatic_potential
 from pathlib import Path
 
-sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
+sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0))) * Bohr
 charge = -3
 epsilon = 12.7
 corrected = []
