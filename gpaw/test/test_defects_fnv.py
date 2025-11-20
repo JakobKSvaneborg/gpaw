@@ -40,10 +40,12 @@ def phi_infty(r_vR, r0_v, Q, alpha):
     return phi
 
 
-def phi_center(Q=1.0, alpha=0.1, L0=10.0, ng=64):
+def phi_simple(Q, L0, r0, alpha0, ng=64):
 
     # convert to Bohr
     L = L0 / Bohr
+    alpha = alpha0 / Bohr
+    r0_v = r0 / Bohr
 
     x = np.linspace(0, L, ng)
     X, Y, Z = np.meshgrid(x, x, x, indexing='ij')
@@ -51,16 +53,12 @@ def phi_center(Q=1.0, alpha=0.1, L0=10.0, ng=64):
     # construct r_vR with shape (3, ng, ng, ng)
     r_vR = np.stack((X, Y, Z), axis=0)
 
-    # charge at center
-    L2 = L / 2
-    r0_v = np.array([L2, L2, L2])
-
     # potential in eV
     return r_vR, phi_infty(r_vR, r0_v, Q, alpha) * Hartree
 
 
 @pytest.mark.parametrize('method', ['atoms', 'sparse-planar'])
-def test_fnv(method):
+def test_fnv_model(method):
 
     L = 20.0
     epsilon = 1.0
@@ -74,13 +72,13 @@ def test_fnv(method):
     pristine = Atoms('H2', positions=pos, cell=[L, L, L])
     pristine.set_pbc(True)
 
+    # defect position
+    r0 = pristine.positions[0, :]
+
     atoms_prs = pristine.copy()
-    rvR_def, phi_def = phi_center(L0=L, Q=charge)
+    rvR_def, phi_def = phi_simple(Q=charge, L0=L, r0=r0, alpha0=1.0)
     rvR_prs = rvR_def.copy()
     phi_prs = np.zeros_like(phi_def)
-
-    # defect position
-    r0 = np.array([L2, L2, L2])
 
     elc = ElectrostaticCorrections(atoms_prs=atoms_prs,
                                    rphi_prs=(rvR_prs, phi_prs),
