@@ -7,8 +7,9 @@ from ase.build.supercells import make_supercell
 
 from gpaw import GPAW
 from gpaw.defects import ElectrostaticCorrections
-from gpaw.defects.electrostatic import gather_electrostatic_potential
 from gpaw.defects.old_electrostatic import OldElectrostaticCorrections
+from gpaw.defects.electrostatic import (gather_electrostatic_potential,
+                                        build_ugarray)
 from scipy.special import erf
 from pathlib import Path
 
@@ -54,7 +55,7 @@ def phi_simple(Q, L0, r0, alpha0, ng=64):
     r_vR = np.stack((X, Y, Z), axis=0)
 
     # potential in eV
-    return r_vR, phi_infty(r_vR, r0_v, Q, alpha) * Hartree
+    return phi_infty(r_vR, r0_v, Q, alpha) * Hartree
 
 
 @pytest.mark.parametrize('method', ['atoms', 'sparse-planar'])
@@ -64,7 +65,7 @@ def test_fnv_model(method):
     epsilon = 1.0
     charge = -2.0
     sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
-    E_fnv_t = {'atoms': 10.207, 'sparse-planar': 10.929}
+    E_fnv_t = {'atoms': 10.287, 'sparse-planar': 10.852}
 
     L2 = L / 2
     L4 = L / 4
@@ -75,19 +76,20 @@ def test_fnv_model(method):
     # defect position
     r0 = pristine.positions[0, :]
 
-    atoms_prs = pristine.copy()
-    rvR_def, phi_def = phi_simple(Q=charge, L0=L, r0=r0, alpha0=1.0)
-    rvR_prs = rvR_def.copy()
-    phi_prs = np.zeros_like(phi_def)
+    phi_def = phi_simple(Q=charge, L0=L, r0=r0, alpha0=1.0)
+    phi_def_R = build_ugarray(pristine, phi_def)
 
-    elc = ElectrostaticCorrections(atoms_prs=atoms_prs,
-                                   rphi_prs=(rvR_prs, phi_prs),
-                                   rphi_def=(rvR_def, phi_def),
+    phi_prs = np.zeros_like(phi_def)
+    phi_prs_R = build_ugarray(pristine, phi_prs)
+
+    elc = ElectrostaticCorrections(phi_pristine=phi_prs_R,
+                                   phi_defect=phi_def_R,
                                    r0=r0,
                                    charge=charge,
                                    sigma=sigma,
                                    epsilon=epsilon,
-                                   method=method)
+                                   method=method,
+                                   atoms_pristine=pristine)
     E_fnv = elc.calculate_correction()
 
     if 0:
@@ -191,20 +193,22 @@ def test_fnv_data():
     epsilon = data['epsilon']
     charge = data['charge']
     r0 = data['r0']
-    atoms_prs = data['atoms_prs']
-    rvR = data['rvR']
+    atoms = data['atoms_prs']
     phi_prs = data['phi_prs']
     phi_def = data['phi_def']
     method = data['method']
 
-    elc = ElectrostaticCorrections(atoms_prs=atoms_prs,
-                                   rphi_prs=(rvR, phi_prs),
-                                   rphi_def=(rvR, phi_def),
+    phi_def_R = build_ugarray(atoms, phi_def)
+    phi_prs_R = build_ugarray(atoms, phi_prs)
+
+    elc = ElectrostaticCorrections(phi_pristine=phi_prs_R,
+                                   phi_defect=phi_def_R,
                                    r0=r0,
                                    charge=charge,
                                    sigma=sigma,
                                    epsilon=epsilon,
-                                   method=method)
+                                   method=method,
+                                   atoms_pristine=atoms)
     E_fnv = elc.calculate_correction()
 
     assert E_fnv == pytest.approx(E_fnv_t, abs=3e-2)
@@ -314,21 +318,20 @@ def test_fnv_cell(P, in_tmp_dir, gpaw_new):
     defect.get_potential_energy()
     defect.calc.write(def_path)
 
-    atoms_prs = pristine.copy()
-    rvR_prs, phi_prs = gather_electrostatic_potential(pristine.calc)
-    rvR_def, phi_def = gather_electrostatic_potential(defect.calc)
+    phiR_prs = gather_electrostatic_potential(pristine.calc)
+    phiR_def = gather_electrostatic_potential(defect.calc)
 
     # defect position
     r0 = pristine.positions[0, :]
 
-    elc = ElectrostaticCorrections(atoms_prs=atoms_prs,
-                                   rphi_prs=(rvR_prs, phi_prs),
-                                   rphi_def=(rvR_def, phi_def),
+    elc = ElectrostaticCorrections(phi_pristine=phiR_prs,
+                                   phi_defect=phiR_def,
                                    r0=r0,
                                    charge=charge,
                                    sigma=sigma,
                                    epsilon=epsilon,
-                                   method='full-planar')
+                                   method='full-planar',
+                                   atoms_pristine=pristine)
     E_fnv = elc.calculate_correction()
 
     E_0 = pristine.calc.get_potential_energy()

@@ -10,13 +10,17 @@ from ase.geometry import find_mic
 _avg_methods_ = ['atoms', 'sparse-planar', 'full-planar']
 
 
+def build_ugarray(atoms, data):
+    grid = UGDesc(cell=atoms.cell, size=data.shape, pbc=atoms.pbc)
+    return UGArray(grid, data=data)
+
+
 def gather_electrostatic_potential(calc):
     if calc.old:
         # create UGArray from old GPAW data
         phi_r = calc.get_electrostatic_potential()
         atoms = calc.get_atoms()
-        grid = UGDesc(cell=atoms.cell, size=phi_r.shape, pbc=atoms.pbc)
-        phi_R = UGArray(grid, data=phi_r)
+        phi_R = build_ugarray(atoms, phi_r)
     else:
         phi_R = calc.dft.electrostatic_potential().pseudo_potential()
 
