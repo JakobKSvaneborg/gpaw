@@ -324,10 +324,10 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
 
         ophi_G = np.zeros_like(phi_G)
         for G_G in G_vG:
-            grad_G = pw.from_data(G_G * phi_G)
+            grad_G = pw.from_data(G_G * phi_G * 1j)
             grad_R = grad_G.ifft(grid=grid)
             grad_R.data *= self.eps0_R.data
-            ophi_G += grad_R.fft(pw=pw).data * G_G
+            ophi_G -= grad_R.fft(pw=pw).data * G_G * 1j
 
         return ophi_G
 
