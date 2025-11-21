@@ -108,7 +108,9 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
             psit1_nG = wfs.psit_nX
             assert isinstance(psit1_nG, PWArray)
             psit2_nG = psit1_nG.transform(U_cc, complex_conjugate)
-            kpt_Kc[K] = psit2_nG.desc.kpt_c
+            if wfs.spin == 0:
+                kpt_Kc[K] = psit2_nG.desc.kpt_c
+            assert abs(psit2_nG.desc.kpt_c - ibz.bz.kpt_Kc[K]).max() < 1e-8
             psit_KsnG[(K, wfs.spin)] = psit2_nG
     comm.sum(rank_Ks)
     comm.sum(kpt_Kc)
@@ -282,6 +284,7 @@ class PWHybridHamiltonian(PWHamiltonian):
             evv = domain_comm.sum_scalar(evv) * self.kpt_comm.size
             evc = domain_comm.sum_scalar(evc) * self.kpt_comm.size
         ekin = -evc - 2 * evv
+        print(1, ekin)
 
         # Find projectors and k-point weight for psit2_nG:
         for wfs in ibzwfs:
@@ -301,6 +304,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                          calculate_energy, F1_av)
         evv += 0.5 * e
         ekin -= e
+        print(2, ekin)
 
         if calculate_energy:
             for name, e in [('hybrid_xc', evv + evc),
