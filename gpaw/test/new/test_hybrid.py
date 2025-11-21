@@ -61,7 +61,7 @@ def test_h(gpaw_new, dtype):
                       xc='HSE06',
                       eigensolver='davidson',
                       nbands=2,
-                      parallel={'kpt': 1},
+                      # parallel={'kpt': 1},
                       convergence={'energy': 1e-4})
     e = atoms.get_potential_energy()
     eigs = atoms.calc.get_eigenvalues(spin=0)

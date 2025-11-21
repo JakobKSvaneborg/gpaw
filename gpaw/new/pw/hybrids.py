@@ -242,7 +242,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         assert isinstance(psit2_nG, PWArray)
         assert Htpsit2_nG is None or isinstance(Htpsit2_nG, PWArray)
         assert isinstance(ibzwfs, PWFDIBZWaveFunctions)
-        assert len(ibzwfs.ibz) % self.kpt_comm.size == 0
+        assert len(ibzwfs.ibz) * ibzwfs.nspins % self.kpt_comm.size == 0
 
         domain_comm = psit2_nG.desc.comm
 

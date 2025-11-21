@@ -31,7 +31,7 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
     a.calc = GPAW(
         kpts={'size': (1, 1, 4), 'gamma': True},
         # txt='H2-new.txt',
-        parallel={'kpt': 1},
+        # parallel={'kpt': 1},
         **kwargs)
     e1 = a.get_potential_energy()
     assert e1 == pytest.approx(-11.022063)
@@ -51,7 +51,7 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
         kpts={'size': (1, 1, 2), 'gamma': True},
         # txt='H4-new.txt',
         eigensolver={'name': 'davidson', 'niter': 4},
-        parallel={'kpt': 1},
+        # parallel={'kpt': 1},
         **kwargs)
     e2 = a.get_potential_energy()
     eig2_kn = a.calc.eigenvalues()[0]
