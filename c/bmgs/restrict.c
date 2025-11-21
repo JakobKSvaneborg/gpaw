@@ -3,7 +3,7 @@
 
 #include "../extensions.h"
 #include "bmgs.h"
-#include "pthread.h"
+#include <pthread.h>
 
 #ifdef K
 struct RST1DA{
