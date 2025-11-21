@@ -1,5 +1,5 @@
 #ifdef GPAW_WITH_LIBVDWXC
-#include "python_utils.h"
+#include "../python_utils.h"
 #include "../extensions.h"
 
 #ifdef PARALLEL
