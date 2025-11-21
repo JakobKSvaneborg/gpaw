@@ -25,13 +25,15 @@ def test_pawexxvv():
 @pytest.mark.hybrids
 # @pytest.mark.parametrize('ccirs', [False, True])
 @pytest.mark.parametrize('dtype', [float, complex])
-def test_hse06(gpaw_new, dtype):
+@pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg'])
+def test_hse06(gpaw_new, dtype, eigensolver):
     atoms = Atoms('Li2', [[0, 0, 0], [0, 0, 2.0]])
     atoms.center(vacuum=2.5)
     atoms.calc = GPAW(
         mode=dict(name='pw',
                   force_complex_dtype=dtype is complex),
         xc='HSE06',
+        eigensolver=eigensolver,
         convergence={'density': 1e-6},
         parallel={'domain': min(2, size) if dtype is complex else 1},
         nbands=4)
