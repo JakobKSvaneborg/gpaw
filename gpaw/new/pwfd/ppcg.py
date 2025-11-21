@@ -93,10 +93,10 @@ class PPCG(PWFDEigensolver):
             hamiltonian,
             converge_bands)
 
-        if not hamiltonian.band_local:
-            raise NotImplementedError(
-                'PPCG only implemented for band local XCs,'
-                'use davidson instead')
+        # if not hamiltonian.band_local:
+        #     raise NotImplementedError(
+        #         'PPCG only implemented for band local XCs,'
+        #         'use davidson instead')
 
         self.nbands = nbands
         self.wf_grid = wf_grid
