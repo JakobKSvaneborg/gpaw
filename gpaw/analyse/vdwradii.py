@@ -1,9 +1,9 @@
 from ase.data import atomic_numbers, chemical_symbols
 from ase.units import Bohr
 
+from gpaw.mpi import world
 from gpaw.setup import Setups
 from gpaw.xc import XC
-from gpaw.mpi import world
 
 Bondi64jpc_vdWradii = {  # units Anstrom
     'He': 1.40,

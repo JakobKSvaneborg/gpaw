@@ -1,18 +1,17 @@
-import numpy as np
-import pytest
 from functools import partial
 
-from ase.units import Ha
+import numpy as np
+import pytest
 from ase.data import chemical_symbols
+from ase.units import Ha
 
 from gpaw.response import ResponseGroundStateAdapter
-from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.response.groundstate import ResponsePAWDataset
-from gpaw.response.paw import (calculate_pair_density_correction,
-                               calculate_matrix_element_correction)
-from gpaw.response.site_paw import calculate_site_matrix_element_correction
 from gpaw.response.localft import add_LSDA_trans_fxc
-
+from gpaw.response.paw import (calculate_matrix_element_correction,
+                               calculate_pair_density_correction)
+from gpaw.response.qpd import SingleQPWDescriptor
+from gpaw.response.site_paw import calculate_site_matrix_element_correction
 from gpaw.setup import create_setup
 from gpaw.sphere.rshe import calculate_reduced_rshe
 

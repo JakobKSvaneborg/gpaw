@@ -1,6 +1,5 @@
-import numpy as np
-
 import ase.io.ulm as ulm
+import numpy as np
 
 from gpaw.io import Writer
 from gpaw.lcaotddft.observer import TDDFTObserver

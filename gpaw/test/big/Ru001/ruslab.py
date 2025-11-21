@@ -1,8 +1,10 @@
 from sys import argv
-from ase.build import hcp0001, add_adsorbate
+
+from ase.build import add_adsorbate, hcp0001
 from ase.constraints import FixAtoms
 from ase.optimize.lbfgs import LBFGS
-from gpaw import GPAW, Mixer, FermiDirac, GPAW_NEW
+
+from gpaw import GPAW, GPAW_NEW, FermiDirac, Mixer
 
 tag = 'Ru001'
 

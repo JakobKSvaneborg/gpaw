@@ -9,19 +9,18 @@ For radial grid descriptors, look atom/radialgd.py.
 """
 
 import numbers
-from math import pi
 from collections.abc import Sequence
-from numpy import lcm
 from fractions import Fraction
+from math import pi
 
 import numpy as np
-
+from numpy import lcm
 from scipy.ndimage import map_coordinates
 
 import gpaw.cgpaw as cgpaw
 import gpaw.mpi as mpi
-from gpaw.old.domain import Domain
 from gpaw.new import prod
+from gpaw.old.domain import Domain
 from gpaw.typing import Array1D, Array3D, Vector
 from gpaw.utilities.blas import mmm, r2k, rk
 

@@ -4,8 +4,8 @@ import pytest
 from ase.build import molecule
 from ase.dft.wannier import Wannier
 
-from gpaw.mpi import world
 from gpaw import GPAW
+from gpaw.mpi import world
 
 pytestmark = pytest.mark.skipif(world.size > 1,
                                 reason='world.size > 1')

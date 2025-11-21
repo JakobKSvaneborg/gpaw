@@ -1,6 +1,7 @@
 import pytest
 from ase import Atoms
 from ase.dft.kpoints import monkhorst_pack
+
 from gpaw import GPAW, PW, mpi
 from gpaw.wannier.pipekmezey.pipek_mezey_wannier import PipekMezey
 

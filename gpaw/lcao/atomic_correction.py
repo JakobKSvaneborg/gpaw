@@ -1,7 +1,7 @@
 import numpy as np
 
-from gpaw.utilities.blas import mmm
 from gpaw.utilities import unpack_hermitian
+from gpaw.utilities.blas import mmm
 
 
 class BaseAtomicCorrection:

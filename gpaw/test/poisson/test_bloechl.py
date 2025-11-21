@@ -5,16 +5,17 @@ import pytest
 from ase import Atoms
 from scipy.special import erf
 
+from gpaw import GPAW_NO_C_EXTENSION
 from gpaw.atom.radialgd import EquidistantRadialGridDescriptor as RGD
 from gpaw.core import PWDesc
+from gpaw.gpu import cupy as cp
+from gpaw.gpu.mpi import CuPyMPI
+from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW
 from gpaw.new.pw.bloechl_poisson import BloechlPAWPoissonSolver
 from gpaw.new.pw.paw_poisson import (SimplePAWPoissonSolver,
                                      SlowPAWPoissonSolver)
 from gpaw.new.pw.poisson import PWPoissonSolver
-from gpaw.mpi import world
-from gpaw.gpu import cupy as cp
-from gpaw.gpu.mpi import CuPyMPI
 
 
 def g(rc, rgd):
@@ -62,6 +63,9 @@ def force(charges, a):
                           pytest.param(cp, marks=pytest.mark.gpu)])
 def test_psolve(xp):
     """Unit-test for Blöchl's fast Poisson-solver."""
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
+
     comm = CuPyMPI(world)
     rgd = RGD(0.01, 500)
     rc1 = 0.6

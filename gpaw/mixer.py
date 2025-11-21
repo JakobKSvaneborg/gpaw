@@ -9,10 +9,10 @@ import numpy as np
 from numpy.fft import fftn, ifftn
 
 import gpaw.mpi as mpi
-from gpaw.utilities.blas import axpy
 from gpaw.fd_operators import FDOperator
-from gpaw.utilities.tools import construct_reciprocal
 from gpaw.new import trace
+from gpaw.utilities.blas import axpy
+from gpaw.utilities.tools import construct_reciprocal
 
 """About mixing-related classes.
 

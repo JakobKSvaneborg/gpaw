@@ -1,8 +1,9 @@
 from ase.data import chemical_symbols
 from ase.units import Bohr, Hartree
+
 from gpaw import GPAW_NEW
-from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.io import Reader
+from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.solvation.hamiltonian import SolvationRealSpaceHamiltonian
 
 

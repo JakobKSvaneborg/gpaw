@@ -4,7 +4,6 @@ from ase.build import bulk
 from gpaw import GPAW, PW, FermiDirac
 from gpaw.response.g0w0 import G0W0
 
-
 data = {
     'C': ['diamond', 3.567],
     'SiC': ['zincblende', 4.358],

@@ -2,9 +2,10 @@ from functools import partial
 
 import numpy as np
 from ase.utils.timing import timer
+
 from gpaw import debug
-from gpaw.eigensolvers.diagonalizerbackend import (ScalapackDiagonalizer,
-                                                   ElpaDiagonalizer,
+from gpaw.eigensolvers.diagonalizerbackend import (ElpaDiagonalizer,
+                                                   ScalapackDiagonalizer,
                                                    ScipyDiagonalizer)
 from gpaw.eigensolvers.eigensolver import Eigensolver
 from gpaw.hybrids import HybridXC

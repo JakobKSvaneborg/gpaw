@@ -12,13 +12,13 @@ from gpaw.new.ase_interface import ASECalculator
 from gpaw.new.fd.hamiltonian import FDHamiltonian, FDKickHamiltonian
 from gpaw.new.fd.pot_calc import FDPotentialCalculator
 from gpaw.new.gpw import read_gpw
-from gpaw.new.rttddft.gpw import read_rttddft, write_rttddft
 from gpaw.new.hamiltonian import Hamiltonian
-from gpaw.new.lcao.hamiltonian import LCAOKickHamiltonian, LCAOHamiltonian
+from gpaw.new.lcao.hamiltonian import LCAOHamiltonian, LCAOKickHamiltonian
 from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
 from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
+from gpaw.new.rttddft.gpw import read_rttddft, write_rttddft
 from gpaw.new.rttddft.td_algorithm import create_td_algorithm, TDAlgorithmLike
 from gpaw.new.rttddft.dataclasses import RTTDDFTState
 from gpaw.new.rttddft.history import RTTDDFTHistory

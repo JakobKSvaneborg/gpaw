@@ -1,12 +1,12 @@
 import pytest
 from ase.build import molecule
 
-from gpaw import GPAW
-from gpaw.utilities.adjust_cell import adjust_cell
-from gpaw.analyse.overlap import Overlap
 import gpaw.solvation as solv
+from gpaw import GPAW
+from gpaw.analyse.overlap import Overlap
 from gpaw.lrtddft import LrTDDFT
 from gpaw.poisson import PoissonSolver
+from gpaw.utilities.adjust_cell import adjust_cell
 
 
 @pytest.mark.skip(reason='TODO')

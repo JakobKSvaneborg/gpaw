@@ -1,19 +1,15 @@
+import numpy as np
 import pytest
 
-import numpy as np
-
 from gpaw import GPAW
-from gpaw.response import ResponseGroundStateAdapter, ResponseContext
-from gpaw.response.frequencies import ComplexFrequencyDescriptor
+from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator, SelfEnhancementCalculator
 from gpaw.response.dyson import DysonSolver
-from gpaw.response.goldstone import (
-    NewFMGoldstoneScaling,
-    RefinedFMGoldstoneScaling,
-)
-from gpaw.response.susceptibility import (spectral_decomposition,
-                                          read_eigenmode_lineshapes)
-
+from gpaw.response.frequencies import ComplexFrequencyDescriptor
+from gpaw.response.goldstone import (NewFMGoldstoneScaling,
+                                     RefinedFMGoldstoneScaling)
+from gpaw.response.susceptibility import (read_eigenmode_lineshapes,
+                                          spectral_decomposition)
 from gpaw.test import findpeak
 from gpaw.test.gpwfile import response_band_cutoff
 
@@ -173,8 +169,9 @@ def get_mode_projections(chiks, xi, Amaj, *, lambd, nmodes):
 
 def plot_enhancement(chiks, xi, Amaj0, sAmaj, *, lambd, nmodes):
     import matplotlib.pyplot as plt
-    from gpaw.mpi import world
     from ase.units import Ha
+
+    from gpaw.mpi import world
 
     for Amaj, _lambd in zip([Amaj0, sAmaj], [1., lambd]):
         a_mW = Amaj.get_eigenmode_lineshapes(nmodes=nmodes).T

@@ -1,12 +1,13 @@
 from math import pi, sqrt
+
 import numpy as np
 from numpy import exp
 from scipy.special import erf, erfc
 
-from gpaw.poisson import FDPoissonSolver
-from gpaw.utilities.gauss import Gaussian
 from gpaw.fd_operators import FDOperator, laplace
+from gpaw.poisson import FDPoissonSolver
 from gpaw.transformers import Transformer
+from gpaw.utilities.gauss import Gaussian
 
 
 class HelmholtzGaussian(Gaussian):

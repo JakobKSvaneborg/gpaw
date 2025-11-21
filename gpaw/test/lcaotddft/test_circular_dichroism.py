@@ -1,19 +1,18 @@
 import numpy as np
 import pytest
-
 from ase import Atoms
 
 from gpaw import GPAW
-from gpaw.mpi import world, serial_comm
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.densitymatrix import DensityMatrix
-from gpaw.lcaotddft.magneticmomentwriter import MagneticMomentWriter
-from gpaw.lcaotddft.magneticmomentwriter import parse_header
+from gpaw.lcaotddft.magneticmomentwriter import (MagneticMomentWriter,
+                                                 parse_header)
+from gpaw.mpi import serial_comm, world
 from gpaw.tddft.spectrum import rotatory_strength_spectrum
-from gpaw.tddft.units import as_to_au, eV_to_au, au_to_eV, rot_au_to_cgs
-
+from gpaw.tddft.units import as_to_au, au_to_eV, eV_to_au, rot_au_to_cgs
 from gpaw.test import only_on_master
-from . import parallel_options, check_txt_data, copy_and_cut_file
+
+from . import check_txt_data, copy_and_cut_file, parallel_options
 
 pytestmark = pytest.mark.usefixtures('module_tmp_path')
 

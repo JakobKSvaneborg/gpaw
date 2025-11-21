@@ -1,8 +1,9 @@
 from functools import partial
 
 import numpy as np
+
 from gpaw.utilities.grid_redistribute import general_redistribute
-from gpaw.utilities.partition import AtomPartition, AtomicMatrixDistributor
+from gpaw.utilities.partition import AtomicMatrixDistributor, AtomPartition
 
 
 class GridRedistributor:
@@ -161,8 +162,8 @@ def grid2grid(comm, gd1, gd2, src_g, dst_g, offset1_c=None, offset2_c=None,
 
 
 def main():
-    from gpaw.old.grid_descriptor import GridDescriptor
     from gpaw.mpi import world
+    from gpaw.old.grid_descriptor import GridDescriptor
 
     serial = world.new_communicator([world.rank])
 

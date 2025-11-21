@@ -2,12 +2,12 @@
 # Please see the accompanying LICENSE file for further information.
 """Main gpaw module."""
 from __future__ import annotations
-import os
-import contextlib
-from pathlib import Path
-from typing import Any, TYPE_CHECKING
-import warnings
 
+import contextlib
+import os
+import warnings
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 __version__ = '25.7.1b1'
 __ase_version_required__ = '3.25.0'
@@ -69,6 +69,7 @@ def disable_dry_run():
 
 def get_scipy_version():
     import scipy
+
     # This is in a function because we don't like to have the scipy
     # import at module level
     return [int(x) for x in scipy.__version__.split('.')[:2]]
@@ -225,9 +226,9 @@ if debug:
 if TYPE_CHECKING:
     from gpaw.new.ase_interface import GPAW
 elif GPAW_NEW:
-    all_lazy_imports['GPAW'] = 'gpaw.new.ase_interface.GPAW'
+    all_lazy_imports['GPAW'] = 'gpaw.dft.GPAW'
 else:
-    all_lazy_imports['GPAW'] = 'gpaw.calculator.GPAW'
+    all_lazy_imports['GPAW'] = 'gpaw.old.calculator.GPAW'
 
 all_lazy_imports['get_calculation_info'] = 'gpaw.calcinfo.get_calculation_info'
 

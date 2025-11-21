@@ -1,10 +1,10 @@
-from math import sqrt, pi
+from math import pi, sqrt
 
 import numpy as np
 from ase.units import Bohr
 
-from gpaw.utilities import pack_density
 from gpaw.analyse.hirshfeld import HirshfeldDensity
+from gpaw.utilities import pack_density
 from gpaw.utilities.tools import coordinates
 
 

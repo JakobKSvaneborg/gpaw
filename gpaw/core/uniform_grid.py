@@ -1,23 +1,24 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from functools import cached_property
 from math import pi
-from typing import Literal, TYPE_CHECKING
-from collections.abc import Sequence
+from typing import TYPE_CHECKING, Literal
+
 import numpy as np
 
 import gpaw.fftw as fftw
 from gpaw.core.arrays import DistributedArrays
 from gpaw.core.atom_centered_functions import UGAtomCenteredFunctions
 from gpaw.core.domain import Domain
-from gpaw.gpu import as_np, cupy_is_fake, as_xp
-from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.fd_operators import Gradient
+from gpaw.gpu import as_np, as_xp, cupy_is_fake
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import zips
+from gpaw.new.c import add_to_density, add_to_density_gpu, symmetrize_ft
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.typing import (Array1D, Array2D, Array3D, Array4D, ArrayLike1D,
                          ArrayLike2D, Vector)
-from gpaw.new.c import add_to_density, add_to_density_gpu, symmetrize_ft
-from gpaw.fd_operators import Gradient
 
 if TYPE_CHECKING:
     import plotly.graph_objects as go
@@ -187,6 +188,7 @@ class UGDesc(Domain['UGArray']):
                                 qspiral_v=None,
                                 atomdist=None,
                                 integrals=None,
+                                save_memory=True,
                                 cut=False,
                                 xp=None):
         """Create UGAtomCenteredFunctions object."""

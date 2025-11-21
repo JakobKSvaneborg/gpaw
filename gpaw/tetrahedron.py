@@ -12,13 +12,14 @@ See::
 
 from math import nan
 from typing import cast
+
 import numpy as np
 from scipy.spatial import Delaunay
 
-from gpaw.occupations import (ZeroWidth, findroot, collect_eigelvalues,
-                              distribute_occupation_numbers,
-                              OccupationNumberCalculator, ParallelLayout)
 from gpaw.mpi import broadcast_float
+from gpaw.occupations import (OccupationNumberCalculator, ParallelLayout,
+                              ZeroWidth, collect_eigelvalues,
+                              distribute_occupation_numbers, findroot)
 from gpaw.typing import Array1D, Array2D, Array3D, ArrayLike1D, ArrayLike2D
 
 

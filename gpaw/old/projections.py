@@ -1,12 +1,12 @@
-from typing import Any
 from collections.abc import Mapping
+from typing import Any
 
 import numpy as np
 
-from gpaw.old.matrix import Matrix
 from gpaw.mpi import serial_comm
-from gpaw.utilities.partition import AtomPartition
+from gpaw.old.matrix import Matrix
 from gpaw.typing import Array2D, ArrayLike1D
+from gpaw.utilities.partition import AtomPartition
 
 MPIComm = Any
 

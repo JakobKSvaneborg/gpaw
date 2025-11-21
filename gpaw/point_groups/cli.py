@@ -2,7 +2,8 @@ import argparse
 
 import numpy as np
 from ase import Atoms
-from gpaw.new.ase_interface import ASECalculator, GPAW
+
+from gpaw.new.ase_interface import GPAW, ASECalculator
 from gpaw.point_groups import SymmetryChecker, point_group_names
 from gpaw.typing import Array1D, Array3D
 

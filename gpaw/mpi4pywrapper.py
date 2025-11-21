@@ -1,6 +1,6 @@
 try:
-    from mpi4py.MPI import (Request, SUM, MAX, MIN, IN_PLACE, IDENT,
-                            CONGRUENT, SIMILAR, UNEQUAL, PROD, _addressof)
+    from mpi4py.MPI import (CONGRUENT, IDENT, IN_PLACE, MAX, MIN, PROD,
+                            SIMILAR, SUM, UNEQUAL, Request, _addressof)
 except ImportError:
     SUM = MAX = MIN = IN_PLACE = IDENT = None  # type: ignore
     CONGRUENT = SIMILAR = UNEQUAL = PROD = None  # type: ignore

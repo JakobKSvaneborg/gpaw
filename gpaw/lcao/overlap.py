@@ -45,18 +45,17 @@ on the lower-level ones.
 from math import pi
 
 import numpy as np
-
-from ase.neighborlist import PrimitiveNeighborList
 from ase.data import covalent_radii
+from ase.neighborlist import PrimitiveNeighborList
 from ase.units import Bohr
 
 import gpaw.cgpaw as cgpaw
-from gpaw.ffbt import ffbt, FourierBesselTransformer
+from gpaw.ffbt import FourierBesselTransformer, ffbt
 from gpaw.sphere.gaunt import gaunt
 from gpaw.sphere.spherical_harmonics import Yl, nablarlYL
 from gpaw.spline import Spline
-from gpaw.utilities.tools import tri2full
 from gpaw.utilities.timing import nulltimer
+from gpaw.utilities.tools import tri2full
 
 timer = nulltimer  # XXX global timer object, only for hacking
 

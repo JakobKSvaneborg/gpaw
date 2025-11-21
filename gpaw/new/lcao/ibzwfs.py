@@ -1,6 +1,7 @@
 from math import pi
-from gpaw.new.ibzwfs import IBZWaveFunctions
+
 from gpaw.new.density import Density
+from gpaw.new.ibzwfs import IBZWaveFunctions
 
 
 class LCAOIBZWaveFunctions(IBZWaveFunctions):

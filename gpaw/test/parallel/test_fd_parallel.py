@@ -1,12 +1,11 @@
-import pytest
 import sys
 
+import pytest
 from ase.build import molecule
-from gpaw.utilities import devnull
 
 from gpaw import GPAW, FermiDirac
-from gpaw.utilities import compiled_with_sl
 from gpaw.mpi import world
+from gpaw.utilities import compiled_with_sl, devnull
 
 # Calculates energy and forces for various parallelizations
 

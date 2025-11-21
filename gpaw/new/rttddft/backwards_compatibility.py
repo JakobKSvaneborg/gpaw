@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import warnings
-
 from functools import cached_property
 from types import SimpleNamespace
 from typing import Any

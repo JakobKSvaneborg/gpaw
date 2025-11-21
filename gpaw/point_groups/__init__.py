@@ -8,8 +8,8 @@ The code was originally written for the paper:
 
 """
 
-from .group import PointGroup
 from .check import SymmetryChecker
+from .group import PointGroup
 
 __all__ = ['PointGroup', 'SymmetryChecker', 'point_group_names']
 

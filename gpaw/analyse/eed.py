@@ -1,7 +1,7 @@
 import numpy as np
-from ase.units import Bohr, Hartree
-from ase.parallel import paropen
 from ase.data import vdw_radii
+from ase.parallel import paropen
+from ase.units import Bohr, Hartree
 
 import gpaw.cgpaw as cgpaw
 from gpaw.io.fmf import FMF

@@ -1,10 +1,12 @@
-import pytest
 import os
-import numpy as np
-from gpaw import GPAW
-from gpaw.wannier.wannier90 import Wannier90
-from gpaw.wannier.w90 import read_wout_all
 from pathlib import Path
+
+import numpy as np
+import pytest
+
+from gpaw import GPAW
+from gpaw.wannier.w90 import read_wout_all
+from gpaw.wannier.wannier90 import Wannier90
 
 
 @pytest.mark.wannier

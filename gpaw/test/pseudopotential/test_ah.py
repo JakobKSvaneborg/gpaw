@@ -1,6 +1,7 @@
-from ase.build import bulk
-from gpaw import GPAW, PW
 import pytest
+from ase.build import bulk
+
+from gpaw import GPAW, PW
 
 
 @pytest.mark.stress

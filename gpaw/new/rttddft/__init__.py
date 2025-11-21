@@ -8,5 +8,4 @@ specific functionality is contained in the propagator classes.
 from gpaw.new.rttddft.rttddft import RTTDDFT
 from gpaw.new.rttddft.history import RTTDDFTHistory
 
-
 __all__ = ['RTTDDFT', 'RTTDDFTHistory']

@@ -13,7 +13,6 @@ from ..typing import Self
 from .all_electron import ValenceData
 from .basis import BasisMaker
 
-
 BasisGetter = Callable[[BasisMaker], Basis]
 
 

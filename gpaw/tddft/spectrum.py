@@ -1,5 +1,6 @@
 import json
 import re
+
 import numpy as np
 
 from gpaw import __version__ as version

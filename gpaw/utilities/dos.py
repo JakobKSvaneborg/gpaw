@@ -1,11 +1,13 @@
 from math import pi, sqrt
+
 import numpy as np
 from ase.parallel import paropen
-from gpaw.utilities import pack_density
+
 from gpaw.analyse.wignerseitz import wignerseitz
-from gpaw.setup_data import SetupData
 from gpaw.gauss import Gauss
 from gpaw.io.fmf import FMF
+from gpaw.setup_data import SetupData
+from gpaw.utilities import pack_density
 from gpaw.utilities.blas import gemmdot
 
 

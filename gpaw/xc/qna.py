@@ -1,8 +1,8 @@
-from gpaw.xc.gga import GGA
 import numpy as np
+
 from gpaw.lfc import LFC
 from gpaw.spline import Spline
-from gpaw.xc.gga import gga_x, gga_c
+from gpaw.xc.gga import GGA, gga_c, gga_x
 
 
 class QNAKernel:

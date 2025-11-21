@@ -1,6 +1,7 @@
 import pytest
 from ase import Atoms
 from ase.lattice.hexagonal import Hexagonal
+
 from gpaw import GPAW, FermiDirac
 from gpaw.response.g0w0 import G0W0
 

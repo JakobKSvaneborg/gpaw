@@ -1,5 +1,7 @@
 import itertools
+
 import numpy as np
+
 from gpaw.old.grid_descriptor import GridDescriptor
 
 
@@ -644,7 +646,8 @@ def test(N_c, gd, gd2, reduce_dir, distribute_dir, verbose=True):
 
 
 def rigorous_testing():
-    from itertools import product, permutations, cycle
+    from itertools import cycle, permutations, product
+
     from gpaw.mpi import world
     gridpointcounts = [1, 2, 10, 21]
     cpucounts = np.arange(1, world.size + 1)

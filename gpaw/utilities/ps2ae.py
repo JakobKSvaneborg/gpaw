@@ -4,17 +4,17 @@ from warnings import warn
 import numpy as np
 from ase.units import Bohr, Ha
 
-from gpaw.old.calculator import GPAW
 from gpaw.atom.shapefunc import shape_functions
 from gpaw.fftw import get_efficient_fft_size
-from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
-from gpaw.utilities import h2gpts
-from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.mpi import serial_comm
+from gpaw.old.calculator import GPAW
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.setup import Setup
 from gpaw.spline import Spline
 from gpaw.typing import Array3D
+from gpaw.utilities import h2gpts
 
 
 class Interpolator:

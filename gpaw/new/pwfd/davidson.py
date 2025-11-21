@@ -3,14 +3,15 @@ from __future__ import annotations
 from pprint import pformat
 
 import numpy as np
+
 from gpaw import debug
 from gpaw.core.matrix import Matrix
 from gpaw.gpu import as_np
 from gpaw.mpi import broadcast_exception
+from gpaw.new import trace, tracectx
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D
-from gpaw.new import trace, tracectx
 
 
 class Davidson(PWFDEigensolver):

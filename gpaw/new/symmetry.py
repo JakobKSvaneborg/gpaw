@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable, Sequence
 from functools import cached_property
 from typing import Any
-from collections.abc import Iterable, Sequence
 
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr
+
 from gpaw import debug
 from gpaw.core.domain import normalize_cell
 from gpaw.new import zips
 from gpaw.rotation import rotation
-from gpaw.symmetry import Symmetry as OldSymmetry, frac
+from gpaw.symmetry import Symmetry as OldSymmetry
+from gpaw.symmetry import frac
 from gpaw.typing import Array2D, Array3D, ArrayLike1D, ArrayLike2D, ArrayLike3D
 
 
@@ -295,8 +297,12 @@ class Symmetries:
                                    symmorphic: bool = True) -> Symmetries:
 
         from spglib import get_symmetry_dataset
-        data = get_symmetry_dataset(cell=(cell, relative_positions, ids),
-                                    symprec=tolerance)
+        if tolerance is None:
+            tolerance = 1e-7 if _backwards_compatible else 1e-5
+        cell_cv = normalize_cell(cell)
+        data = get_symmetry_dataset(
+            cell=(cell_cv, np.asarray(relative_positions), ids),
+            symprec=tolerance)
 
         rotations = spglib_remove_nonsymmorphic(data)
 
@@ -730,6 +736,7 @@ def safe_id(magmom_av, tolerance=1e-3):
 
 def main() -> None:
     import argparse
+
     from ase.io import read
     parser = argparse.ArgumentParser(
         description='Analyze symmetry.')

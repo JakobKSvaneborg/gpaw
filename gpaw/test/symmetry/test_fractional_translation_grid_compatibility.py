@@ -1,6 +1,7 @@
-from gpaw.old.grid_descriptor import GridDescriptor
-import pytest
 import numpy as np
+import pytest
+
+from gpaw.old.grid_descriptor import GridDescriptor
 
 
 def test_symmetrize_fractional_translations():

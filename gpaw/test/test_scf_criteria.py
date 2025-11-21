@@ -1,11 +1,10 @@
 import numpy as np
 import pytest
-
 from ase import Atoms
 from ase.units import Ha
 
 from gpaw import GPAW
-from gpaw.convergence_criteria import WorkFunction, Energy, Criterion
+from gpaw.convergence_criteria import Criterion, Energy, WorkFunction
 
 
 class FourIterations(Criterion):

@@ -1,9 +1,10 @@
 import pytest
+from ase.atoms import Atoms
+
 from gpaw import GPAW, FermiDirac
-from gpaw.mpi import world, size, rank
 from gpaw.lrtddft2 import LrTDDFT2
 from gpaw.lrtddft2.lr_communicators import LrCommunicators
-from ase.atoms import Atoms
+from gpaw.mpi import rank, size, world
 
 
 @pytest.mark.lrtddft

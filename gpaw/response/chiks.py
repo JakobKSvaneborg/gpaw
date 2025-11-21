@@ -1,26 +1,25 @@
 from __future__ import annotations
+
 import warnings
+from abc import abstractmethod
+from time import ctime
 
 import numpy as np
-from time import ctime
-from abc import abstractmethod
-
 from ase.units import Hartree
 
-from gpaw.utilities.blas import mmmx
-
-from gpaw.response import ResponseGroundStateAdapter, ResponseContext, timer
-from gpaw.response.symmetry import QSymmetryAnalyzer, QSymmetryInput
-from gpaw.response.symmetrize import BodySymmetryOperators
+from gpaw.response import ResponseContext, ResponseGroundStateAdapter, timer
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
-from gpaw.response.pw_parallelization import PlaneWaveBlockDistributor
-from gpaw.response.matrix_elements import (PlaneWaveMatrixElementCalculator,
-                                           NewPairDensityCalculator,
+from gpaw.response.matrix_elements import (NewPairDensityCalculator,
+                                           PlaneWaveMatrixElementCalculator,
                                            TransversePairPotentialCalculator)
+from gpaw.response.pair_functions import Chi
 from gpaw.response.pair_integrator import PairFunctionIntegrator
 from gpaw.response.pair_transitions import PairTransitions
+from gpaw.response.pw_parallelization import PlaneWaveBlockDistributor
 from gpaw.response.qpd import SingleQPWDescriptor
-from gpaw.response.pair_functions import Chi
+from gpaw.response.symmetrize import BodySymmetryOperators
+from gpaw.response.symmetry import QSymmetryAnalyzer, QSymmetryInput
+from gpaw.utilities.blas import mmmx
 
 
 class RealAxisWarning(UserWarning):

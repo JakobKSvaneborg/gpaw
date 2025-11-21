@@ -6,7 +6,7 @@
 # This is done by invoking GPAW once for each type of calculation.
 
 import pytest
-from ase.build import molecule, bulk
+from ase.build import bulk, molecule
 
 from gpaw import GPAW, LCAO
 from gpaw.mpi import world

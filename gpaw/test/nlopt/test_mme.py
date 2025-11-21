@@ -1,6 +1,5 @@
-import pytest
-
 import numpy as np
+import pytest
 
 from gpaw.nlopt.matrixel import make_nlodata
 
