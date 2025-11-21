@@ -2,9 +2,8 @@
  *  Copyright (C) 2005       CSC - IT Center for Science Ltd.
  *  Please see the accompanying LICENSE file for further information. */
 
-#include <stdlib.h>
 #include "bmgs.h"
-
+#include <stdlib.h>
 
 // Expansion coefficients for finite difference Laplacian.  The numbers are
 // from J. R. Chelikowsky et al., Phys. Rev. B 50, 11355 (1994):

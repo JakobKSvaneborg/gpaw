@@ -1,9 +1,10 @@
 
+#include "xc_mgga.h"
+#include "xc_gpaw.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include "xc_mgga.h"
-#include "xc_gpaw.h"
 
 static void init_common(common_params* params, int code, int nspin, const mgga_func_info *finfo) {
   params->code = code;

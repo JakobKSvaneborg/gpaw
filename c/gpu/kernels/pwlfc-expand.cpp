@@ -1,12 +1,13 @@
 #include "../gpu.h"
 #include "../gpu-complex.h"
 
-#include <cassert>
-
 #include "../cpp/gpu_core.hpp"
 #include "../../gpaw_utils.h"
 #include "../gpu_interface.h"
 #include "../cpp/pwlfc_expand.hpp"
+
+#include <cassert>
+
 
 #define BETA   0.066725
 #define GAMMA  0.031091

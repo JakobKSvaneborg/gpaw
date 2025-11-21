@@ -6,11 +6,10 @@
 #ifndef H_EXTENSIONS
 #define H_EXTENSIONS
 
-
-#include "python_utils.h"
 #include "gpaw_complex.h"
 #include <stdlib.h>
 #include <stdbool.h>
+#include <assert.h>
 
 /* If strict ANSI, then some useful macros are not defined */
 #if defined(__STRICT_ANSI__) && !defined(__DARWIN_UNIX03)

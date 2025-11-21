@@ -4,6 +4,7 @@
 /*  Copyright (C) 2009-2012  CSC - IT Center for Science Ltd.
  *  Please see the accompanying LICENSE file for further information. */
 
+#include "python_utils.h" 
 #include "bc.h"
 
 #ifdef GPAW_ASYNC

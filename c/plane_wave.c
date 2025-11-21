@@ -1,5 +1,5 @@
-#include "extensions.h"
 #include "python_utils.h"
+#include "extensions.h"
 #include <stdlib.h>
 
 void _pw_insert(int nG,

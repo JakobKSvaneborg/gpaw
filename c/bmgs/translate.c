@@ -1,9 +1,9 @@
 /*  Copyright (C) 2003-2007  CAMP
  *  Please see the accompanying LICENSE file for further information. */
 
-#include <string.h>
 #include "bmgs.h"
 #include "../gpaw_utils.h"
+#include <string.h>
 
 void bmgs_translate(double* a, const int sizea[3], const int size[3],
 		    const int start1[3], const int start2[3])

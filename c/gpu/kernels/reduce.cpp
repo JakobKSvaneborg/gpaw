@@ -1,6 +1,6 @@
 #ifndef REDUCE
-#include "../gpu.h"
 #include "../lfc_gpu.h"
+#include "../gpu.h"
 
 #define REDUCE_MAX_THREADS  (256)
 #define REDUCE_MAX_BLOCKS   (64)

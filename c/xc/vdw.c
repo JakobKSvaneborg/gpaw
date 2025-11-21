@@ -1,7 +1,7 @@
 /*  Copyright (C) 2003-2007  CAMP
  *  Copyright (C) 2007-2009  CAMd
  *  Please see the accompanying LICENSE file for further information. */
-
+#include "../python_utils.h"
 #include "../extensions.h"
 
 /* Old code used a VLA 'phi' array defined as `double (*phi)[nD]` and which was passed to vdwkernel as such.

@@ -6,8 +6,8 @@
 
 #ifndef GPAW_WITHOUT_BLAS
 
-#include "gpaw_utils.h"
 #include "python_utils.h"
+#include "gpaw_utils.h"
 #include "extensions.h"
 
 /* Python wrappers for some BLAS functions. The following calls Fortran functions

@@ -1,13 +1,14 @@
 /*  Copyright (C) 2003-2007  CAMP
  *  Please see the accompanying LICENSE file for further information. */
 
-#include <string.h>
 #include "bmgs.h"
 #include "../gpaw_utils.h"
 
 #if GPAW_CPP
 #include <algorithm>
 #endif
+
+#include <string.h>
 
 void Z(bmgs_zero)(TGPAW* a, const int n[3], const int c[3],
 		  const int s[3])

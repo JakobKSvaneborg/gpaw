@@ -1,5 +1,6 @@
 #if defined(GPAW_WITH_SL) && defined(PARALLEL) && defined(GPAW_WITH_ELPA)
 
+#include "python_utils.h"
 #include "extensions.h"
 #include "gpaw_elpa.h"
 #include <mpi.h>

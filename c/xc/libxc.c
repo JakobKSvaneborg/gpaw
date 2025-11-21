@@ -3,7 +3,6 @@
  *  Please see the accompanying LICENSE file for further information. */
 
 #include "../python_utils.h"
-#include <assert.h>
 #include <xc.h>
 #if XC_MAJOR_VERSION >= 7
   #include <xc_funcs.h>
@@ -11,6 +10,7 @@
 #endif
 #include "xc_gpaw.h"
 #include "../extensions.h"
+#include <assert.h>
 
 typedef struct
 {

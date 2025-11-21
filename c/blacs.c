@@ -7,7 +7,6 @@
 
 #include "python_utils.h"
 #include "gpaw_utils.h"
-#include <stdlib.h>
 #include <mpi.h>
 #include <structmember.h>
 #include "extensions.h"
@@ -15,6 +14,8 @@
 #ifdef GPAW_WITH_INTEL_MKL
 #include <mkl_scalapack.h>
 #endif
+
+#include <stdlib.h>
 
 // BLACS
 #define BLOCK_CYCLIC_2D 1

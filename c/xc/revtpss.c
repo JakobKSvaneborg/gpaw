@@ -1,4 +1,6 @@
 
+// FIXME: fragile, changing include order causes the max() macro to break
+
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>

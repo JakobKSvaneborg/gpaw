@@ -1,8 +1,8 @@
 /*  Copyright (C) 2003-2007  CAMP
  *  Please see the accompanying LICENSE file for further information. */
 
-#include <string.h>
 #include "bmgs.h"
+#include <string.h>
 
 void Z(bmgs_cut)(const TGPAW* a, const int n[3], const int c[3],
                  TGPAW* b, const int m[3])
