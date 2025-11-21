@@ -53,15 +53,17 @@ def test_hse06(gpaw_new, dtype):
 @pytest.mark.new_gpaw_ready
 @pytest.mark.hybrids
 @pytest.mark.parametrize('dtype', [float, complex])
-def test_h(gpaw_new, dtype):
+@pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg'])
+def test_h(gpaw_new, dtype, eigensolver):
+
     atoms = Atoms('H', magmoms=[1])
     atoms.center(vacuum=2.5)
     atoms.calc = GPAW(mode=dict(name='pw',
                                 force_complex_dtype=dtype is complex),
                       xc='HSE06',
-                      eigensolver='davidson',
+                      eigensolver=eigensolver,
                       nbands=2,
-                      parallel={'kpt': 1},
+                      parallel={'kpt': 1, 'band': 1},
                       convergence={'energy': 1e-4})
     e = atoms.get_potential_energy()
     eigs = atoms.calc.get_eigenvalues(spin=0)

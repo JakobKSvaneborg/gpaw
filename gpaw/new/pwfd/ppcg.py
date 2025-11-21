@@ -93,7 +93,9 @@ class PPCG(PWFDEigensolver):
             hamiltonian,
             converge_bands)
 
-        # if not hamiltonian.band_local:
+        if not hamiltonian.band_local:
+              assert band_comm.size == 1
+              blocksize = 100000
         #     raise NotImplementedError(
         #         'PPCG only implemented for band local XCs,'
         #         'use davidson instead')
