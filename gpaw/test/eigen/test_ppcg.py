@@ -2,7 +2,7 @@ import pytest
 from ase import Atoms
 
 from gpaw import GPAW
-from gpaw.mpi import size
+from gpaw.mpi import world
 
 
 def test_eigen_ppcg(gpaw_new):
@@ -39,7 +39,7 @@ def test_eigen_ppcg(gpaw_new):
     assert e1 == pytest.approx(-6.976265, abs=energy_tolerance)
 
     # band parallelization
-    if size % 2 == 0:
+    if world.size % 2 == 0:
         calc = GPAW(**base_params,
                     convergence={**base_convergence, 'bands': 5},
                     parallel={'band': 2},
