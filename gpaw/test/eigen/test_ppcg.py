@@ -11,7 +11,7 @@ def test_eigen_ppcg(gpaw_new):
 
     # eigensolver = 'davidson'
     eigensolver = 'ppcg'
-    energy_tolerance = 4e-3
+    energy_tolerance = 5e-5
     e0_t = -6.9786673
 
     a = 4.05
@@ -26,7 +26,7 @@ def test_eigen_ppcg(gpaw_new):
     calc = GPAW(**base_params, convergence=base_convergence)
     bulk.calc = calc
     e0 = bulk.get_potential_energy()
-    assert e0 == pytest.approx(e0_t, abs=5.0e-5)
+    assert e0 == pytest.approx(e0_t, abs=energy_tolerance)
 
     calc = GPAW(**base_params,
                 convergence={**base_convergence, 'bands': 5},
@@ -35,8 +35,8 @@ def test_eigen_ppcg(gpaw_new):
     e1 = bulk.get_potential_energy()
     assert e0 == pytest.approx(e1, abs=5.0e-5)
 
-    assert e0 == pytest.approx(-6.97626, abs=energy_tolerance)
-    assert e1 == pytest.approx(-6.976265, abs=energy_tolerance)
+    assert e0 == pytest.approx(e0_t, abs=energy_tolerance)
+    assert e1 == pytest.approx(e0_t, abs=energy_tolerance)
 
     # band parallelization
     if world.size % 2 == 0:
@@ -46,4 +46,4 @@ def test_eigen_ppcg(gpaw_new):
                     eigensolver=eigensolver)
         bulk.calc = calc
         e3 = bulk.get_potential_energy()
-        assert e0 == pytest.approx(e3, abs=5.0e-5)
+        assert e3 == pytest.approx(e0_t, abs=energy_tolerance)
