@@ -1,8 +1,7 @@
 """Test HOMO and LUMO band-splitting for MoS2.
 
 See:
-
-  https://journals.aps.org/prb/abstract/10.1103/PhysRevB.98.155433
+  https://doi.org/10.1103/PhysRevB.98.155433
 """
 
 from pathlib import Path
