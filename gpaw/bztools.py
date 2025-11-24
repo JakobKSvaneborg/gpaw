@@ -9,7 +9,6 @@ try:
 except ImportError:  # scipy < 1.8
     from scipy.spatial.qhull import QhullError
 
-import gpaw.mpi as mpi
 from gpaw import GPAW, restart
 from gpaw.mpi import world
 from gpaw.old.kpt_descriptor import kpts2sizeandoffsets, to1bz
@@ -74,7 +73,7 @@ def find_high_symmetry_monkhorst_pack(calc, density):
     minsize[~pbc] = 1
     maxsize[~pbc] = 2
 
-    if mpi.rank == 0:
+    if world.rank == 0:
         print('Brute force search for symmetry ' +
               'complying MP-grid... please wait.')
 
@@ -97,11 +96,11 @@ def find_high_symmetry_monkhorst_pack(calc, density):
                         if not (np.mod(np.mod(diff_kc, 1), 1) <
                                 1e-5).all(axis=1).any():
                             raise AssertionError('Did not find ' + str(ibzk_c))
-                    if mpi.rank == 0:
+                    if world.rank == 0:
                         print('Done. Monkhorst-Pack grid:', size, offset)
                     return kpts_kc
 
-    if mpi.rank == 0:
+    if world.rank == 0:
         print('Did not find matching kpoints for the IBZ')
         print(ibzk_kc.round(5))
 
