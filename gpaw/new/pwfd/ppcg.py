@@ -455,7 +455,7 @@ class PPCG(PWFDEigensolver):
                             Pbuf_abi.matrix.data[:block] \
                             + Pbuf_abi.matrix.data[block:2 * block]
 
-            wfs._eig_n[:] = np.array(0)
+            wfs.eig_n[:] = 0
             wfs.myeig_n[:] = new_eigs_n
             band_comm.sum(wfs._eig_n)
             wfs.orthonormalized = False
