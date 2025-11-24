@@ -27,6 +27,14 @@ def test_pawexxvv():
 @pytest.mark.parametrize('dtype', [float, complex])
 @pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg'])
 def test_hse06(gpaw_new, dtype, eigensolver):
+
+    if eigensolver == 'ppcg':
+        if not gpaw_new:
+            pytest.skip('PPCG only for GPAW new.')
+        if size > 2:
+            pytest.skip('PPCG only without band parallelization.')
+
+
     atoms = Atoms('Li2', [[0, 0, 0], [0, 0, 2.0]])
     atoms.center(vacuum=2.5)
     atoms.calc = GPAW(
@@ -35,7 +43,7 @@ def test_hse06(gpaw_new, dtype, eigensolver):
         xc='HSE06',
         eigensolver=eigensolver,
         convergence={'density': 1e-6},
-        parallel={'domain': min(2, size) if dtype is complex else 1},
+        parallel={'domain': min(2,size)},
         nbands=4)
     e = atoms.get_potential_energy()
     assert e == pytest.approx(-5.633278, abs=1e-3)
@@ -68,7 +76,7 @@ def test_h(gpaw_new, dtype, eigensolver):
                       xc='HSE06',
                       eigensolver=eigensolver,
                       nbands=2,
-                      parallel={'kpt': 1, 'band': 1},
+                      parallel={'kpt': 1, 'band': 1, 'domain': size},
                       convergence={'energy': 1e-4})
     e = atoms.get_potential_energy()
     eigs = atoms.calc.get_eigenvalues(spin=0)
