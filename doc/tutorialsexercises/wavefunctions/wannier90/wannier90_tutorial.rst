@@ -38,7 +38,7 @@ of lists containing atomic orbital indices for each of the atoms in the
 structure. In the example above ``orbitals_ai`` an empty list (for the As
 atom) and ``[0, 1, 2, 3]`` corresponding to the s and p orbitals of the Ga
 atom. In this particular example we would like to plot the Wannier functions
-and include the ``plot=True`` keyword. Altenatively, we could have put
+and include the ``plot=True`` keyword. Alternatively, we could have put
 ``wannier_plot=True`` in the .win file by hand. For this purpose we also need
 the ``write_wavefunctions`` function, that writes the periodic part of the
 wavefunctions in a special format required by ``Wannier90``.
@@ -114,7 +114,7 @@ is not easily obtained with GPAW. It can be expressed as a Brillouin zone
 integral of the Berry curvature and is an effect of spin-orbit coupling. As
 such we need to generate spinorial Wannier functions. The ground state
 electronci structure is generated with the script :download:`Fe.py`.
-Note that symmetry has been swtched off in the
+Note that symmetry has been switched off in the
 calculation, since the interface do not support symmetry reduced `k`-points
 including spin-orbit coupling at the moment.
 This should be trivial to implement though. The

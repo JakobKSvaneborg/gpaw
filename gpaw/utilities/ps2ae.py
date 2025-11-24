@@ -44,11 +44,11 @@ class PS2AE:
         """Create transformation object.
 
         calc: GPAW calculator object
-            The calcalator that has the wave functions.
+            The calculator that has the wave functions.
         grid_spacing: float
             Desired grid-spacing in Angstrom.
         n: int
-            Force number of points to be a mulitiple of n.
+            Force number of points to be a multiple of n.
         """
         if h is not None:
             warn('Please use grid_spacing=... instead of h=...')
