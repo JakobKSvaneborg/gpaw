@@ -189,7 +189,7 @@ benchmark their suitability for your application**.
 Parallelization
 ===============
 
-For maximum performance on large systems, it is advicable to use
+For maximum performance on large systems, it is adviceable to use
 ScaLAPACK and large band parallelization with ``augment_grids`` enabled.
 This can be achieved with parallelization settings like
 ``parallel={'sl_auto': True, 'domain': 8, 'augment_grids': True}``

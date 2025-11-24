@@ -137,7 +137,7 @@ states need to be determined. Calculate the spectrum with
 Where n is the number of the atom in the atoms object, the center
 keyword is only necessary if there are more than one xes setup. The spectrum
 can be shifted by putting the first transition to the fermi level, or to
-compute the total energy diffrence between the core hole state and the state
+compute the total energy difference between the core hole state and the state
 with a valence hole in HOMO.
 
 
