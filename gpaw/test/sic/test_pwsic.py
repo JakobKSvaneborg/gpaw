@@ -7,7 +7,7 @@ from ase.dft.bandgap import bandgap
 from ase.units import Ha
 
 from gpaw import GPAW, restart
-from gpaw.mpi import rank
+from gpaw.mpi import world
 from gpaw.old.logger import GPAWLogger
 from gpaw.old.wavefunctions.base import eigenvalue_string
 from gpaw.test.sic._utils import (MockWorld, extract_lagrange_section,
@@ -62,7 +62,7 @@ def test_pwsic(in_tmp_dir, gpw_files):
     assert niter == pytest.approx(4, abs=3)
     assert f2 == pytest.approx(f3, abs=3e-2)
 
-    if rank == 0:
+    if world.rank == 0:
         logger = GPAWLogger(MockWorld(rank=0))
         string_io = io.StringIO()
         logger.fd = string_io

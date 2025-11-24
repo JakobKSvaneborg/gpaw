@@ -12,7 +12,7 @@ from ase.parallel import parprint
 from gpaw import GPAW
 from gpaw.ibz2bz import (get_overlap, get_overlap_coefficients,
                          get_phase_shifted_overlap_coefficients)
-from gpaw.mpi import rank, serial_comm, world
+from gpaw.mpi import serial_comm, world
 from gpaw.spinorbit import soc_eigenstates
 from gpaw.utilities.blas import gemmdot
 
@@ -336,7 +336,10 @@ def parallel_transport(calc, direction=0, name=None, scale=1.0, bands=None,
 
     # Parallelization stuff
     myKsize = -(-Npar // (comm.size))
-    myKrange = range(rank * myKsize, min((rank + 1) * myKsize, Npar))
+    # XXX: Below is a perfect example of parallelization bug, where
+    # myKsize is from comm.size and rank is world.rank. To be fixed today.
+    myKrange = range(world.rank * myKsize,
+                     min((world.rank + 1) * myKsize, Npar))
     myKsize = len(myKrange)
 
     # Get array of k-point indices of the path. q index is loc direction
