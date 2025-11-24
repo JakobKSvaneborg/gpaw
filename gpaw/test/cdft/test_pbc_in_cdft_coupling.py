@@ -5,12 +5,10 @@ from ase import Atoms
 from gpaw import GPAW, Davidson, FermiDirac, Mixer
 from gpaw.cdft.cdft import CDFT
 from gpaw.cdft.cdft_coupling import CouplingParameters
-from gpaw.mpi import world
 
 
 @pytest.mark.old_gpaw_only
-@pytest.mark.skipif(world.size > 1, reason='cdft coupling not parallel')
-def test_pbc_cdft(in_tmp_dir):
+def test_pbc_cdft(in_tmp_dir, not_parallelized):
     distance = 2.5
     sys = Atoms('He2', positions=([0., 0., 0.], [0., 0., distance]))
     sys.center(3)
