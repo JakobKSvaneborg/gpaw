@@ -406,7 +406,7 @@ class Density:
     def get_correction(self, a, spin):
         """Integrated atomic density correction.
 
-        Get the integrated correction to the pseuso density relative to
+        Get the integrated correction to the pseudo density relative to
         the all-electron density.
         """
         setup = self.setups[a]

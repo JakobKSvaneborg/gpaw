@@ -22,7 +22,7 @@ Consider the case where the basis vectors of the SC and PC satisfy:
     \underline{\vec{A}} = \underline{M}\cdot\underline{\vec{a}},
 
 where `\underline{\vec{A}}` and `\underline{\vec{a}}` are matrices
-with the cell basis vectors as rows and `\underline{M}` the trasformation
+with the cell basis vectors as rows and `\underline{M}` the transformation
 matrix.
 As a general convention, capital and lower caseletters indicate quantities in
 the SC and PC respectively.

@@ -149,7 +149,7 @@ def gpw_files(request):
     * Polyethylene chain.  One unit, 3 k-points, no symmetry:
       ``c2h4_pw_nosym``.  Three units: ``c6h12_pw``.
 
-    * Bulk BN (zinkblende) with 2x2x2 k-points and 9 converged bands:
+    * Bulk BN (zincblende) with 2x2x2 k-points and 9 converged bands:
       ``bn_pw``.
 
     * h-BN layer with 3x3x1 (gamma center) k-points and 26 converged bands:

@@ -31,7 +31,7 @@ a recoil-force on the electronic coordinates that oscillate in this direction.
 As a result, the electronic motion is damped as energy is emitted into the waveguide, in line
 with Newtons third law.
 
-Let us next add a second dimer parallel to the first one and orthorgonal to the chain-axis
+Let us next add a second dimer parallel to the first one and orthogonal to the chain-axis
 (H-aggregate configuration). For reasons that will become clear in the following, we can get
 away with half the propagation time.
 

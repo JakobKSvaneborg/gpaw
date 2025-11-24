@@ -240,7 +240,7 @@ A few examples:
  =========== =================== ===========================================
  name        shape
  =========== =================== ===========================================
- ``spos_c``  ``(3,)``            **S**\ caled **pos**\ ition vector
+ ``spos_c``  ``(3,)``            **S**\ called **pos**\ ition vector
  ``nt_sG``   ``(2, 24, 24, 24)`` Pseudo-density array
                                  `\tilde{n}_\sigma(\vec{r})`
                                  (``t`` means *tilde*):
