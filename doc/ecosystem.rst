@@ -28,4 +28,9 @@ Software using GPAW
 Databases of calculations done with GPAW
 ========================================
 
-* https://2dhub.org/
+* `2DHub.org <https://2dhub.org/>`__.
+  2DHub provides access to a curated set of open databases and software
+  tools for two-dimensional materials science.
+
+* `CMR <https://cmr.fysik.dtu.dk/>`__.  Computational materials repository
+  is a collection of data calculated using GPAW.
