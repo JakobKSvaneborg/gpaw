@@ -5,7 +5,7 @@ from ase import Atoms
 from ase.parallel import parprint
 
 from gpaw import GPAW, PW, setup_paths
-from gpaw.world import world
+from gpaw.mpi import world
 
 from .info import info
 
