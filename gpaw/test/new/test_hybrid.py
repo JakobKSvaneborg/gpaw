@@ -34,7 +34,6 @@ def test_hse06(gpaw_new, dtype, eigensolver):
         if size > 2:
             pytest.skip('PPCG only without band parallelization.')
 
-
     atoms = Atoms('Li2', [[0, 0, 0], [0, 0, 2.0]])
     atoms.center(vacuum=2.5)
     atoms.calc = GPAW(
@@ -43,7 +42,7 @@ def test_hse06(gpaw_new, dtype, eigensolver):
         xc='HSE06',
         eigensolver=eigensolver,
         convergence={'density': 1e-6},
-        parallel={'domain': min(2,size)},
+        parallel={'domain': min(2, size)},
         nbands=4)
     e = atoms.get_potential_energy()
     assert e == pytest.approx(-5.633278, abs=1e-3)

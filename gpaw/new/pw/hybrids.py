@@ -442,7 +442,8 @@ class PWHybridHamiltonian(PWHamiltonian):
             else:
                 mmm(1.0 / pw.dv, Q_anL.data, 'N', ghat_GA, 'C',
                     0.0, rhot2_nG.data)
-            for n2, (rhot_G, ut2_R) in enumerate(zip(rhot2_nG.data, ut2_nR.data)):
+            for n2, (rhot_G, ut2_R) in enumerate(zip(rhot2_nG.data,
+                                                     ut2_nR.data)):
                 tmp_R[:] = ut2_R
                 tmp_R *= ut1_R.conj()
                 self.plan.fft()
