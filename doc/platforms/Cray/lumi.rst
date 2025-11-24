@@ -203,7 +203,7 @@ Omnitrace
 ---------
 
 To install `Omnitrace <https://github.com/AMDResearch/omnitrace>`_
-(if using custon ROCm, use the correct ROCm version of the installer)::
+(if using custom ROCm, use the correct ROCm version of the installer)::
 
   cd /projappl/project_...
   wget https://github.com/ROCm/omnitrace/releases/download/rocm-6.2.2/omnitrace-1.11.2-opensuse-15.5-ROCm-60000-PAPI-OMPT-Python3.sh

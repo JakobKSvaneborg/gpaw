@@ -259,7 +259,7 @@ class ElectronPhononMatrix:
                           ql
 
         In case the ``prefactor=False`` is given, the bare matrix
-        element (in units of eV / Ang) without the sqrt prefactor is returned.
+        element (in units of eV / Å) without the sqrt prefactor is returned.
 
         Parameters
         ----------

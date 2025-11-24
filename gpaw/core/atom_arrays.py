@@ -554,7 +554,7 @@ class AtomArrays:
                             index: int | None = None) -> None:
         """Multiply by block diagonal matrix.
 
-        with A, B and C refering to ``self``, ``block_diag_matrix_axii`` and
+        with A, B and C referring to ``self``, ``block_diag_matrix_axii`` and
         ``out_ani``:::
 
             --  a   a      a

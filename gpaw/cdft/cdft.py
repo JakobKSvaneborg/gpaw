@@ -87,7 +87,7 @@ class CDFT(Calculator):
             If True, constrain charge difference between two regions
             Then charge_regions needs two regions and charges needs
             only one item which is the charge difference between
-            the two regions, the first beign donor, the second acceptor
+            the two regions, the first being donor, the second acceptor
 
             If False, each region is treated with the corresponding
             charge constraint
