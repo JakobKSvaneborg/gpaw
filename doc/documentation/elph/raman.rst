@@ -11,7 +11,7 @@ with the GPAW LRTDDFT module as shown in the Resonant Raman tutorial :ref:`reson
 GPAW also implements Raman spectroscopy for zone-center phonons of extended systems
 using the electron-phonon coupling (see :ref:`elphtheory` and :ref:`elph`) within 3rd order perturbation
 theory :dfn:`Taghizadeh et a.` [#Taghizadeh2020]_ , which is discussed here. This method is currently only
-implementated for the LCAO mode.
+implemented for the LCAO mode.
 
 The Stokes Raman intensity can be written as
 
@@ -21,7 +21,7 @@ The Stokes Raman intensity can be written as
     \sum_{\alpha, \beta} u_{in}^\alpha R_{\alpha \beta}^\nu u_{out}^\beta
     \vert^2 \delta(\omega-\omega_\nu)
 
-where `\nu` denotes phonon modes and `\alpha`, `\beta` denote polarisations
+where `\nu` denotes phonon modes and `\alpha`, `\beta` denote polarizations
 of the incoming and outgoing laser light.
 The Raman tensor `R_{\alpha \beta}^\nu` has six terms and is given by
 Ref. [#Taghizadeh2020]_ Eq. (10)
@@ -54,7 +54,7 @@ matrix is always the return value of :meth:`~gpaw.lcao.dipoletransition.get_mome
 
 Energy changes for phonons and potential changes for electron-phonon couplings
 are both computed using a finite displacement technique. Both quantities can be
-obtained simultaenously. In principle the phonon modes can be obtained in any
+obtained simultaneously. In principle the phonon modes can be obtained in any
 fashion, which yields an ASE phonon object though.
 For small systems the finite displacement method has the disadvantage of leading
 to an interaction of a displaced atom with its periodic images. This can lead to
