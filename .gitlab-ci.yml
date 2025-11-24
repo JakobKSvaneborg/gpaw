@@ -382,11 +382,8 @@ test-latest:
     - build-latest
   script:
     - gpaw info
-
-    - >
-      GPAW_DEBUG=1 pytest -v -m "ci or gpu"
-      --cov=gpaw --cov-report=html --cov-report=term
-
+    - GPAW_DEBUG=1 pytest -v -m "ci or gpu" --cov=gpaw
+    - coverage html
   artifacts:
     paths:
       - htmlcov/
