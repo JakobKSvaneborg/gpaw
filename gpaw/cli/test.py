@@ -32,7 +32,7 @@ def test():
 
 You need to set the GPAW_SETUP_PATH environment variable to point to
 the directories where PAW dataset and basis files are stored.  See
-https://gpaw.readthedocs.io/install.html#install-paw-datasets
+https://gpaw.readthedocs.io/setups/setups.html#installation-of-paw-datasets
 for details.""", file=sys.stderr)
         return
 
