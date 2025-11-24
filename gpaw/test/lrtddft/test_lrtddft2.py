@@ -11,12 +11,12 @@ from gpaw.lrtddft2 import LrTDDFT2
 jend = 12  # LUMO
 
 
+"""Geometry from CISD/6-31G* in https://cccbdb.nist.gov/
+NB: This website is currently unstable, often returns HTTP Error 500"""
 @pytest.fixture
 def C3H6O():
     atoms = read(StringIO("""10
 Geometry for C3H6O (Propylene oxide),
-CISD/6-31G* from https://cccbdb.nist.gov/
-NB: This website is currently unstable, often returns HTTP Error 500
 O   0.8171  -0.7825  -0.2447
 C  -1.5018   0.1019  -0.1473
 H  -1.3989   0.3323  -1.2066
