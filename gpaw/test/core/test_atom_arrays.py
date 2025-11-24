@@ -3,8 +3,6 @@ import pytest
 
 from gpaw.core.atom_arrays import AtomArraysLayout, AtomDistribution
 from gpaw.gpu import cupy as cp
-from gpaw.test.core.test_matrix_elements import comms
-from gpaw.mpi import world
 
 
 def test_aa_to_full():
@@ -53,10 +51,9 @@ def test_gather(comm):
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('db_index', range(world.size.bit_length()))
 @pytest.mark.parametrize('xp', [np, cp])
-def test_P_ani_dH_aii(comm, db_index, xp):
-    domain_comm, band_comm = list(comms(comm))[db_index]
+def test_P_ani_dH_aii(domain_band_comms, xp):
+    domain_comm, band_comm = domain_band_comms
     ni_a = [2, 3, 4, 17]
     dH_asii = AtomArraysLayout([(n, n) for n in ni_a],
                                atomdist=domain_comm,
