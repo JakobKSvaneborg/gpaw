@@ -7,14 +7,13 @@ from gpaw.core import PWDesc, UGDesc
 from gpaw.core.plane_waves import find_reciprocal_vectors
 from gpaw.gpu import cupy as cp
 from gpaw.gpu.mpi import CuPyMPI
-from gpaw.mpi import world
 from gpaw.new.c import GPU_AWARE_MPI
 
 
 @pytest.mark.ci
-def test_pw_redist():
+def test_pw_redist(comm):
     a = 2.5
-    pw = PWDesc(ecut=10, cell=[a, a, a], comm=world)
+    pw = PWDesc(ecut=10, cell=[a, a, a], comm=comm)
     f1 = pw.empty()
     f1.data[:] = 1.0
     f2 = f1.gather()
@@ -24,7 +23,7 @@ def test_pw_redist():
 
 
 @pytest.mark.ci
-def test_pw_map():
+def test_pw_map(comm):
     """Test mapping from 5 to 9 G-vectors."""
     pw5 = PWDesc(ecut=0.51 * (2 * pi)**2,
                  cell=[1, 1, 0.1],
@@ -32,9 +31,9 @@ def test_pw_map():
     pw9 = PWDesc(ecut=1.01 * (2 * pi)**2,
                  cell=[1, 1, 0.1],
                  dtype=complex,
-                 comm=world)
+                 comm=comm)
     my_G_g, g_r = pw9.map_indices(pw5)
-    print(world.rank, my_G_g, g_r)
+    print(comm.rank, my_G_g, g_r)
     expected = {
         1: ([[0, 1, 2, 3, 6]],
             [[0, 1, 2, 3, 4]]),
@@ -44,20 +43,19 @@ def test_pw_map():
             [[0, 1, 2], [3], [4], []]),
         8: ([[0, 1], [0, 1], [], [0], [], [], [], []],
             [[0, 1], [2, 3], [], [4], [], [], [], []])}
-    assert not (my_G_g - expected[world.size][0][world.rank]).any()
-    for g, g0 in zip(g_r, expected[world.size][1]):
+    assert not (my_G_g - expected[comm.size][0][comm.rank]).any()
+    for g, g0 in zip(g_r, expected[comm.size][1]):
         assert not (np.array(g) - g0).any()
 
 
-def grids():
-    comm = world
+def grids(comm):
     if not GPU_AWARE_MPI:
         comm = CuPyMPI(comm)
     a = 1.0
     decomp = {1: [[0, 4], [0, 4], [0, 4]],
               2: [[0, 2, 4], [0, 4], [0, 4]],
               4: [[0, 2, 4], [0, 2, 4], [0, 4]],
-              8: [[0, 1, 2, 3, 4], [0, 2, 4], [0, 4]]}[world.size]
+              8: [[0, 1, 2, 3, 4], [0, 2, 4], [0, 4]]}[comm.size]
     grid = UGDesc(cell=[a, a, a], size=(4, 4, 4), comm=comm, decomp=decomp)
     gridc = grid.new(dtype=complex)
 
@@ -84,9 +82,9 @@ def grids():
 
 @pytest.mark.gpu
 @pytest.mark.parametrize('xp', [np, cp])
-@pytest.mark.parametrize('grid', grids())
-def test_pw_integrate(xp, grid, set_device):
-    g = grid
+@pytest.mark.parametrize('grid', [0, 1, 2, 3, 4])
+def test_pw_integrate(xp, grid, set_device, comm):
+    g = grids(comm)[grid]
     a = g.desc.cell[0, 0]
     ecut = 0.5 * (2 * np.pi / a)**2 * 1.01
     if xp is cp:
@@ -121,12 +119,12 @@ def test_pw_integrate(xp, grid, set_device):
     assert i2 == pytest.approx(m2.data[0, 0].item(), abs=1e-13)
 
 
-def test_grr():
+def test_grr(comm):
     from ase.units import Bohr, Ha
     grid = UGDesc(cell=[2 / Bohr, 2 / Bohr, 2.737166 / Bohr],
                   size=(9, 9, 12),
-                  comm=world)
-    pw = PWDesc(ecut=340 / Ha, cell=grid.cell, comm=world)
+                  comm=comm)
+    pw = PWDesc(ecut=340 / Ha, cell=grid.cell, comm=comm)
     print(pw.G_plus_k_Gv.shape)
     from gpaw.old.grid_descriptor import GridDescriptor
     from gpaw.old.pw.descriptor import PWDescriptor
@@ -160,18 +158,18 @@ def test_find_g():
                             [-1, 0, 0]]
 
 
-def test_random():
-    pw = PWDesc(ecut=20, cell=[1, 1, 1], comm=world)
+def test_random(comm):
+    pw = PWDesc(ecut=20, cell=[1, 1, 1], comm=comm)
     a = pw.empty(2)
     a.randomize()
-    assert world.rank != 0 or (a.data[:, 0].imag == 0.0).all()
+    assert comm.rank != 0 or (a.data[:, 0].imag == 0.0).all()
 
 
-def test_morph():
-    pw1 = PWDesc(ecut=20, cell=[1, 1, 1], comm=world)
+def test_morph(comm):
+    pw1 = PWDesc(ecut=20, cell=[1, 1, 1], comm=comm)
     a = pw1.empty()
     a.randomize()
-    pw2 = PWDesc(ecut=20, cell=[1, 1, 1.1], comm=world)
+    pw2 = PWDesc(ecut=20, cell=[1, 1, 1.1], comm=comm)
     b = a.morph(pw2)
     c = b.morph(pw1)
     assert (a.data == c.data).all()

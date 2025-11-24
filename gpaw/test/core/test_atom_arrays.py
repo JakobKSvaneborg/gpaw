@@ -3,8 +3,8 @@ import pytest
 
 from gpaw.core.atom_arrays import AtomArraysLayout, AtomDistribution
 from gpaw.gpu import cupy as cp
-from gpaw.mpi import world
 from gpaw.test.core.test_matrix_elements import comms
+from gpaw.mpi import world
 
 
 def test_aa_to_full():
@@ -18,18 +18,18 @@ def test_aa_to_full():
     assert (p.to_full()[0] == d).all()
 
 
-def test_scatter_from():
+def test_scatter_from(comm):
     N = 9
-    atomdist1 = AtomDistribution([0] * N, world)
+    atomdist1 = AtomDistribution([0] * N, comm)
     b1 = AtomArraysLayout([(3, 3)] * N, atomdist=atomdist1).empty(2)
     for a, b_sii in b1.items():
-        assert world.rank == 0
+        assert comm.rank == 0
         b_sii[0] = a
         b_sii[1] = 2 * a
     b2 = b1.gather()
-    if world.rank == 0:
+    if comm.rank == 0:
         assert (b1.data == b2.data).all()
-    atomdist3 = AtomDistribution.from_number_of_atoms(N, world)
+    atomdist3 = AtomDistribution.from_number_of_atoms(N, comm)
     b3 = b1.layout.new(atomdist=atomdist3).empty(2)
     b3.scatter_from(b2.data if b2 is not None else None)
     for a, b_sii in b3.items():
@@ -37,13 +37,13 @@ def test_scatter_from():
         assert (b_sii[1] == 2 * a).all()
 
 
-def test_gather():
+def test_gather(comm):
     """Two atoms on rank-1."""
-    r = min(1, world.size - 1)
+    r = min(1, comm.size - 1)
     ranks = [r, r]
-    atomdist = AtomDistribution(ranks, world)
+    atomdist = AtomDistribution(ranks, comm)
     D_asii = AtomArraysLayout([(1, 1)] * 2, atomdist=atomdist).empty(1)
-    if world.rank == r:
+    if comm.rank == r:
         D_asii[0][:] = 1
         D_asii[1][:] = 2
     D2_asii = D_asii.gather(broadcast=True)
@@ -53,9 +53,10 @@ def test_gather():
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize('domain_comm, band_comm', list(comms()))
+@pytest.mark.parametrize('db_index', range(world.size.bit_length()))
 @pytest.mark.parametrize('xp', [np, cp])
-def test_P_ani_dH_aii(domain_comm, band_comm, xp):
+def test_P_ani_dH_aii(comm, db_index, xp):
+    domain_comm, band_comm = list(comms(comm))[db_index]
     ni_a = [2, 3, 4, 17]
     dH_asii = AtomArraysLayout([(n, n) for n in ni_a],
                                atomdist=domain_comm,

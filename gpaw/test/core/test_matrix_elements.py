@@ -3,17 +3,17 @@ import pytest
 from gpaw.core import PWDesc, UGDesc
 from gpaw.core.matrix import Matrix
 from gpaw.mpi import world
+import math
 
-
-def comms():
+def comms(comm):
     """Yield communicator combinations."""
     for s in [1, 2, 4, 8]:
-        if s > world.size:
+        if s > comm.size:
             return
-        domain_comm = world.new_communicator(
-            range(world.rank // s * s, world.rank // s * s + s))
-        band_comm = world.new_communicator(
-            range(world.rank % s, world.size, s))
+        domain_comm = comm.new_communicator(
+            range(comm.rank // s * s, comm.rank // s * s + s))
+        band_comm = comm.new_communicator(
+            range(comm.rank % s, comm.size, s))
         yield domain_comm, band_comm
 
 
@@ -25,11 +25,12 @@ def func(f):
 
 
 # TODO: test also UGArray
-@pytest.mark.parametrize('domain_comm, band_comm', list(comms()))
+@pytest.mark.parametrize('db_index', range(world.size.bit_length()))
 @pytest.mark.parametrize('dtype', [float, complex])
 @pytest.mark.parametrize('nbands', [1, 7, 21])
 @pytest.mark.parametrize('function', [None, func])
-def test_me(domain_comm, band_comm, dtype, nbands, function):
+def test_me(comm, db_index, dtype, nbands, function):
+    domain_comm, band_comm = list(comms(comm))[db_index]
     a = 2.5
     n = 20
     grid = UGDesc(cell=[a, a, a], size=(n, n, n))
