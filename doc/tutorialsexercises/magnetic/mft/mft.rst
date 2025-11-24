@@ -258,7 +258,7 @@ computes the Co MFT Heisenberg exchange constants for the band path
 G-M-K-G-A using several different spatial partitionings into magnetic sites:
 
 1) A partitioning where the two cobalt atoms are assigned each a spherical
-   site, but where only one of the spherical cutoff radii is varried.
+   site, but where only one of the spherical cutoff radii is varied.
 2) A similar partitioning with spheres of varying, but equal radii.
 3) A partitioning with only one sublattice that fills out the entire unit
    cell.

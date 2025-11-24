@@ -53,7 +53,7 @@ the electron wavefunctions), the k-point sampling of the Brillouin zone,
 and the lattice parameter of Si.  We could calculate the
 lattice parameter ourselves from first principles, but in order to compare
 to previous calculations, we instead choose the experimental value of
-5.421 Ang [Harl]_.
+5.421 Ång [Harl]_.
 
 Make sure you understand what the script is doing, and then try running
 it.  Note that the calculation is not very heavy (it should take less
