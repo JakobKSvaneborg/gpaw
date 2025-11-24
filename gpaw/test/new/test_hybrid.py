@@ -39,7 +39,7 @@ def test_hse06(gpaw_new, dtype, eigensolver):
         xc='HSE06',
         eigensolver=eigensolver,
         convergence={'density': 1e-6},
-        parallel={'domain': min(2, world.size)},
+        parallel={'domain': world.size},
         nbands=4)
     e = atoms.get_potential_energy()
     assert e == pytest.approx(-5.633278, abs=1e-3)
