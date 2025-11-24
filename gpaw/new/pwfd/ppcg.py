@@ -94,7 +94,7 @@ class PPCG(PWFDEigensolver):
             converge_bands)
 
         if not hamiltonian.band_local:
-            assert band_comm.size == 1
+            # assert band_comm.size == 1
             blocksize = 100000
             # raise NotImplementedError(
             #     'PPCG only implemented for band local XCs,'
@@ -455,6 +455,7 @@ class PPCG(PWFDEigensolver):
                             Pbuf_abi.matrix.data[:block] \
                             + Pbuf_abi.matrix.data[block:2 * block]
 
+            wfs._eig_n[:] = 0
             wfs.myeig_n[:] = new_eigs_n
             band_comm.sum(wfs._eig_n)
             wfs.orthonormalized = False

@@ -31,8 +31,8 @@ def test_hse06(gpaw_new, dtype, eigensolver):
     if eigensolver == 'ppcg':
         if not gpaw_new:
             pytest.skip('PPCG only for GPAW new.')
-        if size > 2:
-            pytest.skip('PPCG only without band parallelization.')
+        #if size > 2:
+        #    pytest.skip('PPCG only without band parallelization.')
 
     atoms = Atoms('Li2', [[0, 0, 0], [0, 0, 2.0]])
     atoms.center(vacuum=2.5)
