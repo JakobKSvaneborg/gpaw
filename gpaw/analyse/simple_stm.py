@@ -6,7 +6,7 @@ from ase.dft.stm import STM
 from ase.io.cube import read_cube_data, write_cube
 from ase.units import Bohr, Hartree
 
-import gpaw.mpi as mpi
+from gpaw.mpi import world
 from gpaw.old.grid_descriptor import GridDescriptor
 
 
@@ -124,7 +124,7 @@ class SimpleStm(STM):
         ldos = self.gd.collect(self.ldos)
 # print "write: integrated =", self.gd.integrate(self.ldos)
 
-        if mpi.rank != 0:
+        if world.rank != 0:
             return
 
         if filetype is None:

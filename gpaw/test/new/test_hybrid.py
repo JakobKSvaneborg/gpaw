@@ -3,7 +3,7 @@ import pytest
 from ase import Atoms
 
 from gpaw import GPAW
-from gpaw.mpi import size
+from gpaw.mpi import world
 
 
 @pytest.mark.new_gpaw_ready
@@ -33,7 +33,7 @@ def test_hse06(gpaw_new, dtype):
                   force_complex_dtype=dtype is complex),
         xc='HSE06',
         convergence={'density': 1e-6},
-        parallel={'domain': min(2, size) if dtype is complex else 1},
+        parallel={'domain': min(2, world.size) if dtype is complex else 1},
         nbands=4)
     e = atoms.get_potential_energy()
     assert e == pytest.approx(-5.633278, abs=1e-3)

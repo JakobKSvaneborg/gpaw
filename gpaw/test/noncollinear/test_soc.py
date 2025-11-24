@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 from ase.build import mx2
 
-import gpaw.mpi as mpi
+from gpaw.mpi import world
 from gpaw import GPAW
 from gpaw.berryphase import polarization_phase
 from gpaw.spinorbit import soc_eigenstates
@@ -39,7 +39,7 @@ params = dict(mode={'name': 'pw', 'ecut': 350},
 @pytest.mark.soc
 def test_soc_self_consistent(gpaw_new, in_tmp_dir):
     """Self-consistent SOC."""
-    if not gpaw_new and mpi.size > 2:
+    if not gpaw_new and world.size > 2:
         pytest.skip('May not work in parallel')
     gpw_wfs = Path('mos2.gpw')
     a = mx2('MoS2')
@@ -61,14 +61,14 @@ def test_soc_self_consistent(gpaw_new, in_tmp_dir):
     a.calc.write(gpw_wfs, 'all')
     GPAW(gpw_wfs)
 
-    if mpi.size == 1:
-        phases_c = polarization_phase(gpw_wfs, comm=mpi.world)
+    if world.size == 1:
+        phases_c = polarization_phase(gpw_wfs, comm=world)
         phi_c = phases_c['electronic_phase_c']
         check_pol(phi_c)
 
 
 @pytest.mark.soc
-@pytest.mark.skipif(mpi.size > 2,
+@pytest.mark.skipif(world.size > 2,
                     reason='Does not work with more than 2 cores')
 def test_non_collinear_plus_soc(gpaw_new):
     a = mx2('MoS2')

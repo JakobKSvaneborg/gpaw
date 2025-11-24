@@ -4,7 +4,7 @@ from ase.atoms import Atoms
 from gpaw import GPAW, FermiDirac
 from gpaw.lrtddft2 import LrTDDFT2
 from gpaw.lrtddft2.lr_communicators import LrCommunicators
-from gpaw.mpi import rank, size, world
+from gpaw.mpi import world
 
 
 @pytest.mark.lrtddft
@@ -27,12 +27,12 @@ def test_lrtddft2_Al2(in_tmp_dir):
     calc.write(restart_file, mode='all')
 
     # Try to run parallel over eh-pairs
-    if size % 2 == 0:
+    if world.size % 2 == 0:
         eh_size = 2
-        domain_size = size // eh_size
+        domain_size = world.size // eh_size
     else:
         eh_size = 1
-        domain_size = size
+        domain_size = world.size
 
     lr_comms = LrCommunicators(world, domain_size, eh_size)
 
@@ -70,7 +70,7 @@ def test_lrtddft2_Al2(in_tmp_dir):
     e0_3 = w[0]
     e1_3 = w[-1]
 
-    if debug and rank == 0:
+    if debug and world.rank == 0:
         print(e0_1, e1_1)
         print(e0_2, e1_2)
         print(e0_3, e1_3)

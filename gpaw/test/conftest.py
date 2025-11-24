@@ -327,9 +327,9 @@ class GPAWPlugin:
             info()
 
     def pytest_terminal_summary(self, terminalreporter, exitstatus, config):
-        from gpaw.mpi import size
+        from gpaw.mpi import world
         terminalreporter.section('GPAW-MPI stuff')
-        terminalreporter.write(f'size: {size}\n')
+        terminalreporter.write(f'size: {world.size}\n')
         terminalreporter.write(f'debug-mode: {debug}\n')
 
 

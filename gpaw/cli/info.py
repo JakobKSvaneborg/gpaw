@@ -12,7 +12,7 @@ import gpaw.cgpaw as cgpaw
 import gpaw.fftw as fftw
 from gpaw.gpu import __file__ as gpaw_gpu_filename
 from gpaw.gpu import cupy, cupy_is_fake
-from gpaw.mpi import have_mpi, rank
+from gpaw.mpi import have_mpi, world
 from gpaw.new.c import GPU_AWARE_MPI, GPU_ENABLED
 from gpaw.utilities import compiled_with_libvdwxc, compiled_with_sl
 from gpaw.utilities.elpa import LibElpa
@@ -143,7 +143,9 @@ def info() -> None:
     for i, path in enumerate(gpaw.setup_paths):
         results.append((f'PAW-datasets ({i + 1})', str(path)))
 
-    if rank != 0:
+    # XXX Why are we not appending to result below, but made this
+    # function parallel half way
+    if world.rank != 0:
         return
 
     lines = [(a, b if isinstance(b, str) else ['no', 'yes'][b])

@@ -7,7 +7,7 @@ from ase.parallel import parprint
 
 from gpaw import GPAW, PW
 from gpaw.bztools import find_high_symmetry_monkhorst_pack
-from gpaw.mpi import size, world
+from gpaw.mpi import world
 from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.test import findpeak
 
@@ -19,7 +19,7 @@ from gpaw.test import findpeak
 @pytest.mark.tetrahedron
 @pytest.mark.response
 def test_response_aluminum_EELS_RPA(in_tmp_dir):
-    assert size <= 4**3
+    assert world.size <= 4**3
 
     # Ground state calculation
 
