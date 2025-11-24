@@ -1,6 +1,6 @@
 from ase import Atoms
-from gpaw import GPAW
-from gpaw import MixerSum
+
+from gpaw import GPAW, MixerSum
 
 L = 6
 name = 'N2'

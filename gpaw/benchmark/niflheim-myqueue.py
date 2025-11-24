@@ -1,6 +1,7 @@
-from gpaw.benchmark import benchmark_main, get_benchmarks
-from pathlib import Path
 from os import getcwd
+from pathlib import Path
+
+from gpaw.benchmark import benchmark_main, get_benchmarks
 
 platforms = [('xeon24el8_test', 24, 24, 0, '10m'),
              ('a100', 8, 1, 1, '1h'),

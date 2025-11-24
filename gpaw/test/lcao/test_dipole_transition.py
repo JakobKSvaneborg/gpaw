@@ -1,12 +1,12 @@
 import numpy as np
 import pytest
-
-from ase.parallel import world, parprint
+from ase.parallel import parprint, world
 from ase.units import Bohr
+
 from gpaw import GPAW
 from gpaw.lcao.dipoletransition import get_dipole_transitions
-from gpaw.utilities.dipole import dipole_matrix_elements_from_calc
 from gpaw.lrtddft.kssingle import KSSingles
+from gpaw.utilities.dipole import dipole_matrix_elements_from_calc
 
 
 @pytest.mark.old_gpaw_only
@@ -42,8 +42,8 @@ def test_dipole_transition(gpw_files, tmp_path_factory):
     # ------------------------------------------------------------------------
     # compare to utilities implementation
     if world.rank == 0:
-        from gpaw.new.ase_interface import GPAW as NewGPAW
         from gpaw.mpi import serial_comm
+        from gpaw.new.ase_interface import GPAW as NewGPAW
         refcalc = NewGPAW(gpw_files['h2o_lcao'],
                           communicator=serial_comm)
         uref = dipole_matrix_elements_from_calc(refcalc, 0, 6)

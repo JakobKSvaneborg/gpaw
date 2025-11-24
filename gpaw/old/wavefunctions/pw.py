@@ -1,27 +1,28 @@
 from __future__ import annotations
-from math import pi
-import numbers
 
+import numbers
+from math import pi
+
+import numpy as np
 from ase.units import Bohr, Ha
 from ase.utils.timing import timer
-import numpy as np
 
-from gpaw.old.band_descriptor import BandDescriptor
+import gpaw
+import gpaw.cgpaw as cgpaw
+import gpaw.fftw as fftw
 from gpaw.blacs import BlacsDescriptor, BlacsGrid, Redistributor
 from gpaw.lfc import BasisFunctions
+from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.old.matrix_descriptor import MatrixDescriptor
 from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.old.pw.lfc import PWLFC
+from gpaw.old.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
+from gpaw.old.wavefunctions.fdpw import FDPWWaveFunctions
+from gpaw.old.wavefunctions.mode import Mode
 from gpaw.typing import Array2D
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.blas import axpy
 from gpaw.utilities.progressbar import ProgressBar
-from gpaw.old.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
-from gpaw.old.wavefunctions.fdpw import FDPWWaveFunctions
-from gpaw.old.wavefunctions.mode import Mode
-import gpaw
-import gpaw.cgpaw as cgpaw
-import gpaw.fftw as fftw
 
 
 class PW(Mode):
@@ -481,8 +482,7 @@ class PWWaveFunctions(FDPWWaveFunctions):
 
     def get_wave_function_array(self, n, k, s, realspace=True,
                                 cut=True, periodic=False):
-        kpt_rank, q = self.kd.get_rank_and_index(k)
-        u = q * self.nspins + s
+        kpt_rank, u = self.kd.get_rank_and_index(k, s)
         band_rank, myn = self.bd.who_has(n)
 
         rank = self.world.rank
@@ -811,7 +811,7 @@ See issue #241 in GPAW. Creashing to prevent corrupted results."""
                                           lazy=False,
                                           reset_C_nM=True) -> None:
         """Convert from LCAO to PW coefficients."""
-        nlcao = len(self.kpt_qs[0][0].C_nM)
+        nlcao = len(self.kpt_u[0].C_nM)
 
         # We go from LCAO to real-space and then to PW's.
         # It's too expensive to allocate one big real-space array:

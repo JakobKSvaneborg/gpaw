@@ -1,9 +1,8 @@
-import pytest
 import numpy as np
+import pytest
 
 import gpaw.utilities.blas as blas
-from gpaw.core.matrix import Matrix
-from gpaw.core.matrix import mmm_nc, mmm_nc_sym, mmm_nn
+from gpaw.core.matrix import Matrix, mmm_nc, mmm_nc_sym, mmm_nn
 from gpaw.mpi import world
 
 

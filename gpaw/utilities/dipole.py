@@ -1,9 +1,10 @@
 """Calculate dipole matrix elements."""
 from __future__ import annotations
+
 import numpy as np
 from ase.units import Bohr
-from gpaw.new.ase_interface import ASECalculator, GPAW
-from gpaw.typing import Array3D
+
+from gpaw.new.ase_interface import GPAW, ASECalculator
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 
@@ -21,7 +22,7 @@ def dipole_matrix_elements(*args, **kwargs):
 def dipole_matrix_elements_from_calc(calc: ASECalculator,
                                      n1: int,
                                      n2: int,
-                                     ) -> list[Array3D]:
+                                     ) -> np.ndarray:
     """Calculate dipole matrix-elements (units: eÅ).
 
     Parameters
@@ -33,10 +34,8 @@ def dipole_matrix_elements_from_calc(calc: ASECalculator,
 
     assert ibzwfs.ibz.bz.gamma_only
 
-    wfs_s = ibzwfs.wfs_qs[0]
-
-    d_snnv = []
-    for wfs in wfs_s:
+    d_snnv = np.zeros((ibzwfs.nspins, n2 - n1, n2 - n1, 3))
+    for wfs in ibzwfs:
         if isinstance(wfs, LCAOWaveFunctions):
             basis = calc.dft.scf_loop.hamiltonian.basis
             grid = calc.dft.density.nt_sR.desc
@@ -45,11 +44,9 @@ def dipole_matrix_elements_from_calc(calc: ASECalculator,
         if wfs12 is not None:
             assert isinstance(wfs12, PWFDWaveFunctions)
             d_nnv = wfs12.dipole_matrix_elements() * Bohr
-        else:
-            d_nnv = np.empty((n2 - n1, n2 - n1, 3))
-        calc.comm.broadcast(d_nnv, 0)
-        d_snnv.append(d_nnv)
+            d_snnv[wfs.spin] = d_nnv
 
+    calc.comm.sum(d_snnv)
     return d_snnv
 
 

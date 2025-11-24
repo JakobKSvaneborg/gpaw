@@ -1,26 +1,26 @@
 from pathlib import Path
-import numpy as np
-from typing import Dict, Any
+from typing import Any
 
+import numpy as np
+from ase.calculators.calculator import Calculator
 from ase.units import Hartree
 from ase.utils.timing import Timer
-from ase.calculators.calculator import Calculator
 
 import gpaw.mpi as mpi
-from gpaw.old.calculator import GPAW
 from gpaw import __version__, restart
-from gpaw.old.density import RealSpaceDensity
 from gpaw.lrtddft import LrTDDFT
-from gpaw.lrtddft.finite_differences import FiniteDifference
 from gpaw.lrtddft.excitation import ExcitationLogger
-from gpaw.utilities.blas import axpy
+from gpaw.lrtddft.finite_differences import FiniteDifference
+from gpaw.old.calculator import GPAW
+from gpaw.old.density import RealSpaceDensity
 from gpaw.old.wavefunctions.lcao import LCAOWaveFunctions
+from gpaw.utilities.blas import axpy
 
 
 class ExcitedState(GPAW):
     nparts = 1
     implemented_properties = ['energy', 'forces']
-    default_parameters: Dict[str, Any] = {}
+    default_parameters: dict[str, Any] = {}
 
     def __init__(self, lrtddft, index, d=0.001, log=None, txt='-',
                  parallel=1, communicator=None):

@@ -3,18 +3,18 @@
 """
 from math import sqrt
 
-from ase.units import Hartree
-from ase.utils.timing import Timer
-from ase.utils import IOContext
 import numpy as np
+from ase.units import Hartree
+from ase.utils import IOContext
+from ase.utils.timing import Timer
 from numpy.linalg import inv
 from scipy.linalg import eigh
 
+from gpaw.mpi import world
 from gpaw import debug
-import gpaw.mpi as mpi
+from gpaw.helmholtz import HelmholtzSolver
 from gpaw.lrtddft.omega_matrix import OmegaMatrix
 from gpaw.pair_density import PairDensity
-from gpaw.helmholtz import HelmholtzSolver
 from gpaw.utilities.blas import mmm
 
 
@@ -323,7 +323,7 @@ class ApmB(OmegaMatrix):
 
     def read(self, filename=None, fh=None):
         """Read myself from a file"""
-        if mpi.rank == 0:
+        if world.rank == 0:
             with IOContext() as io:
                 if fh is None:
                     fd = io.openfile(filename, 'r', comm=self.paw.world)
@@ -355,7 +355,7 @@ class ApmB(OmegaMatrix):
 
     def write(self, filename=None, fh=None):
         """Write current state to a file."""
-        if mpi.rank == 0:
+        if world.rank == 0:
             with IOContext() as io:
                 if fh is None:
                     fd = io.openfile(filename, 'r', comm=self.paw.world)

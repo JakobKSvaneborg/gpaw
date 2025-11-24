@@ -1,11 +1,11 @@
 import re
+
 import numpy as np
 
 from gpaw import __version__ as version
 from gpaw.mpi import world
-from gpaw.tddft.units import au_to_as, au_to_fs, au_to_eV, rot_au_to_cgs
-from gpaw.tddft.folding import FoldedFrequencies
-from gpaw.tddft.folding import Folding
+from gpaw.tddft.folding import FoldedFrequencies, Folding
+from gpaw.tddft.units import au_to_as, au_to_eV, au_to_fs, rot_au_to_cgs
 
 
 def calculate_fourier_transform(x_t, y_ti, foldedfrequencies, velocity=False):

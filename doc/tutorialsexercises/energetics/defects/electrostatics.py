@@ -1,27 +1,53 @@
 import numpy as np
+from ase.io.jsonio import write_json
+from ase.units import Bohr
+from gpaw import GPAW
 from gpaw.defects import ElectrostaticCorrections
+from gpaw.defects.electrostatics import gather_electrostatic_potential
+from pathlib import Path
 
-sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
-q = -3
+sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0))) * Bohr
+charge = -3
 epsilon = 12.7
 corrected = []
 uncorrected = []
 repeats = [1, 2, 3, 4]
-for repeat in repeats:
-    pristine = 'GaAs{0}{0}{0}.pristine.gpw'.format(repeat)
-    charged = 'GaAs{0}{0}{0}.Ga_vac_charged.gpw'.format(repeat)
-    elc = ElectrostaticCorrections(pristine=pristine,
-                                   charged=charged,
-                                   q=q,
-                                   sigma=sigma,
-                                   dimensionality='3d')
-    elc.set_epsilons(epsilon)
-    corrected.append(elc.calculate_corrected_formation_energy())
-    uncorrected.append(elc.calculate_uncorrected_formation_energy())
-    data = elc.collect_electrostatic_data()
-    np.savez('electrostatic_data_{0}{0}{0}.npz'.format(repeat), **data)
+for N in repeats:
+    label = f'GaAs_{N}x{N}x{N}'
+    prs_path = Path(f'{label}_prs.gpw')
+    def_path = Path(f'{label}_def.gpw')
 
-np.savez('formation_energies.npz',
-         repeats=np.array(repeats),
-         corrected=np.array(corrected),
-         uncorrected=np.array(uncorrected))
+    calc_prs = GPAW(prs_path)
+    calc_def = GPAW(def_path)
+
+    atoms_prs = calc_prs.get_atoms()
+    phiR_prs = gather_electrostatic_potential(calc_prs)
+    phiR_def = gather_electrostatic_potential(calc_def)
+
+    # defect position
+    r0 = atoms_prs.positions[0, :]
+
+    elc = ElectrostaticCorrections(phi_pristine=phiR_prs,
+                                   phi_defect=phiR_def,
+                                   r0=r0,
+                                   charge=charge,
+                                   sigma=sigma,
+                                   epsilon=epsilon,
+                                   method='full-planar')
+    E_fnv = elc.calculate_correction()
+
+    E_0 = calc_prs.get_potential_energy()
+    E_X = calc_def.get_potential_energy()
+    E_uncorr = E_X - E_0
+    E_corr = E_uncorr + E_fnv
+
+    if N == 2:
+        profile = elc.calculate_potential_profile()
+
+    corrected.append(E_corr)
+    uncorrected.append(E_uncorr)
+
+res = {'repeats': repeats, 'corrected': corrected,
+       'uncorrected': uncorrected, 'profile': profile}
+
+write_json('electrostatics.json', res)

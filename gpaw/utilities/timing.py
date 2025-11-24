@@ -1,9 +1,9 @@
 # Copyright (C) 2003  CAMP
 # Please see the accompanying LICENSE file for further information.
 
+import math
 import sys
 import time
-import math
 
 import numpy as np
 from ase.utils.timing import Timer
@@ -201,6 +201,7 @@ class ParallelTimer(DebugTimer):
 class Profiler(Timer):
     def __init__(self, prefix, comm=None):
         import atexit
+
         import gpaw.mpi as mpi
         self.prefix = prefix
         self.comm = comm or mpi.world
@@ -234,7 +235,7 @@ class Profiler(Timer):
             for i in range(self.comm.size):
                 fname = f'{self.prefix}.{ranktxt(self.comm, rank=i)}.json'
                 print('Processing', fname)
-                with open(fname, 'r') as f:
+                with open(fname) as f:
                     out.writelines(f.readlines())
             out.write("] }\n")
             out.close()
@@ -265,6 +266,7 @@ class GPUProfiler(Profiler, GPUTimerBase):
 
     def synchronize(self):
         from cupy.cuda import Event
+
         # Make sure GPU gets here
         event = Event(block=True)
         event.record()

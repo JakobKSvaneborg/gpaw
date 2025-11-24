@@ -1,17 +1,19 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
+
 from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
                                    AtomDistribution)
-from gpaw.old.kpt_descriptor import KPointDescriptor
+from gpaw.gpu import XP
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
 from gpaw.mpi import MPIComm, serial_comm
-from gpaw.new import zips, trace
+from gpaw.new import trace, zips
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.spline import Spline
 from gpaw.typing import Array1D, ArrayLike2D
-from gpaw.gpu import XP
 
 if TYPE_CHECKING:
     from gpaw.core.uniform_grid import UGArray

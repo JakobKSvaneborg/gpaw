@@ -1,5 +1,6 @@
 import pytest
 from ase import Atoms
+
 from gpaw import GPAW
 from gpaw.lrtddft import LrTDDFT
 from gpaw.lrtddft.spectrum import spectrum

@@ -1,11 +1,10 @@
 import pytest
-
 from ase.units import Hartree
 
 from gpaw import GPAW
+from gpaw.hybrids.energy import non_self_consistent_energy as nsc_energy
 from gpaw.mpi import serial_comm
 from gpaw.xc.rpa import RPACorrelation
-from gpaw.hybrids.energy import non_self_consistent_energy as nsc_energy
 
 
 @pytest.mark.rpa

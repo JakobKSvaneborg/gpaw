@@ -2,10 +2,9 @@
 Calculates Raman matrices from Raman tensor
 """
 import numpy as np
-from typing import Tuple
-
 from ase.units import invcm
 from ase.utils.filecache import MultiFileJSONCache
+
 from gpaw.typing import ArrayND
 
 
@@ -84,7 +83,7 @@ class RamanData:
 
     def calculate_raman_spectrum(self,
                                  entries, T=300, sigma=5.0
-                                 ) -> Tuple[ArrayND, ArrayND]:
+                                 ) -> tuple[ArrayND, ArrayND]:
         """
         Calculates Raman intensities from Raman tensor.
 
@@ -143,8 +142,8 @@ class RamanData:
             Default is False
         """
 
-        from scipy import signal
         import matplotlib.pyplot as plt
+        from scipy import signal
 
         if not isinstance(spectra_nw, np.ndarray):
             spectra_nw = np.asarray(spectra_nw)

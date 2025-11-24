@@ -3,15 +3,15 @@ from itertools import product
 import numpy as np
 from ase.dft.kpoints import monkhorst_pack
 from scipy.spatial import ConvexHull, Delaunay, Voronoi
+
 try:
     from scipy.spatial import QhullError
 except ImportError:  # scipy < 1.8
     from scipy.spatial.qhull import QhullError
 
-import gpaw.mpi as mpi
 from gpaw import GPAW, restart
-from gpaw.old.kpt_descriptor import kpts2sizeandoffsets, to1bz
 from gpaw.mpi import world
+from gpaw.old.kpt_descriptor import kpts2sizeandoffsets, to1bz
 from gpaw.symmetry import Symmetry, aglomerate_points
 
 
@@ -75,7 +75,7 @@ def find_high_symmetry_monkhorst_pack(gpw: str,
     minsize[~pbc] = 1
     maxsize[~pbc] = 2
 
-    if mpi.rank == 0:
+    if world.rank == 0:
         print('Brute force search for symmetry ' +
               'complying MP-grid... please wait.')
 
@@ -98,14 +98,14 @@ def find_high_symmetry_monkhorst_pack(gpw: str,
                         if not (np.mod(np.mod(diff_kc, 1), 1) <
                                 1e-5).all(axis=1).any():
                             raise AssertionError('Did not find ' + str(ibzk_c))
-                    if mpi.rank == 0:
+                    if world.rank == 0:
                         print('Done. Monkhorst-Pack grid:', size, offset)
                     if return_as_dict:
                         return {'size': size, 'gamma': True}
                     else:
                         return kpts_kc
 
-    if mpi.rank == 0:
+    if world.rank == 0:
         print(ibzk_kc.round(5))
 
     raise RuntimeError('Did not find matching k-points for the IBZ')

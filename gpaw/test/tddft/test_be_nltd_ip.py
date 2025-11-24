@@ -1,9 +1,10 @@
 import numpy as np
+import pytest
 from ase import Atoms
+
 from gpaw.tddft import TDDFT
 from gpaw.tddft.abc import LinearAbsorbingBoundary
 from gpaw.tddft.laser import CWField
-import pytest
 
 
 @pytest.mark.old_gpaw_only

@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import importlib
 import warnings
+from collections.abc import Sequence
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Sequence, Union, Literal
+from typing import IO, TYPE_CHECKING, Any, Literal, Union
 
 import numpy as np
 from ase import Atoms
@@ -13,10 +14,10 @@ from numpy.typing import DTypeLike
 from gpaw.mpi import MPIComm
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.logger import Logger
-from gpaw.new.symmetry import Symmetries, create_symmetries_object
 from gpaw.new.pwfd.davidson import Davidson as DavidsonEigensolver
 from gpaw.new.pwfd.ppcg import PPCG as PPCGEigensolver
 from gpaw.new.pwfd.rmmdiis import RMMDIIS as RMMDIISEigensolver
+from gpaw.new.symmetry import Symmetries, create_symmetries_object
 
 if TYPE_CHECKING:
     from gpaw.new.ase_interface import ASECalculator
@@ -216,12 +217,13 @@ class PPCG(PWFDEigensolverParamater):
     cls = PPCGEigensolver
 
     def __init__(self,
-                 niter: int = 2,
-                 min_niter: int | None = None,
+                 niter: int = 5,
+                 min_niter: int | None = 2,
                  max_buffer_mem: int = 200 * 1024**2,
                  blocksize=None,
                  rr_modulo=5,
                  include_cg=True,
+                 promote_inner_dtype=False,
                  tolerances: tuple[float] | None = None):
         self.niter = niter
         self.min_niter = min_niter
@@ -229,6 +231,7 @@ class PPCG(PWFDEigensolverParamater):
         self.blocksize = blocksize
         self.rr_modulo = rr_modulo
         self.include_cg = include_cg
+        self.promote_inner_dtype = promote_inner_dtype
         self.tolerances = tolerances
 
     def todict(self):
@@ -238,6 +241,7 @@ class PPCG(PWFDEigensolverParamater):
                 'blocksize': self.blocksize,
                 'rr_modulo': self.rr_modulo,
                 'include_cg': self.include_cg,
+                'promote_inner_dtype': self.promote_inner_dtype,
                 'tolerances': self.tolerances}
 
     def build(self,
@@ -260,6 +264,7 @@ class PPCG(PWFDEigensolverParamater):
             blocksize=self.blocksize,
             rr_modulo=self.rr_modulo,
             include_cg=self.include_cg,
+            promote_inner_dtype=self.promote_inner_dtype,
             tolerances=self.tolerances)
 
 

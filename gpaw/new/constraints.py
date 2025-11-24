@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 from ase.units import Ha
+
 from gpaw.new.extensions import Extension
 from gpaw.typing import Array1D, Array3D, Vector
 
@@ -27,8 +28,8 @@ class SpinDirectionConstraint(Extension):
         self.penalty = penalty / Ha
 
     def todict(self):
-        return dict(constraint=dict((a, u_v.tolist())
-                                    for a, u_v in self.constraint.items()),
+        return dict(constraint={a: u_v.tolist()
+                                for a, u_v in self.constraint.items()},
                     penalty=self.penalty * Ha)
 
     def update_non_local_hamiltonian(self,

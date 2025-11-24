@@ -4,11 +4,15 @@ import contextlib
 import io
 import os
 import sys
+from collections.abc import Sequence
 from functools import cache
 from pathlib import Path
-from typing import IO, Any, Sequence
+from typing import IO, Any
 
 from gpaw.mpi import MPIComm, world
+
+GREEN = '\x1b[32m'
+RESET = '\x1b[0m'
 
 
 def indent(text: Any, indentation='  ') -> str:
@@ -52,8 +56,8 @@ class Logger:
 
         self.use_colors = can_colorize(file=self.fd)
         if self.use_colors:
-            self.green = '\x1b[32m'
-            self.reset = '\x1b[0m'
+            self.green = GREEN
+            self.reset = RESET
         else:
             self.green = ''
             self.reset = ''
@@ -81,7 +85,7 @@ class Logger:
             text = (i + text.replace('\n', '\n' + i)).rstrip(' ')
         print(text, file=self.fd, end=end, flush=flush)
         if parallel:
-            from gpaw.mpi import send_string, receive_string
+            from gpaw.mpi import receive_string, send_string
             if self.comm.rank:
                 send_string(text, 0, comm=self.comm)
             else:

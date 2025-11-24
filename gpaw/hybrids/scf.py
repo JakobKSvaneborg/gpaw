@@ -1,10 +1,10 @@
 import numpy as np
 
+from gpaw.hybrids.kpts import PWKPoint, RSKPoint, to_real_space
 from gpaw.mpi import serial_comm
 from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.old.pw.lfc import PWLFC
-from gpaw.hybrids.kpts import PWKPoint, RSKPoint, to_real_space
 from gpaw.utilities.blas import mmm
 
 

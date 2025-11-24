@@ -1,5 +1,5 @@
-import numpy as np
 import ase.db
+import numpy as np
 from ase.data.g2_1 import molecule_names
 
 c = ase.db.connect('g2-1.db')

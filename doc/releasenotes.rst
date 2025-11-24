@@ -10,9 +10,18 @@ Git master branch
 
 :git:`master <>`.
 
-* New GPAW: LCAO and finite-difference mode TDDFT have been ported into a common
-  RT-TDDFT interface with a subset of features so far. ECN and SICN propagators are
-  available.
+* Minimum version requirements: Python 3.10, ASE 3.25.0.
+
+* :ref:`newgpaw`: Calculations can now be parallelized over
+  spins.
+
+* :ref:`newgpaw`: Non-collinear calculations can now be parallelized over
+  plane-waves.
+
+* :ref:`newgpaw`: LCAO and finite-difference mode TDDFT have been ported
+  into a common RT-TDDFT interface with a subset of features so far.
+  ECN and SICN propagators are available.
+
 * :ref:`debug mode` is now enabled by setting the environment variable
   :envvar:`GPAW_DEBUG` to ``1``.  Using the ``-d`` option of the
   Python interpreter is no longer supported.
@@ -29,9 +38,6 @@ Git master branch
   You can use ``gpaw python`` as a replacement. The variable
   ``parallel_python_interpreter`` in ``siteconfig.py``
   should not be used.
-
-* :ref:`newgpaw`: Non-collinear calculations can now be parallelized over
-  plane-waves.
 
 
 Version 25.7.0

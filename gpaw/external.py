@@ -1,7 +1,7 @@
 """This module defines different external potentials."""
 import copy
 import warnings
-from typing import Callable, Dict, Optional
+from collections.abc import Callable
 
 import numpy as np
 from ase.units import Bohr, Ha
@@ -13,7 +13,7 @@ __all__ = ['ConstantPotential', 'ConstantElectricField', 'CDFTPotential',
            'PointChargePotential', 'StepPotentialz',
            'PotentialCollection']
 
-known_potentials: Dict[str, Callable] = {}
+known_potentials: dict[str, Callable] = {}
 
 
 def _register_known_potentials():
@@ -32,8 +32,8 @@ def create_external_potential(name, **kwargs):
 
 
 class ExternalPotential:
-    vext_g: Optional[Array3D] = None
-    vext_q: Optional[Array3D] = None
+    vext_g: Array3D | None = None
+    vext_q: Array3D | None = None
 
     def get_potential(self, gd):
         """Get the potential on a regular 3-d grid.

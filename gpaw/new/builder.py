@@ -1,14 +1,17 @@
 from __future__ import annotations
+
+import warnings
 from functools import cached_property
 from types import ModuleType, SimpleNamespace
-from typing import Any, TYPE_CHECKING
-import warnings
+from typing import TYPE_CHECKING, Any
+
 import numpy as np
-from gpaw import GPAW_USE_GPUS, GPAW_CPUPY
 from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
 from ase.geometry.cell import cell_to_cellpar
 from ase.units import Bohr
+
+from gpaw import GPAW_CPUPY, GPAW_USE_GPUS
 from gpaw.core import UGDesc
 from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
                                    AtomDistribution)
@@ -33,6 +36,7 @@ from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.typing import Array2D, ArrayLike1D, ArrayLike2D, DTypeLike
 from gpaw.utilities.gpts import get_number_of_grid_points
+
 if TYPE_CHECKING:
     from gpaw.dft import Parameters
 
@@ -119,8 +123,9 @@ class DFTComponentsBuilder:
         d = parallel.get('domain', 1 if xcfunc.type == 'HYB' else None)
         k = parallel.get('kpt', None)
         b = parallel.get('band', None)
-        self.communicators = create_communicators(comm, len(self.ibz),
-                                                  d, k, b, self.xp)
+        self.communicators = create_communicators(
+            comm, len(self.ibz) * self.nspins,
+            d, k, b, self.xp)
 
         if self.mode == 'fd':
             pass  # filter = create_fourier_filter(grid)
@@ -187,12 +192,12 @@ class DFTComponentsBuilder:
             a, b, c = angles
             warnings.warn(
                 'The angles between your unit-cell vectors are '
-                f'{a:.1}, {b:.1} and {c:.1} degrees.  '
+                f'{a:.1f}, {b:.1f} and {c:.1f} degrees.  '
                 'Results may be wrong!  '
-                'Please Niggli-reduce your unit-cell so that the angle '
+                'Please Niggli-reduce your unit-cell so that the angles '
                 'are closer to 90 degrees:\n\n'
                 '  from ase.build import niggli_reduce\n'
-                '  nigli_reduce(atoms)\n')
+                '  niggli_reduce(atoms)\n')
 
     @cached_property
     def wf_desc(self) -> Domain:

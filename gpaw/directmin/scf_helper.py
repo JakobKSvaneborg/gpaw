@@ -1,10 +1,9 @@
 import warnings
-import numpy as np
 
+import numpy as np
 from ase.units import Ha
 
-from gpaw.directmin.tools import (sort_orbitals_according_to_energies,
-                                  get_n_occ)
+from gpaw.directmin.tools import get_n_occ, sort_orbitals_according_to_energies
 
 
 def do_if_converged(eigensolver_name, wfs, ham, dens, log):
@@ -31,7 +30,7 @@ def do_if_converged(eigensolver_name, wfs, ham, dens, log):
         constraints = None
 
     if eigensolver_name == 'etdm-lcao':
-        with ((wfs.timer('Get canonical representation'))):
+        with (wfs.timer('Get canonical representation')):
             for kpt in wfs.kpt_u:
                 solver.dm_helper.update_to_canonical_orbitals(
                     wfs, ham, kpt, False, False)

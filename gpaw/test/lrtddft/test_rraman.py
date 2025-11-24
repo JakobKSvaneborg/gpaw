@@ -2,8 +2,8 @@ import pytest
 from ase.build import molecule
 
 from gpaw import GPAW, FermiDirac
-from gpaw.utilities.adjust_cell import adjust_cell
 from gpaw.lrtddft import LrTDDFT
+from gpaw.utilities.adjust_cell import adjust_cell
 
 
 @pytest.mark.lrtddft

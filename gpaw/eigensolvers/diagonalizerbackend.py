@@ -6,7 +6,7 @@ import numpy as np
 from scipy.linalg import eigh
 
 from gpaw.blacs import BlacsGrid, Redistributor
-from gpaw.mpi import broadcast_exception, MPIComm
+from gpaw.mpi import MPIComm, broadcast_exception
 from gpaw.utilities.elpa import LibElpa
 from gpaw.utilities.tools import tri2full
 

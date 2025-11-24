@@ -5,19 +5,19 @@ import warnings
 from math import pi
 
 import numpy as np
-from numpy.fft import fftn, ifftn, fft2, ifft2, rfft2, irfft2, fft, ifft
+from numpy.fft import fft, fft2, fftn, ifft, ifft2, ifftn, irfft2, rfft2
 from scipy.fftpack import dst as scipydst
 
 from gpaw import PoissonConvergenceError
 from gpaw.dipole_correction import DipoleCorrection, dipole_correction
-from gpaw.old.domain import decompose_domain
 from gpaw.fd_operators import Laplace, LaplaceA, LaplaceB
+from gpaw.old.domain import decompose_domain
 from gpaw.transformers import Transformer
+from gpaw.utilities.ewald import madelung
 from gpaw.utilities.gauss import Gaussian
 from gpaw.utilities.grid import grid2grid
-from gpaw.utilities.ewald import madelung
-from gpaw.utilities.tools import construct_reciprocal
 from gpaw.utilities.timing import NullTimer
+from gpaw.utilities.tools import construct_reciprocal
 
 POISSON_GRID_WARNING = """Grid unsuitable for FDPoissonSolver!
 
@@ -326,7 +326,7 @@ class FDPoissonSolver(BasePoissonSolver):
                  remove_moment=None, use_charge_center=False,
                  metallic_electrodes=False,
                  use_charged_periodic_corrections=False, **kwargs):
-        super(FDPoissonSolver, self).__init__(
+        super().__init__(
             remove_moment=remove_moment,
             use_charge_center=use_charge_center,
             metallic_electrodes=metallic_electrodes,

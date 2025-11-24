@@ -11,19 +11,18 @@ See::
 
 """
 from math import pi
-from typing import List, Tuple, Dict
 
 import numpy as np
 from ase.units import Bohr, Ha, _c, _e, _hplanck
 
+from gpaw.hyperfine import alpha  # fine-structure constant: ~ 1 / 137
+from gpaw.mpi import serial_comm
 from gpaw.old.calculator import GPAW
 from gpaw.old.grid_descriptor import GridDescriptor
-from gpaw.typing import Array1D, Array2D, Array4D
-from gpaw.hyperfine import alpha  # fine-structure constant: ~ 1 / 137
-from gpaw.setup import Setup
-from gpaw.old.pw.lfc import PWLFC
 from gpaw.old.pw.descriptor import PWDescriptor
-from gpaw.mpi import serial_comm
+from gpaw.old.pw.lfc import PWLFC
+from gpaw.setup import Setup
+from gpaw.typing import Array1D, Array2D, Array4D
 
 
 def zfs(calc: GPAW,
@@ -32,7 +31,9 @@ def zfs(calc: GPAW,
 
     Calculate magnetic dipole coupling tensor in eV.
     """
-    (kpt1, kpt2), = calc.wfs.kpt_qs  # spin-polarized and gamma only
+    assert calc.wfs.nspins == 2
+    assert calc.wfs.kd.gamma
+    kpt1, kpt2 = calc.wfs.kpt_u  # no parallelization over spins
 
     nocc1 = (kpt1.f_n > 0.5).sum()
     nocc2 = (kpt2.f_n > 0.5).sum()
@@ -66,9 +67,9 @@ def zfs(calc: GPAW,
 class WaveFunctions:
     def __init__(self,
                  psit_nR: Array4D,
-                 P_ani: Dict[int, Array2D],
+                 P_ani: dict[int, Array2D],
                  spin: int,
-                 setups: List[Setup],
+                 setups: list[Setup],
                  gd: GridDescriptor = None,
                  pd: PWDescriptor = None):
         """Container for wave function in real-space and projections."""
@@ -82,7 +83,10 @@ class WaveFunctions:
     @staticmethod
     def from_calc(calc: GPAW, spin: int, n1: int, n2: int) -> 'WaveFunctions':
         """Create WaveFunctions object GPAW calculation."""
-        kpt = calc.wfs.kpt_qs[0][spin]
+        assert calc.wfs.nspins == 2
+        assert calc.wfs.kd.gamma
+        assert calc.wfs.kd.comm.size == 1
+        kpt = calc.wfs.kpt_u[spin]
         gd = calc.wfs.gd.new_descriptor(pbc_c=np.ones(3, bool),
                                         comm=serial_comm)
         psit_nR = gd.empty(n2 - n1)
@@ -101,7 +105,7 @@ class WaveFunctions:
         return len(self.psit_nR)
 
 
-def create_compensation_charge(setups: List[Setup],
+def create_compensation_charge(setups: list[Setup],
                                pd: PWDescriptor,
                                spos_ac: Array2D) -> PWLFC:
     compensation_charge = PWLFC([data.ghat_l for data in setups], pd)
@@ -173,7 +177,7 @@ def zfs2(pd: PWDescriptor,
 
 
 def convert_tensor(D_vv: Array2D,
-                   unit: str = 'eV') -> Tuple[float, float, Array1D, Array2D]:
+                   unit: str = 'eV') -> tuple[float, float, Array1D, Array2D]:
     """Convert 3x3 tensor to D, E and easy axis.
 
     Input tensor must be in eV and the result can be returned in
@@ -214,7 +218,7 @@ def convert_tensor(D_vv: Array2D,
     return float(D), float(E), axis, D_vv * scale
 
 
-def main(argv: List[str] = None) -> Array2D:
+def main(argv: list[str] = None) -> Array2D:
     """CLI interface."""
     import argparse
 

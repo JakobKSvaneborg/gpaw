@@ -1,4 +1,5 @@
 import numpy as np
+
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
 from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.spline import Spline

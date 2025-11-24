@@ -1,13 +1,13 @@
-import numpy as np
 import pickle
 
-from ase.units import Hartree, Bohr
+import numpy as np
+from ase.units import Bohr, Hartree
 
-from gpaw.old.kpt_descriptor import to1bz
-from gpaw.new.ase_interface import GPAW
-from gpaw.spinorbit import soc_eigenstates
-from gpaw.old.pw.descriptor import PWDescriptor
 import gpaw.mpi as mpi
+from gpaw.new.ase_interface import GPAW
+from gpaw.old.kpt_descriptor import to1bz
+from gpaw.old.pw.descriptor import PWDescriptor
+from gpaw.spinorbit import soc_eigenstates
 
 
 class Unfold:

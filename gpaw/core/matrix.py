@@ -2,19 +2,21 @@
 from __future__ import annotations
 
 from types import ModuleType
-from typing import Dict, Tuple, Optional
-import gpaw.cgpaw as cgpaw
+
 import numpy as np
 import scipy.linalg as sla
 
+import gpaw.cgpaw as cgpaw
 import gpaw.utilities.blas as blas
 from gpaw import debug
-from gpaw.gpu import cupy as cp, XP, gpu_gemm
-from gpaw.mpi import MPIComm, _Communicator, serial_comm
-from gpaw.typing import Array1D, ArrayLike1D, ArrayLike2D, Array2D
+from gpaw.gpu import XP
+from gpaw.gpu import cupy as cp
+from gpaw.gpu import gpu_gemm
 from gpaw.gpu.diagonalization import suggest_diagonalizer
+from gpaw.mpi import MPIComm, _Communicator, serial_comm
+from gpaw.typing import Array1D, Array2D, ArrayLike1D, ArrayLike2D
 
-_global_blacs_context_store: Dict[Tuple[_Communicator, int, int], int] = {}
+_global_blacs_context_store: dict[tuple[_Communicator, int, int], int] = {}
 
 
 def suggest_blocking(N: int, ncpus: int) -> tuple[int, int, int | None]:
@@ -359,7 +361,7 @@ class Matrix(XP):
 
     @staticmethod
     def scatter(data: Array2D,
-                dist: tuple[_Communicator, int, int, Optional[int]],
+                dist: tuple[_Communicator, int, int, int | None],
                 root: int = 0) -> Matrix:
         """Construct a distributed Matrix object by scattering a raw 2D array
         from 'root' rank. The 'dist' argument must specify the communicator

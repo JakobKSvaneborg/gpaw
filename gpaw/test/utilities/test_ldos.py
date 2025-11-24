@@ -1,16 +1,16 @@
 import numpy as np
+import pytest
 from ase import Atom, Atoms
 
-import gpaw.mpi as mpi
+from gpaw.mpi import world
 from gpaw import GPAW, FermiDirac, PoissonSolver
-import pytest
 from gpaw.utilities.dos import RawLDOS, raw_orbital_LDOS, raw_wignerseitz_LDOS
 
 
 def test_utilities_ldos(in_tmp_dir, gpaw_new):
-    comms = [mpi.world.new_communicator(np.array([r]))
-             for r in range(mpi.size)]
-    comm = comms[mpi.rank]
+    comms = [world.new_communicator(np.array([r]))
+             for r in range(world.size)]
+    comm = comms[world.rank]
 
     Hnospin = Atoms([Atom('H')], cell=[5, 5, 5], pbc=False)
     Hspin = Atoms([Atom('H', magmom=1)], cell=[5, 5, 5], pbc=False)
@@ -89,7 +89,7 @@ def test_utilities_ldos(in_tmp_dir, gpaw_new):
     ldos.by_element_to_file(fname + '_2.0.dat', 2.0, shift=False)
     ldos.by_element_to_file(fname + '_indx0.dat', indices=[0])
     # the hydrogen entries are missing for index 0 only
-    if mpi.world.rank == 0:
+    if world.rank == 0:
         assert (np.loadtxt(fname + '_indx0.dat').shape[1] + 3 ==
                 np.loadtxt(fname + '.dat').shape[1])
 

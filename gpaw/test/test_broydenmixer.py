@@ -1,7 +1,8 @@
+import pytest
 from ase import Atom, Atoms
+
 from gpaw import GPAW
 from gpaw.mixer import BroydenMixer
-import pytest
 
 
 def test_broydenmixer(in_tmp_dir):

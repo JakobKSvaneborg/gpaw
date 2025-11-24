@@ -1,8 +1,9 @@
-import pytest
-from gpaw.core.matrix import Matrix
-from gpaw.mpi import world
 import numpy as np
+import pytest
+
+from gpaw.core.matrix import Matrix
 from gpaw.gpu import cupy as cp
+from gpaw.mpi import world
 
 
 @pytest.mark.parametrize('xp', [np, cp])

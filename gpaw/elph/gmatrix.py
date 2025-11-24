@@ -23,8 +23,6 @@ displacements. The implementation supports calculations of the el-ph coupling
 in both finite and periodic systems, i.e. expressed in a basis of molecular
 orbitals or Bloch states.
 """
-from typing import Optional
-
 import ase.units as units
 import numpy as np
 from ase import Atoms
@@ -32,8 +30,8 @@ from ase.phonons import Phonons
 from ase.utils.filecache import MultiFileJSONCache
 from ase.utils.timing import Timer, timer
 
-from gpaw.old.calculator import GPAW
 from gpaw.mpi import world
+from gpaw.old.calculator import GPAW
 from gpaw.typing import ArrayND
 
 from .supercell import Supercell
@@ -150,7 +148,7 @@ class ElectronPhononMatrix:
     @timer("Bloch matrix q k")
     def _bloch_matrix(self, var1: ArrayND, C2_nM: ArrayND,
                       k_c: ArrayND, q_c: ArrayND,
-                      prefactor: bool, s: Optional[int] = None) -> ArrayND:
+                      prefactor: bool, s: int | None = None) -> ArrayND:
         """Calculates elph matrix entry for a given k and q.
 
         The first argument must either be

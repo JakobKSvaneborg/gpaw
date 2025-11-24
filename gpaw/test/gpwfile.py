@@ -1,20 +1,21 @@
 import functools
 from math import sqrt
 from pathlib import Path
-import numpy as np
 
+import numpy as np
 from ase import Atom, Atoms
-from ase.units import Bohr
 from ase.build import bulk, molecule
 from ase.lattice.compounds import L1_2
 from ase.lattice.hexagonal import Graphene
-from gpaw import Davidson, FermiDirac, GPAW, Mixer, PW, FD, LCAO
+from ase.units import Bohr
+
+from gpaw import FD, GPAW, LCAO, PW, Davidson, FermiDirac, Mixer
+from gpaw.directmin.derivatives import Davidson as SICDavidson
 from gpaw.directmin.etdm_fdpw import FDPWETDM
 from gpaw.directmin.etdm_lcao import LCAOETDM
 from gpaw.directmin.tools import excite
-from gpaw.directmin.derivatives import Davidson as SICDavidson
 from gpaw.mom import prepare_mom_calculation
-from gpaw.mpi import world, serial_comm
+from gpaw.mpi import serial_comm, world
 from gpaw.new.ase_interface import GPAW as GPAWNew
 from gpaw.poisson import FDPoissonSolver, PoissonSolver
 from gpaw.test.cachedfilehandler import CachedFilesHandler
@@ -1584,11 +1585,9 @@ class GPWFiles(CachedFilesHandler):
         world.barrier()
 
         from gpaw.fdtd.poisson_fdtd import FDTDPoissonSolver
-        from gpaw.fdtd.polarizable_material import (
-            PermittivityPlus,
-            PolarizableMaterial,
-            PolarizableSphere,
-        )
+        from gpaw.fdtd.polarizable_material import (PermittivityPlus,
+                                                    PolarizableMaterial,
+                                                    PolarizableSphere)
 
         # Whole simulation cell (Angstroms)
         large_cell = [20, 20, 30]
@@ -1957,6 +1956,7 @@ class GPWFiles(CachedFilesHandler):
 
     def _ni_pw_kpts333(self, setups={'Ni': '10'}):
         from ase.dft.kpoints import monkhorst_pack
+
         # from gpaw.mpi import serial_comm
         Ni = bulk('Ni', 'fcc')
         Ni.set_initial_magnetic_moments([0.7])
@@ -2345,6 +2345,14 @@ class GPWFiles(CachedFilesHandler):
     def gaas_pw(self):
         return self._gaas()
 
+    @gpwfile
+    def gaas_cubic_pristine(self):
+        return self._gaas_cubic()
+
+    @gpwfile
+    def gaas_cubic_defect(self):
+        return self._gaas_cubic(charge=-3, vac_idx=0)
+
     @with_band_cutoff(gpw='gaas_pw',
                       band_cutoff=8)
     def _gaas(self, *, band_cutoff, symmetry=None):
@@ -2366,6 +2374,25 @@ class GPWFiles(CachedFilesHandler):
                     kpts={'size': (nk, nk, nk), 'gamma': True},
                     txt=self.folder / f'gs_GaAs{tag}.txt',
                     symmetry=symmetry)
+
+        atoms.calc = calc
+        atoms.get_potential_energy()
+        return atoms.calc
+
+    def _gaas_cubic(self, *, charge=0, vac_idx=None):
+        nk = 2
+        atoms = bulk('GaAs', crystalstructure='zincblende',
+                     a=5.628, cubic=True)
+        atoms.set_pbc(True)
+        if vac_idx is not None:
+            atoms.pop(vac_idx)
+
+        calc = GPAW(mode=PW(400),
+                    xc='LDA',
+                    charge=charge,
+                    occupations=FermiDirac(width=0.01),
+                    kpts={'size': (nk, nk, nk), 'gamma': False},
+                    symmetry='off')
 
         atoms.calc = calc
         atoms.get_potential_energy()

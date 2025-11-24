@@ -309,6 +309,26 @@ interested in a limited part of a system, such as a molecular bridge in a
 quantum junction, or an adsorbate on a substrate. More details and examples 
 can be found in :ref:`los tutorial` tutorial.
 
+.. _aug in lcao:
+
+Augmented Basis Set Generation
+------------------------------
+
+The default LCAO basis sets can be augmented with numerical Gaussian-type orbitals (NGTOs).
+
+.. note::
+
+    The LCAO basis sets in GPAW are PAW basis sets,
+    whereas basis set repositories, like Basis Set Exchange
+    list parameters for all-electron basis sets.
+    Therefore we can only use the parameters for diffuse orbitals since these
+    are smooth Gaussians.
+
+.. literalinclude:: ../../tutorialsexercises/opticalresponse/circular_dichroism/lcao/basis.py
+
+Here, the Gaussian parameters correspond to diffuse functions
+in aug-cc-pvdz basis sets as obtained from
+`Basis Set Exchange <https://www.basissetexchange.org/>`_.
 
 .. [LCAO-article] A. H. Larsen, M. Vanin, J. J. Mortensen, K. S. Thygesen,
   and K. W. Jacobsen, Phys. Rev. B 80, 195112 (2009)

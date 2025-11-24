@@ -10,14 +10,14 @@ import time
 from contextlib import contextmanager
 from math import sqrt
 from pathlib import Path
-from typing import Union
 
-import gpaw.cgpaw as cgpaw
 import numpy as np
 from ase import Atoms
-from ase.units import Bohr
 from ase.data import covalent_radii
 from ase.neighborlist import neighbor_list
+from ase.units import Bohr
+
+import gpaw.cgpaw as cgpaw
 from gpaw import GPAW_NO_C_EXTENSION, debug
 from gpaw.typing import DTypeLike
 
@@ -323,7 +323,7 @@ if not debug and not GPAW_NO_C_EXTENSION:
     pack_density = cgpaw.pack
 
 
-def unlink(path: Union[str, Path], world=None):
+def unlink(path: str | Path, world=None):
     """Safely unlink path (delete file or symbolic link)."""
     import gpaw.mpi as mpi
 
@@ -345,7 +345,7 @@ def unlink(path: Union[str, Path], world=None):
 
 
 @contextmanager
-def file_barrier(path: Union[str, Path], world=None):
+def file_barrier(path: str | Path, world=None):
     """Context manager for writing a file.
 
     After the with-block all cores will be able to read the file.

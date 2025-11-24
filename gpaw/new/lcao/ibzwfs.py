@@ -1,6 +1,7 @@
 from math import pi
-from gpaw.new.ibzwfs import IBZWaveFunctions
+
 from gpaw.new.density import Density
+from gpaw.new.ibzwfs import IBZWaveFunctions
 
 
 class LCAOIBZWaveFunctions(IBZWaveFunctions):
@@ -25,7 +26,8 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
         S_qMM, T_qMM, P_qaMi, tciexpansions, tci_derivatives = tci_helper(
             basis, self.ibz, self.domain_comm, self.band_comm, self.kpt_comm,
             relpos_ac, atomdist,
-            self.grid, self.dtype, setups, self.xp)
+            self.grid, self.dtype, setups, self.xp,
+            nspins=self.nspins)
 
         for wfs in self:
             wfs.tci_derivatives = tci_derivatives

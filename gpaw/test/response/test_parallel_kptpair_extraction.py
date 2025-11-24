@@ -1,20 +1,19 @@
-import pytest
 from itertools import product
 
 import numpy as np
+import pytest
 
 from gpaw import GPAW
 from gpaw.mpi import world
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
-from gpaw.response.pw_parallelization import block_partition
 from gpaw.response.kspair import KohnShamKPointPairExtractor
-from gpaw.response.pair_transitions import PairTransitions
 from gpaw.response.pair_integrator import KPointPairPointIntegral
+from gpaw.response.pair_transitions import PairTransitions
+from gpaw.response.pw_parallelization import block_partition
 from gpaw.response.symmetry import QSymmetryAnalyzer
-
-from gpaw.test.response.test_chiks import (generate_system_s, generate_qrel_q,
-                                           get_q_c, generate_nblocks_n)
 from gpaw.test.gpwfile import response_band_cutoff
+from gpaw.test.response.test_chiks import (generate_nblocks_n, generate_qrel_q,
+                                           generate_system_s, get_q_c)
 
 pytestmark = pytest.mark.skipif(world.size == 1, reason='world.size == 1')
 

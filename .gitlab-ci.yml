@@ -150,6 +150,7 @@ build-latest:
   extends:
     - .build
   script:
+    - pip install --upgrade pytest pytest-cov coverage pytest-xdist
     - |
       cat << EOF >> siteconfig.py
       define_macros += [('NDEBUG', None)]
@@ -382,11 +383,8 @@ test-latest:
     - build-latest
   script:
     - gpaw info
-
-    - >
-      GPAW_DEBUG=1 pytest -v -m "ci or gpu"
-      --cov=gpaw --cov-report=html --cov-report=term
-
+    - GPAW_DEBUG=1 pytest -v -m "ci or gpu" --cov=gpaw
+    - coverage html
   artifacts:
     paths:
       - htmlcov/
@@ -430,6 +428,23 @@ test-cuda:
     - gpaw info
     - python -c 'import cupy; import cupyx; from cupy.cuda import runtime'
     - pytest -v -m gpu
+
+test-cuda-no-c:
+  image: $IMAGE_CUDA
+  extends:
+    - .test
+    - .gpu-job
+  needs:
+    - build-cuda
+  tags:
+    - cuda
+  script:
+    - nvidia-smi
+    - gpaw info
+    - python -c 'import cupy; import cupyx; from cupy.cuda import runtime'
+    - rm _gpaw.cpython-311-x86_64-linux-gnu.so
+    - python -c "import importlib; assert not importlib.util.find_spec('_gpaw'), '_gpaw module found'"
+    - GPAW_NO_C_EXTENSION=1 pytest -v -m gpu
 
 
 test-cuda-mpi:

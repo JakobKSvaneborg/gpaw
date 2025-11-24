@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import warnings
-
 from functools import cached_property
 from types import SimpleNamespace
 from typing import Any
 
-from gpaw.new.backwards_compatibility import FakePoisson
 from gpaw.mpi import world
 from gpaw.new.ase_interface import ASECalculator
+from gpaw.new.backwards_compatibility import FakePoisson
 from gpaw.new.rttddft.rttddft import RTTDDFT
 from gpaw.new.rttddft.td_algorithm import TDAlgorithmLike
 from gpaw.tddft.units import as_to_au, autime_to_asetime
@@ -27,7 +26,7 @@ class FakeTDHamiltonian:
         hamiltonian = self._rttddft.hamiltonian
         ham_calc = hamiltonian.create_hamiltonian_matrix_calculator(
             self._rttddft.state.potential)
-        wfs = self._rttddft.state.ibzwfs.wfs_qs[kpt.q][kpt.s]
+        wfs = self._rttddft.state.ibzwfs._get_wfs(kpt.k, kpt.s)
         H_MM = ham_calc.calculate_matrix(wfs)
         return H_MM.data
 

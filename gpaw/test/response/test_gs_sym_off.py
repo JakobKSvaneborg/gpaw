@@ -2,12 +2,12 @@
 symmetries and GS calculations not using symmetries return the same results.
 """
 
-import pytest
 import numpy as np
+import pytest
 
 from gpaw.response import ResponseGroundStateAdapter
-from gpaw.response.frequencies import FrequencyDescriptor
 from gpaw.response.chi0 import Chi0Calculator, get_omegamax
+from gpaw.response.frequencies import FrequencyDescriptor
 from gpaw.test.gpwfile import response_band_cutoff
 
 

@@ -1,12 +1,12 @@
-from typing import Any, Optional, Dict
 from collections.abc import Mapping
+from typing import Any
 
 import numpy as np
 
-from gpaw.old.matrix import Matrix
 from gpaw.mpi import serial_comm
-from gpaw.utilities.partition import AtomPartition
+from gpaw.old.matrix import Matrix
 from gpaw.typing import Array2D, ArrayLike1D
+from gpaw.utilities.partition import AtomPartition
 
 MPIComm = Any
 
@@ -126,7 +126,7 @@ class Projections(Mapping):
         P.fromarraydict(arraydict)
         return P
 
-    def collect(self) -> Optional[Array2D]:
+    def collect(self) -> Array2D | None:
         """Collect all bands and atoms to master."""
         if self.bcomm.size == 1:
             P = self.matrix
@@ -182,7 +182,7 @@ class Projections(Mapping):
                 self.atom_partition.comm.send(P.array[:, I1:I2].T.copy(), 0)
             return None
 
-    def as_dict_on_master(self, n1: int, n2: int) -> Dict[int, Array2D]:
+    def as_dict_on_master(self, n1: int, n2: int) -> dict[int, Array2D]:
         P_nI = self.collect()
         if P_nI is None:
             return {}

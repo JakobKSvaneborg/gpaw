@@ -7,17 +7,18 @@ import pickle
 import sys
 import time
 import traceback
+import warnings
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Any
 
 import numpy as np
-import warnings
 from ase.parallel import MPI as ASE_MPI
 from ase.parallel import world as aseworld
-from gpaw.gpu import is_hip, cupy
-from gpaw.new.c import GPU_AWARE_MPI
 
 import gpaw
+from gpaw.gpu import cupy, is_hip
+from gpaw.new.c import GPU_AWARE_MPI
 
 from ._broadcast_imports import world as _world
 
@@ -375,6 +376,7 @@ class _Communicator:
 
         assert np.all(0 <= sdispls)
         assert np.all(0 <= rdispls)
+        # what if scounts is zeros?
         assert np.all(sdispls + scounts <= sbuffer.size)
         assert np.all(rdispls + rcounts <= rbuffer.size)
         self.comm.alltoallv(sbuffer, scounts, sdispls,
@@ -822,10 +824,6 @@ else:
     else:
         world = _world  # type: ignore
 
-rank = world.rank
-size = world.size
-parallel = (size > 1)
-
 
 def verify_ase_world():
     # ASE does not like that GPAW uses world.size at import time.
@@ -1238,7 +1236,7 @@ class Parallelization:
 def cleanup():
     error = getattr(sys, 'last_type', None)
     if error is not None:  # else: Python script completed or raise SystemExit
-        if parallel and not (gpaw.dry_run > 1):
+        if world.size > 1 and not (gpaw.dry_run > 1):
             sys.stdout.flush()
             sys.stderr.write(('GPAW CLEANUP (node %d): %s occurred.  '
                               'Calling MPI_Abort!\n') % (world.rank, error))
@@ -1274,14 +1272,67 @@ def print_mpi_stack_trace(type, value, tb):
         sys.stderr.write(f'rank={rankstring} L{lineno}: {line}\n')
 
 
+def pretty_print_parallel_traceback_file(path: Path) -> None:
+    """Pretty-print rank-0 part of traceback files.
+
+    See print_mpi_stack_trace() exception hook.
+    """
+    lines = []
+    with path.open() as fd:
+        for line in fd:
+            if line.startswith('rank='):
+                x, line = line.split(': ', 1)
+                rank = int(x[5:].split()[0])
+                if rank == 0:
+                    lines.append(line)
+    text = ''.join(lines)
+    try:
+        from pygments import highlight
+        from pygments.formatters import TerminalFormatter
+        from pygments.lexers.python import PythonTracebackLexer
+    except ImportError:
+        print(text)
+    else:
+        print(highlight(text, PythonTracebackLexer(), TerminalFormatter()))
+
+
 if world.size > 1:  # Triggers for dry-run communicators too, but we care not.
     sys.excepthook = print_mpi_stack_trace
+
+
+_NO_TOUCH_WORLD = False  # Monkeypatchable from test suite
+
+
+class DontDoThat(Exception):
+    pass
+
+
+def parallel(func):
+    """Decorator for functions that take comm=world.
+
+    We want this decorator so as to control access to world and prevent
+    deadlocks when callers of these functions forget to set the
+    communicator."""
+    import functools
+    from gpaw.mpi import world
+
+    @functools.wraps(func)
+    def wrapper(*args, comm=None, **kwargs):
+        if comm is None:
+            if _NO_TOUCH_WORLD:
+                raise DontDoThat(
+                    'Must call method with keyword comm=<communicator>'
+                )
+            comm = world
+        return func(*args, comm=comm, **kwargs)
+
+    return wrapper
 
 
 def exit(error='Manual exit'):
     # Note that exit must be called on *all* MPI tasks
     atexit._exithandlers = []  # not needed because we are intentially exiting
-    if parallel and not (gpaw.dry_run > 1):
+    if world.size > 1 and not (gpaw.dry_run > 1):
         sys.stdout.flush()
         sys.stderr.write(('GPAW CLEANUP (node %d): %s occurred.  ' +
                           'Calling MPI_Finalize!\n') % (world.rank, error))

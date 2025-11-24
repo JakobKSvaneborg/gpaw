@@ -5,7 +5,7 @@ from ase import Atoms
 from gpaw import GPAW, Davidson, FermiDirac, Mixer
 from gpaw.cdft.cdft import CDFT
 from gpaw.cdft.cdft_coupling import CouplingParameters
-from gpaw.mpi import size
+from gpaw.mpi import world
 
 
 @pytest.mark.old_gpaw_only
@@ -42,7 +42,7 @@ def test_cdft(in_tmp_dir):
     sys.get_potential_energy()
     sys.get_forces()
 
-    if size == 1:
+    if world.size == 1:
         coupling = CouplingParameters(cdft_b, cdft_b, AE=False)
         overlaps = coupling.get_pair_density_matrix(
             cdft_b.calc, cdft_b.calc)[0]

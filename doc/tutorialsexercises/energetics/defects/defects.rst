@@ -69,12 +69,12 @@ convergence by employing the following correction:
 .. math::
 
   E[X^q] - E_0  =
-  (E[X^q] - E_0)_\mathrm{uncorrected} - E_{\mathrm{l}} + q\Delta V
+  (E[X^q] - E_0)_\mathrm{uncorrected} - E_{\mathrm{lat}} + q\Delta V
 
 The uncorrected term in brackets is the total energy difference one obtains
 from calculations employing periodic boundary conditions, which include the
 background charge. The first correction term, the *lattice term*
-`E_{\mathrm{l}}`, is the electrostatic energy per unit cell of a
+`E_{\mathrm{lat}}`, is the electrostatic energy per unit cell of a
 periodically repeated array of model charges immersed in the neutralising
 background, minus the interaction of the model charge with itself. The second
 correction term, the *alignment term* `q\Delta V`, ensures that the zero
@@ -102,22 +102,24 @@ bulk and defect calculations, `\rho^{X^q}(\vec{r}) - \rho^0(\vec{r})`.
 In principle more exotic model distributions can be used, e.g. a combination
 of a gaussian and an exponential [#Komsa]_ .
 
-The calculation of `E_{\mathrm{l}}` is most conveniently done in Fourier space.
+The calculation of `E_{\mathrm{lat}}` is most conveniently done in Fourier space,
+where we denote the Fourier transformed quantities with a tilde, e.g.
+`\rho(r) \leftrightarrow \tilde\rho(k)`.
 Within a linear, isotropic and homogeneous dielectric characterised
 by `\varepsilon`, `\rho^m` generates
 an electrostatic potential given by
 
 .. math::
-  V(\vec{G}\neq0) = \frac{4\pi}{\varepsilon G^2} \rho^m(\vec{G})
+  \tilde V(\vec{G}\neq0) = \frac{4\pi}{\varepsilon G^2} \tilde\rho^m(\vec{G})
 
-where the `\vec{G}`'s are reciprocal lattice vectors. `E_{\mathrm{l}}` is then
+where the `\vec{G}`'s are reciprocal lattice vectors. `E_{\mathrm{lat}}` is then
 obtained as
 
 .. math::
-  E_{\mathrm{l}} = \frac{2\pi} {\varepsilon \Omega} \sum_{\vec{G} \neq 0}
-  \frac{|\rho^m(\vec{G})|^2}{G^2} -
+  E_{\mathrm{lat}} = \frac{2\pi} {\varepsilon \Omega} \sum_{\vec{G} \neq 0}
+  \frac{|\tilde\rho^m(\vec{G})|^2}{G^2} -
   \frac{1}{\pi\varepsilon} \int_0^{\infty} \mathrm{d}g
-  |\rho^{m}(g)|^2.
+  |\tilde\rho^{m}(g)|^2.
 
 
 The first term is the energy of all the periodic repeats of `\rho^m`; the
@@ -129,12 +131,12 @@ spherically symmetric.
 For the case of the gaussian,
 
 .. math::
-  \rho^m(G) = q e^{-G^2\sigma^2/2}
+  \tilde\rho^m(G) = q e^{-G^2\sigma^2/2}
 
 so
 
 .. math::
-  E_{\mathrm{l}} = \frac{2\pi} {\varepsilon \Omega} \sum_{\vec{G} \neq 0}
+  E_{\mathrm{lat}} = \frac{2\pi} {\varepsilon \Omega} \sum_{\vec{G} \neq 0}
   \frac{q^2 e^{-G^2\sigma^2}}{G^2}
   -
   \frac{q^2}{2\sqrt{\pi}\varepsilon\sigma}.
@@ -208,30 +210,38 @@ By subtracting the energy of the pristine system from the energy of the
 defective system, we obtain an uncorrected total energy difference `(E[X^q] -
 E_0)_\mathrm{uncorrected}` of 21.78 eV.
 
-We now calculate the FNV corrections. Here we take a dielectric constant of
+We now calculate the FNV corrections using
+:meth:`~gpaw.defects.electrostatics.ElectrostaticCorrections`.
+Here we take a dielectric constant of
 12.7 which is the clamped-ion static limit (i.e. the low frequency dielectric
 constant excluding the effects of ionic relaxation). We use a Gaussian model
 charge centred at (0, 0, 0) with a standard deviation of 0.72 Bohr
 (corresponding to a FWHM of 2 Bohr).
 
+.. autoclass:: gpaw.defects.electrostatics.ElectrostaticCorrections
+
 The script ``electrostatics.py`` takes the gpw files of the defective and
 pristine calculation as input, as well as the gaussian parameters and
 dielectric constant, and calculates the different terms in the correction
-scheme. For this case, the calculated value of `E_{\mathrm{l}}` is -1.28 eV.
+scheme. For this case, the calculated value of `E_{\mathrm{lat}}` is -1.28 eV.
 
 .. literalinclude:: electrostatics.py
 
-The script also produces an output file ``electrostatic_data.npz`` which
+The script also produces an output file ``electrostatics.json`` which
 gives the function `\Delta V(z)` introduced above, and also the planar
 averages of the model potential and the difference between the planar
 averages of the defective and pristine electrostatic potentials. We can plot
-the data using the following script
+the data using the following script which uses
+:meth:`~gpaw.defects.electrostatics.plot_potentials`.
+
+.. autoclass:: gpaw.defects.electrostatics.plot_potentials
 
 .. literalinclude:: plot_potentials.py
 
+
 This gives the following plot:
 
-.. image:: planaraverages.png
+.. image:: planar_averages.png
            :scale: 50 %
 
 According to the recipe introduced above, we extract the constant `\Delta V`
@@ -304,125 +314,6 @@ we also set the position of the electron chemical potential to the top of the
 valence band, i.e. `\epsilon_F` = 0.
 
 
-Calculation electrostatic corrections in two dimensions
-=======================================================
-
-For two-dimensional systems, the approach described above is complicated by the
-extreme anisotropy of the system, and in particular by the very weak screening
-occurring between periodically repeated layers. This means that the
-electrostatic interaction between a localised charge state and its images in
-neighbouring cells is generally strong, and the corresponding correction is
-large. The strong interactions pose a number of problems for the correction
-scheme described above: The heart of the correction scheme is to write the
-formation energy of the infinitely dilute system as
-
-.. math::
-  E^f[X^q]_{\infty} = E^f[X^q]_{\mathrm{supercell}} + E_{\mathrm{correction}}.
-
-In the limit of an infinitely large supercell, the formation energy in the
-supercell should approach that of the infinite cell, and the correction should
-go to zero. To accomplish this in two dimensions, we must be careful about how
-we scale the cell - If we increase the lateral size of the supercell without
-changing the vacuum, or if we increase the vacuum without changing the size
-of the supercell, we get incorrect results. Because of these difficulties,
-finding a robust correction scheme in 2D is that much more necessary. The
-starting point is the same as before, and we write:
-
-.. math::
-  E[X^q] - E_0  = (E[X^q] - E_0)_{\mathrm{uncorrected}} - E_{\mathrm{l}} + q\Delta V.
-
-The main problem arises in the `E_{\mathrm{l}}` term, and in particular, in
-finding an appropriate expression for the screened Coulomb interaction of the
-system.
-
-Recall that `E_{\mathrm{l}}` consists of two terms: The energy (per unit
-cell) associated with the interaction between the model charge distribution
-and all its periodic images, and the energy of the isolated charge
-distribution in the same dielectric environment. The first step in
-calculating either of these is to model the dielectric function.
-
-The approach used here is to assume that the dielectric function of the
-isolated layer is isotropic in plane, and varies only in the `z` direction.
-Additionally, the screening is assumed to follow the density distribution of
-the system so that we can write
-
-.. math::
- \varepsilon_{i}(z) = k_i\cdot n(z) + 1,
-
-Where `i` varies over "in-plane" and "out-of-plane", and `n` is the in-plane
-averaged density of the system. The normalization constants, `k_i`, are
-chosen such that
-
-.. math::
-
-  \frac{1}{L} \int \mathrm{d} z\, \varepsilon_{\parallel}(z) &= \varepsilon_{\parallel}^{\mathrm{DFT}} \\
-  \frac{1}{L} \int \mathrm{d} z\, \varepsilon_{\perp}^{-1}(z) &= \left(\varepsilon_{\perp}^{\mathrm{DFT}}\right)^{-1}
-
-The quantities appearing on the right hand side are the in-plane and
-out-of-plane dielectric constants resulting from a DFT/RPA calculation on the
-smallest unit cel of the pristine system, but with the same amount of vacuum as
-the supercell calculation. For 15 Å of vacuum, we calculate
-`\varepsilon_{\parallel}^{\mathrm{DFT}} = 1.80` and
-`\varepsilon_{\perp}^{\mathrm{DFT}} = 1.14`. The resulting dielectric profiles are shown below
-
-.. figure:: dielectric_profile.png
-
-With the dielectric functions in hand, we can proceed to solve the poisson
-equation, and calculate the two interaction energies. For more detail on how
-exactly the potentials and energies of the periodic and isolated charge
-distributions are calculated, we refer to :ref:`defects_theory`.
-
-The following script gives the example of a carbon boron substitution in
-hexagonal boron nitride:
-
-.. literalinclude:: BN.py
-
-This script sets up a carbon boron substitution in an NxN supercell of the
-4-atom rectangular cell, and calculates the energy of the +1 charge state, the
-neutral defect and the pristine system, saving the intermediate gpw files.
-
-For the 2x2 system with a vacuum of 15 Å we calculate the uncorrected total
-energy difference `(E[X^q] - E_0)_\mathrm{uncorrected}` to be 4.1 eV.
-
-The electrostatic corrections have been implemented in the following script,
-which greatly resembles the equivalent script for the GaAs defect. The two
-differences are:
-
-- The ``dimensionality=2d`` keyword argument to electrostatic correction
-  constructor, which ensures that the object uses the 2D model for the
-  dielectric functions.
-- The use of a list in the ``set_epsilons()`` member function, rather than a
-  single number. The first item corresponds to the in-plane dielectric
-  constant, while the second corresponds to the out-of-plane dielectric
-  constant.
-
-.. literalinclude:: electrostatics_BN.py
-
-As before, we can calculate the formation energy of the charged defect as a
-function of the supercell size, both with and without the electrostatic
-corrections. Since all of these systems have the same amount of vacuum, it is
-not expected that the uncorrected values converge to the true result, but it is
-encouraging to see the behaviour of the corrected values. As we are dealing
-with an unrelaxed system, we expect the formation energy of the defect to be
-too high, but again, the focus is on the electrostatics and the qualitative
-behaviour as a function of the supercell size, rather than the true values.
-
-.. figure:: energies_BN.png
-            :scale: 50 %
-
-As a test of the quality of the electrostatic corrections, we can look at the
-charge transition level between the neutral state and the +1 state. This is the
-energy with respect to the valence band at which the two formation energies are
-equal, and can be calculated just as `E_f[X^0] - E_f[X^{+1}]`. It comes to 2
-eV, in good agreement with [#KomsaErratum]_.
-
-Here are the planar averages
-(from :git:`~doc/tutorialsexercises/energetics/defects/plot_potentials_BN.py`):
-
-.. image:: planaraverages_BN.png
-           :scale: 50 %
-
-
 References
 ==========
 
@@ -437,7 +328,3 @@ References
 
 .. [#Komsa] H.-P. Komsa, T. T. Rantala and A. Pasquarello
               *Phys. Rev. B* **86**, 045112 (2012)
-
-.. [#KomsaErratum] H.-P. Komsa, N. Berseneva, A. V. Krasheninnikov and
-              R. M. Nieminen
-              *Phys Rev X* **4**, 031044 (2014)

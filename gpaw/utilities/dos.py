@@ -1,11 +1,13 @@
 from math import pi, sqrt
+
 import numpy as np
 from ase.parallel import paropen
-from gpaw.utilities import pack_density
+
 from gpaw.analyse.wignerseitz import wignerseitz
-from gpaw.setup_data import SetupData
 from gpaw.gauss import Gauss
 from gpaw.io.fmf import FMF
+from gpaw.setup_data import SetupData
+from gpaw.utilities import pack_density
 from gpaw.utilities.blas import gemmdot
 
 
@@ -185,6 +187,7 @@ def all_electron_LDOS(paw, mol, spin, lc=None, wf_k=None, P_aui=None):
        should be a list of atom numbers contributing to the molecule."""
 
     w_k = paw.wfs.kd.weight_k
+    assert paw.wfs.kd.comm.size == 1
     nk = len(w_k)
     nb = paw.wfs.bd.nbands
 
@@ -192,7 +195,7 @@ def all_electron_LDOS(paw, mol, spin, lc=None, wf_k=None, P_aui=None):
     if wf_k is None:
         if lc is None:
             lc = [[1, 0, 0, 0] for a in mol]
-        for k, kpt in enumerate(kpt_s[spin] for kpt_s in paw.wfs.kpt_qs):
+        for k, kpt in enumerate(kpt for kpt in paw.wfs.kpt_u if kpt.s == spin):
             N = 0
             for atom, w_a in zip(mol, lc):
                 i = 0
@@ -204,7 +207,8 @@ def all_electron_LDOS(paw, mol, spin, lc=None, wf_k=None, P_aui=None):
 
     else:
         P_aui = [np.array(P_ui).conj() for P_ui in P_aui]
-        for k, kpt in enumerate(kpt_s[spin] for kpt_s in paw.wfs.kpt_qs):
+        # for k, kpt in enumerate(kpt_s[spin] for kpt_s in paw.wfs.kpt_qs):
+        for k, kpt in enumerate(kpt for kpt in paw.wfs.kpt_u if kpt.s == spin):
             for n in range(nb):
                 P_kn[k][n] = paw.wfs.integrate(wf_k[k], kpt.psit_nG[n])
                 for a, b in zip(mol, range(len(mol))):

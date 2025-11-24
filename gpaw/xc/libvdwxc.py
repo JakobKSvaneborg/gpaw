@@ -1,16 +1,16 @@
 import numpy as np
 
+import gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw.mpi import have_mpi
 from gpaw.utilities import compiled_with_libvdwxc
 from gpaw.utilities.grid_redistribute import Domains, general_redistribute
 from gpaw.utilities.timing import nulltimer
 from gpaw.xc.functional import XCFunctional
+from gpaw.xc.gga import GGA, add_gradient_correction, gga_vars, stress_gga_term
 from gpaw.xc.lda import stress_lda_term
-from gpaw.xc.gga import GGA, gga_vars, add_gradient_correction, stress_gga_term
 from gpaw.xc.libxc import LibXC
 from gpaw.xc.mgga import MGGA
-import gpaw
-import gpaw.cgpaw as cgpaw
 
 
 def libvdwxc_has_mpi():
@@ -792,8 +792,9 @@ def test_derivatives():
 
 
 def test_selfconsistent():
-    from gpaw import GPAW
     from ase.build import molecule
+
+    from gpaw import GPAW
     from gpaw.xc.gga import GGA
 
     system = molecule('H2O')
@@ -829,6 +830,7 @@ def test_selfconsistent():
         vdw_results[vdw.__class__.__name__] = test(vdw)
 
     from gpaw.mpi import world
+
     # These tests basically verify that the LDA/GGA parts of vdwdf
     # work correctly.
     if world.rank == 0:

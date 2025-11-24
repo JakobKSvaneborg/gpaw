@@ -1,15 +1,15 @@
 import pickle
 
 import numpy as np
-from ase.units import Ha
 from ase.calculators.singlepoint import SinglePointCalculator
+from ase.units import Ha
 
-from gpaw.utilities import pack_density
-from gpaw.utilities.tools import tri2full
-from gpaw.utilities.blas import rk, mmm, mmmx
 from gpaw.basis_data import Basis
+from gpaw.mpi import world
 from gpaw.setup import types2atomtypes
-from gpaw.mpi import world, rank
+from gpaw.utilities import pack_density
+from gpaw.utilities.blas import mmm, mmmx, rk
+from gpaw.utilities.tools import tri2full
 
 
 def get_bf_centers(atoms, basis=None):
@@ -63,9 +63,10 @@ def get_realspace_hs(h_skmm, s_kmm, bzk_kc, weight_k,
                      R_c=(0, 0, 0), direction='x',
                      symmetry={'enabled': False}):
 
+    from ase.dft.kpoints import (get_monkhorst_pack_size_and_offset,
+                                 monkhorst_pack)
+
     from gpaw.symmetry import Symmetry
-    from ase.dft.kpoints import get_monkhorst_pack_size_and_offset, \
-        monkhorst_pack
 
     if symmetry['point_group']:
         raise NotImplementedError('Point group symmetry not implemented')
@@ -278,7 +279,7 @@ def get_lcao_hamiltonian(calc):
             S_kMM[wfs.k] = S_MM.data
     ibzwfs.kpt_comm.sum(H_skMM)
     ibzwfs.kpt_comm.sum(S_kMM)
-    if rank == 0:
+    if world.rank == 0:
         return H_skMM, S_kMM
     return None, None
 
@@ -303,7 +304,7 @@ def old_get_lcao_hamiltonian(calc):
         tri2full(H_skMM[kpt.s, kpt.k])
     calc.wfs.kd.comm.sum(S_kMM, 0)
     calc.wfs.kd.comm.sum(H_skMM, 0)
-    if rank == 0:
+    if world.rank == 0:
         return H_skMM, S_kMM
     else:
         return None, None
@@ -311,7 +312,7 @@ def old_get_lcao_hamiltonian(calc):
 
 def get_lead_lcao_hamiltonian(calc, direction='x'):
     H_skMM, S_kMM = get_lcao_hamiltonian(calc)
-    if rank == 0:
+    if world.rank == 0:
         return lead_kspace2realspace(H_skMM, S_kMM,
                                      bzk_kc=calc.wfs.kd.bzk_kc,
                                      weight_k=calc.wfs.kd.weight_k,

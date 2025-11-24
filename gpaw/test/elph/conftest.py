@@ -1,11 +1,8 @@
 import pytest
-
 from ase.build import bulk
 
 from gpaw import GPAW
-
-from gpaw.elph import DisplacementRunner
-from gpaw.elph import Supercell
+from gpaw.elph import DisplacementRunner, Supercell
 
 SUPERCELL = (2, 1, 1)
 

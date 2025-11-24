@@ -1,19 +1,22 @@
+from copy import deepcopy
+from typing import Any
+
 import numpy as np
-from gpaw.directmin.tools import get_n_occ, get_indices, random_a, \
-    sort_orbitals_according_to_occ, sort_orbitals_according_to_energies
 from ase.units import Hartree
+
+from gpaw.directmin.tools import (get_indices, get_n_occ, random_a,
+                                  sort_orbitals_according_to_energies,
+                                  sort_orbitals_according_to_occ)
 from gpaw.mpi import world
 from gpaw.old.logger import GPAWLogger
 from gpaw.typing import RNG
-from copy import deepcopy
-from typing import Any, Dict, Union
 
 
 class Derivatives:
 
     def __init__(self, etdm, wfs, c_ref=None, a=None,
                  update_c_ref=False, eps=1.0e-7,
-                 random_amat: Union[RNG, bool] = False):
+                 random_amat: RNG | bool = False):
         """
         :param etdm:
         :param wfs:
@@ -38,7 +41,7 @@ class Derivatives:
                           for u, v in etdm.U_k.items()}
 
         if random_amat:
-            extra_kwargs: Dict[str, Any] = {}
+            extra_kwargs: dict[str, Any] = {}
             if random_amat not in (True, ):  # Explicitly specified RNG
                 extra_kwargs.update(rng=random_amat)
             for kpt in wfs.kpt_u:

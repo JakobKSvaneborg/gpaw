@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 from ase.units import Bohr, Hartree
 
 from gpaw import GPAW_NEW
-from gpaw.old.calculator import GPAW
 from gpaw.external import ConstantElectricField, ExternalPotential
 from gpaw.lcaotddft.hamiltonian import TimeDependentHamiltonian
 from gpaw.lcaotddft.logger import TDDFTLogger
 from gpaw.lcaotddft.propagators import create_propagator
+from gpaw.old.calculator import GPAW
 from gpaw.tddft.units import attosec_to_autime
 from gpaw.typing import Any, Vector
 
@@ -75,7 +73,7 @@ class OldLCAOTDDFT(GPAW):
         self.niter = 0
         # TODO: deprecate kick keywords (and store them as td_potential)
         self.kick_strength = np.zeros(3)
-        self.kick_ext: Optional[ExternalPotential] = None
+        self.kick_ext: ExternalPotential | None = None
         self.tddft_initialized = False
         self.action = ''
         tdh = TimeDependentHamiltonian(fxc=fxc, td_potential=td_potential,

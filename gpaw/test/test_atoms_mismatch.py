@@ -2,9 +2,10 @@
 
 import pytest
 from ase.build import molecule
-from gpaw.mpi import world, synchronize_atoms
-from gpaw import GPAW
 from ase.optimize import BFGS
+
+from gpaw import GPAW
+from gpaw.mpi import synchronize_atoms, world
 
 
 @pytest.mark.ci

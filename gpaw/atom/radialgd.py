@@ -2,14 +2,14 @@ import numbers
 from abc import ABC, abstractmethod
 from math import factorial as fac
 from math import pi
-from typing import Tuple
 
 import numpy as np
+from scipy.interpolate import make_interp_spline, splder
+
 from gpaw.sphere.integrate import integrate_radial_grid
 from gpaw.spline import Spline
 from gpaw.typing import Array1D
 from gpaw.utilities import divrl, hartree
-from scipy.interpolate import make_interp_spline, splder
 
 
 def radial_grid_descriptor(eq: str, **kwargs) -> 'RadialGridDescriptor':
@@ -369,7 +369,7 @@ class RadialGridDescriptor(ABC):
                         gc: int,
                         l: int = 0,
                         points: int = 3,
-                        Gcut: float = 6.0) -> Tuple[Array1D, float]:
+                        Gcut: float = 6.0) -> tuple[Array1D, float]:
         """Minimize Fourier components above Gcut."""
         b_g, _ = self.pseudize(a_g, gc, l, points)
         c_x = np.empty(points + 1)

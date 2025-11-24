@@ -1,7 +1,8 @@
+import numpy as np
+
+from gpaw.core import UGDesc
 from gpaw.densities import add
 from gpaw.spline import Spline
-from gpaw.core import UGDesc
-import numpy as np
 
 
 def test_ae_density():

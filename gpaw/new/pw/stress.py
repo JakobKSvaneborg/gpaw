@@ -4,13 +4,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+
+from gpaw.core import PWArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.gpu import as_np
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D
-from gpaw.core import PWArray
 from gpaw.utilities import as_real_dtype
+
 if TYPE_CHECKING:
     from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 

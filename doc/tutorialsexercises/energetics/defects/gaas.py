@@ -1,60 +1,35 @@
 import sys
-from ase import Atoms
-from gpaw import GPAW, FermiDirac
+from ase.build import bulk
+from gpaw import GPAW
+from pathlib import Path
 
 # Script to get the total energies of a supercell
 # of GaAs with and without a Ga vacancy
 
-a = 5.628  # Lattice parameter
 N = int(sys.argv[1])  # NxNxN supercell
-q = -3  # Defect charge
+label = f'GaAs_{N}x{N}x{N}'
+prs_path = Path(f'{label}_prs.gpw')
+def_path = Path(f'{label}_def.gpw')
 
-formula = 'Ga4As4'
+a0 = 5.628      # lattice parameter
+charge = -3     # defect charge
 
-lattice = [[a, 0.0, 0.0],  # work with cubic cell
-           [0.0, a, 0.0],
-           [0.0, 0.0, a]]
+params = {'mode': {'name': 'pw', 'ecut': 400},
+          'xc': 'LDA',
+          'kpts': {'size': (2, 2, 2), 'gamma': False},
+          'occupations': {'name': 'fermi-dirac', 'width': 0.01}}
 
-basis = [[0.0, 0.0, 0.0],
-         [0.5, 0.5, 0.0],
-         [0.0, 0.5, 0.5],
-         [0.5, 0.0, 0.5],
-         [0.25, 0.25, 0.25],
-         [0.75, 0.75, 0.25],
-         [0.25, 0.75, 0.75],
-         [0.75, 0.25, 0.75]]
+calc_charged = GPAW(charge=charge, **params)
+calc_neutral = GPAW(charge=0, **params)
 
-GaAs = Atoms(symbols=formula,
-             scaled_positions=basis,
-             cell=lattice,
-             pbc=(1, 1, 1))
+prim = bulk('GaAs', crystalstructure='zincblende', a=a0, cubic=True)
+pristine = prim * (N, N, N)
+pristine.calc = calc_neutral
+pristine.get_potential_energy()
+pristine.calc.write(prs_path)
 
-GaAsdef = GaAs.repeat((N, N, N))
-
-GaAsdef.pop(0)  # Make the supercell and a Ga vacancy
-
-calc = GPAW(mode='fd',
-            kpts={'size': (2, 2, 2), 'gamma': False},
-            xc='LDA',
-            charge=q,
-            occupations=FermiDirac(0.01),
-            txt='GaAs{0}{0}{0}.Ga_vac.txt'.format(N))
-
-
-GaAsdef.calc = calc
-Edef = GaAsdef.get_potential_energy()
-
-calc.write('GaAs{0}{0}{0}.Ga_vac_charged.gpw'.format(N))
-
-# Now for the pristine case
-
-GaAspris = GaAs.repeat((N, N, N))
-parameters = calc.todict()
-parameters['txt'] = 'GaAs{0}{0}{0}.pristine.txt'.format(N)
-parameters['charge'] = 0
-calc = GPAW(**parameters)
-
-GaAspris.calc = calc
-Epris = GaAspris.get_potential_energy()
-
-calc.write('GaAs{0}{0}{0}.pristine.gpw'.format(N))
+defect = pristine.copy()
+defect.pop(0)  # make a Ga vacancy
+defect.calc = calc_charged
+defect.get_potential_energy()
+defect.calc.write(def_path)

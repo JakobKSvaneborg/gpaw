@@ -5,13 +5,11 @@ from abc import ABC, abstractmethod
 from collections import namedtuple
 
 import numpy as np
-
 from ase.utils.timing import timer
 
-from gpaw.utilities.blas import axpy
-
-from gpaw.tddft.utils import MultiBlas
 from gpaw.tddft.tdopers import DummyDensity
+from gpaw.tddft.utils import MultiBlas
+from gpaw.utilities.blas import axpy
 
 
 def create_propagator(name, **kwargs):

@@ -1,8 +1,7 @@
 from gpaw import GPAW, PW, FermiDirac
-from ase.io import read
+from ase.build import mx2
 
-
-slab = read('MoS2.json')
+slab = mx2('MoS2', kind='2H', a=3.1841, thickness=3.1271, vacuum=7.5)
 
 name_calc = 'calc_MoS2_BSEPlus'
 calc_bse = 'fixed_density_calc_MoS2_bse'

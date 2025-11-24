@@ -1,12 +1,13 @@
 """"""
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 import numpy as np
 
 from gpaw.core import UGArray, UGDesc
 from gpaw.gpu import einsum
+from gpaw.hybrids import HybridXC
 from gpaw.new import zips
 from gpaw.new.c import (add_to_density, add_to_density_gpu, evaluate_lda_gpu,
                         evaluate_pbe_gpu)
@@ -19,7 +20,6 @@ from gpaw.xc.gga import add_gradient_correction
 from gpaw.xc.libvdwxc import VDWXC
 from gpaw.xc.mgga import MGGA
 from gpaw.xc.vdw import VDWFunctionalBase
-from gpaw.hybrids import HybridXC
 
 
 def create_functional(xc: OldXCFunctional | str | dict,
@@ -203,7 +203,6 @@ class GGAFunctional(LDAFunctional):
         vxct_sr = nt_sr.new(zeroed=True)
         dedsigma_xr = sigma_xr.new()
         e_r = self.grid.empty(xp=self.xp)
-
         if self.xp is np:
             args = [a.data
                     for a in [e_r, nt_sr, vxct_sr, sigma_xr, dedsigma_xr]]
@@ -312,6 +311,9 @@ class MGGAFunctional(GGAFunctional):
                   taut_sr: UGArray | None = None) -> tuple[float,
                                                            UGArray,
                                                            UGArray | None]:
+        xp = nt_sr.xp
+        nt_sr = nt_sr.to_xp(np)
+
         gradn_svr, sigma_xr = gradient_and_sigma(self.grad_v, nt_sr)
         if isinstance(self.xc, VDWXC):
             assert isinstance(self.xc.semilocal_xc, MGGA), self.xc.semilocal_xc
@@ -320,6 +322,8 @@ class MGGAFunctional(GGAFunctional):
         e_r = self.grid.empty()
         if taut_sr is None:
             taut_sr = nt_sr.new(zeroed=True)
+        else:
+            taut_sr = taut_sr.to_xp(np)
         dedtaut_sr = taut_sr.new()
         vxct_sr = taut_sr.new()
         vxct_sr.data[:] = 0.0
@@ -331,6 +335,9 @@ class MGGAFunctional(GGAFunctional):
         add_gradient_correction([grad.apply for grad in self.grad_v],
                                 gradn_svr.data, sigma_xr.data,
                                 dedsigma_xr.data, vxct_sr.data)
+        vxct_sr = vxct_sr.to_xp(xp)
+        dedtaut_sr = dedtaut_sr.to_xp(xp)
+
         return e_r.integrate(), vxct_sr, dedtaut_sr
 
     def _args(self,

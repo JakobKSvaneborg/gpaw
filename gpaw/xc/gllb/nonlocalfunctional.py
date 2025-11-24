@@ -1,5 +1,6 @@
 import numpy as np
 from ase.units import Ha
+
 from gpaw.xc.functional import XCFunctional
 
 
@@ -120,7 +121,7 @@ class NonLocalFunctional(XCFunctional):
         fmt = '| %-6s | %-10s | %-45s |'
         header = fmt % ('Weight', 'Module', 'Description')
         dashes = '-' * len(header)
-        s = ['{} functional being used consists of'.format(self.name)]
+        s = [f'{self.name} functional being used consists of']
         s += [dashes]
         s += [header]
         s += [dashes]

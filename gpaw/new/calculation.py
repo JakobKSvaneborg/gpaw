@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr, Ha
+
 from gpaw.core import UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.densities import Densities
@@ -24,6 +25,7 @@ from gpaw.setup import Setups
 from gpaw.typing import Array1D, Array2D
 from gpaw.utilities import (check_atoms_too_close,
                             check_atoms_too_close_to_boundary)
+
 if TYPE_CHECKING:
     from gpaw.dft import Parameters
 
@@ -128,7 +130,7 @@ class DFTCalculation:
         ibzwfs = builder.create_ibz_wave_functions(
             basis_set, potential)
 
-        if ibzwfs.wfs_qs[0][0].has_eigs:
+        if ibzwfs._wfs_u[0].has_eigs:
             nelectrons = density.nvalence - density.charge + pot_calc.charge
             ibzwfs.calculate_occs(scf_loop.occ_calc, nelectrons)
 
@@ -450,7 +452,7 @@ class DFTCalculation:
         old_ibzwfs = ibzwfs
 
         def create_wfs(spin, q, k, kpt_c, weight):
-            wfs = old_ibzwfs.wfs_qs[q][spin]
+            wfs = old_ibzwfs._get_wfs(k, spin)
             return wfs.morph(
                 builder.wf_desc,
                 builder.relpos_ac,

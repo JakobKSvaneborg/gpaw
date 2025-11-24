@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
-
 from ase.units import Bohr, Hartree
+
 from gpaw.external import ConstantElectricField
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.densitymatrix import DensityMatrix

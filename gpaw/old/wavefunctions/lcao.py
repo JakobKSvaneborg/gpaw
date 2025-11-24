@@ -4,17 +4,17 @@ from ase.utils.timing import timer
 
 # from gpaw import debug
 from gpaw.directmin.etdm_lcao import LCAOETDM
-from gpaw.directmin.tools import loewdin_lcao, gramschmidt_lcao
+from gpaw.directmin.tools import gramschmidt_lcao, loewdin_lcao
 from gpaw.lcao.atomic_correction import (DenseAtomicCorrection,
                                          SparseAtomicCorrection)
 # from gpaw.lcao.overlap import NewTwoCenterIntegrals as NewTCI
 from gpaw.lcao.tci import TCIExpansions
 from gpaw.lfc import BasisFunctions
-from gpaw.utilities import unpack_hermitian
-from gpaw.utilities.blas import mmm, gemmdot
-from gpaw.utilities.tools import tri2full
 from gpaw.old.wavefunctions.base import WaveFunctions
 from gpaw.old.wavefunctions.mode import Mode
+from gpaw.utilities import unpack_hermitian
+from gpaw.utilities.blas import gemmdot, mmm
+from gpaw.utilities.tools import tri2full
 
 
 class LCAO(Mode):
@@ -324,8 +324,7 @@ class LCAOWaveFunctions(WaveFunctions):
         self.initialize_wave_functions_from_lcao()
 
     def add_orbital_density(self, nt_G, kpt, n):
-        rank, q = self.kd.get_rank_and_index(kpt.k)
-        u = q * self.nspins + kpt.s
+        rank, u = self.kd.get_rank_and_index(kpt.k, kpt.s)
         assert rank == self.kd.comm.rank
         assert self.kpt_u[u] is kpt
         psit_G = self._get_wave_function_array(u, n, realspace=True)

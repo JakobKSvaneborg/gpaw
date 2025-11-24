@@ -1,9 +1,10 @@
-import pytest
 import numpy as np
+import pytest
+
 from gpaw.mpi import world
-from gpaw.test import findpeak
 from gpaw.response.bse import BSE
 from gpaw.response.df import read_response_function
+from gpaw.test import findpeak
 
 
 def create_bse(gpwfile, q_c=(0, 0, 0)):

@@ -4,16 +4,15 @@ from io import StringIO
 
 import numpy as np
 from ase.units import Hartree
-from gpaw.utilities import devnull
 
 from gpaw import __version__ as version
-from gpaw.utilities import divrl
-from gpaw.atom.generator import Generator
 from gpaw.atom.all_electron import ValenceData
 from gpaw.atom.configurations import parameters
-from gpaw.basis_data import Basis, BasisFunction, get_basis_name
+from gpaw.atom.generator import Generator
 from gpaw.atom.radialgd import (AERadialGridDescriptor,
                                 EquidistantRadialGridDescriptor)
+from gpaw.basis_data import Basis, BasisFunction, get_basis_name
+from gpaw.utilities import devnull, divrl
 
 
 def make_split_valence_basis_function(r_g, psi_g, l, gcut):

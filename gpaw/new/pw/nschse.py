@@ -17,7 +17,7 @@ from gpaw.new.c import add_to_density
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.density import Density
 from gpaw.new.logger import Logger
-from gpaw.new.pw.hybrids import truncated_coulomb, Psit, ibz2bz
+from gpaw.new.pw.hybrids import Psit, ibz2bz, truncated_coulomb
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.xc import create_functional
@@ -94,36 +94,36 @@ class NonSelfConsistentHSE06:
         domain_comm = ibzwfs.domain_comm
         band_comm = ibzwfs.band_comm
         kpt_comm = ibzwfs.kpt_comm
+        nibzkpts = len(ibzwfs.ibz)
 
-        kpt_comm_rank_k = ibzwfs.rank_k
-        comm_rank_k = np.zeros(len(kpt_comm_rank_k), int)
-        for k, kpt_comm_rank in enumerate(kpt_comm_rank_k):
-            if kpt_comm_rank == kpt_comm.rank:
-                if band_comm.rank == 0 and domain_comm.rank == 0:
-                    comm_rank_k[k] = comm.rank
-        comm.sum(comm_rank_k)
+        comm_rank_ks = np.zeros((nibzkpts, ibzwfs.nspins), int)
+        for k in range(nibzkpts):
+            for spin in range(ibzwfs.nspins):
+                if ibzwfs.rank_ks[k, spin] == kpt_comm.rank:
+                    if band_comm.rank == 0 and domain_comm.rank == 0:
+                        comm_rank_ks[k, spin] = comm.rank
+        comm.sum(comm_rank_ks)
 
         self.log('Calculating eigenvalues:')
-        self.log('  k-points:', len(kpt_comm_rank_k))
+        self.log('  k-points:', nibzkpts)
         self.log(f'  Bands: {na}-{nb - 1} (inclusive)')
 
         tb = 0.0
         t1 = time()
         eig_ksn = []  # self-consistent DFT eigenvalues
         deig_ksn = []  # HSE06 eigenvalue changes
-        for k, kpt_comm_rank in enumerate(kpt_comm_rank_k):
+        for k in range(nibzkpts):
             eig_sn = []
             deig_sn = []
             for spin in range(ibzwfs.nspins):
                 data = None
                 tb -= time()
-                if kpt_comm_rank == kpt_comm.rank:
-                    q = ibzwfs.q_k[k]
-                    wfs = ibzwfs.wfs_qs[q][spin].collect(na, nb)
+                if ibzwfs.rank_ks[k, spin] == kpt_comm.rank:
+                    wfs = ibzwfs._get_wfs(k, spin).collect(na, nb)
                     if wfs is not None:
                         data = (wfs.psit_nX, wfs.P_ani, wfs.eig_n * Ha, spin)
                 psit_nG, P_ani, eig_n, spin = broadcast(
-                    data, comm_rank_k[k], comm)
+                    data, comm_rank_ks[k, spin], comm)
                 tb += time()
                 eig_sn.append(eig_n)
                 deig_n = self.calculate_one_kpt(psit_nG, P_ani, spin)

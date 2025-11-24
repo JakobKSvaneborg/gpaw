@@ -1,9 +1,10 @@
 import numpy as np
-from gpaw.cgpaw import get_num_threads
 from ase import Atoms
 from ase.data import chemical_symbols
 from ase.geometry import cell_to_cellpar
 from ase.units import Bohr
+
+from gpaw.cgpaw import get_num_threads
 
 
 def print_cell(gd, pbc_c, log):

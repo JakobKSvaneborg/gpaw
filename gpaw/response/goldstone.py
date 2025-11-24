@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy.optimize import minimize
 
-from gpaw.response.dyson import HXCScaling, DysonEquation, DysonEquations
+from gpaw.response.dyson import DysonEquation, DysonEquations, HXCScaling
 
 if TYPE_CHECKING:
     from gpaw.response.chiks import SelfEnhancementCalculator

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+
 from gpaw.core.matrix import Matrix
 from gpaw.external import ExternalPotential
 from gpaw.lfc import BasisFunctions
@@ -172,7 +173,7 @@ class LCAOKickHamiltonian(LCAOHamiltonian):
         W_aL = pot_calc.ghat_aLr.integrate(vext_r)
 
         assert ibzwfs.ibz.bz.gamma_only
-        setups_a = ibzwfs.wfs_qs[0][0].setups
+        setups_a = ibzwfs._wfs_u[0].setups
 
         self.V_sxMM = [V_MM for s in range(self.nspins)]
         self.dH_saii = [{a: unpack_hermitian(setups_a[a].Delta_pL @ W_L)

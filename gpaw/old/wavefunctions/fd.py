@@ -1,19 +1,19 @@
 import numpy as np
 from ase.units import Bohr
 
-from gpaw.fd_operators import Laplace, Gradient
-from gpaw.old.kpoint import KPoint
-from gpaw.old.kpt_descriptor import KPointDescriptor
+import gpaw.cgpaw as cgpaw
+from gpaw.fd_operators import Gradient, Laplace
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
 from gpaw.mpi import serial_comm
-from gpaw.preconditioner import Preconditioner
+from gpaw.old.kpoint import KPoint
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.old.projections import Projections
-from gpaw.transformers import Transformer
-from gpaw.utilities.blas import axpy
 from gpaw.old.wavefunctions.arrays import UniformGridWaveFunctions
 from gpaw.old.wavefunctions.fdpw import FDPWWaveFunctions
 from gpaw.old.wavefunctions.mode import Mode
-import gpaw.cgpaw as cgpaw
+from gpaw.preconditioner import Preconditioner
+from gpaw.transformers import Transformer
+from gpaw.utilities.blas import axpy
 
 
 class FD(Mode):
@@ -170,9 +170,9 @@ class FDWaveFunctions(FDPWWaveFunctions):
             for s in range(self.nspins):
                 # Index of symmetry related point in the IBZ
                 ik = self.kd.bz2ibz_k[k]
-                r, q = self.kd.get_rank_and_index(ik)
+                r, u = self.kd.get_rank_and_index(ik, s)
                 assert r == 0
-                kpt = self.kpt_qs[q][s]
+                kpt = self.kpt_u[u]
 
                 phase_cd = np.exp(2j * np.pi * self.gd.sdisp_cd *
                                   kd.bzk_kc[k, :, np.newaxis])

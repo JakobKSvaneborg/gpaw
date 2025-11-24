@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import numbers
-from typing import Literal, Sequence, overload
+from collections.abc import Sequence
+from typing import Literal, overload
 
 import numpy as np
+
 from gpaw import debug
 from gpaw.core.matrix import Matrix
 from gpaw.gpu import XP
