@@ -267,7 +267,7 @@ class ElectronPhononMatrix:
             Converged calculator object containing the LCAO wavefuntions
             (don't use point group symmetry)
         k_qc: np.ndarray
-            q-vectors of the phonons. Must only contain values comenserate
+            q-vectors of the phonons. Must only contain values commensurate
             with k-point sampling of calculator. Default: all kpoints used.
         savetofile: bool
             If true (default), saves matrix to gsqklnn.npy

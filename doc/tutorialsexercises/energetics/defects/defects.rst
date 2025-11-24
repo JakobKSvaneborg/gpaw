@@ -176,7 +176,7 @@ a planar average, for instance in the `xy` plane of area `A`:
 
 `\Delta V` should then be taken as `\Delta V(z_0)`, where `z_0` is the plane
 furthest from the defect. An alternative option is to perform the average
-over some volume `\tau` centred on each atom `J`, i.e.
+over some volume `\tau` centered on each atom `J`, i.e.
 
 .. math::
 

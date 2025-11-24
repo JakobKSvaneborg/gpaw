@@ -197,11 +197,11 @@ class PointChargePotential(ExternalPotential):
         charges: list of float
             Charges in units of `|e|`.
         positions: (N, 3)-shaped array-like of float
-            Positions of charges in Ångstrom.  Can be set later.
+            Positions of charges in Ångstrøm.  Can be set later.
         rc: float
-            Inner cutoff for Coulomb potential in Ångstrom.
+            Inner cutoff for Coulomb potential in Ångstrøm.
         rc2: float
-            Outer cutoff for Coulomb potential in Ångstrom.
+            Outer cutoff for Coulomb potential in Ångstrøm.
         width: float
             Width for cutoff function for Coulomb part.
 
