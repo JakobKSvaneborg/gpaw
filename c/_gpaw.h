@@ -14,13 +14,6 @@
 #include <xc.h> // If this file is not found, install libxc https://gpaw.readthedocs.io/install.html#libxc-installation
 #endif
 
-#ifdef GPAW_HPM
-PyObject* ibm_hpm_start(PyObject *self, PyObject *args);
-PyObject* ibm_hpm_stop(PyObject *self, PyObject *args);
-PyObject* ibm_mpi_start(PyObject *self);
-PyObject* ibm_mpi_stop(PyObject *self);
-#endif
-
 #if defined(GPAW_WITH_MAGMA) && !defined(GPAW_GPU)
 #warning "GPAW must be built with GPU support in order to use MAGMA routines. Disabling MAGMA"
 #undef GPAW_WITH_MAGMA
@@ -316,12 +309,6 @@ static PyMethodDef functions[] = {
     {"FFTWExecute", FFTWExecute, METH_VARARGS, 0},
     {"FFTWDestroy", FFTWDestroy, METH_VARARGS, 0},
 #endif
-#ifdef GPAW_HPM
-    {"hpm_start", ibm_hpm_start, METH_VARARGS, 0},
-    {"hpm_stop", ibm_hpm_stop, METH_VARARGS, 0},
-    {"mpi_start", (PyCFunction) ibm_mpi_start, METH_NOARGS, 0},
-    {"mpi_stop", (PyCFunction) ibm_mpi_stop, METH_NOARGS, 0},
-#endif // GPAW_HPM
 #ifdef GPAW_PAPI
     {"papi_mem_info", papi_mem_info, METH_VARARGS, 0},
 #endif // GPAW_PAPI

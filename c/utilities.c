@@ -20,43 +20,6 @@
 #include <omp.h>
 #endif
 
-#ifdef GPAW_HPM
-void HPM_Start(char *);
-void HPM_Stop(char *);
-void summary_start(void);
-void summary_stop(void);
-
-PyObject* ibm_hpm_start(PyObject *self, PyObject *args)
-{
-  char* s;
-  if (!PyArg_ParseTuple(args, "s", &s))
-    return NULL;
-  HPM_Start(s);
-  Py_RETURN_NONE;
-}
-
-PyObject* ibm_hpm_stop(PyObject *self, PyObject *args)
-{
-  char* s;
-  if (!PyArg_ParseTuple(args, "s", &s))
-    return NULL;
-  HPM_Stop(s);
-  Py_RETURN_NONE;
-}
-
-PyObject* ibm_mpi_start(PyObject *self)
-{
-  summary_start();
-  Py_RETURN_NONE;
-}
-
-PyObject* ibm_mpi_stop(PyObject *self)
-{
-  summary_stop();
-  Py_RETURN_NONE;
-}
-#endif
-
 PyObject* get_num_threads(PyObject *self, PyObject *args)
 {
   int nthreads = 1;
@@ -213,19 +176,6 @@ void gpaw_perf_finalize()
     fflush(fp);
     fclose(fp);
   }
-}
-#elif GPAW_HPM
-void HPM_Start(char *);
-
-int gpaw_perf_init()
-{
-  HPM_Start("GPAW");
-  return 0;
-}
-
-void gpaw_perf_finalize()
-{
-  HPM_Stop("GPAW");
 }
 #else  // Use just MPI_Wtime
 static double t0;
