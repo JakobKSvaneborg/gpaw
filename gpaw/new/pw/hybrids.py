@@ -284,7 +284,6 @@ class PWHybridHamiltonian(PWHamiltonian):
             evv = domain_comm.sum_scalar(evv) * self.kpt_comm.size
             evc = domain_comm.sum_scalar(evc) * self.kpt_comm.size
         ekin = -evc - 2 * evv
-        print(1, ekin)
 
         # Find projectors and k-point weight for psit2_nG:
         for wfs in ibzwfs:
@@ -302,11 +301,12 @@ class PWHybridHamiltonian(PWHamiltonian):
                          psit2_nG, Htpsit2_nG,
                          wfs.myocc_n, V_aii,
                          calculate_energy, F1_av)
+
         evv += 0.5 * e
         ekin -= e
-        print(2, ekin)
 
         if calculate_energy:
+            print(self.comm.rank, psit2_nG.desc.kpt_c, spin, e)
             for name, e in [('hybrid_xc', evv + evc),
                             ('hybrid_kinetic_correction', ekin)]:
                 e *= ibzwfs.spin_degeneracy * kweight
@@ -395,9 +395,12 @@ class PWHybridHamiltonian(PWHamiltonian):
             if psit1.spin == spin:
                 pw = pw2.new(kpt=pw2.kpt_c - psit1.kpt_c)
                 v_G = truncated_coulomb(pw, self.exx_omega)
-                e += self._apply3(
+                e1= self._apply3(
                     pw, v_G, psit1, ut2_nR, P2_ani, Htpsit2_nG, V2_ani, f2_n,
                     calculate_energy, F1_av)
+                if calculate_energy:
+                    print(self.comm.rank, 'M', psit1.kpt_c, psit1.spin, e1)
+                e+=e1
 
         e *= -self.exx_fraction / self.nbzk
         return self.comm.sum_scalar(e)

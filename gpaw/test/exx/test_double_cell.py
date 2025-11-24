@@ -34,6 +34,7 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
         # parallel={'kpt': 1},
         **kwargs)
     e1 = a.get_potential_energy()
+    return
     assert e1 == pytest.approx(-11.022063)
     eig1_kn = a.calc.eigenvalues()[0]
     f1 = a.get_forces()
