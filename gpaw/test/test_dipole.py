@@ -38,7 +38,7 @@ from ase.build import molecule
 from ase.units import Hartree
 
 from gpaw import GPAW, Mixer
-from gpaw.mpi import rank
+from gpaw.mpi import world
 
 
 def test_dipole():
@@ -80,7 +80,7 @@ def test_dipole():
         vz = vyz.sum(axis=0) / ny
         return vz, vyz
 
-    if rank == 0:
+    if world.rank == 0:
         vz1, vyz1 = get_avg(v1)
         vz2, vyz2 = get_avg(v2)
 

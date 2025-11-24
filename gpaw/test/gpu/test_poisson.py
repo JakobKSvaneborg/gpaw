@@ -3,14 +3,14 @@ import pytest
 
 from gpaw import GPAW_NO_C_EXTENSION
 from gpaw.gpu import cupy_is_fake
-from gpaw.mpi import size
+from gpaw.mpi import world
 from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.poisson import FDPoissonSolver
 
 
 @pytest.mark.gpu
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
-@pytest.mark.skipif(size == 8, reason='Fails at the moment for size=8')
+@pytest.mark.skipif(world.size == 8, reason='Fails at the moment for size=8')
 def test_poisson():
     if GPAW_NO_C_EXTENSION:
         pytest.skip('GPAW_NO_C_EXTENSION')

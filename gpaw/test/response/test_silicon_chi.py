@@ -7,7 +7,7 @@ from ase.parallel import parprint
 from ase.utils.timing import Timer
 
 from gpaw import GPAW, PW, FermiDirac
-from gpaw.mpi import size, world
+from gpaw.mpi import world
 from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator
 from gpaw.response.df import DielectricFunction, read_response_function
@@ -20,7 +20,7 @@ from gpaw.test import findpeak
 @pytest.mark.kspair
 @pytest.mark.response
 def test_response_silicon_chi_RPA(in_tmp_dir):
-    assert size <= 4**3
+    assert world.size <= 4**3
 
     # Ground state calculation
 

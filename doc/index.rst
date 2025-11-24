@@ -240,6 +240,7 @@ News
    setups/setups
    releasenotes
    gallery/gallery
+   ecosystem
    contact
    faq
    devel/devel
