@@ -21,12 +21,6 @@ PyObject* ibm_mpi_start(PyObject *self);
 PyObject* ibm_mpi_stop(PyObject *self);
 #endif
 
-#ifdef CRAYPAT
-#include <pat_api.h>
-PyObject* craypat_region_begin(PyObject *self, PyObject *args);
-PyObject* craypat_region_end(PyObject *self, PyObject *args);
-#endif
-
 #if defined(GPAW_WITH_MAGMA) && !defined(GPAW_GPU)
 #warning "GPAW must be built with GPU support in order to use MAGMA routines. Disabling MAGMA"
 #undef GPAW_WITH_MAGMA
@@ -328,10 +322,6 @@ static PyMethodDef functions[] = {
     {"mpi_start", (PyCFunction) ibm_mpi_start, METH_NOARGS, 0},
     {"mpi_stop", (PyCFunction) ibm_mpi_stop, METH_NOARGS, 0},
 #endif // GPAW_HPM
-#ifdef CRAYPAT
-    {"craypat_region_begin", craypat_region_begin, METH_VARARGS, 0},
-    {"craypat_region_end", craypat_region_end, METH_VARARGS, 0},
-#endif // CRAYPAT
 #ifdef GPAW_PAPI
     {"papi_mem_info", papi_mem_info, METH_VARARGS, 0},
 #endif // GPAW_PAPI

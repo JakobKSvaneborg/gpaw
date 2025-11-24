@@ -57,30 +57,6 @@ PyObject* ibm_mpi_stop(PyObject *self)
 }
 #endif
 
-
-#ifdef CRAYPAT
-#include <pat_api.h>
-
-PyObject* craypat_region_begin(PyObject *self, PyObject *args)
-{
-  int n;
-  char* s;
-  if (!PyArg_ParseTuple(args, "is", &n, &s))
-    return NULL;
-  PAT_region_begin(n, s);
-  Py_RETURN_NONE;
-}
-
-PyObject* craypat_region_end(PyObject *self, PyObject *args)
-{
-  int n;
-  if (!PyArg_ParseTuple(args, "i", &n))
-    return NULL;
-  PAT_region_end(n);
-  Py_RETURN_NONE;
-}
-#endif
-
 PyObject* get_num_threads(PyObject *self, PyObject *args)
 {
   int nthreads = 1;
