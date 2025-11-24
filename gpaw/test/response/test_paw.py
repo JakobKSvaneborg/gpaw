@@ -2,7 +2,6 @@ from functools import partial
 
 import numpy as np
 import pytest
-from ase.data import chemical_symbols
 from ase.units import Ha
 
 from gpaw.response import ResponseGroundStateAdapter
