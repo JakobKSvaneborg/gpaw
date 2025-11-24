@@ -122,7 +122,7 @@ might persist, depending on the orientation of the spin spiral plane. The
 plane orientation is usually the normal plane vector 
 :math:`\mathbf{n} = (\theta, \varphi)`. The normal plane vector can be 
 determined self-consistently in a supercell calculation, however converging
-exact angles can be very tricky. Instead we can leverege the small spin
+exact angles can be very tricky. Instead we can leverage the small spin
 spiral groundstate, do a scan of scan of :math:`\mathbf{n}`
 non-self-consistently using the projected spin-orbit approximation
 [#Sandratskii]_. In the following script we do such a scan, but limited to

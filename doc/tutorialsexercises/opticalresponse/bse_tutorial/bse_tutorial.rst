@@ -16,7 +16,7 @@ We start by calculating the ground state density and diagonalizing the
 resulting Hamiltonian.  Below we will set up the Bethe-Salpeter Hamiltonian
 in a basis of the 4 valence bands and 4 conduction bands.  However, the
 screened interaction that enters the Hamiltonian needs to be converged with
-respect the number of unoccupied bands.  The calculaton is erfored with the
+respect the number of unoccupied bands.  The calculaton is run with the
 following script :download:`gs_Si.py`. It takes a few minutes on a single
 CPU. The last line in the script creates a .gpw file which contains all the
 informations of the system, including the wavefunctions.
@@ -55,7 +55,7 @@ Excitons in monolayer MoS2 with Spin-orbit Coupling
 Spectrum from the Bethe-Salpeter equation
 -----------------------------------------
 
-The screening plays a fundamental role in the Bethe-Salpeter equation and for 2D systems the screening requires a special treatment. In particular we use a truncated Coulomb interaction inorder to decouple the screening between periodic images. We refer to Ref. [#Huser]_ for details on the truncated Coulomb interaction in GPAW. As before, we calculate the ground state of `MoS_2` with the script :download:`gs_MoS2.py`, which takes a few minutes. Note the large density of k-points, which are required to converge the BSE spectrum of two-dimensional systems.
+The screening plays a fundamental role in the Bethe-Salpeter equation and for 2D systems the screening requires a special treatment. In particular we use a truncated Coulomb interaction in order to decouple the screening between periodic images. We refer to Ref. [#Huser]_ for details on the truncated Coulomb interaction in GPAW. As before, we calculate the ground state of `MoS_2` with the script :download:`gs_MoS2.py`, which takes a few minutes. Note the large density of k-points, which are required to converge the BSE spectrum of two-dimensional systems.
 
 The macroscopic dielectric function is calculated as an average of the microscopic screening over the unit cell. Clearly, for a 2D system this will depend on the unit cell size in the direction orthogonal to the slab and in the converged limit the dielectric function becomes unity. Instead we may calculate the longitudinal part of 2D polarizability which is independent of unit cell size. This is done in RPA as well as BSE with the scripts :download:`pol_MoS2.py`, which takes ~20 hours on 16 CPUs. Note that the BSE polarizability is calculated with and without Coulomb truncation for comparison. In both case spin-orbit coupling is included through the ``spinors`` keyword. We refer to Ref. [#Olsenspin]_ for details on the spin-orbit implementation. The results can be plottet with :download:`plot_MoS2.py` and is shown below.
 

@@ -8,7 +8,7 @@ In this exercise we will use GPAW to calculate the cohesive energy of
 silicon.  When calculating total energies, we shall split the
 exchange-correlation energy into an "exact" exchange contribution and
 calculate the remaining correlation energy in the random-phase
-approximation (RPA).  A comprehesive introduction to the RPA can be
+approximation (RPA).  A comprehensive introduction to the RPA can be
 found in [Ren]_, and you are also advised to look at :ref:`this page <rpa>`.
 
 .. note::

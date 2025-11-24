@@ -302,7 +302,7 @@ long wavelength limit `\mathbf{q}\rightarrow 0` the magnetic moment on the
 two cobalt atoms inside the unit cell will precess in-phase for an acoustic
 spin-wave, why both of the single sublattice models provide reasonable
 results in this limit. Interestingly, both models actually also provide a
-good describtion of the acoustic magnon dispersion on the entire G-M path, a
+good description of the acoustic magnon dispersion on the entire G-M path, a
 conclusion extending even all the way to the K-point in the case of a
 cylindrical site volume.
 
