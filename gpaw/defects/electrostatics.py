@@ -115,8 +115,8 @@ class ElectrostaticCorrections():
         if 'atoms' in method:
             assert self.atoms_prs is not None
 
-        # volume Bohr^3
-        self.Omega = np.linalg.det(self.cell_cv)    # Bohr^3
+        # volume
+        self.vol = np.abs(np.linalg.det(self.cell_cv))    # Bohr^3
 
         # monoclin check
         cross_ab = np.cross(self.cell_cv[0, :], self.cell_cv[1, :])
@@ -152,7 +152,7 @@ class ElectrostaticCorrections():
         # (and itself -> needs to be substracted
         # with calculate_isolated_correction)
         # neutralizing background taken into account
-        Elp = 0.5 * np.sum(self.rho_G * self.phi_G).real / self.Omega
+        Elp = 0.5 * np.sum(self.rho_G * self.phi_G).real / self.vol
         return Elp
 
     def calculate_isolated_correction(self):
@@ -189,7 +189,7 @@ class ElectrostaticCorrections():
 
         assert np.abs(phi_r.imag).max() < 1e-8
 
-        return phi_r.real / self.Omega  # XXX right normalization ?
+        return phi_r.real / self.vol  # XXX right normalization ?
 
     def prs_mic_dist(self, r0_v):
 
