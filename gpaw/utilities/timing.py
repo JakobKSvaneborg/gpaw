@@ -350,34 +350,3 @@ class HPMTimer(Timer):
     def write(self, out=sys.stdout):
         Timer.write(self, out)
         self.hpm_stop(self.top_level)
-
-
-class CrayPAT_timer(Timer):
-    """Interface to CrayPAT API. In addition to regular timers,
-    the corresponding regions are profiled by CrayPAT. The gpaw-python had
-    to be compiled under CrayPAT, so maybe this does not work now that
-    gpaw-python is no longer a thing.
-    """
-
-    def __init__(self, print_levels=4):
-        Timer.__init__(self, print_levels)
-        from gpaw.cgpaw import craypat_region_begin, craypat_region_end
-        self.craypat_region_begin = craypat_region_begin
-        self.craypat_region_end = craypat_region_end
-        self.regions = {}
-        self.region_id = 5  # leave room for regions in C
-
-    def start(self, name):
-        Timer.start(self, name)
-        if name in self.regions:
-            id = self.regions[name]
-        else:
-            id = self.region_id
-            self.regions[name] = id
-            self.region_id += 1
-        self.craypat_region_begin(id, name)
-
-    def stop(self, name=None):
-        Timer.stop(self, name)
-        id = self.regions[name]
-        self.craypat_region_end(id)
