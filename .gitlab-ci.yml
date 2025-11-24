@@ -150,6 +150,7 @@ build-latest:
   extends:
     - .build
   script:
+    - pip install --upgrade pytest pytest-cov coverage pytest-xdist
     - |
       cat << EOF >> siteconfig.py
       define_macros += [('NDEBUG', None)]
