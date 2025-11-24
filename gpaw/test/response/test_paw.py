@@ -16,20 +16,14 @@ from gpaw.setup import create_setup
 from gpaw.sphere.rshe import calculate_reduced_rshe
 
 
-def setups():
-    for symbol in chemical_symbols:
-        try:
-            setup = create_setup(symbol)
-        except FileNotFoundError:
-            pass
-        else:
-            yield setup
-
-
 @pytest.mark.response
 @pytest.mark.serial
-@pytest.mark.parametrize('setup', setups())
-def test_paw_corrections(setup):
+@pytest.mark.parametrize(
+    'symbol',
+    ['H', 'Li', 'O', 'Si', 'Fe', 'Mo', 'In', 'I', 'Au', 'Hg', 'Pb',
+     'La', 'Dy', 'Er'])
+def test_paw_corrections(symbol):
+    setup = create_setup(symbol)
     radial_points = 2**10
     if setup.symbol in {'I', 'Hg', 'Pb'}:
         # More points where needed, for performance.
