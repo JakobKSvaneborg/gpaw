@@ -219,7 +219,7 @@ class KohnShamKPointPairExtractor:
                     P_r2rhI[r2][rh_reh] = P_ehI[eh_reh]
 
             # Wavefunctions are heavy objects which can only be extracted
-            # for one band index at a time, handle them seperately
+            # for one band index at a time, handle them separately
             self.add_wave_function(myu, myn_eh, eh_r2reh,
                                    rh_r2reh, psit_r2rhG)
 

@@ -60,7 +60,7 @@ interactions; more details can be found in [#FNV]_.  A practical example is
 given in the next section. The electrostatic energy of a periodically
 repeated charged system is divergent.  Therefore, the calculation of `E[X^q]`
 in periodic boundary conditions is only possible if one adds a homogeneous
-neutralising background charge of density `-q/\Omega` (where `\Omega` is the
+neutralizing background charge of density `-q/\Omega` (where `\Omega` is the
 volume of the supercell). By taking the limit `\Omega \rightarrow \infty`
 interactions originating from copies of the charge distribution and from the
 background charge are removed. The FNV scheme aims to accelerate this
@@ -75,7 +75,7 @@ The uncorrected term in brackets is the total energy difference one obtains
 from calculations employing periodic boundary conditions, which include the
 background charge. The first correction term, the *lattice term*
 `E_{\mathrm{lat}}`, is the electrostatic energy per unit cell of a
-periodically repeated array of model charges immersed in the neutralising
+periodically repeated array of model charges immersed in the neutralizing
 background, minus the interaction of the model charge with itself. The second
 correction term, the *alignment term* `q\Delta V`, ensures that the zero
 point (d.c. component) of the electrostatic potential of the calculation with
@@ -105,7 +105,7 @@ of a gaussian and an exponential [#Komsa]_ .
 The calculation of `E_{\mathrm{lat}}` is most conveniently done in Fourier space,
 where we denote the Fourier transformed quantities with a tilde, e.g.
 `\rho(r) \leftrightarrow \tilde\rho(k)`.
-Within a linear, isotropic and homogeneous dielectric characterised
+Within a linear, isotropic and homogeneous dielectric characterized
 by `\varepsilon`, `\rho^m` generates
 an electrostatic potential given by
 
@@ -123,7 +123,7 @@ obtained as
 
 
 The first term is the energy of all the periodic repeats of `\rho^m`; the
-inclusion of the neutralising background means the `\vec{G}=0` term is
+inclusion of the neutralizing background means the `\vec{G}=0` term is
 omitted. The second term is the electrostatic energy of `\rho^m` interacting
 with itself, where here we have implicitly assumed that `\rho^m`  is
 spherically symmetric.
@@ -156,7 +156,7 @@ electrostatic potential, such that even if `\vec{r_0}` is located many
 angstroms away from the defect, the potential
 `V^{X^q}_\mathrm{el}(\vec{r_0})` is not truly bulklike. The FNV solution is
 to suppose that the potential due to the model charge, `V(\vec{r})`,
-accurately describes the long-range behaviour of the true defect charge
+accurately describes the long-range behavior of the true defect charge
 distribution, so that its effects can be removed from `V^{X^q}_\mathrm{el}`
 by a simple subtraction. Thus we introduce
 
@@ -176,7 +176,7 @@ a planar average, for instance in the `xy` plane of area `A`:
 
 `\Delta V` should then be taken as `\Delta V(z_0)`, where `z_0` is the plane
 furthest from the defect. An alternative option is to perform the average
-over some volume `\tau` centred on each atom `J`, i.e.
+over some volume `\tau` centered on each atom `J`, i.e.
 
 .. math::
 
@@ -215,7 +215,7 @@ We now calculate the FNV corrections using
 Here we take a dielectric constant of
 12.7 which is the clamped-ion static limit (i.e. the low frequency dielectric
 constant excluding the effects of ionic relaxation). We use a Gaussian model
-charge centred at (0, 0, 0) with a standard deviation of 0.72 Bohr
+charge centered at (0, 0, 0) with a standard deviation of 0.72 Bohr
 (corresponding to a FWHM of 2 Bohr).
 
 .. autoclass:: gpaw.defects.electrostatics.ElectrostaticCorrections
@@ -248,7 +248,7 @@ According to the recipe introduced above, we extract the constant `\Delta V`
 from `\Delta V(z)` furthest from the defect, corresponding to the middle of
 the unit cell. The extracted value of `\Delta V = -0.14` eV is shown as the
 dashed line. Note that such a plot provides a consistency check of the FNV
-scheme; if `\Delta V(z)` does not display flat behaviour away from the
+scheme; if `\Delta V(z)` does not display flat behavior away from the
 defect, it is a sign that the model is not describing the true electrostatics
 sufficiently well.
 

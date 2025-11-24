@@ -69,7 +69,7 @@ News
 * .. warning::
 
     **IMPORTANT**: A bug was found in PW-mode `\Gamma`-point only calculations.
-    Please check :ref:`here <bug0>` if you have been afected by this.
+    Please check :ref:`here <bug0>` if you have been affected by this.
 
 * :ref:`GPAW version 23.9.1 <releasenotes>` released (Sep 15, 2023).
 

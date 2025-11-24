@@ -663,7 +663,7 @@ class Parameters:
         interpolation:
             ...
         kpts:
-            Brilluin-zone sampling.  Default is Γ-point only.
+            Brillouin-zone sampling.  Default is Γ-point only.
         magmoms:
             Initial magnetic moments for non-collinear calculations.
         maxiter:
@@ -866,7 +866,7 @@ def DFT(
     atoms:
         ASE-Atoms object.
     txt:
-        Text log-file.  Use ``None`` for no loggin and ``'-'`` for using
+        Text log-file.  Use ``None`` for no logging and ``'-'`` for using
         standard out.
     communicator:
         MPI-communicator.  Default is to use ``gpaw.mpi.world``.
@@ -917,7 +917,7 @@ def GPAW(
     filename:
         Name of gpw-file to restart from.
     txt:
-        Text log-file.  Use ``None`` for no loggin and ``'-'``
+        Text log-file.  Use ``None`` for no logging and ``'-'``
         for using standard out.
     communicator:
         MPI-communicator.  Default is to use ``gpaw.mpi.world``.

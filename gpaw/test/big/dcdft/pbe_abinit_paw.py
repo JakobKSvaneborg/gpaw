@@ -81,7 +81,6 @@ for name in names:
             nstep=900,
             pawovlp=-1,  # bypass overlap check
             fband=fband,
-            # https://forum.abinit.org/viewtopic.php?f=8&t=35
             chksymbreak=0,
             tolsym=tolsym,
             prtwf=0,

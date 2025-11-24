@@ -570,7 +570,7 @@ class _Communicator:
     def testall(self, requests):
         """Test whether non-blocking MPI operations have completed. A boolean
         is returned immediately but requests may have been deallocated as a
-        result, provided they have completed before or during this invokation.
+        result, provided they have completed before or during this invocation.
 
         Parameters:
 
