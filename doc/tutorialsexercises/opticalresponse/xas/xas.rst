@@ -78,7 +78,7 @@ recursion method to calculate the spectrum, thus avoiding to determine
 many unoccupied states. First we do a core hole calculation with
 enough k-points to converge the ground state density. Then we compute
 the recursion coefficients with a denser k-point mesh to converge the
-uncoccupied DOS. A Delta Kohn-Sham calculation can be done for the
+unoccupied DOS. A Delta Kohn-Sham calculation can be done for the
 gamma point, and the shift is made so that the first unoccupied
 eigenvalue at the gamma point ends up at the computed total energy
 difference.
@@ -124,7 +124,7 @@ are shown along with the experimental spectrum.
 XES
 ===
 
-To compute XES, first do a ground state calcualtion with an 0.0 core
+To compute XES, first do a ground state calculation with an 0.0 core
 hole (an 'xes1s' setup as created above ). The system will not be
 charged so the setups can be placed on all atoms one wants to
 calculate XES for. Since XES probes the occupied states no unoccupied
@@ -147,7 +147,7 @@ Further considerations
 For XAS: Gridspacing can be set to the default value. The shape of the
 spectrum is quite insensitive to the functional used, the DKS shifts
 are more sensitive. The absolute energy position can be shifted so
-that the calculated XPS energy matches the expreimental value
+that the calculated XPS energy matches the experimental value
 [Leetmaa2006]. Use a large box, see convergence with box size for a
 water molecule below:
 
