@@ -687,7 +687,7 @@ class RealSpaceDensity(Density):
     def __init__(self, gd, finegd, nspins, collinear, charge, redistributor,
                  stencil=3,
                  background_charge=None):
-        Density.__init__(self, gd, finegd, nspins, collinear,
+        super().__init__(gd, finegd, nspins, collinear,
                          charge, redistributor,
                          background_charge=background_charge)
         self.stencil = stencil
@@ -695,7 +695,7 @@ class RealSpaceDensity(Density):
         self.interpolator = None
 
     def initialize(self, setups, timer, magmom_a, hund):
-        Density.initialize(self, setups, timer, magmom_a, hund)
+        super().initialize(setups, timer, magmom_a, hund)
 
         # Interpolation function for the density:
         self.interpolator = Transformer(self.redistributor.aux_gd,
@@ -714,7 +714,7 @@ class RealSpaceDensity(Density):
                         integral=sqrt(4 * pi), forces=True)
 
     def set_positions(self, spos_ac, atom_partition):
-        Density.set_positions(self, spos_ac, atom_partition)
+        super().set_positions(spos_ac, atom_partition)
         self.nct_G = self.gd.zeros()
         self.nct.add(self.nct_G, 1.0 / self.nspins)
 

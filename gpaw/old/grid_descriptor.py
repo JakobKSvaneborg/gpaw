@@ -119,7 +119,7 @@ class GridDescriptor(Domain):
         if (self.N_c != N_c).any():
             raise ValueError('Non-int number of grid points %s' % N_c)
 
-        Domain.__init__(self, cell_cv, pbc_c, comm, parsize_c, self.N_c)
+        super().__init__(cell_cv, pbc_c, comm, parsize_c, self.N_c)
         self.rank = self.comm.rank
 
         self.beg_c = np.empty(3, int)
