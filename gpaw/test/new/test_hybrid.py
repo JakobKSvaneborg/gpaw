@@ -58,6 +58,9 @@ def test_hse06(gpaw_new, dtype, eigensolver):
 @pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg'])
 def test_h(gpaw_new, dtype, eigensolver):
 
+    if not gpaw_new and eigensolver == 'ppcg':
+        pytest.skip('PPCG only for GPAW new.')
+
     atoms = Atoms('H', magmoms=[1])
     atoms.center(vacuum=2.5)
     atoms.calc = GPAW(mode=dict(name='pw',
