@@ -91,7 +91,7 @@ Ground state of Monolayer :math:`\text{NiI}_2`
 The nickel halide :math:`\text{NiI}_2` is a van der waals bonded crystal, where
 each layers is a 1T monolayer. Thus the nickel form a triangular lattice, which
 is an interesting platform because magnetic frustration. Particularly one finds
-that multiple competing interactions in the heisenberg picture can the cause for
+that multiple competing interactions in the Heisenberg picture can the cause for
 stabilizing an incommensurate spin spiral ground state :math:`q \approx 1/7` that
 is found in experiments. We can predict using DFT calculations, however if one
 were to use a supercell approach one would have to compare energies of many large
@@ -105,7 +105,7 @@ using the following script.
 
 As a results we find that two minima can be found along both orthogonal directions,
 indeed one can find paths in the :math:`\mathbf{q}`-space and find the minima
-are seperated by a very small barrier of about 2meV. 
+are separated by a very small barrier of about 2meV. 
 
 
 .. figure:: e-spiral.png

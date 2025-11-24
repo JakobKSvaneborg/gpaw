@@ -320,7 +320,7 @@ The ``update`` keyword in ``replay()`` has following options:
 
    This creates additional ``wf*.ulm`` files containing the wave functions.
    The replay functionality works as in the above example
-   even with splitted files.
+   even with split files.
 
 
 .. _ksdecomposition:
@@ -334,7 +334,7 @@ See Ref. [#Rossi2017]_ for the description of the GPAW implementation
 and demonstration.
 
 Here we demonstrate how to construct the photoabsorption decomposition
-at a specific frequency in Kohn--Sham electon-hole basis.
+at a specific frequency in Kohn--Sham electron-hole basis.
 
 First, let's calculate and :download:`plot <lcaotddft_Na8/spec_plot.py>`
 the spectrum:

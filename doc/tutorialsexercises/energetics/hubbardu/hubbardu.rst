@@ -47,7 +47,7 @@ atoms, one should include the next parameter to the calculator::
 
     setups={'Mn': ':d,6.0'}
 
-In the case of p electrons (here nitrogen atom is used as expample),
+In the case of p electrons (here nitrogen atom is used as example),
 one should use::
 
     setups={'N': ':p,6.0'}
@@ -63,7 +63,7 @@ Scaling the Hubbard correction
 
 The projection of the orbitals needed to get the atomic orbital
 occupation matrix is truncated at the augmentation sphere radius
-(this is beacause GPAW atomic setups typically have a bound state
+(this is because GPAW atomic setups typically have a bound state
 projector and an unbound one). Due to this truncation the projection
 of the wavefunctions onto the atomic orbitals is always <1, being at
 the maximum the integral of the projected atomic orbital within the

@@ -21,7 +21,7 @@ Wannier functions of GaAs
 As a first example we generate the maximally localized Wannier functions of
 GaAs. The ground state is calculated and saved with the following script
 :download:`GaAs.py`. The following
-script genrates the maximally localized Wannier functions of the occupied
+script generates the maximally localized Wannier functions of the occupied
 bands.
 
 .. literalinclude:: GaAs_wannier.py
@@ -113,8 +113,8 @@ As a final example we calculate the anomalous Hall conductivity of Fe, which
 is not easily obtained with GPAW. It can be expressed as a Brillouin zone
 integral of the Berry curvature and is an effect of spin-orbit coupling. As
 such we need to generate spinorial Wannier functions. The ground state
-electronci structure is generated with the script :download:`Fe.py`.
-Note that symmetry has been switched off in the
+electronic structure is generated with the script :download:`Fe.py`.
+Note that symmetry has been swtched off in the
 calculation, since the interface do not support symmetry reduced `k`-points
 including spin-orbit coupling at the moment.
 This should be trivial to implement though. The
@@ -148,7 +148,7 @@ and run::
   postw90.x Fe
 
 This will calculate the band structure and Berry curvature along the
-specified path. Note that the calculatons is orders of magnitude faster
+specified path. Note that the calculations is orders of magnitude faster
 compared to a standard non self-consistent band structure calculation with
 GPAW. It also generates the script ``Fe-bands+curv_z.py``, which can be used
 to plot the band structure along with the `z`-component of the Berry

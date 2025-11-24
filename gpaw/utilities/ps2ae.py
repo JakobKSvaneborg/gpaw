@@ -105,7 +105,7 @@ class PS2AE:
                           periodic: bool = False) -> Array3D:
         """Interpolate wave function.
 
-        Returns 3-d array in units of Ang**-1.5.
+        Returns 3-d array in units of Ång**-1.5.
 
         n: int
             Band index.
