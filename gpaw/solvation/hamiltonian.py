@@ -195,8 +195,7 @@ class SolvationRealSpaceHamiltonian(RealSpaceHamiltonian):
                     global_integral=False)
 
     def get_energy(self, e_entropy, wfs, kin_en_using_band=True, e_sic=None):
-        super().get_energy(e_entropy, wfs,
-                                        kin_en_using_band, e_sic)
+        super().get_energy(e_entropy, wfs, kin_en_using_band, e_sic)
         # The total energy calculated by the parent class includes the
         # solvent electrostatic contributions but not the interaction
         # energies. We add those here and store the electrostatic energies.
