@@ -315,38 +315,3 @@ class GPUProfiler(Profiler, GPUTimerBase):
             f"""{{"name": "{event.name}", "cat": "PERF", "ph": "E", """
             f""""pid": {self.pid}, "tid": "GPU {self.ranktxt}", """
             f""""ts": {int(ms_stop * 1000)} }},\n""")
-
-
-class HPMTimer(Timer):
-    """HPMTimer requires installation of the IBM BlueGene/P HPM
-    middleware interface to the low-level UPC library. This will
-    most likely only work at ANL's BlueGene/P. Must compile
-    with GPAW_HPM macro in customize.py. Note that HPM_Init
-    and HPM_Finalize are called in cgpaw.c and not in the Python
-    interface. Timer must be called on all ranks in node, otherwise
-    HPM will hang. Hence, we only call HPM_start/stop on a list
-    subset of timers."""
-
-    top_level = 'GPAW.calculator'  # HPM needs top level timer
-    compatible = ['Initialization', 'SCF-cycle']
-
-    def __init__(self):
-        Timer.__init__(self)
-        from gpaw.cgpaw import hpm_start, hpm_stop
-        self.hpm_start = hpm_start
-        self.hpm_stop = hpm_stop
-        hpm_start(self.top_level)
-
-    def start(self, name):
-        Timer.start(self, name)
-        if name in self.compatible:
-            self.hpm_start(name)
-
-    def stop(self, name=None):
-        Timer.stop(self, name)
-        if name in self.compatible:
-            self.hpm_stop(name)
-
-    def write(self, out=sys.stdout):
-        Timer.write(self, out)
-        self.hpm_stop(self.top_level)
