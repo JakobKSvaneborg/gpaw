@@ -123,10 +123,6 @@ PyObject * FFTWDestroy(PyObject *self, PyObject *args);
 // Threading
 PyObject* get_num_threads(PyObject *self, PyObject *args);
 
-#ifdef GPAW_PAPI
-PyObject* papi_mem_info(PyObject *self, PyObject *args);
-#endif
-
 #ifdef GPAW_WITH_LIBVDWXC
 PyObject* libvdwxc_create(PyObject *self, PyObject *args);
 PyObject* libvdwxc_has(PyObject* self, PyObject *args);
@@ -309,9 +305,6 @@ static PyMethodDef functions[] = {
     {"FFTWExecute", FFTWExecute, METH_VARARGS, 0},
     {"FFTWDestroy", FFTWDestroy, METH_VARARGS, 0},
 #endif
-#ifdef GPAW_PAPI
-    {"papi_mem_info", papi_mem_info, METH_VARARGS, 0},
-#endif // GPAW_PAPI
 #ifdef GPAW_WITH_LIBVDWXC
     {"libvdwxc_create", libvdwxc_create, METH_VARARGS, 0},
     {"libvdwxc_has", libvdwxc_has, METH_VARARGS, 0},
