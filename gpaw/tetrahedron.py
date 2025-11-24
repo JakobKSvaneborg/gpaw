@@ -140,7 +140,7 @@ class TetrahedronMethod(OccupationNumberCalculator):
         The reciprocal cell, *rcell*, can be given in arbitrary units
         (only the shape matters) and *size* is the size of the
         Monkhorst-Pack grid.  If k-points have been symmetry-reduced
-        the *bz2ibzmap* parameter  mapping BZ k-point indizes to
+        the *bz2ibzmap* parameter  mapping BZ k-point indices to
         IBZ k-point indices must be given.
         """
 

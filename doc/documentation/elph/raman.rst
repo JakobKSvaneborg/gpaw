@@ -61,7 +61,7 @@ to an interaction of a displaced atom with its periodic images. This can lead to
 large errors especially in the electron-phonon matrix. This can be avoided by using
 a sufficiently large supercell for the finite displacement simulations.
 
-If phonon and effective potential are calculated simultaenously, results are saved
+If phonon and effective potential are calculated simultaneously, results are saved
 in the same cache files with default name `elph`.
 
 Some more details are elaborated in the related tutorial :ref:`elphraman`.

@@ -15,7 +15,7 @@ def elf(nt_sR: np.ndarray,
         nt_grad2_sR: np.ndarray,
         taut_sR: np.ndarray,
         ncut: float | None = None) -> np.ndarray:
-    """Pseudo electron localisation function (ELF).
+    """Pseudo electron localization function (ELF).
 
     See:
 

@@ -2,7 +2,7 @@
 .. _qna:
 
 =================================================
-Quasi-non-local exchange correlation approxmation
+Quasi-non-local exchange correlation approximation
 =================================================
 
 Rationale
