@@ -1,7 +1,7 @@
 import pytest
 from gpaw.gpu.mpi import CuPyMPI
 from gpaw.new.c import GPU_AWARE_MPI
-from gpaw.core import PWDesc, UGDesc
+from gpaw.core import UGDesc
 
 # We allow the world import due to special parametrization of parallel tests
 from gpaw.mpi import world
@@ -15,6 +15,7 @@ def domain_band_comms(request, comm):
     band_comm = comm.new_communicator(
         range(comm.rank % s, comm.size, s))
     return domain_comm, band_comm
+
 
 @pytest.fixture(params=range(5))
 def grid(comm, request):

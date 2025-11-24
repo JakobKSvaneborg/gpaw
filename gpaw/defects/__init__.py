@@ -1,4 +1,4 @@
 """ Defects module """
-from .electrostatic import ElectrostaticCorrections
+from .electrostatics import ElectrostaticCorrections
 
 __all__ = ['ElectrostaticCorrections']
