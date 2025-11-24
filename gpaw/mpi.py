@@ -824,9 +824,6 @@ else:
     else:
         world = _world  # type: ignore
 
-rank = world.rank
-size = world.size
-
 
 def verify_ase_world():
     # ASE does not like that GPAW uses world.size at import time.
