@@ -2,7 +2,7 @@
 .. _hyperfine:
 
 Isotropic and anisotropic hyperfine coupling parameters
-======================================================
+=======================================================
 
 .. contents::
 
