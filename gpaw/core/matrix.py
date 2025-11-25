@@ -133,7 +133,7 @@ class Matrix(XP):
                 xp = cp
             else:
                 xp = np
-        XP.__init__(self, xp)
+        super().__init__(xp)
 
         dist = dist or ()
         if isinstance(dist, tuple):

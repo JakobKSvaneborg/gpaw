@@ -663,10 +663,10 @@ class RealSpaceHamiltonian(Hamiltonian):
                  vext=None,
                  psolver=None, stencil=3, redistributor=None,
                  charge: float = 0.0):
-        Hamiltonian.__init__(self, gd, finegd, nspins, collinear,
-                             setups, timer, xc,
-                             world, vext=vext,
-                             redistributor=redistributor)
+        super().__init__(gd, finegd, nspins, collinear,
+                         setups, timer, xc,
+                         world, vext=vext,
+                         redistributor=redistributor)
 
         # Solver for the Poisson equation:
         if psolver is None:
@@ -696,7 +696,7 @@ class RealSpaceHamiltonian(Hamiltonian):
         return b_xg
 
     def __str__(self):
-        s = Hamiltonian.__str__(self)
+        s = super().__str__()
 
         degree = self.restrictor.nn * 2 - 1
         name = ['linear', 'cubic', 'quintic', 'heptic'][degree // 2]
@@ -706,7 +706,7 @@ class RealSpaceHamiltonian(Hamiltonian):
         return s
 
     def set_positions(self, spos_ac, rank_a):
-        Hamiltonian.set_positions(self, spos_ac, rank_a)
+        super().set_positions(spos_ac, rank_a)
         if self.vbar_g is None:
             self.vbar_g = self.finegd.empty()
         self.vbar_g[:] = 0.0

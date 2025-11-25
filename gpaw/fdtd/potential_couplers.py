@@ -60,18 +60,17 @@ class RefinerPotentialCoupler(PotentialCoupler):
                  remove_moment_qm,
                  remove_moment_cl,
                  rank):
-        PotentialCoupler.__init__(self,
-                                  qm,
-                                  cl,
-                                  index_offset_1,
-                                  index_offset_2,
-                                  extended_index_offset_1,
-                                  extended_index_offset_2,
-                                  extended_delta_index,
-                                  num_refinements,
-                                  remove_moment_qm,
-                                  remove_moment_cl,
-                                  rank)
+        super().__init__(qm,
+                         cl,
+                         index_offset_1,
+                         index_offset_2,
+                         extended_index_offset_1,
+                         extended_index_offset_2,
+                         extended_delta_index,
+                         num_refinements,
+                         remove_moment_qm,
+                         remove_moment_cl,
+                         rank)
 
     def getPotential(self, local_rho_qm_qmgd, local_rho_cl_clgd, **kwargs):
         # Quantum potential

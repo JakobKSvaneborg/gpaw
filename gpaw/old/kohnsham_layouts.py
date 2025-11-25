@@ -91,8 +91,7 @@ class BlacsLayouts(KohnShamLayouts):
 
     def __init__(self, gd, bd, block_comm, dtype, mcpus, ncpus,
                  blocksize, timer=nulltimer):
-        KohnShamLayouts.__init__(self, gd, bd, block_comm, dtype,
-                                 timer)
+        super().__init__(gd, bd, block_comm, dtype, timer)
         # WARNING: Do not create the BlacsGrid on a communicator which does not
         # contain block_comm.rank = 0. This will break BlacsBandLayouts which
         # assume eps_M will be broadcast over block_comm.
@@ -125,8 +124,8 @@ class BlacsOrbitalLayouts(BlacsLayouts):
     # This class 'describes' all the LCAO Blacs-related layouts
     def __init__(self, gd, bd, block_comm, dtype, mcpus, ncpus,
                  blocksize, nao, elpasolver=None, timer=nulltimer):
-        BlacsLayouts.__init__(self, gd, bd, block_comm, dtype,
-                              mcpus, ncpus, blocksize, timer)
+        super().__init__(gd, bd, block_comm, dtype,
+                         mcpus, ncpus, blocksize, timer)
         nbands = bd.nbands
         self.blocksize = blocksize
 
@@ -423,8 +422,7 @@ class BlacsOrbitalLayouts(BlacsLayouts):
 class OrbitalLayouts(KohnShamLayouts):
     def __init__(self, gd, bd, block_comm, dtype, nao,
                  timer=nulltimer):
-        KohnShamLayouts.__init__(self, gd, bd, block_comm, dtype,
-                                 timer)
+        super().__init__(gd, bd, block_comm, dtype, timer)
         self.mMdescriptor = MatrixDescriptor(nao, nao)
         self.nMdescriptor = MatrixDescriptor(bd.mynbands, nao)
 

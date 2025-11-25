@@ -165,7 +165,7 @@ class GPAW(Calculator):
 
         self.reader = None
 
-        Calculator.__init__(self, restart, label=label, _set_ok=True, **kwargs)
+        super().__init__(restart, label=label, _set_ok=True, **kwargs)
 
     def new(self,
             timer=None,
@@ -403,7 +403,7 @@ class GPAW(Calculator):
         return reader
 
     def check_state(self, atoms, tol=1e-12):
-        system_changes = Calculator.check_state(self, atoms, tol)
+        system_changes = super().check_state(atoms, tol)
         if 'positions' not in system_changes:
             if self.hamiltonian:
                 if self.hamiltonian.vext:
@@ -421,7 +421,7 @@ class GPAW(Calculator):
                    system_changes=['cell']):
         """Calculate things."""
 
-        Calculator.calculate(self, atoms)
+        super().calculate(atoms)
         atoms = self.atoms
 
         if system_changes:
@@ -579,7 +579,7 @@ class GPAW(Calculator):
             warnings.warn('Ignoring deprecated keyword "idiotproof"',
                           DeprecatedParameterWarning)
 
-        changed_parameters = Calculator.set(self, **kwargs)
+        changed_parameters = super().set(**kwargs)
 
         for key in ['setups', 'basis']:
             if key in changed_parameters:

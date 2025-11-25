@@ -27,9 +27,9 @@ class Generator(AllElectron):
                  configuration=None,
                  nofiles=True, txt='-', gpernode=150,
                  orbital_free=False, tw_coeff=1.):
-        AllElectron.__init__(self, symbol, xcname, scalarrel, corehole,
-                             configuration, nofiles, txt, gpernode,
-                             orbital_free, tw_coeff)
+        super().__init__(symbol, xcname, scalarrel, corehole,
+                         configuration, nofiles, txt, gpernode,
+                         orbital_free, tw_coeff)
 
     def run(self, core='', rcut=1.0, extra=None,
             logderiv=False, vbar=None, exx=False, name=None,
