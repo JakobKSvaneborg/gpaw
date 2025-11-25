@@ -42,18 +42,12 @@ def test_hse06(gpaw_new, dtype, eigensolver):
         parallel={'domain': world.size},
         nbands=4)
     e = atoms.get_potential_energy()
-    assert e == pytest.approx(-5.633278, abs=1e-3)
+    assert e == pytest.approx(-5.633278, abs=1e-4)
     eigs = atoms.calc.get_eigenvalues(spin=0)
-    assert eigs[0] == pytest.approx(-4.67477532, abs=1e-3)
+    assert eigs[0] == pytest.approx(-4.67477532, abs=1e-4)
     f = atoms.get_forces()
-    if 0:
-        atoms.set_distance(0, 1, 2.005)
-        ep = atoms.get_potential_energy()
-        atoms.set_distance(0, 1, 1.995)
-        em = atoms.get_potential_energy()
-        print((ep - em) / 0.01)
-    f0 = 2.3504
-    assert f == pytest.approx(np.array([[0, 0, -f0], [0, 0, f0]]), abs=0.0002)
+    f0 = 2.3505
+    assert f == pytest.approx(np.array([[0, 0, -f0], [0, 0, f0]]), abs=1e-4)
 
 
 @pytest.mark.new_gpaw_ready
@@ -76,8 +70,8 @@ def test_h(gpaw_new, dtype, eigensolver):
                       convergence={'energy': 1e-4})
     e = atoms.get_potential_energy()
     eigs = atoms.calc.get_eigenvalues(spin=0)
-    assert e == pytest.approx(-1.703969, abs=4e-3)
-    assert eigs[0] == pytest.approx(-9.71440, abs=1e-3)
+    assert e == pytest.approx(-1.7041, abs=4e-4)
+    assert eigs[0] == pytest.approx(-9.7143, abs=4e-4)
 
 
 if __name__ == '__main__':
