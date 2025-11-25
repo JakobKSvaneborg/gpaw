@@ -652,7 +652,8 @@ class AllElectronAtom:
 
         if self.dirac:
             equation = 'Dirac'
-        elif self.scalar_relativistic:
+        elif self.scalar_relativistic and self.method != 'Gaussian basis-set':
+
             equation = 'scalar-relativistic Schrödinger'
         else:
             equation = 'non-relativistic Schrödinger'
