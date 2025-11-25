@@ -54,7 +54,7 @@ def plot(fname, fiteps):
 # Source:
 # https://refractiveindex.info/?shelf=main&book=Au&page=Johnson
 # Direct download link:
-# wget https://refractiveindex.info/database/data/main/Au/Johnson.yml
+# wget https://refractiveindex.info/database/data/main/Au/nk/Johnson.yml
 
 
 ymlfname = 'Au.yml'
