@@ -163,7 +163,6 @@ class BasePropagator(ABC):
             the time step
 
         """
-        raise NotImplementedError()
 
 
 class ExplicitCrankNicolson(BasePropagator):
