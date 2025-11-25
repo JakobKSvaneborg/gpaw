@@ -306,7 +306,6 @@ class PWHybridHamiltonian(PWHamiltonian):
         ekin -= e
 
         if calculate_energy:
-            print(self.comm.rank, psit2_nG.desc.kpt_c, spin, e)
             for name, e in [('hybrid_xc', evv + evc),
                             ('hybrid_kinetic_correction', ekin)]:
                 e *= ibzwfs.spin_degeneracy

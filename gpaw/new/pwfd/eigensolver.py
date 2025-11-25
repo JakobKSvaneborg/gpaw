@@ -122,7 +122,6 @@ class PWFDEigensolver(Eigensolver):
                 wfs_error += wfs.weight * temp_wfs_error
                 if eig_error < temp_eig_error:
                     eig_error = temp_eig_error
-        dsfælkj
 
         wfs_error = ibzwfs.kpt_band_comm.sum_scalar(
             float(wfs_error)) * ibzwfs.spin_degeneracy
