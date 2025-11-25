@@ -145,8 +145,16 @@ def work(name: str, params: dict | None = None) -> None:
     i1 = atoms.calc.dft.scf_loop.niter
 
     if abs(f1).max() < 0.0001:
-        s1 = atoms.get_stress(voigt=False)
-        atoms.set_cell(atoms.cell @ (np.eye(3) - 0.02 * s1), scale_atoms=True)
+        s = {'C2-3': -0.0014,
+             'Fe8-3M': 0.0364,
+             'Mn2O2-3M': 0.0382}.get(name)
+        if s is not None:
+            # LCAO and FD-mode does not do stress
+            stress = np.diag([s, s, s])
+        else:
+            stress = atoms.get_stress(voigt=False)
+        atoms.set_cell(atoms.cell @ (np.eye(3) - 0.02 * stress),
+                       scale_atoms=True)
     else:
         atoms.positions += 0.1 * f1
     t1 = time() - t1
