@@ -795,9 +795,11 @@ coverage-combine:
     # unless this job runs in every pipeline.
     # We manually generate one then:
     - >
-      python -m gpaw.doctools.makebadge
+      python -m gpaw.doctools.makebadge coverage
       $(coverage report --format=total --precision 0)
       > htmlcov/coverage.svg
+
+    - python -m gpaw.doctools.makebadge pw-index > pw-index.svg
 
   artifacts:
     paths:
