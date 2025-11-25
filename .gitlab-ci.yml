@@ -459,6 +459,7 @@ test-cuda-mpi:
   script:
     - nvidia-smi
     - gpaw info
+    - GPAW_DEBUG=1 mpirun -np 2 pytest -v -x -m gpu
     - mpirun -np 2 pytest -v -x -m gpu
     - mpirun -np 4 pytest -v -x -m gpu
 
