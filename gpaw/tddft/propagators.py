@@ -164,6 +164,7 @@ class BasePropagator(ABC):
 
         """
 
+
 class ExplicitCrankNicolson(BasePropagator):
     """Explicit Crank-Nicolson propagator
 
