@@ -333,6 +333,12 @@ class GPAWPlugin:
         terminalreporter.write(f'debug-mode: {debug}\n')
 
 
+@pytest.fixture(scope='function')
+def not_parallelized(comm):
+    if comm.size > 1:
+        pytest.skip('Test/target of the test not parallelized.')
+
+
 @pytest.fixture
 def sg15_hydrogen():
     from io import StringIO
