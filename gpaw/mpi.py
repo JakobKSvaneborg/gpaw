@@ -851,6 +851,28 @@ def verify_ase_world():
 verify_ase_world()
 
 
+def parallel(func):
+    """Decorator for functions that take comm=world.
+
+    We want this decorator so as to control access to world and prevent
+    deadlocks when callers of these functions forget to set the
+    communicator."""
+    import functools
+    from gpaw.mpi import world
+
+    @functools.wraps(func)
+    def wrapper(*args, comm=None, **kwargs):
+        if comm is None:
+            if _NO_TOUCH_WORLD:
+                raise DontDoThat(
+                    'Must call method with keyword comm=<communicator>'
+                )
+            comm = world
+        return func(*args, comm=comm, **kwargs)
+
+    return wrapper
+
+
 def broadcast(obj, root=0, comm=world):
     """Broadcast a Python object across an MPI communicator and return it."""
     if comm.rank == root:
@@ -1307,28 +1329,6 @@ _NO_TOUCH_WORLD = False  # Monkeypatchable from test suite
 
 class DontDoThat(Exception):
     pass
-
-
-def parallel(func):
-    """Decorator for functions that take comm=world.
-
-    We want this decorator so as to control access to world and prevent
-    deadlocks when callers of these functions forget to set the
-    communicator."""
-    import functools
-    from gpaw.mpi import world
-
-    @functools.wraps(func)
-    def wrapper(*args, comm=None, **kwargs):
-        if comm is None:
-            if _NO_TOUCH_WORLD:
-                raise DontDoThat(
-                    'Must call method with keyword comm=<communicator>'
-                )
-            comm = world
-        return func(*args, comm=comm, **kwargs)
-
-    return wrapper
 
 
 def exit(error='Manual exit'):
