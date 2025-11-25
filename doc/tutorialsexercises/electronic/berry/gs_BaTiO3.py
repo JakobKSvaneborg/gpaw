@@ -1,13 +1,15 @@
 from ase import Atoms
 from ase.optimize import BFGS
-from gpaw import GPAW, PW
+from gpaw import GPAW
 from ase.filters import FrechetCellFilter
 
 params = {'mode': {'name': 'pw', 'ecut': 800},
-         'xc': 'PBE',
-         'kpts': {'size': (3, 3, 3), 'gamma': True},
-	 'convergence': {'forces': 1e-3, 'density': 1e-6},
-	 'txt': 'relax.txt'}
+          'xc': 'PBE',
+          'kpts': {'size': (3, 3, 3),
+                   'gamma': True},
+          'convergence': {'forces': 1e-3,
+                          'density': 1e-6},
+          'txt': 'relax.txt'}
 
 atoms = Atoms('BaTiO3',
               cell=[3.976241, 3.976241, 4.295198],
