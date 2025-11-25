@@ -7,9 +7,17 @@ from gpaw.core import UGDesc
 from gpaw.mpi import world
 
 
-@pytest.fixture(params=range(world.size.bit_length()))
+parametrization = {1: [1], 2: [1, 2], 4: [1, 2, 4], 8: [1, 2, 4, 8]}
+
+
+@pytest.fixture(params=parametrization[world.size])
 def domain_band_comms(request, comm):
-    s = 2**request.param
+    """Generate parametrization of a 2-tuple of domain and band comms
+
+    The band comm size will go in powers of two from 1 to world.size,
+    and domain comm will be the reciprocal communicator.
+    """
+    s = request.param
     domain_comm = comm.new_communicator(
         range(comm.rank // s * s, comm.rank // s * s + s))
     band_comm = comm.new_communicator(
