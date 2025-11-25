@@ -1436,7 +1436,7 @@ class CLICommand:
         add('-w', '--write', action='store_true',
             help='Write setup to file <symbol>.<XC> '
             'or, with --tag, <symbol>.<TAG>.<XC>.')
-        add('--non-relativistic', action='store_false',
+        add('--non-relativistic', action='store_true',
             help='Do a non-relativistic calculation.  '
             'Default is scalar-relativistic')
         add('-n', '--no-check', action='store_true',

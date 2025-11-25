@@ -870,7 +870,7 @@ class CLICommand:
         add('-n', '--ngrid', help='Specify number of grid points.')
         add('-R', '--rcut', help='Radial cutoff.')
         add('-r', '--refine', action='store_true')
-        add('--non-relativistic', action='store_false',
+        add('--non-relativistic', action='store_true',
             help='Do a non-relativistic calculation.  '
             'Default is scalar-relativistic')
         add('--no-ee-interaction', action='store_true',
