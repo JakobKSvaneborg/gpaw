@@ -1317,7 +1317,8 @@ def get_parameters(symbol, args):
                 configuration=configuration,
                 projectors=projectors,
                 radii=radii,
-                scalar_relativistic=args.scalar_relativistic, alpha=args.alpha,
+                scalar_relativistic=not args.non_relativistic,
+                alpha=args.alpha,
                 r0=r0, v0=None, nderiv0=nderiv0,
                 pseudize=pseudize, rcore=rcore,
                 core_hole=args.core_hole,
@@ -1435,9 +1436,9 @@ class CLICommand:
         add('-w', '--write', action='store_true',
             help='Write setup to file <symbol>.<XC> '
             'or, with --tag, <symbol>.<TAG>.<XC>.')
-        add('-s', '--scalar-relativistic', action='store_true',
-            help='Perform a scalar-relativistic calculation.  '
-            'Default is a non-scalar-relativistic.')
+        add('--non-relativistic', action='store_true',
+            help='Do a non-relativistic calculation.  '
+            'Default is scalar-relativistic')
         add('-n', '--no-check', action='store_true',
             help='Disable error checks.  This allows saving files that would '
             'normally be considered invalid.')
