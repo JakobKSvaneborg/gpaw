@@ -169,11 +169,11 @@ class Eigensolver(Parameter):
                     return eigensolvers['davidson'](**kwargs)
                 if name in eigensolvers:
                     return eigensolvers[name](**kwargs)
-                raise ValueError(f'Unknown eigensolver: {name}')
+                raise ValueError(f'Unknown name of eigensolver: {name}')
             case {**kwargs}:
                 return DefaultEigensolver(kwargs)
             case _:  # Wildcard
-                raise ValueError()
+                raise ValueError(f'Unknown eigensolver input: {eigensolver}')
 
 
 class DefaultEigensolver(Eigensolver):
@@ -184,7 +184,7 @@ class DefaultEigensolver(Eigensolver):
         return self.params
 
 
-class PWFDEigensolverParamater(Eigensolver):
+class PWFDEigensolverParameter(Eigensolver):
     def __init__(self,
                  niter: int = 2,
                  max_buffer_mem: int = 200 * 1024**2):
@@ -212,12 +212,12 @@ class PWFDEigensolverParamater(Eigensolver):
             max_buffer_mem=self.max_buffer_mem)
 
 
-class Davidson(PWFDEigensolverParamater):
+class Davidson(PWFDEigensolverParameter):
     name = 'davidson'
     cls = DavidsonEigensolver
 
 
-class PPCG(PWFDEigensolverParamater):
+class PPCG(PWFDEigensolverParameter):
     name = 'ppcg'
     cls = PPCGEigensolver
 
@@ -273,7 +273,7 @@ class PPCG(PWFDEigensolverParamater):
             tolerances=self.tolerances)
 
 
-class RMMDIIS(PWFDEigensolverParamater):
+class RMMDIIS(PWFDEigensolverParameter):
     name = 'rmm-diis'
     cls = RMMDIISEigensolver
 
