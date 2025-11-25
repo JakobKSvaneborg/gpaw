@@ -50,7 +50,7 @@ Splitting the integral in radial and angular parts, we get:
   Y_{\ell m}r^{1-\ell'}\frac{\partial}{\partial x}
   (r^{\ell'}Y_{\ell'm'}),
 
-where `G_{\ell m,\ell'm'}^{\ell''m''}` are Gaunt coefficents calculated with
+where `G_{\ell m,\ell'm'}^{\ell''m''}` are Gaunt coefficients calculated with
 the :func:`~gpaw.sphere.gaunt.gaunt` function and the last angular integral has been
 calculated with the :func:`~gpaw.sphere.gaunt.nabla` function.
 

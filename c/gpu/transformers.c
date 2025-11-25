@@ -1,14 +1,9 @@
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
+#include "../python_utils.h"
 #include <stdlib.h>
 #include <pthread.h>
 
 #include "../extensions.h"
-#define __TRANSFORMERS_C
 #include "../transformers.h"
-#undef __TRANSFORMERS_C
 #include "bmgs.h"
 #include "gpu.h"
 

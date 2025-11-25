@@ -100,7 +100,7 @@ is printed with the energy and convergence measures.  After the
 calculation the energy contributions, band energies and forces are
 listed.
 
-Use :command:`ase gui` to visualize and compare bond lenghts and bond
+Use :command:`ase gui` to visualize and compare bond lengths and bond
 angles to the EMT result.  Bond lengths and angles are shown
 automatically if you select two or three atoms at a time.
 

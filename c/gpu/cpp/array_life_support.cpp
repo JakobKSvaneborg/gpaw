@@ -2,24 +2,12 @@
 #include "pyarray_utils.hpp"
 #include "utils.hpp"
 #include "gpu_core.hpp"
+#include "../gpu_interface.h"
 
-#include <Python.h>
+#include "../../python_utils.h"
 #include <mutex>
 
-namespace gpaw
-{
-
-namespace life_support
-{
-// Global cache for storing objects that have pending unpin/decref
-#ifdef GPAW_GPU_LIFETIME_GUARD
-static std::vector<PyObject*> g_pending_decrefs; // should this be volatile?!
-static std::mutex g_pending_decrefs_mutex;
-#endif
-} // namespace life_support
-
-
-CLINKAGE PyObject* flush_pending_decrefs(PyObject* self, PyObject* args)
+PyObject* flush_pending_decrefs(PyObject* self, PyObject* args)
 {
 #ifdef GPAW_GPU_LIFETIME_GUARD
     if (life_support::g_pending_decrefs.empty())
@@ -41,6 +29,18 @@ CLINKAGE PyObject* flush_pending_decrefs(PyObject* self, PyObject* args)
 
     Py_RETURN_NONE;
 }
+
+namespace gpaw
+{
+
+namespace life_support
+{
+// Global cache for storing objects that have pending unpin/decref
+#ifdef GPAW_GPU_LIFETIME_GUARD
+static std::vector<PyObject*> g_pending_decrefs; // should this be volatile?!
+static std::mutex g_pending_decrefs_mutex;
+#endif
+} // namespace life_support
 
 
 PyObjectPinner::PyObjectPinner()

@@ -91,7 +91,7 @@ Convergence
 -----------
 As with all other numerical implementations, we have to be careful to check whether the calculations are converged with respect to the various parameters. In GW the most crucial parameters are the density of points that we integrate over: k-points and frequency points, as well as the number of bands included in the band summations and the quality of the wavefunctions, determined by the plane wave cut-off energy.
 
-- By default GPAW chooses the number of bands close to the number of plane waves. It is usually not necesarry to include more bands than the size of the plane wave basis used to expand the wavefunctions. Can you give a simple explanation why?
+- By default GPAW chooses the number of bands close to the number of plane waves. It is usually not necessary to include more bands than the size of the plane wave basis used to expand the wavefunctions. Can you give a simple explanation why?
 
 The fine features of the dielectric function are often averaged out in the integral over the screened potential, which is why the plasmon pole approximation usually performs well.
 
