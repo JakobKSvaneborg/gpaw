@@ -91,7 +91,7 @@ def workflow():
     """MyQueue workflow."""
     from myqueue.workflow import run
     for name, (_, _, cores, _) in REFERENCES.items():
-        tmax = '1h'
+        tmax = '2h'
         if cores == 24:
             nodename = 'xeon24el8'
         if cores == 40:
