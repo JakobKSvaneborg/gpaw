@@ -1,3 +1,14 @@
+"""This module generates badges such as the coverage badge.
+
+To make a nice custom badge, try for example:
+
+  https://img.shields.io/badge/pw--perf--ndex-756-purple
+
+On gitlab, these can be configured in Settings -> General (under "Badges").
+Also maybe add them to README.
+"""
+
+
 import sys
 
 
