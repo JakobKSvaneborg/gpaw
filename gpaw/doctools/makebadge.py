@@ -41,17 +41,41 @@ def makebadge(value: str, color: str) -> str:
 """.format(value=value, color=color, width=width, width_small=width_small)  # noqa
 
 """
-<svg xmlns="http://www.w3.org/2000/svg" width="136" height="20" role="img" aria-label="pw-perf-index: 103.26">
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="136" height="20" role="img" aria-label="pw-perf-index: 103.26">
 <title>pw-perf-index: 103.26</title>
 <linearGradient id="s" x2="0" y2="100%">
-<stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
-<stop offset="1" stop-opacity=".1"/>
+  <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+  <stop offset="1" stop-opacity=".1"/>
 </linearGradient>
 <clipPath id="r">
-<rect width="136" height="20" rx="3" fill="#fff"/>
+  <rect width="136" height="20" rx="3" fill="#fff"/>
 </clipPath><g clip-path="url(#r)">
 <rect width="87" height="20" fill="#555"/>
-<rect x="87" width="49" height="20" fill="purple"/><rect width="136" height="20" fill="url(#s)"/></g><g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="110"><text aria-hidden="true" x="445" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="770">pw-perf-index</text><text x="445" y="140" transform="scale(.1)" fill="#fff" textLength="770">pw-perf-index</text><text aria-hidden="true" x="1105" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="390">103.26</text><text x="1105" y="140" transform="scale(.1)" fill="#fff" textLength="390">103.26</text></g></svg>"""
+<rect x="87" width="49" height="20" fill="purple"/>
+<rect width="136" height="20" fill="url(#s)"/>
+</g>
+<g fill="#fff" text-anchor="middle"
+   font-family="Verdana,Geneva,DejaVu Sans,sans-serif"
+   text-rendering="geometricPrecision"
+   font-size="110">
+  <text aria-hidden="true"
+   x="445" y="150" fill="#010101" fill-opacity=".3"
+   transform="scale(.1)" textLength="770">
+  pw-perf-index
+  </text>
+  <text x="445" y="140" transform="scale(.1)" fill="#fff" textLength="770">
+  pw-perf-index
+  </text>
+  <text aria-hidden="true" x="1105" y="150" fill="#010101" fill-opacity=".3"
+  transform="scale(.1)" textLength="390">
+  103.26
+  </text>
+  <text x="1105" y="140" transform="scale(.1)" fill="#fff" textLength="390">
+  103.26
+  </text>
+</g>
+</svg>"""
 
 def main(args: list[str]) -> None:
     print(coverage_badge(args[1]))
