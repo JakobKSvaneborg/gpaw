@@ -357,8 +357,8 @@ def r2k(alpha, a, b, beta, c, trans='c'):
                 a.dtype == complex and b.dtype == complex and
                 c.dtype == complex)
         # assert a.flags.c_contiguous and b.flags.c_contiguous
-        assert a.strides[-1] == a.itemsize or a.size == 0
-        assert b.strides[-1] == b.itemsize or b.size == 0
+        assert (a.strides[-1] == a.itemsize or a.shape[-1] == 1) or a.size == 0
+        assert (b.strides[-1] == b.itemsize or b.shape[-1] == 1) or b.size == 0
         assert a.ndim > 1
         assert a.shape == b.shape
         if trans == 'c':
