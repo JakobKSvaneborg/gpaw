@@ -1,6 +1,5 @@
 import json
 from collections import defaultdict
-from io import StringIO
 from pathlib import Path
 from time import time
 
@@ -133,9 +132,8 @@ def work(name: str, params: dict | None = None) -> None:
         **params)
     atoms.get_potential_energy()
 
-    output = StringIO()  # don't touch the file system
     atoms.calc = GPAW(
-        txt=output,
+        txt=f'{name}.txt',
         **params)
 
     # First step:
@@ -171,7 +169,6 @@ def work(name: str, params: dict | None = None) -> None:
     atoms.calc.__del__()  # make sure we get timing info in log-file
 
     if world.rank == 0:
-        Path(f'{name}.txt').write_text(output.getvalue())
         Path(f'{name}.json').write_text(json.dumps([e1, t1, i1, m1,
                                                     e2, t2, i2, m2]))
 
