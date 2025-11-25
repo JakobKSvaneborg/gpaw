@@ -40,7 +40,7 @@ class AtomArraysLayout(XP):
             atomdist = AtomDistribution(np.zeros(len(shapes), int), atomdist)
         self.atomdist = atomdist
         self.dtype = np.dtype(dtype)
-        XP.__init__(self, xp or np)
+        super().__init__(xp or np)
 
         self.size = sum(prod(shape) for shape in self.shape_a)
 
@@ -554,7 +554,7 @@ class AtomArrays:
                             index: int | None = None) -> None:
         """Multiply by block diagonal matrix.
 
-        with A, B and C refering to ``self``, ``block_diag_matrix_axii`` and
+        with A, B and C referring to ``self``, ``block_diag_matrix_axii`` and
         ``out_ani``:::
 
             --  a   a      a

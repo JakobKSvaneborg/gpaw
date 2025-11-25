@@ -6,7 +6,7 @@ from ase.data.vdw import vdw_radii
 from ase.units import Pascal, m
 
 from gpaw import Mixer
-from gpaw.mpi import rank
+from gpaw.mpi import world
 from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
                             KB51Volume, LeakedDensityInteraction,
                             LinearDielectric, Power12Potential, SolvationGPAW,
@@ -62,7 +62,7 @@ def test_solvation_forces():
         E = np.array(E)
         F = np.array(F)
 
-        if rank == 0:
+        if world.rank == 0:
             np.save('d.npy', d)
             np.save('E.npy', E)
             np.save('F.npy', F)

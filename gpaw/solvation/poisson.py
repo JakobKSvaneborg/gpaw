@@ -243,7 +243,7 @@ class ADM12PoissonSolver(SolvationPoissonSolver):
             use_charge_center=use_charge_center)
 
     def set_grid_descriptor(self, gd):
-        SolvationPoissonSolver.set_grid_descriptor(self, gd)
+        super().set_grid_descriptor(gd)
         self.gradx = Gradient(gd, 0, 1.0, self.nn)
         self.grady = Gradient(gd, 1, 1.0, self.nn)
         self.gradz = Gradient(gd, 2, 1.0, self.nn)
@@ -280,7 +280,7 @@ class ADM12PoissonSolver(SolvationPoissonSolver):
     def solve_neutral(self, phi, rho, timer=None):
         self._init()
         self.rho = rho
-        return SolvationPoissonSolver.solve_neutral(self, phi, rho)
+        return super().solve_neutral(phi, rho)
 
     def iterate2(self, step, level=0):
         self._init()
@@ -295,4 +295,4 @@ class ADM12PoissonSolver(SolvationPoissonSolver):
             self.rho_iter = self.eta / (4. * np.pi) * sp + \
                 (1. - self.eta) * self.rho_iter
             self.rhos[0][:] = (self.rho_iter + self.rho) / epsr
-        return SolvationPoissonSolver.iterate2(self, step, level)
+        return super().iterate2(step, level)

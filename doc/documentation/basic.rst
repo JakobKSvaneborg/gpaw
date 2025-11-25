@@ -425,7 +425,7 @@ in chemistry corresponds to ``'LDA_X+LDA_C_VWN'``.
 
 XC functionals can also be specified as dictionaries. This is useful for
 functionals that depend on one or more parameters. For example, to use a
-stencil with two nearest neighbours for the density-gradient with the PBE
+stencil with two nearest neighbors for the density-gradient with the PBE
 functional, use ``xc={'name': 'PBE', 'stencil': 2}``. The ``stencil``
 keyword applies to any GGA or MGGA. Some functionals may take other
 parameters; see their respective documentation pages.
@@ -893,7 +893,7 @@ the ``Atoms`` object.
 
 .. note::
 
-    If you want to use only the ``sz`` basis functinons from a ``dzp``
+    If you want to use only the ``sz`` basis functions from a ``dzp``
     basis set, then you can use this syntax: ``basis='sz(dzp)'``.
     This will read the basis functions for, say hydrogen, from the
     ``H.dzp.basis`` file.  If the basis has a custom name,
@@ -923,7 +923,7 @@ subspace), (``eigensolver='rmm-diis'``), which performs well when only a few
 unoccupied states are calculated. Another option is the conjugate gradient
 method (``eigensolver='cg'``), which is stable but slower.
 
-If parallellization over bands is necessary, then Davidson or RMM-DIIS must
+If parallelization over bands is necessary, then Davidson or RMM-DIIS must
 be used.
 
 More control can be obtained by using directly the eigensolver objects::
@@ -1044,7 +1044,7 @@ where the default value is also ``n=3``.
 
 In PW-mode, the interpolation of the density from the coarse grid to the
 fine grid is done with FFT's.  In FD and LCAO mode, tri-quintic interpolation
-is used (5. degree polynomium)::
+is used (5. degree polynomial)::
 
     from gpaw import GPAW, FD
     calc = GPAW(mode=FD(interpolation=n))
@@ -1052,7 +1052,7 @@ is used (5. degree polynomium)::
     from gpaw import GPAW, LCAO
     calc = GPAW(mode=LCAO(interpolation=n))
 
-The order of polynomium is `2n-1`, default value is ``n=3`` and ``n`` must be
+The order of polynomial is `2n-1`, default value is ``n=3`` and ``n`` must be
 between 1 and 4 (linear, cubic, quintic, heptic).
 
 
@@ -1062,7 +1062,7 @@ Using Hund's rule for guessing initial magnetic moments
 -------------------------------------------------------
 
 With ``hund=True``, the calculation will become spinpolarized, and the initial
-ocupations, and magnetic moments of all atoms will be set to the values
+occupations, and magnetic moments of all atoms will be set to the values
 required by Hund's rule.  You may further wish to specify that the
 total magnetic moment be fixed, by passing e.g. ``occupations={'name': ...,
 'fixmagmom': True}``. Any user specified magnetic moment is ignored. Default
@@ -1089,7 +1089,7 @@ Output verbosity
 
 By default, only a limited number of information is printed out for each SCF
 step. It is possible to obtain more information (e.g. for investigating
-convergen problems in more detail) by ``verbose=1`` keyword.
+convergence problems in more detail) by ``verbose=1`` keyword.
 
 
 .. _manual_communicator:
@@ -1174,7 +1174,7 @@ More details can be found on the :ref:`restart_files` page.
 
 
 ---------------------------------------
-Customizing behaviour through observers
+Customizing behavior through observers
 ---------------------------------------
 
 An *observer* function can be *attached* to the calculator so that it

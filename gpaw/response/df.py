@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from ase.units import Hartree
 
-import gpaw.mpi as mpi
+from gpaw.mpi import world
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
 from gpaw.response.chi0_data import Chi0Data
 from gpaw.response.coulomb_kernels import CoulombKernel
@@ -658,7 +658,7 @@ class DielectricFunction(DielectricFunctionCalculator):
                  ecut=50,
                  hilbert=True,
                  nbands=None, eta=0.2,
-                 intraband=True, nblocks=1, world=mpi.world, txt=sys.stdout,
+                 intraband=True, nblocks=1, world=world, txt=sys.stdout,
                  truncation=None,
                  qsymmetry=True,
                  integrationmode='point integration', rate=0.0,
@@ -674,10 +674,10 @@ class DielectricFunction(DielectricFunctionCalculator):
             or dictionary of parameters for build-in nonlinear grid
             (see :ref:`frequency grid`).
         ecut: float | dict
-            Plane-wave cut-off or dictionary for anoptional planewave
+            Plane-wave cut-off or dictionary for an optional planewave
             descriptor. See response/qpd.py for details.
         hilbert: bool
-            Use hilbert transform.
+            Use Hilbert transform.
         nbands: int
             Number of bands from calculation.
         eta: float
@@ -839,7 +839,8 @@ class ScalarResponseFunctionSet:
         return self.rf0_w, self.rf_w
 
     def write(self, filename):
-        if mpi.rank == 0:
+        # XXX Implicit use of world
+        if world.rank == 0:
             write_response_function(filename, *self.arrays)
 
     @property

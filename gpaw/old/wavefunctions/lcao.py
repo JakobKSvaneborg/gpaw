@@ -24,7 +24,7 @@ class LCAO(Mode):
                  force_complex_dtype=False):
         self.atomic_correction = atomic_correction
         self.interpolation = interpolation
-        Mode.__init__(self, force_complex_dtype)
+        super().__init__(force_complex_dtype)
 
     def __call__(self, *args, **kwargs):
         return LCAOWaveFunctions(*args,
@@ -95,9 +95,9 @@ class LCAOWaveFunctions(WaveFunctions):
     def __init__(self, ksl, gd, nvalence, setups, bd,
                  dtype, world, kd, kptband_comm, timer,
                  atomic_correction=None, collinear=True):
-        WaveFunctions.__init__(self, gd, nvalence, setups, bd,
-                               dtype, collinear, world, kd,
-                               kptband_comm, timer)
+        super().__init__(gd, nvalence, setups, bd,
+                         dtype, collinear, world, kd,
+                         kptband_comm, timer)
         self.ksl = ksl
         self.S_qMM = None
         self.T_qMM = None
@@ -161,7 +161,7 @@ class LCAOWaveFunctions(WaveFunctions):
         return s
 
     def set_eigensolver(self, eigensolver):
-        WaveFunctions.set_eigensolver(self, eigensolver)
+        super().set_eigensolver(eigensolver)
         if eigensolver:
             if isinstance(eigensolver, LCAOETDM):
                 eigensolver.initialize(self.gd, self.dtype, self.bd.nbands,
@@ -175,7 +175,7 @@ class LCAOWaveFunctions(WaveFunctions):
     def set_positions(self, spos_ac, atom_partition=None, move_wfs=False):
         oldspos_ac = self.spos_ac
         with self.timer('Basic WFS set positions'):
-            WaveFunctions.set_positions(self, spos_ac, atom_partition)
+            super().set_positions(spos_ac, atom_partition)
 
         with self.timer('Basis functions set positions'):
             self.basis_functions.set_positions(spos_ac)
@@ -429,7 +429,7 @@ class LCAOWaveFunctions(WaveFunctions):
             return C_M
 
     def write(self, writer, write_wave_functions=False):
-        WaveFunctions.write(self, writer)
+        super().write(writer)
         if write_wave_functions:
             self.write_wave_functions(writer)
 
@@ -444,7 +444,7 @@ class LCAOWaveFunctions(WaveFunctions):
                 writer.fill(C_nM * Bohr**-1.5)
 
     def read(self, reader):
-        WaveFunctions.read(self, reader)
+        super().read(reader)
         r = reader.wave_functions
         if 'coefficients' in r:
             self.read_wave_functions(r)

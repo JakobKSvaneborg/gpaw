@@ -17,7 +17,7 @@ The implementation of DO is based on the exponential transformation
 (see also :ref:`directmin`) and uses efficient quasi-Newton algorithms
 for saddle point convergence.
 The real-space grid and plan-wave implementation is described in [#do1]_,
-while the LCAO inplementation is described in [#do2]_ and [#do3]_.
+while the LCAO implementation is described in [#do2]_ and [#do3]_.
 
 The recommended quasi-Newton algorithm is a limited-memory symmetric rank-one (L-SR1) method
 [#do2]_ with unit step. In order to use this algorithm, the

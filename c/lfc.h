@@ -6,7 +6,7 @@
 #ifndef LFC_H
 #define LFC_H
 
-#include <Python.h>
+#include "python_utils.h"
 
 typedef struct
 {
@@ -50,8 +50,8 @@ typedef struct
   int* i_W;                  // mapping from all volumes to current volumes
   int* ngm_W;                // number of grid points per volume
   bool bloch_boundary_conditions;  // Gamma-point calculation?
-  complex double* phase_kW;  // phase factors: exp(ik.R)
-  complex double* phase_i;   // phase factors for current volumes
+  double_complex* phase_kW;  // phase factors: exp(ik.R)
+  double_complex* phase_i;   // phase factors for current volumes
 
 #ifdef GPAW_GPU
   int use_gpu;
@@ -81,10 +81,10 @@ typedef struct
   const int* G_B = lfc->G_B;                                       \
   const int* W_B = lfc->W_B;                                       \
   int* i_W = lfc->i_W + thread_id * lfc->nW;                       \
-  complex double* phase_i = lfc->phase_i + thread_id * lfc->nimax; \
+  double_complex* phase_i = lfc->phase_i + thread_id * lfc->nimax; \
   LFVolume **volume_i = lfc->volume_i + thread_id * lfc->nimax;    \
   LFVolume *volume_W = lfc->volume_W + thread_id * lfc->nW;        \
-  const double complex* phase_W = lfc->phase_kW + k * lfc->nW;     \
+  const double_complex* phase_W = lfc->phase_kW + k * lfc->nW;     \
   int Ga = 0;                                                      \
   int ni = 0;                                                      \
   for (int B = 0; B < lfc->nB; B++)                                \

@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 from gpaw.blacs import BlacsGrid, Redistributor
-from gpaw.mpi import broadcast_float, rank, world
+from gpaw.mpi import broadcast_float, world
 from gpaw.utilities import compiled_with_sl
 from gpaw.utilities.blas import r2k, rk
 from gpaw.utilities.scalapack import (pblas_gemm, pblas_gemv, pblas_hemm,
@@ -108,7 +108,7 @@ def test_pblas_rk_r2k(dtype, mprocs, nprocs,
     U0 = globU.zeros(dtype=dtype)  # zeros needed for rank-updates
 
     # Local reference matrix product:
-    if rank == 0:
+    if world.rank == 0:
         r2k(1.0, A0, D0, 0.0, S0)
         rk(1.0, A0, 0.0, U0)
     assert globA.check(A0)
@@ -137,7 +137,7 @@ def test_pblas_rk_r2k(dtype, mprocs, nprocs,
     Redistributor(world, distS, globS).redistribute(S, S1)
     Redistributor(world, distU, globU).redistribute(U, U1)
 
-    if rank == 0:
+    if world.rank == 0:
         r2k_err = abs(S1 - S0).max()
         rk_err = abs(U1 - U0).max()
         print('r2k err', r2k_err)

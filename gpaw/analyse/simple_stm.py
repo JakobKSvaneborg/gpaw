@@ -6,7 +6,7 @@ from ase.dft.stm import STM
 from ase.io.cube import read_cube_data, write_cube
 from ase.units import Bohr, Hartree
 
-import gpaw.mpi as mpi
+from gpaw.mpi import world
 from gpaw.old.grid_descriptor import GridDescriptor
 
 
@@ -124,7 +124,7 @@ class SimpleStm(STM):
         ldos = self.gd.collect(self.ldos)
 # print "write: integrated =", self.gd.integrate(self.ldos)
 
-        if mpi.rank != 0:
+        if world.rank != 0:
             return
 
         if filetype is None:
@@ -176,9 +176,8 @@ class SimpleStm(STM):
 
     def linescan(self, bias, current, p1, p2, npoints=50, z0=None):
         """Line scan for a given current [nA]"""
-        return STM.linescan(self, bias,
-                            self.current_to_density(current),
-                            p1, p2, npoints, z0)
+        return super().linescan(bias, self.current_to_density(current),
+                                p1, p2, npoints, z0)
 
     def density_to_current(self, density):
         return 5000. * density ** 2

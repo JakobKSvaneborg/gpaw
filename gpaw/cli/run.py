@@ -8,12 +8,12 @@ from gpaw.occupations import FermiDirac, MarzariVanderbilt, MethfesselPaxton
 
 class GPAWRunner(Runner):
     def __init__(self):
-        Runner.__init__(self)
+        super().__init__()
         self.calculator_name = 'gpaw'
 
     def parse(self, args):
         args.calculator = 'gpaw'
-        return Runner.parse(self, args)
+        return super().parse(args)
 
     def set_calculator(self, atoms, name):
         parameter_namespace = {
@@ -28,7 +28,7 @@ class GPAWRunner(Runner):
         atoms.calc = GPAW(txt=txt, **parameters)
 
     def calculate(self, atoms, name):
-        data = Runner.calculate(self, atoms, name)
+        data = super().calculate(atoms, name)
         if self.args.write:
             atoms.calc.write(self.args.write)
         if self.args.write_all:

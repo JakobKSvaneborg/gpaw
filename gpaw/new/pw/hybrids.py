@@ -15,6 +15,7 @@ from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.logger import Logger
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
+from gpaw.new import zips as zip
 from gpaw.setup import Setups
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.blas import mmm
@@ -421,7 +422,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         ghat_aLG = self.setups.create_compensation_charges(pw, self.relpos_ac)
         ghat_aLG._lazy_init()
         ghat_GA = ghat_aLG._lfc.expand(cc=not self.real)
-        N2 = len(f2_n)
+        N2 = len(ut2_nR)
         Q_anL = ghat_aLG.layout.empty(N2)
         rhot2_nG = pw.empty(N2)
         tmp_Q = self.plan.tmp_Q
@@ -445,7 +446,8 @@ class PWHybridHamiltonian(PWHamiltonian):
             else:
                 mmm(1.0 / pw.dv, Q_anL.data, 'N', ghat_GA, 'C',
                     0.0, rhot2_nG.data)
-            for f2, rhot_G, ut2_R in zip(f2_n, rhot2_nG.data, ut2_nR.data):
+            for n2, (rhot_G, ut2_R) in enumerate(zip(rhot2_nG.data,
+                                                     ut2_nR.data)):
                 tmp_R[:] = ut2_R
                 tmp_R *= ut1_R.conj()
                 self.plan.fft()
@@ -459,7 +461,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                     e12 = tmp_G.view(float) @ rhot_G.view(float)
                     if self.real:
                         e12 = 2 * e12 - (tmp_G[0] * rhot_G[0]).real
-                    e += e12 * f2 * f1 * pw.dv
+                    e += e12 * f2_n[n2] * f1 * pw.dv
             if F1_av is not None:
                 forces(ghat_aLG, rhot2_nG, P2_ani,
                        Q_anL,

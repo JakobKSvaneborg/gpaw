@@ -35,7 +35,7 @@ class PWAtomCenteredFunctions(AtomCenteredFunctions):
                  integrals=None,
                  xp=None,
                  save_memory: bool = True):
-        AtomCenteredFunctions.__init__(self, functions, relpos, atomdist)
+        super().__init__(functions, relpos, atomdist)
         self.pw = pw
         self.xp = xp or np
         self.integrals = integrals

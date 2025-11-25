@@ -1306,7 +1306,7 @@ def core_states(symbol):
 if __name__ == '__main__':
     import pprint
 
-    # https://www.physics.nist.gov/PhysRefData/DFTdata/
+    # https://dx.doi.org/10.18434/T4ZP4F
     path = '/scratch/jensj/dftdata/'
     Ztable = {}
     confs = [['X', '']]

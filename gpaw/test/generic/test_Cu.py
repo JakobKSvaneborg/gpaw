@@ -2,7 +2,7 @@ import pytest
 from ase import Atoms
 from ase.units import Hartree
 
-import gpaw.mpi as mpi
+from gpaw.mpi import world
 from gpaw import GPAW
 from gpaw.test import gen
 
@@ -26,14 +26,14 @@ def test_generic_Cu(in_tmp_dir):
 
     e_4s_major = calc.get_eigenvalues(spin=0)[5] / Hartree
     e_3d_minor = calc.get_eigenvalues(spin=1)[4] / Hartree
-    print(mpi.rank, e_4s_major, e_3d_minor)
+    print(world.rank, e_4s_major, e_3d_minor)
 
     #
     # The reference values are from:
     #
     #   https://physics.nist.gov/PhysRefData/DFTdata/Tables/29Cu.html
     #
-    if mpi.rank == 0:
+    if world.rank == 0:
         print(e_4s_major - e_3d_minor, -0.184013 - -0.197109)
         assert abs(e_4s_major - e_3d_minor - (-0.184013 - -0.197109)) < 0.001
 

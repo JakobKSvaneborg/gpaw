@@ -94,7 +94,7 @@ class Solver:
 
 class SinglePoleSolver(Solver):
     def __init__(self, omega_w: Array1D):
-        Solver.__init__(self, omega_w=omega_w)
+        super().__init__(omega_w=omega_w)
 
     def solve(self, X_wGG: Array3D) -> tuple[Array2D, Array2D]:
         """
@@ -128,7 +128,7 @@ class SinglePoleSolver(Solver):
 
 class MultipoleSolver(Solver):
     def __init__(self, omega_w: Array1D):
-        Solver.__init__(self, omega_w=omega_w)
+        super().__init__(omega_w=omega_w)
 
     def solve(self, X_wGG: Array3D) -> tuple[Array3D, Array3D]:
         """

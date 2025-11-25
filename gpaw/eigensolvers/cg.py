@@ -59,7 +59,7 @@ class CG(Eigensolver):
         if wfs.mode == 'pw' and wfs.gd.comm.size > 1:
             raise ValueError('CG eigensolver does not support domain '
                              'parallelization in PW-mode.')
-        Eigensolver.initialize(self, wfs)
+        super().initialize(wfs)
 
     def iterate_one_k_point(self, ham, wfs, kpt, weights):
         """Do conjugate gradient iterations for the k-point"""

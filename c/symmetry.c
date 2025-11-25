@@ -75,8 +75,8 @@ PyObject* GG_shuffle(PyObject *self, PyObject *args)
         }
     }
 
-    double complex* A_GG = (double complex*)PyArray_DATA(A_GG_obj);
-    double complex* B_GG = (double complex*)PyArray_DATA(B_GG_obj);
+    double_complex* A_GG = (double_complex*)PyArray_DATA(A_GG_obj);
+    double_complex* B_GG = (double_complex*)PyArray_DATA(B_GG_obj);
 
     for (int G0=0; G0<nG; G0++)
     {
@@ -86,7 +86,7 @@ PyObject* GG_shuffle(PyObject *self, PyObject *args)
             int take1 = G1_G[G1];
             // Instead of numpy magic, we do some C magic.
             char* ptr = (char*)A_GG + take0 + take1;
-            double complex* value_ptr = (double_complex*) ptr;
+            double_complex* value_ptr = (double_complex*) ptr;
             *(B_GG++) += *value_ptr;
         }
     }
@@ -208,8 +208,8 @@ PyObject* symmetrize_wavefunction(PyObject *self, PyObject *args)
     int ng1 = PyArray_DIMS(a_g_obj)[1];
     int ng2 = PyArray_DIMS(a_g_obj)[2];
 
-    const double complex* a_g = (const double complex*)PyArray_DATA(a_g_obj);
-    double complex* b_g = (double complex*)PyArray_DATA(b_g_obj);
+    const double_complex* a_g = (const double_complex*)PyArray_DATA(a_g_obj);
+    double_complex* b_g = (double_complex*)PyArray_DATA(b_g_obj);
 
     for (int g0 = 0; g0 < ng0; g0++)
         for (int g1 = 0; g1 < ng1; g1++)
@@ -218,7 +218,7 @@ PyObject* symmetrize_wavefunction(PyObject *self, PyObject *args)
               int p1 = ((C[1] * g0 + C[4] * g1 + C[7] * g2) % ng1 + ng1) % ng1;
               int p2 = ((C[2] * g0 + C[5] * g1 + C[8] * g2) % ng2 + ng2) % ng2;
 
-              double complex phase = cexp(I * 2. * M_PI *
+              double_complex phase = cexp(I * 2. * M_PI *
                                           (kpt1[0]/ng0*p0 +
                                            kpt1[1]/ng1*p1 +
                                            kpt1[2]/ng2*p2 -
@@ -252,7 +252,7 @@ PyObject* symmetrize_return_index(PyObject *self, PyObject *args)
     int ng2 = PyArray_DIMS(a_g_obj)[2];
 
     unsigned long* a_g = (unsigned long*)PyArray_DATA(a_g_obj);
-    double complex* b_g = (double complex*)PyArray_DATA(b_g_obj);
+    double_complex* b_g = (double_complex*)PyArray_DATA(b_g_obj);
 
     for (int g0 = 0; g0 < ng0; g0++)
         for (int g1 = 0; g1 < ng1; g1++)
@@ -261,7 +261,7 @@ PyObject* symmetrize_return_index(PyObject *self, PyObject *args)
               int p1 = ((C[1] * g0 + C[4] * g1 + C[7] * g2) % ng1 + ng1) % ng1;
               int p2 = ((C[2] * g0 + C[5] * g1 + C[8] * g2) % ng2 + ng2) % ng2;
 
-              double complex phase = cexp(I * 2. * M_PI *
+              double_complex phase = cexp(I * 2. * M_PI *
                                           (kpt1[0]/ng0*p0 +
                                            kpt1[1]/ng1*p1 +
                                            kpt1[2]/ng2*p2 -
@@ -290,9 +290,9 @@ PyObject* symmetrize_with_index(PyObject *self, PyObject *args)
     int ng2 = PyArray_DIMS(a_g_obj)[2];
 
     const unsigned long* index_g = (const unsigned long*)PyArray_DATA(index_g_obj);
-    const double complex* phase_g = (const double complex*)PyArray_DATA(phase_g_obj);
-    const double complex* a_g = (const double complex*)PyArray_DATA(a_g_obj);
-    double complex* b_g = (double complex*)PyArray_DATA(b_g_obj);
+    const double_complex* phase_g = (const double_complex*)PyArray_DATA(phase_g_obj);
+    const double_complex* a_g = (const double_complex*)PyArray_DATA(a_g_obj);
+    double_complex* b_g = (double_complex*)PyArray_DATA(b_g_obj);
 
 
     for (int g0 = 0; g0 < ng0; g0++)
