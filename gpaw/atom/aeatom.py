@@ -870,12 +870,9 @@ class CLICommand:
         add('-n', '--ngrid', help='Specify number of grid points.')
         add('-R', '--rcut', help='Radial cutoff.')
         add('-r', '--refine', action='store_true')
-        add('-s', '--scalar-relativistic',
-            action='store_const', const=True,
-            help='Use scalar-relativistic setups (default).')
-        add('-S', '--non-relativistic',
-            action='store_const', const=False, dest='scalar_relativistic',
-            help='Don\'t use non-relativistic setups.')
+        add('--non-relativistic', action='store_false',
+            help='Do a non-relativistic calculation.  '
+            'Default is scalar-relativistic')
         add('--no-ee-interaction', action='store_true',
             help='Turn off electron-electron interaction.')
 
@@ -921,9 +918,8 @@ def main(args):
     aea_kwargs = dict(xc=args.xc_functional,
                       spinpol=args.spin_polarized,
                       dirac=args.dirac,
-                      ee_interaction=not args.no_ee_interaction)
-    if args.scalar_relativistic is not None:
-        aea_kwargs['scalar_relativistic'] = args.scalar_relativistic
+                      ee_interaction=not args.no_ee_interaction,
+                      scalar_relativistic=not args.non_relativistic)
     aea = AllElectronAtom(symbol, **aea_kwargs)
 
     kwargs = {}
@@ -946,7 +942,7 @@ def main(args):
     aea.initialize(**kwargs)
     aea.run()
 
-    if args.refine or args.scalar_relativistic:
+    if args.refine or not args.non_relativistic:
         aea.refine()
 
     if args.logarithmic_derivatives:
