@@ -324,7 +324,6 @@ class PWHybridHamiltonian(PWHamiltonian):
             assert F_av is not None
             F_av += ibzwfs.spin_degeneracy * kweight * F1_av
 
-
     def _apply1(self,
                 spin: int,
                 D_aii,
