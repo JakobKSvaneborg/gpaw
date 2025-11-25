@@ -29,8 +29,8 @@ class SolvationPoissonSolver(FDPoissonSolver):
             raise NotImplementedError(
                 'Mehrstellen stencil is not implemented '
                 'for SolvationPoissonSolver!')
-        FDPoissonSolver.__init__(self, nn, relax, eps, maxiter, remove_moment,
-                                 use_charge_center=use_charge_center)
+        super().__init__(nn, relax, eps, maxiter, remove_moment,
+                         use_charge_center=use_charge_center)
 
     def set_dielectric(self, dielectric):
         """Set the dielectric.

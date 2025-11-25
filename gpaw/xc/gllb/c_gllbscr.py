@@ -10,7 +10,7 @@ from gpaw.xc.pawcorrection import rnablaY_nLv
 
 class C_GLLBScr(Contribution):
     def __init__(self, weight, functional, damp=1e-10):
-        Contribution.__init__(self, weight)
+        super().__init__(weight)
         self.xc = XC(functional)
         self.damp = damp
 
@@ -25,13 +25,13 @@ class C_GLLBScr(Contribution):
         return self.xc.name if desc is None else desc
 
     def initialize(self, density, hamiltonian, wfs):
-        Contribution.initialize(self, density, hamiltonian, wfs)
+        super().initialize(density, hamiltonian, wfs)
         # Always 1 spin, no matter what calculation nspins is
         self.vt_sg = self.finegd.empty(1)
         self.e_g = self.finegd.empty()
 
     def initialize_1d(self, ae):
-        Contribution.initialize_1d(self, ae)
+        super().initialize_1d(ae)
         self.v_g = np.zeros(self.ae.N)
         self.e_g = np.zeros(self.ae.N)
 

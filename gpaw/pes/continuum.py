@@ -45,7 +45,7 @@ class ZerothOrder1(State):
 
     def __init__(self, calculator):
         self.calculator = calculator
-        State.__init__(self, calculator.gd)
+        super().__init__(calculator.gd)
         self.pw = PlaneWave(self.gd)
 
         # get effective potential
