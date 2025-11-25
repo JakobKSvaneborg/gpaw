@@ -145,7 +145,10 @@ class TB(Mode):
 class Eigensolver(Parameter):
     @classmethod
     def from_param(cls, eigensolver):
+        from gpaw.eigensolvers.eigensolver import Eigensolver as OldEigensolver
         from gpaw.new.do import DirectOptimization
+        from gpaw.new.eigensolver import Eigensolver as NewEigensolver
+
         eigensolvers = {
             'davidson': Davidson,
             'rmm-diis': RMMDIIS,
@@ -155,20 +158,22 @@ class Eigensolver(Parameter):
             'hybrid-lcao': HybridLCAOEigensolver,
             'scissors': Scissors}
 
-        if isinstance(eigensolver, str):
-            eigensolver = {'name': eigensolver}
-        elif not isinstance(eigensolver, dict):
-            return eigensolver
-        if 'name' in eigensolver:
-            eigensolver = eigensolver.copy()
-            name = eigensolver.pop('name')
-            if name == 'dav':
-                name = 'davidson'
-                warnings.warn('Please use "davidson" instead of "dav"')
-            if name in eigensolvers:
-                return eigensolvers[name](**eigensolver)
-            raise ValueError(f'Unknown eigensolver: {name}')
-        return DefaultEigensolver(eigensolver)
+        match eigensolver:
+            case OldEigensolver() | NewEigensolver():
+                return eigensolver
+            case str(name):
+                return eigensolvers[name]()
+            case {'name': name, **kwargs}:
+                if name == 'dav':
+                    warnings.warn('Please use "davidson" instead of "dav"')
+                    return eigensolvers['davidson'](**kwargs)
+                if name in eigensolvers:
+                    return eigensolvers[name](**kwargs)
+                raise ValueError(f'Unknown eigensolver: {name}')
+            case {**kwargs}:
+                return DefaultEigensolver(kwargs)
+            case _:  # Wildcard
+                raise ValueError()
 
 
 class DefaultEigensolver(Eigensolver):
