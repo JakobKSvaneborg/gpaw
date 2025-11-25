@@ -93,7 +93,7 @@ class RamanData:
         Parameters
         ----------
         entries: str, list
-            Sting or list of strings with desired polarisaitons
+            Sting or list of strings with desired polarizations
             For example: ["xx", "yy", "xy", "yx"]
         T: float
             Temperature in Kelvin
