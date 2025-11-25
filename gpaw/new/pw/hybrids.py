@@ -286,13 +286,13 @@ class PWHybridHamiltonian(PWHamiltonian):
                 evc -= ec
 
         # distribute V_aii
-        V_aii.gather(broadcast=True)
+        V2_aii = V_aii.gather(broadcast=True)
 
         if calculate_energy:
             evv = domain_comm.sum_scalar(evv) * self.kpt_comm.size * kweight
             evc = domain_comm.sum_scalar(evc) * self.kpt_comm.size * kweight
         elif F1_av is not None:
-            for a, V_ii in V_aii.items():
+            for a, V_ii in V2_aii.items():
                 for psit in self.mypsits:
                     dP_anvi = psit.dP_anvi
                     assert dP_anvi is not None
@@ -322,9 +322,12 @@ class PWHybridHamiltonian(PWHamiltonian):
 
         if F1_av is not None:
             assert F_av is not None
-            F_av += ibzwfs.spin_degeneracy * kweight * F1_av
             # sum distributed wf contributions
-            self.comm.sum(F_av)
+            self.comm.sum(F1_av)
+            for a, f1_v in enumerate(F1_av):
+                if self.comm.rank == 0:
+                    print(a, f1_v)
+            F_av += ibzwfs.spin_degeneracy * kweight * F1_av
 
     def _apply1(self,
                 spin: int,
@@ -500,6 +503,7 @@ class PWHybridHamiltonian(PWHamiltonian):
 
 def forces(ghat_aLG, vrhot2_nG, P2_ani, Q2_anL, f1, f2_n, nbzk, delta_aiiL,
            dP_anvi, n1, eikR_a, F_av):
+    return
     f12_n = f1 * f2_n
     for a, F_nvL in ghat_aLG.derivative(vrhot2_nG).items():
         F_av[a] -= 0.25 / nbzk * np.einsum('n, nL, nvL -> v',
