@@ -253,6 +253,18 @@ class PWHybridHamiltonian(PWHamiltonian):
         else:
             F1_av = None
 
+        # Find projectors and k-point weight for psit2_nG:
+        for wfs in ibzwfs:
+            if wfs.spin != spin:
+                continue
+            if np.allclose(wfs.psit_nX.desc.kpt_c, psit2_nG.desc.kpt_c):
+                pt_aiG = wfs.pt_aiX
+                assert isinstance(pt_aiG, PWAtomCenteredFunctions)
+                kweight = wfs.weight
+                break
+        else:  # no break
+            assert False, f'k-point not found: {psit2_nG.desc.kpt_c}'
+
         D_aii = D_asii[:, spin].copy()
         if ibzwfs.nspins == 1:
             D_aii = D_aii.copy()
@@ -281,25 +293,13 @@ class PWHybridHamiltonian(PWHamiltonian):
                         dP_anvi[a].conj(),
                         psit.f_n).real
         if calculate_energy:
-            evv = domain_comm.sum_scalar(evv) * self.kpt_comm.size
-            evc = domain_comm.sum_scalar(evc) * self.kpt_comm.size
+            evv = domain_comm.sum_scalar(evv) * self.kpt_comm.size * kweight
+            evc = domain_comm.sum_scalar(evc) * self.kpt_comm.size * kweight
         ekin = -evc - 2 * evv
-
-        # Find projectors and k-point weight for psit2_nG:
-        for wfs in ibzwfs:
-            if wfs.spin != spin:
-                continue
-            if np.allclose(wfs.psit_nX.desc.kpt_c, psit2_nG.desc.kpt_c):
-                pt_aiG = wfs.pt_aiX
-                assert isinstance(pt_aiG, PWAtomCenteredFunctions)
-                kweight = wfs.weight
-                break
-        else:  # no break
-            assert False, f'k-point not found: {psit2_nG.desc.kpt_c}'
 
         e = self._apply1(spin, D_aii, pt_aiG,
                          psit2_nG, Htpsit2_nG,
-                         wfs.myocc_n, V_aii,
+                         kweight, wfs.myocc_n, V_aii,
                          calculate_energy, F1_av)
 
         evv += 0.5 * e
@@ -309,7 +309,7 @@ class PWHybridHamiltonian(PWHamiltonian):
             print(self.comm.rank, psit2_nG.desc.kpt_c, spin, e)
             for name, e in [('hybrid_xc', evv + evc),
                             ('hybrid_kinetic_correction', ekin)]:
-                e *= ibzwfs.spin_degeneracy * kweight
+                e *= ibzwfs.spin_degeneracy
                 self.xc.energies[name] += e
             self.xc.energies['hybrid_xc'] += self.exx_cc
 
@@ -323,6 +323,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 pt_aiG: PWAtomCenteredFunctions,
                 psit_nG: PWArray,
                 Htpsit_nG: PWArray | None,
+                kweight: float,
                 f_n: np.ndarray,
                 V_aii,
                 calculate_energy: bool,
@@ -352,16 +353,16 @@ class PWHybridHamiltonian(PWHamiltonian):
                         P2_ani = AtomArrays(P2_ani.layout,
                                             dims=(len(P2_ani.data),),
                                             data=P2_ani.data)
-                        data = (psit2_nG, P2_ani, f_n, spin)
+                        data = (psit2_nG, P2_ani, f_n, spin, kweight)
 
                 rank = (brank + krank * band_comm.size) * domain_comm.size
-                psit2_nG, P2_ani, f2_n, s = broadcast(data, rank, comm)
+                psit2_nG, P2_ani, f2_n, s, w = broadcast(data, rank, comm)
                 V_nG = psit2_nG.new()
                 V_nG.data[:] = 0.0
                 V_ani = P2_ani.new()
                 V_ani.data[:] = 0.0
                 e += self._apply2(psit2_nG, P2_ani, s, V_nG, V_ani, f2_n,
-                                  calculate_energy, F1_av)
+                                  calculate_energy, F1_av) * w
                 if Htpsit_nG is None:
                     continue
                 comm.sum(V_nG.data, root=rank)
@@ -395,12 +396,9 @@ class PWHybridHamiltonian(PWHamiltonian):
             if psit1.spin == spin:
                 pw = pw2.new(kpt=pw2.kpt_c - psit1.kpt_c)
                 v_G = truncated_coulomb(pw, self.exx_omega)
-                e1= self._apply3(
+                e += self._apply3(
                     pw, v_G, psit1, ut2_nR, P2_ani, Htpsit2_nG, V2_ani, f2_n,
                     calculate_energy, F1_av)
-                if calculate_energy:
-                    print(self.comm.rank, 'M', psit1.kpt_c, psit1.spin, e1)
-                e+=e1
 
         e *= -self.exx_fraction / self.nbzk
         return self.comm.sum_scalar(e)
