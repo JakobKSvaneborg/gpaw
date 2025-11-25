@@ -55,6 +55,14 @@ REFERENCES0 |= {
 # Rescaling to 17 systems:
 RESCALE_FACTOR = 17 * 0.9434 / (14 * 0.9434 + 3)
 
+# New system for MnVS2-2M
+# (new GPAW, master branch Nov 25 2025):
+REFERENCES0 |= {
+    'MnVS2-2M': (-29.11777, -0.00014, 24, 68.0)}
+OLDSCORE = 103.56 * 17
+NEWSCORE = 103.56 * 17 + (98.608 / 68.0 - 1) * 100
+RESCALE_FACTOR *= OLDSCORE / NEWSCORE
+
 REFERENCES = REFERENCES0 | {
     'ErGe-2M': (0.0, 0.0, 24, 9999999),
     'Mn2O2-3M': (0.0, 0.0, 24, 9999999),
