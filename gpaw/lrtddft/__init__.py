@@ -69,7 +69,7 @@ class LrTDDFT(ExcitationList):
         self.set(**kwargs)
         self.calculator = calculator
 
-        ExcitationList.__init__(self, log=log, txt=txt)
+        super().__init__(log=log, txt=txt)
 
         if self.eh_comm is None:
             self.eh_comm = mpi.serial_comm

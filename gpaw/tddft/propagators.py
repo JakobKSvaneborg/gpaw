@@ -176,7 +176,7 @@ class ExplicitCrankNicolson(BasePropagator):
     """
     def __init__(self):
         """Create ExplicitCrankNicolson-object."""
-        BasePropagator.__init__(self)
+        super().__init__()
         self.tmp_kpt_u = None
         self.hpsit = None
         self.spsit = None
@@ -186,7 +186,7 @@ class ExplicitCrankNicolson(BasePropagator):
         return {'name': 'ECN'}
 
     def initialize(self, *args, **kwargs):
-        BasePropagator.initialize(self, *args, **kwargs)
+        super().initialize(*args, **kwargs)
 
         # Allocate temporary wavefunctions
         self.tmp_kpt_u = allocate_wavefunction_arrays(self.wfs)
@@ -330,7 +330,7 @@ class SemiImplicitCrankNicolson(ExplicitCrankNicolson):
         return {'name': 'SICN'}
 
     def initialize(self, *args, **kwargs):
-        ExplicitCrankNicolson.initialize(self, *args, **kwargs)
+        super().initialize(*args, **kwargs)
 
         # Allocate old wavefunctions
         self.old_kpt_u = allocate_wavefunction_arrays(self.wfs)
@@ -870,7 +870,7 @@ class SemiImplicitTaylorExponential(BasePropagator):
 
         """
         raise RuntimeError('SITE propagator is unstable')
-        BasePropagator.__init__(self)
+        super().__init__()
         self.degree = degree
         self.tmp_kpt_u = None
         self.psin = None
@@ -881,7 +881,7 @@ class SemiImplicitTaylorExponential(BasePropagator):
                 'degree': self.degree}
 
     def initialize(self, *args, **kwargs):
-        BasePropagator.initialize(self, *args, **kwargs)
+        super().initialize(*args, **kwargs)
 
         # Allocate temporary wavefunctions
         self.tmp_kpt_u = allocate_wavefunction_arrays(self.wfs)
@@ -967,7 +967,7 @@ class SemiImplicitKrylovExponential(BasePropagator):
         degree: integer
             Degree of the Krylov subspace (default is 4)
         """
-        BasePropagator.__init__(self)
+        super().__init__()
         self.degree = degree
         self.kdim = degree + 1
         self.tmp_kpt_u = None
@@ -986,7 +986,7 @@ class SemiImplicitKrylovExponential(BasePropagator):
                 'degree': self.degree}
 
     def initialize(self, *args, **kwargs):
-        BasePropagator.initialize(self, *args, **kwargs)
+        super().initialize(*args, **kwargs)
 
         # Allocate temporary wavefunctions
         self.tmp_kpt_u = allocate_wavefunction_arrays(self.wfs)

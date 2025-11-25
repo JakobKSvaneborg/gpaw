@@ -81,7 +81,7 @@ class C_Response(Contribution):
                  coefficients, *,
                  metallic: bool = False,
                  damp: float = 1e-10):
-        Contribution.__init__(self, weight)
+        super().__init__(weight)
         d('In c_Response __init__', self)
         self.coefficients = coefficients
         self.vt_sg = None
@@ -112,7 +112,7 @@ class C_Response(Contribution):
         return ', '.join(desc)
 
     def initialize(self, density, hamiltonian, wfs):
-        Contribution.initialize(self, density, hamiltonian, wfs)
+        super().initialize(density, hamiltonian, wfs)
         self.coefficients.initialize(wfs)
         if self.Dresp_asp is None:
             assert self.density.D_asp is None
@@ -127,7 +127,7 @@ class C_Response(Contribution):
             self.vt_sg = self.finegd.empty(self.nspins)
 
     def initialize_1d(self, ae):
-        Contribution.initialize_1d(self, ae)
+        super().initialize_1d(ae)
         self.coefficients.initialize_1d(ae)
 
     def initialize_from_other_response(self, response):

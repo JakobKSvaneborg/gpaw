@@ -637,7 +637,7 @@ class RestartLCAODOS(LCAODOS):
     operation will allocate memory to diagonalize the Hamiltonian and
     set coefficients plus positions."""
     def __init__(self, calc):
-        LCAODOS.__init__(self, calc)
+        super().__init__(calc)
         system = calc.get_atoms()
         calc.set_positions(system)
         calc.wfs.eigensolver.iterate(calc.hamiltonian, calc.wfs)

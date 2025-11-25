@@ -62,12 +62,12 @@ class FixBondLengthsWaterModel(FixBondLengths):
 
     def __init__(self, pairs, tolerance=1e-13, bondlengths=None,
                  iterations=None):
-        FixBondLengths.__init__(self, pairs, tolerance=tolerance,
-                                bondlengths=bondlengths,
-                                iterations=iterations)
+        super().__init__(pairs, tolerance=tolerance,
+                         bondlengths=bondlengths,
+                         iterations=iterations)
 
     def initialize_bond_lengths(self, atoms):
-        bondlengths = FixBondLengths.initialize_bond_lengths(self, atoms)
+        bondlengths = super().initialize_bond_lengths(atoms)
         # Make sure that the constraints are compatible with the C-code
         assert len(self.pairs) % 3 == 0
         masses = atoms.get_masses()
