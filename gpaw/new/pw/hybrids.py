@@ -322,12 +322,8 @@ class PWHybridHamiltonian(PWHamiltonian):
 
         if F1_av is not None:
             assert F_av is not None
-            # sum distributed wf contributions
-            self.comm.sum(F1_av)
-            for a, f1_v in enumerate(F1_av):
-                if self.comm.rank == 0:
-                    print(a, f1_v)
             F_av += ibzwfs.spin_degeneracy * kweight * F1_av
+
 
     def _apply1(self,
                 spin: int,
@@ -503,7 +499,6 @@ class PWHybridHamiltonian(PWHamiltonian):
 
 def forces(ghat_aLG, vrhot2_nG, P2_ani, Q2_anL, f1, f2_n, nbzk, delta_aiiL,
            dP_anvi, n1, eikR_a, F_av):
-    return
     f12_n = f1 * f2_n
     for a, F_nvL in ghat_aLG.derivative(vrhot2_nG).items():
         F_av[a] -= 0.25 / nbzk * np.einsum('n, nL, nvL -> v',

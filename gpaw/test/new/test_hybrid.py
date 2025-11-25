@@ -31,7 +31,7 @@ def test_hse06(gpaw_new, dtype, eigensolver):
     if not gpaw_new and eigensolver == 'ppcg':
         pytest.skip('PPCG only for GPAW new.')
 
-    atoms = Atoms('Li3', [[0, 0, 0], [1.0, 1.0, 0], [0, 0, 2.0]])
+    atoms = Atoms('Li2', [[0, 0, 0], [0, 0, 2.0]])
     atoms.center(vacuum=2.5)
     atoms.calc = GPAW(
         mode=dict(name='pw',
@@ -40,21 +40,20 @@ def test_hse06(gpaw_new, dtype, eigensolver):
         eigensolver=eigensolver,
         convergence={'density': 1e-6},
         parallel={'domain': world.size},
-        nbands=4, txt=None)
+        nbands=4)
     e = atoms.get_potential_energy()
-    #assert e == pytest.approx(-5.633278, abs=1e-3)
+    assert e == pytest.approx(-5.633278, abs=1e-3)
     eigs = atoms.calc.get_eigenvalues(spin=0)
-    #assert eigs[0] == pytest.approx(-4.67477532, abs=1e-3)
+    assert eigs[0] == pytest.approx(-4.67477532, abs=1e-3)
     f = atoms.get_forces()
-    print(world.size, f)
-    # if 0:
-    #     atoms.set_distance(0, 1, 2.005)
-    #     ep = atoms.get_potential_energy()
-    #     atoms.set_distance(0, 1, 1.995)
-    #     em = atoms.get_potential_energy()
-    #     print((ep - em) / 0.01)
-    # f0 = 2.3504
-    # assert f == pytest.approx(np.array([[0, 0, -f0], [0, 0, f0]]), abs=0.0002)
+    if 0:
+        atoms.set_distance(0, 1, 2.005)
+        ep = atoms.get_potential_energy()
+        atoms.set_distance(0, 1, 1.995)
+        em = atoms.get_potential_energy()
+        print((ep - em) / 0.01)
+    f0 = 2.3504
+    assert f == pytest.approx(np.array([[0, 0, -f0], [0, 0, f0]]), abs=0.0002)
 
 
 @pytest.mark.new_gpaw_ready
