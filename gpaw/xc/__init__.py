@@ -49,7 +49,7 @@ def XC(kernel,
     See xc_funcs.h for the complete list.
 
     Warning - if an MGGA from libxc is used, libxc should be compiled
-    with --disable-fhc. Otherwise the calcualtions won't converge"""
+    with --disable-fhc. Otherwise the calculations won't converge"""
 
     if isinstance(kernel, str):
         kernel = xc_string_to_dict(kernel)

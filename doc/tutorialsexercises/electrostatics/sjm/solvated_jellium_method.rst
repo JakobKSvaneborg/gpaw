@@ -62,7 +62,7 @@ background_charge.txt:
           can be used to write cube files on the 3-D grid, instead of traces.
 
 Our traces showing the solvent region and the jellium region are plotted below.
-The black dots indiate the atom's `z` positions.
+The black dots indicate the atom's `z` positions.
 We see that both the solvent and the jellium are starting above the highest atom, so all is good.
 If you do see solvent appearing in a region where you do not want it, you can block it with ghost atoms or a boundary plane, as described in the :class:`~gpaw.solvation.sjm.SJMPower12Potential` docstring.
 If you see solvent in the metal region, you could increase the atomic radii as described in the same docstring.
@@ -99,7 +99,7 @@ Some things to note:
 
 * It's a good idea to use the BFGS, and not the BFGSLineSearch, algorithm for structural optimization. This is because the forces and energy are not necessarily consistent until the optimization finishes, and that might confuse an optimizer that uses the energy. BFGSLineSearch may in general have trouble with SJM, since the tolerance set on the desired potential can lead to small inconsistencies between the forces and energy. When in doubt, use the traditional BFGS optimizer.
 
-The plot below compares the "sequential" and "simultaneuous" optimization approaches.
+The plot below compares the "sequential" and "simultaneous" optimization approaches.
 The open circles are potential-equilibration steps, while the filled circles represent ionic steps (in which the atoms are moved).
 In sequential mode, it always makes sure the potential is within tolerance before taking an ionic step, and you can see that it typically takes an extra DFT calculation (or two) before moving the atoms.
 In simultaneous mode, it moves the atoms with much higher frequency, and only when the potential gets very far from the target does it pause to equilibrate.
@@ -117,7 +117,7 @@ Finding a barrier (NEB/DyNEB)
 
 Perhaps the most-desired use of constant-potential calculations is to find barriers at a specified potential.
 This avoids a well-known problem in canonical electronic structure calculations, where the work function (that is, the electrical potential) can change by 1--2 V over the course of an elementary step.
-Such a potential change is obviously much greater than the experimental situation, where potentiostats hold the potential to a tolerance many orders of magnitude smaller.
+Such a potential change is obviously much greater than the experimental situation, where potentiostatics hold the potential to a tolerance many orders of magnitude smaller.
 The SJM method allows one to calculate a reaction barrier in a manner where all images in the trajectory have identical work functions, down to a user-specified tolerance.
 
 The discrepancy between a canonical and grand-canonical simulation is most pronounced in reactions involving the creation or destruction of an ion, as the ion collides with the constant-potential surface.
@@ -147,7 +147,7 @@ However, running in serial allows us to take advantage of the computational effi
 Constant-charge mode
 ====================
 
-The SJM code can also run in constant-charge mode, where the user specifiies the total number of electrons in the simulation.
+The SJM code can also run in constant-charge mode, where the user specifies the total number of electrons in the simulation.
 This can be a fast way to calculate a system at several potentials---that is, if one does not care about the specific potentials, but just wants to span a range of potentials.
 To use constant-charge mode, just specify the number of :literal:`excess_electrons` in your :literal:`sj` dict and calculate as normal::
 

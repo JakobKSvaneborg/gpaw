@@ -36,7 +36,7 @@ class FrequencyDescriptor:
 
         In case *input* is a list on frequencies (in eV) a
         :class:`FrequencyGridDescriptor` instance is returned.
-        Othervise a :class:`NonLinearFrequencyDescriptor` instance is
+        Otherwise a :class:`NonLinearFrequencyDescriptor` instance is
         returned.
 
         >>> from ase.units import Ha

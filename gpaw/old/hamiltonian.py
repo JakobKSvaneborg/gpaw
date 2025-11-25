@@ -609,10 +609,10 @@ class Hamiltonian:
         """
         E_k = sum_{M'M} rho_MM' T_M'M
         better agreement between gradients of energy and
-        the total energy during the direct minimisation.
+        the total energy during the direct minimization.
         This is important when the line search is used.
         Also avoids using the eigenvalues which are
-        not calculated during the direct minimisation.
+        not calculated during the direct minimization.
 
         'calculate_kinetic_energy' method gives a correct
         value of kinetic energy only at self-consistent solution.

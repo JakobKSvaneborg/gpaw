@@ -12,19 +12,6 @@
 #include <xc.h> // If this file is not found, install libxc https://gpaw.readthedocs.io/install.html#libxc-installation
 #endif
 
-#ifdef GPAW_HPM
-PyObject* ibm_hpm_start(PyObject *self, PyObject *args);
-PyObject* ibm_hpm_stop(PyObject *self, PyObject *args);
-PyObject* ibm_mpi_start(PyObject *self);
-PyObject* ibm_mpi_stop(PyObject *self);
-#endif
-
-#ifdef CRAYPAT
-#include <pat_api.h>
-PyObject* craypat_region_begin(PyObject *self, PyObject *args);
-PyObject* craypat_region_end(PyObject *self, PyObject *args);
-#endif
-
 #if defined(GPAW_WITH_MAGMA) && !defined(GPAW_GPU)
 #error "Must define GPAW_GPU in order to use GPAW_WITH_MAGMA"
 #endif
@@ -132,10 +119,6 @@ PyObject * FFTWDestroy(PyObject *self, PyObject *args);
 
 // Threading
 PyObject* get_num_threads(PyObject *self, PyObject *args);
-
-#ifdef GPAW_PAPI
-PyObject* papi_mem_info(PyObject *self, PyObject *args);
-#endif
 
 #ifdef GPAW_WITH_LIBVDWXC
 PyObject* libvdwxc_create(PyObject *self, PyObject *args);
@@ -280,19 +263,6 @@ static PyMethodDef functions[] = {
     {"FFTWExecute", FFTWExecute, METH_VARARGS, 0},
     {"FFTWDestroy", FFTWDestroy, METH_VARARGS, 0},
 #endif
-#ifdef GPAW_HPM
-    {"hpm_start", ibm_hpm_start, METH_VARARGS, 0},
-    {"hpm_stop", ibm_hpm_stop, METH_VARARGS, 0},
-    {"mpi_start", (PyCFunction) ibm_mpi_start, METH_NOARGS, 0},
-    {"mpi_stop", (PyCFunction) ibm_mpi_stop, METH_NOARGS, 0},
-#endif // GPAW_HPM
-#ifdef CRAYPAT
-    {"craypat_region_begin", craypat_region_begin, METH_VARARGS, 0},
-    {"craypat_region_end", craypat_region_end, METH_VARARGS, 0},
-#endif // CRAYPAT
-#ifdef GPAW_PAPI
-    {"papi_mem_info", papi_mem_info, METH_VARARGS, 0},
-#endif // GPAW_PAPI
 #ifdef GPAW_WITH_LIBVDWXC
     {"libvdwxc_create", libvdwxc_create, METH_VARARGS, 0},
     {"libvdwxc_has", libvdwxc_has, METH_VARARGS, 0},
