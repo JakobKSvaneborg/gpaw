@@ -95,13 +95,13 @@ def broadcast_exception(comm):
     except Exception as ex:
         rank = comm.max_scalar(comm.rank)
         if rank == comm.rank:
-            broadcast(ex, rank, comm)
+            broadcast(ex, rank, comm=comm)
             raise
     else:
         rank = comm.max_scalar(-1)
     # rank will now be the highest failing rank or -1
     if rank >= 0:
-        raise broadcast(None, rank, comm)
+        raise broadcast(None, rank, comm=comm)
 
 
 class _Communicator:
