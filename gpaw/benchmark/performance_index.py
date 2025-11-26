@@ -95,9 +95,10 @@ def workflow():
             nodename = 'xeon24el8'
         if cores == 40:
             nodename = 'xeon40el8_clx'
+            tmax = '3h'
         elif cores == 56:
             nodename = 'xeon56'
-            tmax = '3h'
+            tmax = '5h'
 
         run(function=work,
             args=[name],
@@ -142,15 +143,17 @@ def work(name: str, params: dict | None = None) -> None:
     f1 = atoms.get_forces()
     i1 = atoms.calc.dft.scf_loop.niter
 
-    if abs(f1).max() < 0.0001:
-        s = {'C2-3': -0.0014,
-             'Fe8-3M': 0.0364,
-             'Mn2O2-3M': 0.0382}.get(name)
-        if s is not None:
-            # LCAO and FD-mode does not do stress
-            stress = np.diag([s, s, s])
-        else:
+    if name in {'C2-3', 'Fe8-3M', 'Mn2O2-3M'}:
+        # These systems have zeros forces by symmetry
+        assert abs(f1).max() < 0.0001
+        if atoms.calc.params.mode.name == 'pw':
             stress = atoms.get_stress(voigt=False)
+        else:
+            # LCAO and FD-mode does not do stress
+            s = {'C2-3': -0.0014,
+                 'Fe8-3M': 0.0364,
+                 'Mn2O2-3M': 0.0382}[name]
+            stress = np.diag([s, s, s])
         atoms.set_cell(atoms.cell @ (np.eye(3) - 0.02 * stress),
                        scale_atoms=True)
     else:
