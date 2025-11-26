@@ -13,6 +13,7 @@ from scipy.linalg import eigh
 from gpaw import debug
 from gpaw.helmholtz import HelmholtzSolver
 from gpaw.lrtddft.omega_matrix import OmegaMatrix
+from gpaw.mpi import parallel
 from gpaw.pair_density import PairDensity
 from gpaw.utilities.blas import mmm
 
@@ -320,9 +321,9 @@ class ApmB(OmegaMatrix):
 
             self.eigenvalues, self.eigenvectors.T[:] = eigh(self.eigenvectors)
 
-    def read(self, filename=None, fh=None):
+    @parallel(name='world')
+    def read(self, filename=None, fh=None, *, world):
         """Read myself from a file"""
-        world = self.paw.world
         if world.rank == 0:
             with IOContext() as io:
                 if fh is None:
@@ -353,9 +354,9 @@ class ApmB(OmegaMatrix):
         """weight for the coupling matrix terms"""
         return 2.
 
-    def write(self, filename=None, fh=None):
+    @parallel(name='world')
+    def write(self, filename=None, fh=None, *, world):
         """Write current state to a file."""
-        world = self.paw.world
         if world.rank == 0:
             with IOContext() as io:
                 if fh is None:
