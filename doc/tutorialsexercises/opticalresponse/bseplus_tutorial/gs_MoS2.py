@@ -10,8 +10,8 @@ calc_rpa = 'fixed_density_calc_MoS2_rpa'
 calc = GPAW(mode=PW(800),
             xc='PBE',
             nbands=200,
-            convergence={'bands': -5, 'density': 0.0001,
-                         'eigenstates': 4e-08, 'energy': 0.0005},
+            convergence={'bands': -5, 'density': 1e-4,
+                         'eigenstates': 4e-08, 'energy': 5e-5},
             occupations=FermiDirac(width=0.01),
             kpts={'density': 26, 'gamma': True},
             txt='gs_MoS2.txt')
@@ -30,8 +30,8 @@ calc_es.write(calc_bse + '.gpw', mode='all')
 
 calc_es = GPAW(name_calc + '.gpw').fixed_density(
     txt='rpa_calc.txt',
-    convergence={'bands': 80, 'density': 0.00001,
-                 'eigenstates': 4e-08, 'energy': 0.00005},
+    convergence={'bands': 80, 'density': 1e-5,
+                 'eigenstates': 4e-8, 'energy': 5e-5},
     nbands=220,
     kpts={'density': 23.5, 'gamma': True})
 calc_es.write(calc_rpa + '.gpw', mode='all')

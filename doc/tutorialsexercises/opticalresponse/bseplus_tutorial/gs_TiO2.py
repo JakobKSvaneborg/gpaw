@@ -17,8 +17,8 @@ calc = GPAW(mode=PW(800),
             xc='PBE',
             occupations=FermiDirac(width=0.01),
             parallel={'domain': 1, 'band': 1},
-            convergence={'bands': 50, 'density': 0.0001,
-                         'eigenstates': 4e-07, 'energy': 0.0005},
+            convergence={'bands': 50, 'density': 1e-4,
+                         'eigenstates': 4e-07, 'energy': 5e-4},
             kpts={'density': 8, 'gamma': True, 'even': True})
 a.calc = calc
 a.get_potential_energy()
