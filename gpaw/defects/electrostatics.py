@@ -18,7 +18,7 @@ class ChargedDefectCorrections():
 
     calc_defect: ``GPAW`` calculator for charged defect
 
-    def_idx: defect index in the pristine reference
+    defect_index: index of defect site in the pristine reference
 
     charge: charge state of the defect calculation
 
@@ -33,13 +33,13 @@ class ChargedDefectCorrections():
     method: method selection string
 
     """
-    def __init__(self, calc_pristine, calc_defect, def_idx=0, ecut=500,
+    def __init__(self, calc_pristine, calc_defect, defect_index=0, ecut=500,
                  charge=None, epsilon=None, rc=2.0 * Bohr,
                  ravg=2.5, method='full-planar'):
 
         self.calc_pristine = calc_pristine
         self.calc_defect = calc_defect
-        self.def_idx = def_idx
+        self.defect_idx = defect_index
         self.ecut = ecut
         self.charge = charge
         self.epsilon = epsilon
@@ -57,7 +57,7 @@ class ChargedDefectCorrections():
         phiR_prs = gather_electrostatic_potential(self.calc_pristine)
         phiR_def = gather_electrostatic_potential(self.calc_defect)
         atoms_prs = self.calc_pristine.get_atoms()
-        r0 = atoms_prs.positions[self.def_idx, :]
+        r0 = atoms_prs.positions[self.defect_idx, :]
         self.elc = ElectrostaticCorrections(phi_pristine=phiR_prs,
                                             phi_defect=phiR_def,
                                             r0=r0,

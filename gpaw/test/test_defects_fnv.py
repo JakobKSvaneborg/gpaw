@@ -115,7 +115,7 @@ def test_fnv_3d(gpw_files, cell):
 
     cdc = ChargedDefectCorrections(calc_pristine=calc_prs,
                                    calc_defect=calc_def,
-                                   def_idx=def_idx,
+                                   defect_index=def_idx,
                                    charge=charge,
                                    epsilon=epsilon)
     E_fnv = cdc.calculate_correction()
