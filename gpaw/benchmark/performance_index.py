@@ -144,7 +144,7 @@ def work(name: str, params: dict | None = None) -> None:
     i1 = atoms.calc.dft.scf_loop.niter
 
     if name in {'C2-3', 'Fe8-3M', 'Mn2O2-3M'}:
-        # These systems have zeros forces by symmetry
+        # These systems have zero forces by symmetry
         assert abs(f1).max() < 0.0001
         if atoms.calc.params.mode.name == 'pw':
             stress = atoms.get_stress(voigt=False)
@@ -164,7 +164,7 @@ def work(name: str, params: dict | None = None) -> None:
     # Second step:
     t2 = time()
     e2 = atoms.get_potential_energy()
-    _ = atoms.get_forces()
+    atoms.get_forces()
     i2 = atoms.calc.dft.scf_loop.niter
     t2 = time() - t2
     m2 = maxrss()
