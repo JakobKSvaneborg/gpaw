@@ -13,7 +13,7 @@ from gpaw.densities import Densities
 from gpaw.electrostatic_potential import ElectrostaticPotential
 from gpaw.gpu import as_np
 from gpaw.mpi import broadcast as bcast
-from gpaw.mpi import broadcast_float, world
+from gpaw.mpi import broadcast_float, parallel
 from gpaw.new import trace, zips
 from gpaw.new.density import Density
 from gpaw.new.energies import DFTEnergies
@@ -96,18 +96,20 @@ class DFTCalculation:
             raise AttributeError
         return matches[0]
 
+    @parallel
     @classmethod
     def from_parameters(cls,
                         atoms: Atoms,
                         params: Parameters,
-                        comm=None,
+                        *,
+                        comm,
                         log=None) -> DFTCalculation:
         """Create DFTCalculation object from parameters and atoms."""
         check_atoms_too_close(atoms)
         check_atoms_too_close_to_boundary(atoms)
 
         if not isinstance(log, Logger):
-            log = Logger(log, comm or world)
+            log = Logger(log, comm)
 
         builder = params.dft_component_builder(atoms, log=log)
 

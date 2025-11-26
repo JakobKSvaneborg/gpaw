@@ -10,7 +10,7 @@ from ase.units import Bohr, Hartree
 
 from gpaw.dft import Parameters
 from gpaw.external import ConstantElectricField, ExternalPotential
-from gpaw.mpi import broadcast, world
+from gpaw.mpi import broadcast, parallel
 from gpaw.new.ase_interface import ASECalculator
 from gpaw.new.fd.hamiltonian import FDHamiltonian, FDKickHamiltonian
 from gpaw.new.fd.pot_calc import FDPotentialCalculator
@@ -80,6 +80,7 @@ class RTTDDFT:
     dft_params
         Parameters used in underlying DFT calculation.
     """
+    @parallel(name='world')
     def __init__(self,
                  state: RTTDDFTState,
                  pot_calc: PotentialCalculator,
@@ -87,7 +88,8 @@ class RTTDDFT:
                  history: RTTDDFTHistory,
                  td_algorithm: TDAlgorithmLike = None,
                  *,
-                 dft_params: Parameters):
+                 dft_params: Parameters,
+                 world):
         if world.size > 1:
             raise NotImplementedError('Parallel execution not implemented')
 
@@ -157,10 +159,13 @@ class RTTDDFT:
                    history=history, dft_params=calc.params,
                    td_algorithm=td_algorithm)
 
+    @paralle(name='world')
     @classmethod
     def from_dft_file(cls,
                       filepath: str,
-                      td_algorithm: TDAlgorithmLike = None):
+                      td_algorithm: TDAlgorithmLike = None,
+                      *,
+                      world):
         """ Set up the RTTDDFT object from a DFT calculation file.
 
         Parameters
@@ -185,9 +190,12 @@ class RTTDDFT:
                    history=history, dft_params=params,
                    td_algorithm=td_algorithm)
 
+    @parallel(name='world')
     @classmethod
     def from_rttddft_file(cls,
-                          filepath: str):
+                          filepath: str,
+                          *,
+                          world):
         """ Set up the RTTDDFT object from a restart file.
 
         Parameters
@@ -204,9 +212,12 @@ class RTTDDFT:
         return cls(state, pot_calc, hamiltonian,
                    history=history, dft_params=dft_params, **params)
 
+    @parallel(name='world')
     @classmethod
     def from_file(cls,
                   filepath: str,
+                  *,
+                  world,
                   **kwargs):
         """ Set up the RTTDDFT object from a file.
 
