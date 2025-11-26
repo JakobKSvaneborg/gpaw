@@ -161,10 +161,10 @@ all_lazy_imports = dict(
     MixerSum2='gpaw.mixer.MixerSum2',
     MixerFull='gpaw.mixer.MixerFull',
 
-    Davidson='gpaw.eigensolvers.Davidson',
-    RMMDIIS='gpaw.eigensolvers.RMMDIIS',
-    CG='gpaw.eigensolvers.CG',
-    DirectLCAO='gpaw.eigensolvers.DirectLCAO',
+    Davidson='gpaw.old.eigensolvers.Davidson',
+    RMMDIIS='gpaw.old.eigensolvers.RMMDIIS',
+    CG='gpaw.old.eigensolvers.CG',
+    DirectLCAO='gpaw.old.eigensolvers.DirectLCAO',
 
     PoissonSolver='gpaw.poisson.PoissonSolver',
     FermiDirac='gpaw.occupations.FermiDirac',

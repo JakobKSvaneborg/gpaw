@@ -6,7 +6,7 @@ import numpy as np
 from ase.units import Hartree
 from numpy import dot
 
-from gpaw.eigensolvers.eigensolver import Eigensolver
+from gpaw.old.eigensolvers.eigensolver import Eigensolver
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.blas import axpy
 
