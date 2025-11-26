@@ -4,10 +4,9 @@ from ase import Atoms
 from ase.units import Bohr, Hartree
 
 from gpaw import GPAW
-from gpaw.defects import ElectrostaticCorrections, \
-                         ChargedDefectCorrections
-from gpaw.defects.electrostatics import (gather_electrostatic_potential,
-                                         build_ugarray, plot_potentials)
+from gpaw.defects import (ElectrostaticCorrections,
+                          ChargedDefectCorrections)
+from gpaw.defects.electrostatics import build_ugarray, plot_potentials
 from scipy.special import erf
 
 
