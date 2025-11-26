@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from gpaw.mpi import world
+from gpaw.mpi import parallel
 from gpaw.tddft.units import as_to_au, eV_to_au
 
 known_lasers: dict[str, type[Laser]] = dict()
@@ -64,7 +64,8 @@ class Laser:
     def fourier(self, omega):
         return 0.0
 
-    def write(self, fname, time_t):
+    @parallel(name='world')
+    def write(self, fname, time_t, *, world):
         """
         Write the values of the pulse to a file.
 
