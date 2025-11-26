@@ -49,6 +49,6 @@ def test_atoms_mismatch(in_tmp_dir, comm):
                              'eigenstates': 4.0e-3},
                 communicator=comm)
     system.calc = calc
-    dyn = BFGS(system)
+    dyn = BFGS(system, comm=comm)
     dyn.attach(mess_up_atoms, 1, system)
     dyn.run(steps=2)
