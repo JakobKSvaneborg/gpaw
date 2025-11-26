@@ -625,7 +625,8 @@ class ASECalculator:
         kwargs.pop('communicator', None)  # Ignore silently
         allowed = {'nbands', 'occupations', 'poissonsolver',
                    'kpts', 'eigensolver', 'random', 'maxiter',
-                   'basis', 'symmetry', 'convergence', 'verbose'}
+                   'basis', 'symmetry', 'convergence', 'verbose',
+                   'parallel'}
         illegal = kwargs.keys() - allowed
         if illegal:
             raise TypeError(f'Illegal keyword(s): {illegal}.  '
