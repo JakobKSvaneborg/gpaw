@@ -4,7 +4,8 @@ from ase import Atoms
 from ase.units import Bohr, Hartree
 
 from gpaw import GPAW
-from gpaw.defects import ElectrostaticCorrections
+from gpaw.defects import ElectrostaticCorrections, \
+                         ChargedDefectCorrections
 from gpaw.defects.electrostatics import (gather_electrostatic_potential,
                                          build_ugarray, plot_potentials)
 from scipy.special import erf
@@ -107,31 +108,21 @@ def test_fnv_3d(gpw_files, cell):
     elif cell == 'skew':
         tol = 5e-2
 
-    sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0))) * Bohr
     epsilon = 12.7  # dielectric constant
     charge = -3     # defect charge
+    def_idx = 0     # defect index in pristine system
     calc_prs = GPAW(gpw_files[f'gaas_{cell}_pristine'])
     calc_def = GPAW(gpw_files[f'gaas_{cell}_defect'])
 
-    atoms = calc_prs.get_atoms()
-    phiR_prs = gather_electrostatic_potential(calc_prs)
-    phiR_def = gather_electrostatic_potential(calc_def)
-
-    # defect position
-    r0 = atoms.positions[0, :]
-
-    elc = ElectrostaticCorrections(phi_pristine=phiR_prs,
-                                   phi_defect=phiR_def,
-                                   r0=r0,
+    cdc = ChargedDefectCorrections(calc_pristine=calc_prs,
+                                   calc_defect=calc_def,
+                                   def_idx=def_idx,
                                    charge=charge,
-                                   sigma=sigma,
-                                   epsilon=epsilon,
-                                   method='full-planar',
-                                   atoms_pristine=atoms)
-    E_fnv = elc.calculate_correction()
+                                   epsilon=epsilon)
+    E_fnv = cdc.calculate_correction()
 
     if 0:
-        profile = elc.calculate_potential_profile()
+        profile = cdc.elc.calculate_potential_profile()
         plot_potentials(profile)
 
     assert E_fnv == pytest.approx(E_fnv_t, abs=tol)

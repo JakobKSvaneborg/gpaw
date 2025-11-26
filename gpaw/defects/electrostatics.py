@@ -10,6 +10,47 @@ from ase.geometry import find_mic
 _avg_methods_ = ['atoms', 'sparse-planar', 'full-planar']
 
 
+class ChargedDefectCorrections():
+
+    def __init__(self, calc_pristine, calc_defect, def_idx=0, ecut=500,
+                 charge=None, epsilon=None, rc=2.0,
+                 ravg=2.5, method='full-planar'):
+
+        self.calc_pristine = calc_pristine
+        self.calc_defect = calc_defect
+        self.def_idx = def_idx
+        self.ecut = ecut
+        self.charge = charge
+        self.epsilon = epsilon
+        self.avg = ravg
+        self.method = method
+        self.sigma = rc / (2. * np.sqrt(2. * np.log(2.))) * Bohr
+
+        self.elc = None
+
+    def initialize(self):
+        if self.elc is not None:
+            return
+
+        # init ElectrostaticCorrections
+        phiR_prs = gather_electrostatic_potential(self.calc_pristine)
+        phiR_def = gather_electrostatic_potential(self.calc_defect)
+        atoms_prs = self.calc_pristine.get_atoms()
+        r0 = atoms_prs.positions[self.def_idx, :]
+        self.elc = ElectrostaticCorrections(phi_pristine=phiR_prs,
+                                            phi_defect=phiR_def,
+                                            r0=r0,
+                                            charge=self.charge,
+                                            sigma=self.sigma,
+                                            epsilon=self.epsilon,
+                                            method=self.method,
+                                            atoms_pristine=atoms_prs)
+
+    def calculate_correction(self):
+        self.initialize()
+        return self.elc.calculate_correction()
+
+
 def build_ugarray(atoms, data):
     grid = UGDesc(cell=atoms.cell, size=data.shape, pbc=atoms.pbc)
     return UGArray(grid, data=data)
