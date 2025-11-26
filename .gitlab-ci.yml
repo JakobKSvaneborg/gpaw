@@ -640,6 +640,8 @@ gpwfiles:
   image: $IMAGE_MAIN_LATEST
   variables:
     GPAW_MPI_NPROCS: "1"
+    GPAW_TESTGROUPS: "1"
+    GPAW_MYTESTGROUP: "1"
   extends:
     - .test
   stage: test
@@ -651,7 +653,15 @@ gpwfiles:
   before_script:
     - !reference [default, before_script]
     - pip install pytest-instafail pytest-xdist
-
+    # Make script to parse jobname into specific job settings:
+    - |
+      cat << EOF > parse_jobname.py
+      import os, sys
+      print(os.environ['CI_JOB_NAME'].split('-')[int(sys.argv[1])])
+    # Now split "nightly-mpi-8-group-2-3" into into variables we need:
+    - export GPAW_MPI_NPROCS=$(python parse_jobname.py 2)
+    - export GPAW_MYTESTGROUP=$(python parse_jobname.py 4)
+    - export GPAW_TESTGROUPS=$(python parse_jobname.py 5)
     # We need to use GPAW_PREEXEC_SCRIPT to hack the environment
     # so coverage writes to different files:
     - |
@@ -666,6 +676,8 @@ gpwfiles:
   script:
     - >
       gpaw -P $GPAW_MPI_NPROCS python -m pytest
+      --test-group-count $GPAW_TESTGROUPS --test-group=$GPAW_MYTESTGROUP
+      --test-group-random-seed=42
       --cov=gpaw --instafail -r s --durations 30
   after_script:
     - coverage combine gpaw-coverage-*
@@ -682,7 +694,7 @@ gpwfiles:
     expire_in: 1 day
 
 
-nightly-mpi-1:
+nightly-mpi-1-group-1-1:
   extends:
     - .nightly
   script:
@@ -694,14 +706,20 @@ nightly-mpi-1:
     - mv .coverage coverage-$CI_JOB_NAME
 
 
-nightly-mpi-2:
-  variables:
-    GPAW_MPI_NPROCS: "2"
+nightly-mpi-2-group-1-3:
   extends:
     - .nightly
 
 
-nightly-mpi-4:
+nightly-mpi-2-group-2-3:
+  extends:
+    - .nightly
+
+nightly-mpi-2-group-3-3:
+  extends:
+    - .nightly
+
+nightly-mpi-4-group-1-1:
   variables:
     GPAW_MPI_NPROCS: "4"
     GPAW_DEBUG: "1"
@@ -709,7 +727,7 @@ nightly-mpi-4:
     - .nightly
 
 
-nightly-mpi-8:
+nightly-mpi-8-group-1-1:
   variables:
     GPAW_MPI_NPROCS: "8"
   extends:
@@ -728,7 +746,7 @@ nightly-mpi-8:
     - .nightly
 
 
-nightly-mpi-1-new:
+nightly-mpi-1-group-1-1-new:
   extends:
     - .nightly-mpi-new
   script:
@@ -742,14 +760,14 @@ nightly-mpi-1-new:
     - mv .coverage coverage-$CI_JOB_NAME
 
 
-nightly-mpi-2-new:
+nightly-mpi-2-group-1-1-new:
   extends:
     - .nightly-mpi-new
   variables:
     GPAW_MPI_NPROCS: "2"
 
 
-nightly-mpi-4-new:
+nightly-mpi-4-group-1-1-new:
   extends:
     - .nightly-mpi-new
   variables:
@@ -757,14 +775,14 @@ nightly-mpi-4-new:
     GPAW_DEBUG: "1"
 
 
-nightly-mpi-8-new:
+nightly-mpi-8-group-1-1-new:
   extends:
     - .nightly-mpi-new
   variables:
     GPAW_MPI_NPROCS: "8"
 
 
-nightly-mpi4py-4:
+nightly-mpi4py-4-group-1-1:
   extends:
     - .nightly-mpi-new
   variables:
@@ -777,15 +795,17 @@ coverage-combine:
   image: $IMAGE_MAIN_LATEST  # (Any image present on the runner will do)
   needs:
     - gpwfiles
-    - nightly-mpi-1
-    - nightly-mpi-2
-    - nightly-mpi-4
-    - nightly-mpi-8
-    - nightly-mpi-1-new
-    - nightly-mpi-2-new
-    - nightly-mpi-4-new
-    - nightly-mpi-8-new
-    - nightly-mpi4py-4
+    - nightly-mpi-1-group-1-1
+    - nightly-mpi-2-group-1-3
+    - nightly-mpi-2-group-2-3
+    - nightly-mpi-2-group-3-3
+    - nightly-mpi-4-group-1-1
+    - nightly-mpi-8-group-1-1
+    - nightly-mpi-1-group-1-1-new
+    - nightly-mpi-2-group-1-1-new
+    - nightly-mpi-4-group-1-1-new
+    - nightly-mpi-8-group-1-1-new
+    - nightly-mpi4py-4-group-1-1
   tags:
     - xeon40
   script:
