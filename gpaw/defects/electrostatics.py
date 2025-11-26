@@ -16,16 +16,13 @@ def build_ugarray(atoms, data):
 
 
 def gather_electrostatic_potential(calc):
-    if calc.old:
-        # create UGArray from old GPAW data
-        phi_r = calc.get_electrostatic_potential()
-        atoms = calc.get_atoms()
-        phi_R = build_ugarray(atoms, phi_r)
-    else:
-        phi_R = calc.dft.electrostatic_potential().pseudo_potential()
-
-    # XXX should get rid of broadcast
-    return phi_R.gather(broadcast=True)
+    # create UGArray from GPAW data
+    phi_r = calc.get_electrostatic_potential()
+    atoms = calc.get_atoms()
+    phi_R = build_ugarray(atoms, phi_r)
+    if phi_R.comm.size > 1:
+        phi_R = phi_R.gather(broadcast=True)
+    return phi_R
 
 
 def plot_potentials(profile, png=None):
