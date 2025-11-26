@@ -363,7 +363,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                         data = (psit2_nG, P2_ani, f_n, spin, kweight)
 
                 rank = (brank + krank * band_comm.size) * domain_comm.size
-                psit2_nG, P2_ani, f2_n, s, w = broadcast(data, rank, comm)
+                psit2_nG, P2_ani, f2_n, s, w = broadcast(data, rank, comm=comm)
                 V_nG = psit2_nG.new()
                 V_nG.data[:] = 0.0
                 V_ani = P2_ani.new()
