@@ -20,8 +20,8 @@ from gpaw.gpu import cpupy as fake_cupy
 from gpaw.gpu.mpi import CuPyMPI
 from gpaw.lfc import BasisFunctions
 from gpaw.mixer import MixerWrapper, get_mixer_from_keywords
-from gpaw.mpi import (MPIComm, Parallelization, broadcast, serial_comm,
-                      synchronize_atoms, world)
+from gpaw.mpi import (MPIComm, Parallelization, broadcast, parallel,
+                      serial_comm, synchronize_atoms)
 from gpaw.new import prod
 from gpaw.new.basis import create_basis
 from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints
@@ -42,12 +42,14 @@ if TYPE_CHECKING:
 
 
 class DFTComponentsBuilder:
+    @parallel(name='world')  # Passed to GPU set_device().  Can we pass comm?
     def __init__(self,
                  atoms: Atoms,
                  params: Parameters,
                  *,
                  log=None,
-                 comm=None):
+                 comm=None,
+                 world):
         from gpaw.gpu import set_device
 
         self.atoms = atoms.copy()
@@ -61,7 +63,7 @@ class DFTComponentsBuilder:
 
         parallel = params.parallel
         if self.gpu:
-            set_device(log)
+            set_device(log, world)
 
         synchronize_atoms(atoms, comm)
         self.check_cell(atoms.cell)
@@ -401,13 +403,13 @@ class DFTComponentsBuilder:
                 [reader.occupations.fermilevel / ha])
 
 
-def create_communicators(comm: MPIComm = None,
+def create_communicators(comm: MPIComm,
                          nibzkpts: int = 1,
                          domain: int | tuple[int, int, int] | None = None,
                          kpt: int = None,
                          band: int = None,
                          xp: ModuleType = np) -> dict[str, MPIComm]:
-    parallelization = Parallelization(comm or world, nibzkpts)
+    parallelization = Parallelization(comm, nibzkpts)
     if domain is not None and not isinstance(domain, int):
         domain = prod(domain)
     parallelization.set(kpt=kpt,
