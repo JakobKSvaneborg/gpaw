@@ -22,18 +22,18 @@ def test_born_charges_wf(in_tmp_dir, gpw_files, comm):
     assert Z_t == pytest.approx(Z_avv, abs=1e-2)
 
 
-def test_born_charges_symmetry(gpw_files):
+def test_born_charges_symmetry(gpw_files, comm):
     gpw_file = gpw_files["hbn_pw"]
-    calc = GPAW(gpw_file, txt=None)
+    calc = GPAW(gpw_file, txt=None, communicator=comm)
     atoms = calc.get_atoms()
 
     with pytest.raises(AssertionError):
-        born_charges_wf(atoms, calc)
+        born_charges_wf(atoms, calc, world=comm)
 
 
 @pytest.mark.parametrize('atoms', [mx2('MoS2', vacuum=7.5),
                                    molecule('H2', cell=[10, 10, 10])])
-def test_born_charges_ionic_wf(in_tmp_dir, atoms):
+def test_born_charges_ionic_wf(in_tmp_dir, atoms, comm):
 
     atoms.center()
 
@@ -41,6 +41,6 @@ def test_born_charges_ionic_wf(in_tmp_dir, atoms):
     Z_t = np.array([za * np.eye(3) for za in Z_a])
 
     # we do not need a calculator
-    Z_avv = born_charges_wf(atoms, None, ionic_only=True)['Z_avv']
+    Z_avv = born_charges_wf(atoms, None, ionic_only=True, world=comm)['Z_avv']
 
     assert Z_t == pytest.approx(Z_avv)
