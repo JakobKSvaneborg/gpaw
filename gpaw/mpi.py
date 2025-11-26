@@ -858,7 +858,6 @@ def parallel(func=None, *, name='comm'):
     deadlocks when callers of these functions forget to set the
     communicator."""
     import functools
-    from gpaw.mpi import world
 
     if func is None:
         def decorator(func):
