@@ -160,6 +160,7 @@ class CouplingParameters:
             the ones from a cdft will be used
         '''
 
+        self.world = world
         self.charge_difference = charge_difference
         self.AE = AE
 
