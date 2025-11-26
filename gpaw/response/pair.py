@@ -156,22 +156,23 @@ class ActualPairDensityCalculator:
                                  pawcorr, block=False):
         """Get the full optical pair density, including the optical limit head
         for q=0."""
-        tmp_nmG = self.get_pair_density(qpd, kptpair, n_n, m_m,
-                                        pawcorr=pawcorr, block=block)
 
         nG = qpd.ngmax
         # P = (x, y, z, G1, G2, ...)
-        n_nmP = np.empty((len(n_n), len(m_m), nG + 2), dtype=tmp_nmG.dtype)
-        n_nmP[:, :, 3:] = tmp_nmG[:, :, 1:]
-        n_nmv = self.get_optical_pair_density_head(qpd, kptpair, n_n, m_m,
-                                                   block=block)
-        n_nmP[:, :, :3] = n_nmv
-
+        n_nmP = np.empty((len(n_n), len(m_m), nG + 2), dtype=qpd.dtype)
+        tmp_nmG = n_nmP[:, :, 2:]
+        self.get_pair_density(qpd, kptpair, n_n, m_m,
+                              pawcorr=pawcorr, block=block,
+                              output_buffer=tmp_nmG)
+        n_nmv = n_nmP[:, :, :3]
+        self.get_optical_pair_density_head(qpd, kptpair, n_n, m_m,
+                                           block=block,
+                                           output_buffer=n_nmv)
         return n_nmP
 
     @timer('get_pair_density')
     def get_pair_density(self, qpd, kptpair, n_n, m_m, *,
-                         pawcorr, block=False):
+                         pawcorr, block=False, output_buffer=None):
         """Get pair density for a kpoint pair."""
         cpd = self.calculate_pair_density
 
@@ -179,9 +180,12 @@ class ActualPairDensityCalculator:
         kpt2 = kptpair.kpt2
         Q_G = kptpair.Q_G  # Fourier components of kpoint pair
         nG = len(Q_G)
-
-        n_nmG = np.zeros((len(n_n), len(m_m), nG), qpd.dtype)
-
+        if output_buffer is None:
+            n_nmG = np.zeros((len(n_n), len(m_m), nG), qpd.dtype)
+        else:
+            assert output_buffer.shape == (len(n_n), len(m_m), nG)
+            assert output_buffer.dtype == qpd.dtype
+            n_nmG = output_buffer
         for j, n in enumerate(n_n):
             Q_G = kptpair.Q_G
             with self.context.timer('conj'):
@@ -194,7 +198,7 @@ class ActualPairDensityCalculator:
 
     @timer('get_optical_pair_density_head')
     def get_optical_pair_density_head(self, qpd, kptpair, n_n, m_m,
-                                      block=False):
+                                      block=False, output_buffer=None):
         """Get the optical limit of the pair density head (G=0) for a k-pair.
         """
         assert np.allclose(qpd.q_c, 0.0), f"{qpd.q_c} is not the optical limit"
@@ -202,8 +206,13 @@ class ActualPairDensityCalculator:
         kpt1 = kptpair.kpt1
         kpt2 = kptpair.kpt2
 
-        # v = (x, y, z)
-        n_nmv = np.zeros((len(n_n), len(m_m), 3), qpd.dtype)
+        if output_buffer is None:
+            # v = (x, y, z)
+            n_nmv = np.zeros((len(n_n), len(m_m), 3), qpd.dtype)
+        else:
+            assert output_buffer.shape == (len(n_n), len(m_m), 3)
+            assert output_buffer.dtype == qpd.dtype
+            n_nmv = output_buffer
 
         for j, n in enumerate(n_n):
             n_nmv[j] = self.calculate_optical_pair_density_head(n, m_m,
