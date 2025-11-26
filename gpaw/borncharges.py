@@ -64,7 +64,8 @@ def born_charges_wf(atoms, calc, delta=0.01, cleanup=False,
 
         phases_c[dlabel] = phase_c['phase_c']
 
-    results = born_charges(atoms, disps_av, phases_c, check=(not ionic_only))
+    results = born_charges(atoms, disps_av, phases_c, check=(not ionic_only),
+                           comm=world)
     with paropen(out, 'w', comm=world) as fd:
         write_json(fd, results)
 

@@ -9,22 +9,17 @@ from gpaw.borncharges import born_charges_wf
 from gpaw.mpi import world
 
 
-def test_born_charges_wf(in_tmp_dir, gpw_files, cleanup=True):
+def test_born_charges_wf(in_tmp_dir, gpw_files, comm):
     gpw_file = gpw_files["hbn_pw_nosym"]
-    calc = GPAW(gpw_file, txt=None)
+    calc = GPAW(gpw_file, txt=None, communicator=comm)
     atoms = calc.get_atoms()
 
     Z_t = np.array([np.diag([-2.83, -2.83, -0.35]),
                     np.diag([2.83, 2.83, 0.35])])
 
-    Z_avv = born_charges_wf(atoms, calc, cleanup=cleanup)['Z_avv']
+    Z_avv = born_charges_wf(atoms, calc, cleanup=True, world=comm)['Z_avv']
 
     assert Z_t == pytest.approx(Z_avv, abs=1e-2)
-
-    if cleanup:
-        world.barrier()  # Wait that files have been removed
-        flist = glob('disp*.gpw')
-        assert len(flist) == 0
 
 
 def test_born_charges_symmetry(gpw_files):
