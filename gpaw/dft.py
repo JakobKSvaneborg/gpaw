@@ -145,9 +145,10 @@ class TB(Mode):
 class Eigensolver(Parameter):
     @classmethod
     def from_param(cls, eigensolver):
-        from gpaw.eigensolvers.eigensolver import Eigensolver as OldEigensolver
         from gpaw.new.do import DirectOptimization
         from gpaw.new.eigensolver import Eigensolver as NewEigensolver
+        from gpaw.old.eigensolvers.eigensolver import (
+            Eigensolver as OldEigensolver)
 
         eigensolvers = {
             'davidson': Davidson,
@@ -159,8 +160,6 @@ class Eigensolver(Parameter):
             'scissors': Scissors}
 
         match eigensolver:
-            case OldEigensolver() | NewEigensolver():
-                return eigensolver
             case str(name):
                 return eigensolvers[name]()
             case {'name': name, **kwargs}:
@@ -172,6 +171,8 @@ class Eigensolver(Parameter):
                 raise ValueError(f'Unknown name of eigensolver: {name}')
             case {**kwargs}:
                 return DefaultEigensolver(kwargs)
+            case OldEigensolver() | NewEigensolver():
+                return eigensolver
             case _:  # Wildcard
                 raise ValueError(f'Unknown eigensolver input: {eigensolver}')
 
