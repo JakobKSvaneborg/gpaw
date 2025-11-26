@@ -1,14 +1,11 @@
-import numpy as np
 from ase.io.jsonio import write_json
-from ase.units import Bohr
 from gpaw import GPAW
-from gpaw.defects import ElectrostaticCorrections
-from gpaw.defects.electrostatics import gather_electrostatic_potential
+from gpaw.defects import ChargedDefectCorrections
 from pathlib import Path
 
-sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0))) * Bohr
 charge = -3
 epsilon = 12.7
+def_idx = 0
 corrected = []
 uncorrected = []
 repeats = [1, 2, 3, 4]
@@ -20,21 +17,12 @@ for N in repeats:
     calc_prs = GPAW(prs_path)
     calc_def = GPAW(def_path)
 
-    atoms_prs = calc_prs.get_atoms()
-    phiR_prs = gather_electrostatic_potential(calc_prs)
-    phiR_def = gather_electrostatic_potential(calc_def)
-
-    # defect position
-    r0 = atoms_prs.positions[0, :]
-
-    elc = ElectrostaticCorrections(phi_pristine=phiR_prs,
-                                   phi_defect=phiR_def,
-                                   r0=r0,
+    cdc = ChargedDefectCorrections(calc_pristine=calc_prs,
+                                   calc_defect=calc_def,
+                                   def_idx=def_idx,
                                    charge=charge,
-                                   sigma=sigma,
-                                   epsilon=epsilon,
-                                   method='full-planar')
-    E_fnv = elc.calculate_correction()
+                                   epsilon=epsilon)
+    E_fnv = cdc.calculate_correction()
 
     E_0 = calc_prs.get_potential_energy()
     E_X = calc_def.get_potential_energy()
@@ -42,7 +30,7 @@ for N in repeats:
     E_corr = E_uncorr + E_fnv
 
     if N == 2:
-        profile = elc.calculate_potential_profile()
+        profile = cdc.elc.calculate_potential_profile()
 
     corrected.append(E_corr)
     uncorrected.append(E_uncorr)

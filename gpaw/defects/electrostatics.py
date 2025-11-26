@@ -11,9 +11,30 @@ _avg_methods_ = ['atoms', 'sparse-planar', 'full-planar']
 
 
 class ChargedDefectCorrections():
+    """
+    Calculate the electrostatic corrections for charged defects.
 
+    calc_pristine: ``GPAW`` calculator for neutral pristine reference
+
+    calc_defect: ``GPAW`` calculator for charged defect
+
+    def_idx: defect index in the pristine reference
+
+    charge: charge state of the defect calculation
+
+    epsilon: macroscopic electrostatic constant of the host system
+
+    ecut: energy cutoff for ``calculate_model_potential`` [eV]
+
+    rc: spread of the model charge distribution [Angstrom]
+
+    ravg: average radius for bulk-atom average [Angstrom]
+
+    method: method selection string
+
+    """
     def __init__(self, calc_pristine, calc_defect, def_idx=0, ecut=500,
-                 charge=None, epsilon=None, rc=2.0,
+                 charge=None, epsilon=None, rc=2.0 * Bohr,
                  ravg=2.5, method='full-planar'):
 
         self.calc_pristine = calc_pristine
@@ -24,7 +45,7 @@ class ChargedDefectCorrections():
         self.epsilon = epsilon
         self.avg = ravg
         self.method = method
-        self.sigma = rc / (2. * np.sqrt(2. * np.log(2.))) * Bohr
+        self.sigma = rc / (2. * np.sqrt(2. * np.log(2.)))
 
         self.elc = None
 
@@ -96,7 +117,7 @@ def plot_potentials(profile, png=None):
 
 class ElectrostaticCorrections():
     """
-    Calculate the electrostatic corrections for charged defects.
+    Calculate the electrostatic corrections for electrostatic potentials.
 
     phi_pristine: ``UGArray`` pristine electrostatic_potential [eV]
 
