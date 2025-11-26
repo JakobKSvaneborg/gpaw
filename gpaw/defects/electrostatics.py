@@ -163,8 +163,9 @@ class ElectrostaticCorrections():
         Eli = 0.5 * self.charge ** 2 / np.pi ** 0.5 / eps / sgm
         return Eli
 
-    def calculate_model_potential(self, r_vR):
-        # need to backtransform phi_G -> phi_r = sum_G exp(i G * r) phi_G
+    def calculate_model_potential(self, rr0_vR):
+        # need to backtransform
+        # phi_G -> phi_r = sum_G exp(i G * (r - r0)) phi_G
 
         G_Gv = self.G_Gv
         phi_G = self.phi_G
@@ -177,7 +178,7 @@ class ElectrostaticCorrections():
         # assuming G: (ng, 3), r: (3, nx, ny, nz), phi_G: (ng,)
         # compute G * r for all G and grid points
         # shape: (ng, nx, ny, nz)
-        Gr = np.einsum('gi,i...->g...', G_Gv, r_vR)
+        Gr = np.einsum('gi,i...->g...', G_Gv, rr0_vR)
 
         # compute exp(i * G * r)
         # shape: (ng, nx, ny, nz)
@@ -219,6 +220,7 @@ class ElectrostaticCorrections():
         # evaluate grid index of cartesian vector
         # convert to reduced (fractional) coordinates
         s0_v = np.linalg.solve(self.cell_cv.T, r0_v)
+        s0_v = self.atoms_prs.get_scaled_positions()[0, :]
         return np.array(np.round(ng_v * s0_v, 0), dtype=int) % ng_v
 
     def bulk_atom_average(self):
@@ -295,7 +297,7 @@ class ElectrostaticCorrections():
         iy = np.linspace(0, ny - 1, nsample, dtype=int)
         igx, igy = np.meshgrid(ix, iy)
 
-        z_vR = self.rc_vR[:, igx, igy, :]
+        z_vR = self.rc_vR[:, igx, igy, :] - self.r0[:, None, None, None]
         phi_model = self.calculate_model_potential(z_vR)
         phiz_model = np.mean(phi_model, axis=(0, 1))
 
@@ -331,6 +333,7 @@ class ElectrostaticCorrections():
         r_vR = self.rc_vR[:, ix, iy, iz]
 
         # get model potential inside the averaging region
+        r_vR = r_vR - self.r0[:, None, None, None]
         phi_model = self.calculate_model_potential(r_vR)
 
         dphi = phi_model - (phi_def - phi_prs)
