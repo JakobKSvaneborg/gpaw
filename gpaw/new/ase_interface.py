@@ -626,13 +626,20 @@ class ASECalculator:
         allowed = {'nbands', 'occupations', 'poissonsolver',
                    'kpts', 'eigensolver', 'random', 'maxiter',
                    'basis', 'symmetry', 'convergence', 'verbose',
-                   'parallel'}
+                   'parallel', 'mode'}
         illegal = kwargs.keys() - allowed
         if illegal:
             raise TypeError(f'Illegal keyword(s): {illegal}.  '
                             f'Only {allowed} allowed.')
 
-        kwargs = {**self.params.todict(), **kwargs}
+        mode = kwargs.get('mode', {})
+        if mode.keys() - {'dtype'}:
+            raise TypeError('Only mode={"dtype": dtype} is allowed.')
+
+        old_params = self.params.todict()
+        kwargs = {**old_params, **kwargs,
+                  'mode': {**old_params['mode'], **mode}}
+
         params = Parameters(**kwargs)
         log = Logger(txt, self.comm)
         builder = params.dft_component_builder(self.atoms, log=log)
