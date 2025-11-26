@@ -7,37 +7,26 @@ from gpaw import GPAW
 from gpaw.defects import (ElectrostaticCorrections,
                           ChargedDefectCorrections)
 from gpaw.defects.electrostatics import build_ugarray, plot_potentials
-from scipy.special import erf
 
 
-def phi_infty(r_vR, r0_v, Q, alpha):
+def phi_gaussian(r_vR, r0_v, Q, alpha):
     """
-    Electrostatic potential in atomic units (Hartree) from a Gaussian charge:
-        phi(r) = Q * erf(sqrt(alpha)*r) / r
+    Electrostatic potential in atomic units (Hartree)
     r in Bohr, phi in Hartree.
     r_vR has shape (3, nx, ny, nz).
     """
 
     # radius
     r = np.linalg.norm(r_vR - r0_v[:, None, None, None], axis=0)
-    phi = np.empty_like(r)
+    phi = np.zeros_like(r)
+    rmax = 3 * alpha
+    mask = r < rmax
+    phi[mask] = np.exp(- (r[mask] / alpha)**2) / alpha
 
-    # mask for nonzero r
-    mask = r > 0.0
-    sqrt_a = np.sqrt(alpha)
-
-    # normal points
-    phi[mask] = Q * erf(sqrt_a * r[mask]) / r[mask]
-
-    # center point: analytic limit
-    # lim_{r -> 0} erf(sqrt(a) r)/r = 2 * sqrt(a/pi)
-    phi0 = Q * 2.0 * np.sqrt(alpha / np.pi)
-    phi[~mask] = phi0
-
-    return phi
+    return - Q * phi / np.sqrt(2. * np.pi)
 
 
-def phi_simple(Q, L0, r0, alpha0, ng=64):
+def phi_simple(Q, L0, r0, alpha0, ng=32):
 
     # convert to Bohr
     L = L0 / Bohr
@@ -51,20 +40,21 @@ def phi_simple(Q, L0, r0, alpha0, ng=64):
     r_vR = np.stack((X, Y, Z), axis=0)
 
     # potential in eV
-    return phi_infty(r_vR, r0_v, Q, alpha) * Hartree
+    return phi_gaussian(r_vR, r0_v, Q, alpha) * Hartree
 
 
-@pytest.mark.parametrize('method', ['atoms', 'full-planar'])
+@pytest.mark.parametrize('method', ['atoms', 'sparse-planar'])
 def test_fnv_model(method):
 
-    L = 20.0
-    epsilon = 1.0
+    L = 15.0
+    epsilon = 5.0
     charge = -2.0
-    sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0))) * Bohr
-    E_fnv_t = {'atoms': 6.56, 'full-planar': 7.62}
+    alpha = 1.0
+    sigma = 1.5
+    E_fnv_t = {'atoms': 0.47, 'sparse-planar': 0.84}
 
     L2 = L / 2
-    L0 = L / 8
+    L0 = 0.0
     pos = [[L2, L2, L2], [L0, L0, L0]]
     pristine = Atoms('H2', positions=pos, cell=[L, L, L])
     pristine.set_pbc(True)
@@ -72,7 +62,7 @@ def test_fnv_model(method):
     # defect position
     r0 = pristine.positions[0, :]
 
-    phi_def = phi_simple(Q=charge, L0=L, r0=r0, alpha0=1.0)
+    phi_def = phi_simple(Q=charge, L0=L, r0=r0, alpha0=alpha)
     phi_def_R = build_ugarray(pristine, phi_def)
 
     phi_prs = np.zeros_like(phi_def)
@@ -85,6 +75,7 @@ def test_fnv_model(method):
                                    sigma=sigma,
                                    epsilon=epsilon,
                                    method=method,
+                                   ravg=alpha,
                                    atoms_pristine=pristine)
     E_fnv = elc.calculate_correction()
 
