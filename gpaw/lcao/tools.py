@@ -186,7 +186,7 @@ def dump_hamiltonian(filename, atoms, direction=None, Ef=None):
                 else:
                     remove_pbc(atoms, h_skmm[s, k], None, d)
 
-    if atoms.calc.master:
+    if atoms.calc.master:  # This attribute does not exist does it?
         with open(filename, 'wb') as fd:
             pickle.dump((h_skmm, s_kmm), fd, 2)
             atoms_data = {'cell': atoms.cell, 'positions': atoms.positions,
@@ -198,7 +198,7 @@ def dump_hamiltonian(filename, atoms, direction=None, Ef=None):
 
             pickle.dump(calc_data, fd, 2)
 
-    world.barrier()
+    atoms.calc.wfs.world.barrier()
 
 
 def dump_hamiltonian_parallel(filename, atoms, direction=None, Ef=None):
@@ -279,7 +279,7 @@ def get_lcao_hamiltonian(calc):
             S_kMM[wfs.k] = S_MM.data
     ibzwfs.kpt_comm.sum(H_skMM)
     ibzwfs.kpt_comm.sum(S_kMM)
-    if world.rank == 0:
+    if calc.wfs.world.rank == 0:
         return H_skMM, S_kMM
     return None, None
 
