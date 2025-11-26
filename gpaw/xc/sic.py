@@ -178,7 +178,7 @@ class SIC(XCFunctional):
             raise ValueError('SIC does not support ' + xc.name)
 
         self.xc = xc
-        XCFunctional.__init__(self, xc.name + '-PZ-SIC', xc.type)
+        super().__init__(xc.name + '-PZ-SIC', xc.type)
         self.finegrid = finegrid
         self.parameters = parameters
 

@@ -146,8 +146,8 @@ class OldTDDFT(GPAW):
 
         # NB: TDDFT restart files contain additional information which
         #     will override the initial settings for time/kick/niter.
-        GPAW.__init__(self, filename, parallel=parallel,
-                      communicator=communicator, txt=txt)
+        super().__init__(filename, parallel=parallel,
+                         communicator=communicator, txt=txt)
         if len(self.symmetry.op_scc) > 1:
             raise ValueError('Symmetries are not allowed for TDDFT. '
                              'Run the ground state calculation with '
@@ -278,10 +278,10 @@ class OldTDDFT(GPAW):
 
     def create_wave_functions(self, mode, *args, **kwargs):
         mode = FDTDDFTMode(mode.nn, mode.interpolation, True)
-        GPAW.create_wave_functions(self, mode, *args, **kwargs)
+        super().create_wave_functions(mode, *args, **kwargs)
 
     def read(self, filename):
-        reader = GPAW.read(self, filename)
+        reader = super().read(filename)
         if 'tddft' in reader:
             r = reader.tddft
             self.time = r.time
@@ -289,7 +289,7 @@ class OldTDDFT(GPAW):
             self.kick_strength = r.kick_strength
 
     def _write(self, writer, mode):
-        GPAW._write(self, writer, mode)
+        super()._write(writer, mode)
         w = writer.child('tddft')
         w.write(time=self.time,
                 niter=self.niter,

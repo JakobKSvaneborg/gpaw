@@ -119,7 +119,7 @@ class GridDescriptor(Domain):
         if (self.N_c != N_c).any():
             raise ValueError('Non-int number of grid points %s' % N_c)
 
-        Domain.__init__(self, cell_cv, pbc_c, comm, parsize_c, self.N_c)
+        super().__init__(cell_cv, pbc_c, comm, parsize_c, self.N_c)
         self.rank = self.comm.rank
 
         self.beg_c = np.empty(3, int)
@@ -327,7 +327,7 @@ class GridDescriptor(Domain):
     def coarsen(self):
         """Return coarsened `GridDescriptor` object.
 
-        Reurned descriptor has 2x2x2 fewer grid points."""
+        Returned descriptor has 2x2x2 fewer grid points."""
 
         if (self.N_c % 2).any():
             raise ValueError('Grid %s not divisible by 2!' % self.N_c)
@@ -743,7 +743,7 @@ class GridDescriptor(Domain):
         scaled coordinates on spos_c.
 
         This doesn't work in parallel, since it would require
-        communication between neighbouring grids."""
+        communication between neighboring grids."""
 
         assert self.comm.size == 1
 

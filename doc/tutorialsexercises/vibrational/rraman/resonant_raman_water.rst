@@ -39,7 +39,7 @@ Static Raman from polarizabilities
 The photon energy of the excitation laser in Raman experiments is often
 well below electronic excitations of the molecules. Then the 
 approximation to obtain Raman spectra from static polarizabilities
-is valid. Here, we use the static polariability obtained from external electric fields.
+is valid. Here, we use the static polarizability obtained from external electric fields.
 
 .. literalinclude:: H2O_static_raman.py
 
@@ -57,9 +57,9 @@ Again, only the last three vibrations are meaningful.
 Resonant Raman: Excitations at each displacement
 ================================================
 
-We need to calculate the excitations at each displament and use
+We need to calculate the excitations at each displacement and use
 linear response TDDFT for this. This is the most time consuming
-part of the calculation an we therfore use the coarser grid spacing
+part of the calculation an we therefore use the coarser grid spacing
 of :literal:`h=0.25`. We restrict to the first excitations
 of the water molecule by setting
 :literal:`{'restrict': {'energy_range': erange, 'eps': 0.4}}`.

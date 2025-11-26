@@ -85,7 +85,7 @@ class PW(Mode):
         else:
             self.cell_cv = cell / Bohr
 
-        Mode.__init__(self, force_complex_dtype)
+        super().__init__(force_complex_dtype)
 
     def __call__(self, parallel, initksl, gd, **kwargs):
         dedepsilon = 0.0
@@ -165,12 +165,12 @@ class Preconditioner:
 class NonCollinearPreconditioner(Preconditioner):
     def calculate_kinetic_energy(self, psit_xsG, kpt):
         shape = psit_xsG.shape
-        ekin_xs = Preconditioner.calculate_kinetic_energy(
-            self, psit_xsG.reshape((-1, shape[-1])), kpt)
+        ekin_xs = super().calculate_kinetic_energy(
+            psit_xsG.reshape((-1, shape[-1])), kpt)
         return ekin_xs.reshape(shape[:-1]).sum(-1)
 
     def __call__(self, R_sG, kpt, ekin, out=None):
-        return Preconditioner.__call__(self, R_sG, kpt, [ekin, ekin], out)
+        return super().__call__(R_sG, kpt, [ekin, ekin], out)
 
 
 class PWWaveFunctions(FDPWWaveFunctions):
@@ -187,12 +187,12 @@ class PWWaveFunctions(FDPWWaveFunctions):
 
         self.ng_k = None  # number of G-vectors for all IBZ k-points
 
-        FDPWWaveFunctions.__init__(self, parallel, initksl,
-                                   reuse_wfs_method=reuse_wfs_method,
-                                   collinear=collinear,
-                                   gd=gd, nvalence=nvalence, setups=setups,
-                                   bd=bd, dtype=dtype, world=world, kd=kd,
-                                   kptband_comm=kptband_comm, timer=timer)
+        super().__init__(parallel, initksl,
+                         reuse_wfs_method=reuse_wfs_method,
+                         collinear=collinear,
+                         gd=gd, nvalence=nvalence, setups=setups,
+                         bd=bd, dtype=dtype, world=world, kd=kd,
+                         kptband_comm=kptband_comm, timer=timer)
         self.read_from_file_init_wfs_dm = False
 
     def empty(self, n=(), global_array=False, realspace=False, q=None):
@@ -229,7 +229,7 @@ class PWWaveFunctions(FDPWWaveFunctions):
 
         self.pt = PWLFC([setup.pt_j for setup in setups], self.pd)
 
-        FDPWWaveFunctions.set_setups(self, setups)
+        super().set_setups(setups)
 
         if self.dedepsilon == 'estimate':
             dedecut = self.setups.estimate_dedecut(self.ecut)
@@ -259,7 +259,7 @@ class PWWaveFunctions(FDPWWaveFunctions):
             s += '  Using FFTW library\n'
         else:
             s += "  Using Numpy's FFT\n"
-        return s + FDPWWaveFunctions.__str__(self)
+        return s + super().__str__()
 
     def make_preconditioner(self, block=1):
         if self.collinear:
@@ -531,7 +531,7 @@ class PWWaveFunctions(FDPWWaveFunctions):
         return np.nan
 
     def write(self, writer, write_wave_functions=False):
-        FDPWWaveFunctions.write(self, writer)
+        super().write(writer)
 
         if not write_wave_functions:
             return
@@ -577,7 +577,7 @@ class PWWaveFunctions(FDPWWaveFunctions):
                     kk += 1
 
     def read(self, reader):
-        FDPWWaveFunctions.read(self, reader)
+        super().read(reader)
 
         if 'coefficients' not in reader.wave_functions:
             return
@@ -873,7 +873,7 @@ See issue #241 in GPAW. Creashing to prevent corrupted results."""
                 array[:, 0].imag = 0.0
 
     def estimate_memory(self, mem):
-        FDPWWaveFunctions.estimate_memory(self, mem)
+        super().estimate_memory(mem)
         self.pd.estimate_memory(mem.subnode('PW-descriptor'))
 
     def get_kinetic_stress(self):

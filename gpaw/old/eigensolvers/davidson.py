@@ -4,10 +4,10 @@ import numpy as np
 from ase.utils.timing import timer
 
 from gpaw import debug
-from gpaw.eigensolvers.diagonalizerbackend import (ElpaDiagonalizer,
-                                                   ScalapackDiagonalizer,
-                                                   ScipyDiagonalizer)
-from gpaw.eigensolvers.eigensolver import Eigensolver
+from gpaw.old.eigensolvers.diagonalizerbackend import (ElpaDiagonalizer,
+                                                       ScalapackDiagonalizer,
+                                                       ScipyDiagonalizer)
+from gpaw.old.eigensolvers.eigensolver import Eigensolver
 from gpaw.hybrids import HybridXC
 from gpaw.old.matrix import matrix_matrix_multiply as mmm
 

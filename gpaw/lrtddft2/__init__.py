@@ -306,7 +306,7 @@ class LrTDDFT2:
         Includes population difference.
 
         This method is meant to be used for small number of transitions.
-        It is not suitable for analysing densely packed transitions of
+        It is not suitable for analyzing densely packed transitions of
         large systems. Use transition contribution map (TCM) or similar
         approach for this.
 

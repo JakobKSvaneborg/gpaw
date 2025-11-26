@@ -112,8 +112,8 @@ def calculate_third_derivative(timestep, data_tx):
 class RRemission:
     r"""
     Radiation-reaction potential according to Schaefer et al.
-    [https://doi.org/10.1103/PhysRevLett.128.156402] and
-    Schaefer [https://doi.org/10.48550/arXiv.2204.01602].
+    [ https://doi.org/10.1103/PhysRevLett.128.156402 ] and
+    Schaefer [ https://doi.org/10.48550/arXiv.2204.01602 ].
     The potential accounts for the friction
     forces acting on the radiating system of oscillating charges
     emitting into a single dimension. A more elegant
@@ -295,11 +295,11 @@ class Environment(ABC):
 
     @abstractmethod
     def radiation_reaction_field(self, timestep, dipole_tv):
-        raise NotImplementedError
+        """Returns radiation field at a given timestep and dipole_tv."""
 
     @abstractmethod
     def todict(self):
-        raise NotImplementedError
+        """Writes Environment object to dict."""
 
 
 class WaveguideEnvironment(Environment):

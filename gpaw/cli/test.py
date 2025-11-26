@@ -5,7 +5,7 @@ from ase import Atoms
 from ase.parallel import parprint
 
 from gpaw import GPAW, PW, setup_paths
-from gpaw.mpi import size
+from gpaw.mpi import world
 
 from .info import info
 
@@ -32,11 +32,11 @@ def test():
 
 You need to set the GPAW_SETUP_PATH environment variable to point to
 the directories where PAW dataset and basis files are stored.  See
-https://gpaw.readthedocs.io/install.html#install-paw-datasets
+https://gpaw.readthedocs.io/setups/setups.html#installation-of-paw-datasets
 for details.""", file=sys.stderr)
         return
 
-    parprint(f'Doing a test calculation (cores: {size}): ... ',
+    parprint(f'Doing a test calculation (cores: {world.size}): ... ',
              end='', flush=True)
     a = 2.5
     d = 0.9
@@ -48,6 +48,6 @@ for details.""", file=sys.stderr)
     chain.get_forces()
     chain.get_stress()
     parprint('Done')
-    if size == 1:
+    if world.size == 1:
         print()
         print('Test parallel calculation with "gpaw -P 4 test".')

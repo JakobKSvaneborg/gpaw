@@ -623,6 +623,15 @@ class ASECalculator:
                       update_fermi_level: bool = False,
                       **kwargs) -> ASECalculator:
         kwargs.pop('communicator', None)  # Ignore silently
+        allowed = {'nbands', 'occupations', 'poissonsolver',
+                   'kpts', 'eigensolver', 'random', 'maxiter',
+                   'basis', 'symmetry', 'convergence', 'verbose',
+                   'parallel'}
+        illegal = kwargs.keys() - allowed
+        if illegal:
+            raise TypeError(f'Illegal keyword(s): {illegal}.  '
+                            f'Only {allowed} allowed.')
+
         kwargs = {**self.params.todict(), **kwargs}
         params = Parameters(**kwargs)
         log = Logger(txt, self.comm)

@@ -1,14 +1,7 @@
 #pragma once
 
 #include "../gpu-runtime.h"
-
-#include <Python.h>
-
-// gpaw_so.c handles array importing at the module level (needed for proper numpy init),
-// so don't do it here again.
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
+#include "../../python_utils.h"
 
 #include <cstdint>
 #include <cassert>

@@ -150,6 +150,7 @@ build-latest:
   extends:
     - .build
   script:
+    - pip install --upgrade pytest pytest-cov coverage pytest-xdist
     - |
       cat << EOF >> siteconfig.py
       define_macros += [('NDEBUG', None)]
@@ -382,11 +383,8 @@ test-latest:
     - build-latest
   script:
     - gpaw info
-
-    - >
-      GPAW_DEBUG=1 pytest -v -m "ci or gpu"
-      --cov=gpaw --cov-report=html --cov-report=term
-
+    - GPAW_DEBUG=1 pytest -v -m "ci or gpu" --cov=gpaw
+    - coverage html
   artifacts:
     paths:
       - htmlcov/
@@ -461,7 +459,7 @@ test-cuda-mpi:
   script:
     - nvidia-smi
     - gpaw info
-    - mpirun -np 2 pytest -v -x -m gpu
+    - GPAW_DEBUG=1 mpirun -np 2 pytest -v -x -m gpu
     - mpirun -np 4 pytest -v -x -m gpu
 
 test-hip-cuda:

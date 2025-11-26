@@ -5,11 +5,10 @@ from ase import Atoms
 from gpaw import GPAW, Davidson, FermiDirac, Mixer
 from gpaw.cdft.cdft import CDFT
 from gpaw.cdft.cdft_coupling import CouplingParameters
-from gpaw.mpi import size
 
 
 @pytest.mark.old_gpaw_only
-def test_cdft(in_tmp_dir):
+def test_cdft(in_tmp_dir, comm):
     distance = 2.5
     sys = Atoms('He2', positions=([0., 0., 0.], [0., 0., distance]))
     sys.center(3)
@@ -27,6 +26,7 @@ def test_cdft(in_tmp_dir):
                   nbands=4,
                   mixer=Mixer(beta=0.25, nmaxold=3, weight=100.0),
                   txt='He2+_final_%3.2f.txt' % distance,
+                  communicator=comm,
                   convergence={'eigenstates': 1.0e-4, 'density': 1.0e-1,
                                'energy': 1e-1, 'bands': 4})
 
@@ -42,7 +42,7 @@ def test_cdft(in_tmp_dir):
     sys.get_potential_energy()
     sys.get_forces()
 
-    if size == 1:
+    if comm.size == 1:
         coupling = CouplingParameters(cdft_b, cdft_b, AE=False)
         overlaps = coupling.get_pair_density_matrix(
             cdft_b.calc, cdft_b.calc)[0]

@@ -4,7 +4,7 @@ from math import ceil, log, pi, sqrt
 import numpy as np
 from ase.units import Hartree
 
-import gpaw.mpi as mpi
+from gpaw.mpi import world
 from gpaw.overlap import Overlap
 from gpaw.sphere.gaunt import gaunt
 from gpaw.typing import Array1D, Array2D, Array3D, ArrayND
@@ -755,7 +755,7 @@ class RecursionMethod:
 
     def get_spectra(self, eps_s, delta=0.1, imax=None, kpoint=None, fwhm=None,
                     linbroad=None, spin=0):
-        assert mpi.size == 1  # XXX use the @parallel decorator instead
+        assert world.size == 1  # XXX use the @parallel decorator instead
 
         # the following lines are to stop the user to make mistakes
         # if spin == 1:

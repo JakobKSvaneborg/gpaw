@@ -28,6 +28,3 @@ def test_move(xp):
     move_wave_functions(pos1, pos2, P_ani, psit_nG, [setup])
     move_wave_functions(pos2, pos1, P_ani, psit_nG, [setup])
     assert abs(psit_nG.to_xp(np).data).max() < 1e-12
-
-
-test_move(np)

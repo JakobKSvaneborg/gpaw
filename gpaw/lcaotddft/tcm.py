@@ -184,7 +184,7 @@ class TCMPlotter(TCM):
     def __init__(self, ksd, energy_o, energy_u, sigma,
                  zero_fermilevel=True):
         eig_n, fermilevel = ksd.get_eig_n(zero_fermilevel)
-        TCM.__init__(self, energy_o, energy_u, fermilevel)
+        super().__init__(energy_o, energy_u, fermilevel)
         self.ksd = ksd
         self.sigma = sigma
         self.eig_n = eig_n
@@ -193,7 +193,7 @@ class TCMPlotter(TCM):
         # Calculate TCM
         tcm_ou = self.ksd.get_TCM(weight_p, self.eig_n, self.energy_o,
                                   self.energy_u, self.sigma)
-        TCM.plot_TCM(self, tcm_ou, **kwargs)
+        super().plot_TCM(tcm_ou, **kwargs)
 
     def plot_DOS(self, weight_n=1.0, **kwargs):
         # Calculate DOS
@@ -201,4 +201,4 @@ class TCMPlotter(TCM):
                                                  self.energy_o,
                                                  self.energy_u,
                                                  self.sigma)
-        TCM.plot_DOS(self, dos_o, dos_u, **kwargs)
+        super().plot_DOS(dos_o, dos_u, **kwargs)

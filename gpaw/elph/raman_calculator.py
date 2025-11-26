@@ -31,7 +31,7 @@ class ResonantRamanCalculator:
         calc: GPAW
             GPAW calculator object.
         w_ph: str, np.ndarray
-            Zone centre phonon frequencies in eV
+            Zone center phonon frequencies in eV
         momname: str
             Name of momentum file
         elphname: str

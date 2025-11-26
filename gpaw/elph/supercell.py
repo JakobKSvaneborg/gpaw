@@ -278,7 +278,7 @@ class Supercell:
     @classmethod
     def calculate_gradient(cls, fd_name: str,
                            indices=None) -> tuple[ArrayND, list]:
-        """Calculate gradient of effective potential and projector coefs.
+        """Calculate gradient of effective potential and projector coeffs.
 
         This function loads the generated json files and calculates
         finite-difference derivatives.

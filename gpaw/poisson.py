@@ -848,7 +848,7 @@ class BadAxesError(ValueError):
 
 class FastPoissonSolver(BasePoissonSolver):
     def __init__(self, nn=3, **kwargs):
-        BasePoissonSolver.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.nn = nn
         # We may later enable this to work with Cholesky, but not now:
         self.use_cholesky = False

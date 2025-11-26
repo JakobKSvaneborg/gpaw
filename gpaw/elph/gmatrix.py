@@ -54,7 +54,7 @@ class ElectronPhononMatrix:
             Name of JSON cache containing supercell matrix
         phonon: str, dict, :class:`~ase.phonons.Phonons`
             Can be either name of phonon cache generated with
-            electron-phonon DisplacementRunner or dictonary
+            electron-phonon DisplacementRunner or dictionary
             of arguments used in Phonons run or Phonons object.
         load_sc_as_needed: bool
             Load supercell matrix elements only as needed.
@@ -259,7 +259,7 @@ class ElectronPhononMatrix:
                           ql
 
         In case the ``prefactor=False`` is given, the bare matrix
-        element (in units of eV / Ang) without the sqrt prefactor is returned.
+        element (in units of eV / Å) without the sqrt prefactor is returned.
 
         Parameters
         ----------
@@ -267,7 +267,7 @@ class ElectronPhononMatrix:
             Converged calculator object containing the LCAO wavefuntions
             (don't use point group symmetry)
         k_qc: np.ndarray
-            q-vectors of the phonons. Must only contain values comenserate
+            q-vectors of the phonons. Must only contain values commensurate
             with k-point sampling of calculator. Default: all kpoints used.
         savetofile: bool
             If true (default), saves matrix to gsqklnn.npy

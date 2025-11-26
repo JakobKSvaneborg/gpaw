@@ -1,8 +1,8 @@
 .. _polarizability:
 
-======================================
-Static polarizabilty in finite systems
-======================================
+=======================================
+Static polarizability in finite systems
+=======================================
 
 Let us calculate the static polarizability of the water molecule.
 

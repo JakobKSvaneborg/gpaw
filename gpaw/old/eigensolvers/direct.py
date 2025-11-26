@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from gpaw.eigensolvers.eigensolver import Eigensolver
+from gpaw.old.eigensolvers.eigensolver import Eigensolver
 from gpaw.old.matrix_descriptor import MatrixDescriptor
 
 
@@ -13,7 +13,7 @@ class DirectPW(Eigensolver):
     def __init__(self, keep_htpsit=False):
         """Initialize direct eigensolver. """
 
-        Eigensolver.__init__(self, keep_htpsit)
+        super().__init__(keep_htpsit)
 
     def iterate_one_k_point(self, ham, wfs, kpt, weights):
         """Setup H and S matries and diagonalize for the kpoint"""

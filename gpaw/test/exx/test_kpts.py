@@ -5,7 +5,7 @@ from ase import Atoms
 
 from gpaw import GPAW, PW
 from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
-from gpaw.mpi import size
+from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW as NewGPAW
 from gpaw.new.pw.nschse import NonSelfConsistentHSE06
 
@@ -21,7 +21,7 @@ def atoms() -> Atoms:
                         {1: [1, 1, 1],
                          2: [2, 1, 1],
                          4: [2, 2, 1],
-                         8: [2, 2, 2]}[size]))
+                         8: [2, 2, 2]}[world.size]))
     a.calc = GPAW(mode=PW(200),
                   kpts=(n, n, 1),
                   xc='PBE',

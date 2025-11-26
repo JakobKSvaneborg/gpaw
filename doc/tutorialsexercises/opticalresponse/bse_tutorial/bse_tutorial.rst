@@ -16,7 +16,7 @@ We start by calculating the ground state density and diagonalizing the
 resulting Hamiltonian.  Below we will set up the Bethe-Salpeter Hamiltonian
 in a basis of the 4 valence bands and 4 conduction bands.  However, the
 screened interaction that enters the Hamiltonian needs to be converged with
-respect the number of unoccupied bands.  The calculaton is erfored with the
+respect the number of unoccupied bands.  The calculation is run with the
 following script :download:`gs_Si.py`. It takes a few minutes on a single
 CPU. The last line in the script creates a .gpw file which contains all the
 informations of the system, including the wavefunctions.
@@ -27,10 +27,10 @@ absorption spectrum.  The calculation can be done with the script
 :download:`eps_Si.py`, which also calculates the dielectric function within
 the Random Phase Approximation (see :ref:`df_tutorial`). It takes about ~12
 hours on a single CPU but parallelizes very well.  Note the .csv output
-files that contains the spectre.  The script also generates a .dat file
+files that contains the spectra.  The script also generates a .dat file
 that contains the eigenvalues of the BSE eigenvalues for easy application.
 The spectrum essentially consists of a number of peaks centered on the
-eigenvalues.  It can be plottet with :download:`plot_Si.py` and the result
+eigenvalues.  It can be plotted with :download:`plot_Si.py` and the result
 is shown below
 
 .. image:: bse_Si.png
@@ -55,9 +55,9 @@ Excitons in monolayer MoS2 with Spin-orbit Coupling
 Spectrum from the Bethe-Salpeter equation
 -----------------------------------------
 
-The screening plays a fundamental role in the Bethe-Salpeter equation and for 2D systems the screening requires a special treatment. In particular we use a truncated Coulomb interaction inorder to decouple the screening between periodic images. We refer to Ref. [#Huser]_ for details on the truncated Coulomb interaction in GPAW. As before, we calculate the ground state of `MoS_2` with the script :download:`gs_MoS2.py`, which takes a few minutes. Note the large density of k-points, which are required to converge the BSE spectrum of two-dimensional systems.
+The screening plays a fundamental role in the Bethe-Salpeter equation and for 2D systems the screening requires a special treatment. In particular we use a truncated Coulomb interaction in order to decouple the screening between periodic images. We refer to Ref. [#Huser]_ for details on the truncated Coulomb interaction in GPAW. As before, we calculate the ground state of `MoS_2` with the script :download:`gs_MoS2.py`, which takes a few minutes. Note the large density of k-points, which are required to converge the BSE spectrum of two-dimensional systems.
 
-The macroscopic dielectric function is calculated as an average of the microscopic screening over the unit cell. Clearly, for a 2D system this will depend on the unit cell size in the direction orthogonal to the slab and in the converged limit the dielectric function becomes unity. Instead we may calculate the longitudinal part of 2D polarizability which is independent of unit cell size. This is done in RPA as well as BSE with the scripts :download:`pol_MoS2.py`, which takes ~20 hours on 16 CPUs. Note that the BSE polarizability is calculated with and without Coulomb truncation for comparison. In both case spin-orbit coupling is included through the ``spinors`` keyword. We refer to Ref. [#Olsenspin]_ for details on the spin-orbit implementation. The results can be plottet with :download:`plot_MoS2.py` and is shown below.
+The macroscopic dielectric function is calculated as an average of the microscopic screening over the unit cell. Clearly, for a 2D system this will depend on the unit cell size in the direction orthogonal to the slab and in the converged limit the dielectric function becomes unity. Instead we may calculate the longitudinal part of 2D polarizability which is independent of unit cell size. This is done in RPA as well as BSE with the scripts :download:`pol_MoS2.py`, which takes ~20 hours on 16 CPUs. Note that the BSE polarizability is calculated with and without Coulomb truncation for comparison. In both case spin-orbit coupling is included through the ``spinors`` keyword. We refer to Ref. [#Olsenspin]_ for details on the spin-orbit implementation. The results can be plotted with :download:`plot_MoS2.py` and is shown below.
 
 .. image:: bse_MoS2.png
     :height: 400 px
@@ -79,7 +79,7 @@ The script :download:`get_2d_eps.py` carries out this calculations with and with
 Mott-Wannier model for excitons in 2D materials
 -----------------------------------------------
 
-In 3D materials the Mott-Wannier model of excitons has been highly succesful and simply regards the exciton as a "hydrogen atom" with bindings energies that has been rescaled by the exciton effective mass and dielectric screening. Thus in atomic units the binding energy is
+In 3D materials the Mott-Wannier model of excitons has been highly successful and simply regards the exciton as a "hydrogen atom" with bindings energies that has been rescaled by the exciton effective mass and dielectric screening. Thus in atomic units the binding energy is
 
 .. math:: E_B^{3D}=\frac{\mu}{2\epsilon_0^2}
 
@@ -91,7 +91,7 @@ for small `q`. It is thus expected that the hydrogenic binding energy in 2D beco
 
 .. math:: E_B^{2D}=\frac{8\mu}{(1+\sqrt{1+32\pi\alpha\mu/3})^2}
 
-From the band structure of MoS2 it is straigtforward to obtain `\mu=0.27` and all we need now is `\alpha`. In principle we could read of the slope from the figure above, but there is a more direct an accurate way to do it. As it turns out, the slope is needed for any calculation of the response function in the optical limit and it is simply obtained with the script :download:`alpha_MoS2.py`. This runs on a single CPU in a minute or so. It should produce a value of `\alpha=5.27` Å. Transforming to atomic units and inserting into the formula above yields
+From the band structure of MoS2 it is straightforward to obtain `\mu=0.27` and all we need now is `\alpha`. In principle we could read of the slope from the figure above, but there is a more direct an accurate way to do it. As it turns out, the slope is needed for any calculation of the response function in the optical limit and it is simply obtained with the script :download:`alpha_MoS2.py`. This runs on a single CPU in a minute or so. It should produce a value of `\alpha=5.27` Å. Transforming to atomic units and inserting into the formula above yields
 
 .. math:: E_B^{MoS_2}=0.50\; eV,
 
@@ -105,7 +105,7 @@ If the Bethe-Salpeter equation is set up in a basis of spinors it can be used to
 
 The transverse susceptibility for `q=0` is obtained with the script :download:`magnons_RhCl2.py`, which can be run in 1 hour on 16 CPUs. The function ``get_magnetic_susceptibility`` returns `\chi^{+-}`, but for the present purpose we will just inspect the output file ``chi+-_300.dat``. The keyword ``modes_Gc`` specifies which (diagonal) plane waves components of the susceptibility that are written to the file. The first column of the file is just a counter whereas the second column is the eigenvalues of the BSE Hamiltonian in eV. The remaining four columns are the weights of the four plane wave components specified in the script. First we note that the two lowest eigenvalues are separated from the remaining spectrum by roughly 1 eV. We identify these as the acoustic and optical magnons. To see this more clearly, one can look at the weights of the transverse susceptibility. The lowest eigenvalue has weights at `G=(0,0,0)` and `G=(1,1,0)` signifying an acoustic magnon. Note that the reciprocal lattice vector corresponds to two wavelengths transversing the diagonal of the rectangular unit cell and thus one wavelength between the two Rh atoms. In contrast, the second eigenvalue has weights at `G=(1,0,0)` and `G=(0,1,0)`, which both corresponds to a phase difference between the two Rh atoms of half a wavelength - the hallmark of an optical magnon. Finally, it should be noted that the Goldstone theorem implies that the acoustic magnons should be located exactly at zero energy in the absence of spinorbit coupling. The present calculation does include spinorbit coupling but the acoustic magnon gap is still expected to be less than a meV. This is not exactly what we find - in fact the BSE eigenvalues are shifted upward by the ``eshift`` keyword in the script, which is chosen here to fix the acoustic magnon energy at approximately zero energy. This is in line with previous studies, which show that the Goldstone criterion does not come out right in such calculations. However, the magnon band width (gap between acoustic and optical modes) is a property that we may try to predict from BSE calculations.
 
-We may also try to compute the entire magnon dispersion. This can be accomplished by finite `q` BSE calculations exemplified by the script :download:`magnons_q.py`. Note that instead of writing the data file with all the weights for each `q` we simply extract the BSE eigenvalues from ``bse.w_T`` and collect it in a data file. The results can be plottet with :download:`plot_magnons.py` and is shown below. It should be emphasized that these calculations are far from converged. One needs to worry about `k`-points, plane wave cutoff, screening bands and the valence and conduction bands entering the BSE Hamiltonian. Compared to excitons, magnons need much less `k`-points (for insulators), but much higher plane wave cutoff and it is typically rather difficult to converge with respect to the states included in the BSE Hamiltonian [#Olsen_cri3]_.
+We may also try to compute the entire magnon dispersion. This can be accomplished by finite `q` BSE calculations exemplified by the script :download:`magnons_q.py`. Note that instead of writing the data file with all the weights for each `q` we simply extract the BSE eigenvalues from ``bse.w_T`` and collect it in a data file. The results can be plotted with :download:`plot_magnons.py` and is shown below. It should be emphasized that these calculations are far from converged. One needs to worry about `k`-points, plane wave cutoff, screening bands and the valence and conduction bands entering the BSE Hamiltonian. Compared to excitons, magnons need much less `k`-points (for insulators), but much higher plane wave cutoff and it is typically rather difficult to converge with respect to the states included in the BSE Hamiltonian [#Olsen_cri3]_.
 
 
 .. image:: magnons.png

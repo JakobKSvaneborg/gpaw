@@ -169,15 +169,15 @@ compared to accurate Wien2k results.  Calculations are done for:
 * PW-mode calculations with ``ecut=1000`` (columns 3-5)
 * LCAO-mode calculations with ``h=0.12`` (columns 6-8)
 
-The coulumns are:
+The columns are:
 
 1. atomic number
 2. PAW-potential name
 3. number of errors (out of the 10 systems) (PW)
-4. maxium absolute error (PW)
+4. maximum absolute error (PW)
 5. mean absolute error (PW)
 6. number of errors (out of the 10 systems) (LCAO)
-7. maxium absolute error (LCAO)
+7. maximum absolute error (LCAO)
 8. mean absolute error (LCAO)
 
 .. csv-table::

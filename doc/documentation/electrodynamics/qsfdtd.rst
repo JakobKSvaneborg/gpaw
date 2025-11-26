@@ -89,7 +89,7 @@ The QSFDTD method can be used to calculate the optical photoabsorption
 spectrum just like in :ref:`timepropagation`:
 The classical charge density is first perturbed with an instantaneous
 electric field, and then the time dependence of the induced dipole moment
-is recorderd. Its Fourier transformation gives the photoabsorption spectrum.
+is recorded. Its Fourier transformation gives the photoabsorption spectrum.
 
 -------------------------------------------
 Example: photoabsorption of gold nanosphere
@@ -192,11 +192,11 @@ Technical remarks
 
 * Double grid technique: the calculation always uses two grids:
   one for the classical part and one for the TDDFT part. In
-  purely classical simulations, suchs as the ones discussed in
+  purely classical simulations, such as the ones discussed in
   this page, the quantum subsystem contains one empty Kohn-Sham
   orbital. For more information, see the description of
   :ref:`hybridscheme` because there the double grid is very important.
-* Parallelizatility: QSFDTD calculations can by parallelized
+* Parallelizability: QSFDTD calculations can by parallelized
   only over domains, so use either *communicator=serial_comm* or
   *communicator=world* when initializing *QSFDTD* (or
   *FDTDPoissonSolver*) class. The domain parallelization of
