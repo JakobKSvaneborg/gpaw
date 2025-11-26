@@ -15,11 +15,11 @@ from gpaw.utilities.progressbar import ProgressBar
 class Integrand(ABC):
     @abstractmethod
     def matrix_element(self, point):
-        ...
+        """Return matrix element at point."""
 
     @abstractmethod
     def eigenvalues(self, point):
-        ...
+        """Return eigenvalue at point."""
 
 
 def czher(alpha: float, x, A) -> None:

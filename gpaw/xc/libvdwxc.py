@@ -303,8 +303,7 @@ class VDWXC(XCFunctional):
 
         # XXX We should probably not initialize with the same data as the
         # semilocal XC kernel.
-        XCFunctional.__init__(self, semilocal_xc.kernel.name,
-                              semilocal_xc.kernel.type)
+        super().__init__(semilocal_xc.kernel.name, semilocal_xc.kernel.type)
         # Really, 'type' should be something along the lines of vdw-df.
         self.semilocal_xc = semilocal_xc
 
@@ -365,7 +364,7 @@ class VDWXC(XCFunctional):
         return dct
 
     def set_grid_descriptor(self, gd):
-        XCFunctional.set_grid_descriptor(self, gd)
+        super().set_grid_descriptor(gd)
         self.semilocal_xc.set_grid_descriptor(gd)
 
     def get_description(self):

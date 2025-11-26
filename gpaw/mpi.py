@@ -814,7 +814,9 @@ if not have_mpi:
 if gpaw.debug:
     serial_comm = _Communicator(_serial_comm)
     if _world.size == 1:
-        world = serial_comm
+        # On purpose create a different instance for world than serial comm
+        # That way we can on tests detect world
+        world = _Communicator(SerialCommunicator())
     else:
         world = _Communicator(_world)
 else:

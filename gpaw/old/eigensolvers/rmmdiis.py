@@ -3,7 +3,7 @@ from functools import partial
 
 import numpy as np
 
-from gpaw.eigensolvers.eigensolver import Eigensolver
+from gpaw.old.eigensolvers.eigensolver import Eigensolver
 from gpaw.utilities.blas import axpy
 
 

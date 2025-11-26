@@ -359,7 +359,7 @@ class BlacsDescriptor(MatrixDescriptor):
         # redistributor to fail. This could happen on active blacsgrid
         # which does not contain any piece of the distribute matrix.
         # This is why there is a final check on the value of locM, locN.
-        MatrixDescriptor.__init__(self, max(0, locM), max(0, locN))
+        super().__init__(max(0, locM), max(0, locN))
 
         # This is the definition of inactive descriptor; can occur
         # on an active or inactive blacs grid.

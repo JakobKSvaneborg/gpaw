@@ -116,7 +116,7 @@ class LocalFTCalculator(ABC):
 
     @abstractmethod
     def calculate(self, qpd, add_f):
-        pass
+        """Calculate PW components f(G) using method add_f and PW basis qpd."""
 
     @staticmethod
     def equivalent_real_space_grids(gd1, gd2):

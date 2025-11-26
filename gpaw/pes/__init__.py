@@ -15,7 +15,7 @@ class PESpectrum(Writer):
                  enlist,
                  folding='Gauss',
                  width=0.08):  # Gauss/Lorentz width
-        Writer.__init__(self, folding, width)
+        super().__init__(folding, width)
         self.title = 'Photo emission spectrum'
         self.fields = 'Binding energy [eV]   '
         if folding is None:

@@ -125,7 +125,7 @@ implemented in the two classes
 :class:`~gpaw.old.wavefunctions.base.WaveFunctions` class, so the wave
 functions object will always have a
 :class:`~gpaw.old.grid_descriptor.GridDescriptor`, an
-:class:`~gpaw.eigensolvers.eigensolver.Eigensolver`, a
+:class:`~gpaw.old.eigensolvers.eigensolver.Eigensolver`, a
 :class:`~gpaw.setup.Setups` object and a list of :class:`~gpaw.old.kpoint.KPoint`
 objects.
 
