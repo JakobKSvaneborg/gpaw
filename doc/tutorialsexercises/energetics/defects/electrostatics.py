@@ -1,6 +1,6 @@
 from ase.io.jsonio import write_json
 from gpaw import GPAW
-from gpaw.defects import ChargedDefectCorrections
+from gpaw.defects import charged_defect_corrections
 from pathlib import Path
 
 charge = -3
@@ -17,12 +17,12 @@ for N in repeats:
     calc_prs = GPAW(prs_path)
     calc_def = GPAW(def_path)
 
-    cdc = ChargedDefectCorrections(calc_pristine=calc_prs,
-                                   calc_defect=calc_def,
-                                   defect_index=def_idx,
-                                   charge=charge,
-                                   epsilon=epsilon)
-    E_fnv = cdc.calculate_correction()
+    elc = charged_defect_corrections(calc_pristine=calc_prs,
+                                     calc_defect=calc_def,
+                                     defect_index=def_idx,
+                                     charge=charge,
+                                     epsilon=epsilon)
+    E_fnv = elc.calculate_correction()
 
     E_0 = calc_prs.get_potential_energy()
     E_X = calc_def.get_potential_energy()
@@ -30,7 +30,7 @@ for N in repeats:
     E_corr = E_uncorr + E_fnv
 
     if N == 2:
-        profile = cdc.elc.calculate_potential_profile()
+        profile = elc.calculate_potential_profile()
 
     corrected.append(E_corr)
     uncorrected.append(E_uncorr)
