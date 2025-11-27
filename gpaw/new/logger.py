@@ -9,7 +9,7 @@ from functools import cache
 from pathlib import Path
 from typing import IO, Any
 
-from gpaw.mpi import MPIComm, parallel
+from gpaw.mpi import MPIComm, normalize_communicator
 
 GREEN = '\x1b[32m'
 RESET = '\x1b[0m'
@@ -27,21 +27,12 @@ def indent(text: Any, indentation='  ') -> str:
 
 
 class Logger:
-    @parallel
     def __init__(self,
                  filename: str | Path | IO[str] | None = '-',
-                 *,
-                 comm: MPIComm | Sequence[int]):
+                 comm: MPIComm | Sequence[int] = None):
 
-        @parallel
-        def _get_world(comm):
-            # Hack to get world monkeypatchably
-            return comm
-
-        if not hasattr(comm, 'rank'):
-            comm = _get_world().new_communicator(list(comm))
-
-        self.comm: MPIComm = comm  # type: ignore
+        self.close_fd = False  # To be set later
+        self.comm = normalize_communicator(comm)
 
         self.fd: IO[str]
 
