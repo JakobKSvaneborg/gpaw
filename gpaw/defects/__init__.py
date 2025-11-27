@@ -1,5 +1,5 @@
 """ Defects module """
 from .electrostatics import (ElectrostaticCorrections,
-                             ChargedDefectCorrections)
+                             charged_defect_corrections)
 
 __all__ = ['ElectrostaticCorrections', 'ChargedDefectCorrections']

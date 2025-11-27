@@ -5,7 +5,7 @@ from ase.units import Bohr, Hartree
 
 from gpaw import GPAW
 from gpaw.defects import (ElectrostaticCorrections,
-                          ChargedDefectCorrections)
+                          charged_defect_corrections)
 from gpaw.defects.electrostatics import build_ugarray, plot_potentials
 
 
@@ -104,15 +104,15 @@ def test_fnv_3d(gpw_files, cell):
     calc_prs = GPAW(gpw_files[f'gaas_{cell}_pristine'])
     calc_def = GPAW(gpw_files[f'gaas_{cell}_defect'])
 
-    cdc = ChargedDefectCorrections(calc_pristine=calc_prs,
-                                   calc_defect=calc_def,
-                                   defect_index=def_idx,
-                                   charge=charge,
-                                   epsilon=epsilon)
-    E_fnv = cdc.calculate_correction()
+    elc = charged_defect_corrections(calc_pristine=calc_prs,
+                                     calc_defect=calc_def,
+                                     defect_index=def_idx,
+                                     charge=charge,
+                                     epsilon=epsilon)
+    E_fnv = elc.calculate_correction()
 
     if 0:
-        profile = cdc.elc.calculate_potential_profile()
+        profile = elc.calculate_potential_profile()
         plot_potentials(profile)
 
     assert E_fnv == pytest.approx(E_fnv_t, abs=tol)
