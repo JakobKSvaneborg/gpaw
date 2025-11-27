@@ -675,11 +675,12 @@ def get_mixer_from_keywords(pbc, nspins, **mixerkwargs):
 
     # The plan is to first establish a kwargs dictionary with all the
     # defaults, then we update it with values from the user.
-    kwargs = {'backend': FFTBaseMixer}
 
     if np.any(pbc):  # Works on array or boolean
+        kwargs = {'backend': FFTBaseMixer}
         kwargs.update(beta=0.05, history=16, weight=70.0)
     else:
+        kwargs = {'backend': BaseMixer}
         kwargs.update(beta=0.25, history=16, weight=1.0)
 
     if nspins == 1:
