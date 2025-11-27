@@ -19,7 +19,7 @@ def test_fixdensity(in_tmp_dir, gpaw_new, eigensolver):
                      xc='revTPSS',
                      h=0.12,
                      kpts={'size': (3, 3, 1),
-                           'gamma': True},  # txt='li-1.txt',
+                           'gamma': True}, txt='li-1.txt',
                      parallel=dict(kpt=1))
     slab.get_potential_energy()
     slab.calc.write('li.gpw', mode='all')
@@ -33,7 +33,7 @@ def test_fixdensity(in_tmp_dir, gpaw_new, eigensolver):
 
     # Fix density and continue:
     calc = slab.calc.fixed_density(
-        #txt='li-2.txt',
+        txt='li-2.txt',
         convergence={'minimum iterations': 8},
         nbands=5,
         kpts=kpts)
@@ -43,7 +43,7 @@ def test_fixdensity(in_tmp_dir, gpaw_new, eigensolver):
     # Start from gpw-file:
     calc = GPAW('li.gpw', txt=None)
     calc = calc.fixed_density(
-        #txt='li-3.txt',
+        txt='li-3.txt',
         convergence={'minimum iterations': 8},
         nbands=5,
         kpts=kpts)
