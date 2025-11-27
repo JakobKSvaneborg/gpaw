@@ -61,8 +61,7 @@ def gather_electrostatic_potential(calc):
     phi_r = calc.get_electrostatic_potential()
     atoms = calc.get_atoms()
     phi_R = build_ugarray(atoms, phi_r)
-    if phi_R.comm.size > 1:
-        phi_R = phi_R.gather(broadcast=True)
+    phi_R = phi_R.gather(broadcast=True)
     return phi_R
 
 
