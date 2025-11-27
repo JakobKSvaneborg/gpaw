@@ -226,26 +226,30 @@ if debug:
 if TYPE_CHECKING:
     from gpaw.dft import GPAW
 else:
-    def GPAW(filename=None, *, _new=None, **kwargs):
+    def GPAW(filename=None, *, _new=None, txt='?', **kwargs):
         if _new is None:
             _new = True
             if filename is None:
-                xc = kwargs.get('xc', 'LDA')
-                if xc.startswith('GLLB'):
+                from gpaw.dft import Parameters
+                from gpaw.old.calculator import DeprecatedParameterWarning
+                try:
+                    params = Parameters(**kwargs)
+                except TypeError:
+                    raise DeprecatedParameterWarning
+                xcname = params.xc.name
+                if xcname.startswith('GLLB'):
                     _new = False
                 else:
-                    mode = (kwargs['mode']
-                            if isinstance(kwargs['mode'], str) else
-                            kwargs['mode']['name'])
-                    if mode == 'fd' and 'xc' in {'EXX', 'PBE0', 'B3LYP',
-                                                 'CAMY-BLYP', 'CAMY-B3LYP',
-                                                 'LCY-BLYP', 'LCY-PBE'}:
+                    FD_HYBRIDS = {'EXX', 'PBE0', 'B3LYP',
+                                  'CAMY-BLYP', 'CAMY-B3LYP',
+                                  'LCY-BLYP', 'LCY-PBE'}
+                    if params.mode.name == 'fd' and xcname in FD_HYBRIDS:
                         _new = False
         if _new:
             from gpaw.dft import GPAW as _GPAW
         else:
             from gpaw.old.calculator import GPAW as _GPAW
-        return _GPAW(filename, **kwargs)
+        return _GPAW(filename, txt=txt, **kwargs)
 
 
 all_lazy_imports['get_calculation_info'] = 'gpaw.calcinfo.get_calculation_info'
