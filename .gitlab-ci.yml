@@ -705,7 +705,7 @@ nightly-mpi-8:
 
 nightly-mpi4py-4:
   extends:
-    - .nightly-mpi
+    - .nightly
   variables:
     GPAW_MPI4PY: "1"
     GPAW_MPI_NPROCS: "4"
