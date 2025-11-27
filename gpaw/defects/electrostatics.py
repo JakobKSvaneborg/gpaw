@@ -66,7 +66,8 @@ def gather_electrostatic_potential(calc):
     return phi_R
 
 
-def plot_potentials(profile, png=None):
+def plot_potentials(profile, png=None,
+                    def_pot_label=r'$V^{v_\mathrm{Ga}^{-3}}_\mathrm{el}(z)$'):
     from matplotlib import pyplot as plt
 
     z = profile['z']
@@ -78,8 +79,8 @@ def plot_potentials(profile, png=None):
     plt.plot(z, dV, '-', label=r'$\Delta V(z)$')
     plt.plot(z, V_m, '-', label='$V(z)$')
     plt.plot(z, dV_defprs, '-',
-             label=(r'$[V^{V_\mathrm{Ga}^{-3}}_\mathrm{el}(z) -'
-                    r'V^{0}_\mathrm{el}(z) ]$'))
+             label=(def_label
+                    + r' - $V^{0}_\mathrm{el}(z) ]$'))
 
     plt.axhline(dphi_avg, ls='dashed')
     plt.axhline(0.0, ls='-', color='grey')
