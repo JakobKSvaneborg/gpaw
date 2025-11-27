@@ -9,24 +9,15 @@ from gpaw.defects import (ElectrostaticCorrections,
 from gpaw.defects.electrostatics import build_ugarray, plot_potentials
 
 
-def phi_gaussian(r_vR, r0_v, Q, alpha):
+def phi_gaussian(Q, L0, r0, alpha0, ng=32):
     """
-    Electrostatic potential in atomic units (Hartree)
-    r in Bohr, phi in Hartree.
-    r_vR has shape (3, nx, ny, nz).
+    Electrostatic potential in eV
+    Q  charge
+    L0 box size [Angstrom]
+    r0 position [Angstrom]
+    alpha0 extend of gaussian [Angstrom]
+    ng grid size
     """
-
-    # radius
-    r = np.linalg.norm(r_vR - r0_v[:, None, None, None], axis=0)
-    phi = np.zeros_like(r)
-    rmax = 3 * alpha
-    mask = r < rmax
-    phi[mask] = np.exp(- (r[mask] / alpha)**2) / alpha
-
-    return - Q * phi / np.sqrt(2. * np.pi)
-
-
-def phi_simple(Q, L0, r0, alpha0, ng=32):
 
     # convert to Bohr
     L = L0 / Bohr
@@ -39,8 +30,15 @@ def phi_simple(Q, L0, r0, alpha0, ng=32):
     # construct r_vR with shape (3, ng, ng, ng)
     r_vR = np.stack((X, Y, Z), axis=0)
 
+    # radius
+    r = np.linalg.norm(r_vR - r0_v[:, None, None, None], axis=0)
+    phi = np.zeros_like(r)
+    rmax = 3 * alpha
+    mask = r < rmax
+    phi[mask] = np.exp(- (r[mask] / alpha)**2) / alpha
+
     # potential in eV
-    return phi_gaussian(r_vR, r0_v, Q, alpha) * Hartree
+    return - Q * phi / np.sqrt(2. * np.pi) * Hartree
 
 
 @pytest.mark.parametrize('method', ['atoms', 'sparse-planar'])
@@ -62,7 +60,7 @@ def test_fnv_model(method):
     # defect position
     r0 = pristine.positions[0, :]
 
-    phi_def = phi_simple(Q=charge, L0=L, r0=r0, alpha0=alpha)
+    phi_def = phi_gaussian(Q=charge, L0=L, r0=r0, alpha0=alpha)
     phi_def_R = build_ugarray(pristine, phi_def)
 
     phi_prs = np.zeros_like(phi_def)
