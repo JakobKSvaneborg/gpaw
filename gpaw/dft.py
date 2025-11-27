@@ -224,7 +224,7 @@ class PPCG(PWFDEigensolverParamater):
                  rr_modulo=5,
                  include_cg=True,
                  promote_inner_dtype=False,
-                 tolerances: tuple[float] = (0, 0, 4e-8)):
+                 tolerances: tuple[float, ...] = (0.0, 0.0, 4e-8)):
         self.niter = niter
         self.min_niter = min_niter
         self.max_buffer_mem = max_buffer_mem
