@@ -226,26 +226,39 @@ if debug:
 if TYPE_CHECKING:
     from gpaw.dft import GPAW
 else:
-    def GPAW(filename=None, *, _new=None, txt='?', **kwargs):
+    def GPAW(filename=None,
+             *,
+             _new=None,
+             txt='?',
+             commumnicator=None,
+             **kwargs):
         if _new is None:
-            _new = True
             if filename is None:
-                from gpaw.dft import Parameters
-                params = Parameters(**kwargs)
-                xcname = params.xc.name
-                if xcname.startswith('GLLB'):
-                    _new = False
-                else:
-                    FD_HYBRIDS = {'EXX', 'PBE0', 'B3LYP',
-                                  'CAMY-BLYP', 'CAMY-B3LYP',
-                                  'LCY-BLYP', 'LCY-PBE'}
-                    if params.mode.name == 'fd' and xcname in FD_HYBRIDS:
-                        _new = False
+                _new = _can_use_new(kwargs)
+            else:
+                _new = True
         if _new:
             from gpaw.dft import GPAW as _GPAW
         else:
             from gpaw.old.calculator import GPAW as _GPAW
-        return _GPAW(filename, txt=txt, **kwargs)
+        return _GPAW(filename, txt=txt, communicator=commumnicator, **kwargs)
+
+
+def _can_use_new(kwargs) -> bool:
+    from gpaw.dft import Parameters
+    try:
+        params = Parameters(**kwargs)
+    except NotImplementedError:
+        return False
+    xcname = params.xc.name
+    if xcname.startswith('GLLB'):
+        return False
+    FD_HYBRIDS = {'EXX', 'PBE0', 'B3LYP',
+                  'CAMY-BLYP', 'CAMY-B3LYP',
+                  'LCY-BLYP', 'LCY-PBE'}
+    if params.mode.name == 'fd' and xcname in FD_HYBRIDS:
+        return False
+    return True
 
 
 all_lazy_imports['get_calculation_info'] = 'gpaw.calcinfo.get_calculation_info'

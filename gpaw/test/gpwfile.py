@@ -1631,7 +1631,8 @@ class GPWFiles(CachedFilesHandler):
         atoms, qm_spacing, gpts = poissonsolver.cut_cell(atoms, vacuum=2.50)
 
         # Initialize GPAW
-        gs_calc = GPAW(mode='fd',
+        gs_calc = GPAW(_new=False,
+                       mode='fd',
                        txt=self.folder / 'na2_isolated.txt',
                        gpts=gpts,
                        eigensolver='cg',
@@ -2021,9 +2022,9 @@ class GPWFiles(CachedFilesHandler):
 
         dct = dict(
             mixer={'beta': 0.75, 'nmaxold': 8, 'weight': 100.0},
-            mode=PW(ecut,
-                    # Interpolate the density in real-space
-                    interpolation=3),
+            mode=PW(ecut),
+            # Interpolate the density in real-space
+            interpolation=3,
             kpts={'size': (kpts, kpts, 1), 'gamma': True},
             occupations=FermiDirac(occw),
             convergence=conv,
@@ -2096,9 +2097,9 @@ class GPWFiles(CachedFilesHandler):
         tag = '_nosym' if symmetry == 'off' else ''
         atoms.calc = GPAW(
             xc=xc,
-            mode=PW(pw,
-                    # Interpolate the density in real-space
-                    interpolation=3),
+            mode=PW(pw),
+            # Interpolate the density in real-space
+            interpolation=3,
             kpts={'size': (kpts, kpts // 2, 1), 'gamma': True},
             mixer={'beta': 0.5},
             setups={'V': '5'},

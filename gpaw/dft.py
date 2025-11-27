@@ -167,6 +167,8 @@ class Eigensolver(Parameter):
                 warnings.warn('Please use "davidson" instead of "dav"')
             if name in eigensolvers:
                 return eigensolvers[name](**eigensolver)
+            if name == 'etdm-lcao':
+                raise NotImplementedError
             raise ValueError(f'Unknown eigensolver: {name}')
         return DefaultEigensolver(eigensolver)
 
