@@ -77,9 +77,9 @@ def plot_potentials(profile, png=None,
     dphi_avg = profile['dphi']
 
     plt.plot(z, dV, '-', label=r'$\Delta V(z)$')
-    plt.plot(z, V_m, '-', label='$V(z)$')
+    plt.plot(z, V_m, '-', label=r'$V_\mathrm{model}(z)$')
     plt.plot(z, dV_defprs, '-',
-             label=(def_label
+             label=(def_pot_label
                     + r' - $V^{0}_\mathrm{el}(z) ]$'))
 
     plt.axhline(dphi_avg, ls='dashed')
