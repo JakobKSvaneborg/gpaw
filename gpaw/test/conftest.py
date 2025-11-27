@@ -452,7 +452,15 @@ def rng():
     return np.random.default_rng(42)
 
 
-@pytest.fixture
-def gpaw_new() -> bool:
+@pytest.fixture(params=[False, True])
+def gpaw_new(request) -> bool:
     """Are we testing the new code?"""
-    return True  # GPAW_NEW
+    if not request.param:
+        yield False
+        return
+    import gpaw
+    try:
+        gpaw._NEW = True
+        yield True  # GPAW_NEW
+    finally:
+        gpaw._NEW = None

@@ -223,6 +223,8 @@ if debug:
     np.empty = empty  # type: ignore[misc]
     np.empty_like = empty_like
 
+_NEW = None
+
 if TYPE_CHECKING:
     from gpaw.dft import GPAW
 else:
@@ -232,6 +234,8 @@ else:
              txt='?',
              communicator=None,
              **kwargs):
+        if _new is None:
+            _new = _NEW
         if _new is None:
             if filename is None:
                 _new = _can_use_new(kwargs)

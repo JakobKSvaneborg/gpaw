@@ -5,7 +5,7 @@ from gpaw import GPAW, LCAO
 from gpaw.poisson import FDPoissonSolver
 
 
-def test_lcao_h2o():
+def test_lcao_h2o(gpaw_new):
     a = 6.0
     b = a / 2
     mol = Atoms('OHH',
