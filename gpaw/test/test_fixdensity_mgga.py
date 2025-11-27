@@ -18,8 +18,7 @@ def test_fixdensity(in_tmp_dir, gpaw_new, eigensolver):
                      eigensolver=eigensolver,
                      xc='revTPSS',
                      h=0.12,
-                     kpts={'size': (3, 3, 1),
-                           'gamma': True}, txt='li-1.txt',
+                     kpts=(3, 3, 1), txt='li-1.txt',
                      parallel=dict(kpt=1))
     slab.get_potential_energy()
     slab.calc.write('li.gpw', mode='all')
