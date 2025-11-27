@@ -142,7 +142,7 @@ class PPCG(PWFDEigensolver):
         self.nblocksizes = 3 * self.blocksize \
             if self.include_cg else 2 * self.blocksize
         dtype = wfs.psit_nX.desc.dtype
-        G_max = np.prod(ibzwfs.get_max_shape())
+        # G_max = np.prod(ibzwfs.get_max_shape())
 
         assert len(self.tolerances) == 3
         # --------------- Convergence parameters ---------------
