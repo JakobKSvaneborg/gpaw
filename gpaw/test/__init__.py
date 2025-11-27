@@ -52,7 +52,7 @@ def gen(symbol, exx=False, name=None, yukawa_gamma=None,
             setup = g.run(exx=exx, name=name, yukawa_gamma=yukawa_gamma,
                           write_xml=write_xml,
                           **parameters[symbol])
-    setup = broadcast(setup, 0)
+    setup = broadcast(setup, 0, comm=world)
     return setup
 
 
