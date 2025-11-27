@@ -59,7 +59,7 @@ def test_fixdensity(in_tmp_dir, gpaw_new, eigensolver):
         calc = GPAW('li.gpw',
                     txt='li-4.txt',
                     fixdensity=True,
-                    nbands=8,
+                    nbands=5,
                     kpts=kpts,
                     symmetry='off')
         try:
