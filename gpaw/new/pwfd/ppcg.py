@@ -27,13 +27,13 @@ class PPCG(PWFDEigensolver):
                  band_comm,
                  hamiltonian,
                  converge_bands='occupied',
-                 niter=5,
-                 min_niter=2,
+                 niter=2,
+                 min_niter=1,
                  blocksize=None,
                  rr_modulo=5,
                  include_cg=True,
                  promote_inner_dtype=False,
-                 tolerances: tuple[float, ...] | None = None,
+                 tolerances: tuple[float, ...] | None = (0, 0, 4e-8),
                  scalapack_parameters=None,
                  max_buffer_mem: int = 200 * 1024 ** 2):
         """
@@ -144,6 +144,7 @@ class PPCG(PWFDEigensolver):
         dtype = wfs.psit_nX.desc.dtype
         G_max = np.prod(ibzwfs.get_max_shape())
 
+        assert len(self.tolerances) == 3
         # --------------- Convergence parameters ---------------
         # Mostly relevant for single precision, however the
         # breakout_tolerance could be used to speed up convergence
@@ -154,24 +155,18 @@ class PPCG(PWFDEigensolver):
         #   improves numerical stability at the cost of
         #   convergence speed - up to a certain point.
         #   Probably best to not use this one.
-        self.tol_factor = 0
+        self.tol_factor = self.tolerances[0]
         # tolerance :
         #   Freeze bands with residual < tolerance
         #   improves numerical stability at the cost of
         #   minimum achievable residual.
-        self.tolerance = np.finfo(dtype).eps**2 * G_max**0.5
+        self.tolerance = self.tolerances[1]
         # breakout_tolerance :
         #   Stop iteration if sum(residual_ns) < breakout_tolerance
         #   breakout_tolerance saves time at the cost of minimum
         #   achievable residual. Can also be used to improve numerical
         #   stability.
-        self.breakout_tolerance = 1e-5 / Ha**2
-
-        if self.tolerances is not None:
-            assert len(self.tolerances) == 3
-            self.tol_factor = self.tolerances[0]
-            self.tolerance = self.tolerances[1]
-            self.breakout_tolerance = self.tolerances[2] / Ha**2
+        self.breakout_tolerance = self.tolerances[2] / Ha**2
 
         self.M_nn = Matrix(B, B, dtype=dtype,
                            dist=(band_comm, band_comm.size),
