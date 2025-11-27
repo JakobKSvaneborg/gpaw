@@ -10,9 +10,11 @@ from ase.geometry import find_mic
 _avg_methods_ = ['atoms', 'sparse-planar', 'full-planar']
 
 
-class ChargedDefectCorrections():
+def charged_defect_corrections(calc_pristine, calc_defect, defect_index=0,
+                               ecut=500, charge=None, epsilon=None,
+                               rc=2.0 * Bohr, ravg=2.5, method='full-planar'):
     """
-    Calculate the electrostatic corrections for charged defects.
+    Makes ElectrostaticCorrections instance for charged defects.
 
     calc_pristine: ``GPAW`` calculator for neutral pristine reference
 
@@ -33,43 +35,20 @@ class ChargedDefectCorrections():
     method: method selection string
 
     """
-    def __init__(self, calc_pristine, calc_defect, defect_index=0, ecut=500,
-                 charge=None, epsilon=None, rc=2.0 * Bohr,
-                 ravg=2.5, method='full-planar'):
-
-        self.calc_pristine = calc_pristine
-        self.calc_defect = calc_defect
-        self.defect_idx = defect_index
-        self.ecut = ecut
-        self.charge = charge
-        self.epsilon = epsilon
-        self.avg = ravg
-        self.method = method
-        self.sigma = rc / (2. * np.sqrt(2. * np.log(2.)))
-
-        self.elc = None
-
-    def initialize(self):
-        if self.elc is not None:
-            return
-
-        # init ElectrostaticCorrections
-        phiR_prs = gather_electrostatic_potential(self.calc_pristine)
-        phiR_def = gather_electrostatic_potential(self.calc_defect)
-        atoms_prs = self.calc_pristine.get_atoms()
-        r0 = atoms_prs.positions[self.defect_idx, :]
-        self.elc = ElectrostaticCorrections(phi_pristine=phiR_prs,
-                                            phi_defect=phiR_def,
-                                            r0=r0,
-                                            charge=self.charge,
-                                            sigma=self.sigma,
-                                            epsilon=self.epsilon,
-                                            method=self.method,
-                                            atoms_pristine=atoms_prs)
-
-    def calculate_correction(self):
-        self.initialize()
-        return self.elc.calculate_correction()
+    # init ElectrostaticCorrections
+    phiR_prs = gather_electrostatic_potential(calc_pristine)
+    phiR_def = gather_electrostatic_potential(calc_defect)
+    atoms_prs = calc_pristine.get_atoms()
+    r0 = atoms_prs.positions[defect_index, :]
+    sigma = rc / (2. * np.sqrt(2. * np.log(2.)))
+    return ElectrostaticCorrections(phi_pristine=phiR_prs,
+                                    phi_defect=phiR_def,
+                                    r0=r0,
+                                    charge=charge,
+                                    sigma=sigma,
+                                    epsilon=epsilon,
+                                    method=method,
+                                    atoms_pristine=atoms_prs)
 
 
 def build_ugarray(atoms, data):
