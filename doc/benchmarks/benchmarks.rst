@@ -77,6 +77,13 @@ History
 * Switched to :ref:`newgpaw`.
 
 
+2025, November 26
+-----------------
+
+* Changed initial magnetic moments for ``MnVS2-2M`` from ``[2, 2, 0, 0]``
+  to ``[2, -2, 0, 0]`` and rescaled timings.  See :mr:`3032`.
+
+
 The future
 ----------
 
