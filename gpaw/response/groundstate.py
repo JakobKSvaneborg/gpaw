@@ -54,15 +54,15 @@ ResponseGroundStateAdaptable = Union['ResponseGroundStateAdapter',
 
 class ResponseGroundStateAdapter:
     def __init__(self, calc: GPAWCalculator, lazy=False):
-
         wfs = calc.wfs  # wavefunction object from gpaw.old.wavefunctions
         self._wfs = wfs
         self.gs_info = ""
 
         if self.is_lcao:
             if isinstance(calc, NewGPAW):
-                raise ValueError('LCAO calculations are only '
-                                 'supported by old GPAW')
+                calc = calc._to_old()
+                wfs = calc.wfs
+                self._wfs = wfs
             calc.initialize_positions()
             for kpt in wfs.kpt_u:
                 assert kpt.C_nM is not None

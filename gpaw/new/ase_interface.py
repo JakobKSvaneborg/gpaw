@@ -766,3 +766,15 @@ class ASECalculator:
     def get_bz_to_ibz_map(self):
         """Return indices from BZ to IBZ."""
         return self.dft.ibzwfs.ibz.bz2ibz_K.copy()
+
+    def _to_old(self):
+        import tempfile
+        from gpaw.old.calculator import GPAW as OldGPAW
+        from gpaw.mpi import broadcast_string
+        if self.comm.rank == 0:
+            gpw = tempfile.mkstemp(suffix='.gpw')[1]
+        else:
+            gpw = ''
+        gpw = broadcast_string(gpw, comm=self.comm)
+        self.write(gpw, mode='all')
+        return OldGPAW(gpw)

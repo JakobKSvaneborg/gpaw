@@ -231,11 +231,7 @@ else:
             _new = True
             if filename is None:
                 from gpaw.dft import Parameters
-                from gpaw.old.calculator import DeprecatedParameterWarning
-                try:
-                    params = Parameters(**kwargs)
-                except TypeError:
-                    raise DeprecatedParameterWarning
+                params = Parameters(**kwargs)
                 xcname = params.xc.name
                 if xcname.startswith('GLLB'):
                     _new = False

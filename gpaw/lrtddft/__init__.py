@@ -67,6 +67,8 @@ class LrTDDFT(ExcitationList):
         self.diagonalized = False
 
         self.set(**kwargs)
+        if calculator is not None and not calculator.old:
+            calculator = calculator._to_old()
         self.calculator = calculator
 
         super().__init__(log=log, txt=txt)
