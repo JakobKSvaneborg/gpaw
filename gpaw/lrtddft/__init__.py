@@ -73,14 +73,8 @@ class LrTDDFT(ExcitationList):
 
         if self.eh_comm is None:
             self.eh_comm = mpi.serial_comm
-        elif isinstance(self.eh_comm, (mpi.world.__class__,
-                                       mpi.serial_comm.__class__)):
-            # Correct type already.
-            pass
         else:
-            # world should be a list of ranks:
-            self.eh_comm = mpi.world.new_communicator(
-                np.asarray(self.eh_comm))
+            self.eh_comm = mpi.normalize_communicator(self.eh_comm)
 
         if calculator is not None and calculator.initialized:
             # XXXX not ready for k-points
