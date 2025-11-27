@@ -216,12 +216,12 @@ class GPWFiles(CachedFilesHandler):
                         [-1.24409879, 0.00000108, -0.93244784],
                         [-1.24406253, 0.00000112, 0.93242153],
                         [1.24406282, -0.93242148, 0.00000108],
-                        [1.24409838, 0.93244792, 0.00000112]
-                    ]
-                    )
+                        [1.24409838, 0.93244792, 0.00000112]])
         atm.center(vacuum=4.0)
         atm.set_pbc(False)
-        atm.calc = GPAW(mode=FD(), h=0.3,
+        atm.calc = GPAW(_new=False,
+                        mode=FD(),
+                        h=0.3,
                         xc='PBE',
                         occupations={'name': 'fixed-uniform'},
                         eigensolver={'name': 'etdm-fdpw',
@@ -230,8 +230,7 @@ class GPWFiles(CachedFilesHandler):
                         spinpol=True,
                         symmetry='off',
                         nbands=-5,
-                        convergence={'eigenstates': 4.0e-6},
-                        )
+                        convergence={'eigenstates': 4.0e-6})
         atm.get_potential_energy()
         return atm.calc
 
@@ -245,12 +244,11 @@ class GPWFiles(CachedFilesHandler):
                 [-1.24409879, 0.00000108, -0.93244784],
                 [-1.24406253, 0.00000112, 0.93242153],
                 [1.24406282, -0.93242148, 0.00000108],
-                [1.24409838, 0.93244792, 0.00000112],
-            ],
-        )
+                [1.24409838, 0.93244792, 0.00000112]])
         atm.center(vacuum=4.0)
         atm.set_pbc(False)
         atm.calc = GPAW(
+            _new=False,
             mode=PW(300, force_complex_dtype=True),
             xc="PBE",
             occupations={"name": "fixed-uniform"},
@@ -625,6 +623,7 @@ class GPWFiles(CachedFilesHandler):
     def h2o_mom_do_pw(self):
         atm = self.h2o_maker(vacuum=4.0)
         calc = GPAW(
+            _new=False,
             mode=PW(300),
             spinpol=True,
             symmetry="off",
@@ -877,7 +876,8 @@ class GPWFiles(CachedFilesHandler):
                    positions=[[-d / 2, 0, 0],
                               [d / 2, 0, 0]])
         h2.center(vacuum=3)
-        calc = GPAW(mode=PW(300),
+        calc = GPAW(_new=False,
+                    mode=PW(300),
                     # h=0.3,
                     xc={'name': 'HSE06', 'backend': 'pw'},
                     eigensolver={'name': 'etdm-fdpw',

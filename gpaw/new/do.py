@@ -4,7 +4,10 @@ from gpaw.new.pwfd.etdm import ETDM
 
 class DirectOptimization(Eigensolver):
     def __init__(self,
-                 converge_unocc: bool = False):
+                 converge_unocc: bool = False,
+                 **kwargs):
+        if kwargs:
+            raise NotImplementedError
         self.converge_unocc = converge_unocc
 
     def todict(self):

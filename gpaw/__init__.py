@@ -230,7 +230,7 @@ else:
              *,
              _new=None,
              txt='?',
-             commumnicator=None,
+             communicator=None,
              **kwargs):
         if _new is None:
             if filename is None:
@@ -241,7 +241,7 @@ else:
             from gpaw.dft import GPAW as _GPAW
         else:
             from gpaw.old.calculator import GPAW as _GPAW
-        return _GPAW(filename, txt=txt, communicator=commumnicator, **kwargs)
+        return _GPAW(filename, txt=txt, communicator=communicator, **kwargs)
 
 
 def _can_use_new(kwargs) -> bool:
@@ -249,6 +249,8 @@ def _can_use_new(kwargs) -> bool:
     try:
         params = Parameters(**kwargs)
     except NotImplementedError:
+        return False
+    if params.mode.name == 'lcao':
         return False
     xcname = params.xc.name
     if xcname.startswith('GLLB'):
