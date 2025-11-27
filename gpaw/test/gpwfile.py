@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 from ase import Atom, Atoms
 from ase.build import bulk, molecule
+from ase.build.supercells import make_supercell
 from ase.lattice.compounds import L1_2
 from ase.lattice.hexagonal import Graphene
 from ase.units import Bohr
@@ -2350,8 +2351,17 @@ class GPWFiles(CachedFilesHandler):
         return self._gaas_cubic()
 
     @gpwfile
+    def gaas_skew_pristine(self):
+        return self._gaas_cubic(P=[[1, 0, 0], [1, 1, 0], [0, 0, 1]])
+
+    @gpwfile
     def gaas_cubic_defect(self):
         return self._gaas_cubic(charge=-3, vac_idx=0)
+
+    @gpwfile
+    def gaas_skew_defect(self):
+        return self._gaas_cubic(charge=-3, vac_idx=0,
+                                P=[[1, 0, 0], [1, 1, 0], [0, 0, 1]])
 
     @with_band_cutoff(gpw='gaas_pw',
                       band_cutoff=8)
@@ -2379,11 +2389,22 @@ class GPWFiles(CachedFilesHandler):
         atoms.get_potential_energy()
         return atoms.calc
 
-    def _gaas_cubic(self, *, charge=0, vac_idx=None):
+    def _gaas_cubic(self, *, charge=0, vac_idx=None, P=None):
         nk = 2
         atoms = bulk('GaAs', crystalstructure='zincblende',
                      a=5.628, cubic=True)
         atoms.set_pbc(True)
+
+        # atom 0 to center
+        scaled = atoms.get_scaled_positions()
+        scaled = scaled - scaled[0, :] + 0.5
+        atoms.set_scaled_positions(scaled)
+        atoms.wrap()
+        atoms.center()
+
+        if P is not None:
+            atoms = make_supercell(atoms, P)
+
         if vac_idx is not None:
             atoms.pop(vac_idx)
 
