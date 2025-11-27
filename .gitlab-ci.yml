@@ -392,17 +392,6 @@ test-latest:
   coverage: '/TOTAL.+ ([0-9]+\.[0-9]+%)/'
 
 
-test-latest-new:
-  image: $IMAGE_MAIN_LATEST
-  extends:
-    - .test
-  needs:
-    - build-latest
-  script:
-    - gpaw info
-    - GPAW_DEBUG=1 GPAW_NEW=1 pytest -v -m "ci and not old_gpaw_only"
-
-
 test-minimal:
   image: $IMAGE_MAIN_OLDEST
   extends:
@@ -714,57 +703,9 @@ nightly-mpi-8:
     - .nightly
 
 
-.nightly-mpi-new:
-  variables:
-    GPAW_NEW: "1"
-  script:
-    - >
-      gpaw -P $GPAW_MPI_NPROCS python -m pytest
-      --cov=gpaw --instafail -r s --durations 30
-      -m "not (old_gpaw_only_mpi or old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
-  extends:
-    - .nightly
-
-
-nightly-mpi-1-new:
-  extends:
-    - .nightly-mpi-new
-  script:
-    - gpaw info
-    - pytest --cache-show
-    - >
-      pytest -n 8 --instafail -r s --durations 30 -m
-      "not (old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
-      --cov=gpaw
-  after_script:
-    - mv .coverage coverage-$CI_JOB_NAME
-
-
-nightly-mpi-2-new:
-  extends:
-    - .nightly-mpi-new
-  variables:
-    GPAW_MPI_NPROCS: "2"
-
-
-nightly-mpi-4-new:
-  extends:
-    - .nightly-mpi-new
-  variables:
-    GPAW_MPI_NPROCS: "4"
-    GPAW_DEBUG: "1"
-
-
-nightly-mpi-8-new:
-  extends:
-    - .nightly-mpi-new
-  variables:
-    GPAW_MPI_NPROCS: "8"
-
-
 nightly-mpi4py-4:
   extends:
-    - .nightly-mpi-new
+    - .nightly-mpi
   variables:
     GPAW_MPI4PY: "1"
     GPAW_MPI_NPROCS: "4"
@@ -779,10 +720,6 @@ coverage-combine:
     - nightly-mpi-2
     - nightly-mpi-4
     - nightly-mpi-8
-    - nightly-mpi-1-new
-    - nightly-mpi-2-new
-    - nightly-mpi-4-new
-    - nightly-mpi-8-new
     - nightly-mpi4py-4
   tags:
     - xeon40

@@ -224,11 +224,29 @@ if debug:
     np.empty_like = empty_like
 
 if TYPE_CHECKING:
-    from gpaw.new.ase_interface import GPAW
-elif GPAW_NEW:
-    all_lazy_imports['GPAW'] = 'gpaw.dft.GPAW'
+    from gpaw.dft import GPAW
 else:
-    all_lazy_imports['GPAW'] = 'gpaw.old.calculator.GPAW'
+    def GPAW(filename=None, *, _new=None, **kwargs):
+        if _new is None:
+            _new = True
+            if filename is None:
+                xc = kwargs.get('xc', 'LDA')
+                if xc.startswith('GLLB'):
+                    _new = False
+                else:
+                    mode = (kwargs['mode']
+                            if isinstance(kwargs['mode'], str) else
+                            kwargs['mode']['name'])
+                    if mode == 'fd' and 'xc' in {'EXX', 'PBE0', 'B3LYP',
+                                                 'CAMY-BLYP', 'CAMY-B3LYP',
+                                                 'LCY-BLYP', 'LCY-PBE'}:
+                        _new = False
+        if _new:
+            from gpaw.dft import GPAW as _GPAW
+        else:
+            from gpaw.old.calculator import GPAW as _GPAW
+        return _GPAW(filename, **kwargs)
+
 
 all_lazy_imports['get_calculation_info'] = 'gpaw.calcinfo.get_calculation_info'
 
