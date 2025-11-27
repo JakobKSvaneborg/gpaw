@@ -96,8 +96,8 @@ class DFTCalculation:
             raise AttributeError
         return matches[0]
 
-    @parallel
     @classmethod
+    @parallel
     def from_parameters(cls,
                         atoms: Atoms,
                         params: Parameters,
