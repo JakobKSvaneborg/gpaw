@@ -99,7 +99,7 @@ class ElectrostaticCorrections():
 
         self.cell_cv = phi_pristine.desc.cell / Bohr    # Bohr
         self.sigma = sigma / Bohr                       # Bohr
-        self.r0 = np.array(r0) / Bohr                   # Bohr
+        self.r0_v = np.array(r0) / Bohr                 # Bohr
         self.ravg = ravg / Bohr                         # Bohr
         self.charge = charge
         self.epsilon = epsilon
@@ -163,8 +163,9 @@ class ElectrostaticCorrections():
         Eli = 0.5 * self.charge ** 2 / np.pi ** 0.5 / eps / sgm
         return Eli
 
-    def calculate_model_potential(self, r_vR):
-        # need to backtransform phi_G -> phi_r = sum_G exp(i G * r) phi_G
+    def calculate_model_potential(self, rr0_vR):
+        # need to backtransform
+        # phi_G -> phi_r = sum_G exp(i G * (r - r0)) phi_G
 
         G_Gv = self.G_Gv
         phi_G = self.phi_G
@@ -177,7 +178,7 @@ class ElectrostaticCorrections():
         # assuming G: (ng, 3), r: (3, nx, ny, nz), phi_G: (ng,)
         # compute G * r for all G and grid points
         # shape: (ng, nx, ny, nz)
-        Gr = np.einsum('gi,i...->g...', G_Gv, r_vR)
+        Gr = np.einsum('gi,i...->g...', G_Gv, rr0_vR)
 
         # compute exp(i * G * r)
         # shape: (ng, nx, ny, nz)
@@ -218,12 +219,12 @@ class ElectrostaticCorrections():
         # assumes self.r_vR being on a regular grid
         # evaluate grid index of cartesian vector
         # convert to reduced (fractional) coordinates
-        s0_v = np.linalg.solve(self.cell_cv.T, r0_v)
-        return np.array(np.round(ng_v * s0_v, 0), dtype=int) % ng_v
+        s0_c = np.linalg.solve(self.cell_cv.T, r0_v)
+        return np.array(np.round(ng_v * s0_c, 0), dtype=int) % ng_v
 
     def bulk_atom_average(self):
         # in pristine obtain atom positions closest to the defect_site
-        defect_index = np.argmin(self.prs_mic_dist(self.r0))
+        defect_index = np.argmin(self.prs_mic_dist(self.r0_v))
 
         # locate atom farest away from the defect [Bohr]
         rdefect_v = self.atoms_prs.positions[defect_index, :] / Bohr
@@ -243,7 +244,7 @@ class ElectrostaticCorrections():
         nx, ny, nz = self.ngc_v
 
         # find defect grid index
-        _, _, idef_z = self.find_grid_index(self.r0)
+        _, _, idef_z = self.find_grid_index(self.r0_v)
         iblk_z = (idef_z + nz // 2) % nz
 
         if 'full' in self.method:
@@ -295,8 +296,9 @@ class ElectrostaticCorrections():
         iy = np.linspace(0, ny - 1, nsample, dtype=int)
         igx, igy = np.meshgrid(ix, iy)
 
-        z_vR = self.rc_vR[:, igx, igy, :]
-        phi_model = self.calculate_model_potential(z_vR)
+        z0_vR = self.rc_vR[:, igx, igy, :]
+        zr0_vR = z0_vR - self.r0_v[(...,) + (np.newaxis,) * 3]
+        phi_model = self.calculate_model_potential(zr0_vR)
         phiz_model = np.mean(phi_model, axis=(0, 1))
 
         zaxis = self.rc_vR[2, 0, 0, :]
@@ -331,7 +333,8 @@ class ElectrostaticCorrections():
         r_vR = self.rc_vR[:, ix, iy, iz]
 
         # get model potential inside the averaging region
-        phi_model = self.calculate_model_potential(r_vR)
+        rr0_vR = r_vR - self.r0_v[(...,) + (np.newaxis,) * 3]
+        phi_model = self.calculate_model_potential(rr0_vR)
 
         dphi = phi_model - (phi_def - phi_prs)
         dphi_avg = np.average(dphi)

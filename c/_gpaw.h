@@ -3,9 +3,7 @@
  *  Copyright (C) 2007-2010  CSC - IT Center for Science Ltd.
  *  Please see the accompanying LICENSE file for further information. */
 
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#include <numpy/arrayobject.h>
+#include "python_utils.h"
 
 #ifdef PARALLEL
 #include <mpi.h>
@@ -15,8 +13,7 @@
 #endif
 
 #if defined(GPAW_WITH_MAGMA) && !defined(GPAW_GPU)
-#warning "GPAW must be built with GPU support in order to use MAGMA routines. Disabling MAGMA"
-#undef GPAW_WITH_MAGMA
+#error "Must define GPAW_GPU in order to use GPAW_WITH_MAGMA"
 #endif
 
 PyObject* evaluate_mpa_poly(PyObject *self, PyObject *args);
@@ -155,49 +152,10 @@ PyObject* calculate_forces_H2O(PyObject *self, PyObject *args);
 
 
 #ifdef GPAW_GPU
-PyObject* gpaw_gpu_init(PyObject *self, PyObject *args);
-PyObject* gpaw_gpu_delete(PyObject *self, PyObject *args);
-PyObject* csign_gpu(PyObject *self, PyObject *args);
-PyObject* scal_gpu(PyObject *self, PyObject *args);
-PyObject* multi_scal_gpu(PyObject *self, PyObject *args);
-PyObject* mmm_gpu(PyObject *self, PyObject *args);
-PyObject* gemm_gpu(PyObject *self, PyObject *args);
-PyObject* gemv_gpu(PyObject *self, PyObject *args);
-PyObject* rk_gpu(PyObject *self, PyObject *args);
-PyObject* axpy_gpu(PyObject *self, PyObject *args);
-PyObject* multi_axpy_gpu(PyObject *self, PyObject *args);
-PyObject* r2k_gpu(PyObject *self, PyObject *args);
-PyObject* dotc_gpu(PyObject *self, PyObject *args);
-PyObject* dotu_gpu(PyObject *self, PyObject *args);
-PyObject* multi_dotu_gpu(PyObject *self, PyObject *args);
-PyObject* multi_dotc_gpu(PyObject *self, PyObject *args);
-PyObject* add_linear_field_gpu(PyObject *self, PyObject *args);
-PyObject* elementwise_multiply_add_gpu(PyObject *self, PyObject *args);
-PyObject* multi_elementwise_multiply_add_gpu(PyObject *self, PyObject *args);
-PyObject* ax2py_gpu(PyObject *self, PyObject *args);
-PyObject* multi_ax2py_gpu(PyObject *self, PyObject *args);
-PyObject* axpbyz_gpu(PyObject *self, PyObject *args);
-PyObject* axpbz_gpu(PyObject *self, PyObject *args);
-PyObject* fill_gpu(PyObject *self, PyObject *args);
-PyObject* pwlfc_expand_gpu(PyObject *self, PyObject *args);
-PyObject* pw_insert_gpu(PyObject *self, PyObject *args);
-PyObject* pw_norm_kinetic_gpu(PyObject *self, PyObject *args);
-PyObject* pw_norm_gpu(PyObject *self, PyObject *args);
-
-PyObject* pw_amend_insert_realwf_gpu(PyObject *self, PyObject *args);
-PyObject* add_to_density_gpu(PyObject* self, PyObject* args);
-PyObject* dH_aii_times_P_ani_gpu(PyObject* self, PyObject* args);
-PyObject* evaluate_lda_gpu(PyObject* self, PyObject* args);
-PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args);
-PyObject* calculate_residual_gpu(PyObject* self, PyObject* args);
-
-PyObject* flush_pending_decrefs(PyObject* self, PyObject* args);
-
-#ifdef GPAW_WITH_MAGMA
-    // Include just the C99-compliant interface, implementation is C++
-    #include "gpu/cpp/magma/magma_python_interface.h"
-#endif // GPAW_WITH_MAGMA
-
+#include "gpu/gpu_interface.h"
+    #ifdef GPAW_WITH_MAGMA
+        #include "gpu/cpp/magma/magma_python_interface.h"
+    #endif // GPAW_WITH_MAGMA
 #endif // GPAW_GPU
 
 

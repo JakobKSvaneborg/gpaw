@@ -41,7 +41,6 @@ class GPUDiagonalizer(ABC):
              ) -> tuple[cp.ndarray, "Matrix"]:
         """Eigensolver that is aware of matrix internal distribution.
         """
-        pass
 
 
 class NonDistributedDiagonalizer(GPUDiagonalizer):
@@ -56,7 +55,6 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
         """Solve eigenvalues and eigenvectors of a GPU matrix, represented by
         CuPy array.
         """
-        pass
 
     def check_matrix(self, mat: cp.ndarray | np.ndarray):
         """"""

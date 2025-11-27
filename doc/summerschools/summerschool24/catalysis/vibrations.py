@@ -15,8 +15,8 @@ finite displacement method. For further reading see for example:
 * [Stoffel et al, Angewandte Chemie Int. Ed., 49, 5242-5266 (2010)][1]
 * [Togo and Tanaka, Scripta Materialia 108, 1-5 (2015)][2]
 
-[1]: https://onlinelibrary.wiley.com/doi/abs/10.1002/anie.200906780
-[2]: https://www.sciencedirect.com/science/article/pii/S1359646215003127
+[1]: DOI:10.1002/anie.200906780
+[2]: DOI:10.1016/j.scriptamat.2015.07.021
 
 
 Vibrational energy of the initial and final states

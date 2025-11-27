@@ -357,8 +357,16 @@ def r2k(alpha, a, b, beta, c, trans='c'):
                 a.dtype == complex and b.dtype == complex and
                 c.dtype == complex)
         # assert a.flags.c_contiguous and b.flags.c_contiguous
-        assert a.strides[-1] == a.itemsize or a.size == 0
-        assert b.strides[-1] == b.itemsize or b.size == 0
+
+        # Inserted or a.shape[-1] == 1 as well. Due to reshaping
+        # a singleton dimension with reshape -1 makes the stride go back
+        # to the stide of the next one.
+        # >>> np.reshape(np.zeros((100, 10))[:, 9:10], (100, -1)).strides
+        # (80, 80)
+        # >>> np.reshape(np.zeros((100, 10)), (100, -1)).strides
+        # (80, 8)
+        assert (a.strides[-1] == a.itemsize or a.shape[-1] == 1) or a.size == 0
+        assert (b.strides[-1] == b.itemsize or b.shape[-1] == 1) or b.size == 0
         assert a.ndim > 1
         assert a.shape == b.shape
         if trans == 'c':

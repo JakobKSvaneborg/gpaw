@@ -143,6 +143,11 @@ class Chi0DysonEquations:
             # Restore the q-dependence of the head and wings in the q→0 limit
             assert qinf_v is not None and np.linalg.norm(qinf_v) > 0.
             d_v = self._normalize(direction)
+            same_direction = np.allclose(d_v, self._normalize(qinf_v))
+            if not same_direction:
+                raise ValueError(
+                    '`qinf_v` must be in the same direction as `direction`. '
+                    f'Obtained {qinf_v = } and {direction = }')
             chi0_wGG[:, 1:, 0] *= np.dot(qinf_v, d_v)
             chi0_wGG[:, 0, 1:] *= np.dot(qinf_v, d_v)
             chi0_wGG[:, 0, 0] *= np.dot(qinf_v, d_v)**2

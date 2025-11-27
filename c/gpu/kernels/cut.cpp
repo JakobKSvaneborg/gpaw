@@ -2,6 +2,7 @@
 
 #include "../gpu.h"
 #include "../gpu-complex.h"
+#include "../bmgs.h"
 
 #ifndef GPU_USE_COMPLEX
 #define BLOCK_MAX 32
@@ -66,7 +67,6 @@ __global__ void Zgpu(bmgs_cut_kernel)(
  *   blocks -- number of blocks
  *   stream -- GPU stream to use
  */
-extern "C"
 void Zgpu(bmgs_cut_gpu)(
         const Tgpu* a, const int sizea[3], const int starta[3],
         Tgpu* b, const int sizeb[3],

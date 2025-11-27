@@ -17,7 +17,7 @@ import gpaw
 import gpaw.mpi as mpi
 from gpaw.convergence_criteria import dict2criterion
 from gpaw.dos import DOSCalculator
-from gpaw.eigensolvers import get_eigensolver
+from gpaw.old.eigensolvers import get_eigensolver
 from gpaw.external import PointChargePotential
 from gpaw.hybrids import HybridXC
 from gpaw.io import Reader, Writer

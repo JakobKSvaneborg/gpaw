@@ -1,6 +1,6 @@
 #include "gpaw_utils.h"
+#include "python_utils.h"
 
-#include <Python.h>
 #include <stdio.h>
 
 #ifdef PARALLEL

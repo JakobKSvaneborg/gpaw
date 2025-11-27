@@ -54,18 +54,18 @@ def phi_simple(Q, L0, r0, alpha0, ng=64):
     return phi_infty(r_vR, r0_v, Q, alpha) * Hartree
 
 
-@pytest.mark.parametrize('method', ['atoms', 'sparse-planar'])
+@pytest.mark.parametrize('method', ['atoms', 'full-planar'])
 def test_fnv_model(method):
 
     L = 20.0
     epsilon = 1.0
     charge = -2.0
     sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0))) * Bohr
-    E_fnv_t = {'atoms': 10.287, 'sparse-planar': 10.852}
+    E_fnv_t = {'atoms': 6.56, 'full-planar': 7.62}
 
     L2 = L / 2
-    L4 = L / 4
-    pos = [[L2, L2, L2], [L4, L4, L4]]
+    L0 = L / 8
+    pos = [[L2, L2, L2], [L0, L0, L0]]
     pristine = Atoms('H2', positions=pos, cell=[L, L, L])
     pristine.set_pbc(True)
 
@@ -95,17 +95,23 @@ def test_fnv_model(method):
     assert E_fnv == pytest.approx(E_fnv_t[method], abs=1e-2)
 
 
-def test_fnv_3d(gpw_files):
+@pytest.mark.parametrize('cell', ['cubic', 'skew'])
+def test_fnv_3d(gpw_files, cell):
 
     E_corr_t = 23.55
     E_uncorr_t = 18.31
     E_fnv_t = E_corr_t - E_uncorr_t
 
+    if cell == 'cubic':
+        tol = 3e-2
+    elif cell == 'skew':
+        tol = 5e-2
+
     sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0))) * Bohr
     epsilon = 12.7  # dielectric constant
     charge = -3     # defect charge
-    calc_prs = GPAW(gpw_files['gaas_cubic_pristine'])
-    calc_def = GPAW(gpw_files['gaas_cubic_defect'])
+    calc_prs = GPAW(gpw_files[f'gaas_{cell}_pristine'])
+    calc_def = GPAW(gpw_files[f'gaas_{cell}_defect'])
 
     atoms = calc_prs.get_atoms()
     phiR_prs = gather_electrostatic_potential(calc_prs)
@@ -124,19 +130,11 @@ def test_fnv_3d(gpw_files):
                                    atoms_pristine=atoms)
     E_fnv = elc.calculate_correction()
 
-    E_0 = calc_prs.get_potential_energy()
-    E_X = calc_def.get_potential_energy()
-    E_uncorr = E_X - E_0
-    E_corr = E_uncorr + E_fnv
-    print(E_uncorr, E_corr, E_fnv)
-
     if 0:
         profile = elc.calculate_potential_profile()
         plot_potentials(profile)
 
-    assert E_fnv == pytest.approx(E_fnv_t, abs=3e-2)
-    assert E_corr == pytest.approx(E_corr_t, abs=2e-2)
-    assert E_uncorr == pytest.approx(E_uncorr_t, abs=2e-2)
+    assert E_fnv == pytest.approx(E_fnv_t, abs=tol)
 
 
 if __name__ == "__main__":
