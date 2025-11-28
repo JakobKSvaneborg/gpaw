@@ -43,7 +43,7 @@ def test_cdft(in_tmp_dir, comm):
     sys.get_forces()
 
     if comm.size == 1:
-        coupling = CouplingParameters(cdft_b, cdft_b, AE=False)
+        coupling = CouplingParameters(cdft_b, cdft_b, AE=False, world=comm)
         overlaps = coupling.get_pair_density_matrix(
             cdft_b.calc, cdft_b.calc)[0]
         print(overlaps)

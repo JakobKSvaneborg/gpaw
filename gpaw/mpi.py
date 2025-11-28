@@ -851,24 +851,30 @@ def verify_ase_world():
 verify_ase_world()
 
 
-def parallel(func):
+def parallel(func=None, *, name='comm'):
     """Decorator for functions that take comm=world.
 
     We want this decorator so as to control access to world and prevent
     deadlocks when callers of these functions forget to set the
     communicator."""
     import functools
-    from gpaw.mpi import world
+
+    if func is None:
+        def decorator(func):
+            return parallel(func, name=name)
+        return decorator
 
     @functools.wraps(func)
-    def wrapper(*args, comm=None, **kwargs):
+    def wrapper(*args, **kwargs):
+        comm = kwargs.get(name)
         if comm is None:
-            if _NO_TOUCH_WORLD:
-                raise DontDoThat(
-                    'Must call method with keyword comm=<communicator>'
-                )
             comm = world
-        return func(*args, comm=comm, **kwargs)
+            if comm is world and _NO_TOUCH_WORLD:
+                raise DontDoThat(
+                    f'Must call method with keyword {name}=<communicator> '
+                    'and communicator must not be gpaw.mpi.world')
+            kwargs[name] = comm
+        return func(*args, **kwargs)
 
     return wrapper
 

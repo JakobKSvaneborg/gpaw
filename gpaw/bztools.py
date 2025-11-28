@@ -10,7 +10,7 @@ except ImportError:  # scipy < 1.8
     from scipy.spatial.qhull import QhullError
 
 from gpaw import GPAW, restart
-from gpaw.mpi import world
+from gpaw.mpi import parallel
 from gpaw.old.kpt_descriptor import kpts2sizeandoffsets, to1bz
 from gpaw.symmetry import Symmetry, aglomerate_points
 
@@ -60,6 +60,7 @@ def find_high_symmetry_monkhorst_pack(calc, density):
     """
 
     atoms, calc = restart(calc, txt=None)
+    world = calc.wfs.world
     pbc = atoms.pbc
     minsize, offset = kpts2sizeandoffsets(density=density, even=True,
                                           gamma=True, atoms=atoms)
@@ -364,7 +365,8 @@ def get_reduced_bz(cell_cv, cU_scc, time_reversal,
     return bzk_kc, ibzk_kc, latibzk_kc
 
 
-def expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=np.ones(3, bool)):
+@parallel(name='world')
+def expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=np.ones(3, bool), *, world):
     """Expand IBZ from lattice group to crystal group.
 
     Parameters

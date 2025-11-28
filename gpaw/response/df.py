@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from ase.units import Hartree
 
-from gpaw.mpi import world
+from gpaw.mpi import parallel
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
 from gpaw.response.chi0_data import Chi0Data
 from gpaw.response.coulomb_kernels import CoulombKernel
@@ -658,12 +658,13 @@ class DielectricFunctionCalculator:
 class DielectricFunction(DielectricFunctionCalculator):
     """This class defines dielectric function related physical quantities."""
 
+    @parallel(name='world')  # XXX should probably get world from context
     def __init__(self, calc, *,
                  frequencies=None,
                  ecut=50,
                  hilbert=True,
                  nbands=None, eta=0.2,
-                 intraband=True, nblocks=1, world=world, txt=sys.stdout,
+                 intraband=True, nblocks=1, world, txt=sys.stdout,
                  truncation=None,
                  qsymmetry=True,
                  integrationmode='point integration', rate=0.0,
@@ -843,9 +844,9 @@ class ScalarResponseFunctionSet:
         # ... to be deprecated ...
         return self.rf0_w, self.rf_w
 
-    def write(self, filename):
-        # XXX Implicit use of world
-        if world.rank == 0:
+    @parallel
+    def write(self, filename, *, comm):
+        if comm.rank == 0:
             write_response_function(filename, *self.arrays)
 
     @property

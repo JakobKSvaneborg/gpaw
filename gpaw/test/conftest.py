@@ -40,7 +40,7 @@ def set_device():
     def log(*args, **kwargs):
         kwargs.pop('parallel', None)
         print(*args, **kwargs)
-    set_device(log)
+    set_device(log, world)
 
 
 @pytest.fixture(scope='module')

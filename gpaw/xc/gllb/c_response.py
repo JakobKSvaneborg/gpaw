@@ -5,7 +5,6 @@ import numpy as np
 from ase.units import Ha
 
 from gpaw import BadParallelization
-from gpaw.mpi import world
 from gpaw.old.density import redistribute_array, redistribute_atomic_matrices
 from gpaw.sphere.lebedev import weight_n
 from gpaw.utilities import (pack_atomic_matrices, pack_density,
@@ -216,6 +215,7 @@ class C_Response(Contribution):
                     self.wfs.kd.symmetry.symmetrize(nt_G, self.gd)
                     self.wfs.kd.symmetry.symmetrize(vt_G, self.gd)
 
+            world = self.wfs.world
             d('response update D_asp', world.rank, self.Dresp_asp.keys(),
               self.D_asp.keys())
             self.wfs.calculate_atomic_density_matrices_with_occupation(
