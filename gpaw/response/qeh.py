@@ -128,6 +128,13 @@ class QEHChiCalc(ChiCalc):
         r = self.gd.get_grid_point_coordinates()
         return r[2, 0, 0, :].copy()
 
+    def get_largest_qmax(self, ecut: float):
+        # distance between neighboring q-points
+        dqc = 1 / self.Nk
+        dqv = dqc * self.gd.icell_cv[self.qdir] * 2 * pi
+        qmax = np.sqrt(2 * ecut) - dqv
+        return qmax
+
     def get_chi_wGG(self, qpoint: QPoint):
         if np.linalg.norm(qpoint.q_c) <= (2 * self.qinf_rel / self.Nk):
             chi0_dyson_eqs = self.df.get_chi0_dyson_eqs([0, 0, 0],
