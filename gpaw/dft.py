@@ -28,7 +28,9 @@ PARAMETER_NAMES = [
     'experimental', 'extensions', 'gpts', 'h', 'hund',
     'interpolation', 'kpts', 'magmoms', 'maxiter', 'mixer', 'nbands',
     'occupations', 'parallel', 'poissonsolver', 'random', 'setups', 'soc',
-    'spinpol', 'symmetry', 'xc']
+    'spinpol', 'symmetry', 'xc',
+    # for old GPAW:
+    'backgound_charge', 'external']
 
 
 class DeprecatedParameterWarning(FutureWarning):
@@ -914,7 +916,9 @@ def GPAW(
     txt: str | Path | IO[str] | None = '?',
     communicator: MPIComm | Sequence[int] | None = None,
     object_hooks=None,
-    _use_old_gpaw: bool | None = False) -> ASECalculator:
+    _use_old_gpaw: bool | None = False,
+    external=None,
+    background_charge=None) -> ASECalculator:
     """Create ASE-compatible GPAW calculator.
 
     See :class:`gpaw.dft.Parameters` for the complete list of parameters.
@@ -942,14 +946,19 @@ def GPAW(
 
     if _use_old_gpaw is None:
         if _USE_OLD_GPAW is None:
-            _use_old_gpaw = not GPAW_NEW
+            if GPAW_NEW == 147:
+                if filename is not None:
+                    _use_old_gpaw = False
+                else:
+                    _use_old_gpaw = not _can_use_new(kwargs)
+            else:
+                _use_old_gpaw = not GPAW_NEW
         else:
             _use_old_gpaw = _USE_OLD_GPAW
 
     if _use_old_gpaw:
         from gpaw.old.calculator import GPAW as OldGPAW
         if filename is None:
-            # filter, background_charge, external, verbose ?
             kwargs = {key: value
                       for key, value in kwargs.items() if value is not None}
             return OldGPAW(txt=txt, communicator=communicator, **kwargs)
@@ -977,7 +986,6 @@ def GPAW(
     return ASECalculator(params, log=log)
 
 
-# Not in use yet:
 def _can_use_new(kwargs) -> bool:
     try:
         params = Parameters(**kwargs)
