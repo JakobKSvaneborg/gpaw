@@ -962,11 +962,9 @@ def GPAW(
 
     if _use_old_gpaw:
         from gpaw.old.calculator import GPAW as OldGPAW
-        if filename is None:
-            kwargs = {key: value
-                      for key, value in kwargs.items() if value is not None}
-            return OldGPAW(txt=txt, communicator=communicator, **kwargs)
-        return OldGPAW(filename, txt=txt, parallel=parallel)
+        kwargs = {key: value
+                  for key, value in kwargs.items() if value is not None}
+        return OldGPAW(filename, txt=txt, communicator=communicator, **kwargs)
 
     if txt == '?':
         txt = '-' if filename is None else None
