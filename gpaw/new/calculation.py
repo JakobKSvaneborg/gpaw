@@ -109,7 +109,7 @@ class DFTCalculation:
         if not isinstance(log, Logger):
             log = Logger(log, comm)
 
-        builder = params.dft_component_builder(atoms, log=log)
+        builder = params.dft_component_builder(atoms, log=log, comm=comm)
 
         basis_set = builder.create_basis_set()
 
