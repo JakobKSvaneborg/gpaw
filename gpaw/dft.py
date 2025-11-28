@@ -943,6 +943,10 @@ def GPAW(
 
     kwargs = {key: value for key, value in locals().items()
               if key in PARAMETER_NAMES}
+    for key in ['background_charge', 'external']:
+        value = kwargs[key]
+        if value is None:
+            del kwargs[key]
 
     if _use_old_gpaw is None:
         if _USE_OLD_GPAW is None:
@@ -968,10 +972,6 @@ def GPAW(
         txt = '-' if filename is None else None
 
     log = Logger(txt, communicator)
-
-    for key in ['background_charge', 'external']:
-        value = kwargs.pop(key)
-        assert value is None
 
     if filename is not None:
         args = Parameters(mode='pw', **kwargs)._non_defaults
