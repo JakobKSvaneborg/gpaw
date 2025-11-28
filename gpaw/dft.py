@@ -880,7 +880,7 @@ def DFT(
     return params.dft_calculation(atoms, txt, communicator)
 
 
-_USE_OLD_GPAW = None
+_USE_OLD_GPAW = None  # used py the "gpaw_newp" parametrized fixture
 
 
 def GPAW(
@@ -914,7 +914,7 @@ def GPAW(
     txt: str | Path | IO[str] | None = '?',
     communicator: MPIComm | Sequence[int] | None = None,
     object_hooks=None,
-    _use_old_gpaw: bool | None = None) -> ASECalculator:
+    _use_old_gpaw: bool | None = False) -> ASECalculator:
     """Create ASE-compatible GPAW calculator.
 
     See :class:`gpaw.dft.Parameters` for the complete list of parameters.
@@ -948,7 +948,12 @@ def GPAW(
 
     if _use_old_gpaw:
         from gpaw.old.calculator import GPAW as OldGPAW
-        return OldGPAW(filename, txt=txt, communicator=communicator, **kwargs)
+        if filename is None:
+            # filter, background_charge, external, verbose ?
+            kwargs = {key: value
+                      for key, value in kwargs.items() if value is not None}
+            return OldGPAW(txt=txt, communicator=communicator, **kwargs)
+        return OldGPAW(filename, txt=txt, parallel=parallel)
 
     if txt == '?':
         txt = '-' if filename is None else None
@@ -972,6 +977,7 @@ def GPAW(
     return ASECalculator(params, log=log)
 
 
+# Not in use yet:
 def _can_use_new(kwargs) -> bool:
     try:
         params = Parameters(**kwargs)

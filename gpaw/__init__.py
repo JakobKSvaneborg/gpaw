@@ -223,12 +223,13 @@ if debug:
     np.empty = empty  # type: ignore[misc]
     np.empty_like = empty_like
 
-_NEW = None
 
 if TYPE_CHECKING:
     from gpaw.dft import GPAW
 else:
-    all_lazy_imports['GPAW'] = 'gpaw.dft.GPAW'
+    def GPAW(*args, _use_old_gpaw=None, **kwargs):
+        from gpaw.dft import GPAW as AnyGPAW
+        return AnyGPAW(*args, _use_old_gpaw=_use_old_gpaw, **kwargs)
 
 
 all_lazy_imports['get_calculation_info'] = 'gpaw.calcinfo.get_calculation_info'

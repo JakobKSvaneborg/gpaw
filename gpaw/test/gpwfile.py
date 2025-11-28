@@ -2025,7 +2025,7 @@ class GPWFiles(CachedFilesHandler):
             mixer={'beta': 0.75, 'nmaxold': 8, 'weight': 100.0},
             mode=PW(ecut),
             # Interpolate the density in real-space
-            interpolation=3, _use_new_gpaw=False,
+            interpolation=3, _use_old_gpaw=False,
             kpts={'size': (kpts, kpts, 1), 'gamma': True},
             occupations=FermiDirac(occw),
             convergence=conv,
