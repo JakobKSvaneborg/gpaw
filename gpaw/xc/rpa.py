@@ -361,7 +361,7 @@ class RPACorrelation(RPACalculator):
                  nlambda=None,
                  nfrequencies=16, frequency_max=800.0, frequency_scale=2.0,
                  frequencies=None, weights=None,
-                 world=mpi.world,
+                 world=None,
                  txt='-',
                  truncation: str | None = None,
                  **kwargs):
@@ -407,6 +407,7 @@ class RPACorrelation(RPACalculator):
             txt file for saving and loading contributions to the correlation
             energy from different q-points
         """
+        world = mpi.normalize_communicator(world)
         gs, context = get_gs_and_context(calc=calc, txt=txt, world=world,
                                          timer=None)
 
