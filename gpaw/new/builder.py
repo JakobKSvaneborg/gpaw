@@ -20,8 +20,8 @@ from gpaw.gpu import cpupy as fake_cupy
 from gpaw.gpu.mpi import CuPyMPI
 from gpaw.lfc import BasisFunctions
 from gpaw.mixer import MixerWrapper, get_mixer_from_keywords
-from gpaw.mpi import (MPIComm, Parallelization, broadcast, parallel,
-                      serial_comm, synchronize_atoms)
+from gpaw.mpi import (MPIComm, Parallelization, broadcast,
+                      normalize_communicator, serial_comm, synchronize_atoms)
 from gpaw.new import prod
 from gpaw.new.basis import create_basis
 from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints
@@ -42,14 +42,13 @@ if TYPE_CHECKING:
 
 
 class DFTComponentsBuilder:
-    @parallel(name='world')  # Passed to GPU set_device().  Can we pass comm?
     def __init__(self,
                  atoms: Atoms,
                  params: Parameters,
                  *,
                  log=None,
                  comm=None,
-                 world):
+                 world=None):
         from gpaw.gpu import set_device
 
         self.atoms = atoms.copy()
@@ -65,6 +64,7 @@ class DFTComponentsBuilder:
         if self.gpu:
             # XXX We should not be setting globals inside library code.
             # It should probably be set by main().
+            world = normalize_communicator(world)
             set_device(log, world)
 
         synchronize_atoms(atoms, comm)
