@@ -43,9 +43,10 @@ class KSSingles(ExcitationList):
     def __init__(self,
                  restrict={},
                  log=None,
-                 txt=None):
+                 txt=None,
+                 world=None):
         super().__init__(log=log, txt=txt)
-        self.world = mpi.world
+        self.world = mpi.normalize_communicator(world)
 
         self.restrict = KSSRestrictor()
         self.restrict.update(restrict)
