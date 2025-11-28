@@ -19,13 +19,15 @@ class DirOptPWFD(PWFDEigensolver):
                  *,
                  hamiltonian,
                  excited_state: bool = False,
-                 converge_unocc: bool = False):
+                 converge_unocc: bool = False,
+                 scalapack_params=(None, 1, 1, None)):
         # Lazy initialization of search_dir, done later in iterate()
         self.search_dir: LBFGS | None = None
         self.grad_unX: list[XArray] = []
         self.converge_unocc = converge_unocc
         self.dS_aii: AtomArrays
         self.nocc_s: list[int] = []
+        self.scalapack = scalapack_params
         super().__init__(hamiltonian)
 
     def new(self, **params) -> DirOptPWFD:
@@ -38,9 +40,7 @@ class DirOptPWFD(PWFDEigensolver):
                 potential: Potential,
                 hamiltonian: Hamiltonian,
                 pot_calc,
-                energies,
-                scalapack_params=(None, 1, 1, None)
-               ) -> tuple[float, float, DFTEnergies]:
+                energies) -> tuple[float, float, DFTEnergies]:
 
         if len(self.nocc_s) == 0:
             # init: setup preconditioner
@@ -69,7 +69,7 @@ class DirOptPWFD(PWFDEigensolver):
                 wfs.orthonormalized = False
                 H_nm = wfs.build_hamiltonian(Ht, potential.dH, tmp_nX)
                 wfs.subspace_eigenvalues(H_nm,
-                                         scalapack_params=scalapack_params,
+                                         scalapack_params=self.scalapack,
                                          eigenvalues_only=True)
 
             # update density and hamiltonian
@@ -183,7 +183,7 @@ class DirOptPWFD(PWFDEigensolver):
             wfs.orthonormalized = False
             H_nm = wfs.build_hamiltonian(Ht, potential.dH, tmp_nX)
             wfs.subspace_eigenvalues(H_nm,
-                                     scalapack_params=scalapack_params,
+                                     scalapack_params=self.scalapack,
                                      eigenvalues_only=True)
 
         if not self.converge_unocc:

@@ -38,9 +38,6 @@ class LBFGS:
         self.array_shape = array_shape
         self.dtype = dtype
 
-        # Counter for number of local iterations performed
-        self.local_iter = 0
-
         # Maximum number of previous steps to store for limited-memory Hessian
         self.memory = memory
 
@@ -51,6 +48,9 @@ class LBFGS:
         self.reset()
 
     def reset(self):
+        # Counter for number of local iterations performed
+        self.local_iter = 0
+
         # Current search direction
         self.search_dir = None
 
