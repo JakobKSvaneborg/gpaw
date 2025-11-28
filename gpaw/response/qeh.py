@@ -131,8 +131,9 @@ class QEHChiCalc(ChiCalc):
     def get_largest_qmax(self, ecut: float):
         # distance between neighboring q-points
         dqc = 1 / self.Nk
-        dqv = dqc * self.gd.icell_cv[self.qdir] * 2 * pi
-        qmax = np.sqrt(2 * ecut) - dqv
+        dq_v = dqc * self.gd.icell_cv[self.qdir] * 2 * pi
+        dq = np.linalg.norm(dq_v)
+        qmax = np.sqrt(2 * ecut) - dq
         return qmax
 
     def get_chi_wGG(self, qpoint: QPoint):
