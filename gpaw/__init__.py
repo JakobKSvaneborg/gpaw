@@ -179,7 +179,7 @@ all_lazy_imports = dict(
 # (`__getattr__()` magic handles the other boolean environment
 # variables, but GPAW_NEW is used within the same script, so it needs to
 # concretely exist in the namespace)
-GPAW_NEW = _get_gpaw_env_vars('GPAW_NEW')
+GPAW_NEW = int(os.environ.get('GPAW_NEW') or 0)
 
 if os.uname().machine == 'wasm32':
     GPAW_NO_C_EXTENSION = True

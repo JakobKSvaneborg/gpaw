@@ -30,7 +30,7 @@ PARAMETER_NAMES = [
     'occupations', 'parallel', 'poissonsolver', 'random', 'setups', 'soc',
     'spinpol', 'symmetry', 'xc',
     # for old GPAW:
-    'backgound_charge', 'external']
+    'background_charge', 'external']
 
 
 class DeprecatedParameterWarning(FutureWarning):
@@ -981,6 +981,10 @@ def GPAW(
                                          object_hooks=object_hooks)
         return ASECalculator(params,
                              log=log, dft=dft, atoms=atoms)
+
+    for key in ['background_charge', 'external']:
+        value = kwargs.pop(key)
+        assert value is None
 
     params = Parameters(**kwargs)
     return ASECalculator(params, log=log)
