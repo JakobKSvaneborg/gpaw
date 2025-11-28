@@ -6,7 +6,7 @@ from functools import cached_property
 import numpy as np
 import pytest
 
-from gpaw import debug, setup_paths
+from gpaw import debug, setup_paths, GPAW_NEW
 from gpaw.cli.info import info
 from gpaw.mpi import broadcast, world
 from gpaw.test.gpwfile import GPWFiles, _all_gpw_methodnames
@@ -452,15 +452,17 @@ def rng():
     return np.random.default_rng(42)
 
 
-@pytest.fixture(params=[False, True])
+@pytest.fixture
 def gpaw_new(request) -> bool:
     """Are we testing the new code?"""
-    if not request.param:
-        yield False
-        return
-    import gpaw
+    return GPAW_NEW
+
+
+@pytest.fixture(params=[False, True])
+def gpaw_newp(request) -> bool:
+    import gpaw.dft as dft
     try:
-        gpaw._NEW = True
+        dft._USE_OLD_GPAW = not request.param
         yield True  # GPAW_NEW
     finally:
-        gpaw._NEW = None
+        dft._USE_OLD_GPAW = None

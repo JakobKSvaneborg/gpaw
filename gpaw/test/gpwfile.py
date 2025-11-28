@@ -219,7 +219,7 @@ class GPWFiles(CachedFilesHandler):
                         [1.24409838, 0.93244792, 0.00000112]])
         atm.center(vacuum=4.0)
         atm.set_pbc(False)
-        atm.calc = GPAW(_new=False,
+        atm.calc = GPAW(_use_old_gpaw=True,
                         mode=FD(),
                         h=0.3,
                         xc='PBE',
@@ -248,7 +248,7 @@ class GPWFiles(CachedFilesHandler):
         atm.center(vacuum=4.0)
         atm.set_pbc(False)
         atm.calc = GPAW(
-            _new=False,
+            _use_old_gpaw=True,
             mode=PW(300, force_complex_dtype=True),
             xc="PBE",
             occupations={"name": "fixed-uniform"},
@@ -623,7 +623,7 @@ class GPWFiles(CachedFilesHandler):
     def h2o_mom_do_pw(self):
         atm = self.h2o_maker(vacuum=4.0)
         calc = GPAW(
-            _new=False,
+            _use_old_gpaw=True,
             mode=PW(300),
             spinpol=True,
             symmetry="off",
@@ -876,7 +876,7 @@ class GPWFiles(CachedFilesHandler):
                    positions=[[-d / 2, 0, 0],
                               [d / 2, 0, 0]])
         h2.center(vacuum=3)
-        calc = GPAW(_new=False,
+        calc = GPAW(_use_old_gpaw=True,
                     mode=PW(300),
                     # h=0.3,
                     xc={'name': 'HSE06', 'backend': 'pw'},
@@ -1631,7 +1631,7 @@ class GPWFiles(CachedFilesHandler):
         atoms, qm_spacing, gpts = poissonsolver.cut_cell(atoms, vacuum=2.50)
 
         # Initialize GPAW
-        gs_calc = GPAW(_new=False,
+        gs_calc = GPAW(_use_old_gpaw=True,
                        mode='fd',
                        txt=self.folder / 'na2_isolated.txt',
                        gpts=gpts,
@@ -2024,7 +2024,7 @@ class GPWFiles(CachedFilesHandler):
             mixer={'beta': 0.75, 'nmaxold': 8, 'weight': 100.0},
             mode=PW(ecut),
             # Interpolate the density in real-space
-            interpolation=3,
+            interpolation=3, _use_new_gpaw=False,
             kpts={'size': (kpts, kpts, 1), 'gamma': True},
             occupations=FermiDirac(occw),
             convergence=conv,
@@ -2099,7 +2099,7 @@ class GPWFiles(CachedFilesHandler):
             xc=xc,
             mode=PW(pw),
             # Interpolate the density in real-space
-            interpolation=3,
+            interpolation=3, _use_old_gpaw=False,
             kpts={'size': (kpts, kpts // 2, 1), 'gamma': True},
             mixer={'beta': 0.5},
             setups={'V': '5'},

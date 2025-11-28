@@ -11,6 +11,7 @@ from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
 from numpy.typing import DTypeLike
 
+from gpaw import GPAW_NEW
 from gpaw.mpi import MPIComm
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.logger import Logger
@@ -879,6 +880,9 @@ def DFT(
     return params.dft_calculation(atoms, txt, communicator)
 
 
+_USE_OLD_GPAW = None
+
+
 def GPAW(
     filename: str | Path | IO[str] | None = None,
     *,
@@ -909,7 +913,8 @@ def GPAW(
     xc: str | dict | XC | None = None,
     txt: str | Path | IO[str] | None = '?',
     communicator: MPIComm | Sequence[int] | None = None,
-    object_hooks=None) -> ASECalculator:
+    object_hooks=None,
+    _use_old_gpaw: bool | None = None) -> ASECalculator:
     """Create ASE-compatible GPAW calculator.
 
     See :class:`gpaw.dft.Parameters` for the complete list of parameters.
@@ -929,16 +934,26 @@ def GPAW(
     from gpaw.new.ase_interface import ASECalculator
     from gpaw.new.gpw import read_gpw
 
-    if txt == '?':
-        txt = '-' if filename is None else None
-
-    log = Logger(txt, communicator)
-
     if mode is None:
         del mode
 
     kwargs = {key: value for key, value in locals().items()
               if key in PARAMETER_NAMES}
+
+    if _use_old_gpaw is None:
+        if _USE_OLD_GPAW is None:
+            _use_old_gpaw = not GPAW_NEW
+        else:
+            _use_old_gpaw = _USE_OLD_GPAW
+
+    if _use_old_gpaw:
+        from gpaw.old.calculator import GPAW as OldGPAW
+        return OldGPAW(filename, txt=txt, communicator=communicator, **kwargs)
+
+    if txt == '?':
+        txt = '-' if filename is None else None
+
+    log = Logger(txt, communicator)
 
     if filename is not None:
         args = Parameters(mode='pw', **kwargs)._non_defaults
@@ -955,3 +970,21 @@ def GPAW(
 
     params = Parameters(**kwargs)
     return ASECalculator(params, log=log)
+
+
+def _can_use_new(kwargs) -> bool:
+    try:
+        params = Parameters(**kwargs)
+    except NotImplementedError:
+        return False
+    if params.mode.name == 'lcao':
+        return False
+    xcname = params.xc.name
+    if xcname.startswith('GLLB'):
+        return False
+    FD_HYBRIDS = {'EXX', 'PBE0', 'B3LYP',
+                  'CAMY-BLYP', 'CAMY-B3LYP',
+                  'LCY-BLYP', 'LCY-PBE'}
+    if params.mode.name == 'fd' and xcname in FD_HYBRIDS:
+        return False
+    return True
