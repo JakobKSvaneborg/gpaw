@@ -155,19 +155,7 @@ class GPAW(Calculator):
         self.observers = []  # XXX move to self.scf
         self.initialized = False
 
-        if not hasattr(communicator, 'new_communicator'):
-            # Handle list of ranks or similar
-
-            @mpi.parallel
-            def _get_world(comm):
-                # This gets the actual world communicator but subject
-                # to anti-parallel-deadlock identity checking
-                return comm
-
-            communicator = _get_world().new_communicator(
-                np.asarray(communicator))
-
-        self.world = communicator
+        self.world = mpi.normalize_communicator(communicator)
         self.log = GPAWLogger(world=self.world)
         self.log.fd = txt
 
