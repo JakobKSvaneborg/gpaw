@@ -21,7 +21,7 @@ class DirOptPWFD(PWFDEigensolver):
                  excited_state: bool = False,
                  converge_unocc: bool = False):
         # Lazy initialization of search_dir, done later in iterate()
-        self.search_dir: LBFGSAdapter | None = None
+        self.search_dir: LBFGS | None = None
         self.grad_unX: list[XArray] = []
         self.converge_unocc = converge_unocc
         self.dS_aii: AtomArrays
@@ -183,7 +183,7 @@ class DirOptPWFD(PWFDEigensolver):
         # should be discouraged completely in pwfd
 
         # reset search direction
-        self.search_dir = LBFGSAdapter()
+        self.search_dir = LBFGS()
 
         grad_unX = []
         psit_unX = []

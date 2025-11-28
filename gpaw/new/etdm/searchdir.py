@@ -177,7 +177,6 @@ class LBFGS:
             # Return updated search direction
             return self.search_dir
 
-
     def update_distributed(self, psit_unX, pg_unX):
         """
         Convert distributed vectors to NumPy arrays,
