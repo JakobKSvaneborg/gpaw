@@ -8,8 +8,6 @@ import time
 import numpy as np
 from ase.utils.timing import Timer
 
-import gpaw.mpi as mpi
-
 
 class NullTimer:
     """Compatible with Timer and StepTimer interfaces.  Does nothing."""
@@ -52,6 +50,7 @@ nulltimer = NullTimer()
 
 class DebugTimer(Timer):
     def __init__(self, print_levels=1000, comm=None, txt=sys.stdout):
+        import gpaw.mpi as mpi
         comm = mpi.normalize_communicator(comm)
 
         super().__init__(print_levels)
@@ -175,6 +174,7 @@ class ParallelTimer(DebugTimer):
 
     See the tool gpaw-plot-parallel-timings."""
     def __init__(self, prefix='timings', flush=False, world=None):
+        import gpaw.mpi as mpi
         world = mpi.normalize_communicator(world)
         # XXX This has global world
         # but when we print info, we talk to wfs.world
@@ -205,6 +205,7 @@ class ParallelTimer(DebugTimer):
 class Profiler(Timer):
     def __init__(self, prefix, comm=None):
         import atexit
+        import gpaw.mpi as mpi
 
         self.prefix = prefix
         self.comm = mpi.normalize_communicator(comm)
