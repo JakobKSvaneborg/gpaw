@@ -67,10 +67,12 @@ class DirOptPWFD(PWFDEigensolver):
                 wfs._P_ani = None
                 tmp_nX = wfs.psit_nX.new()
                 wfs.orthonormalized = False
+                wfs.orthonormalize(tmp_nX)
                 H_nm = wfs.build_hamiltonian(Ht, potential.dH, tmp_nX)
                 wfs.subspace_eigenvalues(H_nm,
-                                         scalapack_params=self.scalapack,
                                          eigenvalues_only=True)
+                # wfs.subspace_diagonalize(Ht, potential.dH, tmp_nX,
+                #                          eigenvalues_only=True)
 
             # update density and hamiltonian
             energies, potential = update_density_and_potential(
@@ -167,9 +169,6 @@ class DirOptPWFD(PWFDEigensolver):
         return 0.0, error, energies
 
     def postprocess(self, ibzwfs, density, potential, hamiltonian):
-        # reset search direction
-        self.search_dir.reset()
-        self.grad_unX = []
 
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
@@ -181,10 +180,16 @@ class DirOptPWFD(PWFDEigensolver):
             wfs._P_ani = None
             tmp_nX = wfs.psit_nX.new()
             wfs.orthonormalized = False
+            wfs.orthonormalize(tmp_nX)
             H_nm = wfs.build_hamiltonian(Ht, potential.dH, tmp_nX)
             wfs.subspace_eigenvalues(H_nm,
-                                     scalapack_params=self.scalapack,
                                      eigenvalues_only=True)
+            # wfs.subspace_diagonalize(Ht, potential.dH, tmp_nX,
+            #                          eigenvalues_only=True)
+
+        # reset search direction
+        self.search_dir.reset()
+        self.grad_unX = []
 
         if not self.converge_unocc:
             return

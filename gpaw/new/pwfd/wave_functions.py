@@ -330,7 +330,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                              dH,
                              psit2_nX,
                              data_buffer=None,
-                             scalapack_parameters=(None, 1, 1, None)):
+                             scalapack_parameters=(None, 1, 1, None),
+                             eigenvalues_only=False):
         """
         If data_buffer is None, psit2_nX will be used as a buffer
         for the wave functions.
@@ -350,6 +351,10 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         H_nm = self.build_hamiltonian(Ht, dH, psit2_nX)
         self.subspace_eigenvalues(H_nm,
                                   scalapack_params=scalapack_parameters)
+
+        if eigenvalues_only:
+            return
+
         self.apply_hamiltonian(H_nm, psit2_nX, data_buffer)
 
 
