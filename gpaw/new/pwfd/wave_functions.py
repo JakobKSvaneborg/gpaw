@@ -281,7 +281,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         return H_nm
 
     @trace
-    def subspace_eigenvalues(self, H_nm, eigenvalues_only=False,
+    def subspace_eigenvalues(self, H_nm,
                              scalapack_params=(None, 1, 1, None)):
 
         psit_nX = self.psit_nX
@@ -300,29 +300,30 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
         # broad cast eigenvalues
         domain_comm.broadcast(self.eig_n, 0)
-        if eigenvalues_only:
-            return
 
         # broadcast eigenvectors (not needed if only eigenvalues used)
         domain_comm.broadcast(H_nm.data, 0)
         return
 
     @trace
-    def apply_hamiltonian(self, H_nm, psit2_nX, data_buffer):
-        # apply hamiltonian to wavefunction
+    def canonical_transformation(self, H_nm, psit2_nX, data_buffer):
+        # transform to canonical representation
+        # needed for force calculations
         psit_nX = self.psit_nX
+        self.cpsit_nX = self.psit_nX.new()
         P_ani = self.P_ani
         P2_ani = P_ani.new()
+        self.cP_ani = P_ani.new()
         if data_buffer is None:
             H_nm.multiply(psit_nX, out=psit2_nX)
-            psit_nX.data[:] = psit2_nX.data
+            self.cpsit_nX.data[:] = psit2_nX.data
             H_nm.multiply(P_ani, out=P2_ani)
-            P_ani.data[:] = P2_ani.data
-        else:
-            H_nm.multiply(psit_nX, out=psit_nX, data_buffer=data_buffer)
-            H_nm.multiply(psit2_nX, out=psit2_nX, data_buffer=data_buffer)
-            H_nm.multiply(P_ani, out=P2_ani)
-            P_ani.data[:] = P2_ani.data
+            self.cP_ani.data[:] = P2_ani.data
+        # else:
+        #     H_nm.multiply(psit_nX, out=psit_nX, data_buffer=data_buffer)
+        #     H_nm.multiply(psit2_nX, out=psit2_nX, data_buffer=data_buffer)
+        #     H_nm.multiply(P_ani, out=P2_ani)
+        #     P_ani.data[:] = P2_ani.data
 
     @trace
     def subspace_diagonalize(self,
@@ -330,8 +331,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                              dH,
                              psit2_nX,
                              data_buffer=None,
-                             scalapack_parameters=(None, 1, 1, None),
-                             eigenvalues_only=False):
+                             scalapack_parameters=(None, 1, 1, None)):
         """
         If data_buffer is None, psit2_nX will be used as a buffer
         for the wave functions.
@@ -351,11 +351,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         H_nm = self.build_hamiltonian(Ht, dH, psit2_nX)
         self.subspace_eigenvalues(H_nm,
                                   scalapack_params=scalapack_parameters)
-
-        if eigenvalues_only:
-            return
-
-        self.apply_hamiltonian(H_nm, psit2_nX, data_buffer)
+        self.canonical_transformation(H_nm, psit2_nX, data_buffer)
 
 
     def force_contribution(self,
@@ -371,12 +367,12 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             self._non_collinear_force_contribution(dH_asii, myocc_n, F_av)
             return
 
-        F_anvi = self.pt_aiX.derivative(self.psit_nX)
+        F_anvi = self.pt_aiX.derivative(self.cpsit_nX)
         for a, F_nvi in F_anvi.items():
             F_nvi = F_nvi.conj()
             F_nvi *= myocc_n[:, np.newaxis, np.newaxis]
             dH_ii = dH_asii[a][self.spin]
-            P_ni = self.P_ani[a]
+            P_ni = self.cP_ani[a]
             F_vii = xp.einsum('nvi, nj, jk -> vik', F_nvi, P_ni, dH_ii)
             F_nvi *= myeig_n[:, np.newaxis, np.newaxis]
             dO_ii = xp.asarray(self.setups[a].dO_ii)
