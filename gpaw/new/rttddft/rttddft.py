@@ -159,7 +159,7 @@ class RTTDDFT:
                    history=history, dft_params=calc.params,
                    td_algorithm=td_algorithm)
 
-    @paralle(name='world')
+    @parallel(name='world')
     @classmethod
     def from_dft_file(cls,
                       filepath: str,

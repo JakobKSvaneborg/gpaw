@@ -1,12 +1,9 @@
-from glob import glob
-
 import numpy as np
 import pytest
 from ase.build import molecule, mx2
 
 from gpaw import GPAW
 from gpaw.borncharges import born_charges_wf
-from gpaw.mpi import world
 
 
 def test_born_charges_wf(in_tmp_dir, gpw_files, comm):

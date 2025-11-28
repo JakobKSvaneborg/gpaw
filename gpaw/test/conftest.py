@@ -453,6 +453,7 @@ def no_touch_world(monkeypatch, _not_world):
         assert ase.parallel.world.comm is mpi.world
         monkeypatch.setattr(ase.parallel.world, 'comm', None)
 
+
 @pytest.fixture(scope='session')
 def _not_world():
     from gpaw.mpi import world

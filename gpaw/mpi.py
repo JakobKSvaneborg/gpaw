@@ -8,7 +8,6 @@ import sys
 import time
 import traceback
 import warnings
-from collections.abc import Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -889,7 +888,7 @@ def _check_world_protected(comm):
         raise DontDoThat('We are in no-touch-world mode and touched world')
 
 
-def normalize_communicator(comm: MPIComm | Sequence[int] | None) -> MPIComm:
+def normalize_communicator(comm: MPIComm | None) -> MPIComm:
     if comm is None:
         _check_world_protected(world)
         comm = world

@@ -4,7 +4,6 @@ import contextlib
 import io
 import os
 import sys
-from collections.abc import Sequence
 from functools import cache
 from pathlib import Path
 from typing import IO, Any

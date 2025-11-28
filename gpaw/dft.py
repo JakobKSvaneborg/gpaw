@@ -775,7 +775,7 @@ class Parameters:
     def dft_calculation(self,
                         atoms,
                         txt: str | Path | IO[str] | None = '-',
-                        communicator: MPIComm | Sequence[int] | None = None
+                        communicator: MPIComm | None = None
                         ) -> DFTCalculation:
         log = Logger(txt, communicator)
         return DFTCalculation.from_parameters(atoms, self, log.comm, log)
@@ -856,7 +856,7 @@ def DFT(
     symmetry: str | dict | Symmetry | None = None,
     xc: str | dict | XC | None = None,
     txt: str | Path | IO[str] | None = '-',
-    communicator: MPIComm | Sequence[int] | None = None) -> DFTCalculation:
+    communicator: MPIComm | None = None) -> DFTCalculation:
     """Create a DFTCalculation object.
 
     See :class:`gpaw.dft.Parameters` for the complete list of parameters.
@@ -906,7 +906,7 @@ def GPAW(
     symmetry: str | dict | Symmetry | None = None,
     xc: str | dict | XC | None = None,
     txt: str | Path | IO[str] | None = '?',
-    communicator: MPIComm | Sequence[int] | None = None,
+    communicator: MPIComm | None = None,
     object_hooks=None) -> ASECalculator:
     """Create ASE-compatible GPAW calculator.
 
