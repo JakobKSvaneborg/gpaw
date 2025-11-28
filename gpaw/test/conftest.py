@@ -449,8 +449,9 @@ def no_touch_world(monkeypatch, _not_world):
         for attr in 'comm', 'rank', 'size':
             monkeypatch.delattr(mpi.world, attr)
 
-        # XXX This needs a fix in ASE
-        assert ase.parallel.world.comm is mpi.world
+        # XXX This is pretty brittle wrt. ASE internals
+        # (also requires new ASE master 2025-11-28)
+        import ase.parallel
         monkeypatch.setattr(ase.parallel.world, 'comm', None)
 
 
