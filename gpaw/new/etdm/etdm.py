@@ -47,9 +47,8 @@ class ETDM:
         # Initialize LBFGS search direction algorithm
         # `searchdir_algo` keeps track of the search direction `p_u`
         # and performs the quasi-Newton update.
-        self.searchdir_algo = LBFGS(
-            objfunc.kpt_comm , a_u_init.shape, objfunc._dtype
-        )
+        self.searchdir_algo = LBFGS(array_shape=a_u_init.shape, dtype=objfunc._dtype,
+                                    kpt_comm=objfunc.kpt_comm)
 
         self.iter = 0                   # Iteration counter
         self._tolerance = tolerance     # Convergence threshold

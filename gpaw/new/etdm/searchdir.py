@@ -2,7 +2,8 @@ import numpy as np
 
 
 class LBFGS:
-    def __init__(self, kpt_comm, array_shape, dtype, memory=5):
+    def __init__(self, *, array_shape=None, dtype=None,
+                 array_unX=None, kpt_comm=None, memory=5):
         """
         L-BFGS optimizer initialization.
 
@@ -12,11 +13,27 @@ class LBFGS:
             Shape of the parameter array.
         dtype : type
             Data type of arrays (float or complex).
+        array_unX : list[UGArray]
+            Distributed parameter array.
         kpt_comm : object
             Communication object for summing quantities over k-points
         memory : int
             Number of past steps to store for the L-BFGS approximation.
         """
+
+        if array_shape is None:
+            # retrieve array_shape from distributed object
+            assert array_unX is not None
+            assert dtype is None
+            # Grab the first wave function data to infer array properties
+            first = array_unX[0].data
+
+            # The LBFGS optimizer works on NumPy arrays
+            # we need the full shape
+            array_shape = (len(array_unX),) + first.shape
+
+            # Data type of the wave function
+            dtype = first.dtype
 
         # Counter for number of local iterations performed
         self.local_iter = 0
@@ -161,26 +178,17 @@ class LBFGS:
             return self.search_dir
 
 
-class LBFGSAdapter:
-    """
-    Adapter to allow the new NumPy-based L-BFGS
-    to replace the Vector-based LBFGS.
-    """
-
-    def __init__(self, array_shape, kpt_comm, dtype, memory=5):
-        self.lbfgs_new = LBFGS(kpt_comm, array_shape, dtype, memory)
-
-    def update(self, psit_unX, pg_unX):
+    def update_distributed(self, psit_unX, pg_unX):
         """
-        Convert old-style vectors to NumPy arrays,
-        call new L-BFGS, and convert back.
+        Convert distributed vectors to NumPy arrays,
+        call L-BFGS, and convert back.
         """
         # Convert old vectors to NumPy arrays
         a_cur = np.stack([x.data for x in psit_unX])
         g_cur = np.stack([g.data for g in pg_unX])
 
         # Call the new LBFGS
-        p_cur = self.lbfgs_new.update(a_cur, g_cur)
+        p_cur = self.update(a_cur, g_cur)
 
         # Convert back to old-style objects
         p_unX_new = []

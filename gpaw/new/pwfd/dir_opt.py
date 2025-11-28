@@ -9,7 +9,7 @@ from gpaw.new.pwfd.eigensolver import PWFDEigensolver
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.potential import Potential
 from gpaw.new.ibzwfs import IBZWaveFunctions
-from gpaw.new.etdm.searchdir import LBFGSAdapter
+from gpaw.new.etdm.searchdir import LBFGS
 from gpaw.new.energies import DFTEnergies
 from gpaw.new import trace
 
@@ -107,26 +107,15 @@ class DirOptPWFD(PWFDEigensolver):
             pg_nX.data *= -1.0 / (2 * (3 - len(self.nocc_s)))
             pg_unX.append(pg_nX)
 
-        # Initialize LBFGSAdapter here (once we know the shape/dtype)
+        # initialize LBFGS
         if self.search_dir is None:
-            # Grab the first wave function data to infer array properties
-            first = psit_unX[0].data
-
-            # The new LBFGS optimizer works on NumPy arrays
-            # we need the full shape
-            array_shape = (len(psit_unX),) + first.shape
-
-            # Data type of the wave function
-            dtype = first.dtype
-
             # Communication object
             kpt_comm = getattr(ibzwfs, 'kpt_comm', None)
 
-            # Create the adapter that bridges ETDM’s vector-based interface
-            # with the new LBFGS implementation
-            self.search_dir = LBFGSAdapter(array_shape, kpt_comm, dtype)
+            # Create LBFGS
+            self.search_dir = LBFGS(array_unX=psit_unX, kpt_comm=kpt_comm)
 
-        p_unX = self.search_dir.update(psit_unX, pg_unX)
+        p_unX = self.search_dir.update_distributed(psit_unX, pg_unX)
         for wfs, p_nX in zips(ibzwfs, p_unX):
             # projecting search direction on tangent space at psi
             # is slightly different from project gradient
@@ -221,7 +210,7 @@ class DirOptPWFD(PWFDEigensolver):
                 pg_nX.data *= -1.0 / (2 * (3 - len(self.nocc_s)))
                 pg_unX.append(pg_nX)
 
-            p_unX = self.search_dir.update(psit_unX, pg_unX)
+            p_unX = self.search_dir.update_distributed(psit_unX, pg_unX)
             for wfs, p_nX in zips(ibzwfs, p_unX):
                 project_gradient(p_nX, wfs)
 
