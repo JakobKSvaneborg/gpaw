@@ -63,6 +63,8 @@ class DFTComponentsBuilder:
 
         parallel = params.parallel
         if self.gpu:
+            # XXX We should not be setting globals inside library code.
+            # It should probably be set by main().
             set_device(log, world)
 
         synchronize_atoms(atoms, comm)

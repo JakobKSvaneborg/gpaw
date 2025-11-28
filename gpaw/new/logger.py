@@ -28,8 +28,8 @@ def indent(text: Any, indentation='  ') -> str:
 
 class Logger:
     def __init__(self,
-                 filename: str | Path | IO[str] | None = '-',
-                 comm: MPIComm | Sequence[int] = None):
+                 filename: str | Path | IO[str] | None,
+                 comm: MPIComm | None):
 
         self.close_fd = False  # To be set later
         self.comm = normalize_communicator(comm)
