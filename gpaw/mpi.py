@@ -894,6 +894,10 @@ def normalize_communicator(comm: MPIComm | Sequence[int] | None) -> MPIComm:
         _check_world_protected(world)
         comm = world
     elif not hasattr(comm, 'new_communicator'):
+        import warnings
+        warnings.warn('Please pass a communicator object instead of a '
+                      'sequence of ranks.  That will not be supported in '
+                      'the future.', FutureWarning)
         # comm is a list of ranks.
         # Maybe we don't truly need the communicator=<list of ranks> syntax?
         _check_world_protected(world)
