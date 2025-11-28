@@ -282,12 +282,12 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
     @trace
     def subspace_eigenvalues(self, H_nm, eigenvalues_only=False,
-                             scalapack_parameters=(None, 1, 1, None)):
+                             scalapack_params=(None, 1, 1, None)):
 
         psit_nX = self.psit_nX
         domain_comm = psit_nX.desc.comm
         if domain_comm.rank == 0:
-            slcomm, r, c, b = scalapack_parameters
+            slcomm, r, c, b = scalapack_params
             if r == c == 1:
                 slcomm = None
             self.eig_n = as_np(H_nm.eigh(scalapack=(slcomm, r, c, b)),
@@ -349,7 +349,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
         H_nm = self.build_hamiltonian(Ht, dH, psit2_nX)
         self.subspace_eigenvalues(H_nm,
-                                  scalapack_parameters=scalapack_parameters)
+                                  scalapack_params=scalapack_parameters)
         self.apply_hamiltonian(H_nm, psit2_nX, data_buffer)
 
 

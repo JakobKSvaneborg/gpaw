@@ -35,30 +35,38 @@ class LBFGS:
             # Data type of the wave function
             dtype = first.dtype
 
+        self.array_shape = array_shape
+        self.dtype = dtype
+
         # Counter for number of local iterations performed
         self.local_iter = 0
 
         # Maximum number of previous steps to store for limited-memory Hessian
         self.memory = memory
 
+        # Communication object for parallel sum across k-points
+        self.kpt_comm = kpt_comm
+
+        # init empty arrays
+        self.reset()
+
+    def reset(self):
+        # Current search direction
+        self.search_dir = None
+
         # Previous gradient and variable arrays
         self.g_old = None
         self.a_old = None
 
-        # Current search direction
-        self.search_dir = None
-
         # Arrays to store last 'memory' differences in variables and gradients
         # ds[m] ~ change in parameters (search direction)
         # dy[m] ~ change in gradients
-        self.ds = np.zeros(shape=(memory,) + array_shape, dtype=dtype)
-        self.dy = np.zeros(shape=(memory,) + array_shape, dtype=dtype)
+        var_shape = (self.memory,) + self.array_shape
+        self.ds = np.zeros(shape=var_shape, dtype=self.dtype)
+        self.dy = np.zeros(shape=var_shape, dtype=self.dtype)
 
         # Scaling factors for L-BFGS (1 / (y^T * s))
-        self.rho = np.zeros(memory, dtype=dtype)
-
-        # Communication object for parallel sum across k-points
-        self.kpt_comm = kpt_comm
+        self.rho = np.zeros(self.memory, dtype=self.dtype)
 
     def update(self, a_cur, g_cur):
         """
