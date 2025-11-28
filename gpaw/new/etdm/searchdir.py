@@ -2,7 +2,7 @@ import numpy as np
 
 
 class LBFGS:
-    def __init__(self, array_shape, kpt_comm, dtype, memory=5):
+    def __init__(self, kpt_comm, array_shape, dtype, memory=5):
         """
         L-BFGS optimizer initialization.
 
@@ -10,10 +10,10 @@ class LBFGS:
         ----------
         array_shape : tuple
             Shape of the parameter array.
-        kpt_comm : object
-            Communication object for summing quantities over k-points
         dtype : type
             Data type of arrays (float or complex).
+        kpt_comm : object
+            Communication object for summing quantities over k-points
         memory : int
             Number of past steps to store for the L-BFGS approximation.
         """
@@ -168,7 +168,7 @@ class LBFGSAdapter:
     """
 
     def __init__(self, array_shape, kpt_comm, dtype, memory=5):
-        self.lbfgs_new = LBFGS(array_shape, kpt_comm, dtype, memory)
+        self.lbfgs_new = LBFGS(kpt_comm, array_shape, dtype, memory)
 
     def update(self, psit_unX, pg_unX):
         """
