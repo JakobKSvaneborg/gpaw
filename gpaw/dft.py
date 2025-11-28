@@ -969,6 +969,10 @@ def GPAW(
 
     log = Logger(txt, communicator)
 
+    for key in ['background_charge', 'external']:
+        value = kwargs.pop(key)
+        assert value is None
+
     if filename is not None:
         args = Parameters(mode='pw', **kwargs)._non_defaults
         if set(args) > {'mode', 'parallel'}:
@@ -981,10 +985,6 @@ def GPAW(
                                          object_hooks=object_hooks)
         return ASECalculator(params,
                              log=log, dft=dft, atoms=atoms)
-
-    for key in ['background_charge', 'external']:
-        value = kwargs.pop(key)
-        assert value is None
 
     params = Parameters(**kwargs)
     return ASECalculator(params, log=log)
