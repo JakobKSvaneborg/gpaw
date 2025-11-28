@@ -400,7 +400,7 @@ class DFTCalculation:
         else:
             psit_nR = None
         if broadcast:
-            psit_nR = bcast(psit_nR, 0, self.comm)
+            psit_nR = bcast(psit_nR, 0, comm=self.comm)
         return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
 
     def new(self,

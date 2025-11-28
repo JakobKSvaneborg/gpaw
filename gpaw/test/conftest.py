@@ -24,7 +24,7 @@ def execute_in_tmp_path(request, tmp_path_factory):
         path = tmp_path_factory.mktemp(basename)
     else:
         path = None
-    path = broadcast(path)
+    path = broadcast(path, comm=world)
     cwd = os.getcwd()
     os.chdir(path)
     try:
