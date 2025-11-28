@@ -281,7 +281,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         return H_nm
 
     @trace
-    def subspace_eigenvalues(self, H_nm,
+    def subspace_eigenvalues(self, H_nm, eigenvalues_only=False,
                              scalapack_parameters=(None, 1, 1, None)):
 
         psit_nX = self.psit_nX
@@ -298,10 +298,13 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         else:
             self.eig_n = np.empty(psit_nX.dims[0])
 
-        # broadcast eigenvectors (XXX not needed if only eigenvalues used)
-        # and eigenvalues
-        domain_comm.broadcast(H_nm.data, 0)
+        # broad cast eigenvalues
         domain_comm.broadcast(self.eig_n, 0)
+        if eigenvalues_only:
+            return
+
+        # broadcast eigenvectors (not needed if only eigenvalues used)
+        domain_comm.broadcast(H_nm.data, 0)
         return
 
     @trace
