@@ -189,6 +189,7 @@ class DirOptPWFD(PWFDEigensolver):
         # should be discouraged completely in pwfd
 
         psit_unX = []
+        grad_unX = []
 
         # build first gradient
         for wfs in ibzwfs:

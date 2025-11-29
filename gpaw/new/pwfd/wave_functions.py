@@ -353,7 +353,6 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                                   scalapack_params=scalapack_parameters)
         self.canonical_transformation(H_nm, psit2_nX, data_buffer)
 
-
     def force_contribution(self,
                            potential: Potential,
                            F_av: Array2D) -> None:
