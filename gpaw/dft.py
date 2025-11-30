@@ -950,7 +950,7 @@ def GPAW(
 
     if _use_old_gpaw is None:
         if _USE_OLD_GPAW is None:
-            if GPAW_NEW == 147:
+            if 1:  # GPAW_NEW == 147:
                 if filename is not None:
                     _use_old_gpaw = False
                 else:
