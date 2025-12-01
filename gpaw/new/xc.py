@@ -44,6 +44,8 @@ def create_functional(xc: OldXCFunctional | str | dict,
         functional = GGAFunctional(xc, grid, xp)
     elif xc.type == 'MGGA':
         functional = MGGAFunctional(xc, grid)
+    elif xc.type == 'GLLB':
+        raise NotImplementedError
     else:
         raise ValueError(f'{xc.type} not supported')
 
