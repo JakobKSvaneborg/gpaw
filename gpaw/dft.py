@@ -57,10 +57,13 @@ class Mode(Parameter):
     def __init__(self,
                  *,
                  dtype: DTypeLike | None = None,
-                 force_complex_dtype: bool = False):
+                 force_complex_dtype: bool = False,
+                 interpolation=117):
         self.dtype = dtype
         self.force_complex_dtype = force_complex_dtype
         self.name = self.__class__.__name__.lower()
+        if interpolation != 117:
+            raise NotImplementedError
 
     def todict(self) -> dict:
         dct = self._not_none('dtype')
@@ -948,11 +951,13 @@ def GPAW(
         if value is None:
             del kwargs[key]
 
+    use_old_if_reading_fails = False
     if _use_old_gpaw is None:
         if _USE_OLD_GPAW is None:
             if 1:  # GPAW_NEW == 147:
                 if filename is not None:
                     _use_old_gpaw = False
+                    use_old_if_reading_fails = True
                 else:
                     _use_old_gpaw = not _can_use_new(kwargs)
             else:
@@ -977,10 +982,16 @@ def GPAW(
             raise ValueError(
                 'Illegal argument(s) when reading from a file: '
                 f'{", ".join(args)}')
-        atoms, dft, params, _ = read_gpw(filename,
-                                         log=log,
-                                         parallel=parallel,
-                                         object_hooks=object_hooks)
+        try:
+            atoms, dft, params, _ = read_gpw(filename,
+                                             log=log,
+                                             parallel=parallel,
+                                             object_hooks=object_hooks)
+        except NotImplementedError:
+            if use_old_if_reading_fails:
+                from gpaw.old.calculator import GPAW as OldGPAW
+                return OldGPAW(filename, txt=txt, communicator=communicator)
+            raise
         return ASECalculator(params,
                              log=log, dft=dft, atoms=atoms)
 
@@ -996,11 +1007,13 @@ def _can_use_new(kwargs) -> bool:
     if params.mode.name == 'lcao':
         return False
     xcname = params.xc.name
-    if xcname.startswith('GLLB'):
+    if xcname.startswith(('GLLB', 'TB09')):
         return False
     FD_HYBRIDS = {'EXX', 'PBE0', 'B3LYP',
                   'CAMY-BLYP', 'CAMY-B3LYP',
                   'LCY-BLYP', 'LCY-PBE'}
     if params.mode.name == 'fd' and xcname in FD_HYBRIDS:
+        return False
+    if xcname.startswith('LCY-PBE:'):
         return False
     return True

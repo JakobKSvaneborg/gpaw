@@ -17,7 +17,7 @@ class HirshfeldDensity(RealSpaceDensity):
 
     @parallel(name='world')
     def __init__(self, calculator, log=None, *, world):
-        self.calculator = calculator
+        self.calculator = calculator._to_old()
         dens = self.calculator.density
         super().__init__(dens.gd, dens.finegd,
                          dens.nspins, collinear=True, charge=0.0,
