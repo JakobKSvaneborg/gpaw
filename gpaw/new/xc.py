@@ -224,7 +224,7 @@ class GGAFunctional(LDAFunctional):
               density,
               interpolate: Callable[[UGArray], UGArray]
               ) -> tuple[tuple[UGArray, ...], dict]:
-        args, kwargs = LDAFunctional._args(self, ibzwfs, density, interpolate)
+        args, kwargs = super()._args(ibzwfs, density, interpolate)
         if args:
             e_r, nt_sr, vt_sr = args
             gradn_svr, sigma_xr = gradient_and_sigma(self.grad_v, nt_sr)
@@ -237,7 +237,7 @@ class GGAFunctional(LDAFunctional):
                 e_r, nt_sr, vt_sr, sigma_xr, dedsigma_xr,
                 gradn_svr,
                 ) -> Array2D:
-        stress_vv = LDAFunctional._stress(self, e_r, nt_sr, vt_sr)
+        stress_vv = super()._stress(e_r, nt_sr, vt_sr)
         P = 0.0
         for sigma_r, dedsigma_r in zip(sigma_xr, dedsigma_xr):
             P -= 2 * sigma_r.integrate(dedsigma_r, skip_sum=True)
@@ -344,7 +344,7 @@ class MGGAFunctional(GGAFunctional):
               ibzwfs,
               density,
               interpolate: Callable[[UGArray], UGArray]):
-        args, kwargs = GGAFunctional._args(self, ibzwfs, density, interpolate)
+        args, kwargs = super()._args(ibzwfs, density, interpolate)
         taut_swR = _taut(ibzwfs, density.nt_sR.desc)
 
         if not args:

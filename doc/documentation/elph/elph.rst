@@ -31,7 +31,7 @@ Within the PAW framework to Kohn-Sham potential can be split into a local part `
 
     V^{KS} = V + \Delta H^a_{i_1 i_2}.
 
-In GPAW `\nabla_u V^{KS}(\mathbf{r})` is determined using the finite difference method in a supercell. The potential at the displaced coordinates is computed by the :meth:`~gpaw.elph.DisplacementRunner` class, which is based on ASEs ``ase.phonon.Displacement`` class. The central difference derivative, as evaluted in the :meth:`~gpaw.elph.Supercell` class, consists of four contributions:
+In GPAW `\nabla_u V^{KS}(\mathbf{r})` is determined using the finite difference method in a supercell. The potential at the displaced coordinates is computed by the :meth:`~gpaw.elph.DisplacementRunner` class, which is based on ASEs ``ase.phonon.Displacement`` class. The central difference derivative, as evaluated in the :meth:`~gpaw.elph.Supercell` class, consists of four contributions:
 
 .. math::
 
@@ -57,7 +57,7 @@ Finally, the electron-phonon coupling matrix is obtained by projecting the super
 where `C_{nM}` are the LCAO coefficients and `\mathbf{u}_{q \nu}` are the mass-scaled phonon displacement vectors.
 
 
-Checkout :ref:`elph` for an example and exerice and :ref:`raman` and :ref:`elphraman` for an application.
+Checkout :ref:`elph` for an example and exercise and :ref:`raman` and :ref:`elphraman` for an application.
 
 ----------
 References

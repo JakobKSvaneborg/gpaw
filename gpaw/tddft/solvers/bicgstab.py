@@ -4,7 +4,7 @@ gradient stabilized method. Requires Numpy and GPAW's own BLAS."""
 
 import numpy as np
 
-from gpaw.mpi import world
+from gpaw.mpi import parallel
 from gpaw.utilities.blas import axpy
 
 from .base import BaseSolver
@@ -25,7 +25,8 @@ class BiCGStab(BaseSolver):
     Now x and b are multivectors, i.e., list of vectors.
     """
 
-    def solve(self, A, x, b):
+    @parallel(name='world')
+    def solve(self, A, x, b, world):
         if self.timer is not None:
             self.timer.start('BiCGStab')
 

@@ -15,11 +15,11 @@ from gpaw.utilities.progressbar import ProgressBar
 class Integrand(ABC):
     @abstractmethod
     def matrix_element(self, point):
-        ...
+        """Return matrix element at point."""
 
     @abstractmethod
     def eigenvalues(self, point):
-        ...
+        """Return eigenvalue at point."""
 
 
 def czher(alpha: float, x, A) -> None:
@@ -149,7 +149,7 @@ class GenericUpdate(IntegralTask):
         deps2_m = deps_m - 1j * self.eta
 
         blocks1d = Blocks1D(self.blockcomm, chi0_wGG.shape[2])
-
+        n_Gm = np.ascontiguousarray(n_mG.T)
         for omega, chi0_GG in zip(wd.omega_w, chi0_wGG):
             x_m = (1 / (omega + deps1_m) - 1 / (omega - deps2_m))
             if blocks1d.blockcomm.size > 1:
@@ -157,8 +157,7 @@ class GenericUpdate(IntegralTask):
             else:
                 nx_mG = n_mG * x_m[:, np.newaxis]
 
-            mmm(1.0, np.ascontiguousarray(nx_mG.T), 'N', n_mG.conj(), 'N',
-                1.0, chi0_GG)
+            mmm(1.0, nx_mG, 'T', n_Gm, 'C', 1.0, chi0_GG)
 
 
 class Hermitian(IntegralTask):
@@ -175,16 +174,16 @@ class Hermitian(IntegralTask):
         deps_m += self.eshift * np.sign(deps_m)
 
         blocks1d = Blocks1D(self.blockcomm, chi0_wGG.shape[2])
-
+        nc_mG = n_mG.conj()
         for w, omega in enumerate(wd.omega_w):
             if blocks1d.blockcomm.size == 1:
                 x_m = np.abs(2 * deps_m / (omega.imag**2 + deps_m**2))**0.5
-                nx_mG = n_mG.conj() * x_m[:, np.newaxis]
+                nx_mG = nc_mG * x_m[:, np.newaxis]
                 rk(-1.0, nx_mG, 1.0, chi0_wGG[w], 'n')
             else:
                 x_m = np.abs(2 * deps_m / (omega.imag**2 + deps_m**2))
                 mynx_mG = n_mG[:, blocks1d.myslice] * x_m[:, np.newaxis]
-                mmm(-1.0, mynx_mG, 'T', n_mG.conj(), 'N', 1.0, chi0_wGG[w])
+                mmm(-1.0, mynx_mG, 'T', nc_mG, 'N', 1.0, chi0_wGG[w])
 
 
 class Hilbert(IntegralTask):
@@ -289,11 +288,11 @@ class OpticalLimit(IntegralTask):
 
         deps1_m = deps_m + 1j * self.eta
         deps2_m = deps_m - 1j * self.eta
-
+        nc_mG = n_mG.conj()
         for w, omega in enumerate(wd.omega_w):
             x_m = (1 / (omega + deps1_m) - 1 / (omega - deps2_m))
-            chi0_wxvG[w, 0] += np.dot(x_m * n_mG[:, :3].T, n_mG.conj())
-            chi0_wxvG[w, 1] += np.dot(x_m * n_mG[:, :3].T.conj(), n_mG)
+            chi0_wxvG[w, 0] += np.dot(x_m * n_mG[:, :3].T, nc_mG)
+            chi0_wxvG[w, 1] += np.dot(x_m * nc_mG[:, :3].T, n_mG)
 
 
 class HermitianOpticalLimit(IntegralTask):
@@ -307,11 +306,11 @@ class HermitianOpticalLimit(IntegralTask):
     def run(self, wd, n_mG, deps_m, chi0_wxvG):
         """Optical limit update of hermitian chi."""
         deps_m += self.eshift * np.sign(deps_m)
-
+        nc_mG = n_mG.conj()
         for w, omega in enumerate(wd.omega_w):
             x_m = - np.abs(2 * deps_m / (omega.imag**2 + deps_m**2))
-            chi0_wxvG[w, 0] += np.dot(x_m * n_mG[:, :3].T, n_mG.conj())
-            chi0_wxvG[w, 1] += np.dot(x_m * n_mG[:, :3].T.conj(), n_mG)
+            chi0_wxvG[w, 0] += np.dot(x_m * n_mG[:, :3].T, nc_mG)
+            chi0_wxvG[w, 1] += np.dot(x_m * nc_mG[:, :3].T, n_mG)
 
 
 class HilbertOpticalLimit(IntegralTask):
@@ -341,10 +340,11 @@ class HilbertOpticalLimit(IntegralTask):
             p1 = p * (o2 - o)
             p2 = p * (o - o1)
             x_vG = np.outer(n_G[:3], n_G.conj())
+            xc_vG = x_vG.conj()
             chi0_wxvG[w, 0, :, :] += p1 * x_vG
             chi0_wxvG[w + 1, 0, :, :] += p2 * x_vG
-            chi0_wxvG[w, 1, :, :] += p1 * x_vG.conj()
-            chi0_wxvG[w + 1, 1, :, :] += p2 * x_vG.conj()
+            chi0_wxvG[w, 1, :, :] += p1 * xc_vG
+            chi0_wxvG[w + 1, 1, :, :] += p2 * xc_vG
 
 
 class Point:
@@ -532,8 +532,8 @@ class HilbertOpticalLimitTetrahedron:
                                             i0_M, i1_M):
             if i0 == i1:
                 continue
-
+            x_vG = np.outer(n_G[:3], n_G.conj())
+            xc_vG = x_vG.conj()
             for iw, weight in enumerate(W_w):
-                x_vG = np.outer(n_G[:3], n_G.conj())
                 out_wxvG[i0 + iw, 0, :, :] += weight * x_vG
-                out_wxvG[i0 + iw, 1, :, :] += weight * x_vG.conj()
+                out_wxvG[i0 + iw, 1, :, :] += weight * xc_vG

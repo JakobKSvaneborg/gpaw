@@ -295,11 +295,11 @@ class Environment(ABC):
 
     @abstractmethod
     def radiation_reaction_field(self, timestep, dipole_tv):
-        raise NotImplementedError
+        """Returns radiation field at a given timestep and dipole_tv."""
 
     @abstractmethod
     def todict(self):
-        raise NotImplementedError
+        """Writes Environment object to dict."""
 
 
 class WaveguideEnvironment(Environment):

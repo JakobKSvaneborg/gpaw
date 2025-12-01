@@ -113,7 +113,7 @@ to install ASR-Lib_::
 
     Pip may need to compile some code.
     It is therefore safest to use the ``thul`` login node to pip install
-    software as it is the oldest CPU architcture and the other login nodes
+    software as it is the oldest CPU architecture and the other login nodes
     will understand its code.
 
 .. _ASR-Lib: https://asr-lib.fysik.dtu.dk/

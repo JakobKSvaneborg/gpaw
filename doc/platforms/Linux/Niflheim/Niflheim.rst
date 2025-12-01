@@ -9,7 +9,7 @@ Information about the Niflheim cluster can be found at
 `<https://niflheim-system.readthedocs.io/>`_.
 
 There are two ways to use GPAW on Niflheim.  You can use a preinstalled GPAW,
-or you can compile it yourself (the latter is mainly for GPAW developpers).
+or you can compile it yourself (the latter is mainly for GPAW developers).
 
 * If you compile it yourself, please refer to the guide
   :ref:`Compiling GPAW on Niflheim <build on niflheim>`.

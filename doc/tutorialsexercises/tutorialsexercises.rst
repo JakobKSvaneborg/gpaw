@@ -9,7 +9,7 @@ If you are not familiar with ASE, consider going through the
 
 The GPAW tutorials and exercises are meant to guide the user through some scripts.
 The first section of tutorials cover the most common tasks.
-Further topics are organised by topic. Pick among them according to your interest.
+Further topics are organized by topic. Pick among them according to your interest.
 
 
 The exercises are used in the course `Electronic structure methods

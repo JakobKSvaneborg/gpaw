@@ -2,7 +2,7 @@ import pytest
 from ase import Atoms
 
 from gpaw import GPAW
-from gpaw.eigensolvers.rmmdiis import RMMDIIS
+from gpaw.eigensolvers import RMMDIIS
 
 
 @pytest.mark.legacy

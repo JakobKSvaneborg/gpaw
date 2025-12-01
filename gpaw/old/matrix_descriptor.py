@@ -75,7 +75,7 @@ class BandMatrixDescriptor(MatrixDescriptor):
     """Descriptor-class for square matrices of bands times bands."""
 
     def __init__(self, bd, gd, ksl):
-        MatrixDescriptor.__init__(self, bd.nbands, bd.nbands)
+        super().__init__(bd.nbands, bd.nbands)
         self.bd = bd
         self.gd = gd  # XXX used?
         self.ksl = ksl  # not really used...
@@ -302,7 +302,7 @@ class BlacsBandMatrixDescriptor(MatrixDescriptor):
 
     def __init__(self, bd, gd, ksl):
         # XXX a hack...
-        MatrixDescriptor.__init__(self, bd.nbands, bd.mynbands)
+        super().__init__(bd.nbands, bd.mynbands)
         self.bd = bd
         self.gd = gd  # XXX used?
         self.ksl = ksl

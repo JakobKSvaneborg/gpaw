@@ -59,7 +59,7 @@ class H1s(State):
         self.energy = - Z ** 2 / 2.
         if gd is not None:
             self.grid_g = None
-            State.__init__(self, gd)
+            super().__init__(gd)
 
     def get_grid(self):
         if self.grid_g is None:

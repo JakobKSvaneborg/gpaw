@@ -10,10 +10,10 @@ from ase.utils.timing import Timer
 from numpy.linalg import inv
 from scipy.linalg import eigh
 
-from gpaw.mpi import world
 from gpaw import debug
 from gpaw.helmholtz import HelmholtzSolver
 from gpaw.lrtddft.omega_matrix import OmegaMatrix
+from gpaw.mpi import parallel
 from gpaw.pair_density import PairDensity
 from gpaw.utilities.blas import mmm
 
@@ -321,12 +321,13 @@ class ApmB(OmegaMatrix):
 
             self.eigenvalues, self.eigenvectors.T[:] = eigh(self.eigenvectors)
 
-    def read(self, filename=None, fh=None):
+    @parallel(name='world')
+    def read(self, filename=None, fh=None, *, world):
         """Read myself from a file"""
         if world.rank == 0:
             with IOContext() as io:
                 if fh is None:
-                    fd = io.openfile(filename, 'r', comm=self.paw.world)
+                    fd = io.openfile(filename, 'r', comm=world)
                 else:
                     fd = fh
                 fd.readline()
@@ -353,12 +354,13 @@ class ApmB(OmegaMatrix):
         """weight for the coupling matrix terms"""
         return 2.
 
-    def write(self, filename=None, fh=None):
+    @parallel(name='world')
+    def write(self, filename=None, fh=None, *, world):
         """Write current state to a file."""
         if world.rank == 0:
             with IOContext() as io:
                 if fh is None:
-                    fd = io.openfile(filename, 'r', comm=self.paw.world)
+                    fd = io.openfile(filename, 'r', comm=world)
                 else:
                     fd = fh
                 fd.write('# A+B\n')

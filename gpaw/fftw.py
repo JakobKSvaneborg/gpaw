@@ -390,7 +390,7 @@ class FFTWPlan(FFTPlan):
         if not have_fftw():
             raise ImportError('Not compiled with FFTW.')
         self._ptr = cgpaw.FFTWPlan(in_R, out_R, sign, flags)
-        FFTPlan.__init__(self, in_R, out_R, sign, flags)
+        super().__init__(in_R, out_R, sign, flags)
 
     def execute(self):
         cgpaw.FFTWExecute(self._ptr)

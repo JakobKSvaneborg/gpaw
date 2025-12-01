@@ -52,13 +52,13 @@ class DebugTimer(Timer):
     def __init__(self, print_levels=1000, comm=None, txt=sys.stdout):
         import gpaw.mpi as mpi
         comm = comm or mpi.world
-        Timer.__init__(self, print_levels)
+        super().__init__(print_levels)
         ndigits = 1 + int(math.log10(comm.size))
         self.srank = '%0*d' % (ndigits, comm.rank)
         self.txt = txt
 
     def start(self, name):
-        Timer.start(self, name)
+        super().start(name)
         abstime = time.time()
         t = self.timers[tuple(self.running)] + abstime
         self.txt.write('T%s >> %15.8f %s (%7.5fs) started\n'
@@ -71,7 +71,7 @@ class DebugTimer(Timer):
         t = self.timers[tuple(self.running)] + abstime
         self.txt.write('T%s << %15.8f %s (%7.5fs) stopped\n'
                        % (self.srank, abstime, name, t))
-        Timer.stop(self, name)
+        super().stop(name)
 
 
 class GPUEvent:
@@ -143,18 +143,18 @@ class GPUTimer(Timer, GPUTimerBase):
         GPUTimerBase.__init__(self)
 
     def start(self, name):
-        Timer.start(self, name)
-        GPUTimerBase.gpu_start(self, name)
+        super().start(name)
+        super().gpu_start(name)
 
     def stop(self, name=None):
-        Timer.stop(self, name)
-        GPUTimerBase.gpu_stop(self)
+        super().stop(name)
+        super().gpu_stop()
 
     def write(self, out=sys.stdout):
         print('CPU event timings:', file=out)
-        Timer.write(self, out)
+        super().write(out)
         print('GPU event timings:', file=out)
-        GPUTimerBase.gpu_write(self, out)
+        super().gpu_write(out)
 
 
 def ranktxt(comm, rank=None):
@@ -176,13 +176,13 @@ class ParallelTimer(DebugTimer):
         import gpaw.mpi as mpi
         fname = f'{prefix}.{ranktxt(mpi.world)}.txt'
         txt = open(fname, 'w', buffering=1 if flush else -1)
-        DebugTimer.__init__(self, comm=mpi.world, txt=txt)
+        super().__init__(comm=mpi.world, txt=txt)
         self.prefix = prefix
 
     def print_info(self, calc):
         """Print information about parallelization into a file."""
         fd = open('%s.metadata.txt' % self.prefix, 'w')
-        DebugTimer.print_info(self, calc)
+        super().print_info(calc)
         wfs = calc.wfs
 
         # We won't have to type a lot if everyone just sends all their numbers.
@@ -214,7 +214,7 @@ class Profiler(Timer):
         self.u = 1_000_000
 
         self.synchronize()
-        Timer.__init__(self, 1000)
+        super().__init__(1000)
 
     def synchronize(self):
         # Synchronize in order to have same time reference
@@ -242,7 +242,7 @@ class Profiler(Timer):
         self.comm.barrier()
 
     def start(self, name):
-        Timer.start(self, name)
+        super().start(name)
         self.txt.write(
             f"""{{"name": "{name}", "cat": "PERF", "ph": "B","""
             f""" "pid": {self.pid}, "tid": "{self.ranktxt}", """
@@ -255,7 +255,7 @@ class Profiler(Timer):
             f"""{{"name": "{name}", "cat": "PERF", "ph": "E", """
             f""""pid": {self.pid}, "tid": "{self.ranktxt}", """
             f""""ts": {int((time.time() - self.ref) * self.u)}}},\n""")
-        Timer.stop(self, name)
+        super().stop(name)
 
 
 class GPUProfiler(Profiler, GPUTimerBase):
@@ -289,12 +289,12 @@ class GPUProfiler(Profiler, GPUTimerBase):
         self.ref = buf[0]
 
     def start(self, name, gpu=False):
-        Profiler.start(self, name)
+        super().start(name)
         if gpu:
-            GPUTimerBase.gpu_start(self, name)
+            super().gpu_start(name)
 
     def stop(self, name=None, gpu=False):
-        Profiler.stop(self, name)
+        super().stop(name)
         if gpu:
             GPUTimerBase.gpu_stop(self)
 
@@ -315,69 +315,3 @@ class GPUProfiler(Profiler, GPUTimerBase):
             f"""{{"name": "{event.name}", "cat": "PERF", "ph": "E", """
             f""""pid": {self.pid}, "tid": "GPU {self.ranktxt}", """
             f""""ts": {int(ms_stop * 1000)} }},\n""")
-
-
-class HPMTimer(Timer):
-    """HPMTimer requires installation of the IBM BlueGene/P HPM
-    middleware interface to the low-level UPC library. This will
-    most likely only work at ANL's BlueGene/P. Must compile
-    with GPAW_HPM macro in customize.py. Note that HPM_Init
-    and HPM_Finalize are called in cgpaw.c and not in the Python
-    interface. Timer must be called on all ranks in node, otherwise
-    HPM will hang. Hence, we only call HPM_start/stop on a list
-    subset of timers."""
-
-    top_level = 'GPAW.calculator'  # HPM needs top level timer
-    compatible = ['Initialization', 'SCF-cycle']
-
-    def __init__(self):
-        Timer.__init__(self)
-        from gpaw.cgpaw import hpm_start, hpm_stop
-        self.hpm_start = hpm_start
-        self.hpm_stop = hpm_stop
-        hpm_start(self.top_level)
-
-    def start(self, name):
-        Timer.start(self, name)
-        if name in self.compatible:
-            self.hpm_start(name)
-
-    def stop(self, name=None):
-        Timer.stop(self, name)
-        if name in self.compatible:
-            self.hpm_stop(name)
-
-    def write(self, out=sys.stdout):
-        Timer.write(self, out)
-        self.hpm_stop(self.top_level)
-
-
-class CrayPAT_timer(Timer):
-    """Interface to CrayPAT API. In addition to regular timers,
-    the corresponding regions are profiled by CrayPAT. The gpaw-python had
-    to be compiled under CrayPAT, so maybe this does not work now that
-    gpaw-python is no longer a thing.
-    """
-
-    def __init__(self, print_levels=4):
-        Timer.__init__(self, print_levels)
-        from gpaw.cgpaw import craypat_region_begin, craypat_region_end
-        self.craypat_region_begin = craypat_region_begin
-        self.craypat_region_end = craypat_region_end
-        self.regions = {}
-        self.region_id = 5  # leave room for regions in C
-
-    def start(self, name):
-        Timer.start(self, name)
-        if name in self.regions:
-            id = self.regions[name]
-        else:
-            id = self.region_id
-            self.regions[name] = id
-            self.region_id += 1
-        self.craypat_region_begin(id, name)
-
-    def stop(self, name=None):
-        Timer.stop(self, name)
-        id = self.regions[name]
-        self.craypat_region_end(id)

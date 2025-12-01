@@ -56,7 +56,7 @@ class CachedFilesHandler(ABC):
 
     @abstractmethod
     def _calculate_and_write(self, name, work_path):
-        pass
+        """Get name from self and write to work_path."""
 
 
 class Locked(FileExistsError):

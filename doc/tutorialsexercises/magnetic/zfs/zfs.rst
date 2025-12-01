@@ -22,7 +22,7 @@ Diamond NV- center
 ------------------
 
 For a NV center in a cubic supercell, the D and E values are presented below
-with and without relaxaing the cell. The experimental value is around 2880
+with and without relaxing the cell. The experimental value is around 2880
 MHz.
 
 .. csv-table::

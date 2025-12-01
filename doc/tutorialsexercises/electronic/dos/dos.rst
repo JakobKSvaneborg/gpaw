@@ -279,7 +279,7 @@ DOS can be also be projected onto the LCAO basis functions.
 A subspace of the atomic orbitals is required as an input
 onto which one wants the projected density of states. For
 example, if the p orbitals of a particular atom in have the
-indices 41, 42 and 43, and the PDOS is required on the subpspace
+indices 41, 42 and 43, and the PDOS is required on the subspace
 of these three orbital then an array ``[41, 42, 43]`` has to be given
 as an input for the PDOS calculation.
 

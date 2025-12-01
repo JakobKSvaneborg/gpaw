@@ -89,7 +89,7 @@ class DistributedArrays(Generic[DomainType], XP):
         else:
             from gpaw.gpu import cupy as cp
             xp = cp
-        XP.__init__(self, xp)
+        super().__init__(xp)
         self._matrix: Matrix | None = None
 
     def new(self, data=None, dims=None) -> DistributedArrays:

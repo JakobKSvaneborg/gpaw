@@ -101,7 +101,7 @@ class LDARadialCalculator:
 class LDA(XCFunctional):
     def __init__(self, kernel):
         self.kernel = kernel
-        XCFunctional.__init__(self, kernel.name, kernel.type)
+        super().__init__(kernel.name, kernel.type)
 
     def calculate_impl(self, gd, n_sg, v_sg, e_g):
         self.kernel.calculate(e_g, n_sg, v_sg)

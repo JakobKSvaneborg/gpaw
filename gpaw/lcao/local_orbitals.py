@@ -596,7 +596,7 @@ class LocalOrbitals(TightBinding):
         # Broute force hack to restore matrices.
         H_NMM = self.H_NMM
         S_NMM = self.S_NMM
-        ret = TightBinding.band_structure(self, path_kc, blochstates)
+        ret = super().band_structure(path_kc, blochstates)
         self.H_NMM = H_NMM
         self.S_NMM = S_NMM
         return ret

@@ -10,25 +10,63 @@ from ase.geometry import find_mic
 _avg_methods_ = ['atoms', 'sparse-planar', 'full-planar']
 
 
+def charged_defect_corrections(calc_pristine, calc_defect, defect_index=0,
+                               ecut=500, charge=None, epsilon=None,
+                               rc=2.0 * Bohr, ravg=2.5, method='full-planar'):
+    """
+    Makes ElectrostaticCorrections instance for charged defects.
+
+    calc_pristine: ``GPAW`` calculator for neutral pristine reference
+
+    calc_defect: ``GPAW`` calculator for charged defect
+
+    defect_index: index of defect site in the pristine reference
+
+    charge: charge state of the defect calculation
+
+    epsilon: macroscopic electrostatic constant of the host system
+
+    ecut: energy cutoff for ``calculate_model_potential`` [eV]
+
+    rc: spread of the model charge distribution [Angstrom]
+
+    ravg: average radius for bulk-atom average [Angstrom]
+
+    method: method selection string
+
+    """
+    # init ElectrostaticCorrections
+    phiR_prs = gather_electrostatic_potential(calc_pristine)
+    phiR_def = gather_electrostatic_potential(calc_defect)
+    atoms_prs = calc_pristine.get_atoms()
+    r0 = atoms_prs.positions[defect_index, :]
+    sigma = rc / (2. * np.sqrt(2. * np.log(2.)))
+    return ElectrostaticCorrections(phi_pristine=phiR_prs,
+                                    phi_defect=phiR_def,
+                                    r0=r0,
+                                    charge=charge,
+                                    sigma=sigma,
+                                    epsilon=epsilon,
+                                    method=method,
+                                    atoms_pristine=atoms_prs)
+
+
 def build_ugarray(atoms, data):
     grid = UGDesc(cell=atoms.cell, size=data.shape, pbc=atoms.pbc)
     return UGArray(grid, data=data)
 
 
 def gather_electrostatic_potential(calc):
-    if calc.old:
-        # create UGArray from old GPAW data
-        phi_r = calc.get_electrostatic_potential()
-        atoms = calc.get_atoms()
-        phi_R = build_ugarray(atoms, phi_r)
-    else:
-        phi_R = calc.dft.electrostatic_potential().pseudo_potential()
-
-    # XXX should get rid of broadcast
-    return phi_R.gather(broadcast=True)
+    # create UGArray from GPAW data
+    phi_r = calc.get_electrostatic_potential()
+    atoms = calc.get_atoms()
+    phi_R = build_ugarray(atoms, phi_r)
+    phi_R = phi_R.gather(broadcast=True)
+    return phi_R
 
 
-def plot_potentials(profile, png=None):
+def plot_potentials(profile, png=None,
+                    def_pot_label=r'$V^{v_\mathrm{Ga}^{-3}}_\mathrm{el}(z)$'):
     from matplotlib import pyplot as plt
 
     z = profile['z']
@@ -38,10 +76,10 @@ def plot_potentials(profile, png=None):
     dphi_avg = profile['dphi']
 
     plt.plot(z, dV, '-', label=r'$\Delta V(z)$')
-    plt.plot(z, V_m, '-', label='$V(z)$')
+    plt.plot(z, V_m, '-', label=r'$V_\mathrm{model}(z)$')
     plt.plot(z, dV_defprs, '-',
-             label=(r'$[V^{V_\mathrm{Ga}^{-3}}_\mathrm{el}(z) -'
-                    r'V^{0}_\mathrm{el}(z) ]$'))
+             label=(def_pot_label
+                    + r' - $V^{0}_\mathrm{el}(z) ]$'))
 
     plt.axhline(dphi_avg, ls='dashed')
     plt.axhline(0.0, ls='-', color='grey')
@@ -58,7 +96,7 @@ def plot_potentials(profile, png=None):
 
 class ElectrostaticCorrections():
     """
-    Calculate the electrostatic corrections for charged defects.
+    Calculate the electrostatic corrections for electrostatic potentials.
 
     phi_pristine: ``UGArray`` pristine electrostatic_potential [eV]
 
@@ -99,7 +137,7 @@ class ElectrostaticCorrections():
 
         self.cell_cv = phi_pristine.desc.cell / Bohr    # Bohr
         self.sigma = sigma / Bohr                       # Bohr
-        self.r0 = np.array(r0) / Bohr                   # Bohr
+        self.r0_v = np.array(r0) / Bohr                 # Bohr
         self.ravg = ravg / Bohr                         # Bohr
         self.charge = charge
         self.epsilon = epsilon
@@ -163,8 +201,9 @@ class ElectrostaticCorrections():
         Eli = 0.5 * self.charge ** 2 / np.pi ** 0.5 / eps / sgm
         return Eli
 
-    def calculate_model_potential(self, r_vR):
-        # need to backtransform phi_G -> phi_r = sum_G exp(i G * r) phi_G
+    def calculate_model_potential(self, rr0_vR):
+        # need to backtransform
+        # phi_G -> phi_r = sum_G exp(i G * (r - r0)) phi_G
 
         G_Gv = self.G_Gv
         phi_G = self.phi_G
@@ -177,7 +216,7 @@ class ElectrostaticCorrections():
         # assuming G: (ng, 3), r: (3, nx, ny, nz), phi_G: (ng,)
         # compute G * r for all G and grid points
         # shape: (ng, nx, ny, nz)
-        Gr = np.einsum('gi,i...->g...', G_Gv, r_vR)
+        Gr = np.einsum('gi,i...->g...', G_Gv, rr0_vR)
 
         # compute exp(i * G * r)
         # shape: (ng, nx, ny, nz)
@@ -218,12 +257,12 @@ class ElectrostaticCorrections():
         # assumes self.r_vR being on a regular grid
         # evaluate grid index of cartesian vector
         # convert to reduced (fractional) coordinates
-        s0_v = np.linalg.solve(self.cell_cv.T, r0_v)
-        return np.array(np.round(ng_v * s0_v, 0), dtype=int) % ng_v
+        s0_c = np.linalg.solve(self.cell_cv.T, r0_v)
+        return np.array(np.round(ng_v * s0_c, 0), dtype=int) % ng_v
 
     def bulk_atom_average(self):
         # in pristine obtain atom positions closest to the defect_site
-        defect_index = np.argmin(self.prs_mic_dist(self.r0))
+        defect_index = np.argmin(self.prs_mic_dist(self.r0_v))
 
         # locate atom farest away from the defect [Bohr]
         rdefect_v = self.atoms_prs.positions[defect_index, :] / Bohr
@@ -243,7 +282,7 @@ class ElectrostaticCorrections():
         nx, ny, nz = self.ngc_v
 
         # find defect grid index
-        _, _, idef_z = self.find_grid_index(self.r0)
+        _, _, idef_z = self.find_grid_index(self.r0_v)
         iblk_z = (idef_z + nz // 2) % nz
 
         if 'full' in self.method:
@@ -295,8 +334,9 @@ class ElectrostaticCorrections():
         iy = np.linspace(0, ny - 1, nsample, dtype=int)
         igx, igy = np.meshgrid(ix, iy)
 
-        z_vR = self.rc_vR[:, igx, igy, :]
-        phi_model = self.calculate_model_potential(z_vR)
+        z0_vR = self.rc_vR[:, igx, igy, :]
+        zr0_vR = z0_vR - self.r0_v[(...,) + (np.newaxis,) * 3]
+        phi_model = self.calculate_model_potential(zr0_vR)
         phiz_model = np.mean(phi_model, axis=(0, 1))
 
         zaxis = self.rc_vR[2, 0, 0, :]
@@ -331,7 +371,8 @@ class ElectrostaticCorrections():
         r_vR = self.rc_vR[:, ix, iy, iz]
 
         # get model potential inside the averaging region
-        phi_model = self.calculate_model_potential(r_vR)
+        rr0_vR = r_vR - self.r0_v[(...,) + (np.newaxis,) * 3]
+        phi_model = self.calculate_model_potential(rr0_vR)
 
         dphi = phi_model - (phi_def - phi_prs)
         dphi_avg = np.average(dphi)

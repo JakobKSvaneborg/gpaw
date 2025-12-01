@@ -24,7 +24,7 @@ def execute_in_tmp_path(request, tmp_path_factory):
         path = tmp_path_factory.mktemp(basename)
     else:
         path = None
-    path = broadcast(path)
+    path = broadcast(path, comm=world)
     cwd = os.getcwd()
     os.chdir(path)
     try:
@@ -40,7 +40,7 @@ def set_device():
     def log(*args, **kwargs):
         kwargs.pop('parallel', None)
         print(*args, **kwargs)
-    set_device(log)
+    set_device(log, world)
 
 
 @pytest.fixture(scope='module')
@@ -149,7 +149,7 @@ def gpw_files(request):
     * Polyethylene chain.  One unit, 3 k-points, no symmetry:
       ``c2h4_pw_nosym``.  Three units: ``c6h12_pw``.
 
-    * Bulk BN (zinkblende) with 2x2x2 k-points and 9 converged bands:
+    * Bulk BN (zincblende) with 2x2x2 k-points and 9 converged bands:
       ``bn_pw``.
 
     * h-BN layer with 3x3x1 (gamma center) k-points and 26 converged bands:
@@ -331,6 +331,12 @@ class GPAWPlugin:
         terminalreporter.section('GPAW-MPI stuff')
         terminalreporter.write(f'size: {world.size}\n')
         terminalreporter.write(f'debug-mode: {debug}\n')
+
+
+@pytest.fixture(scope='function')
+def not_parallelized(comm):
+    if comm.size > 1:
+        pytest.skip('Test/target of the test not parallelized.')
 
 
 @pytest.fixture

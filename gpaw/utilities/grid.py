@@ -2,6 +2,7 @@ from functools import partial
 
 import numpy as np
 
+from gpaw.mpi import parallel
 from gpaw.utilities.grid_redistribute import general_redistribute
 from gpaw.utilities.partition import AtomicMatrixDistributor, AtomPartition
 
@@ -161,8 +162,8 @@ def grid2grid(comm, gd1, gd2, src_g, dst_g, offset1_c=None, offset2_c=None,
                          src_g, dst_g, xp=xp)
 
 
-def main():
-    from gpaw.mpi import world
+@parallel(name='world')
+def main(world):
     from gpaw.old.grid_descriptor import GridDescriptor
 
     serial = world.new_communicator([world.rank])

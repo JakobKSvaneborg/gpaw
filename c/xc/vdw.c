@@ -175,8 +175,8 @@ PyObject * vdw2(PyObject* self, PyObject *args)
   const double* phi_jp = (const double*)PyArray_DATA(phi_jp_obj);
   const long* j_k = (const long*)PyArray_DATA(j_k_obj);
   const double* dk_k = (const double*)PyArray_DATA(dk_k_obj);
-  const complex double* theta_k = (const complex double*)PyArray_DATA(theta_k_obj);
-  complex double* F_k = (complex double*)PyArray_DATA(F_k_obj);
+  const double_complex* theta_k = (const double_complex*)PyArray_DATA(theta_k_obj);
+  double_complex* F_k = (double_complex*)PyArray_DATA(F_k_obj);
 
   int nk = PyArray_SIZE(j_k_obj);
   for (int k = 0; k < nk; k++)

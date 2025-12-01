@@ -130,7 +130,7 @@ January 6, 2025: :git:`25.1.0 <../25.1.0>`
 
 * The :meth:`gpaw.calculator.GPAW.fixed_density` method now respects the
   ``update_fermi_level`` argument.  Previously, the Fermi-level would not
-  be updated, but the occupation numers would be calculated with an
+  be updated, but the occupation numbers would be calculated with an
   updated Fermi-level.  Now, the Fermi-level and the occupation numbers
   always in sync.
 
@@ -183,7 +183,7 @@ May 31, 2024: :git:`24.6.0 <../24.6.0>`
   your results.
 
 * New 14 electron Cr PAW potential added to our :ref:`setup releases`.
-  For high accuracy, it is recommented over the old 6-electron version
+  For high accuracy, it is recommended  over the old 6-electron version
   (which is still the default).  You can use it by
   specifying ``setups={'Cr': '14'}`` (see also :ref:`manual_setups`).
   It has been generated with the following command::
