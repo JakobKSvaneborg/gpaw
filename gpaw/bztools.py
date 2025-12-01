@@ -10,7 +10,7 @@ try:
 except ImportError:  # scipy < 1.8
     from scipy.spatial.qhull import QhullError
 
-from gpaw import GPAW, restart
+from gpaw import GPAW
 from gpaw.mpi import parallel
 from gpaw.old.kpt_descriptor import kpts2sizeandoffsets, to1bz
 from gpaw.symmetry import Symmetry, aglomerate_points
@@ -36,7 +36,6 @@ def get_lattice_symmetry(cell_cv, tolerance=1e-7):
     latsym = Symmetry([0], cell_cv, tolerance=tolerance)
     latsym.find_lattice_symmetry()
     return latsym
-
 
 
 @parallel(name='world')
