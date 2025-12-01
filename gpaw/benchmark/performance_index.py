@@ -10,7 +10,7 @@ from ase.geometry.cell import cell_to_cellpar
 from gpaw.benchmark.systems import systems
 from gpaw.calcinfo import get_calculation_info
 from gpaw.dft import GPAW
-from gpaw.mpi import world
+from gpaw.mpi import parallel
 from gpaw.utilities.memory import maxrss
 
 PARAMS = dict(
@@ -117,7 +117,8 @@ def workflow():
             creates=[f'{name}.json'])
 
 
-def work(name: str, params: dict | None = None) -> None:
+@parallel(name='world')
+def work(name: str, params: dict | None = None, *, world) -> None:
     """Do two steps."""
 
     params = params or PARAMS.copy()

@@ -18,7 +18,7 @@ from ase.units import kB as kb
 
 from gpaw.cdft.cdft import (WeightFunc, get_all_weight_functions,
                             get_ks_energy_wo_external)
-from gpaw.mpi import world
+from gpaw.mpi import parallel
 from gpaw.utilities.ps2ae import PS2AE, interpolate_weight
 
 spin_state_error = ('The cDFT wave functions have\n' +
@@ -36,6 +36,7 @@ migliore_warning = ('WARNING! Migliore coupling might be unreliable!:\n' +
 
 
 class CouplingParameters:
+    @parallel(name='world')
     def __init__(self,
                  cdft_a=None,
                  cdft_b=None,
@@ -80,7 +81,9 @@ class CouplingParameters:
                  use_adiabatic_correction=False,
                  reaction_energy=0.,
                  band_occupation_cutoff=0.5,
-                 energy_gap=None):
+                 energy_gap=None,
+                 *,
+                 world):
         '''cdft_a cdft_b: cdft calculators
         h = grid spacing in S_AB and W_AB calculations in AE mode
         AE = Use all electron wave functions
@@ -157,6 +160,7 @@ class CouplingParameters:
             the ones from a cdft will be used
         '''
 
+        self.world = world
         self.charge_difference = charge_difference
         self.AE = AE
 
@@ -369,16 +373,16 @@ class CouplingParameters:
         # check that needed terms exist
 
         if (hasattr(self, 'H') and hasattr(self, 'S')):
-            if world.rank == 0:
+            if self.world.rank == 0:
                 H = self.H.copy()
                 S = self.S.copy()
 
         else:
             self.make_hamiltonian_matrix()
-            if world.rank == 0:
+            if self.world.rank == 0:
                 H = self.H.copy()
                 S = self.S.copy()
-        if world.rank == 0:
+        if self.world.rank == 0:
             H_av = 0.5 * (H[0][1] + H[1][0])
             S_av = 0.5 * (S[0][1] + S[1][0])
 
@@ -388,7 +392,7 @@ class CouplingParameters:
 
     def get_coupling_term_from_lowdin(self):
         self.make_hamiltonian_matrix()
-        if world.rank == 0:
+        if self.world.rank == 0:
             H_orth = self.lowdin_orthogonalize_cdft_hamiltonian()
             self.ct = 1. / 2. * np.real(H_orth[0][1] + H_orth[1][0])
             return self.ct
@@ -412,7 +416,7 @@ class CouplingParameters:
             self.S, self.A, self.B, self.w_AB, self.w_AC, self.w_BC = (
                 self.get_migliore_wf_overlaps(
                     self.calc_A, self.calc_B, self.calc_gs))
-        if world.rank == 0:
+        if self.world.rank == 0:
             SIF = 0.
             SFI = 0.
             A = 0.
@@ -455,7 +459,7 @@ class CouplingParameters:
             VW = self.VW
         else:
             VW = self.get_weight_matrix()
-        if world.rank == 0:
+        if self.world.rank == 0:
             S_AB = S[0][1]
             S_BA = S[1][0]
 
@@ -720,7 +724,7 @@ class CouplingParameters:
         if not (hasattr(self, 'w_k')):
             self.get_ae_pair_density_matrix()
 
-        if world.rank == 0:
+        if self.world.rank == 0:
             # diagonal of V*weight matrix
             self.VW = np.zeros((2, 2))
             # fill diagonal
@@ -906,7 +910,7 @@ class CouplingParameters:
 
         if not (hasattr(self, 'w_k')):
             self.get_ae_pair_density_matrix(self.calc_A, self.calc_B)
-        if world.rank == 0:
+        if self.world.rank == 0:
             self.S = np.identity(2)
 
             S_k_AB = np.zeros(len(self.w_k))

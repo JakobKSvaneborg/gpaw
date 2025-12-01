@@ -8,7 +8,7 @@ from gpaw.cdft.cdft_coupling import CouplingParameters
 
 
 @pytest.mark.old_gpaw_only
-def test_pbc_cdft(in_tmp_dir, not_parallelized):
+def test_pbc_cdft(in_tmp_dir, not_parallelized, comm):
     distance = 2.5
     sys = Atoms('He2', positions=([0., 0., 0.], [0., 0., distance]))
     sys.center(3)
@@ -86,6 +86,6 @@ def test_pbc_cdft(in_tmp_dir, not_parallelized):
     sys.get_potential_energy()
 
     # Now for the coupling parameter
-    coupling = CouplingParameters(cdft_a, cdft_b, AE=False)
+    coupling = CouplingParameters(cdft_a, cdft_b, AE=False, world=comm)
     H12 = coupling.get_coupling_term()  # use original cDFT method
     assert np.imag(H12) == 0
