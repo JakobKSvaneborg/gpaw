@@ -112,6 +112,7 @@ class LrTDDFT2:
             self.max_energy_diff = None
         self.recalculate = recalculate
         # Don't init calculator yet if it's not needed (to save memory)
+        gs_calc = gs_calc._to_old()
         self.calc = gs_calc
         self.calc_ready = False
 
