@@ -682,7 +682,7 @@ class ASECalculator:
                              atoms=self.atoms)
 
     def initialize(self, atoms):
-        self.create_new_calculation(atoms)
+        pass  # self.create_new_calculation(atoms)
 
     def converge_wave_functions(self):
         self.dft.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
@@ -771,6 +771,9 @@ class ASECalculator:
         import tempfile
         from gpaw.old.calculator import GPAW as OldGPAW
         from gpaw.mpi import broadcast_string
+
+        if self._dft is None:
+            return OldGPAW(**self.params.todict(), txt=self.log.fd)
         if self.comm.rank == 0:
             gpw = tempfile.mkstemp(suffix='.gpw')[1]
         else:
