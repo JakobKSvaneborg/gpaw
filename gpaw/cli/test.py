@@ -4,9 +4,10 @@ from pathlib import Path
 from ase import Atoms
 from ase.parallel import parprint
 
-from .info import info
 from gpaw import GPAW, PW, setup_paths
-from gpaw.mpi import size
+from gpaw.mpi import parallel
+
+from .info import info
 
 
 class CLICommand:
@@ -22,7 +23,8 @@ class CLICommand:
         test()
 
 
-def test():
+@parallel
+def test(comm):
     for path in setup_paths:
         if Path(path).is_dir():
             break
@@ -31,12 +33,12 @@ def test():
 
 You need to set the GPAW_SETUP_PATH environment variable to point to
 the directories where PAW dataset and basis files are stored.  See
-https://gpaw.readthedocs.io/install.html#install-paw-datasets
+https://gpaw.readthedocs.io/setups/setups.html#installation-of-paw-datasets
 for details.""", file=sys.stderr)
         return
 
-    parprint(f'Doing a test calculation (cores: {size}): ... ',
-             end='', flush=True)
+    parprint(f'Doing a test calculation (cores: {comm.size}): ... ',
+             end='', flush=True, comm=comm)
     a = 2.5
     d = 0.9
     chain = Atoms('H', cell=[a, a, d], pbc=(False, False, True))
@@ -46,7 +48,7 @@ for details.""", file=sys.stderr)
                       txt='test.txt')
     chain.get_forces()
     chain.get_stress()
-    parprint('Done')
-    if size == 1:
+    parprint('Done', comm=comm)
+    if comm.size == 1:
         print()
         print('Test parallel calculation with "gpaw -P 4 test".')

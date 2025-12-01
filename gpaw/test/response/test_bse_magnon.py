@@ -1,11 +1,12 @@
-import pytest
-from gpaw.mpi import world
-from gpaw.utilities import compiled_with_sl
 import numpy as np
+import pytest
 from ase import Atoms
+
 from gpaw import GPAW, FermiDirac
-from gpaw.test import findpeak
+from gpaw.mpi import world
 from gpaw.response.bse import BSE
+from gpaw.test import findpeak
+from gpaw.utilities import compiled_with_sl
 
 pytestmark = pytest.mark.skipif(
     world.size < 4 or not compiled_with_sl(),

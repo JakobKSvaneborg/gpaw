@@ -1,7 +1,9 @@
-import numpy as np
 from functools import cached_property
-from gpaw.response.pw_parallelization import Blocks1D
+
+import numpy as np
+
 from gpaw.response.gamma_int import GammaIntegral
+from gpaw.response.pw_parallelization import Blocks1D
 
 
 class DielectricFunctionCalculator:

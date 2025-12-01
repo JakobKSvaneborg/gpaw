@@ -1,8 +1,8 @@
-from ase import Atoms
-from gpaw import GPAW
-from gpaw.mixer import FFTMixer
-from gpaw import PW
 import pytest
+from ase import Atoms
+
+from gpaw import GPAW, PW
+from gpaw.mixer import FFTMixer
 
 
 def test_pw_fftmixer():

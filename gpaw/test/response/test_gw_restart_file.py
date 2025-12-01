@@ -1,7 +1,8 @@
-import pytest
 import numpy as np
-from gpaw.response.g0w0 import G0W0
+import pytest
+
 from gpaw.mpi import world
+from gpaw.response.g0w0 import G0W0
 
 
 class FragileG0W0(G0W0):
@@ -11,7 +12,7 @@ class FragileG0W0(G0W0):
         self.doom += 1  # Advance doom
         if self.doom == 12:
             raise ValueError('Cthulhu awakens')
-        G0W0.calculate_q(self, *args, **kwargs)
+        super().calculate_q(*args, **kwargs)
 
 
 @pytest.mark.response

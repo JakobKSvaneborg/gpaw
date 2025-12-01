@@ -1,9 +1,13 @@
+// Does the actual init of GPAW module. Also needs to do Numpy array import,
+// see https://numpy.org/doc/stable/reference/c-api/array.html#including-and-importing-the-c-api
+
+#define __GPAW_SHOULD_IMPORT_NUMPY
+
+#include "python_utils.h"
 #include "_gpaw.h"
 
 PyMODINIT_FUNC PyInit__gpaw(void)
 {
-    // gpaw-python needs to import arrays at the right time, so this is
-    // done in gpaw_main(). For _gpaw.so, we do it here:
     import_array1(0);
     return moduleinit();
 }

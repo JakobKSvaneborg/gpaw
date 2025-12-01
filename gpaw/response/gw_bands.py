@@ -5,8 +5,8 @@ from ase.utils import gcd
 from scipy.interpolate import InterpolatedUnivariateSpline
 
 from gpaw import GPAW
+from gpaw.old.kpt_descriptor import to1bz
 from gpaw.spinorbit import soc_eigenstates
-from gpaw.kpt_descriptor import to1bz
 
 
 class GWBands:

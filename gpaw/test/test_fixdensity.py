@@ -1,9 +1,11 @@
+import numpy as np
 import pytest
 from ase import Atoms
 
 from gpaw import GPAW
-from gpaw.calculator import DeprecatedParameterWarning as OldDPW
 from gpaw.dft import DeprecatedParameterWarning as NewDPW
+from gpaw.mpi import ibarrier, world
+from gpaw.old.calculator import DeprecatedParameterWarning as OldDPW
 
 
 @pytest.mark.ci
@@ -59,3 +61,28 @@ def test_fixdensity(in_tmp_dir, gpaw_new):
     e4 = calc.get_eigenvalues(kpt=0)[0]
 
     assert e4 == pytest.approx(e1, abs=3e-5)
+
+
+@pytest.mark.ci
+@pytest.mark.skipif(world.size == 1, reason='only parallel')
+def test_fixdensity_world(in_tmp_dir):
+    a = 2.5
+    slab = Atoms('H', cell=(a, a, a), pbc=1)
+    comm = world.new_communicator(range(world.size // 2))
+    if not comm:
+        # Don't actually hang, if this fails
+        ibarrier(timeout=10)
+        return
+    slab.calc = GPAW(mode='pw', kpts=(1, 1, 1), txt='H.txt',
+                     communicator=comm)
+    slab.get_potential_energy()
+    slab.calc.write('li.gpw')
+    e1 = slab.calc.get_eigenvalues(kpt=0)
+
+    # Fix density and continue:
+    calc = slab.calc.fixed_density(
+        txt='H2.txt',
+        kpts={'gamma': True, 'size': [2, 2, 2]})
+    e2 = calc.get_eigenvalues(kpt=0)
+    assert np.allclose(e1, e2, atol=1e-2)
+    ibarrier(timeout=10)

@@ -27,8 +27,7 @@ commands = {
         ['-f', '--xc-functional', '-a', '--add', '--spin-polarized', '-d',
          '--dirac', '-p', '--plot', '-e', '--exponents', '-l',
          '--logarithmic-derivatives', '-n', '--ngrid', '-R',
-         '--rcut', '-r', '--refine', '-s',
-         '--scalar-relativistic', '-S', '--non-relativistic',
+         '--rcut', '-r', '--refine', '--non-relativistic',
          '--no-ee-interaction'],
     'basis':
         ['--name', '-s', '--search', '-t', '--type', '-E',
@@ -44,9 +43,9 @@ commands = {
          '--zero-potential', '-c',
          '--pseudo-core-density-radius', '-z', '--pseudize',
          '-p', '--plot', '-S', '--separate-figures', '-l',
-         '--logarithmic-derivatives', '-w', '--write', '-s',
-         '--scalar-relativistic', '-n', '--no-check', '-t',
-         '--tag', '-a', '--alpha', '-g', '--gamma', '-b',
+         '--logarithmic-derivatives', '-w', '--write',
+         '--non-relativistic', '-n', '--no-check', '-t', '--tag',
+         '-a', '--alpha', '-g', '--gamma', '-b',
          '--create-basis-set', '--nlcc', '--core-hole', '-e',
          '--electrons', '--ecut', '--ri', '--omega'],
     'diag':
@@ -69,8 +68,7 @@ commands = {
          '--logarithmic-derivatives', '-s', '--separate-figures',
          '-S', '--search', '-o', '--outfile', '--write'],
     'python':
-        ['--dry-run', '-z', '-d', '--debug', '--command', '-c',
-         '--module', '-m'],
+        ['--dry-run', '-z', '--command', '-c', '--module', '-m'],
     'run':
         ['-p', '--parameters', '-t', '--tag', '--properties', '-f',
          '--maximum-force', '--constrain-tags', '-s',

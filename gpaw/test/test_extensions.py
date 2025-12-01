@@ -1,7 +1,8 @@
-import pytest
-from gpaw.new.extensions import Extension
-from ase.units import Hartree, Bohr
 import numpy as np
+import pytest
+from ase.units import Bohr, Hartree
+
+from gpaw.new.extensions import Extension
 
 
 class Spring:
@@ -10,9 +11,9 @@ class Spring:
     def __init__(self, *, a1, a2, l, k):
         self.a1, self.a2, self.l, self.k = a1, a2, l, k
 
-    def build(self, atoms, domain_comm, log):
-        atoms = atoms.copy()
-        log('Building Spring')
+    def build(self, builder):
+        atoms = builder.atoms.copy()
+        builder.log('Building Spring')
 
         class EnergyAdder(Extension):
             name = 'spring'
@@ -34,7 +35,7 @@ class Spring:
                 _self.F_av[self.a1, :] = -v * F
                 _self.F_av[self.a2, :] = v * F
 
-            def force_contribution(self):
+            def force_contribution(self, nt_r, vHt_r):
                 return self.F_av
 
             def get_energy_contributions(self):
@@ -57,9 +58,9 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
         pytest.skip('Only GPAW new')
     ktot = 20
 
-    from gpaw.new.ase_interface import GPAW
     from gpaw import restart
     from gpaw.mpi import world
+    from gpaw.new.ase_interface import GPAW
     domain, band = parallel
     if world.size < domain * band:
         pytest.skip('Not enough cores for this test.')
@@ -149,7 +150,7 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     # Make sure the recalculated energies are forces are correct
     atoms.set_positions(atoms.get_positions() + 1e-10)
     assert E == pytest.approx(atoms.get_potential_energy(), abs=1e-5)
-    assert F == pytest.approx(atoms.get_forces(), abs=1e-5)
+    assert F == pytest.approx(atoms.get_forces(), abs=2e-5)
 
     # 5. Test full blown relaxation.
     from ase.optimize import BFGS

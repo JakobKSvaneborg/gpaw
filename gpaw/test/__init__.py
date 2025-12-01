@@ -1,15 +1,16 @@
 from functools import wraps
-from typing import Tuple
 
-import gpaw.mpi as mpi
 import numpy as np
+
+from gpaw.mpi import broadcast, parallel
 from gpaw.atom.configurations import parameters, tf_parameters
 from gpaw.atom.generator import Generator
 from gpaw.typing import Array1D
 
 
-def print_reference(data_i, name='ref_i', fmt='%.12le'):
-    if mpi.world.rank == 0:
+@parallel(name='world')
+def print_reference(data_i, name='ref_i', fmt='%.12le', *, world):
+    if world.rank == 0:
         print('%s = [' % name, end='')
         for i, val in enumerate(data_i):
             if i > 0:
@@ -20,7 +21,7 @@ def print_reference(data_i, name='ref_i', fmt='%.12le'):
         print('\b]')
 
 
-def findpeak(x: Array1D, y: Array1D) -> Tuple[float, float]:
+def findpeak(x: Array1D, y: Array1D) -> tuple[float, float]:
     """Find peak.
 
     >>> x = np.linspace(1, 5, 10)
@@ -37,10 +38,11 @@ def findpeak(x: Array1D, y: Array1D) -> Tuple[float, float]:
     return x0, a * dx**2 + b * dx + c
 
 
+@parallel(name='world')
 def gen(symbol, exx=False, name=None, yukawa_gamma=None,
-        write_xml=False, **kwargs):
+        write_xml=False, *, world, **kwargs):
     setup = None
-    if mpi.rank == 0:
+    if world.rank == 0:
         if 'scalarrel' not in kwargs:
             kwargs['scalarrel'] = True
         g = Generator(symbol, **kwargs)
@@ -52,7 +54,7 @@ def gen(symbol, exx=False, name=None, yukawa_gamma=None,
             setup = g.run(exx=exx, name=name, yukawa_gamma=yukawa_gamma,
                           write_xml=write_xml,
                           **parameters[symbol])
-    setup = mpi.broadcast(setup, 0)
+    setup = broadcast(setup, 0, comm=world)
     return setup
 
 

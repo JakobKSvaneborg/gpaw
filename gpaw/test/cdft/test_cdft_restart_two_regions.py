@@ -1,15 +1,14 @@
+import numpy as np
 import pytest
 from ase import Atoms
-import numpy as np
-from gpaw import GPAW, FermiDirac, Davidson, Mixer, restart
+
+from gpaw import GPAW, Davidson, FermiDirac, Mixer, restart
 from gpaw.cdft.cdft import CDFT
 from gpaw.cdft.cdft_coupling import CouplingParameters
-from gpaw.mpi import world
 
 
 @pytest.mark.old_gpaw_only
-@pytest.mark.skipif(world.size > 1, reason='cdft coupling not parallel')
-def test_cdft_restart(in_tmp_dir):
+def test_cdft_restart(in_tmp_dir, not_parallelized, comm):
     distance = 2.5
     sys = Atoms('He2', positions=([0., 0., 0.], [0., 0., distance]))
     sys.center(3)
@@ -52,7 +51,8 @@ def test_cdft_restart(in_tmp_dir):
                                   wfs_a='He2.gpw', wfs_b='He2.gpw',
                                   Va=[27, 0], Vb=[27, 0],
                                   charge_regions_A=[[1], [0]],
-                                  charge_regions_B=[[1], [0]])
+                                  charge_regions_B=[[1], [0]],
+                                  world=comm)
     overlaps = coupling.get_pair_density_matrix(calc, calc)[0]
     for i in [0, 1, 2]:
         assert (np.isclose(np.real(overlaps[0, i, i]), 1.))

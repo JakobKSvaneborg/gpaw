@@ -1,26 +1,26 @@
 from pathlib import Path
-import numpy as np
-from typing import Dict, Any
+from typing import Any
 
+import numpy as np
+from ase.calculators.calculator import Calculator
 from ase.units import Hartree
 from ase.utils.timing import Timer
-from ase.calculators.calculator import Calculator
 
 import gpaw.mpi as mpi
-from gpaw.calculator import GPAW
 from gpaw import __version__, restart
-from gpaw.density import RealSpaceDensity
 from gpaw.lrtddft import LrTDDFT
-from gpaw.lrtddft.finite_differences import FiniteDifference
 from gpaw.lrtddft.excitation import ExcitationLogger
+from gpaw.lrtddft.finite_differences import FiniteDifference
+from gpaw.old.calculator import GPAW
+from gpaw.old.density import RealSpaceDensity
+from gpaw.old.wavefunctions.lcao import LCAOWaveFunctions
 from gpaw.utilities.blas import axpy
-from gpaw.wavefunctions.lcao import LCAOWaveFunctions
 
 
 class ExcitedState(GPAW):
     nparts = 1
     implemented_properties = ['energy', 'forces']
-    default_parameters: Dict[str, Any] = {}
+    default_parameters: dict[str, Any] = {}
 
     def __init__(self, lrtddft, index, d=0.001, log=None, txt='-',
                  parallel=1, communicator=None):
@@ -322,13 +322,13 @@ class ExcitedState(GPAW):
         """Return pseudo-density array."""
         method = kwargs.pop('method', 'dipole')
         self.initialize_density(method)
-        return GPAW.get_pseudo_density(self, **kwargs)
+        return super().get_pseudo_density(**kwargs)
 
     def get_all_electron_density(self, **kwargs):
         """Return all electron density array."""
         method = kwargs.pop('method', 'dipole')
         self.initialize_density(method)
-        return GPAW.get_all_electron_density(self, **kwargs)
+        return super().get_all_electron_density(**kwargs)
 
 
 class UnconstraintIndex:
@@ -432,7 +432,7 @@ class ExcitedStateDensity(RealSpaceDensity):
 
     def __init__(self, *args, **kwargs):
         self.method = kwargs.pop('method', 'dipole')
-        RealSpaceDensity.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.lrtddft = None
         self.index = None
         self.gsdensity = None

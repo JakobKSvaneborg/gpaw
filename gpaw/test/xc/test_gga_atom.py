@@ -1,13 +1,14 @@
 import numpy as np
 import numpy.random as ra
 import pytest
-from gpaw.setup import create_setup
-from gpaw.grid_descriptor import GridDescriptor
+
 from gpaw.lfc import LFC
-from gpaw.spline import Spline
-from gpaw.xc import XC
-from gpaw.utilities import pack_density
 from gpaw.mpi import serial_comm
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.setup import create_setup
+from gpaw.spline import Spline
+from gpaw.utilities import pack_density
+from gpaw.xc import XC
 
 
 def test_xc_gga_atom():

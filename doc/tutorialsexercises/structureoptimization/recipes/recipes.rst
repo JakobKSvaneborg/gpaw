@@ -48,9 +48,9 @@ and :ref:`converging forces<custom_convergence-forces>` for relevant options).
 
 .. literalinclude:: params_forces.py
 
-For more accurate force convergence the Brillioun zone sampling should be
+For more accurate force convergence the Brillouin zone sampling should be
 refined by setting a larger number of kpoints (e.g. five or more points 
-in each direction), and the convergences criteria should be tightend to
+in each direction), and the convergences criteria should be tightened to
 ``"convergence": {"density": 1e-6, "forces": 1e-4}``.
 
 Full relaxation

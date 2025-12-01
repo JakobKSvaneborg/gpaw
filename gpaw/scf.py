@@ -4,8 +4,8 @@ import numpy as np
 
 from gpaw import KohnShamConvergenceError
 from gpaw.convergence_criteria import check_convergence
-from gpaw.forces import calculate_forces
-from gpaw.directmin.scf_helper import do_if_converged, check_eigensolver_state
+from gpaw.directmin.scf_helper import check_eigensolver_state, do_if_converged
+from gpaw.old.forces import calculate_forces
 
 
 class SCFLoop:
@@ -223,7 +223,7 @@ def write_iteration(criteria, converged_items, entries, ctx, log):
     if print_iloop:
         iloop_counter = (ctx.wfs.eigensolver.eg_count_iloop +
                          ctx.wfs.eigensolver.eg_count_outer_iloop)
-        line += ('{:12d}'.format(iloop_counter))
+        line += (f'{iloop_counter:12d}')
 
     log(line.rstrip())
     log.fd.flush()

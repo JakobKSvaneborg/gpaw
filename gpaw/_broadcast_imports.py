@@ -19,13 +19,13 @@ data and will crash or deadlock if master sends anything else.
 """
 
 
+import marshal
 import os
 import sys
-import marshal
-from importlib.machinery import PathFinder, ModuleSpec
+from importlib.machinery import ModuleSpec, PathFinder
 
-from gpaw import GPAW_NO_C_EXTENSION, GPAW_MPI4PY
 import gpaw.cgpaw as cgpaw
+from gpaw import GPAW_MPI4PY, GPAW_NO_C_EXTENSION
 
 cgpaw_version = getattr(cgpaw, 'version', 0)
 if not GPAW_NO_C_EXTENSION and cgpaw_version != 10:
@@ -38,17 +38,17 @@ if not GPAW_NO_C_EXTENSION and cgpaw_version != 10:
 
 
 if GPAW_MPI4PY:
-    from gpaw.mpi4pywrapper import MPI4PYWrapper
     from mpi4py.MPI import COMM_WORLD
+
+    from gpaw.mpi4pywrapper import MPI4PYWrapper
     world = MPI4PYWrapper(COMM_WORLD)
 elif hasattr(cgpaw, 'Communicator'):
-    if '_gpaw' not in sys.builtin_module_names:
-        libmpi = os.environ.get('GPAW_MPI', 'libmpi.so')
-        import ctypes
-        try:
-            ctypes.CDLL(libmpi, ctypes.RTLD_GLOBAL)
-        except OSError:
-            pass
+    libmpi = os.environ.get('GPAW_MPI', 'libmpi.so')
+    import ctypes
+    try:
+        ctypes.CDLL(libmpi, ctypes.RTLD_GLOBAL)
+    except OSError:
+        pass
     world = cgpaw.Communicator()
 else:
     world = None  # type: ignore

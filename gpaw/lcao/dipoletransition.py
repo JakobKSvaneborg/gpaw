@@ -1,6 +1,5 @@
 import numpy as np
 
-from gpaw.mpi import world
 from gpaw.typing import ArrayND
 
 
@@ -98,6 +97,6 @@ def get_momentum_transitions(wfs, savetofile: bool = True) -> ArrayND:
     mom_diag += momd_skv[..., None]
     wfs.kd.comm.sum(mom_skvnm)
 
-    if world.rank == 0 and savetofile:
+    if wfs.world.rank == 0 and savetofile:
         np.save('mom_skvnm.npy', mom_skvnm)
     return mom_skvnm

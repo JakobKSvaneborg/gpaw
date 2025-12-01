@@ -4,17 +4,17 @@ from functools import cached_property
 from math import pi, sqrt
 
 import numpy as np
-from numpy.linalg import solve, inv
-from scipy.linalg import eigh
 from ase.units import Ha
+from numpy.linalg import inv, solve
+from scipy.linalg import eigh
 
-from gpaw.setup_data import SetupData
-from gpaw.atom.configurations import configurations
 from gpaw import __version__ as version
 from gpaw.atom.all_electron import AllElectron, shoot
-from gpaw.utilities import hartree
-from gpaw.xc.hybrid import constructX, atomic_exact_exchange
+from gpaw.atom.configurations import configurations
 from gpaw.atom.filter import Filter
+from gpaw.setup_data import SetupData
+from gpaw.utilities import hartree
+from gpaw.xc.hybrid import atomic_exact_exchange, constructX
 
 
 def enumerate_j_ln(anything_ln: list[list[object]]) -> list[list[int]]:
@@ -27,9 +27,9 @@ class Generator(AllElectron):
                  configuration=None,
                  nofiles=True, txt='-', gpernode=150,
                  orbital_free=False, tw_coeff=1.):
-        AllElectron.__init__(self, symbol, xcname, scalarrel, corehole,
-                             configuration, nofiles, txt, gpernode,
-                             orbital_free, tw_coeff)
+        super().__init__(symbol, xcname, scalarrel, corehole,
+                         configuration, nofiles, txt, gpernode,
+                         orbital_free, tw_coeff)
 
     def run(self, core='', rcut=1.0, extra=None,
             logderiv=False, vbar=None, exx=False, name=None,
@@ -968,6 +968,7 @@ def construct_smooth_wavefunction(u, l, gc, r, s):
 
 if __name__ == '__main__':
     import os
+
     from gpaw.atom.basis import BasisMaker
     from gpaw.atom.configurations import parameters
 

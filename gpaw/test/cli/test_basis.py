@@ -4,8 +4,8 @@ Test the `gpaw basis` subcommand.
 from __future__ import annotations
 
 import pathlib
-import subprocess
 import shlex
+import subprocess
 import sys
 from collections.abc import Collection
 

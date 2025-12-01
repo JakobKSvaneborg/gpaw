@@ -1,16 +1,15 @@
-import pytest
 import numpy as np
-
+import pytest
 from ase.units import Hartree
+
 from gpaw import GPAW
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
-from gpaw.tddft.spectrum import photoabsorption_spectrum as spec_td
 from gpaw.lrtddft import LrTDDFT
 from gpaw.lrtddft import photoabsorption_spectrum as spec_lr
 from gpaw.lrtddft2 import LrTDDFT2
 from gpaw.mpi import world
-
+from gpaw.tddft.spectrum import photoabsorption_spectrum as spec_td
 
 pytestmark = [pytest.mark.usefixtures('module_tmp_path')]
 
@@ -67,6 +66,7 @@ def lrtddft2_calculation(gpw_files):
     return spec_e
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_lcaotddft_vs_lrtddft(time_propagation_calculation,
                               lrtddft_calculation):
@@ -76,6 +76,7 @@ def test_lcaotddft_vs_lrtddft(time_propagation_calculation,
             == pytest.approx(lrtddft_calculation, abs=1e-2))
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_lcaotddft_vs_lrtddft2(time_propagation_calculation,
                                lrtddft2_calculation):
@@ -85,6 +86,7 @@ def test_lcaotddft_vs_lrtddft2(time_propagation_calculation,
             == pytest.approx(lrtddft2_calculation, abs=1e-2))
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_lrtddft_vs_lrtddft2(lrtddft_calculation,
                              lrtddft2_calculation):

@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from ase.build import molecule
+
 from gpaw import GPAW
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
@@ -9,6 +10,7 @@ from gpaw.mpi import world
 from gpaw.tddft.spectrum import photoabsorption_spectrum
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_lcaotddft_lcaotddft_vs_lrtddft2_rpa(in_tmp_dir):
     atoms = molecule('Na2')

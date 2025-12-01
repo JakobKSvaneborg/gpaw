@@ -179,7 +179,7 @@ print(d[(0, 1, 3)])  # one can also use a normal tuple as key
 # %%
 """
 # NumPy
-#### NumPy arrays are heavely used in [ASE](https://wiki.fysik.dtu.dk/ase/)
+#### NumPy arrays are heavely used in [ASE](https://ase-lib.org/)
 ASE makes heavy use of an extension to Python called NumPy. The NumPy module
 defines an `ndarray` type that can hold large arrays of uniform
 multidimensional numeric data. An array is similar to a `list` or a `tuple`,
@@ -338,7 +338,7 @@ ax.set_aspect('equal')
 # %%
 """
 # ASE (atomic simulation environment)
-More details can be found here: https://wiki.fysik.dtu.dk/ase/index.html
+More details can be found here: https://ase-lib.org/index.html
 """
 
 # %%
@@ -387,7 +387,7 @@ adsorption energy is obtained as the sum of the isolated energies minus the
 energy of the composite system.
 
 You can read more about the optimizers in ASE here:
-https://wiki.fysik.dtu.dk/ase/ase/optimize.html
+https://ase-lib.org/ase/optimize.html
 
 #### 1. Try to go through the script so you understand what is going on
 #### 2. Calculate the adsorption energy of N2 on a 4x4x2 fcc111 slab (result= 0.324 eV)
@@ -431,7 +431,7 @@ print('Adsorption energy:', e_slab + e_N2 - slab.get_potential_energy())
 ## Band structure
 #### Using ASE to setup band structures for Al using a Freelectron model and DFT
 #### 1. What is the crystal structure of Al?
-#### 2. Try and look up the recommeded Brillouin zone path for crystal structure [here](https://wiki.fysik.dtu.dk/ase/ase/dft/kpoints.html)
+#### 2. Try and look up the recommeded Brillouin zone path for crystal structure [here](https://ase-lib.org/ase/dft/kpoints.html)
 #### 3. Can you figure out what the `nbands=-10` and `convergence={'bands': -5}` parameters means in the GPAW DFT input below ? (Hint try and look at the output file `Al.txt`)
 """
 

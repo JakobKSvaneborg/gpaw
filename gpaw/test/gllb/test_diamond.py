@@ -11,9 +11,10 @@ Compare to reference.
 """
 import pytest
 from ase.build import bulk
+
 from gpaw import GPAW, Davidson, Mixer
 from gpaw.mpi import world
-from gpaw.calculator import DeprecatedParameterWarning
+from gpaw.old.calculator import DeprecatedParameterWarning
 
 
 @pytest.mark.gllb
@@ -98,6 +99,7 @@ def test_gllb_diamond(in_tmp_dir, deprecated_syntax):
     if deprecated_syntax:
         with pytest.warns(DeprecationWarning):
             from ase.units import Ha
+
             from gpaw.xc.gllb.c_response import ResponsePotential
 
             # Calculate the discontinuity potential with accurate band gap

@@ -1,6 +1,7 @@
-from gpaw.directmin.fdpw.pz_localization import PZLocalization
-from gpaw.directmin.fdpw.etdm_inner_loop import ETDMInnerLoop
 import numpy as np
+
+from gpaw.directmin.fdpw.etdm_inner_loop import ETDMInnerLoop
+from gpaw.directmin.fdpw.pz_localization import PZLocalization
 
 
 class FDPWETDMLocalize:

@@ -4,9 +4,10 @@
 
 # flake8: noqa
 
-from ase.units import Hartree, Bohr
-from gpaw.fd_operators import Gradient
 import numpy as np
+from ase.units import Bohr, Hartree
+
+from gpaw.fd_operators import Gradient
 
 # in atomic units, 1/(4*pi*e_0) = 1
 _eps0_au = 1.0 / (4.0 * np.pi)
@@ -542,7 +543,7 @@ class Permittivity:
 # Dieletric function that renormalizes the static permittivity to the requested value (usually epsZero)
 class PermittivityPlus(Permittivity):
     def __init__(self, fname=None, data=None, eps_infty = _eps0_au, epsZero = _eps0_au, newbar_omega = 0.01, new_alpha = 0.10, **kwargs):
-        Permittivity.__init__(self, fname=fname, data=data, eps_infty=eps_infty)
+        super().__init__(fname=fname, data=data, eps_infty=eps_infty)
 
         # Convert given values from eVs to Hartrees
         _newbar_omega = newbar_omega / Hartree

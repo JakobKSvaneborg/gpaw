@@ -1,22 +1,24 @@
 from __future__ import annotations
+
 from pathlib import Path
 
 import numpy as np
 from ase.units import Ha
 
 from gpaw import GPAW
-from gpaw.new.ase_interface import ASECalculator
-from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.mpi import serial_comm
-from gpaw.pw.descriptor import PWDescriptor
-from gpaw.pw.lfc import PWLFC
+from gpaw.new.ase_interface import ASECalculator
+from gpaw.old.kpt_descriptor import KPointDescriptor
+from gpaw.old.pw.descriptor import PWDescriptor
+from gpaw.old.pw.lfc import PWLFC
+from gpaw.typing import Array1D
 from gpaw.xc import XC
+
 from . import parse_name
 from .coulomb import coulomb_interaction
 from .kpts import get_kpt
 from .paw import calculate_paw_stuff
 from .symmetry import Symmetry
-from gpaw.typing import Array1D
 
 
 def non_self_consistent_energy(calc: ASECalculator | str | Path,

@@ -4,6 +4,7 @@
     https://listserv.fysik.dtu.dk/pipermail/gpaw-users/2016-January/003864.html
 """
 from ase import Atoms
+
 from gpaw.symmetry import atoms2symmetry
 
 

@@ -1,13 +1,12 @@
 import numpy as np
 import pytest
-from ase.parallel import world
+
+from gpaw.old.eigensolvers.diagonalizerbackend import (
+    DistributedBlacsDiagonalizer, ElpaDiagonalizer, ScalapackDiagonalizer,
+    ScipyDiagonalizer)
+from gpaw.mpi import world
 from gpaw.utilities import compiled_with_sl
 from gpaw.utilities.elpa import LibElpa
-from gpaw.eigensolvers.diagonalizerbackend import (
-    DistributedBlacsDiagonalizer,
-    ScipyDiagonalizer,
-    ScalapackDiagonalizer,
-    ElpaDiagonalizer)
 
 
 def prepare_eigensolver_matrices(size_of_matrices, dtype):

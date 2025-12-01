@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+
 from gpaw import GPAW
 from gpaw.core import UGDesc
 from gpaw.mpi import world

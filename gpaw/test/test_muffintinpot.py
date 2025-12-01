@@ -1,9 +1,10 @@
 import pytest
-from gpaw.mpi import world
 from ase import Atoms
-from gpaw import GPAW
 
+from gpaw import GPAW
+from gpaw.mpi import world
 from gpaw.utilities.kspot import AllElectronPotential
+
 pytestmark = pytest.mark.skipif(world.size > 1,
                                 reason='world.size > 1')
 

@@ -1,12 +1,12 @@
 import pytest
-
 from ase.units import Hartree
+
 from gpaw.response.df import DielectricFunction
 from gpaw.response.qpd import SingleCylQPWDescriptor
 
 
 @pytest.mark.response
-def test_response_gw_MoS2_cut(gpw_files):
+def test_response_gw_MoS2_cut(in_tmp_dir, gpw_files):
     ecut_sphere = 50.0
 
     DFs = DielectricFunction(calc=gpw_files['mos2_pw'],

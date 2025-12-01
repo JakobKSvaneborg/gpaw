@@ -1,34 +1,36 @@
 from __future__ import annotations
 
 from time import ctime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 from ase.units import Ha
 
 import gpaw
-from gpaw.response import (ResponseGroundStateAdapter, ResponseContext,
-                           ResponseGroundStateAdaptable, ResponseContextInput)
-from gpaw.response.symmetrize import (BodySymmetryOperators,
-                                      WingSymmetryOperators)
-from gpaw.response.chi0_data import (Chi0Data, Chi0BodyData,
+from gpaw.response import (ResponseContext, ResponseContextInput,
+                           ResponseGroundStateAdaptable,
+                           ResponseGroundStateAdapter, timer)
+from gpaw.response.chi0_base import Chi0ComponentPWCalculator, Chi0Integrand
+from gpaw.response.chi0_data import (Chi0BodyData, Chi0Data,
                                      Chi0OpticalExtensionData)
 from gpaw.response.frequencies import FrequencyDescriptor
-from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.response.hilbert import HilbertTransform
-from gpaw.response import timer
+from gpaw.response.integrators import (GenericUpdate, Hermitian,
+                                       HermitianOpticalLimit, Hilbert,
+                                       HilbertOpticalLimit,
+                                       HilbertOpticalLimitTetrahedron,
+                                       HilbertTetrahedron, OpticalLimit)
 from gpaw.response.pw_parallelization import PlaneWaveBlockDistributor
+from gpaw.response.qpd import SingleQPWDescriptor
+from gpaw.response.symmetrize import (BodySymmetryOperators,
+                                      WingSymmetryOperators)
 from gpaw.utilities.memory import maxrss
-from gpaw.response.chi0_base import Chi0ComponentPWCalculator, Chi0Integrand
-from gpaw.response.integrators import (
-    HermitianOpticalLimit, HilbertOpticalLimit, OpticalLimit,
-    HilbertOpticalLimitTetrahedron,
-    Hermitian, Hilbert, HilbertTetrahedron, GenericUpdate)
 
 if TYPE_CHECKING:
     from typing import Any
-    from gpaw.typing import ArrayLike1D
+
     from gpaw.response.pair import ActualPairDensityCalculator
+    from gpaw.typing import ArrayLike1D
 
 
 class Chi0Calculator:
@@ -114,7 +116,7 @@ class Chi0Calculator:
     def update_chi0(self,
                     chi0: Chi0Data,
                     *,
-                    n1: int = 0, n2: Optional[int] = None,
+                    n1: int = 0, n2: int | None = None,
                     m1: int, m2: int,
                     spins: list
                     ) -> Chi0Data:

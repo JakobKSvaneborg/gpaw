@@ -5,23 +5,18 @@ O. Andreussi, I. Dabo, and N. Marzari,
 The Journal of Chemical Physics, vol. 136, no. 6, p. 064102, 2012
 """
 
-from gpaw import GPAW
-from gpaw.utilities.adjust_cell import adjust_cell
+import warnings
+
 import pytest
 from ase.build import molecule
-from ase.units import mol, kcal, Pascal, m, Bohr
-from gpaw.solvation import (
-    SolvationGPAW,
-    ADM12SmoothStepCavity,
-    LinearDielectric,
-    GradientSurface,
-    SurfaceInteraction,
-    KB51Volume,
-    VolumeInteraction,
-    ElDensity
-)
+from ase.units import Bohr, Pascal, kcal, m, mol
+
+from gpaw import GPAW
+from gpaw.solvation import (ADM12SmoothStepCavity, ElDensity, GradientSurface,
+                            KB51Volume, LinearDielectric, SolvationGPAW,
+                            SurfaceInteraction, VolumeInteraction)
 from gpaw.solvation.poisson import ADM12PoissonSolver
-import warnings
+from gpaw.utilities.adjust_cell import adjust_cell
 
 SKIP_VAC_CALC = True
 
@@ -40,6 +35,7 @@ convergence = {
 }
 
 
+@pytest.mark.old_gpaw_only
 def test_solvation_adm12():
     atoms = molecule('H2O')
     adjust_cell(atoms, vac, h)

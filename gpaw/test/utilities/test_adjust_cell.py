@@ -1,11 +1,10 @@
 import pytest
-
 from ase import Atoms
 from ase.build import fcc111, graphene_nanoribbon
 
-from gpaw.utilities.adjust_cell import adjust_cell
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.utilities import h2gpts
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.utilities.adjust_cell import adjust_cell
 
 
 def test_non_periodic():

@@ -1,19 +1,18 @@
 import numpy as np
 import pytest
-
 from ase import Atoms
 
 from gpaw import GPAW
-from gpaw.mpi import world, serial_comm
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.densitymatrix import DensityMatrix
-from gpaw.lcaotddft.magneticmomentwriter import MagneticMomentWriter
-from gpaw.lcaotddft.magneticmomentwriter import parse_header
+from gpaw.lcaotddft.magneticmomentwriter import (MagneticMomentWriter,
+                                                 parse_header)
+from gpaw.mpi import serial_comm, world
 from gpaw.tddft.spectrum import rotatory_strength_spectrum
-from gpaw.tddft.units import as_to_au, eV_to_au, au_to_eV, rot_au_to_cgs
-
+from gpaw.tddft.units import as_to_au, au_to_eV, eV_to_au, rot_au_to_cgs
 from gpaw.test import only_on_master
-from . import parallel_options, check_txt_data, copy_and_cut_file
+
+from . import check_txt_data, copy_and_cut_file, parallel_options
 
 pytestmark = pytest.mark.usefixtures('module_tmp_path')
 
@@ -68,6 +67,7 @@ def initialize_system(request):
         td_calc.propagate(100, 2)
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_magnetic_moment_velocity_gauge(initialize_system, module_tmp_path,
                                         in_tmp_dir):
@@ -128,6 +128,7 @@ def test_magnetic_moment_velocity_gauge(initialize_system, module_tmp_path,
                    'mm_origin_ref.dat', atol=1e-13)
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_magnetic_moment_values(initialize_system, module_tmp_path,
                                 in_tmp_dir):
@@ -149,12 +150,14 @@ def test_magnetic_moment_values(initialize_system, module_tmp_path,
     check_txt_data(module_tmp_path / 'mm.dat', 'mm_ref.dat', atol=1e-13)
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_magnetic_moment_grid_evaluation(initialize_system, module_tmp_path):
     dpath = module_tmp_path
     check_txt_data(dpath / 'mm.dat', dpath / 'mm_grid.dat', atol=2e-8)
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 @pytest.mark.parametrize('parallel', parallel_i)
 @pytest.mark.parametrize('gauge', ['velocity', 'length'])
@@ -177,6 +180,7 @@ def test_magnetic_moment_parallel(initialize_system, module_tmp_path, parallel,
         check_txt_data(module_tmp_path / fname, fname, atol=7e-14)
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 @pytest.mark.parametrize('parallel', parallel_i)
 def test_magnetic_moment_restart(initialize_system, module_tmp_path, parallel,

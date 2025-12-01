@@ -46,7 +46,7 @@ Here is how to extract the AE potential from a gpw-file using the
 
 .. figure:: hli-pot.png
 
-The figure also shows the avarage PS potentials at the atomic sites calculated
+The figure also shows the average PS potentials at the atomic sites calculated
 with the
 :meth:`~gpaw.calculator.GPAW.get_atomic_electrostatic_potentials` method.
 

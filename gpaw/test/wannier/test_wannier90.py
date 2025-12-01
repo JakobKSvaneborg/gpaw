@@ -1,26 +1,16 @@
-import pytest
 import os
-import numpy as np
-from gpaw import GPAW
-from gpaw.wannier90 import Wannier90
-from gpaw.wannier.w90 import read_wout_all
 from pathlib import Path
-from subprocess import PIPE, run
 
+import numpy as np
+import pytest
 
-def out():
-    result = run('wannier90.x --version',
-                 stdout=PIPE,
-                 stderr=PIPE,
-                 universal_newlines=True,
-                 shell=True)
-    return result.stdout
+from gpaw import GPAW
+from gpaw.wannier.w90 import read_wout_all
+from gpaw.wannier.wannier90 import Wannier90
 
 
 @pytest.mark.wannier
 @pytest.mark.serial
-@pytest.mark.skipif(': 3.' not in out(),
-                    reason="requires at least Wannier90 version 3.0")
 @pytest.mark.parametrize('mode', ['sym', 'nosym'])
 def test_wannier90(gpw_files, mode, in_tmp_dir, wannier90):
     o_ai = [[], [0, 1, 2, 3]]
@@ -64,9 +54,7 @@ def test_wannier90(gpw_files, mode, in_tmp_dir, wannier90):
 
 @pytest.mark.wannier
 @pytest.mark.serial
-@pytest.mark.skipif(': 3.' not in out(),
-                    reason="requires at least Wannier90 version 3.0")
-def test_wannier90_soc(gpw_files, in_tmp_dir):
+def test_wannier90_soc(gpw_files, in_tmp_dir, wannier90):
     calc = GPAW(gpw_files['fe_pw_nosym'])
     seed = 'Fe'
     assert calc.wfs.kd.nbzkpts == calc.wfs.kd.nibzkpts
@@ -96,7 +84,6 @@ def test_wannier90_soc(gpw_files, in_tmp_dir):
 
 
 def check_wavefunctions():
-
     test1 = [[20, 20, 20, 1, 4], [20, 20, 20, 2, 4], [20, 20, 20, 3, 4]]
     test2 = [0.0656, 0.0634, 0.0437]
     for i in range(3):

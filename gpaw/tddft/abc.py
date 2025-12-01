@@ -17,7 +17,6 @@ class PML uses the perfectly matched layer approach.
 """
 
 import numpy as np
-
 from ase.units import Bohr
 
 

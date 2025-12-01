@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from math import factorial as fac
 
 import numpy as np
@@ -21,8 +22,8 @@ def get_wannier_integrals(ibzwfs: IBZWaveFunctions,
     assert s <= ibzwfs.nspins
     # XXX not for the kpoint/spin parallel case
     assert ibzwfs.comm.size == 1
-    wfs = ibzwfs.wfs_qs[k][s].to_uniform_grid_wave_functions(grid, None)
-    wfs1 = ibzwfs.wfs_qs[k1][s].to_uniform_grid_wave_functions(grid, None)
+    wfs = ibzwfs._get_wfs(k, s).to_uniform_grid_wave_functions(grid, None)
+    wfs1 = ibzwfs._get_wfs(k1, s).to_uniform_grid_wave_functions(grid, None)
     # Get pseudo part
     psit_nR = wfs.psit_nX.data
     psit1_nR = wfs1.psit_nX.data
@@ -132,7 +133,7 @@ def get_projections(ibzwfs: IBZWaveFunctions,
     nkpts = len(ibzwfs.ibz)
     nbf = np.sum([2 * l + 1 for pos, l, a in locfun])
     f_knB = np.zeros((nkpts, ibzwfs.nbands, nbf), ibzwfs.dtype)
-    relpos_ac = ibzwfs.wfs_qs[0][0].relpos_ac
+    relpos_ac = ibzwfs._wfs_u[0].relpos_ac
 
     spos_bc = []
     splines_b = []

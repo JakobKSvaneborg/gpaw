@@ -5,8 +5,8 @@ from ase.parallel import parprint, world
 
 from gpaw import GPAW
 from gpaw.analyse.overlap import Overlap
-from gpaw.utilities.adjust_cell import adjust_cell
 from gpaw.lrtddft import LrTDDFT
+from gpaw.utilities.adjust_cell import adjust_cell
 
 """Evaluate the overlap between two independent calculations
 
@@ -36,7 +36,7 @@ def test_overlap(in_tmp_dir):
     H2 = molecule('H2')
     adjust_cell(H2, box, h)
 
-    c1 = GPAW(**get_kwargs(eigensolver='dav', nbands=nbands))
+    c1 = GPAW(**get_kwargs(nbands=nbands))
     c1.calculate(H2)
     lr1 = LrTDDFT(c1)
 

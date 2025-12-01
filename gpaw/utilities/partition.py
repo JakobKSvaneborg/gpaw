@@ -1,5 +1,6 @@
 import numpy as np
-from gpaw.arraydict import ArrayDict
+
+from gpaw.old.arraydict import ArrayDict
 
 
 def to_parent_comm(partition):

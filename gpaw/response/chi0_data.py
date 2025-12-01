@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 import numpy as np
-
 from ase.units import Ha
 
-from gpaw.pw.descriptor import PWMapping
-
-from gpaw.response.pw_parallelization import (Blocks1D,
-                                              PlaneWaveBlockDistributor)
-from gpaw.response.frequencies import (FrequencyDescriptor,
-                                       ComplexFrequencyDescriptor)
+from gpaw.old.pw.descriptor import PWMapping
+from gpaw.response.frequencies import (ComplexFrequencyDescriptor,
+                                       FrequencyDescriptor)
 from gpaw.response.pair_functions import (SingleQPWDescriptor,
                                           map_ZgG_array_to_reduced_pd)
+from gpaw.response.pw_parallelization import (Blocks1D,
+                                              PlaneWaveBlockDistributor)
 
 
 class Chi0RelatedData:

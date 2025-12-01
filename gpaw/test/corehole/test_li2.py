@@ -2,6 +2,7 @@
 import pytest
 from ase.build import molecule
 from ase.units import Bohr
+
 from gpaw import GPAW, PoissonSolver
 from gpaw.mixer import Mixer
 from gpaw.test import gen

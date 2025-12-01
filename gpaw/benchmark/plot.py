@@ -1,78 +1,247 @@
-import json
-import sys
-from collections import defaultdict
+from datetime import date
 from pathlib import Path
 
+from ase.geometry.cell import cell_to_cellpar
 
-def compare(files: list[str]) -> None:
+from gpaw.benchmark.performance_index import PARAMS, REFERENCES
+from gpaw.benchmark.systems import systems
+from gpaw.calcinfo import get_calculation_info
+
+NAMES = sorted(REFERENCES, key=lambda name: name.split('-')[::-1])
+
+data = [
+    ('25.7.0',
+     date(2025, 7, 29),
+     100.0,
+     {'Bi2Se3-3': (-8.910533, 36.856, 27, 409858048,
+                   -8.911295, 9.887, 7, 409858048),
+      'C60-0': (-530.925350, 127.737, 23, 945061888,
+                -531.374010, 76.827, 14, 982563498),
+      'C72-2': (-663.738614, 217.790, 17, 1055974741,
+                -660.347009, 171.386, 14, 1126499669),
+      'C2-3': (-18.196111, 5.697, 13, 223988394,
+               -18.196112, 5.415, 13, 229386922),
+      'Ga2F4N4H10-3': (-99.089001, 58.505, 21, 603552426,
+                       -99.088963, 21.772, 8, 612873557),
+      'H2-0': (-6.774772, 2.218, 14, 241243477,
+               -6.657533, 1.564, 10, 242809514),
+      'Fe8-3M': (-72.377066, 55.126, 20, 290106026,
+                 -72.384170, 59.421, 22, 292876288),
+      'CrSi2As4-2M': (-38.894333, 56.276, 21, 306920106,
+                      -39.065536, 43.824, 17, 307860821),
+      'Ti2Br6-3': (-32.646996, 108.163, 20, 570365269,
+                   -32.649848, 47.279, 9, 580534272),
+      'OPt24-2': (-153.251294, 505.330, 42, 934286677,
+                  -154.868483, 494.422, 44, 936239104),
+      'Al96-2': (-350.062999, 1110.148, 43, 2611015680,
+                 -350.074452, 323.856, 12, 2689307989),
+      'VI2-2M': (-12.964885, 24.213, 24, 314884096,
+                 -12.965059, 7.440, 7, 314884096),
+      'LiC8-3': (-75.376528, 17.925, 15, 330757461,
+                 -74.726254, 14.084, 15, 334673237),
+      'Mo60S120-1': (-1291.310450, 3425.628, 26, 3817028266,
+                     -1283.968875, 2813.367, 23, 4080690517)}),
+    ('New-GPAW',
+     date(2025, 11, 11),
+     94.34,
+     {'Ga2F4N4H10-3': (-99.089000, 83.415, 24, 604422144,
+                       -99.088953, 25.010, 7, 605115733),
+      'Bi2Se3-3': (-8.910534, 42.696, 27, 368381952,
+                   -8.911364, 8.353, 5, 368381952),
+      'C60-0': (-530.925349, 126.003, 18, 1097875456,
+                -531.374013, 77.557, 11, 1098110293),
+      'C2-3': (-18.196111, 6.140, 13, 205414400,
+               -18.196112, 1.610, 3, 212470442),
+      'H2-0': (-6.774772, 1.922, 11, 248939861,
+               -6.657690, 1.690, 10, 250806272),
+      'LiC8-3': (-75.376530, 21.916, 18, 288582314,
+                 -74.705368, 17.789, 16, 289237674),
+      'C72-2': (-663.738617, 280.842, 20, 717135872,
+                -660.328521, 198.105, 14, 727860565),
+      'Fe8-3M': (-72.377086, 49.527, 19, 261687978,
+                 -72.384203, 20.507, 8, 262634154),
+      'CrSi2As4-2M': (-38.894336, 67.667, 20, 345666901,
+                      -39.065427, 59.751, 18, 351570602),
+      'Ti2Br6-3': (-32.646989, 135.692, 21, 516195669,
+                   -32.649771, 58.862, 9, 516676266),
+      'MnVS2-2M': (-29.117767, 74.260, 51, 275378176,
+                   -29.117929, 24.348, 17, 275684010),
+      'VI2-2M': (-12.964885, 37.032, 27, 356892672,
+                 -12.965037, 9.663, 7, 357041493),
+      'PtLi2O6-2M': (-40.713299, 231.913, 31, 657932288,
+                     -42.787092, 222.307, 30, 684377429),
+      'OPt24-2': (-153.251153, 527.265, 38, 802198869,
+                  -154.864683, 522.907, 38, 811485866),
+      'Al96-2': (-350.062998, 1631.705, 58, 1342618282,
+                 -350.074434, 418.302, 14, 1366504789),
+      'V3Cl6-2N': (-51.117282, 1386.783, 28, 612604586,
+                   -51.218978, 1977.256, 41, 679058090),
+      'Mo60S120-1': (-1291.310449, 3731.036, 28, 3222213973,
+                     -1284.105503, 3209.293, 24, 3222213973)}),
+    ('!2907',
+     date(2025, 11, 18),
+     95.00,
+     {'Ga2F4N4H10-3': (-99.089000, 82.446, 24, 607541248,
+                       -99.088953, 24.781, 7, 608112640),
+      'OPt24-2': (-153.251153, 532.363, 38, 1019176960,
+                  -154.864683, 526.276, 38, 1031096320),
+      'Bi2Se3-3': (-8.910534, 42.742, 27, 369025024,
+                   -8.911364, 8.361, 5, 369025024),
+      'C2-3': (-18.196111, 6.203, 13, 206532608,
+               -18.196112, 1.621, 3, 213549056),
+      'H2-0': (-6.774772, 1.924, 11, 252114944,
+               -6.657690, 1.680, 10, 256538624),
+      'LiC8-3': (-75.376530, 21.410, 18, 290609152,
+                 -74.705368, 17.007, 16, 291493888),
+      'C60-0': (-530.925349, 123.318, 18, 1099218944,
+                -531.374013, 77.114, 11, 1099677696),
+      'Fe8-3M': (-72.377086, 49.096, 19, 263952384,
+                 -72.384203, 20.219, 8, 264837120),
+      'VI2-2M': (-12.964885, 36.558, 27, 351539200,
+                 -12.965037, 9.545, 7, 357746688),
+      'CrSi2As4-2M': (-38.894336, 67.732, 20, 350359552,
+                      -39.065427, 59.965, 18, 364380160),
+      'MnVS2-2M': (-29.117767, 73.289, 51, 270438400,
+                   -29.117929, 24.066, 17, 271085568),
+      'C72-2': (-663.738617, 277.324, 20, 776841216,
+                -660.328521, 196.045, 14, 795138048),
+      'Al96-2': (-350.062998, 1623.579, 58, 1418915840,
+                 -350.074434, 415.641, 14, 1428355072),
+      'Ti2Br6-3': (-32.646989, 134.420, 21, 516497408,
+                   -32.649771, 58.046, 9, 516825088),
+      'PtLi2O6-2M': (-40.713299, 230.075, 31, 516902912,
+                     -42.787092, 220.612, 30, 527417344),
+      'V3Cl6-2N': (-51.117282, 1374.217, 28, 629514240,
+                   -51.218978, 1965.883, 41, 678828032),
+      'Mo60S120-1': (-1291.310449, 3701.859, 28, 3241897984,
+                     -1284.105503, 3180.145, 24, 3256709120)}),
+    ('!2931',
+     date(2025, 11, 20),
+     103.56,
+     {'Ga2F4N4H10-3': (-99.089000, 74.687, 24, 614633472,
+                       -99.088953, 22.468, 7, 615163221),
+      'Bi2Se3-3': (-8.910534, 39.838, 27, 371531776,
+                   -8.911364, 7.805, 5, 371531776),
+      'C60-0': (-530.925349, 120.958, 18, 1077198848,
+                -531.374013, 74.427, 11, 1085767680),
+      'C2-3': (-18.196111, 5.741, 13, 204946090,
+               -18.196112, 1.511, 3, 211141973),
+      'H2-0': (-6.774772, 1.913, 11, 252416000,
+               -6.657690, 1.686, 10, 256655360),
+      'LiC8-3': (-75.376530, 20.309, 18, 282675882,
+                 -74.705368, 16.329, 16, 283353088),
+      'Fe8-3M': (-72.377086, 47.133, 19, 255243605,
+                 -72.384203, 19.393, 8, 258437120),
+      'VI2-2M': (-12.964885, 36.272, 27, 361977173,
+                 -12.965037, 9.463, 7, 367723861),
+      'CrSi2As4-2M': (-38.894336, 61.744, 20, 353133909,
+                      -39.065427, 54.493, 18, 356077568),
+      'MnVS2-2M': (-29.117767, 69.065, 51, 278503424,
+                   -29.117929, 22.591, 17, 279851008),
+      'Ti2Br6-3': (-32.646989, 122.977, 21, 467264853,
+                   -32.649771, 53.338, 9, 467685376),
+      'C72-2': (-663.738617, 267.330, 20, 759067989,
+                -660.328521, 188.988, 14, 768693589),
+      'OPt24-2': (-153.251153, 476.773, 38, 821223424,
+                  -154.864683, 472.991, 38, 825967957),
+      'PtLi2O6-2M': (-40.713299, 212.231, 31, 570288810,
+                     -42.787092, 203.987, 30, 585644714),
+      'Al96-2': (-350.062998, 1542.139, 58, 1411514368,
+                 -350.074434, 396.397, 14, 1420098218),
+      'V3Cl6-2N': (-51.117282, 1383.012, 28, 634075818,
+                   -51.218978, 1971.731, 41, 679232853),
+      'Mo60S120-1': (-1291.310449, 3599.827, 28, 3256395093,
+                     -1284.105503, 3096.343, 24, 3256395093)})]
+
+
+def tables() -> None:
+    tag, day, score, results = data[-1]
+    lines = ['name, dt1 [sec], iter1, dt2 [sec], iter2, memory [Gbytes]']
+    for name in NAMES:
+        if name not in results:
+            continue
+        e1, t1, i1, m1, e2, t2, i2, m2 = results[name]
+        lines.append(
+            f'{name:12}, '
+            f'{t1:6.1f}, {i1:3}, '
+            f'{t2:6.1f}, {i2:3}, '
+            f'{m2 * 1e-9:.2f}')
+    Path('benchmark.csv').write_text('\n'.join(lines) + '\n')
+
+    lines = [
+        'name, cores, IBZ, bands, '
+        'a [Å], b [Å], c [Å], '
+        'A [°], B [°], C [°]']
+    for name in NAMES:
+        e, de, cores, t = REFERENCES[name]
+        atoms = systems[name]()
+        atoms.info.clear()  # remove adsorbate-info (which xyz does not like)
+        atoms.write(f'{name}.xyz')
+        info = get_calculation_info(atoms, **PARAMS)
+        a, b, c, A, B, C = cell_to_cellpar(atoms.cell)
+        lines.append(
+            f':download:`{name} <{name}.xyz>`, {cores}, '
+            f'{len(info.ibz)}, {info.nbands}, '
+            f'{a:.1f}, {b:.1f}, {c:.1f}, '
+            f'{A:.1f}, {B:.1f}, {C:.1f}')
+    Path('systems.csv').write_text('\n'.join(lines) + '\n')
+
+
+def plot() -> None:
     import matplotlib.pyplot as plt
+    fig, axs = plt.subplots(3, 1, figsize=(9, 9), sharex=True)
+    titles = [
+        '$t_i^0/t_i$',
+        'Second step [%]',
+        'max_rss [Gbytes]']
 
-    paths = [Path(f) for f in files]
-    data: defaultdict[
-        tuple[str, str, str, str],
-        dict[str, tuple[float, float, float]]] = defaultdict(dict)
-    versions = []
-    refname = f'{paths[0].stem}-new'
-    for path in paths:
-        for age in ['old', 'new']:
-            version = f'{path.stem}-{age}'
-            versions.append(version)
-            for d in json.loads(path.read_text()):
-                if d['calcinfo'] == age:
-                    cpus = str(d['mpi-ranks'])
-                    if d['mpi-ranks'] <= 4:
-                        cpus += 'G'
-                    id = (d['shortname'],
-                          d['longname'],
-                          d['processor'],
-                          cpus)
-                    data[id][version] = (d['First step'],
-                                         d['Second step'],
-                                         d['max_rss'])
-                    print(id, version)
-    versions.sort()
-    rows = [['number',
-             'name', 'processor', 'cores',
-             'step 1 [s]', 'step 2 [s]', 'max rss [GB]']]
-    for i, id in enumerate(sorted(data)):
-        d = data[id]
-        row = [str(i)] + list(id[1:])
-        if refname in d:
-            t1, t2, m = d[refname]
-            row += [f'{t1:.0f}', f'{t2:.0f}', f'{m * 1e-9:.1f}']
-            rows.append(row)
-    Path('table.csv').write_text(
-        '\n'.join(', '.join(row) for row in rows) + '\n')
-
-    X = [id[0] + ((' ' + id[3]) if id[3].endswith('G') else '')
-         for id in sorted(data)]
-    fig, axs = plt.subplots(3, 1, figsize=(9, 9))
-    for n, (name, ax) in enumerate(zip(['First step',
-                                        'Second step',
-                                        'max_rss'],
-                                       axs)):
-        for version in versions:
+    for n, (title, ax) in enumerate(zip(titles, axs)):
+        for tag, day, score, results in data:
             Y = []
-            for id in sorted(data):
-                d = data[id]
-                if version in d and refname in d:
-                    y = d[version][n] / d[refname][n] * 100 - 100
+            for name in NAMES:
+                if name in results:
+                    r = results[name]
+                    if n == 0:
+                        y = REFERENCES[name][3] / (r[1] + r[5])
+                    elif n == 1:
+                        y = 100 * r[5] / (r[1] + r[5])
+                    else:
+                        y = r[7] * 1e-9
                 else:
                     y = None
                 Y.append(y)
-            ax.plot(Y, 'x-', label=version)
-        ax.set_ylabel(name + ' [%]')
+            ax.plot(Y, 'x-', label=f'{day} ({score:.1f})')
+        ax.set_ylabel(title)
         if n == 2:
-            ax.set_xticks(range(len(X)), X, rotation=70, ha='center')
+            ax.set_xticks(range(len(NAMES)), NAMES, rotation=70, ha='center')
             ax.legend()
         else:
             ax.set_xticklabels([])
 
     plt.tight_layout()
-    plt.savefig('table.png')
-    if sys.stdout.isatty():
-        plt.show()
+    plt.savefig('benchmark.png')
+
+
+def plot_score() -> None:
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(figsize=(10, 5))
+    X = []
+    Y = []
+    for tag, day, score, results in data[1:]:
+        X.append(day)
+        Y.append(score)
+    ax.plot(X, Y, 'o-')  # type: ignore
+    ax.axhline(100.0, ls=':', color='black', label='gpaw-25.7.0')
+    ax.legend()
+    ax.set_xlabel('date')
+    ax.set_ylabel('score')
+    plt.tight_layout()
+    plt.savefig('score.png')
 
 
 if __name__ == '__main__':
-    compare(sys.argv[1:])
+    import matplotlib.pyplot as plt
+    tables()
+    plot()
+    plot_score()
+    plt.show()

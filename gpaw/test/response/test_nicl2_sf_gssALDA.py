@@ -2,17 +2,15 @@ import numpy as np
 import pytest
 
 from gpaw.mpi import world
-from gpaw.test import findpeak
-
 from gpaw.response import ResponseGroundStateAdapter
-from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.chiks import ChiKSCalculator
-from gpaw.response.fxc_kernels import AdiabaticFXCCalculator
 from gpaw.response.dyson import HXCKernel
+from gpaw.response.frequencies import ComplexFrequencyDescriptor
+from gpaw.response.fxc_kernels import AdiabaticFXCCalculator
 from gpaw.response.goldstone import FMGoldstoneScaling
-from gpaw.response.susceptibility import ChiFactory
 from gpaw.response.pair_functions import read_pair_function
-
+from gpaw.response.susceptibility import ChiFactory
+from gpaw.test import findpeak
 
 pytestmark = pytest.mark.skipif(world.size < 4,
                                 reason='too slow for world.size < 4')

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.setup import Setups
@@ -24,6 +25,9 @@ def move_wave_functions(oldrelpos_ac: np.ndarray,
     This quantity is then subtracted and re-added at the new
     positions.
     """
+    if len(psit_nX.dims) == 2:
+        return  # not implemented for non-collinear wave functions
+
     desc = psit_nX.desc
     atomdist = P_ani.layout.atomdist
 

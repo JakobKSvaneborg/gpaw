@@ -1,14 +1,15 @@
 import collections.abc
+from collections import defaultdict
 from copy import deepcopy
-from pprint import pp
-import numpy as np
-from gpaw.mpi import world
-from time import time
 from json import dumps, loads
 from pathlib import Path
-from collections import defaultdict
+from pprint import pp
+from time import time
+
+import numpy as np
 
 from gpaw.benchmark.systems import parse_system
+from gpaw.mpi import parallel
 from gpaw.utilities.memory import maxrss
 
 pw_default_parameters = {'mode': {'name': 'pw', 'ecut': 400}}
@@ -36,7 +37,7 @@ eigensolver_parameter_subsets = {'RMMDIIS':
                                    'trial_step': 0.1}},
                                  'DAV3':
                                  {'eigensolver':
-                                  {'name': 'dav',
+                                  {'name': 'davidson',
                                    'niter': 3}}}
 
 benchmarks_list = [
@@ -81,7 +82,8 @@ benchmarks_list = [
      '56-:100G:2-GPU')]
 
 
-def get_domainband(size=None):
+@parallel(name='world')
+def get_domainband(size=None, *, world):
     """Divide a world size to domain and bands (as square as possible)
 
     If size is None then use the mpi.world.size.
@@ -243,7 +245,8 @@ def shell_command(cmd, cwd=None):
     return output
 
 
-def gather_system_information():
+@parallel(name='world')
+def gather_system_information(world):
     import gpaw
     return {'processor': shell_command('lscpu'),
             'memory': shell_command('lsmem'),
@@ -291,7 +294,8 @@ def parse_name(name):
     return short_name, long_name, calc_info
 
 
-def benchmark_atoms_and_calc(long_name, calc_info):
+@parallel(name='world')
+def benchmark_atoms_and_calc(long_name, calc_info, world):
     """Create atoms and calculator ibject from long name and calculator
     info (new/old)
     """
@@ -382,7 +386,8 @@ class Benchmark(Walltime):
         Path(fname).write_text(dumps(self.todict()))
 
 
-def benchmark_main(name):
+@parallel(name='world')
+def benchmark_main(name, *, world):
     # Run the gs_and_move_atoms benchmars for 'name' where
     # name can be either a short name or a long name.
     short_name, long_name, calc_info = parse_name(name)

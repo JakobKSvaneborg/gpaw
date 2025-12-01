@@ -3,7 +3,6 @@ import os
 import subprocess
 import sys
 
-
 commands = [
     ('run', 'gpaw.cli.run'),
     ('info', 'gpaw.cli.info'),
@@ -12,7 +11,7 @@ commands = [
     ('gpw', 'gpaw.cli.gpw'),
     ('completion', 'gpaw.cli.completion'),
     ('atom', 'gpaw.atom.aeatom'),
-    ('diag', 'gpaw.fulldiag'),
+    ('diag', 'gpaw.cli.fulldiag'),
     # ('quick', 'gpaw.cli.quick'),
     ('python', 'gpaw.cli.python'),
     ('sbatch', 'gpaw.cli.sbatch'),
@@ -25,7 +24,6 @@ commands = [
 
 
 def hook(parser, args):
-    parser.color = True
     parser.suggest_on_error = True
     parser.add_argument('-P', '--parallel', type=int, metavar='N',
                         help='Run on N CPUs.')
@@ -48,7 +46,7 @@ def hook(parser, args):
         if have_mpi and world.size == 1 and args.parallel > 1:
             py = sys.executable
         elif not have_mpi:
-            py = 'gpaw-python'
+            raise SystemExit('MPI not available')
         else:
             py = ''
 
@@ -58,8 +56,6 @@ def hook(parser, args):
             if sys.version_info >= (3, 11):
                 # Don't prepend a potentially unsafe path to sys.path
                 pyargs.append('-P')
-            if args.command == 'python' and args.debug:
-                pyargs.append('-d')
             arguments = ['mpiexec',
                          *os.environ.get('GPAW_MPI_OPTIONS', '').split(),
                          '-np',
@@ -78,13 +74,19 @@ def hook(parser, args):
 
 
 def main(args=None):
-    from gpaw import all_lazy_imports, broadcast_imports, __getattr__
+    from gpaw import __getattr__, all_lazy_imports, broadcast_imports
     with broadcast_imports:
         for attr in all_lazy_imports:
             __getattr__(attr)
 
         from ase.cli.main import main as ase_main
+
         from gpaw import __version__
+
+    pre_exec = os.environ.get('GPAW_PREEXEC_SCRIPT')
+    if pre_exec is not None:
+        import runpy
+        runpy.run_path(pre_exec)
 
     ase_main('gpaw', 'GPAW command-line tool', __version__,
              commands, hook, args)

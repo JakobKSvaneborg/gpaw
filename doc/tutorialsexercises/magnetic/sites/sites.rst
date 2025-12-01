@@ -53,7 +53,7 @@ In the script
 :download:`Fe_site_properties.py`,
 the site magnetization and Zeeman energy are calculated from the ground state
 of bcc iron. The script should take less than 10 minutes on a 40 core node.
-After running the calculation script, you can download and excecute
+After running the calculation script, you can download and execute
 :download:`Fe_plot_site_properties.py`
 to plot the site magnetization and Zeeman energy as a function of the
 spherical site radius `r_\mathrm{c}`.
@@ -66,7 +66,7 @@ we clearly see that there is a region, where the site Zeeman energy is constant
 as a function of the radius, hence making `E_a^\mathrm{Z}` a well-defined
 property of the system in its own right.
 However, the same cannot be said for the site magnetization, which continues to
-varry as a function of the cutoff radius. This is due to the fact that the
+vary as a function of the cutoff radius. This is due to the fact that the
 interstitial region between the Fe atoms is slightly spin-polarized
 anti-parallel to the local magnetic moments, resulting in a radius
 `r_\mathrm{c}^\mathrm{max}` which maximizes the site magnetization (marked with
@@ -100,7 +100,7 @@ evaluated on specific spherical sites,
 
 Similar to the site quantities, GPAW includes functionality to calculate site
 matrix elements for arbitrary *local* functionals of the (spin-)density
-`f(\mathbf{r}) = f(n(\mathbf{r}),n^z(\mathbf{r}))`, with implementational
+`f(\mathbf{r}) = f(n(\mathbf{r}),n^z(\mathbf{r}))`, with implementation
 details documented in [#Skovhus]_.
 For example, one can calculate the site pair density
 
@@ -179,9 +179,9 @@ Example: Iron
 In the
 :download:`Fe_site_sum_rules.py`
 script, the single-particle site Zeeman energy is calculated along with the
-pair site Zeeman energy using a varrying number of bands. It should take less
+pair site Zeeman energy using a varying number of bands. It should take less
 than half an hour on a 40 core node to run.
-Having done so, you can excecute
+Having done so, you can execute
 :download:`Fe_plot_site_sum_rules.py`
 to plot the band convergence of `E^{\mathrm{Z}}_{ab}(\mathbf{q})`.
 
@@ -270,7 +270,7 @@ M, K and A high-symmetry points. Furthermore we calculate exchange constants at
 the ideal rigid spin approximation cutoff `r_\mathrm{c}^\mathrm{max}` for all
 commensurate q-points along the corresponding `\Gamma`-M-K-`\Gamma`-A
 high-symmetry path. It should take less than an hour on a 40 core node to run.
-You can then excecute
+You can then execute
 :download:`Co_plot_hsp_magnons_vs_rc.py`
 to examine the `r_\mathrm{c}`-dependence of the exchange parameters via the
 resulting high-symmetry point magnon energies.
@@ -287,7 +287,7 @@ magnetic sites, one may nevertheless take the isotropic exchange
 onto atom-centered spherical sites to be a well-defined physical property of the
 hcp-Co system.
 
-Excecuting
+Executing
 :download:`Co_plot_dispersion.py`,
 you can explore the full magnon dispersion of hcp-Co as calculated within LDA in
 the LR-MFT method.
@@ -295,12 +295,32 @@ the LR-MFT method.
 .. image:: Co_dispersion.png
 	   :align: center
 
+Example: NiO with LDA+U
+-----------------------
+For strongly correlated systems the exchange splitting is often underestimated,
+which results in too large exchange constants. This may largely be remedied by
+inclusion of Hubbard corrections through the LDA+U scheme. This approach
+introduces an additional term in the KS Hamiltonian that needs to be included
+in addition to the exchange-correlation magnetic field. This is easily included
+in the local site formulation and results in a U-dependent correction to the spin
+pair energy site matrix element defined above.
+
+The effect of U is be illustrated by the anti-ferromagnet NiO here. The exchange
+constants with and without Hubbard corrections can be calculated with the script
+:download:`nio_dispersion.py`, which takes roughly 10 hours on 120 CPUs. The
+spin-wave dispersions with and without U is calculated and plotted with the script
+:download:`plot_nio_dispersion.py` and are show below. Experimentally, the magnon
+band width is close to 110 meV, which is close to the LDA+U result.
+
+.. image:: nio_dispersion.png
+	   :align: center
+
 
 Excercises
 ==========
 
 To get comfortable with the presented functionality, here are some suggested
-excercises to get you started:
+exercises to get you started:
 
 1) Calculate the site pair magnetization of iron and analyze its band
    convergence.
@@ -325,6 +345,9 @@ excercises to get you started:
    a similar interplay between the number of bands and its
    `r_\mathrm{c}`-sensitivity as shown for the pair site Zeeman energy of Fe?
 
+6) Calculate and plot the magnon band width (maximal magnins energy )as a
+   function of U for the case of anti-ferromagnetic NiO.
+
 
 API
 ===
@@ -345,8 +368,8 @@ API
 References
 ==========
 
-.. [#Skovhus] T. Skovhus and T. Olsen,
-	   *publication in preparation*, (2024)
+.. [#Skovhus] T. Skovhus, V. R. Pavizhakumari and T. Olsen,
+	   *publication in preparation*, (2025)
 
 .. [#Durhuus] F. L. Durhuus, T. Skovhus and T. Olsen,
 	   *J. Phys.: Condens. Matter* **35**, 105802 (2023)

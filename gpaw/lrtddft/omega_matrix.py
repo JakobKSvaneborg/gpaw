@@ -1,15 +1,15 @@
 import numpy as np
-from scipy.linalg import eigh
-
 from ase.units import Hartree
 from ase.utils.timing import Timer
+from scipy.linalg import eigh
 
 import gpaw.mpi as mpi
-from .kssingle import KSSingles
 from gpaw.setup import CachedYukawaInteractions
 from gpaw.transformers import Transformer
 from gpaw.utilities import pack_density
 from gpaw.xc import XC
+
+from .kssingle import KSSingles
 
 """This module defines a Omega Matrix class."""
 

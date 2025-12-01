@@ -5,9 +5,9 @@ from ase.units import Bohr
 
 import gpaw.cgpaw as cgpaw
 from gpaw import debug
-from gpaw.grid_descriptor import GridDescriptor, GridBoundsError
-from gpaw.gpu import cupy_is_fake
+from gpaw.gpu import as_np, as_numpy, as_xp, cupy_is_fake
 from gpaw.new import trace
+from gpaw.old.grid_descriptor import GridBoundsError, GridDescriptor
 from gpaw.utilities import smallest_safe_grid_spacing
 
 """
@@ -225,7 +225,8 @@ class LocalizedFunctionsCollection(BaseLFC):
 
     """
     def __init__(self, gd, spline_aj, kd=None, cut=False, dtype=float,
-                 integral=None, forces=None, xp=np):
+                 integral=None, forces=None, xp=np,
+                 gpu_add_and_integrate=True):
         self.gd = gd
         self.kd = kd
         self.sphere_a = [Sphere(spline_j) for spline_j in spline_aj]
@@ -233,6 +234,10 @@ class LocalizedFunctionsCollection(BaseLFC):
         self.dtype = dtype
         self.Mmax = None
         self.xp = xp
+
+        # There is a legacy GPU LFC object code for two functions,
+        # this enables them.
+        self.gpu_add_and_integrate = gpu_add_and_integrate
 
         if kd is None:
             self.ibzk_qc = np.zeros((1, 3))
@@ -381,7 +386,8 @@ class LocalizedFunctionsCollection(BaseLFC):
                     next(iterator)
 
         self.lfc = cgpaw.LFC(self.A_Wgm, self.M_W, self.G_B, self.W_B,
-                             self.gd.dv, self.phase_qW, self.xp is not np)
+                             self.gd.dv, self.phase_qW,
+                             self.gpu_add_and_integrate and self.xp is not np)
 
         return sdisp_Wc
 
@@ -425,6 +431,7 @@ class LocalizedFunctionsCollection(BaseLFC):
             elif cupy_is_fake:
                 self.lfc.add(c_xM._data, a_xG._data, q)
             else:
+                assert self.gpu_add_and_integrate
                 self.lfc.add_gpu(c_xM.data.ptr,
                                  c_xM.shape,
                                  a_xG.data.ptr,
@@ -594,6 +601,7 @@ class LocalizedFunctionsCollection(BaseLFC):
         elif cupy_is_fake:
             self.lfc.integrate(a_xG._data, c_xM._data, q)
         else:
+            assert self.gpu_add_and_integrate
             self.lfc.integrate_gpu(a_xG.data.ptr,
                                    a_xG.shape,
                                    c_xM.data.ptr,
@@ -961,24 +969,22 @@ class LocalizedFunctionsCollection(BaseLFC):
 
 class BasisFunctions(LocalizedFunctionsCollection):
     def __init__(self, gd, spline_aj, kd=None, cut=False, dtype=float,
-                 integral=None, forces=None, xp=np):
-        LocalizedFunctionsCollection.__init__(self, gd, spline_aj,
-                                              kd, cut,
-                                              dtype, integral,
-                                              forces, xp=xp)
+                 integral=None, forces=None, xp=np,
+                 gpu_add_and_integrate=True):
+        super().__init__(gd, spline_aj, kd, cut, dtype, integral, forces,
+                         xp=xp, gpu_add_and_integrate=gpu_add_and_integrate)
         self.use_global_indices = True
-
         self.Mstart = None
         self.Mstop = None
 
     @trace
     def set_positions(self, spos_ac):
-        LocalizedFunctionsCollection.set_positions(self, spos_ac)
+        super().set_positions(spos_ac)
         self.Mstart = 0
         self.Mstop = self.Mmax
 
     def _update(self, spos_ac):
-        sdisp_Wc = LocalizedFunctionsCollection._update(self, spos_ac)
+        sdisp_Wc = super()._update(spos_ac)
 
         if not self.gamma or self.dtype == complex:
             self.x_W, self.sdisp_xc = self.create_displacement_arrays(sdisp_Wc)
@@ -1027,17 +1033,18 @@ class BasisFunctions(LocalizedFunctionsCollection):
                    a,i
 
         """
-        assert np.all(self.gd.n_c == nt_sG.shape[1:])
-        nspins = len(nt_sG)
-        f_sM = np.empty((nspins, self.Mmax))
-        for a in self.atom_indices:
-            sphere = self.sphere_a[a]
-            M1 = self.M_a[a]
-            M2 = M1 + sphere.Mmax
-            f_sM[:, M1:M2] = f_asi[a]
+        with as_numpy(nt_sG) as nt_sG:
+            assert np.all(self.gd.n_c == nt_sG.shape[1:])
+            nspins = len(nt_sG)
+            f_sM = np.empty((nspins, self.Mmax))
+            for a in self.atom_indices:
+                sphere = self.sphere_a[a]
+                M1 = self.M_a[a]
+                M2 = M1 + sphere.Mmax
+                f_sM[:, M1:M2] = f_asi[a]
 
-        for nt_G, f_M in zip(nt_sG, f_sM):
-            self.lfc.construct_density1(f_M, nt_G)
+            for nt_G, f_M in zip(nt_sG, f_sM):
+                self.lfc.construct_density1(f_M, nt_G)
 
     def construct_density(self, rho_MM, nt_G, q):
         """Calculate electron density from density matrix.
@@ -1054,7 +1061,10 @@ class BasisFunctions(LocalizedFunctionsCollection):
                    --     M1       M1M2   M2
                   M1,M2
         """
-        self.lfc.construct_density(rho_MM, nt_G, q, self.Mstart, self.Mstop)
+        rho_MM = as_np(rho_MM)
+        with as_numpy(nt_G) as nt_G:
+            self.lfc.construct_density(
+                rho_MM, nt_G, q, self.Mstart, self.Mstop)
 
     def integrate2(self, a_xG, c_xM, q=-1):
         """Calculate integrals of arrays times localized functions.
@@ -1084,6 +1094,8 @@ class BasisFunctions(LocalizedFunctionsCollection):
                       /
 
         Overwrites the elements of the target matrix Vt_MM. """
+        vt_G = as_np(vt_G)
+
         assert np.all(vt_G.shape == self.gd.n_c), (vt_G.shape, self.gd.n_c)
         if self.gamma and self.dtype == float:
             Vt_xMM = np.zeros((1, self.Mstop - self.Mstart, self.Mmax))
@@ -1095,7 +1107,8 @@ class BasisFunctions(LocalizedFunctionsCollection):
                                self.Mmax))
             self.lfc.calculate_potential_matrices(vt_G, Vt_xMM, self.x_W,
                                                   self.Mstart, self.Mstop)
-        return Vt_xMM
+
+        return as_xp(Vt_xMM, self.xp)
 
     def calculate_potential_matrix(self, vt_G, Vt_MM, q):
         """Calculate lower part of potential matrix.
@@ -1251,7 +1264,7 @@ def LFC(gd, spline_aj, kd=None,
 
 
 def test():
-    from gpaw.grid_descriptor import GridDescriptor
+    from gpaw.old.grid_descriptor import GridDescriptor
 
     ngpts = 40
     h = 1 / ngpts

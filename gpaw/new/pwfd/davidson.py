@@ -3,14 +3,15 @@ from __future__ import annotations
 from pprint import pformat
 
 import numpy as np
+
 from gpaw import debug
 from gpaw.core.matrix import Matrix
 from gpaw.gpu import as_np
 from gpaw.mpi import broadcast_exception
+from gpaw.new import trace, tracectx
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D
-from gpaw.new import trace, tracectx
 
 
 class Davidson(PWFDEigensolver):
@@ -42,14 +43,12 @@ class Davidson(PWFDEigensolver):
         self._allocate_work_arrays(ibzwfs, shape=(1,))
         self._allocate_buffer_arrays(ibzwfs, shape=(1,))
 
-        wfs = ibzwfs.wfs_qs[0][0]
-        assert isinstance(wfs, PWFDWaveFunctions)
-        domain_comm = wfs.psit_nX.desc.comm
-        band_comm = wfs.band_comm
+        domain_comm = ibzwfs.domain_comm
+        band_comm = ibzwfs.band_comm
 
         B = ibzwfs.nbands
         xp = ibzwfs.xp
-        dtype = wfs.psit_nX.desc.dtype
+        dtype = ibzwfs.dtype
         if domain_comm.rank == 0 and band_comm.rank == 0:
             self.H_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp)
             self.S_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp)
@@ -78,7 +77,6 @@ class Davidson(PWFDEigensolver):
 
         psit2_nX = psit_nX.new(data=self.work_arrays[0, :b])
         data_buffer = self.data_buffers[0]
-
         wfs.subspace_diagonalize(Ht, dH,
                                  psit2_nX=psit2_nX,
                                  data_buffer=data_buffer)
@@ -172,8 +170,11 @@ class Davidson(PWFDEigensolver):
                         if is_domain_band_master:
                             H_NN.data[:B, :B] = xp.diag(eig_N[:B])
                             S_NN.data[:B, :B] = xp.eye(B)
+                            # print(H_NN.data)
+                            # print(S_NN.data)
                             eig_N[:] = H_NN.eigh(S_NN)
-                            wfs._eig_n = as_np(eig_N[:B])
+                            # print(eig_N, self.niter)
+                            wfs.eig_n = as_np(eig_N[:B])
                 if domain_comm.rank == 0:
                     band_comm.broadcast(wfs.eig_n, 0)
                 domain_comm.broadcast(wfs.eig_n, 0)
@@ -232,7 +233,8 @@ def sliced_preconditioner(psit_nX, psit2_nX, buffer, precon):
 
 
 def sliced_matrix_elements(psit1_nX, psit2_nX, buffer_mX, Ht, M1_nn, M2_nn):
-    ''' Method for calculating matrix elements in a sliced manner:
+    """Method for calculating matrix elements in a sliced manner.
+
     <psi2 | H | psi2> -> M2_nn
     <psi2 | H | psi1> -> M1_nn
 
@@ -247,7 +249,7 @@ def sliced_matrix_elements(psit1_nX, psit2_nX, buffer_mX, Ht, M1_nn, M2_nn):
                              out=M_nn,
                              domain_sum=False,
                              cc=True)
-    '''
+    """
     comm = psit1_nX.comm
     b = psit1_nX.data.shape[0]
     blocksize = buffer_mX.data.shape[0]
@@ -265,8 +267,7 @@ def sliced_matrix_elements(psit1_nX, psit2_nX, buffer_mX, Ht, M1_nn, M2_nn):
 
         buffer_view_aX = buffer_mX.new(
             data=buffer_mX.data[:n2 - n1],
-            dims=(world_N,) + buffer_mX.dims[1:],
-        )
+            dims=(world_N,) + buffer_mX.dims[1:])
         Ht(psit2_nX[n1:n2], out=buffer_view_aX)
 
         out1 = Matrix(

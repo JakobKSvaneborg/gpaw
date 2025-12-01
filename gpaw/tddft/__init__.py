@@ -8,33 +8,43 @@ from math import log
 
 import numpy as np
 
-from gpaw.calculator import GPAW
-from gpaw.mixer import DummyMixer
-from gpaw.preconditioner import Preconditioner
-from gpaw.tddft.units import (attosec_to_autime, autime_to_attosec,
-                              aufrequency_to_eV)
-from gpaw.tddft.utils import MultiBlas
-from gpaw.tddft.solvers import create_solver
-from gpaw.tddft.propagators import \
-    create_propagator, \
-    AbsorptionKick
-from gpaw.tddft.tdopers import \
-    TimeDependentHamiltonian, \
-    TimeDependentOverlap, \
-    TimeDependentWaveFunctions, \
-    TimeDependentDensity, \
-    AbsorptionKickHamiltonian
-from gpaw.wavefunctions.fd import FD
-
-from gpaw.tddft.spectrum import photoabsorption_spectrum
+from gpaw import GPAW_NEW
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.lcaotddft.magneticmomentwriter import MagneticMomentWriter
 from gpaw.lcaotddft.restartfilewriter import RestartFileWriter
-
+from gpaw.mixer import DummyMixer
+from gpaw.old.calculator import GPAW
+from gpaw.old.wavefunctions.fd import FD
+from gpaw.preconditioner import Preconditioner
+from gpaw.tddft.propagators import AbsorptionKick, create_propagator
+from gpaw.tddft.solvers import create_solver
+from gpaw.tddft.spectrum import photoabsorption_spectrum
+from gpaw.tddft.tdopers import (AbsorptionKickHamiltonian,
+                                TimeDependentDensity, TimeDependentHamiltonian,
+                                TimeDependentOverlap,
+                                TimeDependentWaveFunctions)
+from gpaw.tddft.units import (attosec_to_autime, aufrequency_to_eV,
+                              autime_to_attosec)
+from gpaw.tddft.utils import MultiBlas
 
 __all__ = ['TDDFT', 'photoabsorption_spectrum',
            'DipoleMomentWriter', 'MagneticMomentWriter',
            'RestartFileWriter']
+
+
+def TDDFT(filename: str, **kwargs):
+    if GPAW_NEW:
+        from gpaw.new.rttddft.backwards_compatibility import RTTDDFTAdapter
+        kwargs.pop('txt', None)  # Ignore silently
+        kwargs.pop('parallel', None)  # Ignore silently
+        kwargs.pop('communicator', None)  # Ignore silently
+        assert kwargs.pop('solver', None) in [None], \
+            'solver not implemented yet'
+        assert kwargs.pop('td_potential', None) in [None], \
+            'td_potential not implemented yet'
+        new_tddft = RTTDDFTAdapter.from_file(filename, **kwargs)
+        return new_tddft
+    return OldTDDFT(filename, **kwargs)
 
 
 # T^-1
@@ -67,7 +77,7 @@ class FDTDDFTMode(FD):
         return TimeDependentWaveFunctions(self.nn, *args, **kwargs)
 
 
-class TDDFT(GPAW):
+class OldTDDFT(GPAW):
     """Time-dependent density functional theory calculation based on GPAW.
 
     This class is the core class of the time-dependent density functional
@@ -136,8 +146,8 @@ class TDDFT(GPAW):
 
         # NB: TDDFT restart files contain additional information which
         #     will override the initial settings for time/kick/niter.
-        GPAW.__init__(self, filename, parallel=parallel,
-                      communicator=communicator, txt=txt)
+        super().__init__(filename, parallel=parallel,
+                         communicator=communicator, txt=txt)
         if len(self.symmetry.op_scc) > 1:
             raise ValueError('Symmetries are not allowed for TDDFT. '
                              'Run the ground state calculation with '
@@ -268,10 +278,10 @@ class TDDFT(GPAW):
 
     def create_wave_functions(self, mode, *args, **kwargs):
         mode = FDTDDFTMode(mode.nn, mode.interpolation, True)
-        GPAW.create_wave_functions(self, mode, *args, **kwargs)
+        super().create_wave_functions(mode, *args, **kwargs)
 
     def read(self, filename):
-        reader = GPAW.read(self, filename)
+        reader = super().read(filename)
         if 'tddft' in reader:
             r = reader.tddft
             self.time = r.time
@@ -279,7 +289,7 @@ class TDDFT(GPAW):
             self.kick_strength = r.kick_strength
 
     def _write(self, writer, mode):
-        GPAW._write(self, writer, mode)
+        super()._write(writer, mode)
         w = writer.child('tddft')
         w.write(time=self.time,
                 niter=self.niter,

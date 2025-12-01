@@ -2,12 +2,12 @@
 
 """
 from math import sqrt
-import numpy as np
 
+import numpy as np
 from ase.units import Ha
 
 import gpaw.mpi as mpi
-from gpaw.io.logger import GPAWLogger
+from gpaw.old.logger import GPAWLogger
 
 
 def get_filehandle(cls, filename, mode='r'):

@@ -10,7 +10,7 @@ Band-structure
 .. image:: ../documentation/scissors/mos2ws2.png
 
 
-Electron localisation function (ELF)
+Electron localization function (ELF)
 ====================================
 
 Water molecule (ELF=0.8):

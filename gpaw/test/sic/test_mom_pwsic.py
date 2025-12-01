@@ -1,7 +1,15 @@
+import io
+
+import numpy as np
+import numpy.testing as npt
 import pytest
 
 from gpaw import GPAW
-import numpy as np
+from gpaw.mpi import world
+from gpaw.old.logger import GPAWLogger
+from gpaw.old.wavefunctions.base import eigenvalue_string
+from gpaw.test.sic._utils import (MockWorld, extract_lagrange_section,
+                                  mk_arr_from_str)
 
 
 @pytest.mark.old_gpaw_only
@@ -32,3 +40,41 @@ def test_mom_pwsic(in_tmp_dir, gpw_files):
 
     assert f == pytest.approx(f_num, abs=0.3)
     assert e == pytest.approx(-3.302431, abs=0.2)
+
+    if world.rank == 0:
+        logger = GPAWLogger(MockWorld(rank=0))
+        string_io = io.StringIO()
+        logger.fd = string_io
+        calc.wfs.summary_func(logger)
+        lstr = extract_lagrange_section(string_io.getvalue())
+
+        expect_lagrange_str = """\
+        Band         L_ii   Occupancy   Band      L_ii   Occupancy
+           0    -27.16794    1.00000    0    -26.69776    1.00000
+           1    -27.03738    1.00000    1    -26.63601    1.00000
+           2    -21.27563    1.00000    2    -21.66586    1.00000
+           3     -4.79667    1.00000    3    -21.65867    1.00000
+           4    -11.29628    0.00000    4     -2.39219    0.00000
+           5     -0.36645    0.00000    5      0.29809    0.00000
+        """
+        expect_eigen_str = """\
+        Band  Eigenvalues  Occupancy  Eigenvalues  Occupancy
+           0    -35.88615    1.00000    -37.34498    1.00000
+           1    -21.71059    1.00000    -22.06147    1.00000
+           2    -18.08943    1.00000    -18.72728    1.00000
+           3     -4.59144    1.00000    -18.52456    1.00000
+           4    -11.29628    0.00000     -2.39219    0.00000
+           5     -0.36645    0.00000      0.29809    0.00000
+        """
+
+        npt.assert_allclose(
+            mk_arr_from_str(expect_lagrange_str, 6),
+            mk_arr_from_str(lstr, 6),
+            atol=0.75,
+        )
+
+        npt.assert_allclose(
+            mk_arr_from_str(expect_eigen_str, 5),
+            mk_arr_from_str(eigenvalue_string(calc.wfs), 5, skip_rows=1),
+            atol=0.75,
+        )

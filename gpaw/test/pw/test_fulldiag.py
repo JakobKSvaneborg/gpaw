@@ -1,6 +1,7 @@
 from ase import Atoms
+
 from gpaw import GPAW, PW
-from gpaw.mpi import world, serial_comm
+from gpaw.mpi import serial_comm, world
 
 
 def test_pw_fulldiag(in_tmp_dir, scalapack):

@@ -1,11 +1,9 @@
+import numpy as np
 import pytest
 
-import numpy as np
-
-from gpaw import GPAW
 import gpaw.mpi as mpi
+from gpaw import GPAW
 from gpaw.response.df import DielectricFunction, read_response_function
-
 from gpaw.test import findpeak
 
 

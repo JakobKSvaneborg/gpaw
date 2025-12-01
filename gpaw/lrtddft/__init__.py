@@ -2,19 +2,19 @@
 import numbers
 import sys
 from math import sqrt
-from typing import Dict, Any
-import numpy as np
+from typing import Any
 
+import numpy as np
 from ase.units import Hartree
 from ase.utils.timing import Timer
 
 import gpaw.mpi as mpi
-from gpaw.xc import XC
+from gpaw.lrtddft.apmb import ApmB
 from gpaw.lrtddft.excitation import Excitation, ExcitationList, get_filehandle
 from gpaw.lrtddft.kssingle import KSSingles
 from gpaw.lrtddft.omega_matrix import OmegaMatrix
-from gpaw.lrtddft.apmb import ApmB
 from gpaw.lrtddft.spectrum import spectrum
+from gpaw.xc import XC
 
 __all__ = ['LrTDDFT', 'photoabsorption_spectrum', 'spectrum']
 
@@ -48,7 +48,7 @@ class LrTDDFT(ExcitationList):
     read from a file
     """
 
-    default_parameters: Dict[str, Any] = {
+    default_parameters: dict[str, Any] = {
         'nspins': None,
         'restrict': {},
         'xc': None,
@@ -69,7 +69,7 @@ class LrTDDFT(ExcitationList):
         self.set(**kwargs)
         self.calculator = calculator
 
-        ExcitationList.__init__(self, log=log, txt=txt)
+        super().__init__(log=log, txt=txt)
 
         if self.eh_comm is None:
             self.eh_comm = mpi.serial_comm

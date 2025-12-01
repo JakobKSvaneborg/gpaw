@@ -1,12 +1,13 @@
 from math import pi, sqrt
+
 import numpy as np
 from numpy import exp
 from scipy.special import erf, erfc
 
-from gpaw.poisson import FDPoissonSolver
-from gpaw.utilities.gauss import Gaussian
 from gpaw.fd_operators import FDOperator, laplace
+from gpaw.poisson import FDPoissonSolver
 from gpaw.transformers import Transformer
+from gpaw.utilities.gauss import Gaussian
 
 
 class HelmholtzGaussian(Gaussian):
@@ -89,7 +90,7 @@ class HelmholtzOperator(FDOperator):
             offsets.extend(np.arange(-1, -n - 1, -1)[:, np.newaxis] * M_c)
             coefs.extend(a_d[d] * np.array(laplace[n][1:]))
 
-        FDOperator.__init__(self, coefs, offsets, gd, dtype)
+        super().__init__(coefs, offsets, gd, dtype)
 
         self.description = (
             '%d*%d+1=%d point O(h^%d) finite-difference Helmholtz' %
@@ -116,8 +117,7 @@ class HelmholtzSolver(FDPoissonSolver):
     def __init__(self, k2=0.0, nn='M', relax='GS', eps=2e-10,
                  use_charge_center=True):
         assert k2 <= 0, 'Currently only defined for k^2<=0'
-        FDPoissonSolver.__init__(self, nn, relax, eps,
-                                 use_charge_center=use_charge_center)
+        super().__init__(nn, relax, eps, use_charge_center=use_charge_center)
         self.k2 = k2
 
     def set_grid_descriptor(self, gd):

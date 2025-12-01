@@ -1,8 +1,9 @@
 import numpy as np
 import pytest
+
+import gpaw.mpi as mpi
 from gpaw import GPAW
 from gpaw.ibz2bz import IBZ2BZMaps, get_overlap, get_overlap_coefficients
-import gpaw.mpi as mpi
 from gpaw.test.gpwfile import response_band_cutoff
 
 
@@ -214,7 +215,7 @@ def get_ibz_data_from_wfs(wfs, nbands, ik, s):
     """ gets data at ibz k-point ik
     """
     # get energies and wfs
-    kpt = wfs.kpt_qs[ik][s]
+    kpt = wfs.kpt_u[ik * wfs.nspins + s]
     psit_nG = kpt.psit_nG
     eps_n = kpt.eps_n
 

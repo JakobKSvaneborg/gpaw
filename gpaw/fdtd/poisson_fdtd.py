@@ -5,13 +5,12 @@ from ase import Atoms
 from ase.io.trajectory import read_atoms
 from ase.units import Bohr
 
-import gpaw.mpi as mpi
 from gpaw import GPAW
 from gpaw.fdtd.polarizable_material import PolarizableMaterial
-from gpaw.fdtd.potential_couplers import (RefinerPotentialCoupler,
-                                          MultipolesPotentialCoupler)
-from gpaw.grid_descriptor import GridDescriptor
-from gpaw.mpi import world, serial_comm
+from gpaw.fdtd.potential_couplers import (MultipolesPotentialCoupler,
+                                          RefinerPotentialCoupler)
+from gpaw.mpi import serial_comm, world
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.poisson import PoissonSolver
 from gpaw.poisson_moment import MomentCorrectionPoissonSolver
 from gpaw.tddft import TDDFT, DipoleMomentWriter, RestartFileWriter
@@ -178,7 +177,8 @@ class FDTDPoissonSolver:
                  potential_coupler='Refiner',
                  communicator=serial_comm):
 
-        self.rank = mpi.rank
+        # XXX Implicit use of world
+        self.rank = world.rank
 
         self.messages = []
 
@@ -951,7 +951,7 @@ class FDTDPoissonSolver:
         if r.cl_world_comm:
             self.cl.dcomm = world
         else:
-            self.cl.dcomm = mpi.serial_comm
+            self.cl.dcomm = serial_comm
 
         # Generate classical grid descriptor
         self.initialize_clgd()

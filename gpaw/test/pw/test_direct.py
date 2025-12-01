@@ -1,7 +1,8 @@
+import pytest
 from ase import Atoms
+
 from gpaw import GPAW, PW
 from gpaw.mpi import world
-import pytest
 
 
 @pytest.mark.legacy

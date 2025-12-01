@@ -1,7 +1,8 @@
 import pytest
 from ase.build import molecule
-from gpaw import GPAW
+
 import gpaw.dscf as dscf
+from gpaw import GPAW
 
 # Ground state calculation
 

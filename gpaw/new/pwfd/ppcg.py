@@ -4,16 +4,20 @@ from functools import partial
 from pprint import pformat
 
 import numpy as np
+from ase.units import Ha
+
 from gpaw import debug
+# from gpaw.typing import Array2D
+from gpaw.core import PWDesc  # , PWArray
 from gpaw.core.matrix import Matrix
 from gpaw.gpu import as_np
+from gpaw.new import tracectx  # , trace
+from gpaw.new.pwfd.davidson import sliced_preconditioner
 # from gpaw.mpi import broadcast_exception
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.new.pwfd.davidson import sliced_preconditioner
-# from gpaw.typing import Array2D
-from gpaw.core import PWDesc, PWArray
-from gpaw.new import tracectx, trace
+
+# from gpaw.utilities import as_real_dtype
 
 
 class PPCG(PWFDEigensolver):
@@ -23,10 +27,12 @@ class PPCG(PWFDEigensolver):
                  band_comm,
                  hamiltonian,
                  converge_bands='occupied',
-                 niter=2,
+                 niter=5,
+                 min_niter=2,
                  blocksize=None,
                  rr_modulo=5,
                  include_cg=True,
+                 promote_inner_dtype=False,
                  tolerances: tuple[float, ...] | None = None,
                  scalapack_parameters=None,
                  max_buffer_mem: int = 200 * 1024 ** 2):
@@ -49,21 +55,34 @@ class PPCG(PWFDEigensolver):
         converge_bands : str, optional
             Which bands to converge ('occupied' or 'unoccupied'). Default is
             'occupied'.
-        niter : int, optional
-            Number of iterations. Default is 2.
+        niter : int | typle[int, int], optional
+            Maximum number of iterations. Default is 2.
+        min_niter : int | None, optional
+            If specified as an int, the value is the minimum number of
+            iterations. Where the eigensolver will stop if the residual
+            is below a tolerance, and performed at least the minimum number
+            of iterations, otherwise the niter mnumber of iterations is used.
+            If specified as None, the minimum number of iterations is set
+            to niter.
+            Default is None.
         blocksize : int, optional
             Block size for the diagonal slicing. Lower values
             are more efficient on CPUs with many cores but not on GPUs. The
             value will be modified to a multiple of the number of domain
             ranks.
-            Default is 64 on cpu and 128 on gpu.
+            Default is 128 on cpu and 1024 on gpu.
         rr_modulo : int, optional
             How often to perform subspace diagonalization. Default is 5.
         include_cg : bool, optional
             Include CG in the solver. Default is True. Can be helpful to turn
             off for single precision calculations or if memory is an issue.
-        tolerances : tuple[float, float, float, float], optional
+        promote_inner_dtype : bool, optional
+            Promote inner dtype to double precision. Default is False.
+            Only relevant for single precision calculations.
+        tolerances : tuple[float, float, float], optional
             Advanced setting, tolerances for the solver. Use at your own risk.
+            Fist two tolerances controls freezing of converged bands, the last
+            tolerance controls the early breakout criterion.
         scalapack_parameters : dict, optional
             Parameters for scalapack solver.
         max_buffer_mem : int, optional
@@ -74,21 +93,18 @@ class PPCG(PWFDEigensolver):
             hamiltonian,
             converge_bands)
 
-        if not hamiltonian.band_local:
-            raise NotImplementedError(
-                'PPCG only implemented for band local XCs,'
-                'use davidson instead')
-
         self.nbands = nbands
         self.wf_grid = wf_grid
         self.band_comm = band_comm
         self.niter = niter
+        self.min_niter = min_niter if min_niter is not None else niter
         self.blocksize = blocksize
         self.rr_modulo = rr_modulo
         self.tolerances = tolerances
         self.MW_nn: Matrix
         self.MP_nn: Matrix
         self.include_cg = include_cg
+        self.promote_inner_dtype = promote_inner_dtype
 
     def __str__(self):
         return pformat(dict(name='PPCG',
@@ -100,9 +116,9 @@ class PPCG(PWFDEigensolver):
 
         if self.blocksize is None:
             if xp == np:
-                self.blocksize = 48  # Could be lower, maybe 32
-            else:
                 self.blocksize = 128
+            else:
+                self.blocksize = 1024
 
         if isinstance(self.wf_grid, PWDesc):
             S = self.wf_grid.comm.size
@@ -116,17 +132,15 @@ class PPCG(PWFDEigensolver):
             self._allocate_work_arrays(ibzwfs, shape=(1,))
         self._allocate_buffer_arrays(ibzwfs, shape=(1,))
 
-        wfs = ibzwfs.wfs_qs[0][0]
+        band_comm = ibzwfs.band_comm
+        wfs = ibzwfs._wfs_u[0]
         assert isinstance(wfs, PWFDWaveFunctions)
-        band_comm = wfs.band_comm
-
         B = ibzwfs.nbands
         b = wfs.psit_nX.mydims[0]
         self.blocksize = max(min(self.blocksize, b),
                              1)
         self.nblocksizes = 3 * self.blocksize \
             if self.include_cg else 2 * self.blocksize
-        extra_dims = np.prod(wfs.psit_nX.dims[1:])
         dtype = wfs.psit_nX.desc.dtype
         G_max = np.prod(ibzwfs.get_max_shape())
 
@@ -140,41 +154,44 @@ class PPCG(PWFDEigensolver):
         #   improves numerical stability at the cost of
         #   convergence speed - up to a certain point.
         #   Probably best to not use this one.
-        self.tol_factor = 0  # np.finfo(dtype).eps
+        self.tol_factor = 0
         # tolerance :
         #   Freeze bands with residual < tolerance
         #   improves numerical stability at the cost of
         #   minimum achievable residual.
-        self.tolerance = np.finfo(dtype).eps**2 * G_max
+        self.tolerance = np.finfo(dtype).eps**2 * G_max**0.5
         # breakout_tolerance :
         #   Stop iteration if sum(residual_ns) < breakout_tolerance
         #   breakout_tolerance saves time at the cost of minimum
         #   achievable residual. Can also be used to improve numerical
         #   stability.
-        self.breakout_tolerance = \
-            np.finfo(dtype).eps**2 * (
-                B * extra_dims * G_max)
-        # initial_tolerance_factor :
-        #   Modify the tolerance for the first iteration
-        #   This value can be small since the first iteration
-        #   is more numerically stable.
-        self.initial_tolerance_factor = 1e-2
+        self.breakout_tolerance = 1e-5 / Ha**2
 
         if self.tolerances is not None:
-            assert len(self.tolerances) == 4
+            assert len(self.tolerances) == 3
             self.tol_factor = self.tolerances[0]
             self.tolerance = self.tolerances[1]
-            self.breakout_tolerance = self.tolerances[2]
-            self.initial_tolerance_factor = self.tolerances[3]
+            self.breakout_tolerance = self.tolerances[2] / Ha**2
 
         self.M_nn = Matrix(B, B, dtype=dtype,
                            dist=(band_comm, band_comm.size),
                            xp=xp)
 
+        if dtype != np.float32 and dtype != np.complex64:
+            self.promote_inner_dtype = False
+
+        if self.promote_inner_dtype:
+            inner_dtype = np.float64 if np.issubdtype(dtype, np.floating) \
+                else np.complex128
+            self.buffer_bb = xp.zeros((self.nblocksizes, self.nblocksizes),
+                                      dtype=dtype)
+        else:
+            inner_dtype = dtype
+
         self.H_bb = xp.zeros((self.nblocksizes, self.nblocksizes),
-                             dtype=dtype)
+                             dtype=inner_dtype)
         self.S_bb = xp.zeros((self.nblocksizes, self.nblocksizes),
-                             dtype=dtype)
+                             dtype=inner_dtype)
 
     def iterate1(self,
                  wfs: PWFDWaveFunctions,
@@ -182,8 +199,6 @@ class PPCG(PWFDEigensolver):
 
         with tracectx('Initialize'):
             M_nn = self.M_nn
-            Y1_nn = M_nn.new()
-            Y2_nn = M_nn.new()
 
             xp = M_nn.xp
 
@@ -211,7 +226,8 @@ class PPCG(PWFDEigensolver):
             band_comm = psit_nX.comm
 
             if weight_n is None:
-                weight_n = np.ones(b)
+                weight_n = np.zeros(b)
+                weight_n[:(len(weight_n) * 3) // 4] = 1.0
 
             buffer_array_nX = psit_nX.create_work_buffer(self.data_buffers[0])
 
@@ -219,7 +235,6 @@ class PPCG(PWFDEigensolver):
                                          psit_nX.dims[1:], xp=psit_nX.xp)
             Hbuff_bX = psit_nX.desc.empty((self.nblocksizes, ) +
                                           psit_nX.dims[1:], xp=psit_nX.xp)
-            Ht = partial(Ht, out=residual_nX)
 
         with tracectx('Residual'):
             calculate_residuals(wfs.psit_nX,
@@ -232,22 +247,22 @@ class PPCG(PWFDEigensolver):
             error_n = as_np(residual_nX.norm2())
             if len(error_n.shape) > 1:
                 error_n = error_n.sum(axis=1)
-            active_indicies = np.logical_and(
-                np.greater(error_n,
-                           self.initial_tolerance_factor * self.tolerance),
+            active_indicies = np.logical_or(
+                np.greater(error_n, self.tolerance),
                 np.greater(error_n,
                            np.max(error_n, initial=0) * self.tol_factor))
             active_indicies = np.where(active_indicies)[0]
             error = weight_n @ error_n
-            b_error = band_comm.sum_scalar(error)
+            b_error = band_comm.sum_scalar(error) / \
+                max(band_comm.sum_scalar(weight_n.sum()), 0.5)
             if band_comm.sum_scalar(len(active_indicies)) == 0  \
-                    or b_error < self.breakout_tolerance * \
-                    self.initial_tolerance_factor:
+                    or b_error < self.breakout_tolerance and \
+                    self.min_niter <= 1:
                 if debug:
                     psit_nX.sanity_check()
-                return error
-
-        flag = False
+                break_after_update = True
+            else:
+                break_after_update = False
 
         for i in range(self.niter):
             with tracectx('Residual'):
@@ -256,7 +271,8 @@ class PPCG(PWFDEigensolver):
                                       precon=self.preconditioner)
                 wfs.pt_aiX.integrate(residual_nX, out=P2_ani)
                 residual_nX.matrix_elements(psit_nX, cc=True, out=M_nn,
-                                            domain_sum=False)
+                                            domain_sum=False,
+                                            symmetric=False)
                 P2_ani.matrix.multiply(Ptemp_ani, opb='C', symmetric=False,
                                        beta=1, out=M_nn)
                 domain_comm.sum(M_nn.data)
@@ -267,124 +283,176 @@ class PPCG(PWFDEigensolver):
             active_bs = len(active_indicies)
 
             with tracectx('Block-diagonal Update'):
+                new_eigs_n = np.zeros_like(wfs.myeig_n)  # New eigenvalues
                 for j in range(0, active_bs, self.blocksize):
                     block_slice_base = \
                         slice(j, min(j + self.blocksize, active_bs))
-                    blocksize = \
+                    block = \
                         block_slice_base.stop - block_slice_base.start
                     block_slice = active_indicies[block_slice_base]
 
-                    buff_bX.matrix.data[:blocksize] = \
+                    buff_bX.matrix.data[:block] = \
                         psit_nX.matrix.data[block_slice]
-                    Pbuf_abi.matrix.data[:blocksize] = \
+                    Pbuf_abi.matrix.data[:block] = \
                         P_ani.matrix.data[block_slice]
-                    buff_bX.matrix.data[blocksize:2 * blocksize] = \
+                    buff_bX.matrix.data[block:2 * block] = \
                         residual_nX.matrix.data[block_slice]
-                    Pbuf_abi.matrix.data[blocksize:2 * blocksize] = \
+                    Pbuf_abi.matrix.data[block:2 * block] = \
                         P2_ani.matrix.data[block_slice]
 
                     if i > 0 and self.include_cg:
-                        nblocksizes = 3 * blocksize
-                        buff_bX.matrix.data[2 * blocksize:3 * blocksize] = \
+                        nblocks = 3 * block
+                        buff_bX.matrix.data[2 * block:3 * block] = \
                             P_nX.matrix.data[block_slice]
-                        Pbuf_abi.matrix.data[2 * blocksize:3 * blocksize] = \
+                        Pbuf_abi.matrix.data[2 * block:3 * block] = \
                             P3_ani.matrix.data[block_slice]
                     else:
-                        nblocksizes = 2 * blocksize
+                        nblocks = 2 * block
 
-                    H_bb = self.H_bb.ravel()[:nblocksizes**2].reshape(
-                        (nblocksizes, nblocksizes))
-                    S_bb = self.S_bb.ravel()[:nblocksizes**2].reshape(
-                        (nblocksizes, nblocksizes))
+                    H_bb = self.H_bb.ravel()[:nblocks**2].reshape(
+                        (nblocks, nblocks))
+                    S_bb = self.S_bb.ravel()[:nblocks**2].reshape(
+                        (nblocks, nblocks))
 
-                    MH_bb = Matrix(M=nblocksizes, N=nblocksizes,
+                    MH_bb = Matrix(M=nblocks, N=nblocks,
                                    data=H_bb,
                                    xp=xp)
-                    MS_bb = Matrix(M=nblocksizes, N=nblocksizes,
+                    MS_bb = Matrix(M=nblocks, N=nblocks,
                                    data=S_bb,
                                    xp=xp)
 
+                    if self.promote_inner_dtype:
+                        buffer_bb = \
+                            self.buffer_bb.ravel()[:nblocks**2].reshape(
+                                (nblocks, nblocks))
+                        MBuf_bb = Matrix(M=nblocks, N=nblocks,
+                                         data=buffer_bb,
+                                         xp=xp)
+                    else:
+                        MBuf_bb = MS_bb
+
                     Pbuf_abi.block_diag_multiply(dS_aii, out_ani=HPbuf_abi)
-                    buff_bX[:nblocksizes].matrix_elements(
-                        buff_bX[:nblocksizes], cc=True, out=MS_bb,
-                        domain_sum=False, symmetric=False)
-                    S_bb[:] += Pbuf_abi.matrix.data[:nblocksizes] @ \
-                        HPbuf_abi.matrix.data[:nblocksizes].T.conj()
+                    buff_bX[:nblocks].matrix_elements(
+                        buff_bX[:nblocks], cc=True, out=MBuf_bb,
+                        domain_sum=False, symmetric=True)
+                    if self.promote_inner_dtype:
+                        S_bb[:] = buffer_bb
+                        buffer_bb[:] = 0
+                    HPbuf_abi[:, :nblocks].matrix.multiply(
+                        Pbuf_abi[:, :nblocks], out=MBuf_bb,
+                        symmetric=True, beta=1, opb='C')
+                    if self.promote_inner_dtype:
+                        S_bb += buffer_bb
                     domain_comm.sum(S_bb)
 
-                    Ht(buff_bX[:nblocksizes], out=Hbuff_bX[:nblocksizes])
-                    dH(Pbuf_abi[:, :nblocksizes],
-                       out_ani=HPbuf_abi[:, :nblocksizes])
-                    buff_bX[:nblocksizes].matrix_elements(
-                        Hbuff_bX[:nblocksizes], cc=True, out=MH_bb,
-                        domain_sum=False, symmetric=False)
-                    H_bb[:] += Pbuf_abi.matrix.data[:nblocksizes] @ \
-                        HPbuf_abi.matrix.data[:nblocksizes].T.conj()
+                    # Scale the diagonal elements, to improve numerical
+                    # stability. Here, we use the expontent -0.5, which
+                    # makes the diagonal elements closer to 1, by the a
+                    # factor of sqrt(X), with X being the previous diagonal.
+                    # This value performed best of the ones attempted.
+                    diag_scale_b = xp.diag(S_bb)[block:]**(-0.5)
+                    S_bb[block:, :] *= diag_scale_b[:, None]
+                    S_bb[:, block:] *= diag_scale_b[None, :]
+                    buff_bX.matrix.data[block:nblocks, :] \
+                        *= diag_scale_b[:, None]
+                    Pbuf_abi.matrix.data[block:nblocks, :] \
+                        *= diag_scale_b[:, None]
+
+                    if not self.promote_inner_dtype:
+                        MBuf_bb = MH_bb
+
+                    Ht_H = partial(Ht, out=Hbuff_bX[:nblocks])
+                    dH(Pbuf_abi[:, :nblocks],
+                       out_ani=HPbuf_abi[:, :nblocks])
+                    buff_bX[:nblocks].matrix_elements(
+                        buff_bX[:nblocks], function=Ht_H,
+                        cc=True, out=MBuf_bb,
+                        domain_sum=False, symmetric=True)
+                    if self.promote_inner_dtype:
+                        H_bb[:] = buffer_bb
+                        buffer_bb[:] = 0
+                    HPbuf_abi[:, :nblocks].matrix.multiply(
+                        Pbuf_abi[:, :nblocks], out=MBuf_bb,
+                        symmetric=True, beta=1, opb='C')
+                    if self.promote_inner_dtype:
+                        H_bb[:] += buffer_bb[:]
                     domain_comm.sum(H_bb)
 
-                    if nblocksizes > 2 * blocksize:
+                    if nblocks > 2 * block:
                         # Eigh approach
-                        # A, B = xp.linalg.eigh(S_bb)
-                        pos_defness = xp.linalg.eigvalsh(S_bb)[0]
-                        if xp is not np:
-                            pos_defness = pos_defness.get()
+                        # A, temp_bb = xp.linalg.eigh(S_bb, 'L')
+                        # if xp is not np:
+                        #     pos_defness = A.get()[0]
+                        # Eigvalsh approach
+                        with tracectx('eigvalsh', gpu=xp is not np):
+                            try:
+                                pos_defness = xp.linalg.eigvalsh(S_bb)[0]
+                                if xp is not np:
+                                    pos_defness = pos_defness.get()
+                            except np.linalg.LinAlgError:
+                                pos_defness = -42
                         if pos_defness < \
-                                np.finfo(S_bb.dtype).eps:
+                                np.finfo(psit_nX.data.dtype).eps * \
+                                nblocks**0.5 or np.isnan(pos_defness):
                             # Insufficient numerical precision for CG,
                             # thus we only do the steepest descent step
-                            nblocksizes = 2 * blocksize
-                            MH_bb = Matrix(M=nblocksizes, N=nblocksizes,
-                                           data=H_bb[:nblocksizes,
-                                                     :nblocksizes],
+                            nblocks = 2 * block
+                            MH_bb = Matrix(M=nblocks, N=nblocks,
+                                           data=H_bb[:nblocks,
+                                                     :nblocks],
                                            xp=xp)
-                            MS_bb = Matrix(M=nblocksizes, N=nblocksizes,
-                                           data=S_bb[:nblocksizes,
-                                                     :nblocksizes],
+                            MS_bb = Matrix(M=nblocks, N=nblocks,
+                                           data=S_bb[:nblocks,
+                                                     :nblocks],
                                            xp=xp)
-                            MH_bb.eigh(MS_bb)
+                            eig_b = MH_bb.eigh(MS_bb)
                         else:
                             # Do the full PPCG update
-
-                            # print(f'pos_defness {pos_defness}')
-                            # SMHalf = B @ xp.diag(A**(-0.5)) @ B.T.conj()
-                            # H_bb[:] = SMHalf @ H_bb @ SMHalf
-                            # MH_bb.eigh()
-                            # H_bb[:] = H_bb @ SMHalf
-                            MH_bb.eigh(MS_bb)
+                            eig_b = MH_bb.eigh(MS_bb)
                     else:
-                        MH_bb.eigh(MS_bb)
-                    cmin = H_bb[:blocksize, :nblocksizes].conj()
+                        eig_b = MH_bb.eigh(MS_bb)
+                    if self.promote_inner_dtype:
+                        buffer_bb[:] = H_bb.conj()
+                        cmin = buffer_bb[:block, :nblocks]
+                    else:
+                        cmin = H_bb[:block, :nblocks].conj()
                     if not xp.isfinite(H_bb).all():
-                        flag = True
+                        break_after_update = True
+                        new_eigs_n[block_slice] = wfs.myeig_n[block_slice]
                         continue
+                    new_eigs_n[block_slice] = as_np(eig_b[:block])
 
-                    # Ye olde updates
-                    buff_bX.matrix.data[:blocksize] = \
-                        cmin[:, :blocksize] @ buff_bX.matrix.data[:blocksize]
-                    Pbuf_abi.matrix.data[:blocksize] = \
-                        cmin[:, :blocksize] @ Pbuf_abi.matrix.data[:blocksize]
-                    buff_bX.matrix.data[blocksize:2 * blocksize] = \
-                        cmin[:, blocksize:] @ buff_bX.matrix.data[
-                            blocksize:nblocksizes]
-                    Pbuf_abi.matrix.data[blocksize:2 * blocksize] = \
-                        cmin[:, blocksize:] @ Pbuf_abi.matrix.data[
-                            blocksize:nblocksizes]
+                    with tracectx('rotations', gpu=xp is not np):
+                        # Ye olde updates
+                        buff_bX.matrix.data[:block] = \
+                            cmin[:, :block] @ buff_bX.matrix.data[:block]
+                        Pbuf_abi.matrix.data[:block] = \
+                            cmin[:, :block] @ Pbuf_abi.matrix.data[:block]
+                        buff_bX.matrix.data[block:2 * block] = \
+                            cmin[:, block:] @ buff_bX.matrix.data[
+                                block:nblocks]
+                        Pbuf_abi.matrix.data[block:2 * block] = \
+                            cmin[:, block:] @ Pbuf_abi.matrix.data[
+                                block:nblocks]
 
-                    if self.include_cg:
-                        P_nX.matrix.data[block_slice] = \
-                            buff_bX.matrix.data[blocksize:2 * blocksize]
-                        P3_ani.matrix.data[block_slice] = \
-                            Pbuf_abi.matrix.data[blocksize:2 * blocksize]
+                        if self.include_cg:
+                            P_nX.matrix.data[block_slice] = \
+                                buff_bX.matrix.data[block:2 * block]
+                            P3_ani.matrix.data[block_slice] = \
+                                Pbuf_abi.matrix.data[block:2 * block]
 
-                    psit_nX.matrix.data[block_slice] = \
-                        buff_bX.matrix.data[:blocksize] \
-                        + buff_bX.matrix.data[blocksize:2 * blocksize]
-                    P_ani.matrix.data[block_slice] = \
-                        Pbuf_abi.matrix.data[:blocksize] \
-                        + Pbuf_abi.matrix.data[blocksize:2 * blocksize]
+                        psit_nX.matrix.data[block_slice] = \
+                            buff_bX.matrix.data[:block] \
+                            + buff_bX.matrix.data[block:2 * block]
+                        P_ani.matrix.data[block_slice] = \
+                            Pbuf_abi.matrix.data[:block] \
+                            + Pbuf_abi.matrix.data[block:2 * block]
 
+            wfs.eig_n[:] = 0
+            wfs.myeig_n[:] = new_eigs_n
+            band_comm.sum(wfs._eig_n)
             wfs.orthonormalized = False
-            if flag or i >= self.niter - 1:
+            if break_after_update or i >= self.niter - 1:
                 break
 
             with tracectx('Residual'):
@@ -394,18 +462,8 @@ class PPCG(PWFDEigensolver):
                                              psit2_nX=residual_nX,
                                              data_buffer=self.data_buffers[0])
                 else:
-                    # In theory we could skip orthonormalization,
-                    # but this sometimes causes issues so we do it.
-                    if b_error < 1e-3:
-                        # Approximate orthonormalization only if
-                        # the residual is small.
-                        approx_orthonormalize(wfs, residual_nX, M_nn, Y1_nn,
-                                              Y2_nn, dS_aii, domain_comm)
-                    else:
-                        wfs.orthonormalize(residual_nX)
+                    wfs.orthonormalize(residual_nX)
                     Ht(psit_nX, out=residual_nX)
-                    update_eigenvalues(wfs, residual_nX, P_ani, Ptemp_ani, dH,
-                                       domain_comm)
 
                 calculate_residuals(wfs.psit_nX,
                                     residual_nX,
@@ -418,22 +476,23 @@ class PPCG(PWFDEigensolver):
                 if len(error_n.shape) > 1:
                     error_n = error_n.sum(axis=1)
 
-                active_indicies = np.logical_and(
+                active_indicies = np.logical_or(
                     np.greater(error_n, self.tolerance),
                     np.greater(error_n, np.max(error_n, initial=0) *
                                self.tol_factor))
                 active_indicies = np.where(active_indicies)[0]
                 error = weight_n @ error_n
+                b_error = band_comm.sum_scalar(error) / \
+                    max(band_comm.sum_scalar(weight_n.sum()), 0.5)
 
                 if band_comm.sum_scalar(len(active_indicies)) == 0 \
-                        or b_error < self.breakout_tolerance:
-                    # We have converged. Break out of the loop
-                    # Maybe one should allow one extra iteration, by
-                    # setting:
-                    # flag = True
-                    # instead of break
-                    # since we already calculated the residuals.
-                    break
+                        or (b_error < self.breakout_tolerance
+                            and i + 2 >= self.min_niter):
+                    # Set 'break_after_update = True', causing the
+                    # loop to break at the next iteration. This gives us
+                    # one more cheap iteration (since we already
+                    # calculated the residual).
+                    break_after_update = True
 
             P_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
             if self.include_cg:
@@ -457,6 +516,7 @@ class PPCG(PWFDEigensolver):
         return error
 
 
+''' Legacy functions:
 @trace
 def approx_orthonormalize(wfs, residual_nX, Y1_nn, Y2_nn, Y3_nn,
                           dS_aii, domain_comm):
@@ -487,11 +547,12 @@ def approx_orthonormalize(wfs, residual_nX, Y1_nn, Y2_nn, Y3_nn,
     psit_nX = wfs.psit_nX
     psit_nX.matrix_elements(psit_nX, cc=True, out=Y1_nn,
                             domain_sum=False,
-                            symmetric=False)
+                            symmetric=True)
     P_ani.matrix.multiply(P2_ani, opb='C',
-                          symmetric=False,
+                          symmetric=True,
                           beta=1, out=Y1_nn)
     domain_comm.sum(Y1_nn.data)
+    Y1_nn.tril2full()
 
     Y1_nn.add_to_diagonal(-1.0)
     Y1_nn.multiply(Y1_nn, out=Y2_nn)
@@ -505,24 +566,34 @@ def approx_orthonormalize(wfs, residual_nX, Y1_nn, Y2_nn, Y3_nn,
 
     Y1_nn.multiply(residual_nX, out=psit_nX, beta=1)
     Y1_nn.multiply(P2_ani, out=P_ani, beta=1)
-    # wfs.orthonormalized = True
+    wfs.orthonormalized = True
 
 
-def update_eigenvalues(wfs, Hpsit_nX, P_ani, P2_ani, dH, domain_comm):
+@trace
+def update_eigenvalues(wfs, Hpsit_nX, P_ani, HP_ani, dH, domain_comm):
+    dH(P_ani, out_ani=HP_ani)
     psit_nX = wfs.psit_nX
     xp = psit_nX.xp
-    dH(P_ani, out_ani=P2_ani)
-    subscripts = 'nX, nX -> n'
-    eigs_n = xp.einsum(subscripts, Hpsit_nX.matrix.data,
-                       psit_nX.matrix.data.conj())
+    real_dtype = as_real_dtype(psit_nX.matrix.data.dtype)
+    a_nX = psit_nX.matrix.data.view(real_dtype)
+    h_nX = Hpsit_nX.matrix.data.view(real_dtype)
+    eigs_n = xp.zeros(h_nX.shape[0], dtype=np.float64)
+    for ind in range(0, h_nX.shape[1], 4048):
+        eigs_n += xp.einsum('nX, nX -> n',
+                            h_nX[:, ind:ind + 4048],
+                            a_nX[:, ind:ind + 4048])
     eigs_n *= psit_nX.dv
     if np.issubdtype(psit_nX.matrix.data.dtype, np.floating) and \
             isinstance(psit_nX, PWArray):
         eigs_n *= 2
-        if domain_comm.rank == 0:
+        if psit_nX.desc.comm.rank == 0:
             eigs_n -= psit_nX.matrix.data[:, 0] * \
                 Hpsit_nX.matrix.data[:, 0] * psit_nX.dv
-    eigs_n += xp.einsum(subscripts, P2_ani.matrix.data,
-                        P_ani.matrix.data.conj())
+    p2_nX = HP_ani.matrix.data.view(real_dtype)
+    p_nX = P_ani.matrix.data.view(real_dtype)
+    eigs_n += xp.einsum('nX, nX -> n',
+                        p2_nX,
+                        p_nX)
     domain_comm.sum(eigs_n)
-    wfs.myeig_n[:] = as_np(eigs_n.real)
+    wfs.myeig_n[:] = as_np(eigs_n)
+'''

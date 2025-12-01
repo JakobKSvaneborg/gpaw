@@ -1,13 +1,13 @@
 from math import pi
-from typing import Tuple
+
 import numpy as np
 from ase.units import Ha
 
-from gpaw.typing import Array1D
 from gpaw.setup import Setup
+from gpaw.typing import Array1D
 
 
-def ekin(dataset: Setup) -> Tuple[Array1D, Array1D, float]:
+def ekin(dataset: Setup) -> tuple[Array1D, Array1D, float]:
     """Calculate PAW kinetic energy contribution as a function of G."""
     ds = dataset
     rgd = dataset.rgd
@@ -39,7 +39,9 @@ def dekindecut(G: Array1D, de: Array1D, ecut: float) -> float:
 
 if __name__ == '__main__':
     import argparse
+
     import matplotlib.pyplot as plt
+
     from gpaw.setup import create_setup
 
     parser = argparse.ArgumentParser(

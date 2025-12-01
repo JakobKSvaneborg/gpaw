@@ -1,10 +1,12 @@
 from math import pi, sqrt
+
 import numpy as np
-from gpaw.utilities.tools import coordinates
-from gpaw.utilities.gauss import Gaussian
-from gpaw.grid_descriptor import GridDescriptor
 import pytest
+
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.poisson import PoissonSolver
+from gpaw.utilities.gauss import Gaussian
+from gpaw.utilities.tools import coordinates
 
 
 def test_gauss_func():

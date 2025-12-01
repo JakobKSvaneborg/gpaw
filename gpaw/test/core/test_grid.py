@@ -2,17 +2,17 @@ from math import pi
 
 import numpy as np
 import pytest
-from gpaw.core import UGDesc, PWDesc, UGArray
+
+from gpaw.core import PWDesc, UGArray, UGDesc
 from gpaw.fd_operators import Laplace
-from gpaw.mpi import world
 
 
-def test_real_to_complex_fft():
+def test_real_to_complex_fft(comm):
     L = 1.0
     n = 8
-    a = UGDesc(cell=[L, L, L], size=(n, n, n), comm=world).empty()
+    a = UGDesc(cell=[L, L, L], size=(n, n, n), comm=comm).empty()
     a.randomize()
-    pw = PWDesc(ecut=50.0, cell=a.desc.cell, dtype=complex, comm=world)
+    pw = PWDesc(ecut=50.0, cell=a.desc.cell, dtype=complex, comm=comm)
     # real -> complex:
     with pytest.raises(TypeError):
         a.fft(pw=pw)
@@ -23,17 +23,22 @@ def test_real_to_complex_fft():
     for (i, j, k), coef in coefs.items():
         assert coef == coefs[(-i, -j, -k)].conj()
 
+    # Check multiple FFT's:
+    a2 = a.desc.empty(2)
+    a2.data[:] = 1.0
+    a2.fft(pw=pw.new(dtype=float))
+
 
 @pytest.mark.ci
-def test_redist():
+def test_redist(comm):
     a = 2.5
     n = 2
-    grid1 = UGDesc(cell=[a, a, a], size=(n, n, n), comm=world)
+    grid1 = UGDesc(cell=[a, a, a], size=(n, n, n), comm=comm)
     f1 = grid1.empty()
-    f1.data[:] = world.rank + 1
+    f1.data[:] = comm.rank + 1
     f2 = f1.gather()
     f3 = f1.gather(broadcast=True)
-    if world.rank == 0:
+    if comm.rank == 0:
         assert (f2.data == f3.data).all()
     print(f2)
     f4 = f1.new()
@@ -41,12 +46,12 @@ def test_redist():
     assert (f4.data == f1.data).all()
 
 
-def test_complex_laplace():
+def test_complex_laplace(comm):
     a = 2.5
     grid = UGDesc(cell=[a, a, a],
                   size=(24, 8, 8),
                   kpt=[1 / 3, 0, 0],
-                  comm=world)
+                  comm=comm)
     f = grid.empty()
     f.data[:] = 1.0
     f.multiply_by_eikr()
@@ -58,13 +63,13 @@ def test_complex_laplace():
     assert abs(error).max() == pytest.approx(0.0, abs=1e-6)
 
 
-def py(a: float) -> UGArray:
+def py(a: float, *, comm) -> UGArray:
     L = 5
     n = 20
     l = 1
     rcut = 3.0
     p = (l, rcut, lambda r: np.exp(-a * r**2))
-    grid = UGDesc(cell=[L, L, L], size=(n, n, n), comm=world)
+    grid = UGDesc(cell=[L, L, L], size=(n, n, n), comm=comm)
     f = grid.zeros()
     # Add P-y function to grid:
     basis = grid.atom_centered_functions(
@@ -77,13 +82,13 @@ def py(a: float) -> UGArray:
     return f
 
 
-def test_moment():
+def test_moment(comm):
     # P-type Gaussian:
     a = 4.0
-    f = py(a)
+    f = py(a, comm=comm)
 
     if 0:  # Analytic result
-        from sympy import integrate, exp, oo, var, Symbol, sqrt, pi
+        from sympy import Symbol, exp, integrate, oo, pi, sqrt, var
         x = var('x')
         a = Symbol('a', positive=True)
         m = 8 * (integrate(exp(-a * x**2) * x**2, (x, 0, oo)) *
@@ -96,16 +101,16 @@ def test_moment():
     assert abs(f.integrate()) < 1e-14
     assert f.moment() == pytest.approx([0, moment, 0])
 
-    pw = PWDesc(cell=f.desc.cell, ecut=f.desc.ekin_max(), comm=world)
+    pw = PWDesc(cell=f.desc.cell, ecut=f.desc.ekin_max(), comm=comm)
     f2 = f.fft(pw=pw)
 
     assert abs(f2.integrate()) < 1e-14
     assert f2.moment() == pytest.approx([0, moment, 0], abs=1e-5)
 
 
-def test_isosurface():
+def test_isosurface(comm):
     pytest.importorskip('plotly')
-    f = py(4.0)
+    f = py(4.0, comm=comm)
     f.isosurface(show=False)
 
 

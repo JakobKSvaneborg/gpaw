@@ -6,10 +6,10 @@ i, n are valence; j, m are conduction, also i=n in the end
 see https://doi.org/10.1038/s41467-020-16529-6
 """
 import numpy as np
-
-from ase.units import invcm, Hartree
+from ase.units import Hartree, invcm
 from ase.utils.filecache import MultiFileJSONCache
-from gpaw.calculator import GPAW
+
+from gpaw.old.calculator import GPAW
 from gpaw.typing import ArrayND
 
 # TODO: only take kd, don't need whole calculator
@@ -31,7 +31,7 @@ class ResonantRamanCalculator:
         calc: GPAW
             GPAW calculator object.
         w_ph: str, np.ndarray
-            Zone centre phonon frequencies in eV
+            Zone center phonon frequencies in eV
         momname: str
             Name of momentum file
         elphname: str

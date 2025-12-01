@@ -1,4 +1,5 @@
 from math import pi
+
 from gpaw.core.plane_waves import PWDesc
 from gpaw.core.pwacf import PWAtomCenteredFunctions
 

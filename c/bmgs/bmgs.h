@@ -3,11 +3,7 @@
  *  Copyright (C) 2005       CSC - IT Center for Science Ltd.
  *  Please see the accompanying LICENSE file for further information. */
 
-#ifndef DOUBLECOMPLEXDEFINED
-#  define DOUBLECOMPLEXDEFINED 1
-#  include <complex.h>
-   typedef double complex double_complex;
-#endif
+#include "../gpaw_complex.h"
 
 #undef T
 #undef Z

@@ -1,5 +1,6 @@
 import numpy as np
-from gpaw.utilities.blas import axpy, r2k, rk, gemmdot, mmm, mmmx
+
+from gpaw.utilities.blas import axpy, gemmdot, mmm, mmmx, r2k, rk
 from gpaw.utilities.tools import tri2full
 
 
