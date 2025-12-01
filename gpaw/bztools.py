@@ -3,6 +3,7 @@ from itertools import product
 import numpy as np
 from ase.dft.kpoints import monkhorst_pack
 from scipy.spatial import ConvexHull, Delaunay, Voronoi
+from ase import Atoms
 
 try:
     from scipy.spatial import QhullError
@@ -37,9 +38,11 @@ def get_lattice_symmetry(cell_cv, tolerance=1e-7):
     return latsym
 
 
-def find_high_symmetry_monkhorst_pack(gpw: str,
-                                      density: float,
-                                      return_as_dict: bool = False):
+
+@parallel(name='world')
+def find_high_symmetry_monkhorst_pack(atoms: Atoms,
+                                      density: float, *,
+                                      world):
     """Make high symmetry Monkhorst Pack k-point grid.
 
     Searches for and returns a Monkhorst Pack grid which
@@ -49,8 +52,8 @@ def find_high_symmetry_monkhorst_pack(gpw: str,
 
     Parameters
     ----------
-    gpw : str
-        The path to a calculator object.
+    atoms : Atoms
+        Atoms object to find symmetries of.
     density : float
         The required minimum density of the Monkhorst Pack grid.
 
@@ -60,9 +63,8 @@ def find_high_symmetry_monkhorst_pack(gpw: str,
         Array of shape (nk, 3) containing the k-points.
 
     """
+    assert isinstance(atoms, Atoms), f"Use atoms instead of {type(atoms)}."
 
-    atoms, calc = restart(gpw, txt=None)
-    world = calc.wfs.world
     pbc = atoms.pbc
     minsize, offset = kpts2sizeandoffsets(density=density, even=True,
                                           gamma=True, atoms=atoms)
@@ -70,7 +72,7 @@ def find_high_symmetry_monkhorst_pack(gpw: str,
     # NB: get_bz() wants a pbc_c, but never gets it. This means that the
     # pbc always will fall back to True along all dimensions. XXX
     # NB: Why return latibzk_kc, if we never use it? XXX
-    bzk_kc, ibzk_kc, latibzk_kc = get_bz(calc)
+    bzk_kc, ibzk_kc, latibzk_kc = get_bz_from_atoms(atoms)
 
     maxsize = minsize + 10
     minsize[~pbc] = 1
@@ -91,7 +93,7 @@ def find_high_symmetry_monkhorst_pack(gpw: str,
 
                 if (np.abs(ints - np.round(ints)) < 1e-5).all():
                     kpts_kc = monkhorst_pack(size) + offset
-                    kpts_kc = to1bz(kpts_kc, calc.wfs.gd.cell_cv)
+                    kpts_kc = to1bz(kpts_kc, atoms.cell)
 
                     for ibzk_c in ibzk_kc:
                         diff_kc = np.abs(kpts_kc - ibzk_c)[:, pbc].round(6)
@@ -100,10 +102,7 @@ def find_high_symmetry_monkhorst_pack(gpw: str,
                             raise AssertionError('Did not find ' + str(ibzk_c))
                     if world.rank == 0:
                         print('Done. Monkhorst-Pack grid:', size, offset)
-                    if return_as_dict:
-                        return {'size': size, 'gamma': True}
-                    else:
-                        return kpts_kc
+                    return {'size': size, 'gamma': True}
 
     if world.rank == 0:
         print(ibzk_kc.round(5))
@@ -318,6 +317,19 @@ def get_bz(calc, pbc_c=np.ones(3, bool)):
 
     # Crystal symmetries
     symmetry = calc.wfs.kd.symmetry
+    cU_scc = get_symmetry_operations(symmetry.op_scc,
+                                     symmetry.time_reversal)
+
+    return get_reduced_bz(cell_cv, cU_scc, False, pbc_c=pbc_c)
+
+
+def get_bz_from_atoms(atoms):
+    pbc_c = atoms.pbc
+    cell_cv = atoms.cell
+    from gpaw.symmetry import Symmetry
+    id_a = atoms.get_chemical_symbols()
+    symmetry = Symmetry(id_a, atoms.cell, atoms.pbc)
+    symmetry.analyze(atoms.get_scaled_positions())
     cU_scc = get_symmetry_operations(symmetry.op_scc,
                                      symmetry.time_reversal)
 

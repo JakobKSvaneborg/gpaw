@@ -38,7 +38,7 @@ def test_point_tetra_match(in_tmp_dir):
     calc.write(gs_file)
 
     density = 15
-    kpts = find_high_symmetry_monkhorst_pack(gs_file, density=density)
+    kpts = find_high_symmetry_monkhorst_pack(atoms, density=density)
     responseGS = GPAW(gs_file).fixed_density(
         kpts=kpts,
         parallel={'band': 1},
