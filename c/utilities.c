@@ -564,27 +564,53 @@ PyObject* localize(PyObject *self, PyObject *args)
   if (!PyArg_ParseTuple(args, "OO", &Z_nnc, &U_nn))
     return NULL;
 
-  int n = PyArray_DIMS(U_nn)[0];
+  const int n = PyArray_DIMS(U_nn)[0];
+
+  // The original C99 implementation of this function made heavy use of VLA
+  // semantics that did not compile on Clang++ in C++ mode (but g++ was OK).
+  // Here we attempt to minimize code changes by using custom accessors to index multidimensional arrays.
+  // If compiling as C code, the accessors fall back to usual VLA syntax.
+
+#if GPAW_CPP
+  double_complex* Z = (double_complex*)PyArray_DATA(Z_nnc);
+  double* U = (double*)PyArray_DATA(U_nn);
+
+  auto Z_at = [&](int i, int j, int c) -> double_complex&
+  {
+      return Z[(i * n + j) * 3 + c];
+  };
+
+  auto U_at = [&](int i, int j) -> double&
+  {
+      return U[i * n + j];
+  };
+
+#else
+  // Old C99 version but using similar accessor helper as the C++ version
   double_complex (*Z)[n][3] = (double_complex (*)[n][3])COMPLEXP(Z_nnc);
   double (*U)[n] = (double (*)[n])DOUBLEP(U_nn);
+  #define Z_at(i, j, c) Z[i][j][c]
+  #define U_at(i, j)    U[i][j]
+#endif
 
   double value = 0.0;
   for (int a = 0; a < n; a++)
     {
       for (int b = a + 1; b < n; b++)
         {
-          double_complex* Zaa = Z[a][a];
-          double_complex* Zab = Z[a][b];
-          double_complex* Zbb = Z[b][b];
           double x = 0.0;
           double y = 0.0;
           for (int c = 0; c < 3; c++)
             {
-              x += (0.25 * creal(Zbb[c] * conj(Zbb[c])) +
-                    0.25 * creal(Zaa[c] * conj(Zaa[c])) -
-                    0.5 * creal(Zaa[c] * conj(Zbb[c])) -
-                    creal(Zab[c] * conj(Zab[c])));
-              y += creal((Zaa[c] - Zbb[c]) * conj(Zab[c]));
+              const double_complex Zaac = Z_at(a, a, c);
+              const double_complex Zabc = Z_at(a, b, c);
+              const double_complex Zbbc = Z_at(b, b, c);
+
+              x += (0.25 * creal(Zbbc * conj(Zbbc)) +
+                    0.25 * creal(Zaac * conj(Zaac)) -
+                    0.5 * creal(Zaac * conj(Zbbc)) -
+                    creal(Zabc * conj(Zabc)));
+              y += creal((Zaac - Zbbc) * conj(Zabc));
             }
           double t = 0.25 * atan2(y, x);
           double C = cos(t);
@@ -592,43 +618,46 @@ PyObject* localize(PyObject *self, PyObject *args)
           for (int i = 0; i < a; i++)
             for (int c = 0; c < 3; c++)
               {
-                double_complex Ziac = Z[i][a][c];
-                Z[i][a][c] = C * Ziac + S * Z[i][b][c];
-                Z[i][b][c] = C * Z[i][b][c] - S * Ziac;
+                double_complex Ziac = Z_at(i, a, c);
+                Z_at(i, a, c) = C * Ziac + S * Z_at(i, b, c);
+                Z_at(i, b, c) = C * Z_at(i, b, c) - S * Ziac;
               }
           for (int c = 0; c < 3; c++)
             {
-              double_complex Zaac = Zaa[c];
-              double_complex Zabc = Zab[c];
-              double_complex Zbbc = Zbb[c];
-              Zaa[c] = C * C * Zaac + 2 * C * S * Zabc + S * S * Zbbc;
-              Zbb[c] = C * C * Zbbc - 2 * C * S * Zabc + S * S * Zaac;
-              Zab[c] = S * C * (Zbbc - Zaac) + (C * C - S * S) * Zabc;
+              const double_complex Zaac = Z_at(a, a, c);
+              const double_complex Zabc = Z_at(a, b, c);
+              const double_complex Zbbc = Z_at(b, b, c);
+              Z_at(a, a, c) = C * C * Zaac + 2 * C * S * Zabc + S * S * Zbbc;
+              Z_at(b, b, c) = C * C * Zbbc - 2 * C * S * Zabc + S * S * Zaac;
+              Z_at(a, b, c) = S * C * (Zbbc - Zaac) + (C * C - S * S) * Zabc;
             }
           for (int i = a + 1; i < b; i++)
             for (int c = 0; c < 3; c++)
               {
-                double_complex Zaic = Z[a][i][c];
-                Z[a][i][c] = C * Zaic + S * Z[i][b][c];
-                Z[i][b][c] = C * Z[i][b][c] - S * Zaic;
+                const double_complex Zaic = Z_at(a, i, c);
+                Z_at(a, i, c) = C * Zaic + S * Z_at(i, b, c);
+                Z_at(i, b, c) = C * Z_at(i, b, c) - S * Zaic;
               }
           for (int i = b + 1; i < n; i++)
             for (int c = 0; c < 3; c++)
               {
-                double_complex Zaic = Z[a][i][c];
-                Z[a][i][c] = C * Zaic + S * Z[b][i][c];
-                Z[b][i][c] = C * Z[b][i][c] - S * Zaic;
+                const double_complex Zaic = Z_at(a, i, c);
+                Z_at(a, i, c) = C * Zaic + S * Z_at(b, i, c);
+                Z_at(b, i, c) = C * Z_at(b, i, c) - S * Zaic;
               }
           for (int i = 0; i < n; i++)
             {
-              double Uia = U[i][a];
-              U[i][a] = C * Uia + S * U[i][b];
-              U[i][b] = C * U[i][b] - S * Uia;
+              const double Uia = U_at(i, a);
+              U_at(i, a) = C * Uia + S * U_at(i, b);
+              U_at(i, b) = C * U_at(i, b) - S * Uia;
             }
         }
-      double_complex* Zaa = Z[a][a];
+
       for (int c = 0; c < 3; c++)
-        value += creal(Zaa[c] * conj(Zaa[c]));
+      {
+        const double_complex Zaac = Z_at(a, a, c);
+        value += creal(Zaac * conj(Zaac));
+      }
     }
   return Py_BuildValue("d", value);
 }
