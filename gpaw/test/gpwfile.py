@@ -2028,10 +2028,10 @@ class GPWFiles(CachedFilesHandler):
         atoms.pbc = True
 
         dct = dict(
+            _use_old_gpaw=True,
             mixer={'beta': 0.75, 'nmaxold': 8, 'weight': 100.0},
-            mode=PW(ecut),
-            # Interpolate the density in real-space
-            interpolation=3, _use_old_gpaw=False,
+            mode=PW(ecut,
+                    interpolation=3),  # interpolate the density in real-space
             kpts={'size': (kpts, kpts, 1), 'gamma': True},
             occupations=FermiDirac(occw),
             convergence=conv,
@@ -2103,10 +2103,10 @@ class GPWFiles(CachedFilesHandler):
         # Set up calculator
         tag = '_nosym' if symmetry == 'off' else ''
         atoms.calc = GPAW(
+            _use_old_gpaw=True,
             xc=xc,
-            mode=PW(pw),
-            # Interpolate the density in real-space
-            interpolation=3, _use_old_gpaw=False,
+            mode=PW(pw,
+                    interpolation=3),  # interpolate the density in real-space
             kpts={'size': (kpts, kpts // 2, 1), 'gamma': True},
             mixer={'beta': 0.5},
             setups={'V': '5'},
