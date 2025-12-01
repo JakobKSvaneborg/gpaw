@@ -45,8 +45,7 @@ class LrTDDFTInducedField(BaseInducedField):
         # "Kick" direction
         self.kickdir = kickdir
 
-        BaseInducedField.__init__(self, filename, paw,
-                                  frequencies, folding, width)
+        super().__init__(filename, paw, frequencies, folding, width)
 
         self.readwritemode_str_to_list = \
             {'': ['Frho', 'atoms'],
@@ -54,7 +53,7 @@ class LrTDDFTInducedField(BaseInducedField):
              'field': ['Frho', 'Fphi', 'Fef', 'Ffe', 'atoms']}
 
     def initialize(self, paw, allocate=True):
-        BaseInducedField.initialize(self, paw, allocate)
+        super().initialize(paw, allocate)
 
         # Artificial background electric field (linear response)
         # TODO: change kickdir to general kick = [1e-3, 1-e3, 0] etc.
@@ -66,7 +65,7 @@ class LrTDDFTInducedField(BaseInducedField):
         paw.initialize_positions()
 
     def set_folding(self, folding, width):
-        BaseInducedField.set_folding(self, folding, width)
+        super().set_folding(folding, width)
 
         if self.folding is None:
             self.folder = Folder(None, None)

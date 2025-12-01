@@ -23,10 +23,10 @@ utilization of these functionals will raise an exception.
 
 MGGAs: The libxc enforces the Fermi hole curvature by default, which
 leads to errornous results and convergence problems in codes using
-pseudopotentials. In versions of libxc > 7.0 this behaviour
+pseudopotentials. In versions of libxc > 7.0 this behavior
 can and will be switched of during runtime. In versions below 7.0 this
 must be switch off during compile time by using '--disable-fhc'
-during installtion of libxc.
+during installation of libxc.
 
 You can check this running the following code snippet:
 

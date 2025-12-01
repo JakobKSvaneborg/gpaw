@@ -55,7 +55,7 @@ First do a ground state calculation, and save the density as a cube file:
 
 .. literalinclude:: h2o.py
 
-Then analyse the density cube file by running (use *bader -h* for a
+Then analyze the density cube file by running (use *bader -h* for a
 description of the possible options)::
 
   $ bader -p all_atom -p atom_index density.cube

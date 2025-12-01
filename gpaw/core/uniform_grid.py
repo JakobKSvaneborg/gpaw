@@ -81,7 +81,7 @@ class UGDesc(Domain['UGArray']):
                                in zips(self.decomp_cp, self.mypos_c)])
         self.mysize_c = self.end_c - self.start_c
 
-        Domain.__init__(self, cell, pbc, kpt, comm, dtype)
+        super().__init__(cell, pbc, kpt, comm, dtype)
         self.myshape = tuple(self.mysize_c)
 
         self.dv = self.volume / self.size_c.prod()
@@ -101,7 +101,7 @@ class UGDesc(Domain['UGArray']):
         return tuple(self.size_c - self.zerobc_c)
 
     def __repr__(self):
-        return Domain.__repr__(self).replace(
+        return super().__repr__().replace(
             'Domain(',
             f'UGDesc(size={self.size_c.tolist()}, ')
 

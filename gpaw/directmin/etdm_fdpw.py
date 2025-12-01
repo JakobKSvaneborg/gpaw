@@ -372,7 +372,7 @@ class FDPWETDM:
             else:
                 self.blocksize = 10
 
-        from gpaw.eigensolvers.eigensolver import Eigensolver
+        from gpaw.old.eigensolvers.eigensolver import Eigensolver
         self.eigensolver = Eigensolver(keep_htpsit=False,
                                        blocksize=self.blocksize)
         self.eigensolver.initialize(wfs)

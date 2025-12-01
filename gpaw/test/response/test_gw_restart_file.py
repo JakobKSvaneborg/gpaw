@@ -12,7 +12,7 @@ class FragileG0W0(G0W0):
         self.doom += 1  # Advance doom
         if self.doom == 12:
             raise ValueError('Cthulhu awakens')
-        G0W0.calculate_q(self, *args, **kwargs)
+        super().calculate_q(*args, **kwargs)
 
 
 @pytest.mark.response

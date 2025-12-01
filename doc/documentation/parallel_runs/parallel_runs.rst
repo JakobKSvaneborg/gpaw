@@ -91,7 +91,7 @@ example, use::
 
   $ gpaw-runscript script.py 32
 
-to write a job sumission script running script.py on 32 cpus.
+to write a job submission script running script.py on 32 cpus.
 The tool tries to guess the architecture/host automatically.
 
 By default it uses the following environment variables to write the runscript:
@@ -99,7 +99,7 @@ By default it uses the following environment variables to write the runscript:
 =============== ===================================
 variable        meaning
 =============== ===================================
-HOSTNAME        name used to assing host type
+HOSTNAME        name used to assign host type
 PYTHONPATH      path for Python
 GPAW_SETUP_PATH where to find the setups
 GPAW_MAIL       where to send emails about the jobs
@@ -384,7 +384,7 @@ We recommend for FD/PW::
 There are a total of four ``'sl_...'`` keywords. Most people will be
 fine just using ``'sl_default'`` or even ``'sl_auto'``. Here we use the same
 ScaLAPACK parameters in three different places: i) general eigensolve
-in the LCAO intilization ii) standard eigensolve in the FD calculation and
+in the LCAO initialization ii) standard eigensolve in the FD calculation and
 iii) Cholesky decomposition in the FD calculation. It is currently
 possible to use different ScaLAPACK parameters in the LCAO
 initialization and the FD calculation by using two of the ScaLAPACK

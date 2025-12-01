@@ -53,7 +53,7 @@ There are also CLI tools for:
 =====================================  ============================
 description                            module
 =====================================  ============================
-analysing :ref:`point groups`          :mod:`gpaw.point_groups`
+analyzing :ref:`point groups`          :mod:`gpaw.point_groups`
 :ref:`hyperfine`                       :mod:`gpaw.hyperfine`
 Calculation of dipole matrix elements  :mod:`gpaw.utilities.dipole`
 PAW-dataset convergence                :mod:`gpaw.utilities.ekin`

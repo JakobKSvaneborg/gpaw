@@ -72,7 +72,7 @@ class ChargedReciprocalSpacePoissonSolver(ReciprocalSpacePoissonSolver):
         * Correct energy to remove the artificial interaction with
           the compensation charge
         """
-        ReciprocalSpacePoissonSolver.__init__(self, pd, charge)
+        super().__init__(pd, charge)
         self.charge = charge
 
         if alpha is None:

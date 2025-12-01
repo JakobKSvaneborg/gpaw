@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 #include <float.h>
-#include <Python.h>
 #include "gpu-runtime.h"
 
 // Numpy datatype defines

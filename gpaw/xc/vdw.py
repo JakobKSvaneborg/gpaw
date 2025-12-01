@@ -404,7 +404,7 @@ class RealSpaceVDWFunctional(VDWFunctionalBase):
             Density cutoff.
         """
 
-        VDWFunctionalBase.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.repeat = repeat
         self.ncut = ncut
 
@@ -508,7 +508,7 @@ class FFTVDWFunctional(VDWFunctionalBase):
            algorithm (powers of two are more efficient).  The density
            array will be zero padded to the correct size."""
 
-        VDWFunctionalBase.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.Nalpha = Nalpha
         self.lambd = lambd
         self.rcut = rcut
@@ -849,7 +849,7 @@ class GGARealSpaceVDWFunctional(RealSpaceVDWFunctional, GGA):
         self.kernel.calculate(*args)
 
     def set_grid_descriptor(self, gd):
-        GGA.set_grid_descriptor(self, gd)
+        super().set_grid_descriptor(gd)
 
 
 class MGGAFFTVDWFunctional(FFTVDWFunctional, MGGA):
@@ -859,7 +859,7 @@ class MGGAFFTVDWFunctional(FFTVDWFunctional, MGGA):
         self.name = name
 
     def calculate_exchange(self, *args):
-        MGGA.process_mgga(self, *args)
+        super().process_mgga(*args)
 
     def initialize(self, *args):
         MGGA.initialize(self, *args)

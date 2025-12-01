@@ -7,7 +7,7 @@ request adding link and descriptive paragraph.
 
 
 Software using GPAW
-===================
+-------------------
 
 * `rhodent <https://rhodent.materialsmodeling.org/>`__.
   ``rhodent`` allows one to analyze hot-carrier distributions based
@@ -26,7 +26,7 @@ Software using GPAW
 
 
 Databases of calculations done with GPAW
-========================================
+----------------------------------------
 
 * `2DHub.org <https://2dhub.org/>`__.
   2DHub provides access to a curated set of open databases and software

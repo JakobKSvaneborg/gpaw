@@ -543,7 +543,7 @@ class Permittivity:
 # Dieletric function that renormalizes the static permittivity to the requested value (usually epsZero)
 class PermittivityPlus(Permittivity):
     def __init__(self, fname=None, data=None, eps_infty = _eps0_au, epsZero = _eps0_au, newbar_omega = 0.01, new_alpha = 0.10, **kwargs):
-        Permittivity.__init__(self, fname=fname, data=data, eps_infty=eps_infty)
+        super().__init__(fname=fname, data=data, eps_infty=eps_infty)
 
         # Convert given values from eVs to Hartrees
         _newbar_omega = newbar_omega / Hartree

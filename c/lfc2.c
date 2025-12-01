@@ -105,8 +105,8 @@ PyObject* second_derivative(LFCObject *lfc, PyObject *args)
     }
   }
   else {
-    const complex double* a_G = (const complex double*)PyArray_DATA(a_G_obj);
-    complex double* c_Mvv = (complex double*)PyArray_DATA(c_Mvv_obj);
+    const double_complex* a_G = (const double_complex*)PyArray_DATA(a_G_obj);
+    double_complex* c_Mvv = (double_complex*)PyArray_DATA(c_Mvv_obj);
 
     for (int x = 0; x < nx; x++) {
       GRID_LOOP_START(lfc, q, 0) {
@@ -121,7 +121,7 @@ PyObject* second_derivative(LFCObject *lfc, PyObject *args)
           for (int i = 0; i < ni; i++) {
             LFVolume* vol = volume_i[i];
             int M = vol->M;
-            complex double* c_mvv = c_Mvv + 9 * M;
+            double_complex* c_mvv = c_Mvv + 9 * M;
             const bmgsspline* spline = (const bmgsspline*) \
               &((const SplineObject*)PyList_GetItem(spline_M_obj, M))->spline;
               
@@ -143,7 +143,7 @@ PyObject* second_derivative(LFCObject *lfc, PyObject *args)
             else
               dfdror = (s[1] + u * (2.0 * s[2] + u * 3.0 * s[3])) / r;
             // phase added here
-            complex double a = a_G[G] * phase_i[i] * Y00dv;
+            double_complex a = a_G[G] * phase_i[i] * Y00dv;
             // dfdror *= a;
             c_mvv[0] += a * dfdror;
             c_mvv[4] += a * dfdror;
@@ -288,8 +288,8 @@ PyObject* add_derivative(LFCObject *lfc, PyObject *args)
     }
   }
   else {
-    const double complex* c_M = (const double complex*)PyArray_DATA(c_xM_obj);
-    double complex* a_G = (double complex*)PyArray_DATA(a_xG_obj);
+    const double_complex* c_M = (const double_complex*)PyArray_DATA(c_xM_obj);
+    double_complex* a_G = (double_complex*)PyArray_DATA(a_xG_obj);
     for (int x = 0; x < nx; x++) {
       GRID_LOOP_START(lfc, q, 0) {
 
@@ -306,7 +306,7 @@ PyObject* add_derivative(LFCObject *lfc, PyObject *args)
           // Loop over volumes at current grid point
           for (int i = 0; i < ni; i++) {
             // Phase of volume
-            double complex conjphase = conj(phase_i[i]);
+            double_complex conjphase = conj(phase_i[i]);
             LFVolume* vol = volume_i[i];
             int M = vol->M;
             // Check that the volume belongs to the atom in consideration later

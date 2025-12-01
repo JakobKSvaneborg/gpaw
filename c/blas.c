@@ -4,10 +4,7 @@
  *  Please see the accompanying LICENSE file for further information. */
 
 #ifndef GPAW_WITHOUT_BLAS
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
+#include "python_utils.h"
 #include "extensions.h"
 
 #ifdef GPAW_NO_UNDERSCORE_BLAS
