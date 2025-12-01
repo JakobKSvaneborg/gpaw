@@ -12,7 +12,7 @@ class KPointFinder:
 
     @staticmethod
     def _round(bzk_kc):
-        return np.mod(np.mod(bzk_kc, 1).round(6), 1)
+        return np.mod(np.mod(bzk_kc, 1).round(8), 1)
 
     def find(self, kpt_c):
         distance, k = self.kdtree.query(self._round(kpt_c))
