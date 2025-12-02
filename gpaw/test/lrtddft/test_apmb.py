@@ -2,7 +2,6 @@ import pytest
 from ase import Atom, Atoms
 from ase.parallel import parprint
 
-from gpaw import GPAW
 from gpaw.lrtddft import LrTDDFT
 
 
