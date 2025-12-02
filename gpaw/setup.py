@@ -11,7 +11,7 @@ from ase.data import chemical_symbols
 from gpaw import debug
 from gpaw.basis_data import Basis, BasisFunction
 from gpaw.core.atom_arrays import AtomArraysLayout
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 from gpaw.new import zips
 from gpaw.overlap import OverlapCorrections
 from gpaw.setup_data import SetupData, search_for_file
@@ -1252,11 +1252,11 @@ class Setups(list):
     ``core_charge`` Core hole charge.
     """
 
-    @parallel(name='world')
     def __init__(self, Z_a, setup_types, basis_sets, xc, *,
                  filter=None,
-                 world,
+                 world=None,
                  backwards_compatible=True):
+        world = normalize_communicator(world)
         list.__init__(self)
         symbols = [chemical_symbols[Z] for Z in Z_a]
         type_a = types2atomtypes(symbols, setup_types, default='paw')

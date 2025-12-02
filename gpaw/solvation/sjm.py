@@ -1017,7 +1017,7 @@ def _write_trace_in_z(grid, property, name, dir, comm=None):
     background charge) as a function of the z coordinate only. `grid` is the
     grid descriptor, typically self.density.finegd. `property` is the property
     to be output, on the same grid."""
-    comm = normalize_communicator(comm)
+    comm = gpaw.mpi.normalize_communicator(comm)
     property = grid.collect(property, broadcast=True)
     property_z = property.mean(0).mean(0)
     with paropen(os.path.join(dir, name), 'w', comm=comm) as f:

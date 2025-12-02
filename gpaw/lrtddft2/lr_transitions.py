@@ -3,12 +3,12 @@ import numpy as np
 from scipy.linalg import eigh
 
 from gpaw.lrtddft2.lr_layouts import LrDiagonalizeLayout
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 
 
 class LrtddftTransitions:
-    @parallel(name='world')
     def __init__(self, ks_singles, K_matrix, sl_lrtddft=None, *, world):
+        world = normalize_communicator(world)
         self.ks_singles = ks_singles
         self.K_matrix = K_matrix
         self.lr_comms = self.ks_singles.lr_comms

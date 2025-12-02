@@ -8,7 +8,7 @@ from gpaw.directmin.tools import (get_indices, get_n_occ, random_a,
                                   sort_orbitals_according_to_energies,
                                   sort_orbitals_according_to_occ)
 from gpaw.old.logger import GPAWLogger
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 from gpaw.typing import RNG
 
 
@@ -319,11 +319,10 @@ class Davidson:
     w: Krylov subspace
     """
 
-    @parallel  # MPI: Does e.g. etdm contain communicator?
     def __init__(self, etdm, logfile=None, fd_mode=None, m=None, h=None,
                  eps=None, cap_krylov=None, gmf=False,
                  accurate_first_pdiag=True, remember_sp_order=None,
-                 sp_order=None, seed=None, *, comm):
+                 sp_order=None, seed=None, *, comm=None):
         """
         :param etdm: ETDM object for which the partial eigendecomposition
                      should be performed.
@@ -363,6 +362,8 @@ class Davidson:
                          Hessian approximation in ETDM.
         :param seed: Seed for random perturbation of initial Krylov space.
         """
+        # MPI: Does e.g. etdm contain communicator?
+        comm = normalize_communicator(comm)
 
         self.name = 'Davidson'
         self.gmf = gmf

@@ -1,6 +1,6 @@
 from ase.units import Bohr
 
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 from gpaw.lrtddft.spectrum import Writer
 
 ds_prefactor = {
@@ -30,7 +30,6 @@ class PESpectrum(Writer):
 
 
 class BasePES:
-    @parallel(name='world')
     def save_folded_pes(self,
                         filename=None,
                         width=0.08,  # Gauss/Lorentz width
@@ -41,6 +40,7 @@ class BasePES:
                         comment=None,
                         *,
                         world):
+        world = normalize_communicator(world)
 
         ew = self.get_energies_and_weights()
         if world.rank == 0:

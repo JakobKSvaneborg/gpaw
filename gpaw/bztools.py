@@ -10,7 +10,7 @@ except ImportError:  # scipy < 1.8
     from scipy.spatial.qhull import QhullError
 
 from gpaw import GPAW, restart
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 from gpaw.old.kpt_descriptor import kpts2sizeandoffsets, to1bz
 from gpaw.symmetry import Symmetry, aglomerate_points
 
@@ -365,8 +365,7 @@ def get_reduced_bz(cell_cv, cU_scc, time_reversal,
     return bzk_kc, ibzk_kc, latibzk_kc
 
 
-@parallel(name='world')
-def expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=np.ones(3, bool), *, world):
+def expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=np.ones(3, bool), world=None):
     """Expand IBZ from lattice group to crystal group.
 
     Parameters
@@ -388,6 +387,8 @@ def expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=np.ones(3, bool), *, world):
     # Find right cosets. The lattice group is partioned into right cosets of
     # the crystal group. This can in practice be done by testing whether
     # U1 U2^{-1} is in the crystal group as done below.
+    world = normalize_communicator(world)
+
     cosets = []
     Utmp_scc = lU_scc.copy()
     while len(Utmp_scc):

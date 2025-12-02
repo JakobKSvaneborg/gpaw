@@ -2,7 +2,7 @@
 import numpy as np
 
 from gpaw.blacs import BlacsGrid
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 from gpaw.response.pw_parallelization import block_partition
 from gpaw.utilities.scalapack import scalapack_set, scalapack_solve
 
@@ -181,8 +181,8 @@ def choose_parallelization(nW, nG, commsize):
     return wGG_min
 
 
-@parallel
-def main(comm):
+def main(comm=None):
+    comm = normalize_communicator(comm)
     nW = 3
     nG = 31
 

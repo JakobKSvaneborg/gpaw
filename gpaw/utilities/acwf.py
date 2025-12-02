@@ -16,7 +16,7 @@ from ase.data import atomic_numbers
 
 from gpaw.atom.check import all_names
 from gpaw.dft import Parameters
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 from gpaw.new.ase_interface import GPAW
 
 
@@ -106,14 +106,14 @@ def workflow() -> None:
             cores=24, tmax='5h', name=f'lcao-{x}', restart=2)
 
 
-@parallel(name='world')
 def work(structure: str,
          symbol: str,
          setup_name: str = '',
          mode: str = 'pw',
          *,
-         world):
+         world=None):
     """Do single EOS calculations with PBE."""
+    world = normalize_communicator(world)
     params: dict[str, Any] = dict(
         xc='PBE',
         occupations=dict(name='fermi-dirac', width=0.0612),

@@ -11,7 +11,7 @@ from ase.dft.kpoints import get_monkhorst_pack_size_and_offset
 from gpaw import GPAW
 from gpaw.ibz2bz import (get_overlap, get_overlap_coefficients,
                          get_phase_shifted_overlap_coefficients)
-from gpaw.mpi import parallel, serial_comm
+from gpaw.mpi import normalize_communicator, serial_comm
 from gpaw.spinorbit import soc_eigenstates
 from gpaw.utilities.blas import gemmdot
 
@@ -292,9 +292,8 @@ def get_dipole_polarization_phase(dipole_v, cell_cv):
     return dipole_phase_c
 
 
-@parallel
 def parallel_transport(calc, direction=0, name=None, scale=1.0, bands=None,
-                       theta=0.0, phi=0.0, *, comm):
+                       theta=0.0, phi=0.0, comm=None):
     """
     Parallel transport.
     The parallel transport algorithm corresponds to the construction
@@ -309,6 +308,8 @@ def parallel_transport(calc, direction=0, name=None, scale=1.0, bands=None,
     Output:
     phi_km, S_km (see above)
     """
+    comm = normalize_communicator(comm)
+
     if isinstance(calc, str):
         calc = GPAW(calc, txt=None, communicator=serial_comm)
 

@@ -7,7 +7,7 @@ from ase.units import Bohr, Ha
 
 from gpaw.lcao.projected_wannier import dots
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.tools import tri2full
 
@@ -39,9 +39,9 @@ class ElectronPhononCouplingMatrix:
 
     """
 
-    @parallel(name='world')
     def __init__(self, atoms, indices=None, name='v', delta=0.005, nfree=2,
-                 derivativemethod='tci', *, world):
+                 derivativemethod='tci', *, world=None):
+        world = normalize_communicator(world)
         assert nfree in [2, 4]
         self.nfree = nfree
         self.delta = delta

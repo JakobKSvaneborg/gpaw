@@ -3,7 +3,7 @@ from ase.units import Bohr
 from ase.utils.timing import Timer
 
 from gpaw.lfc import BasisFunctions
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 from gpaw.old.density import RealSpaceDensity
 from gpaw.old.logger import GPAWLogger
 from gpaw.setup import Setups
@@ -15,8 +15,8 @@ from gpaw.xc import XC
 class HirshfeldDensity(RealSpaceDensity):
     """Density as sum of atomic densities."""
 
-    @parallel(name='world')
-    def __init__(self, calculator, log=None, *, world):
+    def __init__(self, calculator, log=None, world=None):
+        world = normalize_communicator(world)
         self.calculator = calculator
         dens = calculator.density
         super().__init__(dens.gd, dens.finegd,

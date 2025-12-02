@@ -5,7 +5,7 @@ from ase import Atoms
 from ase.parallel import parprint
 
 from gpaw import GPAW, PW, setup_paths
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 
 from .info import info
 
@@ -23,8 +23,8 @@ class CLICommand:
         test()
 
 
-@parallel
-def test(comm):
+def test(comm=None):
+    comm = normalize_communicator(comm)
     for path in setup_paths:
         if Path(path).is_dir():
             break

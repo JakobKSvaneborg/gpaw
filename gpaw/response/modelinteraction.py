@@ -1,7 +1,7 @@
 import numpy as np
 from ase.units import Ha
 
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 from gpaw.response import ResponseContext, timer
 from gpaw.response.coulomb_kernels import CoulombKernel
 from gpaw.response.pair import KPointPairFactory
@@ -20,11 +20,10 @@ def ibz2bz_map(qd):
     return out_map
 
 
-@parallel(name='world')
 def initialize_w_model(chi0calc, truncation=None,
                        integrate_gamma=GammaIntegrationMode('sphere'),
                        q0_correction=False, txt='w_model.out',
-                       eta=None, *, world, timer=None):
+                       eta=None, *, world=None, timer=None):
     """ Helper function to initialize ModelInteraction
 
     Parameters
@@ -41,6 +40,7 @@ def initialize_w_model(chi0calc, truncation=None,
     world: MPI comm
     timer: ResponseContext timer
     """
+    world = normalize_communicator(world)
     gs = chi0calc.gs
     wcontext = ResponseContext(txt=txt,
                                comm=world, timer=timer)

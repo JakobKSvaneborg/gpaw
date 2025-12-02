@@ -1033,14 +1033,14 @@ def receive(rank: int, comm: MPIComm) -> Any:
 
 
 @parallel
-def send_string(string, rank, comm):
+def send_string(string, rank, *, comm):
     b = string.encode()
     comm.send(np.array(len(b)), rank)
     comm.send(np.frombuffer(b, np.int8).copy(), rank)
 
 
 @parallel
-def receive_string(rank, comm):
+def receive_string(rank, *, comm):
     n = np.array(0)
     comm.receive(n, rank)
     string = np.empty(n, np.int8)
@@ -1049,7 +1049,7 @@ def receive_string(rank, comm):
 
 
 @parallel
-def alltoallv_string(send_dict, comm):
+def alltoallv_string(send_dict, *, comm):
     scounts = np.zeros(comm.size, dtype=int)
     sdispls = np.zeros(comm.size, dtype=int)
     stotal = 0
