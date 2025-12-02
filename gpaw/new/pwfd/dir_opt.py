@@ -11,7 +11,7 @@ from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.potential import Potential
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver
-from gpaw.new.pwfd.lbfgs import LBFGS
+from gpaw.new.etdm.searchdir import LBFGS
 
 
 class DirOptPWFD(PWFDEigensolver):
