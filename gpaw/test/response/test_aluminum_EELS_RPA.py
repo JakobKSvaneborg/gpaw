@@ -39,7 +39,7 @@ def test_response_aluminum_EELS_RPA(in_tmp_dir):
     calc.write('Al_gs.gpw')
 
     # Generate grid compatible with tetrahedron integration
-    kpts = find_high_symmetry_monkhorst_pack('Al_gs.gpw', 2.0)
+    kpts = find_high_symmetry_monkhorst_pack(atoms, 2.0)
 
     # Calculate the wave functions on the new kpts grid
     calc = GPAW('Al_gs.gpw').fixed_density(kpts=kpts, update_fermi_level=True)

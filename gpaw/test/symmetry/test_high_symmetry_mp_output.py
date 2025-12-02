@@ -1,22 +1,21 @@
-import pytest
-
 from gpaw import GPAW
-from gpaw.dft import MonkhorstPack
 from gpaw.bztools import find_high_symmetry_monkhorst_pack
+from ase import Atoms
 
 
 def test_high_symmetry_monkhorst_pack_output(gpw_files):
-    gpwname = gpw_files['si_pw']
+    atoms = Atoms("H", cell=[6, 3, 8], pbc=True)
+    kpts_dict = find_high_symmetry_monkhorst_pack(atoms, 3.0)
+    assert kpts_dict["size"] == (4, 8, 4)
 
-    kpts1_kc = find_high_symmetry_monkhorst_pack(gpwname, 6.0)
+    for system, kpts in [("si_pw", (16, 16, 16)), ("mos2_pw", (18, 18, 1))]:
+        gpwname = gpw_files[system]
+        atoms = GPAW(gpwname).atoms
+        kpts_dict = find_high_symmetry_monkhorst_pack(atoms, 6.0)
+        assert kpts_dict["size"] == kpts
 
-    # kpts returned from this function are not inside the (-0.5, 0.5] interval.
-    # Putting them inside the interval..
-    kpts1_kc = kpts1_kc - (kpts1_kc > 0.5) + (- kpts1_kc >= 0.5)
-
-    kpts_dict = find_high_symmetry_monkhorst_pack(gpwname, 6.0,
-                                                  return_as_dict=True)
-    atoms = GPAW(gpwname).atoms
-    kpts2_kc = MonkhorstPack(**kpts_dict).build(atoms).kpt_Kc
-
-    assert kpts1_kc == pytest.approx(kpts2_kc, abs=1e-10)
+    for system, kpts in [("si_pw", (8, 8, 8)), ("mos2_pw", (12, 12, 1))]:
+        gpwname = gpw_files[system]
+        atoms = GPAW(gpwname).atoms
+        kpts_dict = find_high_symmetry_monkhorst_pack(atoms, 3.0)
+        assert kpts_dict["size"] == kpts
