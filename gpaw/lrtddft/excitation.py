@@ -29,8 +29,9 @@ class ExcitationLogger(GPAWLogger):
 class ExcitationList(list):
     """General Excitation List class.
     """
-    def __init__(self, log=None, txt='-', comm=None):
-        comm = mpi.normalize_communicator(comm)
+    def __init__(self, log=None, txt='-', world=None):
+        world = mpi.normalize_communicator(world)
+        self.world = world
         # initialise empty list
         list.__init__(self)
         self.energy_to_eV_scale = Ha
@@ -39,7 +40,7 @@ class ExcitationList(list):
         if log is not None:
             self.log = log
         else:
-            self.log = ExcitationLogger(world=comm)
+            self.log = ExcitationLogger(world=world)
             self.log.fd = txt
 
     @property

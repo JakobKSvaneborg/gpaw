@@ -75,9 +75,7 @@ class LrTDDFT(ExcitationList):
         if world is None and calculator is not None:
             world = calculator.world
 
-        world = mpi.normalize_communicator(world)
-
-        super().__init__(log=log, txt=txt, comm=world)
+        super().__init__(log=log, txt=txt, world=world)
 
         if self.eh_comm is None:
             self.eh_comm = mpi.serial_comm
@@ -170,7 +168,8 @@ class LrTDDFT(ExcitationList):
             name = 'LrTDDFThyb'
 
         kss = KSSingles(restrict=self.restrict,
-                        log=self.log)
+                        log=self.log,
+                        world=self.world)
         atoms = self.calculator.get_atoms()
         kss.calculate(atoms, self.nspins)
 
@@ -185,7 +184,7 @@ class LrTDDFT(ExcitationList):
         self.set(**kwargs)
         self.timer.start('diagonalize')
         self.timer.start('omega')
-        self.Om.diagonalize(kwargs.pop('restrict', {}))
+        self.Om.diagonalize(kwargs.pop('restrict', {}), comm=self.world)
         self.timer.stop('omega')
         self.diagonalized = True
 
@@ -204,9 +203,11 @@ class LrTDDFT(ExcitationList):
         self.timer.stop('diagonalize')
 
     @classmethod
-    def read(cls, filename=None, fh=None, restrict={}, log=None, txt=None):
+    def read(cls, filename=None, fh=None, restrict={}, log=None, txt=None,
+             world=None):
         """Read myself from a file"""
-        lr = cls(log=log, txt=txt)
+        world = mpi.normalize_communicator(world)
+        lr = cls(log=log, txt=txt, world=world)
         timer = lr.timer
         timer.start('name')
         if fh is None:
@@ -237,7 +238,7 @@ class LrTDDFT(ExcitationList):
         timer.stop('header')
 
         timer.start('init_kss')
-        kss = KSSingles.read(fh=f, log=log)
+        kss = KSSingles.read(fh=f, log=log, world=world)
         assert eps == kss.restrict['eps']
         lr.restrict = kss.restrict.values
         timer.stop('init_kss')

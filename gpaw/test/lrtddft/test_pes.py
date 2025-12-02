@@ -2,7 +2,6 @@ import pytest
 from ase import Atom, Atoms
 from ase.parallel import parprint
 
-from gpaw import GPAW
 from gpaw.lrtddft import LrTDDFT
 from gpaw.pes.dos import DOSPES
 from gpaw.pes.tddft import TDDFTPES
@@ -71,7 +70,7 @@ def test_lrtddft_pes(in_tmp_dir, mpi):
     # io
     out = 'lrpes.dat.gz'
     lr.write(out)
-    lr = LrTDDFT.read(out)
+    lr = LrTDDFT.read(out, world=mpi.comm)
     lr.calculator = calc_plus
 
     pes = TDDFTPES(calc, lr)
