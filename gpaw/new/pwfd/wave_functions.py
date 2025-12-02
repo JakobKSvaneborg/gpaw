@@ -334,7 +334,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                              data_buffer=None,
                              scalapack_parameters=(None, 1, 1, None),
                              nocc=None,
-                             eigenvalues_only=True):
+                             eigenvalues_only=False):
         """
         If data_buffer is None, psit2_nX will be used as a buffer
         for the wave functions.
