@@ -11,7 +11,6 @@ GPAW calculator:
 
    soc/soc
    poisson
-   electrodynamics/electrodynamics
    cdft/cdft
    dscf/dscf
    dcdft/dcdft
