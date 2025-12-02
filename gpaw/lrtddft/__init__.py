@@ -312,7 +312,7 @@ class LrTDDFT(ExcitationList):
         string += self.Om.kss.__str__()
         return string
 
-    def write(self, filename=None, fh=None):
+    def write(self, filename=None, fh=None, world=None):
         """Write current state to a file.
 
         'filename' is the filename. If the filename ends in .gz,
@@ -323,9 +323,11 @@ class LrTDDFT(ExcitationList):
         """
 
         if self.calculator is None:
-            rank = mpi.world.rank
+            world = mpi.normalize_communicator(world)
         else:
-            rank = self.calculator.wfs.world.rank
+            world = self.calculator.wfs.world
+
+        rank = world.rank
 
         if rank == 0:
             if fh is None:
@@ -362,7 +364,7 @@ class LrTDDFT(ExcitationList):
 
             if fh is None:
                 f.close()
-        mpi.world.barrier()
+        world.barrier()
 
     def overlap(self, ov_nn, other):
         """Matrix element overlap determined from pair density overlaps.

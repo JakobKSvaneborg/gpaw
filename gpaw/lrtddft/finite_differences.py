@@ -1,7 +1,7 @@
 import os.path
 
 import numpy as np
-from ase import parallel as mpi
+import gpaw.mpi as mpi
 
 from gpaw.lrtddft.excitation import ExcitationLogger
 
@@ -9,7 +9,7 @@ from gpaw.lrtddft.excitation import ExcitationLogger
 class FiniteDifference:
     def __init__(self, atoms, propertyfunction,
                  save=False, name='fd', ending='',
-                 d=0.001, parallel=1, log=None, txt='-', world=mpi.world):
+                 d=0.001, parallel=1, log=None, txt='-', world=None):
         """
     atoms: Atoms object
         The atoms to work on.
@@ -30,9 +30,10 @@ class FiniteDifference:
     ending: string
         File handel for restart data
     parallel: int
-        splits the mpi.world into 'parallel' subprocs that calculate
+        splits world into 'parallel' subprocs that calculate
         displacements of different atoms individually.
     """
+        world = mpi.normalize_communicator(world)
 
         self.atoms = atoms
         self.indices = np.asarray(range(len(atoms)))
@@ -46,7 +47,7 @@ class FiniteDifference:
         if log is not None:
             self.log = log
         else:
-            self.log = ExcitationLogger(world=mpi.world)
+            self.log = ExcitationLogger(world=world)
             self.log.fd = txt
 
         if parallel > world.size:
@@ -96,7 +97,7 @@ class FiniteDifference:
         self.value[a, i] = (eminus - eplus) / (2 * self.d)
 
         if self.parallel > 1 and self.world.rank == 0:
-            self.log('# rank', mpi.world.rank, 'Atom', a,
+            self.log('# rank', self.world.rank, 'Atom', a,
                      'direction', i, 'FD: ', self.value[a, i])
         else:
             self.log('Atom', a, 'direction', i,

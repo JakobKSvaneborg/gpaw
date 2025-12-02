@@ -18,8 +18,8 @@ ResponseContextInput = Union['ResponseContext', dict, TXTFilename]
 
 class ResponseContext:
     def __init__(self, txt: TXTFilename = '-',
-                 timer=None, comm=mpi.world, mode='w'):
-        self.comm = comm
+                 timer=None, comm=None, mode='w'):
+        self.comm = mpi.normalize_communicator(comm)
         self.iocontext = IOContext()
         self.open(txt, mode)
         self.set_timer(timer)
