@@ -453,13 +453,13 @@ def rng():
 
 
 @pytest.fixture
-def gpaw_newp() -> bool:
+def gpaw_new() -> bool:
     """Are we testing the new code?"""
     return GPAW_NEW
 
 
 @pytest.fixture(params=[False, True])
-def gpaw_new(request) -> bool:
+def gpaw_newp(request) -> bool:
     import gpaw.dft as dft
     try:
         dft._USE_OLD_GPAW = not request.param

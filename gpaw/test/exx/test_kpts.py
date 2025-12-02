@@ -25,10 +25,9 @@ def atoms() -> Atoms:
     a.calc = GPAW(mode=PW(200),
                   kpts=(n, n, 1),
                   xc='PBE',
-                  _use_old_gpaw=True,
                   convergence={'bands': 2},
-                  parallel=parallel,
-                  txt='h2old.txt')
+                  nbands=4,
+                  parallel=parallel)
     a.get_potential_energy()
     return a
 
@@ -41,24 +40,25 @@ def bandgap(eps: np.ndarray) -> tuple[int, int, float]:
     return k1, k2, eps[0, k2, 1] - eps[0, k1, 0]
 
 
-gaps = {'EXX': 21.45,
-        'PBE0': 13.93,
-        'HSE06': 14.44,
-        'PBE': 11.63}
+gaps = {'EXX': 21.04,
+        'PBE0': 13.56,
+        'HSE06': 14.08,
+        'PBE': 11.29}
 
 
 @pytest.mark.libxc
 @pytest.mark.hybrids
+@pytest.mark.new_gpaw_ready
 @pytest.mark.parametrize('xc', ['EXX', 'PBE0', 'HSE06'])
 def test_kpts(xc: str, atoms: Atoms) -> None:
     c = atoms.calc
     e0, v0, v = non_self_consistent_eigenvalues(c, xc)
     e = e0 - v0 + v
     k1, k2, gap = bandgap(e)
-    assert k1 == 4 and k2 == 7
+    assert k1 == 4 and k2 == 5
     assert gap == pytest.approx(gaps[xc], abs=0.01)
     k1, k2, gap = bandgap(e0)
-    assert k1 == 4 and k2 == 7
+    assert k1 == 4 and k2 == 5
     assert gap == pytest.approx(gaps['PBE'], abs=0.01)
 
 
