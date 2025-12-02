@@ -60,7 +60,8 @@ class LrTDDFT(ExcitationList):
         'eh_comm': None,  # parallelization over eh-pairs
         'poisson': None}  # use calculator's Poisson
 
-    def __init__(self, calculator=None, log=None, txt='-', **kwargs):
+    def __init__(self, calculator=None, log=None, txt='-', world=None,
+                 **kwargs):
 
         self.energy_to_eV_scale = Hartree
         self.timer = Timer()
@@ -71,7 +72,12 @@ class LrTDDFT(ExcitationList):
         #     calculator = calculator._to_old()
         self.calculator = calculator
 
-        super().__init__(log=log, txt=txt)
+        if world is None and calculator is not None:
+            world = calculator.world
+
+        world = mpi.normalize_communicator(world)
+
+        super().__init__(log=log, txt=txt, comm=world)
 
         if self.eh_comm is None:
             self.eh_comm = mpi.serial_comm
@@ -349,7 +355,7 @@ class LrTDDFT(ExcitationList):
                                      int(self.derivative_level),
                                      self.numscale, int(self.finegrid)) + '\n')
             self.kss.write(fh=f)
-            self.Om.write(fh=f)
+            self.Om.write(fh=f, world=world)
 
             if len(self):
                 f.write('# Eigenvalues\n')

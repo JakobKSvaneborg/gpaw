@@ -5,7 +5,6 @@ from ase.build import molecule
 from ase.calculators.vdwcorrection import vdWTkatchenko09prl
 from ase.parallel import barrier, parprint
 
-from gpaw import GPAW
 from gpaw.analyse.hirshfeld import HirshfeldPartitioning
 from gpaw.analyse.vdwradii import vdWradii
 from gpaw.utilities.adjust_cell import adjust_cell

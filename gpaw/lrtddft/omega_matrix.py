@@ -51,7 +51,7 @@ class OmegaMatrix:
         self.fullkss = kss
 
         if filehandle is not None:
-            self.read(fh=filehandle)
+            self.read(fh=filehandle, world=eh_comm)
             return None
 
         self.finegrid = finegrid

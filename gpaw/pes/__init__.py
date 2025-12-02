@@ -38,8 +38,7 @@ class BasePES:
                         de=None,
                         folding='Gauss',
                         comment=None,
-                        *,
-                        world):
+                        world=None):
         world = normalize_communicator(world)
 
         ew = self.get_energies_and_weights()
