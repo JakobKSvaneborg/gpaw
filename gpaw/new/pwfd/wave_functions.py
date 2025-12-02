@@ -331,7 +331,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                              psit2_nX,
                              data_buffer=None,
                              scalapack_parameters=(None, 1, 1, None),
-                             nocc=None):
+                             nocc=None,
+                             eigenvalues_only=True):
         """
         If data_buffer is None, psit2_nX will be used as a buffer
         for the wave functions.
@@ -355,6 +356,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             H_nm.data[nocc:, :nocc] = 0
         self.subspace_eigenvalues(H_nm,
                                   scalapack_params=scalapack_parameters)
+        if eigenvalues_only:
+            return
         self.canonical_transformation(H_nm, psit2_nX, data_buffer)
 
     def force_contribution(self,

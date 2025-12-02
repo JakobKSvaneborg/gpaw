@@ -80,8 +80,8 @@ def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
     f2 = atoms.get_forces()
     assert f2 == pytest.approx(f0, abs=1e-2)
     niter = calc.get_number_of_iterations()
-    if not gpaw_new:
-        assert niter == pytest.approx(3, abs=1)
+    assert niter == pytest.approx(3, abs=1)
+
     if 0:
         # If unoccupied orbitals are not converged:
         #     energy(LUMO) > energy(HOMO)
