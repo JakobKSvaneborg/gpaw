@@ -15,8 +15,8 @@ from gpaw.xc import XC
 class HirshfeldDensity(RealSpaceDensity):
     """Density as sum of atomic densities."""
 
-    def __init__(self, calculator, log=None, world=None):
-        world = normalize_communicator(world)
+    def __init__(self, calculator, log=None):
+        world = normalize_communicator(calculator.wfs.world)
         self.calculator = calculator
         dens = calculator.density
         super().__init__(dens.gd, dens.finegd,

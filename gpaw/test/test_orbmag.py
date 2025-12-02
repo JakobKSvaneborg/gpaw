@@ -15,7 +15,7 @@ def test_orbmag_Ni(gpw_files, mpi):
 
     # Collinear calculation
 
-    calc_col = mpi.GPAW(
+    calc_col = mpi.NewGPAW(
         gpw_files['fcc_Ni_col'],
         parallel={'domain': 1, 'band': 1})
 
@@ -30,7 +30,7 @@ def test_orbmag_Ni(gpw_files, mpi):
 
     # Non-collinear calculation without self-consistent spin–orbit
 
-    calc_ncol = mpi.GPAW(
+    calc_ncol = mpi.NewGPAW(
         gpw_files['fcc_Ni_ncol'],
         parallel={'domain': 1, 'band': 1})
 
@@ -54,7 +54,7 @@ def test_orbmag_Ni(gpw_files, mpi):
     assert dif_orbmag == pytest.approx(0, abs=1.0e-3)
 
     # Non-collinear calculation with self-consistent spin–orbit
-    calc_ncolsoc = mpi.GPAW(
+    calc_ncolsoc = mpi.NewGPAW(
         gpw_files['fcc_Ni_ncolsoc'],
         parallel={'domain': 1, 'band': 1})
 

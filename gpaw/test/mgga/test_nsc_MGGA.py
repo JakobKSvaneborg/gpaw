@@ -21,7 +21,7 @@ def test_mgga_nsc_MGGA(in_tmp_dir, mpi):
                     parallel=dict(augment_grids=True),
                     gpts=(32, 32, 32), nbands=1, xc=xc('oldPBE'))
 
-    calc = mpi.OldGPAW(txt='Hnsc.txt', **getkwargs())
+    calc = mpi.GPAW(txt='Hnsc.txt', **getkwargs())
     atoms.calc = calc
     e1 = atoms.get_potential_energy()
     _ = calc.get_reference_energy()
@@ -49,7 +49,7 @@ def test_mgga_nsc_MGGA(in_tmp_dir, mpi):
 
     atomsHe = Atoms('He', pbc=True)
     atomsHe.center(vacuum=3)
-    calc = mpi.OldGPAW(txt='Hensc.txt', **getkwargs())
+    calc = mpi.GPAW(txt='Hensc.txt', **getkwargs())
     atomsHe.calc = calc
     e1He = atomsHe.get_potential_energy()
     _ = calc.get_reference_energy()
