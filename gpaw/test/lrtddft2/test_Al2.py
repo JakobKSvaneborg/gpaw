@@ -16,7 +16,9 @@ def test_lrtddft2_Al2(in_tmp_dir):
     atoms = Atoms('Al2', positions=((0, 0, 0),
                                     (0, 0, d)))
     atoms.center(4.0)
-    calc = GPAW(mode='fd', h=0.24, eigensolver='cg', basis='dzp',
+    calc = GPAW(mode='fd',
+                h=0.24,
+                basis='dzp',
                 occupations=FermiDirac(width=0.01),
                 convergence={'eigenstates': 4.0e-5,
                              'density': 1.0e-2,
