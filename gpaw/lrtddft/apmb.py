@@ -275,10 +275,10 @@ class ApmB(OmegaMatrix):
         st += '%d' % ti + 's'
         return st
 
-    def mapAB(self, restrict={}):
+    def mapAB(self, restrict={}, *, comm):
         """Map A+B, A-B matrices according to constraints."""
 
-        map, self.kss = self.get_map(restrict)
+        map, self.kss = self.get_map(restrict, comm=comm)
         if map is None:
             ApB = self.ApB.copy()
             AmB = self.AmB.copy()
@@ -293,10 +293,10 @@ class ApmB(OmegaMatrix):
 
         return ApB, AmB
 
-    def diagonalize(self, restrict={}, TDA=False):
+    def diagonalize(self, restrict={}, TDA=False, comm=None):
         """Evaluate Eigenvectors and Eigenvalues"""
 
-        ApB, AmB = self.mapAB(restrict)
+        ApB, AmB = self.mapAB(restrict, comm=comm)
         nij = len(self.kss)
 
         if TDA:
