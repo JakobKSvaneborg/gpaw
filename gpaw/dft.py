@@ -952,6 +952,8 @@ def GPAW(
         value = kwargs[key]
         if value is None:
             del kwargs[key]
+        else:
+            _use_old_gpaw = True
 
     use_old_if_reading_fails = False
     if _use_old_gpaw is None:
