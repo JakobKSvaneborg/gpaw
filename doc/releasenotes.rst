@@ -39,6 +39,10 @@ Git master branch
   ``parallel_python_interpreter`` in ``siteconfig.py``
   should not be used.
 
+* The FDTD code has been removed.  If this code is important to you,
+  please contact the developers.  You will probably need to port the code
+  to :ref:`newgpaw` in order to use it in the future.
+
 
 Version 25.7.0
 ==============
