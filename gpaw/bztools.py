@@ -40,7 +40,7 @@ def get_lattice_symmetry(cell_cv, tolerance=1e-7):
 
 @parallel(name='world')
 def find_high_symmetry_monkhorst_pack(atoms: Atoms,
-                                      density: float, *,
+                                      density: float,
                                       world):
     """Make high symmetry Monkhorst Pack k-point grid.
 
@@ -68,12 +68,12 @@ def find_high_symmetry_monkhorst_pack(atoms: Atoms,
     minsize, offset = kpts2sizeandoffsets(density=density, even=True,
                                           gamma=True, atoms=atoms)
 
-    # NB: get_bz() wants a pbc_c, but never gets it. This means that the
-    # pbc always will fall back to True along all dimensions. XXX
+    # NB: get_bz() and get_bz_from_atoms() wants a pbc_c, but never gets it.
+    # The pbc will therefore fall back to True along all dimensions.
     # NB: Why return latibzk_kc, if we never use it? XXX
     bzk_kc, ibzk_kc, latibzk_kc = get_bz_from_atoms(atoms)
 
-    maxsize = minsize + 10
+    maxsize = minsize + 9
     minsize[~pbc] = 1
     maxsize[~pbc] = 2
 
@@ -81,9 +81,9 @@ def find_high_symmetry_monkhorst_pack(atoms: Atoms,
         print('Brute force search for symmetry ' +
               'complying MP-grid... please wait.')
 
-    for n1 in range(minsize[0], maxsize[0]):
-        for n2 in range(minsize[1], maxsize[1]):
-            for n3 in range(minsize[2], maxsize[2]):
+    for n1 in range(minsize[0], maxsize[0], 2):
+        for n2 in range(minsize[1], maxsize[1], 2):
+            for n3 in range(minsize[2], maxsize[2], 2):
                 size = n1, n2, n3
                 size, offset = kpts2sizeandoffsets(size=size, gamma=True,
                                                    atoms=atoms)
