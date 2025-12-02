@@ -375,7 +375,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             # implemement unitary rotation of each wfs in ibzwfs
             # by the subspace eigenvectors H_nm
 
-        F_anvi = self.pt_aiX.derivative(self.psit_nX)
+        F_anvi = self.pt_aiX.derivative(psit_nX)
         for a, F_nvi in F_anvi.items():
             F_nvi = F_nvi.conj()
             F_nvi *= myocc_n[:, np.newaxis, np.newaxis]
