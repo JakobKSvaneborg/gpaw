@@ -1,13 +1,13 @@
 import pytest
 from ase import Atoms
 
-from gpaw import GPAW, Davidson, Mixer
+from gpaw import Davidson, Mixer
 
 # ??? g = Generator('H', 'TPSS', scalarrel=True, nofiles=True)
 
 
 @pytest.mark.mgga
-def test_mgga_nsc_MGGA(in_tmp_dir):
+def test_mgga_nsc_MGGA(in_tmp_dir, mpi):
     def xc(name):
         return dict(name=name, stencil=1)
 
@@ -21,7 +21,7 @@ def test_mgga_nsc_MGGA(in_tmp_dir):
                     parallel=dict(augment_grids=True),
                     gpts=(32, 32, 32), nbands=1, xc=xc('oldPBE'))
 
-    calc = GPAW(txt='Hnsc.txt', **getkwargs())
+    calc = mpi.OldGPAW(txt='Hnsc.txt', **getkwargs())
     atoms.calc = calc
     e1 = atoms.get_potential_energy()
     _ = calc.get_reference_energy()
@@ -49,7 +49,7 @@ def test_mgga_nsc_MGGA(in_tmp_dir):
 
     atomsHe = Atoms('He', pbc=True)
     atomsHe.center(vacuum=3)
-    calc = GPAW(txt='Hensc.txt', **getkwargs())
+    calc = mpi.OldGPAW(txt='Hensc.txt', **getkwargs())
     atomsHe.calc = calc
     e1He = atomsHe.get_potential_energy()
     _ = calc.get_reference_energy()

@@ -1,13 +1,12 @@
 import numpy as np
 import pytest
 
-from gpaw.new.ase_interface import GPAW
 from gpaw.new.calculation import CalculationModeError
 from gpaw.spinorbit import soc_eigenstates
 
 
 @pytest.mark.soc
-def test_orbmag_Ni(gpw_files):
+def test_orbmag_Ni(gpw_files, mpi):
     # Parameters
 
     easy_axis = 1 / np.sqrt(3) * np.ones(3)
@@ -16,8 +15,9 @@ def test_orbmag_Ni(gpw_files):
 
     # Collinear calculation
 
-    calc_col = GPAW(gpw_files['fcc_Ni_col'],
-                    parallel={'domain': 1, 'band': 1})
+    calc_col = mpi.GPAW(
+        gpw_files['fcc_Ni_col'],
+        parallel={'domain': 1, 'band': 1})
 
     energy_col = calc_col.get_potential_energy(calc_col.atoms)
     density = calc_col.dft.density
@@ -30,8 +30,9 @@ def test_orbmag_Ni(gpw_files):
 
     # Non-collinear calculation without self-consistent spin–orbit
 
-    calc_ncol = GPAW(gpw_files['fcc_Ni_ncol'],
-                     parallel={'domain': 1, 'band': 1})
+    calc_ncol = mpi.GPAW(
+        gpw_files['fcc_Ni_ncol'],
+        parallel={'domain': 1, 'band': 1})
 
     energy_ncol = calc_ncol.get_potential_energy(calc_ncol.atoms)
     density = calc_ncol.dft.density
@@ -53,8 +54,9 @@ def test_orbmag_Ni(gpw_files):
     assert dif_orbmag == pytest.approx(0, abs=1.0e-3)
 
     # Non-collinear calculation with self-consistent spin–orbit
-    calc_ncolsoc = GPAW(gpw_files['fcc_Ni_ncolsoc'],
-                        parallel={'domain': 1, 'band': 1})
+    calc_ncolsoc = mpi.GPAW(
+        gpw_files['fcc_Ni_ncolsoc'],
+        parallel={'domain': 1, 'band': 1})
 
     energy_ncolsoc = calc_ncolsoc.get_potential_energy(calc_ncolsoc.atoms)
     assert energy_ncolsoc == pytest.approx(-8.478, abs=1.0e-3)
