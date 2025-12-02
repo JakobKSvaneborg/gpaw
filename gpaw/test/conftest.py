@@ -6,7 +6,7 @@ from functools import cached_property
 import numpy as np
 import pytest
 
-from gpaw import GPAW_NEW, debug, setup_paths
+from gpaw import debug, setup_paths, GPAW_NEW
 from gpaw.cli.info import info
 from gpaw.mpi import broadcast, world
 from gpaw.test.gpwfile import GPWFiles, _all_gpw_methodnames
@@ -294,16 +294,6 @@ def all_gpw_files(request, gpw_files, pytestconfig):
     # it is populated, i.e., further down in the file than
     # the @gpwfile decorator.
 
-    # TODO This xfail-information should probably live closer to the
-    # gpwfile definitions and not here in the fixture.
-    skip_if_new = {'Cu3Au_qna',
-                   'nicl2_pw', 'nicl2_pw_evac',
-                   'v2br4_pw', 'v2br4_pw_nosym',
-                   'sih4_xc_gllbsc_fd', 'sih4_xc_gllbsc_lcao',
-                   'na2_isolated', 'h2o_xas'}
-    if GPAW_NEW and request.param in skip_if_new:
-        pytest.xfail(f'{request.param} gpwfile not yet working with GPAW_NEW')
-
     if request.param == 'Tl_box_pw' and world.size > 1:
         pytest.skip(f'{request.param} gpwfile only works in serial')
 
@@ -499,3 +489,13 @@ def mpi(comm):
 def gpaw_new() -> bool:
     """Are we testing the new code?"""
     return GPAW_NEW
+
+
+@pytest.fixture(params=[False, True])
+def gpaw_newp(request) -> bool:
+    import gpaw.dft as dft
+    try:
+        dft._USE_OLD_GPAW = not request.param
+        yield request.param
+    finally:
+        dft._USE_OLD_GPAW = None
