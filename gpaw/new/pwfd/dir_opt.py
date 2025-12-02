@@ -68,7 +68,8 @@ class DirOptPWFD(PWFDEigensolver):
                 tmp_nX = wfs.psit_nX.new()
                 wfs.orthonormalized = False
                 wfs.orthonormalize(tmp_nX)
-                wfs.subspace_diagonalize(Ht, potential.dH, tmp_nX)
+                wfs.subspace_diagonalize(Ht, potential.dH, tmp_nX,
+                                         eigenvalues_only=True)
 
             # update density and hamiltonian
             energies, potential = update_density_and_potential(
@@ -177,7 +178,8 @@ class DirOptPWFD(PWFDEigensolver):
             tmp_nX = wfs.psit_nX.new()
             wfs.orthonormalized = False
             wfs.orthonormalize(tmp_nX)
-            wfs.subspace_diagonalize(Ht, potential.dH, tmp_nX)
+            wfs.subspace_diagonalize(Ht, potential.dH, tmp_nX,
+                                     eigenvalues_only=True)
 
         # reset search direction
         self.search_dir.reset()
