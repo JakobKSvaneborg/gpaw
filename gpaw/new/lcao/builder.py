@@ -40,7 +40,7 @@ class LCAODFTComponentsBuilder(DFTComponentsBuilder):
             mode = params.mode
             params.mode = mode.from_param(mode_dict)
             self.builder = params.mode.dft_components_builder(
-                atoms, params, log=log)
+                atoms, params, log=log, comm=comm)
         finally:
             params.mode = mode
 

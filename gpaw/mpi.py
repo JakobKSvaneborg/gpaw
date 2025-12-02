@@ -869,14 +869,39 @@ def parallel(func=None, *, name='comm'):
         comm = kwargs.get(name)
         if comm is None:
             comm = world
-            if comm is world and _NO_TOUCH_WORLD:
+            try:
+                _check_world_protected(comm)
+            except DontDoThat:
                 raise DontDoThat(
                     f'Must call method with keyword {name}=<communicator> '
-                    'and communicator must not be gpaw.mpi.world')
+                    'and communicator must not be gpaw.mpi.world'
+                ) from None
             kwargs[name] = comm
         return func(*args, **kwargs)
 
     return wrapper
+
+
+def _check_world_protected(comm):
+    """Raise an error if we got global world in no-touch-world mode."""
+    if comm is world and _NO_TOUCH_WORLD:
+        raise DontDoThat('We are in no-touch-world mode and touched world')
+
+
+def normalize_communicator(comm: MPIComm | None) -> MPIComm:
+    if comm is None:
+        _check_world_protected(world)
+        comm = world
+    elif not hasattr(comm, 'new_communicator'):
+        import warnings
+        warnings.warn('Please pass a communicator object instead of a '
+                      'sequence of ranks.  That will not be supported in '
+                      'the future.', FutureWarning)
+        # comm is a list of ranks.
+        # Maybe we don't truly need the communicator=<list of ranks> syntax?
+        _check_world_protected(world)
+        comm = world.new_communicator(np.asarray(comm))
+    return comm
 
 
 @parallel

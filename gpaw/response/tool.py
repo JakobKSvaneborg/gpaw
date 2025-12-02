@@ -47,15 +47,17 @@ def get_orbitals(calc):
 
 def get_bz_transitions(filename, q_c, bzk_kc,
                        spins='all',
-                       ecut=50, txt=sys.stdout):
+                       ecut=50, txt=sys.stdout,
+                       world=None):
     """
     Get transitions in the Brillouin zone from kpoints bzk_kv
     contributing to the linear response at wave vector q_c.
     """
+    world = mpi.normalize_communicator(world)
 
     ecut /= Ha
 
-    gs, context = get_gs_and_context(filename, txt=txt, world=mpi.world,
+    gs, context = get_gs_and_context(filename, txt=txt, world=world,
                                      timer=None)
 
     kptpair_factory = KPointPairFactory(gs=gs, context=context)

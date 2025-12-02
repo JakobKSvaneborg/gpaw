@@ -9,7 +9,7 @@ from ase.units import Bohr, Hartree
 from scipy.linalg import eigh
 
 from gpaw.blacs import BlacsDescriptor, BlacsGrid, Redistributor
-from gpaw.mpi import serial_comm, world
+from gpaw.mpi import parallel, serial_comm
 from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.response import ResponseContext
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
@@ -1123,7 +1123,8 @@ class BSEBackend:
 
 
 class BSE(BSEBackend):
-    def __init__(self, calc=None, timer=None, txt='-', comm=world, **kwargs):
+    @parallel
+    def __init__(self, calc=None, timer=None, txt='-', *, comm, **kwargs):
         """Creates the BSE object
 
         calc: str or calculator object
@@ -1363,6 +1364,7 @@ class BSEPlus:
         del chi0calc, dyson_eqs, chi0_wGG
         return chi0_WGG
 
+    @parallel
     def __init__(self,
                  bse_gpw,
                  bse_valence_bands,
@@ -1378,7 +1380,8 @@ class BSEPlus:
                  direction=0,
                  truncation=None,
                  ecut=10,
-                 comm=world):
+                 *,
+                 comm):
 
         """ BSE+ calculation of chi. BSE+ offers a way to improve
         the convergence of the BSE by including transitions outside

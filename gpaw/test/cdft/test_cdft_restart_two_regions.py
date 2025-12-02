@@ -26,6 +26,7 @@ def test_cdft_restart(in_tmp_dir, not_parallelized, comm):
                   nbands=4,
                   mixer=Mixer(beta=0.25, nmaxold=3, weight=100.0),
                   txt='He2+_final_%3.2f.txt' % distance,
+                  communicator=comm,
                   convergence={'eigenstates': 1.0,
                                'density': 1.0,
                                'energy': 1.0,
@@ -45,7 +46,7 @@ def test_cdft_restart(in_tmp_dir, not_parallelized, comm):
 
     # Restart
 
-    atoms, calc = restart('He2.gpw')
+    atoms, calc = restart('He2.gpw', communicator=comm)
 
     coupling = CouplingParameters(calc_a=calc, calc_b=calc,
                                   wfs_a='He2.gpw', wfs_b='He2.gpw',

@@ -80,7 +80,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
            log: Logger | None = None,
            forces: bool = False) -> tuple[list[Psit], int]:
     """Compute BZ from IBZ and distribute."""
-    log = log or Logger(None)
+    log = log or Logger(None, None)
     nocc = number_of_non_empty_bands(ibzwfs)
     nspins = ibzwfs.nspins
     ibz = ibzwfs.ibz

@@ -179,7 +179,7 @@ all_lazy_imports = dict(
 # (`__getattr__()` magic handles the other boolean environment
 # variables, but GPAW_NEW is used within the same script, so it needs to
 # concretely exist in the namespace)
-GPAW_NEW = _get_gpaw_env_vars('GPAW_NEW')
+GPAW_NEW = int(os.environ.get('GPAW_NEW') or 0)
 
 if os.uname().machine == 'wasm32':
     GPAW_NO_C_EXTENSION = True
@@ -223,12 +223,14 @@ if debug:
     np.empty = empty  # type: ignore[misc]
     np.empty_like = empty_like
 
+
 if TYPE_CHECKING:
-    from gpaw.new.ase_interface import GPAW
-elif GPAW_NEW:
-    all_lazy_imports['GPAW'] = 'gpaw.dft.GPAW'
+    from gpaw.dft import GPAW
 else:
-    all_lazy_imports['GPAW'] = 'gpaw.old.calculator.GPAW'
+    def GPAW(*args, _use_old_gpaw=None, **kwargs):
+        from gpaw.dft import GPAW as AnyGPAW
+        return AnyGPAW(*args, _use_old_gpaw=_use_old_gpaw, **kwargs)
+
 
 all_lazy_imports['get_calculation_info'] = 'gpaw.calcinfo.get_calculation_info'
 

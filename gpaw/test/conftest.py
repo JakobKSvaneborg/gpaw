@@ -6,7 +6,7 @@ from functools import cached_property
 import numpy as np
 import pytest
 
-from gpaw import GPAW_NEW, debug, setup_paths
+from gpaw import debug, setup_paths, GPAW_NEW
 from gpaw.cli.info import info
 from gpaw.mpi import broadcast, world
 from gpaw.test.gpwfile import GPWFiles, _all_gpw_methodnames
@@ -294,16 +294,6 @@ def all_gpw_files(request, gpw_files, pytestconfig):
     # it is populated, i.e., further down in the file than
     # the @gpwfile decorator.
 
-    # TODO This xfail-information should probably live closer to the
-    # gpwfile definitions and not here in the fixture.
-    skip_if_new = {'Cu3Au_qna',
-                   'nicl2_pw', 'nicl2_pw_evac',
-                   'v2br4_pw', 'v2br4_pw_nosym',
-                   'sih4_xc_gllbsc_fd', 'sih4_xc_gllbsc_lcao',
-                   'na2_isolated', 'h2o_xas'}
-    if GPAW_NEW and request.param in skip_if_new:
-        pytest.xfail(f'{request.param} gpwfile not yet working with GPAW_NEW')
-
     if request.param == 'Tl_box_pw' and world.size > 1:
         pytest.skip(f'{request.param} gpwfile only works in serial')
 
@@ -429,6 +419,12 @@ def pytest_report_header(config, start_path):
 def no_touch_world(monkeypatch, _not_world):
     # We might also need module-scoped/session-scoped
     import gpaw.mpi as mpi
+    import ase.parallel
+
+    # ase communicator is lazy-initialized.  Make sure it is initialized
+    # by accessing rank.
+    aserank = ase.parallel.world.rank
+    assert aserank == mpi.world.rank
 
     monkeypatch.setattr(mpi, '_NO_TOUCH_WORLD', True)
 
@@ -437,8 +433,16 @@ def no_touch_world(monkeypatch, _not_world):
     # to intercept any calls and raise an error.
     #
     # With GPAW_DEBUG it will be wrapped, so in that case we can:
+
     if debug:
-        monkeypatch.setattr(mpi.world, 'comm', None)
+        # for obj in [mpi.world, ase.parallel.world]:
+        for attr in 'comm', 'rank', 'size':
+            monkeypatch.delattr(mpi.world, attr)
+
+        # XXX This is pretty brittle wrt. ASE internals
+        # (also requires new ASE master 2025-11-28)
+        import ase.parallel
+        monkeypatch.setattr(ase.parallel.world, 'comm', None)
 
 
 @pytest.fixture(scope='session')
@@ -466,3 +470,13 @@ def rng():
 def gpaw_new() -> bool:
     """Are we testing the new code?"""
     return GPAW_NEW
+
+
+@pytest.fixture(params=[False, True])
+def gpaw_newp(request) -> bool:
+    import gpaw.dft as dft
+    try:
+        dft._USE_OLD_GPAW = not request.param
+        yield request.param
+    finally:
+        dft._USE_OLD_GPAW = None

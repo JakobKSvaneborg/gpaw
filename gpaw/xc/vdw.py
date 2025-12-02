@@ -139,7 +139,7 @@ class VDWFunctionalBase:
         name: str
             Name of functional.
         world: MPI communicator
-            Communicator to parallelize over.  Defaults to gpaw.mpi.world.
+            Communicator to parallelize over.  Defaults to MPI world.
         q0cut: float
             Maximum value for q0.
         phi0: float
@@ -164,11 +164,7 @@ class VDWFunctionalBase:
             Print useful information.
         """
 
-        if world is None:
-            self.world = mpi.world
-        else:
-            self.world = world
-
+        self.world = mpi.normalize_communicator(world)
         self.Zab = Zab
         self.vdwcoef = vdwcoef
         self.q0cut = q0cut

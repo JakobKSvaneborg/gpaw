@@ -24,7 +24,10 @@ class Unfold:
                  spinorbit=None,
                  theta=90,
                  scale=1.0,
-                 phi=90):
+                 phi=90,
+                 world=None):
+
+        self.world = mpi.normalize_communicator(world)
 
         self.name = name
         self.calc = GPAW(calc, txt=None, communicator=mpi.serial_comm)
@@ -50,13 +53,13 @@ class Unfold:
         if spinorbit:
             assert self.calc.density.collinear
             self.nb *= 2
-            if mpi.world.rank == 0:
+            if self.world.rank == 0:
                 print('Calculating spinorbit Corrections')
             soc = soc_eigenstates(self.calc,
                                   scale=scale, theta=theta, phi=phi)
             self.e_mK = soc.eigenvalues().T
             self.v_Kmn = soc.eigenvectors()
-            if mpi.world.rank == 0:
+            if self.world.rank == 0:
                 print('Done with the spinorbit Corrections')
 
     def get_K_index(self, K):
@@ -187,7 +190,7 @@ class Unfold:
         Nk = len(kpoints)
         Nb = self.nb
 
-        world = mpi.world
+        world = self.world
         if filename is None:
             try:
                 with open('weights_' + self.name + '.pckl', 'rb') as fd:
@@ -241,7 +244,7 @@ class Unfold:
         Nk = len(kpts)
         A_ke = np.zeros((Nk, npts), float)
 
-        world = mpi.world
+        world = self.world
         e_mK, P_mK = self.get_spectral_weights(kpts, filename)
         if world.rank == 0:
             print('Calculating the Spectral Function')
