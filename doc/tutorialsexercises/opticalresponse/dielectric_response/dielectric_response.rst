@@ -319,7 +319,7 @@ k-point sampling automatically::
 
     from gpaw.bztools import find_high_symmetry_monkhorst_pack
     kpts = find_high_symmetry_monkhorst_pack(
-        GPAW('gs.gpw').atoms,  # Path to ground state .gpw file
+        atoms,  # Atoms object
         density=20.0)  # The required minimum density
 
 
