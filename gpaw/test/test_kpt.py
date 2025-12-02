@@ -2,8 +2,9 @@ import numpy as np
 import pytest
 from ase import Atoms
 from ase.dft.kpoints import monkhorst_pack
-from gpaw.old.kpt_descriptor import KPointDescriptor, to1bz
+
 from gpaw.dft import MonkhorstPack
+from gpaw.old.kpt_descriptor import KPointDescriptor, to1bz
 
 
 def test_kpt():

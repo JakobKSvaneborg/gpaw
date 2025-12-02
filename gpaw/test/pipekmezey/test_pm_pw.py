@@ -1,5 +1,6 @@
 import pytest
 from ase import Atoms
+
 from gpaw import GPAW, PW
 from gpaw.wannier.pipekmezey.pipek_mezey_wannier import PipekMezey
 

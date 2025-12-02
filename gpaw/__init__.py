@@ -2,12 +2,12 @@
 # Please see the accompanying LICENSE file for further information.
 """Main gpaw module."""
 from __future__ import annotations
-import os
-import contextlib
-from pathlib import Path
-from typing import Any, TYPE_CHECKING
-import warnings
 
+import contextlib
+import os
+import warnings
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 __version__ = '25.7.1b1'
 __ase_version_required__ = '3.25.0'
@@ -69,6 +69,7 @@ def disable_dry_run():
 
 def get_scipy_version():
     import scipy
+
     # This is in a function because we don't like to have the scipy
     # import at module level
     return [int(x) for x in scipy.__version__.split('.')[:2]]
@@ -160,10 +161,10 @@ all_lazy_imports = dict(
     MixerSum2='gpaw.mixer.MixerSum2',
     MixerFull='gpaw.mixer.MixerFull',
 
-    Davidson='gpaw.eigensolvers.Davidson',
-    RMMDIIS='gpaw.eigensolvers.RMMDIIS',
-    CG='gpaw.eigensolvers.CG',
-    DirectLCAO='gpaw.eigensolvers.DirectLCAO',
+    Davidson='gpaw.old.eigensolvers.Davidson',
+    RMMDIIS='gpaw.old.eigensolvers.RMMDIIS',
+    CG='gpaw.old.eigensolvers.CG',
+    DirectLCAO='gpaw.old.eigensolvers.DirectLCAO',
 
     PoissonSolver='gpaw.poisson.PoissonSolver',
     FermiDirac='gpaw.occupations.FermiDirac',
@@ -178,7 +179,7 @@ all_lazy_imports = dict(
 # (`__getattr__()` magic handles the other boolean environment
 # variables, but GPAW_NEW is used within the same script, so it needs to
 # concretely exist in the namespace)
-GPAW_NEW = _get_gpaw_env_vars('GPAW_NEW')
+GPAW_NEW = int(os.environ.get('GPAW_NEW') or 0)
 
 if os.uname().machine == 'wasm32':
     GPAW_NO_C_EXTENSION = True
@@ -222,12 +223,14 @@ if debug:
     np.empty = empty  # type: ignore[misc]
     np.empty_like = empty_like
 
+
 if TYPE_CHECKING:
-    from gpaw.new.ase_interface import GPAW
-elif GPAW_NEW:
-    all_lazy_imports['GPAW'] = 'gpaw.new.ase_interface.GPAW'
+    from gpaw.dft import GPAW
 else:
-    all_lazy_imports['GPAW'] = 'gpaw.calculator.GPAW'
+    def GPAW(*args, _use_old_gpaw=None, **kwargs):
+        from gpaw.dft import GPAW as AnyGPAW
+        return AnyGPAW(*args, _use_old_gpaw=_use_old_gpaw, **kwargs)
+
 
 all_lazy_imports['get_calculation_info'] = 'gpaw.calcinfo.get_calculation_info'
 

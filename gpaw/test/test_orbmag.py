@@ -1,6 +1,5 @@
-import pytest
-
 import numpy as np
+import pytest
 
 from gpaw.new.ase_interface import GPAW
 from gpaw.new.calculation import CalculationModeError

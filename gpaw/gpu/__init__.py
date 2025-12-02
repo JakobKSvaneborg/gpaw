@@ -1,16 +1,16 @@
 from __future__ import annotations
-import contextlib
+
 import atexit
+import contextlib
+from collections.abc import Generator, Iterable
 from time import time
-from typing import TYPE_CHECKING
-from collections.abc import Generator
 from types import ModuleType
-from collections.abc import Iterable
-from gpaw.new.timer import trace
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from gpaw import ENVVAR_GPAW_NO_GPU_MPI
+from gpaw.new.timer import trace
 
 device_id = None
 """Device id"""
@@ -35,8 +35,8 @@ else:
         if not hasattr(cgpaw, 'gpaw_gpu_init'):
             raise ImportError
         import cupy
-        from cupy_backends.cuda.api.runtime import CUDARuntimeError \
-            as CUDAError
+        from cupy_backends.cuda.api.runtime import \
+            CUDARuntimeError as CUDAError
         try:
             if not cupy.cuda.runtime.getDeviceCount() > 0:
                 raise ImportError('No GPUs')
@@ -59,8 +59,8 @@ else:
 if not TYPE_CHECKING:
     if not cupy_is_fake:
         # Homerolled gemm wrapper and helper functions:
-        from cupy.cublas import (_get_scalar_ptr, _trans_to_cublas_op,
-                                 _change_order_if_necessary, device)
+        from cupy.cublas import (_change_order_if_necessary, _get_scalar_ptr,
+                                 _trans_to_cublas_op, device)
         from cupy_backends.cuda.libs import cublas as _cublas
 
         def _decide_ld_and_trans(a, trans):
@@ -218,12 +218,11 @@ if not TYPE_CHECKING:
             cupy.fft.ifftshift = ifftshift_patch
 
 
-def set_device(log):
+def set_device(log, world):
     global device_id
-    from gpaw.mpi import rank
     if cupy_is_fake:
         device_id = 'CPU emulation of GPU'
-        log(f'mpi rank {rank} has no GPU device!', parallel=True)
+        log(f'mpi rank {world.rank} has no GPU device!', parallel=True)
         return
 
     if device_id is None:
@@ -241,7 +240,7 @@ def set_device(log):
         if device_count > 0:
             # select GPU device (round-robin based on MPI rank)
             # if not set, all MPI ranks will use the same default device
-            runtime.setDevice(rank % device_count)
+            runtime.setDevice(world.rank % device_count)
 
             # initialise C parameters and memory buffers
             import gpaw.cgpaw as cgpaw
@@ -254,7 +253,7 @@ def set_device(log):
             bus_id = runtime.deviceGetPCIBusId(runtime.getDevice())
             device_id = f'{nodename}:{bus_id}'
 
-    log(f'mpi rank {rank} has GPU device {device_id}', parallel=True)
+    log(f'mpi rank {world.rank} has GPU device {device_id}', parallel=True)
     if ENVVAR_GPAW_NO_GPU_MPI:
         log('Running without GPU aware MPI because \'GPAW_NO_GPU_MPI\' is'
             ' set in the environment. Comms will be staged through host.')

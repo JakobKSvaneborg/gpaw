@@ -5,6 +5,7 @@ the AiiDA common workflows (ACWF) benchmark:
 DIAMOND, FCC, SC, BCC, XO3, XO, X4O6, XO2, X4O10, X2O.
 """
 from __future__ import annotations
+
 import json
 from pathlib import Path
 from typing import Any
@@ -12,10 +13,11 @@ from typing import Any
 import numpy as np
 from ase import Atoms
 from ase.data import atomic_numbers
+
 from gpaw.atom.check import all_names
-from gpaw.mpi import world
-from gpaw.new.ase_interface import GPAW
 from gpaw.dft import Parameters
+from gpaw.mpi import parallel
+from gpaw.new.ase_interface import GPAW
 
 
 def eos(atoms: Atoms,
@@ -104,10 +106,13 @@ def workflow() -> None:
             cores=24, tmax='5h', name=f'lcao-{x}', restart=2)
 
 
+@parallel(name='world')
 def work(structure: str,
          symbol: str,
          setup_name: str = '',
-         mode: str = 'pw'):
+         mode: str = 'pw',
+         *,
+         world):
     """Do single EOS calculations with PBE."""
     params: dict[str, Any] = dict(
         xc='PBE',

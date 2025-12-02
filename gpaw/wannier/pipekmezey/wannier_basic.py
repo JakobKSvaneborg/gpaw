@@ -7,13 +7,14 @@
     this code is as in ASE but modified to use it with gpaw's wfs.
 """
 
-from time import time
 from math import pi
+from time import time
+
 import numpy as np
 from ase.dft.kpoints import get_monkhorst_pack_size_and_offset
 from ase.dft.wannier import calculate_weights, gram_schmidt
-from ase.transport.tools import dagger
 from ase.parallel import parprint
+from ase.transport.tools import dagger
 
 dag = dagger
 
@@ -67,8 +68,8 @@ def md_min(func, step=.25, tolerance=1e-6, verbose=False, **kwargs):
 
 
 def get_atoms_object_from_wfs(wfs):
-    from ase.units import Bohr
     from ase import Atoms
+    from ase.units import Bohr
 
     spos_ac = wfs.spos_ac
     cell_cv = wfs.gd.cell_cv
@@ -91,7 +92,7 @@ class WannierLocalization:
     """
 
     def __init__(self, wfs, calc=None, spin=0, seed=None, verbose=False):
-        from ase.dft.wannier import get_kklst, get_invkklst
+        from ase.dft.wannier import get_invkklst, get_kklst
 
         # Bloch phase sign convention
         sign = -1

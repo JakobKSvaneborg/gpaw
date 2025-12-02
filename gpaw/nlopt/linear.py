@@ -1,14 +1,16 @@
 import numpy as np
 from ase.units import Ha
 
-from gpaw.mpi import world
+from gpaw.mpi import parallel
 
 
+@parallel(name='world')
 def get_chi_tensor(
         nlodata,
         freqs=[1.0], eta=0.05,
         ftol=1e-4, Etol=1e-6, eshift=0.0,
-        band_n=None, out_name=None):
+        band_n=None, out_name=None,
+        *, world):
     """
     Calculate full linear susceptibility tensor for nonmagnetic semiconductors;
     array will be saved to disk if out_name is given.

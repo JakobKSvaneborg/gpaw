@@ -1,5 +1,6 @@
-from gpaw.response.g0w0 import compare_inputs
 import numpy as np
+
+from gpaw.response.g0w0 import compare_inputs
 
 
 def test_compare_inputs():

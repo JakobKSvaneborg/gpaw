@@ -1,16 +1,19 @@
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pytest
-from typing import TYPE_CHECKING
-from gpaw.core.matrix import Matrix
-from gpaw.gpu import cupy as cp, cupy_is_fake, device_count
+
 from gpaw.cgpaw import have_magma
+from gpaw.core.matrix import Matrix
+from gpaw.gpu import cupy as cp
+from gpaw.gpu import cupy_is_fake, device_count
 from gpaw.gpu.diagonalization import (CPUPYDiagonalizer, CuPyDiagonalizer,
                                       DiagonalizerOptions)
 from gpaw.gpu.diagonalization.magma_diagonalizer import MagmaDiagonalizer
-from gpaw.test.gpu import assert_eigenpairs, fill_uplo
+from gpaw.gpu.mpi import CuPyMPI
 from gpaw.mpi import world
 from gpaw.new.c import GPU_AWARE_MPI
-from gpaw.gpu.mpi import CuPyMPI
+from gpaw.test.gpu import assert_eigenpairs, fill_uplo
 
 if TYPE_CHECKING:
     from gpaw.gpu.diagonalization import GPUDiagonalizer

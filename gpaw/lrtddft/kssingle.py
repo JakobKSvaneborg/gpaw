@@ -1,19 +1,20 @@
 """Kohn-Sham single particle excitations realated objects.
 
 """
-import sys
 import json
-import numpy as np
+import sys
 from copy import copy
 
+import numpy as np
 from ase.units import Bohr, Hartree, alpha
 
 import gpaw.mpi as mpi
-from gpaw.utilities import packed_index
+from gpaw.fd_operators import Gradient
 from gpaw.lrtddft.excitation import Excitation, ExcitationList, get_filehandle
 from gpaw.pair_density import PairDensity
-from gpaw.fd_operators import Gradient
+from gpaw.utilities import packed_index
 from gpaw.utilities.tools import coordinates
+
 from .kssrestrictor import KSSRestrictor
 
 
@@ -42,9 +43,10 @@ class KSSingles(ExcitationList):
     def __init__(self,
                  restrict={},
                  log=None,
-                 txt=None):
-        ExcitationList.__init__(self, log=log, txt=txt)
-        self.world = mpi.world
+                 txt=None,
+                 world=None):
+        super().__init__(log=log, txt=txt)
+        self.world = mpi.normalize_communicator(world)
 
         self.restrict = KSSRestrictor()
         self.restrict.update(restrict)
@@ -383,7 +385,7 @@ class KSSingle(Excitation, PairDensity):
         # normal entry
 
         PairDensity.__init__(self, paw)
-        PairDensity.initialize(self, kpt, iidx, jidx)
+        super().initialize(kpt, iidx, jidx)
 
         self.pspin = pspin
 

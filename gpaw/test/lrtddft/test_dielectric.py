@@ -1,9 +1,11 @@
 from pathlib import Path
+
 import pytest
 from ase import Atom, Atoms
+
 from gpaw import GPAW
 from gpaw.lrtddft import LrTDDFT
-from gpaw.lrtddft.dielectric import get_dielectric, dielectric
+from gpaw.lrtddft.dielectric import dielectric, get_dielectric
 
 
 @pytest.fixture

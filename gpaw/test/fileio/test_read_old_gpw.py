@@ -1,7 +1,9 @@
 import os
 from pathlib import Path
-from gpaw import GPAW
+
 from ase.io import read
+
+from gpaw import GPAW
 
 
 def test_fileio_read_old_gpw():

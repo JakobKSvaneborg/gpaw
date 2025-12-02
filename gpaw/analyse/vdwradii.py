@@ -1,9 +1,9 @@
 from ase.data import atomic_numbers, chemical_symbols
 from ase.units import Bohr
 
+from gpaw.mpi import parallel
 from gpaw.setup import Setups
 from gpaw.xc import XC
-from gpaw.mpi import world
 
 Bondi64jpc_vdWradii = {  # units Anstrom
     'He': 1.40,
@@ -26,7 +26,8 @@ collected_vdWradii = Bondi64jpc_vdWradii
 collected_vdWradii['Rn'] = Pyykko97cr_vdWradii['Rn']
 
 
-def vdWradii(symbols, xc):
+@parallel(name='world')
+def vdWradii(symbols, xc, *, world):
     """Find the elements van der Waals radius.
 
     Method proposed in:

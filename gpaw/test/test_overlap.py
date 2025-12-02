@@ -5,8 +5,8 @@ from ase.parallel import parprint, world
 
 from gpaw import GPAW
 from gpaw.analyse.overlap import Overlap
-from gpaw.utilities.adjust_cell import adjust_cell
 from gpaw.lrtddft import LrTDDFT
+from gpaw.utilities.adjust_cell import adjust_cell
 
 """Evaluate the overlap between two independent calculations
 

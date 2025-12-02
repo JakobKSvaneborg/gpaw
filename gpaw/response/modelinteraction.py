@@ -1,14 +1,14 @@
 import numpy as np
 from ase.units import Ha
-from gpaw.mpi import world
-from gpaw.response import ResponseContext
+
+from gpaw.mpi import parallel
+from gpaw.response import ResponseContext, timer
 from gpaw.response.coulomb_kernels import CoulombKernel
-from gpaw.response.screened_interaction import initialize_w_calculator
-from gpaw.response import timer
-from gpaw.response.pw_parallelization import Blocks1D
 from gpaw.response.pair import KPointPairFactory
+from gpaw.response.pw_parallelization import Blocks1D
+from gpaw.response.screened_interaction import (GammaIntegrationMode,
+                                                initialize_w_calculator)
 from gpaw.wannier.wannier90 import read_uwan
-from gpaw.response.screened_interaction import GammaIntegrationMode
 
 
 def ibz2bz_map(qd):
@@ -20,10 +20,11 @@ def ibz2bz_map(qd):
     return out_map
 
 
+@parallel(name='world')
 def initialize_w_model(chi0calc, truncation=None,
                        integrate_gamma=GammaIntegrationMode('sphere'),
                        q0_correction=False, txt='w_model.out',
-                       eta=None, world=world, timer=None):
+                       eta=None, *, world, timer=None):
     """ Helper function to initialize ModelInteraction
 
     Parameters

@@ -50,7 +50,7 @@ with paropen('h2o_energies.txt', 'w') as fd:
           file=fd)
     print(f'Excitation energy singlet n->3s state: {E_s - E_gs:.2f} eV',
           file=fd)
-    # https://doi.org/10.1021/acs.jctc.8b00406
+    # DOI:10.1021/acs.jctc.8b00406
     print('Experimental excitation energy triplet n->3s state: 9.46 eV',
           file=fd)
     print('Experimental excitation energy singlet n->3s state: 9.67 eV',

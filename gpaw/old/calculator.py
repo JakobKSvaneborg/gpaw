@@ -17,7 +17,7 @@ import gpaw
 import gpaw.mpi as mpi
 from gpaw.convergence_criteria import dict2criterion
 from gpaw.dos import DOSCalculator
-from gpaw.eigensolvers import get_eigensolver
+from gpaw.old.eigensolvers import get_eigensolver
 from gpaw.external import PointChargePotential
 from gpaw.hybrids import HybridXC
 from gpaw.io import Reader, Writer
@@ -117,12 +117,13 @@ class GPAW(Calculator):
 
     old = True
 
+    @mpi.parallel(name='communicator')
     def __init__(self,
                  restart=None,
                  *,
                  label=None,
                  timer=None,
-                 communicator=None,
+                 communicator,
                  txt='?',
                  parallel=None,
                  **kwargs):
@@ -154,18 +155,13 @@ class GPAW(Calculator):
         self.observers = []  # XXX move to self.scf
         self.initialized = False
 
-        self.world = communicator
-        if self.world is None:
-            self.world = mpi.world
-        elif not hasattr(self.world, 'new_communicator'):
-            self.world = mpi.world.new_communicator(np.asarray(self.world))
-
+        self.world = mpi.normalize_communicator(communicator)
         self.log = GPAWLogger(world=self.world)
         self.log.fd = txt
 
         self.reader = None
 
-        Calculator.__init__(self, restart, label=label, _set_ok=True, **kwargs)
+        super().__init__(restart, label=label, _set_ok=True, **kwargs)
 
     def new(self,
             timer=None,
@@ -208,7 +204,6 @@ class GPAW(Calculator):
 
     def fixed_density(self, *,
                       update_fermi_level: bool = False,
-                      communicator=None,
                       txt='-',
                       parallel: dict[str, Any] = None,
                       **kwargs) -> 'GPAW':
@@ -243,7 +238,7 @@ class GPAW(Calculator):
             # Backwards compatibility
             params['gpts'] = self.density.gd.N_c
 
-        calc = GPAW(communicator=communicator,
+        calc = GPAW(communicator=self.world,
                     txt=txt,
                     parallel=parallel,
                     **params)
@@ -404,7 +399,7 @@ class GPAW(Calculator):
         return reader
 
     def check_state(self, atoms, tol=1e-12):
-        system_changes = Calculator.check_state(self, atoms, tol)
+        system_changes = super().check_state(atoms, tol)
         if 'positions' not in system_changes:
             if self.hamiltonian:
                 if self.hamiltonian.vext:
@@ -422,7 +417,7 @@ class GPAW(Calculator):
                    system_changes=['cell']):
         """Calculate things."""
 
-        Calculator.calculate(self, atoms)
+        super().calculate(atoms)
         atoms = self.atoms
 
         if system_changes:
@@ -580,7 +575,7 @@ class GPAW(Calculator):
             warnings.warn('Ignoring deprecated keyword "idiotproof"',
                           DeprecatedParameterWarning)
 
-        changed_parameters = Calculator.set(self, **kwargs)
+        changed_parameters = super().set(**kwargs)
 
         for key in ['setups', 'basis']:
             if key in changed_parameters:

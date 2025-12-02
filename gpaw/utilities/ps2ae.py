@@ -4,17 +4,17 @@ from warnings import warn
 import numpy as np
 from ase.units import Bohr, Ha
 
-from gpaw.old.calculator import GPAW
 from gpaw.atom.shapefunc import shape_functions
 from gpaw.fftw import get_efficient_fft_size
-from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
-from gpaw.utilities import h2gpts
-from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.mpi import serial_comm
+from gpaw.old.calculator import GPAW
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.setup import Setup
 from gpaw.spline import Spline
 from gpaw.typing import Array3D
+from gpaw.utilities import h2gpts
 
 
 class Interpolator:
@@ -44,11 +44,11 @@ class PS2AE:
         """Create transformation object.
 
         calc: GPAW calculator object
-            The calcalator that has the wave functions.
+            The calculator that has the wave functions.
         grid_spacing: float
             Desired grid-spacing in Angstrom.
         n: int
-            Force number of points to be a mulitiple of n.
+            Force number of points to be a multiple of n.
         """
         if h is not None:
             warn('Please use grid_spacing=... instead of h=...')
@@ -105,7 +105,7 @@ class PS2AE:
                           periodic: bool = False) -> Array3D:
         """Interpolate wave function.
 
-        Returns 3-d array in units of Ang**-1.5.
+        Returns 3-d array in units of Ång**-1.5.
 
         n: int
             Band index.

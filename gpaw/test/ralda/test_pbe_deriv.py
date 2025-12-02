@@ -1,5 +1,6 @@
-import pytest
 import numpy as np
+import pytest
+
 from gpaw.xc.fxc_kernels import get_pbe_fxc_and_intermediate_derivatives
 
 

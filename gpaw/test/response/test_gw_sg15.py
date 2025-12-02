@@ -1,8 +1,9 @@
-from ase.build import molecule
-from gpaw import GPAW, PW
-from gpaw.response.g0w0 import G0W0
-from gpaw.mpi import world
 import pytest
+from ase.build import molecule
+
+from gpaw import GPAW, PW
+from gpaw.mpi import world
+from gpaw.response.g0w0 import G0W0
 
 
 @pytest.mark.response

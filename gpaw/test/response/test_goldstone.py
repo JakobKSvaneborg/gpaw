@@ -1,7 +1,7 @@
-import pytest
 from functools import partial
 
 import numpy as np
+import pytest
 
 from gpaw.response.goldstone import find_root
 

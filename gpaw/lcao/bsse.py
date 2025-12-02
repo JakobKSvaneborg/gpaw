@@ -10,7 +10,6 @@ from gpaw.setup import BaseSetup, LocalCorrectionVar
 from gpaw.spline import Spline
 from gpaw.utilities import min_locfun_radius
 
-
 # Some splines are mandatory,
 # but should then be zero to avoid affecting things
 zero_function = Spline.from_data(0, min_locfun_radius, [0.0, 0.0, 0.0])

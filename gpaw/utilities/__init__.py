@@ -11,12 +11,13 @@ from contextlib import contextmanager
 from math import sqrt
 from pathlib import Path
 
-import gpaw.cgpaw as cgpaw
 import numpy as np
 from ase import Atoms
-from ase.units import Bohr
 from ase.data import covalent_radii
 from ase.neighborlist import neighbor_list
+from ase.units import Bohr
+
+import gpaw.cgpaw as cgpaw
 from gpaw import GPAW_NO_C_EXTENSION, debug
 from gpaw.typing import DTypeLike
 
@@ -326,10 +327,10 @@ def unlink(path: str | Path, world=None):
     """Safely unlink path (delete file or symbolic link)."""
     import gpaw.mpi as mpi
 
+    world = mpi.normalize_communicator(world)
+
     if isinstance(path, str):
         path = Path(path)
-    if world is None:
-        world = mpi.world
 
     # Remove file:
     if world.rank == 0:
@@ -356,11 +357,10 @@ def file_barrier(path: str | Path, world=None):
     This will remove the file, write the file and wait for the file.
     """
     import gpaw.mpi as mpi
+    world = mpi.normalize_communicator(world)
 
     if isinstance(path, str):
         path = Path(path)
-    if world is None:
-        world = mpi.world
 
     # Remove file:
     unlink(path, world)
@@ -392,8 +392,9 @@ def convert_string_to_fd(name, world=None):
     Will open a file for writing with given name.  Use None for no output and
     '-' for sys.stdout.
     """
-    if world is None:
-        from ase.parallel import world
+    import gpaw.mpi as mpi
+    world = mpi.normalize_communicator(world)
+
     if name is None or world.rank != 0:
         return open(os.devnull, 'w')
     if name == '-':

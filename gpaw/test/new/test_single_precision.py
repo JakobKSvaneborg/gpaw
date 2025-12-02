@@ -1,13 +1,13 @@
-import pytest
-import numpy as np
 import subprocess
 import sys
 
+import numpy as np
+import pytest
 from ase.build import molecule
 
-from gpaw.new.ase_interface import GPAW
-from gpaw.gpu import cupy_is_fake
 from gpaw import GPAW_NO_C_EXTENSION
+from gpaw.gpu import cupy_is_fake
+from gpaw.new.ase_interface import GPAW
 
 
 @pytest.mark.serial

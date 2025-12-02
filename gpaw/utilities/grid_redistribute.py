@@ -1,5 +1,8 @@
 import itertools
+
 import numpy as np
+
+from gpaw.mpi import parallel
 from gpaw.old.grid_descriptor import GridDescriptor
 
 
@@ -499,9 +502,8 @@ def general_redistribute(comm, domains1, domains2, rank2parpos1, rank2parpos2,
             recvchunk.flat[:] += buf
 
 
-def test_general_redistribute():
-    from gpaw.mpi import world
-
+@parallel(name='world')
+def test_general_redistribute(world):
     domains1 = Domains([[0, 1],
                         [1, 3, 5, 6],
                         [0, 5, 9]])
@@ -643,9 +645,10 @@ def test(N_c, gd, gd2, reduce_dir, distribute_dir, verbose=True):
     assert final_err == 0.0, 'bad values after distribute "back"'
 
 
-def rigorous_testing():
-    from itertools import product, permutations, cycle
-    from gpaw.mpi import world
+@parallel(name='world')
+def rigorous_testing(world):
+    from itertools import cycle, permutations, product
+
     gridpointcounts = [1, 2, 10, 21]
     cpucounts = np.arange(1, world.size + 1)
     pbc = cycle(product([0, 1], [0, 1], [0, 1]))

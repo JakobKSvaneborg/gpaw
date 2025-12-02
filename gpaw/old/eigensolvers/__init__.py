@@ -1,12 +1,12 @@
 """Module defining  ``Eigensolver`` classes."""
 
-from gpaw.eigensolvers.rmmdiis import RMMDIIS
-from gpaw.eigensolvers.cg import CG
-from gpaw.eigensolvers.davidson import Davidson
-from gpaw.eigensolvers.direct import DirectPW
-from gpaw.lcao.eigensolver import DirectLCAO
 from gpaw.directmin.etdm_fdpw import FDPWETDM
 from gpaw.directmin.etdm_lcao import LCAOETDM
+from gpaw.old.eigensolvers.cg import CG
+from gpaw.old.eigensolvers.davidson import Davidson
+from gpaw.old.eigensolvers.direct import DirectPW
+from gpaw.old.eigensolvers.rmmdiis import RMMDIIS
+from gpaw.lcao.eigensolver import DirectLCAO
 
 
 def get_eigensolver(eigensolver, mode, convergence=None):

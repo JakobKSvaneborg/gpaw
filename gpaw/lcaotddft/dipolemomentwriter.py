@@ -1,11 +1,9 @@
 import re
 
 import numpy as np
-
 from ase.utils import IOContext
 
 from gpaw.lcaotddft.magneticmomentwriter import parse_header
-
 from gpaw.lcaotddft.observer import TDDFTObserver
 
 
@@ -64,7 +62,7 @@ class DipoleMomentWriter(TDDFTObserver):
                  density: str = 'comp',
                  force_new_file: bool = False,
                  interval: int = 1):
-        TDDFTObserver.__init__(self, paw, interval)
+        super().__init__(paw, interval)
         self.ioctx = IOContext()
         if paw.niter == 0 or force_new_file:
             # Initialize

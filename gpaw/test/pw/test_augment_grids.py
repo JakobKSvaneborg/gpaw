@@ -3,9 +3,9 @@ import pytest
 from ase import Atoms
 
 from gpaw import PW, FermiDirac
-from gpaw.old.calculator import GPAW
+from gpaw.mpi import world
 from gpaw.new.calculation import DFTCalculation
-from gpaw.mpi import rank
+from gpaw.old.calculator import GPAW
 
 
 @pytest.mark.old_gpaw_only
@@ -50,7 +50,7 @@ def test_pw_augment_grids(in_tmp_dir, gpaw_new):
     eerr = abs(e2 - e1)
     ferr = np.abs(f2 - f1).max()
     serr = np.abs(s2 - s1).max()
-    if rank == 0:
+    if world.rank == 0:
         print('errs', eerr, ferr, serr)
     assert eerr < 5e-12, f'bad energy: err={eerr}'
     assert ferr < 5e-12, f'bad forces: err={ferr}'

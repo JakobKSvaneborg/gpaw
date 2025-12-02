@@ -2,9 +2,9 @@
 Calculates Raman matrices from Raman tensor
 """
 import numpy as np
-
 from ase.units import invcm
 from ase.utils.filecache import MultiFileJSONCache
+
 from gpaw.typing import ArrayND
 
 
@@ -93,7 +93,7 @@ class RamanData:
         Parameters
         ----------
         entries: str, list
-            Sting or list of strings with desired polarisaitons
+            Sting or list of strings with desired polarizations
             For example: ["xx", "yy", "xy", "yx"]
         T: float
             Temperature in Kelvin
@@ -142,8 +142,8 @@ class RamanData:
             Default is False
         """
 
-        from scipy import signal
         import matplotlib.pyplot as plt
+        from scipy import signal
 
         if not isinstance(spectra_nw, np.ndarray):
             spectra_nw = np.asarray(spectra_nw)

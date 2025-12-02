@@ -1,11 +1,13 @@
+import sys
+
+import numpy as np
 from ase import Atoms
+
 from gpaw import GPAW
 from gpaw.fdtd import (FDTDPoissonSolver, PermittivityPlus,
                        PolarizableMaterial, PolarizableSphere)
 from gpaw.mpi import world
 from gpaw.tddft import TDDFT
-import numpy as np
-import sys
 
 # Command line arguments
 kwargs = dict(x.split('=', 1) for x in sys.argv[1:])

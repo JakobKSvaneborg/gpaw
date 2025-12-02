@@ -1,4 +1,5 @@
 import pytest
+
 from gpaw.response.mpa_sampling import mpa_frequency_sampling
 
 

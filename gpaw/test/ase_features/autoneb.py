@@ -1,12 +1,13 @@
 # Run with even number of cores
 
-import pytest
-from gpaw import GPAW, Mixer, PoissonSolver
 import ase.parallel as mpi
-from ase.build import fcc211, add_adsorbate
+import pytest
+from ase.build import add_adsorbate, fcc211
 from ase.constraints import FixAtoms
-from ase.optimize import QuasiNewton
 from ase.mep.autoneb import AutoNEB
+from ase.optimize import QuasiNewton
+
+from gpaw import GPAW, Mixer, PoissonSolver
 
 
 @pytest.mark.skip(reason='TODO')

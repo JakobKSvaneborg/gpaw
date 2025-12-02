@@ -13,25 +13,26 @@ import textwrap
 from collections import deque
 
 import ase.io
-import gpaw.mpi
 import numpy as np
 from ase.calculators.calculator import (InputError, Parameters,
                                         PropertyNotPresent, equal)
 from ase.parallel import paropen
 from ase.units import Bohr, Ha, _e, kB
+from scipy.ndimage import uniform_filter1d
+from scipy.signal import find_peaks
+from scipy.stats import linregress
+
+import gpaw.mpi
 from gpaw import GPAW_NEW, ConvergenceError
 from gpaw.dipole_correction import DipoleCorrection
 from gpaw.fd_operators import Gradient
+from gpaw.jellium import Jellium, JelliumSlab
 from gpaw.old.hamiltonian import RealSpaceHamiltonian
 from gpaw.old.logger import indent
-from gpaw.jellium import Jellium, JelliumSlab
 from gpaw.solvation.calculator import OldSolvationGPAW
 from gpaw.solvation.cavity import Power12Potential
 from gpaw.solvation.hamiltonian import SolvationRealSpaceHamiltonian
 from gpaw.solvation.poisson import WeightedFDPoissonSolver
-from scipy.ndimage import uniform_filter1d
-from scipy.signal import find_peaks
-from scipy.stats import linregress
 
 
 def SJM(*args, **kwargs):
@@ -283,7 +284,7 @@ class OldSJM(OldSolvationGPAW):
                 raise InputError(textwrap.fill(msg.format(key)))
 
         # Note the below line calls self.set().
-        OldSolvationGPAW.__init__(self, restart, **kwargs)
+        super().__init__(restart, **kwargs)
 
     def set(self, **kwargs):
         """Change parameters for calculator.
@@ -343,7 +344,7 @@ class OldSJM(OldSolvationGPAW):
 
         background_charge = kwargs.pop('background_charge', None)
         kwargs['_set_ok'] = True
-        OldSolvationGPAW.set(self, **kwargs)
+        super().set(**kwargs)
 
         # parent_changed checks if GPAW needs to be reinitialized
         # The following key do not need reinitialization
@@ -420,7 +421,7 @@ class OldSJM(OldSolvationGPAW):
             if self.wfs is None:
                 kwargs.update({'background_charge': background_charge,
                                '_set_ok': True})
-                OldSolvationGPAW.set(self, **kwargs)
+                super().set(**kwargs)
             else:
                 if parent_changed:
                     self.density = None
@@ -476,7 +477,7 @@ class OldSJM(OldSolvationGPAW):
 
         if len(system_changes) == 0 and len(self.results) > 0:
             # Potential is already equilibrated.
-            OldSolvationGPAW.calculate(self, atoms, properties, system_changes)
+            super().calculate(atoms, properties, system_changes)
             return
 
         self.log('Solvated jellium method (SJM) calculation:')
@@ -488,7 +489,7 @@ class OldSJM(OldSolvationGPAW):
                      'electrons'.format(p.excess_electrons))
             # Background charge is set here, not earlier, because atoms needed.
             self.set(background_charge=self._create_jellium())
-            OldSolvationGPAW.calculate(self, atoms, ['energy'], system_changes)
+            super().calculate(atoms, ['energy'], system_changes)
             self.log('Potential found to be {:.5f} V (with {:+.5f} '
                      'electrons)'.format(self.get_electrode_potential(),
                                          p.excess_electrons))
@@ -511,7 +512,7 @@ class OldSJM(OldSolvationGPAW):
         if properties != ['energy']:
             # The equilibration loop only calculated energy, to save
             # unnecessary computations (mostly of forces) in the loop.
-            OldSolvationGPAW.calculate(self, atoms, properties, [])
+            super().calculate(atoms, properties, [])
 
         # Note that grand-potential energies were assembled in summary,
         # which in turn was called by GPAW.calculate.
@@ -557,7 +558,7 @@ class OldSJM(OldSolvationGPAW):
                 self.set(background_charge=self._create_jellium())
 
             # Do the calculation.
-            OldSolvationGPAW.calculate(self, atoms, ['energy'], system_changes)
+            super().calculate(atoms, ['energy'], system_changes)
             true_potential = self.get_electrode_potential()
             self.log()
             msg = (f'Potential found to be {true_potential:.5f} V (with '
@@ -721,7 +722,7 @@ class OldSJM(OldSolvationGPAW):
                 'background_charge': self.density.background_charge.mask_g,
                 'potential': (self.hamiltonian.vHt_g * Ha -
                               self.get_fermi_level())}
-        if not os.path.exists(path) and gpaw.mpi.world.rank == 0:
+        if not os.path.exists(path) and self.world.rank == 0:
             os.makedirs(path)
         for prop in props:
             if style == 'z':
@@ -1071,7 +1072,8 @@ class SJMPower12Potential(Power12Potential):
 
     def __init__(self, atomic_radii=None, u0=0.180, pbc_cutoff=1e-6,
                  tiny=1e-10, H2O_layer=False,
-                 unsolv_backside=True, communicator=gpaw.mpi.world):
+                 unsolv_backside=True, communicator=None):
+        communicator = gpaw.mpi.normalize_communicator(communicator)
         super().__init__(atomic_radii, u0, pbc_cutoff, tiny)
         self.H2O_layer = H2O_layer
         self.unsolv_backside = unsolv_backside
@@ -1343,7 +1345,7 @@ class CavityShapedJellium(Jellium):
 
     def __init__(self, charge, g_g, z2):
 
-        Jellium.__init__(self, charge)
+        super().__init__(charge)
         self.g_g = g_g
         self.z2 = (z2 - 0.0001) / Bohr
 
@@ -1393,7 +1395,7 @@ class SJMDipoleCorrection(DipoleCorrection):
     def __init__(self, poissonsolver, direction, width=1.0, dirichlet=False):
         """Construct dipole correction object."""
 
-        DipoleCorrection.__init__(self, poissonsolver, direction, width=1.0)
+        super().__init__(poissonsolver, direction, width=1.0)
         self.corrterm = 1
         self.elcorr = None
         self.last_corrterm = None

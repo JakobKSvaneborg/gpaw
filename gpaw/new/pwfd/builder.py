@@ -2,12 +2,12 @@ from math import pi
 
 import numpy as np
 
+from gpaw.core.arrays import XArrayWithNoData
 from gpaw.new.builder import DFTComponentsBuilder
-from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.lcao.eigensolver import LCAOEigensolver
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
+from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.core.arrays import XArrayWithNoData
 
 
 class PWFDDFTComponentsBuilder(DFTComponentsBuilder):

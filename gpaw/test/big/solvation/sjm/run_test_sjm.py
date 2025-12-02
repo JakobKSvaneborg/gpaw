@@ -1,18 +1,13 @@
 import numpy as np
-
-from ase.optimize import BFGS
 from ase import Atoms
+from ase.optimize import BFGS
 
-from gpaw import restart, GPAW_NEW, GPAW
+from gpaw import GPAW, GPAW_NEW, FermiDirac, restart
 from gpaw.new.sjm import SJM as NewSJM
-from gpaw.solvation.sjm import SJM as OldSJM, SJMPower12Potential
-from gpaw import FermiDirac
-from gpaw.solvation import (
-    EffectivePotentialCavity,
-    LinearDielectric,
-    GradientSurface,
-    SurfaceInteraction)
-
+from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
+                            LinearDielectric, SurfaceInteraction)
+from gpaw.solvation.sjm import SJM as OldSJM
+from gpaw.solvation.sjm import SJMPower12Potential
 
 # Solvent parameters
 u0 = 0.180  # eV

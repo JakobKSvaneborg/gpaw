@@ -1,10 +1,11 @@
 import numpy as np
-from ase.calculators.tip3p import TIP3P, rOH, angleHOH
-from ase.optimize import FIRE
+from ase.calculators.tip3p import TIP3P, angleHOH, rOH
 from ase.constraints import FixBondLengths
+from ase.data import s22
+from ase.optimize import FIRE
+
 from gpaw.utilities.watermodel import FixBondLengthsWaterModel
 from gpaw.utilities.watermodel import TIP3PWaterModel as TIP3Pc
-from ase.data import s22
 
 # check that all combinations of watermodel implementations
 # and constraints give the same results

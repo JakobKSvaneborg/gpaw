@@ -1,10 +1,12 @@
-import pytest
 import numpy as np
+import pytest
+
+from gpaw import GPAW_NO_C_EXTENSION
+from gpaw.gpu import cupy as cp
+from gpaw.gpu import cupy_is_fake
+from gpaw.mpi import world
 from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.transformers import Transformer
-from gpaw.mpi import world
-from gpaw.gpu import cupy as cp, cupy_is_fake
-from gpaw import GPAW_NO_C_EXTENSION
 
 
 @pytest.mark.gpu

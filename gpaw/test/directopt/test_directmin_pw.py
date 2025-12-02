@@ -1,8 +1,8 @@
-import pytest
 import numpy as np
+import pytest
+from ase.build import molecule
 
 from gpaw import GPAW, PW, FD
-from ase.build import molecule
 from gpaw.mpi import world
 
 

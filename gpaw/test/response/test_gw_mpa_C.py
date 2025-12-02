@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from ase.units import Hartree as Ha
+
 from gpaw.response.g0w0 import G0W0
 
 

@@ -1,15 +1,15 @@
 import pickle
 
 import numpy as np
-from ase.units import Ha
 from ase.calculators.singlepoint import SinglePointCalculator
+from ase.units import Ha
 
-from gpaw.utilities import pack_density
-from gpaw.utilities.tools import tri2full
-from gpaw.utilities.blas import rk, mmm, mmmx
 from gpaw.basis_data import Basis
+from gpaw.mpi import parallel
 from gpaw.setup import types2atomtypes
-from gpaw.mpi import world, rank
+from gpaw.utilities import pack_density
+from gpaw.utilities.blas import mmm, mmmx, rk
+from gpaw.utilities.tools import tri2full
 
 
 def get_bf_centers(atoms, basis=None):
@@ -63,9 +63,10 @@ def get_realspace_hs(h_skmm, s_kmm, bzk_kc, weight_k,
                      R_c=(0, 0, 0), direction='x',
                      symmetry={'enabled': False}):
 
+    from ase.dft.kpoints import (get_monkhorst_pack_size_and_offset,
+                                 monkhorst_pack)
+
     from gpaw.symmetry import Symmetry
-    from ase.dft.kpoints import get_monkhorst_pack_size_and_offset, \
-        monkhorst_pack
 
     if symmetry['point_group']:
         raise NotImplementedError('Point group symmetry not implemented')
@@ -185,7 +186,7 @@ def dump_hamiltonian(filename, atoms, direction=None, Ef=None):
                 else:
                     remove_pbc(atoms, h_skmm[s, k], None, d)
 
-    if atoms.calc.master:
+    if atoms.calc.master:  # This attribute does not exist does it?
         with open(filename, 'wb') as fd:
             pickle.dump((h_skmm, s_kmm), fd, 2)
             atoms_data = {'cell': atoms.cell, 'positions': atoms.positions,
@@ -197,7 +198,7 @@ def dump_hamiltonian(filename, atoms, direction=None, Ef=None):
 
             pickle.dump(calc_data, fd, 2)
 
-    world.barrier()
+    atoms.calc.wfs.world.barrier()
 
 
 def dump_hamiltonian_parallel(filename, atoms, direction=None, Ef=None):
@@ -278,7 +279,7 @@ def get_lcao_hamiltonian(calc):
             S_kMM[wfs.k] = S_MM.data
     ibzwfs.kpt_comm.sum(H_skMM)
     ibzwfs.kpt_comm.sum(S_kMM)
-    if rank == 0:
+    if calc.wfs.world.rank == 0:
         return H_skMM, S_kMM
     return None, None
 
@@ -303,15 +304,16 @@ def old_get_lcao_hamiltonian(calc):
         tri2full(H_skMM[kpt.s, kpt.k])
     calc.wfs.kd.comm.sum(S_kMM, 0)
     calc.wfs.kd.comm.sum(H_skMM, 0)
-    if rank == 0:
+    if calc.wfs.world.rank == 0:
         return H_skMM, S_kMM
     else:
         return None, None
 
 
-def get_lead_lcao_hamiltonian(calc, direction='x'):
+@parallel(name='world')  # get from calc?
+def get_lead_lcao_hamiltonian(calc, direction='x', *, world):
     H_skMM, S_kMM = get_lcao_hamiltonian(calc)
-    if rank == 0:
+    if world.rank == 0:
         return lead_kspace2realspace(H_skMM, S_kMM,
                                      bzk_kc=calc.wfs.kd.bzk_kc,
                                      weight_k=calc.wfs.kd.weight_k,
@@ -404,7 +406,8 @@ def basis_subset2(symbols, largebasis='dzp', smallbasis='sz'):
     return np.asarray(mask, bool)
 
 
-def collect_orbitals(a_xo, coords, root=0):
+@parallel(name='world')
+def collect_orbitals(a_xo, coords, root=0, *, world):
     """Collect array distributed over orbitals to root-CPU.
 
     Input matrix has last axis distributed amongst CPUs,
@@ -441,9 +444,11 @@ def collect_orbitals(a_xo, coords, root=0):
     return a_xO
 
 
+@parallel(name='world')
 def makeU(gpwfile='grid.gpw', orbitalfile='w_wG__P_awi.pckl',
           rotationfile='eps_q__U_pq.pckl', tolerance=1e-5,
-          writeoptimizedpairs=False, dppname='D_pp.pckl', S_w=None):
+          writeoptimizedpairs=False, dppname='D_pp.pckl', S_w=None,
+          *, world):
 
     # S_w: None or diagonal of overlap matrix. In the latter case
     # the optimized and truncated pair orbitals are obtained from
@@ -452,8 +457,7 @@ def makeU(gpwfile='grid.gpw', orbitalfile='w_wG__P_awi.pckl',
     # Tolerance is used for truncation of optimized pairorbitals
     # calc = GPAW(gpwfile, txt=None)
     from gpaw import GPAW
-    from gpaw.mpi import world
-    calc = GPAW(gpwfile, txt='pairorb.txt')  # XXX
+    calc = GPAW(gpwfile, txt='pairorb.txt', communicator=world)  # XXX
     gd = calc.wfs.gd
     setups = calc.wfs.setups
     myatoms = calc.density.D_asp.keys()

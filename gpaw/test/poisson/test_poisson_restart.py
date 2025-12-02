@@ -1,14 +1,14 @@
-import pytest
-from gpaw.mpi import world
 import numpy as np
-
+import pytest
 from ase.build import molecule
+
 from gpaw import GPAW
-from gpaw.tddft import TDDFT as GRIDTDDFT
 from gpaw.lcaotddft import LCAOTDDFT
+from gpaw.mpi import world
 from gpaw.poisson import PoissonSolver as PS
-from gpaw.poisson_moment import MomentCorrectionPoissonSolver
 from gpaw.poisson_extravacuum import ExtraVacuumPoissonSolver
+from gpaw.poisson_moment import MomentCorrectionPoissonSolver
+from gpaw.tddft import TDDFT as GRIDTDDFT
 
 pytestmark = pytest.mark.skipif(world.size > 2,
                                 reason='world.size > 2')

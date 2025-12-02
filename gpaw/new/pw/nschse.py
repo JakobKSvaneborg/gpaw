@@ -17,7 +17,7 @@ from gpaw.new.c import add_to_density
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.density import Density
 from gpaw.new.logger import Logger
-from gpaw.new.pw.hybrids import truncated_coulomb, Psit, ibz2bz
+from gpaw.new.pw.hybrids import Psit, ibz2bz, truncated_coulomb
 from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.xc import create_functional
@@ -123,7 +123,7 @@ class NonSelfConsistentHSE06:
                     if wfs is not None:
                         data = (wfs.psit_nX, wfs.P_ani, wfs.eig_n * Ha, spin)
                 psit_nG, P_ani, eig_n, spin = broadcast(
-                    data, comm_rank_ks[k, spin], comm)
+                    data, comm_rank_ks[k, spin], comm=comm)
                 tb += time()
                 eig_sn.append(eig_n)
                 deig_n = self.calculate_one_kpt(psit_nG, P_ani, spin)

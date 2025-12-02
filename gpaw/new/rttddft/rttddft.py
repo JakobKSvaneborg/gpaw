@@ -1,33 +1,31 @@
 from __future__ import annotations
 
-from typing import NamedTuple
 from collections.abc import Generator
+from typing import NamedTuple
 
 import numpy as np
-
 from ase import Atoms
-from ase.units import Bohr, Hartree
 from ase.io.ulm import Reader
+from ase.units import Bohr, Hartree
 
 from gpaw.dft import Parameters
-from gpaw.external import ExternalPotential, ConstantElectricField
-from gpaw.mpi import broadcast, world
+from gpaw.external import ConstantElectricField, ExternalPotential
+from gpaw.mpi import broadcast, normalize_communicator
 from gpaw.new.ase_interface import ASECalculator
 from gpaw.new.fd.hamiltonian import FDHamiltonian, FDKickHamiltonian
 from gpaw.new.fd.pot_calc import FDPotentialCalculator
 from gpaw.new.gpw import read_gpw
-from gpaw.new.rttddft.gpw import read_rttddft, write_rttddft
 from gpaw.new.hamiltonian import Hamiltonian
-from gpaw.new.lcao.hamiltonian import LCAOKickHamiltonian, LCAOHamiltonian
+from gpaw.new.lcao.hamiltonian import LCAOHamiltonian, LCAOKickHamiltonian
 from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
 from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
-from gpaw.new.rttddft.td_algorithm import create_td_algorithm, TDAlgorithmLike
+from gpaw.new.rttddft.gpw import read_rttddft, write_rttddft
 from gpaw.new.rttddft.history import RTTDDFTHistory
 from gpaw.new.rttddft.state import RTTDDFTState
-from gpaw.tddft.units import (asetime_to_autime,
-                              autime_to_asetime, au_to_eA)
+from gpaw.new.rttddft.td_algorithm import TDAlgorithmLike, create_td_algorithm
+from gpaw.tddft.units import asetime_to_autime, au_to_eA, autime_to_asetime
 from gpaw.typing import Vector
 from gpaw.utilities import reconstruct_atoms
 from gpaw.utilities.timing import nulltimer
@@ -89,7 +87,9 @@ class RTTDDFT:
                  history: RTTDDFTHistory,
                  td_algorithm: TDAlgorithmLike = None,
                  *,
-                 dft_params: Parameters):
+                 dft_params: Parameters,
+                 world=None):
+        world = normalize_communicator(world)
         if world.size > 1:
             raise NotImplementedError('Parallel execution not implemented')
 
@@ -162,7 +162,8 @@ class RTTDDFT:
     @classmethod
     def from_dft_file(cls,
                       filepath: str,
-                      td_algorithm: TDAlgorithmLike = None):
+                      td_algorithm: TDAlgorithmLike = None,
+                      world=None):
         """ Set up the RTTDDFT object from a DFT calculation file.
 
         Parameters
@@ -172,6 +173,7 @@ class RTTDDFT:
         td_algorithm
             Propagation algorithm for the state.
         """
+        world = normalize_communicator(world)
         _, dft, params, builder = read_gpw(filepath,
                                            log='-',
                                            comm=world,
@@ -189,7 +191,8 @@ class RTTDDFT:
 
     @classmethod
     def from_rttddft_file(cls,
-                          filepath: str):
+                          filepath: str,
+                          world=None):
         """ Set up the RTTDDFT object from a restart file.
 
         Parameters
@@ -197,6 +200,7 @@ class RTTDDFT:
         filepath
             Filename of the restart file.
         """
+        world = normalize_communicator(world)
         _, state, history, dft_params, params, builder = read_rttddft(
             filepath, log='-', comm=world)
 
@@ -209,6 +213,8 @@ class RTTDDFT:
     @classmethod
     def from_file(cls,
                   filepath: str,
+                  *,
+                  world=None,
                   **kwargs):
         """ Set up the RTTDDFT object from a file.
 
@@ -225,6 +231,8 @@ class RTTDDFT:
             `filepath` is a DFT calculation file. No parameters
             are allowed for RTTDDFT restart files.
         """
+        world = normalize_communicator(world)
+
         if world.rank == 0:
             with Reader(filepath) as reader:
                 tag = reader.get_tag()

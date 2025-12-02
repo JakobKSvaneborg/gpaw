@@ -1,14 +1,12 @@
 import numpy as np
-
 from ase.units import Bohr
 
 from gpaw import debug
+from gpaw.inducedfield.inducedfield_base import BaseInducedField
+from gpaw.lcaotddft.observer import TDDFTObserver
 from gpaw.tddft import aufrequency_to_eV
 from gpaw.transformers import Transformer
-from gpaw.lcaotddft.observer import TDDFTObserver
 from gpaw.utilities import is_contiguous
-
-from gpaw.inducedfield.inducedfield_base import BaseInducedField
 
 
 class FDTDInducedField(BaseInducedField, TDDFTObserver):
@@ -66,7 +64,7 @@ class FDTDInducedField(BaseInducedField, TDDFTObserver):
                                   frequencies, folding, width)
 
     def initialize(self, paw, allocate=True):
-        BaseInducedField.initialize(self, paw, allocate)
+        super().initialize(paw, allocate)
 
         if self.has_paw:
             # FDTD replacements and overwrites
@@ -79,7 +77,7 @@ class FDTDInducedField(BaseInducedField, TDDFTObserver):
             self.niter = paw.niter
 
     def set_folding(self, folding, width):
-        BaseInducedField.set_folding(self, folding, width)
+        super().set_folding(folding, width)
 
         if self.folding is None:
             self.envelope = lambda t: 1.0
@@ -106,7 +104,7 @@ class FDTDInducedField(BaseInducedField, TDDFTObserver):
             assert is_contiguous(self.Fn_wG, self.dtype)
 
     def deallocate(self):
-        BaseInducedField.deallocate(self)
+        super().deallocate()
         self.n0_G = None
         self.Fn_wG = None
 
@@ -197,7 +195,7 @@ class FDTDInducedField(BaseInducedField, TDDFTObserver):
         return Fn_wg, gd
 
     def _read(self, reader, reads):
-        BaseInducedField._read(self, reader, reads)
+        super()._read(reader, reads)
 
         # Test time
         r = reader
@@ -228,7 +226,7 @@ class FDTDInducedField(BaseInducedField, TDDFTObserver):
         self.atoms.set_cell(self.fdtd.cl.cell * Bohr)  # Set classical cell
         self.atoms.positions = (self.atoms.get_positions() +
                                 self.fdtd.qm.corner1 * Bohr)
-        BaseInducedField._write(self, writer, writes)
+        super()._write(writer, writes)
         self.atoms.set_cell(qmcell)  # Restore quantum cell to the atoms object
         self.atoms.positions = (self.atoms.get_positions() -
                                 self.fdtd.qm.corner1 * Bohr)

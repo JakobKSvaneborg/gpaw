@@ -1,6 +1,7 @@
 import numpy as np
-from ase.build import bulk
 import pytest
+from ase.build import bulk
+
 from gpaw import GPAW, FermiDirac
 from gpaw.response.bse import BSE
 

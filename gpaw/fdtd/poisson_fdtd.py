@@ -5,13 +5,12 @@ from ase import Atoms
 from ase.io.trajectory import read_atoms
 from ase.units import Bohr
 
-import gpaw.mpi as mpi
 from gpaw import GPAW
 from gpaw.fdtd.polarizable_material import PolarizableMaterial
-from gpaw.fdtd.potential_couplers import (RefinerPotentialCoupler,
-                                          MultipolesPotentialCoupler)
+from gpaw.fdtd.potential_couplers import (MultipolesPotentialCoupler,
+                                          RefinerPotentialCoupler)
+from gpaw.mpi import parallel, serial_comm
 from gpaw.old.grid_descriptor import GridDescriptor
-from gpaw.mpi import world, serial_comm
 from gpaw.poisson import PoissonSolver
 from gpaw.poisson_moment import MomentCorrectionPoissonSolver
 from gpaw.tddft import TDDFT, DipoleMomentWriter, RestartFileWriter
@@ -166,6 +165,7 @@ class SimpleMixer():
 # Contains one PoissonSolver for the classical
 # and one for the quantum subsystem
 class FDTDPoissonSolver:
+    @parallel(name='world')
     def __init__(self,
                  nn=3,
                  relax='J',
@@ -176,9 +176,12 @@ class FDTDPoissonSolver:
                  cl_spacing=1.20,
                  remove_moments=(1, 1),
                  potential_coupler='Refiner',
-                 communicator=serial_comm):
+                 communicator=serial_comm,
+                 *,
+                 world):
 
-        self.rank = mpi.rank
+        self.rank = world.rank
+        self.world = world
 
         self.messages = []
 
@@ -316,7 +319,7 @@ class FDTDPoissonSolver:
             self.cl.gd.comm.size)
         if self.cl.gd.comm == serial_comm:
             msg(' Communicator for domain parallelization: serial_comm')
-        elif self.cl.gd.comm == world:
+        elif self.cl.gd.comm == self.world:
             msg(' Communicator for domain parallelization: world')
         elif self.cl.gd.comm == self.qm.gd.comm:
             msg(' Communicator for domain parallelization: dft_domain_comm')
@@ -949,9 +952,9 @@ class FDTDPoissonSolver:
         # TODO: it should be possible to use different
         #       communicator after restart
         if r.cl_world_comm:
-            self.cl.dcomm = world
+            self.cl.dcomm = self.world
         else:
-            self.cl.dcomm = mpi.serial_comm
+            self.cl.dcomm = serial_comm
 
         # Generate classical grid descriptor
         self.initialize_clgd()
@@ -1028,7 +1031,7 @@ class FDTDPoissonSolver:
             cl_cell=np.diag(self.cl.cell),
             cl_spacing_def=self.cl.spacing_def,
             cl_spacing=self.cl.spacing,
-            cl_world_comm=self.cl.dcomm == world,
+            cl_world_comm=self.cl.dcomm == self.world,
             qm_corner1=self.qm.corner1,
             qm_corner2=self.qm.corner2,
             given_corner_1=self.given_corner_v1,

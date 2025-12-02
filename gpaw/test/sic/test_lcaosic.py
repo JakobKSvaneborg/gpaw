@@ -1,16 +1,15 @@
-import pytest
 import io
 
-from gpaw import GPAW
 import numpy as np
 import numpy.testing as npt
+import pytest
 
+from gpaw import GPAW
+from gpaw.mpi import world
 from gpaw.old.logger import GPAWLogger
 from gpaw.old.wavefunctions.base import eigenvalue_string
-from gpaw.test.sic._utils import (mk_arr_from_str,
-                                  extract_lagrange_section,
-                                  MockWorld)
-from gpaw.mpi import rank
+from gpaw.test.sic._utils import (MockWorld, extract_lagrange_section,
+                                  mk_arr_from_str)
 
 
 @pytest.mark.old_gpaw_only
@@ -54,7 +53,7 @@ def test_lcaosic(in_tmp_dir, gpw_files):
     assert niter == pytest.approx(4, abs=3)
     assert f2 == pytest.approx(f3, abs=0.1)
 
-    if rank == 0:
+    if world.rank == 0:
         logger = GPAWLogger(MockWorld(rank=0))
         string_io = io.StringIO()
         logger.fd = string_io

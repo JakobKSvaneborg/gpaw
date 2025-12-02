@@ -1,6 +1,8 @@
 from math import pi
+
 import numpy as np
 import pytest
+
 from gpaw.xc.libxc import LibXC
 
 

@@ -8,7 +8,6 @@ from gpaw.new.pot_calc import PotentialCalculator
 from gpaw.new.rttddft.state import RTTDDFTState
 from gpaw.new.rttddft.wf_propagator import build_wf_propagator
 
-
 TDAlgorithmLike = Union[None, str, 'TDAlgorithm', dict[str, Any]]
 
 

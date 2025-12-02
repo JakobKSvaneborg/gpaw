@@ -5,6 +5,7 @@ import numpy as np
 from ase import Atoms
 from ase.units import Bohr
 from ase.utils import IOContext
+
 from gpaw.fd_operators import Gradient
 from gpaw.lcaotddft.densitymatrix import DensityMatrix
 from gpaw.lcaotddft.observer import TDDFTObserver

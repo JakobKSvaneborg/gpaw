@@ -1,5 +1,6 @@
-from gpaw.gpu import cupy as cp
 import numpy as np
+
+from gpaw.gpu import cupy as cp
 
 
 class CuPyMPI:
@@ -117,6 +118,9 @@ class CuPyMPI:
 
     def get_c_object(self):
         return self.comm.get_c_object()
+
+    def new_communicator(self, ranks):
+        return self.comm.new_communicator(ranks)
 
 
 class CuPyRequest:

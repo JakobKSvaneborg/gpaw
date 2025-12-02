@@ -1,12 +1,12 @@
 # Copyright (C) 2003  CAMP
 # Please see the accompanying LICENSE file for further information.
 
+import copy
 # flake8: noqa
 # Computer generated code:
 # format: (energy in Hartrees)
 #    'element': (atomic number, [(n, l, occ, energy), ...])
 from typing import Any
-import copy
 
 configurations = {
  'Ac': (89,
@@ -1305,7 +1305,8 @@ def core_states(symbol):
 
 if __name__ == '__main__':
     import pprint
-    # https://www.physics.nist.gov/PhysRefData/DFTdata/
+
+    # https://dx.doi.org/10.18434/T4ZP4F
     path = '/scratch/jensj/dftdata/'
     Ztable = {}
     confs = [['X', '']]

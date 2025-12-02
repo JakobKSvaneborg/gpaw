@@ -2,19 +2,21 @@ from __future__ import annotations
 
 from functools import partial
 from pprint import pformat
-from ase.units import Ha
 
 import numpy as np
+from ase.units import Ha
+
 from gpaw import debug
+# from gpaw.typing import Array2D
+from gpaw.core import PWDesc  # , PWArray
 from gpaw.core.matrix import Matrix
 from gpaw.gpu import as_np
+from gpaw.new import tracectx  # , trace
+from gpaw.new.pwfd.davidson import sliced_preconditioner
 # from gpaw.mpi import broadcast_exception
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.new.pwfd.davidson import sliced_preconditioner
-# from gpaw.typing import Array2D
-from gpaw.core import PWDesc  # , PWArray
-from gpaw.new import tracectx  # , trace
+
 # from gpaw.utilities import as_real_dtype
 
 
@@ -90,11 +92,6 @@ class PPCG(PWFDEigensolver):
         super().__init__(
             hamiltonian,
             converge_bands)
-
-        if not hamiltonian.band_local:
-            raise NotImplementedError(
-                'PPCG only implemented for band local XCs,'
-                'use davidson instead')
 
         self.nbands = nbands
         self.wf_grid = wf_grid
@@ -451,6 +448,7 @@ class PPCG(PWFDEigensolver):
                             Pbuf_abi.matrix.data[:block] \
                             + Pbuf_abi.matrix.data[block:2 * block]
 
+            wfs.eig_n[:] = 0
             wfs.myeig_n[:] = new_eigs_n
             band_comm.sum(wfs._eig_n)
             wfs.orthonormalized = False

@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Callable, Generator
 from pathlib import Path
 from typing import Any
-from collections.abc import Callable, Generator
 
 import numpy as np
 from ase import Atoms
 from ase.units import Ha
+
 from gpaw import __version__
 from gpaw.core import UGArray
 from gpaw.dft import GPAW, Parameters
@@ -622,7 +623,23 @@ class ASECalculator:
                       update_fermi_level: bool = False,
                       **kwargs) -> ASECalculator:
         kwargs.pop('communicator', None)  # Ignore silently
-        kwargs = {**self.params.todict(), **kwargs}
+        allowed = {'nbands', 'occupations', 'poissonsolver',
+                   'kpts', 'eigensolver', 'random', 'maxiter',
+                   'basis', 'symmetry', 'convergence', 'verbose',
+                   'parallel', 'mode'}
+        illegal = kwargs.keys() - allowed
+        if illegal:
+            raise TypeError(f'Illegal keyword(s): {illegal}.  '
+                            f'Only {allowed} allowed.')
+
+        mode = kwargs.get('mode', {})
+        if mode.keys() - {'dtype'}:
+            raise TypeError('Only mode={"dtype": dtype} is allowed.')
+
+        old_params = self.params.todict()
+        kwargs = {**old_params, **kwargs,
+                  'mode': {**old_params['mode'], **mode}}
+
         params = Parameters(**kwargs)
         log = Logger(txt, self.comm)
         builder = params.dft_component_builder(self.atoms, log=log)
@@ -749,3 +766,15 @@ class ASECalculator:
     def get_bz_to_ibz_map(self):
         """Return indices from BZ to IBZ."""
         return self.dft.ibzwfs.ibz.bz2ibz_K.copy()
+
+    def _to_old(self):
+        import tempfile
+        from gpaw.old.calculator import GPAW as OldGPAW
+        from gpaw.mpi import broadcast_string
+        if self.comm.rank == 0:
+            gpw = tempfile.mkstemp(suffix='.gpw')[1]
+        else:
+            gpw = ''
+        gpw = broadcast_string(gpw, comm=self.comm)
+        self.write(gpw, mode='all')
+        return OldGPAW(gpw)

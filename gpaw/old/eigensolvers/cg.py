@@ -1,12 +1,12 @@
 """Module defining  ``Eigensolver`` classes."""
 
-from math import pi, sqrt, sin, cos, atan2
+from math import atan2, cos, pi, sin, sqrt
 
 import numpy as np
-from numpy import dot
 from ase.units import Hartree
+from numpy import dot
 
-from gpaw.eigensolvers.eigensolver import Eigensolver
+from gpaw.old.eigensolvers.eigensolver import Eigensolver
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.blas import axpy
 
@@ -59,7 +59,7 @@ class CG(Eigensolver):
         if wfs.mode == 'pw' and wfs.gd.comm.size > 1:
             raise ValueError('CG eigensolver does not support domain '
                              'parallelization in PW-mode.')
-        Eigensolver.initialize(self, wfs)
+        super().initialize(wfs)
 
     def iterate_one_k_point(self, ham, wfs, kpt, weights):
         """Do conjugate gradient iterations for the k-point"""

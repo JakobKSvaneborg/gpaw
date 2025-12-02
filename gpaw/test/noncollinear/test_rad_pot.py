@@ -2,7 +2,7 @@ import pytest
 
 from gpaw.new.density import atomic_occupation_numbers
 from gpaw.setup import create_setup
-from gpaw.spinorbit import soc, projected_soc
+from gpaw.spinorbit import projected_soc, soc
 from gpaw.xc import XC
 
 

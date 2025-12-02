@@ -74,7 +74,7 @@ Spin-polarized GLLB-SC
 ======================
 
 Spin-polarized GLLB-SC is currently implemented to svn trunk. However there
-are some convergence issues releated to fermi smearing and the reference
+are some convergence issues related to fermi smearing and the reference
 energy of highest orbital. Also some parts are still untested. The code will
 be improved to robust version soon, but in the meantime please contact
 mikael.kuisma@tut.fi before using.

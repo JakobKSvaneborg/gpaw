@@ -1,22 +1,25 @@
 from __future__ import annotations
+
 import functools
 from io import StringIO
 from math import pi, sqrt
+
 import ase.units as units
 import numpy as np
 from ase.data import chemical_symbols
 
 from gpaw import debug
 from gpaw.basis_data import Basis, BasisFunction
-from gpaw.sphere.gaunt import gaunt, nabla
+from gpaw.core.atom_arrays import AtomArraysLayout
+from gpaw.mpi import parallel
+from gpaw.new import zips
 from gpaw.overlap import OverlapCorrections
 from gpaw.setup_data import SetupData, search_for_file
+from gpaw.sphere.gaunt import gaunt, nabla
 from gpaw.spline import Spline
 from gpaw.utilities import pack_density, unpack_hermitian
 from gpaw.xc import XC
-from gpaw.new import zips
 from gpaw.xc.ri.spherical_hse_kernel import RadialHSE
-from gpaw.core.atom_arrays import AtomArraysLayout
 
 
 class WrongMagmomForHundsRuleError(ValueError):
@@ -1249,9 +1252,10 @@ class Setups(list):
     ``core_charge`` Core hole charge.
     """
 
+    @parallel(name='world')
     def __init__(self, Z_a, setup_types, basis_sets, xc, *,
                  filter=None,
-                 world=None,
+                 world,
                  backwards_compatible=True):
         list.__init__(self)
         symbols = [chemical_symbols[Z] for Z in Z_a]
@@ -1415,12 +1419,13 @@ class Setups(list):
     def create_pseudo_core_ked(self,
                                domain,
                                positions,
-                               atomdist):
+                               atomdist,
+                               xp=np):
         return domain.atom_centered_functions(
             [[setup.tauct] for setup in self],
             positions,
             atomdist=atomdist,
-            cut=True)
+            cut=True, xp=xp)
 
     def create_local_potentials(self, domain, positions, atomdist, xp=np):
         return domain.atom_centered_functions(

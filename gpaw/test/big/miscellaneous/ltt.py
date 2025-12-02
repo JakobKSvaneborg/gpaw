@@ -1,4 +1,5 @@
 from ase import Atoms
+
 from gpaw import GPAW
 
 h = 0.2

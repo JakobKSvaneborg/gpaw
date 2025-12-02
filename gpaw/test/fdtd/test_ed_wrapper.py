@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from ase import Atoms
+
 from gpaw.fdtd.poisson_fdtd import QSFDTD
 from gpaw.fdtd.polarizable_material import (PermittivityPlus,
                                             PolarizableMaterial,

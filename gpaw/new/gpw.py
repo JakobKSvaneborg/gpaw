@@ -21,28 +21,29 @@ Versions:
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any
-from collections.abc import Callable
 
 import ase.io.ulm as ulm
-import gpaw
-import gpaw.mpi as mpi
 import numpy as np
 from ase import Atoms
 from ase.io.trajectory import read_atoms, write_atoms
 from ase.units import Bohr, Ha
+
+import gpaw
+import gpaw.mpi as mpi
 from gpaw.core.atom_arrays import AtomArraysLayout
+from gpaw.dft import Parameters
 from gpaw.new.builder import DFTComponentsBuilder
 from gpaw.new.calculation import DFTCalculation, units
 from gpaw.new.density import Density
+from gpaw.new.energies import DFTEnergies
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
-from gpaw.utilities import unpack_hermitian, unpack_density, as_dtype_precision
-from gpaw.new.energies import DFTEnergies
-from gpaw.dft import Parameters
+from gpaw.utilities import as_dtype_precision, unpack_density, unpack_hermitian
 
 
 def as_single_precision(array):
@@ -208,7 +209,7 @@ def read_gpw(filename: str | Path | IO[str],
     parallel = parallel or {}
 
     if not isinstance(log, Logger):
-        log = Logger(log, comm or mpi.world)
+        log = Logger(log, mpi.normalize_communicator(comm))
 
     comm = log.comm
 

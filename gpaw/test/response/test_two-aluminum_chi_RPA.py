@@ -1,24 +1,23 @@
-import pytest
-import numpy as np
 import time
 
+import numpy as np
+import pytest
 from ase.build import bulk
 from ase.parallel import parprint
 
 from gpaw import GPAW, PW
-from gpaw.test import findpeak
-from gpaw.mpi import size, world
-
+from gpaw.mpi import world
 from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator
-from gpaw.response.susceptibility import ChiFactory
 from gpaw.response.pair_functions import read_susceptibility_array
+from gpaw.response.susceptibility import ChiFactory
+from gpaw.test import findpeak
 
 
 @pytest.mark.kspair
 @pytest.mark.response
 def test_response_two_aluminum_chi_RPA(in_tmp_dir):
-    assert size <= 4**3
+    assert world.size <= 4**3
 
     # Ground state calculation
 

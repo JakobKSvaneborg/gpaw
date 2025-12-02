@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+
 from gpaw.core.uniform_grid import UGArray
 from gpaw.new import zips
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions

@@ -1,13 +1,14 @@
 import numpy as np
 from ase.parallel import parprint
-from ase.units import _e, Bohr, Ha, J
+from ase.units import Bohr, Ha, J, _e
 from ase.utils.timing import Timer
 
-from gpaw.mpi import world
+from gpaw.mpi import parallel
 from gpaw.nlopt.matrixel import get_derivative, get_rml
 from gpaw.utilities.progressbar import ProgressBar
 
 
+@parallel(name='world')
 def get_shg(
         nlodata,
         freqs=[1.0],
@@ -17,7 +18,9 @@ def get_shg(
         gauge='lg',
         ftol=1e-4, Etol=1e-6,
         band_n=None,
-        out_name='shg.npy'):
+        out_name='shg.npy',
+        *,
+        world):
     """
     Calculate SHG spectrum within the independent particle approximation (IPA)
     for nonmagnetic semiconductors.
@@ -49,7 +52,8 @@ def get_shg(
 
     # Start a timer
     timer = Timer()
-    parprint(f'Calculating SHG spectrum (in {world.size:d} cores).')
+    parprint(f'Calculating SHG spectrum (in {world.size:d} cores).',
+             comm=world)
 
     # Covert inputs in eV to Ha
     freqs = np.array(freqs)
@@ -64,7 +68,8 @@ def get_shg(
     # Use the TRS to reduce calculation time
     w_l = np.hstack((-w_lc[-1::-1], w_lc))
     nw = 2 * nw
-    parprint(f'Calculation in the {gauge} gauge for element {pol}.')
+    parprint(f'Calculation in the {gauge} gauge for element {pol}.',
+             comm=world)
 
     # Load the required data
     with timer('Load and distribute the data'):
@@ -76,7 +81,8 @@ def get_shg(
             if band_n is None:
                 band_n = list(range(nb))
             mem = 6 * 3 * nk * nb**2 * 16 / 2**20
-            parprint(f'At least {mem:.2f} MB of memory is required.')
+            parprint(f'At least {mem:.2f} MB of memory is required.',
+                     comm=world)
 
     # Initial call to print 0% progress
     count = 0
@@ -108,7 +114,7 @@ def get_shg(
                     w_l, f_n, E_n, r_vnn, rd_vvnn, D_vnn, pol_v,
                     band_n, ftol, Etol, eshift)
         else:
-            parprint('Gauge ' + gauge + ' not implemented.')
+            parprint('Gauge ' + gauge + ' not implemented.', comm=world)
             raise NotImplementedError
 
         # Add it to previous with a weight
@@ -322,7 +328,8 @@ def shg_length_gauge(
     return sum2_l, sum3_l
 
 
-def make_output(gauge, sum2_l, sum3_l):
+@parallel(name='world')
+def make_output(gauge, sum2_l, sum3_l, *, world):
     """
     Multiply prefactors and return second-order chi in SI units [m / V]
 
@@ -346,7 +353,7 @@ def make_output(gauge, sum2_l, sum3_l):
     elif gauge == 'vg':
         chi_l = prefactor * 1j / 2 * (sum2_l + sum3_l)
     else:
-        parprint('Gauge ' + gauge + ' not implemented.')
+        parprint('Gauge ' + gauge + ' not implemented.', comm=world)
         raise NotImplementedError
 
     return chi_l

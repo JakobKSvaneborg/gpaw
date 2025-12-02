@@ -1,11 +1,12 @@
-import pytest
 import numpy as np
+import pytest
 
 from gpaw.basis_data import Basis
+from gpaw.lcao.generate_ngto_augmented import create_CGTO_dictionary as CGTO
+from gpaw.lcao.generate_ngto_augmented import create_GTO_dictionary as GTO
+from gpaw.lcao.generate_ngto_augmented import (generate_nao_ngto_basis,
+                                               read_gaussian_basis_file)
 from gpaw.mpi import world
-from gpaw.lcao.generate_ngto_augmented import \
-    create_GTO_dictionary as GTO, create_CGTO_dictionary as CGTO, \
-    generate_nao_ngto_basis, read_gaussian_basis_file
 
 pytestmark = pytest.mark.skipif(world.size > 1,
                                 reason='world.size > 1')

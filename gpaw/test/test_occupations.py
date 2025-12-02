@@ -1,14 +1,12 @@
 from functools import partial
 
+import numpy as np
 import pytest
 from ase.units import Ha
-import numpy as np
 
-from gpaw.occupations import (fermi_dirac, marzari_vanderbilt,
-                              methfessel_paxton, FermiDiracCalculator,
-                              ZeroWidth)
+from gpaw.occupations import (FermiDiracCalculator, ZeroWidth, fermi_dirac,
+                              marzari_vanderbilt, methfessel_paxton)
 from gpaw.tetrahedron import TetrahedronMethod
-
 
 funcs = []
 for w in [0.1, 0.5]:

@@ -1,22 +1,22 @@
 import numpy as np
-
 from ase.units import Bohr
 from ase.utils.timing import Timer
 
-from gpaw.old.density import RealSpaceDensity
 from gpaw.lfc import BasisFunctions
-from gpaw.setup import Setups
-from gpaw.xc import XC
-from gpaw.utilities.tools import coordinates
-from gpaw.utilities.partition import AtomPartition
-from gpaw.mpi import world
+from gpaw.mpi import parallel
+from gpaw.old.density import RealSpaceDensity
 from gpaw.old.logger import GPAWLogger
+from gpaw.setup import Setups
+from gpaw.utilities.partition import AtomPartition
+from gpaw.utilities.tools import coordinates
+from gpaw.xc import XC
 
 
 class HirshfeldDensity(RealSpaceDensity):
     """Density as sum of atomic densities."""
 
-    def __init__(self, calculator, log=None):
+    @parallel(name='world')
+    def __init__(self, calculator, log=None, *, world):
         self.calculator = calculator
         dens = calculator.density
         super().__init__(dens.gd, dens.finegd,

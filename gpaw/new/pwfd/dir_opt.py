@@ -1,17 +1,17 @@
 from __future__ import annotations
+
 from functools import partial
 
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArrays
-from gpaw.new import zips
+from gpaw.new import trace, zips
 from gpaw.new.density import Density
-from gpaw.new.pwfd.eigensolver import PWFDEigensolver
-from gpaw.new.hamiltonian import Hamiltonian
-from gpaw.new.potential import Potential
-from gpaw.new.ibzwfs import IBZWaveFunctions
-from gpaw.new.etdm.searchdir import LBFGS
 from gpaw.new.energies import DFTEnergies
-from gpaw.new import trace
+from gpaw.new.hamiltonian import Hamiltonian
+from gpaw.new.ibzwfs import IBZWaveFunctions
+from gpaw.new.potential import Potential
+from gpaw.new.pwfd.eigensolver import PWFDEigensolver
+from gpaw.new.pwfd.lbfgs import LBFGS
 
 
 class DirOptPWFD(PWFDEigensolver):

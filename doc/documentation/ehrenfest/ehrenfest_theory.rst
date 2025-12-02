@@ -8,7 +8,7 @@ Molecular dynamics (MD) simulations usually rely on the Born-Oppenheimer
 approximation, where the electronic system is assumed to react so much
 faster than the ionic system that it reaches its ground state at each timestep.
 Thus, forces for the dynamics are calculated from the DFT groundstate density.
-While this approximation is sufficently valid in most situations, there are
+While this approximation is sufficiently valid in most situations, there are
 cases where the explicit dynamics of the electronic system can affect the
 molecular dynamics, or the movement of the atoms can affect averaged spectral
 or other properties. These cases can be handled using so-called Ehrenfest
@@ -179,7 +179,7 @@ electron density. Calculation of the atomic forces is tricky in PAW-based Ehrenf
 PAW transformation. In the GPAW program the force is derived on the grounds the total energy of the quantum-classical
 system is conserved.
 
-The atomic forces in Ehrenfest dynamics are thoroughly analysed and explained
+The atomic forces in Ehrenfest dynamics are thoroughly analyzed and explained
 in Ref. [#Ojanpera2012]_.
 
 References

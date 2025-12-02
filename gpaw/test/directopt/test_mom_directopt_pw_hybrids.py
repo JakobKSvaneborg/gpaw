@@ -1,7 +1,5 @@
-import pytest
-
 import numpy as np
-
+import pytest
 
 from gpaw import GPAW, PW
 from gpaw.mom import prepare_mom_calculation

@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import functools
-import textwrap
 import os
+import textwrap
 from ast import literal_eval
 from collections.abc import Callable, Iterable
 from types import SimpleNamespace
-from typing import Any, TYPE_CHECKING
-from xml.dom import minidom
+from typing import TYPE_CHECKING, Any
 from warnings import warn
+from xml.dom import minidom
 
 import numpy as np
 
@@ -16,8 +16,8 @@ from .. import typing
 from ..basis_data import Basis, BasisPlotter
 from ..setup_data import SetupData, read_maybe_unzipping, search_for_file
 from .aeatom import AllElectronAtom, colors
-from .generator2 import (PAWSetupGenerator, parameters,
-                         generate, plot_log_derivs)
+from .generator2 import (PAWSetupGenerator, generate, parameters,
+                         plot_log_derivs)
 from .radialgd import AERadialGridDescriptor
 
 if TYPE_CHECKING:

@@ -2,13 +2,13 @@ from math import pi
 
 import numpy as np
 
-from gpaw.xc.lda import (calculate_paw_correction, stress_integral,
-                         stress_lda_term)
-from gpaw.utilities.blas import axpy
 from gpaw.fd_operators import Gradient
 from gpaw.sphere.lebedev import Y_nL, weight_n
-from gpaw.xc.pawcorrection import rnablaY_nLv
+from gpaw.utilities.blas import axpy
 from gpaw.xc.functional import XCFunctional
+from gpaw.xc.lda import (calculate_paw_correction, stress_integral,
+                         stress_lda_term)
+from gpaw.xc.pawcorrection import rnablaY_nLv
 
 
 def stress_gga_term(gd, sigma_xg, gradn_svg, dedsigma_xg):
@@ -197,12 +197,12 @@ def get_gradient_ops(gd, nn, xp):
 
 class GGA(XCFunctional):
     def __init__(self, kernel, stencil=2):
-        XCFunctional.__init__(self, kernel.name, kernel.type)
+        super().__init__(kernel.name, kernel.type)
         self.kernel = kernel
         self.stencil_range = stencil
 
     def set_grid_descriptor(self, gd):
-        XCFunctional.set_grid_descriptor(self, gd)
+        super().set_grid_descriptor(gd)
         self.grad_v = get_gradient_ops(gd, self.stencil_range, self.xp)
 
     def todict(self):

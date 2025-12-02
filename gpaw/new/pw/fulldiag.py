@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 import numpy as np
+
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.matrix import Matrix, create_distribution
-from gpaw.core.plane_waves import (PWAtomCenteredFunctions,
-                                   PWArray, PWDesc)
+from gpaw.core.plane_waves import PWArray, PWAtomCenteredFunctions, PWDesc
 from gpaw.core.uniform_grid import UGArray
-from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.typing import Array2D
 from gpaw.new.ibzwfs import IBZWaveFunctions
-from gpaw.new.wave_functions import WaveFunctions
 from gpaw.new.potential import Potential
+from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.smearing import OccupationNumberCalculator
+from gpaw.new.wave_functions import WaveFunctions
+from gpaw.typing import Array2D
 
 
 def pw_matrix(pw: PWDesc,

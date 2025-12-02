@@ -12,7 +12,6 @@
   #define GPAW_ASYNC_D 1
 #endif
 
-#ifdef __TRANSFORMERS_C
 typedef struct
 {
   PyObject_HEAD
@@ -28,12 +27,6 @@ typedef struct
   int use_gpu;
 #endif
 } TransformerObject;
-#else
-// Provide an opaque type for routines outside transformers.c 
-struct _TransformerObject;
-typedef struct _TransformerObject TransformerObject;
-
-#endif
 
 #ifdef GPAW_GPU
 void transformer_init_gpu(TransformerObject *self);

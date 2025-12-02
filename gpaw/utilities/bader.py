@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import subprocess
 import sys
 from pathlib import Path
@@ -6,6 +7,7 @@ from pathlib import Path
 import numpy as np
 from ase.io import write
 from ase.units import Bohr
+
 from gpaw.new.ase_interface import GPAW
 
 

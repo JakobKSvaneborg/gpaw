@@ -1,6 +1,7 @@
 from ase import Atoms
+
 from gpaw import GPAW
-from gpaw.mpi import rank, size
+from gpaw.mpi import world
 
 
 def test_parallel_compare(in_tmp_dir):
@@ -9,12 +10,12 @@ def test_parallel_compare(in_tmp_dir):
               cell=(a, a, a),
               pbc=True,
               calculator=GPAW(mode='fd'))
-    if size > 1:
-        H.positions[0, 0] += 0.01 * rank
+    if world.size > 1:
+        H.positions[0, 0] += 0.01 * world.rank
         try:
             H.get_potential_energy()
         except ValueError as e:
             err_ranks = e.args[1]
-            assert (err_ranks == range(1, size)).all()
+            assert (err_ranks == range(1, world.size)).all()
         else:
             assert False

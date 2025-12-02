@@ -1,17 +1,18 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import partial
 from math import pi
-from collections.abc import Callable
 
 import numpy as np
+
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.core.atom_centered_functions import AtomCenteredFunctions
 from gpaw.core.plane_waves import PWArray
 from gpaw.core.uniform_grid import UGArray, UGDesc
 from gpaw.fftw import get_efficient_fft_size
-from gpaw.gpu import as_np, XP
+from gpaw.gpu import XP, as_np
 from gpaw.mpi import receive, send
 from gpaw.new import prod, trace, zips
 from gpaw.new.potential import Potential
@@ -113,7 +114,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                     self.relpos_ac,
                     atomdist=self.atomdist,
                     qspiral_v=self.qspiral_v,
-                    xp=self.psit_nX.xp)
+                    xp=self.psit_nX.xp,
+                    save_memory=False)
         return self._pt_aiX
 
     @property
@@ -379,11 +381,12 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             F_nvi *= myocc_n[:, np.newaxis, np.newaxis]
             dH_ii = dH_asii[a][self.spin]
             P_ni = self.P_ani[a]
-            F_vii = xp.einsum('nvi, nj, jk -> vik', F_nvi, P_ni, dH_ii)
+            F_av[a] += 2 * xp.einsum('nvi, nj, ji -> v', F_nvi, P_ni, dH_ii,
+                                     optimize=True).real
             F_nvi *= myeig_n[:, np.newaxis, np.newaxis]
             dO_ii = xp.asarray(self.setups[a].dO_ii)
-            F_vii -= xp.einsum('nvi, nj, jk -> vik', F_nvi, P_ni, dO_ii)
-            F_av[a] += 2 * F_vii.real.trace(0, 1, 2)
+            F_av[a] -= 2 * xp.einsum('nvi, nj, ji -> v', F_nvi, P_ni, dO_ii,
+                                     optimize=True).real
 
     def _non_collinear_force_contribution(self,
                                           dH_asii,

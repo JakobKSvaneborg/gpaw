@@ -10,10 +10,13 @@ formula (See App. A of Ref. [1]).
 [1] DA. Leon et al, PRB 104, 115157 (2021)
 """
 from __future__ import annotations
+
 from typing import no_type_check
-from gpaw.typing import Array1D, Array2D, Array3D
+
 import numpy as np
 from numpy.linalg import eigvals
+
+from gpaw.typing import Array1D, Array2D, Array3D
 
 
 def fit_residue(
@@ -91,7 +94,7 @@ class Solver:
 
 class SinglePoleSolver(Solver):
     def __init__(self, omega_w: Array1D):
-        Solver.__init__(self, omega_w=omega_w)
+        super().__init__(omega_w=omega_w)
 
     def solve(self, X_wGG: Array3D) -> tuple[Array2D, Array2D]:
         """
@@ -125,7 +128,7 @@ class SinglePoleSolver(Solver):
 
 class MultipoleSolver(Solver):
     def __init__(self, omega_w: Array1D):
-        Solver.__init__(self, omega_w=omega_w)
+        super().__init__(omega_w=omega_w)
 
     def solve(self, X_wGG: Array3D) -> tuple[Array3D, Array3D]:
         """

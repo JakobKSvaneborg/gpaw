@@ -1,4 +1,5 @@
 from math import factorial as fac
+
 import numpy as np
 
 from gpaw import debug

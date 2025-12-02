@@ -1,4 +1,5 @@
 from ase import Atoms
+
 from gpaw.old.output import plot
 
 

@@ -1,7 +1,9 @@
-import pytest
-from gpaw.response.integrators import czher
-import numpy as np
 from time import time
+
+import numpy as np
+import pytest
+
+from gpaw.response.integrators import czher
 
 
 @pytest.mark.ci

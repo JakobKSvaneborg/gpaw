@@ -31,7 +31,7 @@ This calculation merely dumped the effective potential at various displacements
 onto the harddrive. We now need to calculate the actual derivative and project them onto a set of LCAO basis functions.
 
 For this we first need to complete a ground-state calculation for the supercell. This calculation needs to be done in LCAO mode with
-parallelisation over domains and bands disabled. (:git:`~doc/tutorialsexercises/vibrational/elphraman/supercell.py`)
+parallelization over domains and bands disabled. (:git:`~doc/tutorialsexercises/vibrational/elphraman/supercell.py`)
 
 .. literalinclude:: supercell.py
 

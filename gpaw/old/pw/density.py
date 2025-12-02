@@ -1,4 +1,5 @@
 from math import pi
+
 import numpy as np
 
 from gpaw.old.density import Density
@@ -12,14 +13,14 @@ class PseudoCoreKineticEnergyDensityLFC(PWLFC):
                                 self.expand().sum(1).view(complex))
 
     def derivative(self, dedtaut_R, dF_aiv):
-        PWLFC.derivative(self, self.pd.fft(dedtaut_R), dF_aiv)
+        super().derivative(self.pd.fft(dedtaut_R), dF_aiv)
 
 
 class ReciprocalSpaceDensity(Density):
     def __init__(self, ecut,
                  gd, finegd, nspins, collinear, charge, redistributor,
                  background_charge=None):
-        Density.__init__(self, gd, finegd, nspins, collinear, charge,
+        super().__init__(gd, finegd, nspins, collinear, charge,
                          redistributor=redistributor,
                          background_charge=background_charge)
         ecut0 = 0.5 * pi**2 / (gd.h_cv**2).sum(1).max()
@@ -34,7 +35,7 @@ class ReciprocalSpaceDensity(Density):
         self.rhot_q = None
 
     def initialize(self, setups, timer, magmom_av, hund):
-        Density.initialize(self, setups, timer, magmom_av, hund)
+        super().initialize(setups, timer, magmom_av, hund)
 
         spline_aj = []
         for setup in setups:
@@ -48,7 +49,7 @@ class ReciprocalSpaceDensity(Density):
                           )  # blocksize=256, comm=self.xc_redistributor.comm)
 
     def set_positions(self, spos_ac, atom_partition):
-        Density.set_positions(self, spos_ac, atom_partition)
+        super().set_positions(spos_ac, atom_partition)
         self.nct_q = self.pd2.zeros()
         self.nct.add(self.nct_q, 1.0 / self.nspins)
         self.nct_G = self.pd2.ifft(self.nct_q)

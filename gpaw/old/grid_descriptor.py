@@ -9,19 +9,18 @@ For radial grid descriptors, look atom/radialgd.py.
 """
 
 import numbers
-from math import pi
 from collections.abc import Sequence
-from numpy import lcm
 from fractions import Fraction
+from math import pi
 
 import numpy as np
-
+from numpy import lcm
 from scipy.ndimage import map_coordinates
 
 import gpaw.cgpaw as cgpaw
 import gpaw.mpi as mpi
-from gpaw.old.domain import Domain
 from gpaw.new import prod
+from gpaw.old.domain import Domain
 from gpaw.typing import Array1D, Array3D, Vector
 from gpaw.utilities.blas import mmm, r2k, rk
 
@@ -113,14 +112,14 @@ class GridDescriptor(Domain):
 
         if isinstance(pbc_c, int):
             pbc_c = (pbc_c,) * 3
-        if comm is None:
-            comm = mpi.world
+
+        comm = mpi.normalize_communicator(comm)
 
         self.N_c = np.array(N_c, int)
         if (self.N_c != N_c).any():
             raise ValueError('Non-int number of grid points %s' % N_c)
 
-        Domain.__init__(self, cell_cv, pbc_c, comm, parsize_c, self.N_c)
+        super().__init__(cell_cv, pbc_c, comm, parsize_c, self.N_c)
         self.rank = self.comm.rank
 
         self.beg_c = np.empty(3, int)
@@ -328,7 +327,7 @@ class GridDescriptor(Domain):
     def coarsen(self):
         """Return coarsened `GridDescriptor` object.
 
-        Reurned descriptor has 2x2x2 fewer grid points."""
+        Returned descriptor has 2x2x2 fewer grid points."""
 
         if (self.N_c % 2).any():
             raise ValueError('Grid %s not divisible by 2!' % self.N_c)
@@ -744,7 +743,7 @@ class GridDescriptor(Domain):
         scaled coordinates on spos_c.
 
         This doesn't work in parallel, since it would require
-        communication between neighbouring grids."""
+        communication between neighboring grids."""
 
         assert self.comm.size == 1
 

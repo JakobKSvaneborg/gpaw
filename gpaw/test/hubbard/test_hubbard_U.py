@@ -1,13 +1,13 @@
 from math import sqrt
 
+import pytest
 from ase import Atoms
 from ase.dft.bandgap import bandgap
 
 from gpaw import GPAW, FermiDirac
-import pytest
 
 
-def test_Hubbard_U(in_tmp_dir):
+def test_Hubbard_U(in_tmp_dir, comm):
     """Setup up bulk NiO in an antiferromagnetic configuration."""
     # Lattice constant:
     a = 4.19
@@ -37,6 +37,7 @@ def test_Hubbard_U(in_tmp_dir):
                          'energy': 0.1},
             txt=name + '.txt',
             kpts=(k, k, k),
+            communicator=comm,
             xc='oldPBE')
         atoms.calc = calc
         atoms.get_potential_energy()

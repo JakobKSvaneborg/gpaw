@@ -3,12 +3,14 @@
 # pbcs, and grids.
 
 import itertools
+
 import numpy as np
 from ase.build import bulk
-from gpaw.poisson import FastPoissonSolver, BadAxesError
-from gpaw.old.grid_descriptor import GridDescriptor
+
 from gpaw.fd_operators import Laplace
 from gpaw.mpi import world
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.poisson import BadAxesError, FastPoissonSolver
 from gpaw.utilities import h2gpts
 
 # Test: different pbcs

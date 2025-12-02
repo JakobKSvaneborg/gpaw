@@ -1,6 +1,7 @@
-import pytest
 import numpy as np
-from gpaw.mpi import world, send, receive, broadcast_array
+import pytest
+
+from gpaw.mpi import broadcast_array, receive, send, world
 from gpaw.mpi4pywrapper import MPI4PYWrapper
 
 worlds = [world]

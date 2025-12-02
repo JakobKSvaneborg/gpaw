@@ -18,7 +18,7 @@ You use the new code like this:
 By default, the environment variable ``$GPAW_USE_GPUS`` is used, to determine
 whether to use gpu or not (defaults to not).
 In addition, the user can specify ``parallel={‘gpu’: False}`` (or True) to
-override this behaviour.
+override this behavior.
 
 Instead of importing ``GPAW`` from ``gpaw.new.ase_interface``, you can use ``from gpaw import GPAW`` and the select new GPAW
 by setting the environment variable :envvar:`GPAW_NEW` to ``1``:
@@ -37,13 +37,13 @@ The GPAW CI has a GitLab Runner with a GPU, so the GPU parts of GPAW are tested 
 
    If this environment variable is set to ``1`` then the default value for ``gpu`` in the parallel
    dictionary will be set to ``True``. Since it only is a default value,
-   the effect of ``$GPAW_USE_GPUS`` may be overrided by specifying
+   the effect of ``$GPAW_USE_GPUS`` may be overridden by specifying
    the ``gpu`` key to the ``parallel`` dictionary.
 
 .. envvar:: GPAW_CPUPY
 
    If this environment variable is set to ``1``, then users without GPU's can run the GPU code.
-   CuPy will be emulated by fictious library cpupy. This option is useful to make sure
+   CuPy will be emulated by fictitious library cpupy. This option is useful to make sure
    that developers without GPU do not break the GPU code.
 
 
@@ -71,7 +71,7 @@ If you intend to go to really large systems, you need to enable 64-bit array ind
 Note: In GPAW master, GPAW's MPI wrappers are only equiped to send int32 messages (the int64 MPI is coming, but not yet merged to master.
 
 
-In addition, libraries list should be appended by GPU blas and GPU runtime librarires. See the examples below for examples of how to utilize these commands.
+In addition, libraries list should be appended by GPU blas and GPU runtime libraries. See the examples below for examples of how to utilize these commands.
 
 Example piece of siteconfig to build with HIP (AMD MI250X)::
 
@@ -114,11 +114,11 @@ As a rule of thumb, always use 1 CPU per logical GPU. While it rarely helps to o
 
 By default, GPAW will utilize GPU-aware MPI, expecting the MPI library to be compiled with GPU-aware MPI support.
 However, if this is not the case (segfaults or bus errors occur at MPI calls),
-one may disable the GPU-aware MPI with following commmand added to the siteconfig::
+one may disable the GPU-aware MPI with following command added to the siteconfig::
 
     undef_macros += ['GPAW_GPU_AWARE_MPI']
 
-If disabled, at MPI calls, GPAW will transfer data from GPU to CPU, to move it via MPI in CPU, and transfer it back to GPU after that. However, the normal behaviour is to tranfer directly from GPU to GPU.
+If disabled, at MPI calls, GPAW will transfer data from GPU to CPU, to move it via MPI in CPU, and transfer it back to GPU after that. However, the normal behavior is to transfer directly from GPU to GPU.
 
 The gpaw.gpu module
 ===================

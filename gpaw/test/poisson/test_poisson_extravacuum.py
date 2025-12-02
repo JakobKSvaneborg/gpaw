@@ -1,12 +1,12 @@
-import pytest
-from gpaw.mpi import world
 import time
-import numpy as np
 
+import numpy as np
+import pytest
+
+from gpaw.mpi import world
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.poisson import PoissonSolver
 from gpaw.poisson_extravacuum import ExtraVacuumPoissonSolver
-from gpaw.old.grid_descriptor import GridDescriptor
-
 
 pytestmark = pytest.mark.skipif(world.size > 4,
                                 reason='world.size > 4')

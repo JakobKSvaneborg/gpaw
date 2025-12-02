@@ -9,10 +9,10 @@ import numpy as np
 from numpy.fft import fftn, ifftn
 
 import gpaw.mpi as mpi
-from gpaw.utilities.blas import axpy
 from gpaw.fd_operators import FDOperator
-from gpaw.utilities.tools import construct_reciprocal
 from gpaw.new import trace
+from gpaw.utilities.blas import axpy
+from gpaw.utilities.tools import construct_reciprocal
 
 """About mixing-related classes.
 
@@ -84,7 +84,6 @@ class BaseMixer:
                                       (-1, 1, 1), (1, -1, -1), (-1, -1, 1),
                                       (-1, 1, -1), (-1, -1, -1)],
                                      gd, float).apply
-            self.mR_sG = gd.empty(4)
 
     def reset(self):
         """Reset Density-history.
@@ -137,7 +136,7 @@ class BaseMixer:
             if self.metric is None:
                 mR_sG = R_sG
             else:
-                mR_sG = self.mR_sG[:spin]
+                mR_sG = np.empty_like(R_sG)
                 for s in range(spin):
                     self.metric(R_sG[s], mR_sG[s])
 
@@ -237,7 +236,7 @@ class FFTBaseMixer(BaseMixer):
 
     """Mix the density in Fourier space"""
     def __init__(self, beta, nmaxold, weight):
-        BaseMixer.__init__(self, beta, nmaxold, weight)
+        super().__init__(beta, nmaxold, weight)
         self.gd1 = None
 
     def initialize_metric(self, gd):
@@ -247,10 +246,8 @@ class FFTBaseMixer(BaseMixer):
             self.gd1 = gd.new_descriptor(comm=mpi.serial_comm)
             k2_Q, _ = construct_reciprocal(self.gd1)
             self.metric = ReciprocalMetric(self.weight, k2_Q)
-            self.mR_sG = self.gd1.empty(2, dtype=complex)
         else:
             self.metric = lambda R_Q, mR_Q: None
-            self.mR_sG = np.empty((2, 0, 0, 0), dtype=complex)
 
     def calculate_charge_sloshing(self, R_sQ):
         if self.gd.comm.rank == 0:
@@ -269,7 +266,7 @@ class FFTBaseMixer(BaseMixer):
         else:
             nt1_sG = np.empty((len(nt_sR), 0, 0, 0), dtype=complex)
 
-        dNt = BaseMixer.mix_density(self, nt1_sG, D_asp)
+        dNt = super().mix_density(nt1_sG, D_asp)
 
         # Return density in real space
         for nt_G, nt_R in zip(nt1_sG, nt_sR):
