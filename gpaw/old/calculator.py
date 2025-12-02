@@ -1019,12 +1019,6 @@ class GPAW(Calculator):
         if gpaw.dry_run:
             self.dry_run()
 
-        if (realspace and
-            self.hamiltonian.poisson.get_description() == 'FDTD+TDDFT'):
-            self.hamiltonian.poisson.set_density(self.density)
-            self.hamiltonian.poisson.print_messages(self.log)
-            self.log.fd.flush()
-
         self.initialized = True
         self.log('... initialized\n')
 
