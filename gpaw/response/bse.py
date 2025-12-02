@@ -104,6 +104,15 @@ class BSEMatrix:
         """
         H_sS = self.H_sS
         comm = bse.context.comm
+        if comm.size == 1:
+            nS = bse.nS
+            keep = np.ones(nS, dtype=bool)
+            keep[exclude_S] = False
+            H_rr = H_sS[keep][:, keep]
+            bse.context.print('  Eliminated %s pair orbitals' % len(
+                exclude_S))
+            return H_rr, None
+
         grid = BlacsGrid(comm, comm.size, 1)
         nS = bse.nS
         ns = bse.ns
@@ -737,6 +746,312 @@ class BSEBackend:
                                  pair_calc, timer=self.context.timer)
 
         return rho_nnG, iq
+
+    @timer('perturbative_correction')
+    def calculate_perturbation_correction(self, indices):
+        """
+        Calculate perturbative corrections to the BSE eigenvalues using the
+        dynamical screened interaction.
+
+        dE = <v | W(E_v) - W(0) | v>
+
+        Parameters
+        ----------
+        indices: list of int
+            Indices of the eigenvalues to correct.
+
+        Returns
+        -------
+        corrections: list of complex
+            The energy corrections.
+        """
+        if not hasattr(self, 'eig_data'):
+            raise RuntimeError('BSE must be diagonalized first.')
+
+        self.context.print(f'Calculating perturbation correction for '
+                           f'{len(indices)} eigenvalues.')
+
+        comm = self.context.comm
+        w_T = self.eig_data[0]
+        # Check if we have eigenvectors (Tamm-Dancoff vs Full)
+        if self.use_tammdancoff:
+            v_Rt = self.eig_data[1]  # Local pairs (R), Distributed eigen (t)
+        else:
+            # Full diagonalization logic
+            # v_ST is only on rank 0 usually
+            # We need to broadcast it or handle distribution.
+            # Currently diagonalize_nontammdancoff broadcasts w_T but v_ST
+            # is only on rank 0.
+            v_ST = self.eig_data[1]
+            if comm.rank == 0:
+                v_S_indices = v_ST[:, indices]
+            else:
+                v_S_indices = np.empty((self.nS, len(indices)), dtype=complex)
+            comm.broadcast(v_S_indices, 0)
+            # Replicate behavior of v_S for logic below
+            # v_S needs to be available on all ranks for contraction?
+            # Yes, we will iterate K1 (local) and sum over q.
+            # We need A_n[K1] and A_n[K1+q].
+            # A_n is v_S[:, n].
+            v_S = v_S_indices
+
+        exclude_S = self.eig_data[2]
+
+        if self.use_tammdancoff:
+            # v_Rt is distributed over t (columns), R is local pairs.
+            # Identify which rank owns which index.
+            # We match the distribution used in diagonalize_tammdancoff.
+            # nR = total number of kept pairs
+            nR = self.nS - len(exclude_S)
+            nt = -((-nR) // comm.size)  # block size for eigenvectors
+
+            # Global index of eigenvectors
+            # The indices passed are global indices into w_T.
+
+            v_S = np.zeros((self.nS, len(indices)), dtype=complex)
+
+            for i, idx in enumerate(indices):
+                # Find rank that owns idx
+                owner = idx // nt
+                local_idx = idx % nt
+
+                if comm.rank == owner:
+                    # Check if local_idx is valid (padding)
+                    if local_idx < v_Rt.shape[1]:
+                        vec_R = v_Rt[:, local_idx]
+                    else:
+                        # Should not happen if idx < nR
+                        vec_R = np.zeros(nR, dtype=complex)  # Placeholder
+                else:
+                    vec_R = np.empty(nR, dtype=complex)
+
+                comm.broadcast(vec_R, owner)
+
+                # Expand vec_R to vec_S (insert zeros for excluded states)
+                # exclude_S is sorted list of indices to exclude.
+                # v_S[:, i] should map R -> S
+                # Construct mask of kept states
+                mask = np.ones(self.nS, dtype=bool)
+                mask[exclude_S] = False
+                v_S[mask, i] = vec_R
+
+        # Now v_S contains the global eigenvectors for the requested indices.
+        # Shape: (nS, len(indices))
+        # nS = nK * nv * nc
+        # Reshape to (nK, nv, nc, n_indices)
+        v_Kmn = v_S.reshape((self.nK, self.nv, self.nc, len(indices)))
+
+        # Frequencies to evaluate
+        # w_T is in Hartree? Yes.
+        # Chi0Calculator expects Hartrees? Yes.
+        eigenvalues = w_T[indices]
+        frequencies = [0.0] + list(eigenvalues)
+        wd = FrequencyDescriptor(frequencies)
+
+        # Setup calculators
+        chi0calc = Chi0Calculator(
+            self.gs, self.context.with_txt(None),
+            wd=wd,
+            eta=0.001,  # What eta to use? Same as calculation or small?
+            ecut=self.ecut * Hartree,
+            intraband=False,
+            hilbert=False,
+            nbands=self.nbands)
+
+        wcontext = ResponseContext(txt=None, comm=self.context.comm)
+        wcalc = initialize_w_calculator(
+            chi0calc, wcontext,
+            coulomb=self.coulomb,
+            integrate_gamma=self.integrate_gamma,
+            q0_correction=self.q0_correction)
+
+        # Setup pair factory
+        context = ResponseContext(txt=None, timer=self.context.timer,
+                                  comm=serial_comm)
+        kptpair_factory = KPointPairFactory(gs=self.gs, context=context)
+        pair_calc = kptpair_factory.pair_calculator()
+        qpd0 = SingleQPWDescriptor.from_q(self.q_c, self.ecut, self.gs.gd)
+
+        # We need a dummy ScreenedPotential object to hold W_qGG and qpd_q
+        # But we calculate W on the fly.
+        class DummyScreenedPotential:
+            def __init__(self, pawcorr_q, W_qGG, qpd_q):
+                self.pawcorr_q = pawcorr_q
+                self.W_qGG = W_qGG
+                self.qpd_q = qpd_q
+
+        corrections = np.zeros(len(indices), dtype=complex)
+
+        self.context.print('Calculating dynamical corrections...')
+
+        # Loop over q-points
+        # Note: In calculate(), we loop over q in IBZ.
+        # Here we must do the same.
+
+        for iq, q_c in enumerate(self.qd.ibzk_kc):
+            chi0 = chi0calc.calculate(q_c)
+            W_wGG = wcalc.calculate_W_wGG(chi0)
+
+            # Create ScreenedPotential-like object for this q (for ONE q)
+            # W_wGG has shape (nfreq, nG, nG)
+            # We need to pass W_qGG to add_direct_kernel logic.
+            # But add_direct_kernel logic expects W_qGG[iq] where iq is from Q in BZ.
+            # But here we loop over IBZ.
+            # Wait, add_direct_kernel loops over Q in BZ (self.qd.bzk_kc).
+            # Inside loop: iK2 = ...
+            # rho3, iq_ibz = get_density_matrix(...)
+            # W = W_qGG[iq_ibz]
+
+            # So we should pre-calculate W for all IBZ q-points first?
+            # Or can we invert the loops?
+            # Contraction: sum_Q ...
+            # If we loop over IBZ q, we cover all Q via symmetry?
+            # get_density_matrix handles symmetry mapping to IBZ.
+            # So we need W for all IBZ q-points.
+            pass
+
+        # Pre-calculate W for all IBZ q-points
+        # This might be memory intensive if many frequencies.
+        # But required if we follow the pattern.
+
+        W_qwGG = []
+        pawcorr_q = []
+        qpd_q = []
+
+        for iq, q_c in enumerate(self.qd.ibzk_kc):
+            chi0 = chi0calc.calculate(q_c)
+            W_wGG = wcalc.calculate_W_wGG(chi0)
+            # Store
+            W_qwGG.append(W_wGG)
+            pawcorr_q.append(chi0calc.chi0_body_calc.pawcorr)
+            qpd_q.append(chi0.qpd)
+
+        # Now perform contraction
+        # Loop over local K1
+        kpf = kptpair_factory
+
+        # Pre-compute dW for each eigenvalue index?
+        # dW[iq][idx] = W_qwGG[iq][idx+1] - W_qwGG[iq][0]
+
+        for ik1, iK1 in enumerate(self.myKrange):
+            # Local K1
+
+            # Setup k-points for rho3 (K1 -> K1+q)
+            # We iterate over all Q in BZ
+            for Q_c in self.qd.bzk_kc:
+                # Find K2
+                iK2 = self.kd.find_k_plus_q(
+                    Q_c, [kpf.get_k_point(0, iK1, self.vi, self.vf).K])[0]
+
+                # We need rho3 and rho4
+                # Using existing helper, but we need to mock screened_potential
+                # screened_potential.W_qGG is used in add_direct_kernel,
+                # but here we need dW.
+                # get_density_matrix uses screened_potential.qpd_q and
+                # pawcorr_q
+
+                sp_dummy = DummyScreenedPotential(pawcorr_q, None, qpd_q)
+
+                # Calculate densities
+                # We need to handle spins
+                # Simplification: Assume spin-paired or same spin for now
+                # as per add_direct_kernel structure
+
+                kptv1_s = [kpf.get_k_point(s, iK1, self.vi, self.vf)
+                           for s in range(self.nspins)]
+                kptc1_s = [kpf.get_k_point(
+                    s, self.ikq_k[iK1], self.ci, self.cf)
+                    for s in range(self.nspins)]
+
+                kptv2_s = [kpf.get_k_point(s, iK2, self.vi, self.vf)
+                           for s in range(self.nspins)]
+                kptc2_s = [kpf.get_k_point(
+                    s, self.ikq_k[iK2], self.ci, self.cf)
+                    for s in range(self.nspins)]
+
+                rho3_nnG, iq_ibz = self.get_density_matrix(
+                    pair_calc, sp_dummy, kptv1_s[0], kptv2_s[0])
+                rho4_nnG, _ = self.get_density_matrix(
+                    pair_calc, sp_dummy, kptc1_s[0], kptc2_s[0])
+
+                rho3s1_nnG = None
+                rho4s1_nnG = None
+                if self.nspins == 2:
+                    rho3s1_nnG, _ = self.get_density_matrix(
+                        pair_calc, sp_dummy, kptv1_s[1], kptv2_s[1])
+                    rho4s1_nnG, _ = self.get_density_matrix(
+                        pair_calc, sp_dummy, kptc1_s[1], kptc2_s[1])
+
+                if self.add_soc:
+                    rho3_nnG = self.spinors_data.rho_valence_valence(
+                        kptv1_s[0].K, kptv2_s[0].K, rho3_nnG, rho3s1_nnG)
+                    rho4_nnG = self.spinors_data.rho_conduction_conduction(
+                        kptc1_s[0].K, kptc2_s[0].K, rho4_nnG, rho4s1_nnG)
+
+                # Now compute matrix element for each eigenvalue index
+                # dW = W(E) - W(0)
+                # W(E) corresponds to W_qwGG[iq_ibz][idx+1]
+                # W(0) corresponds to W_qwGG[iq_ibz][0]
+
+                W_all = W_qwGG[iq_ibz]
+                dW_all = W_all[1:] - W_all[0]  # Shape (n_indices, nG, nG)
+
+                # Compute interaction W_nmmmm
+                # Instead of full einsum, contract with A immediately.
+                # term = <v | dW | v>
+                #      = sum_{v1 c1 v2 c2} A[n, iK1, v1, c1]^* * W_{v1 c1 v2 c2}
+                #        * A[n, iK2, v2, c2]
+                # W_{v1 c1 v2 c2} = sum_{G G'} rho3_{v1 v2 G}^* * dW_{G G'}
+                #                   * rho4_{c1 c2 G'}
+
+                # Let's vectorize over n (indices)
+
+                # A1 = v_Kmn[iK1, :, :, :]  # (nv, nc, n_ind)
+                # A2 = v_Kmn[iK2, :, :, :]  # (nv, nc, n_ind)
+
+                A1 = v_Kmn[iK1]  # (nv, nc, n_ind)
+                A2 = v_Kmn[iK2]  # (nv, nc, n_ind)
+
+                # Optimization="optimal" usually finds good path.
+
+                T1 = np.einsum('xcn, ydn, xyG -> ncdG', A1.conj(), A2,
+                               rho3_nnG.conj(), optimize='optimal')
+                T2 = np.einsum('ncdG, cdH -> nGH', T1, rho4_nnG,
+                               optimize='optimal')
+                Res = np.einsum('nGH, nGH -> n', T2, dW_all,
+                                optimize='optimal')
+
+                # Factor for spin/soc
+                # In add_direct_kernel: H -= W * factor
+                # Here we want <v|W|v>.
+                # factor = (self.add_soc + 1) / 2
+                # corrections += Res * factor
+
+                factor = (self.add_soc + 1) / 2
+                corrections += Res * factor
+
+        comm.sum(corrections)
+        # Note: BSE Hamiltonian has 1/Volume factor.
+        # H_kmmKmm /= self.gs.volume
+        # The interaction energy is <rho V rho>.
+        # It scales as 1/V if we integrate over space.
+
+        # In `BSEBackend.calculate`:
+        # `H_kmmKmm /= self.gs.volume`
+        # This implies that `add_direct_kernel` accumulates values that
+        # are NOT yet divided by V (or scaled correctly).
+
+        # So `H /= volume` seems correct.
+        # So I should also divide my corrections by volume.
+
+        # The term subtracted from H is W. So contribution to H is -W.
+        # dE = <v | H(W') - H(W) | v> = <v | -(W' - W) | v> = - <v | dW | v>
+        # Res is <v | dW | v>.
+        # So we negate.
+
+        corrections /= -self.gs.volume
+
+        return corrections
 
     @cached_property
     def _chi0calc(self):
