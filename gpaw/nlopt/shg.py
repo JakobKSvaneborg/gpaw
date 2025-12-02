@@ -3,12 +3,11 @@ from ase.parallel import parprint
 from ase.units import Bohr, Ha, J, _e
 from ase.utils.timing import Timer
 
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 from gpaw.nlopt.matrixel import get_derivative, get_rml
 from gpaw.utilities.progressbar import ProgressBar
 
 
-@parallel(name='world')
 def get_shg(
         nlodata,
         freqs=[1.0],
@@ -19,8 +18,7 @@ def get_shg(
         ftol=1e-4, Etol=1e-6,
         band_n=None,
         out_name='shg.npy',
-        *,
-        world):
+        world=None):
     """
     Calculate SHG spectrum within the independent particle approximation (IPA)
     for nonmagnetic semiconductors.
@@ -49,6 +47,7 @@ def get_shg(
         Output filename (default 'shg.npy').
 
     """
+    world = normalize_communicator(world)
 
     # Start a timer
     timer = Timer()
@@ -328,8 +327,7 @@ def shg_length_gauge(
     return sum2_l, sum3_l
 
 
-@parallel(name='world')
-def make_output(gauge, sum2_l, sum3_l, *, world):
+def make_output(gauge, sum2_l, sum3_l):
     """
     Multiply prefactors and return second-order chi in SI units [m / V]
 
@@ -353,7 +351,6 @@ def make_output(gauge, sum2_l, sum3_l, *, world):
     elif gauge == 'vg':
         chi_l = prefactor * 1j / 2 * (sum2_l + sum3_l)
     else:
-        parprint('Gauge ' + gauge + ' not implemented.', comm=world)
-        raise NotImplementedError
+        raise ValueError(f'Gauge {gauge!r} not implemented.')
 
     return chi_l

@@ -1012,14 +1012,15 @@ class OldSJM(OldSolvationGPAW):
         xc.set_grid_descriptor(self.hamiltonian.finegd)
 
 
-def _write_trace_in_z(grid, property, name, dir):
+def _write_trace_in_z(grid, property, name, dir, comm=None):
     """Writes out a property (like electrostatic potential, cavity, or
     background charge) as a function of the z coordinate only. `grid` is the
     grid descriptor, typically self.density.finegd. `property` is the property
     to be output, on the same grid."""
+    comm = normalize_communicator(comm)
     property = grid.collect(property, broadcast=True)
     property_z = property.mean(0).mean(0)
-    with paropen(os.path.join(dir, name), 'w') as f:
+    with paropen(os.path.join(dir, name), 'w', comm=comm) as f:
         for i, val in enumerate(property_z):
             f.write(f'{(i + 1) * grid.h_cv[2][2] * Bohr:f} {val:1.8f}\n')
 
