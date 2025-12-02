@@ -24,7 +24,7 @@ def get_scaled_positions(atoms, positions):
 
 class AllElectronPotential:
     def __init__(self, paw):
-        self.paw = paw
+        self.paw = paw._to_old()
 
     def write_spherical_ks_potentials(self, txt):
         f = open(txt, 'w')

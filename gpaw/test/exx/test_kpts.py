@@ -25,7 +25,10 @@ def atoms() -> Atoms:
     a.calc = GPAW(mode=PW(200),
                   kpts=(n, n, 1),
                   xc='PBE',
-                  parallel=parallel)
+                  _use_old_gpaw=True,
+                  convergence={'bands': 2},
+                  parallel=parallel,
+                  txt='h2old.txt')
     a.get_potential_energy()
     return a
 
@@ -34,6 +37,7 @@ def bandgap(eps: np.ndarray) -> tuple[int, int, float]:
     """Find band-gap."""
     k1 = eps[0, :, 0].argmax()
     k2 = eps[0, :, 1].argmin()
+    print(eps)
     return k1, k2, eps[0, k2, 1] - eps[0, k1, 0]
 
 

@@ -579,6 +579,8 @@ class XC(Parameter):
             return xc
         if isinstance(xc, str):
             xc = {'name': xc}
+        if not isinstance(xc, dict):
+            raise NotImplementedError
         return XC(**xc)
 
 
@@ -954,7 +956,7 @@ def GPAW(
     use_old_if_reading_fails = False
     if _use_old_gpaw is None:
         if _USE_OLD_GPAW is None:
-            if 1:  # GPAW_NEW == 147:
+            if GPAW_NEW == 147:
                 if filename is not None:
                     _use_old_gpaw = False
                     use_old_if_reading_fails = True
