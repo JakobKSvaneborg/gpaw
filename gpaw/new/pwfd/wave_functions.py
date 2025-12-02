@@ -331,7 +331,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                              psit2_nX,
                              data_buffer=None,
                              scalapack_parameters=(None, 1, 1, None),
-                             eigenvalues_only=False):
+                             nocc=None):
         """
         If data_buffer is None, psit2_nX will be used as a buffer
         for the wave functions.
@@ -349,15 +349,17 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         """
 
         H_nm = self.build_hamiltonian(Ht, dH, psit2_nX)
+        if nocc is not None:
+            # decouple occupied from unoccupied orbitals
+            H_nm.data[:nocc, nocc:] = 0
+            H_nm.data[nocc:, :nocc] = 0
         self.subspace_eigenvalues(H_nm,
                                   scalapack_params=scalapack_parameters)
-        if eigenvalues_only:
-            return
         self.canonical_transformation(H_nm, psit2_nX, data_buffer)
 
     def force_contribution(self,
                            potential: Potential,
-                           F_av: Array2D, noncanonical=False) -> None:
+                           F_av: Array2D) -> None:
         xp = self.xp
         dH_asii = potential.dH_asii
         myeig_n = xp.asarray(self.myeig_n)
@@ -368,19 +370,12 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             self._non_collinear_force_contribution(dH_asii, myocc_n, F_av)
             return
 
-        psit_nX = self.psit_nX
-        P_ani = self.P_ani
-        if noncanonical:
-            pass
-            # implemement unitary rotation of each wfs in ibzwfs
-            # by the subspace eigenvectors H_nm
-
-        F_anvi = self.pt_aiX.derivative(psit_nX)
+        F_anvi = self.pt_aiX.derivative(self.psit_nX)
         for a, F_nvi in F_anvi.items():
             F_nvi = F_nvi.conj()
             F_nvi *= myocc_n[:, np.newaxis, np.newaxis]
             dH_ii = dH_asii[a][self.spin]
-            P_ni = P_ani[a]
+            P_ni = self.P_ani[a]
             F_vii = xp.einsum('nvi, nj, jk -> vik', F_nvi, P_ni, dH_ii)
             F_nvi *= myeig_n[:, np.newaxis, np.newaxis]
             dO_ii = xp.asarray(self.setups[a].dO_ii)
