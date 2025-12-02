@@ -419,6 +419,12 @@ def pytest_report_header(config, start_path):
 def no_touch_world(monkeypatch, _not_world):
     # We might also need module-scoped/session-scoped
     import gpaw.mpi as mpi
+    import ase.parallel
+
+    # ase communicator is lazy-initialized.  Make sure it is initialized
+    # by accessing rank.
+    aserank = ase.parallel.world.rank
+    assert aserank == mpi.world.rank
 
     monkeypatch.setattr(mpi, '_NO_TOUCH_WORLD', True)
 
@@ -427,8 +433,16 @@ def no_touch_world(monkeypatch, _not_world):
     # to intercept any calls and raise an error.
     #
     # With GPAW_DEBUG it will be wrapped, so in that case we can:
+
     if debug:
-        monkeypatch.setattr(mpi.world, 'comm', None)
+        # for obj in [mpi.world, ase.parallel.world]:
+        for attr in 'comm', 'rank', 'size':
+            monkeypatch.delattr(mpi.world, attr)
+
+        # XXX This is pretty brittle wrt. ASE internals
+        # (also requires new ASE master 2025-11-28)
+        import ase.parallel
+        monkeypatch.setattr(ase.parallel.world, 'comm', None)
 
 
 @pytest.fixture(scope='session')

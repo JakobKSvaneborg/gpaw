@@ -9,7 +9,7 @@ from gpaw.new.ase_interface import ASECalculator
 from gpaw.new.backwards_compatibility import FakePoisson
 from gpaw.new.rttddft.rttddft import RTTDDFT
 from gpaw.new.rttddft.td_algorithm import TDAlgorithmLike
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 from gpaw.tddft.units import as_to_au, autime_to_asetime
 from gpaw.typing import Vector
 
@@ -34,11 +34,11 @@ class FakeTDHamiltonian:
 class RTTDDFTAdapter:
     """ Adapter to use old-GPAW code with new RTTDDFT """
 
-    @parallel(name='world')
     def __init__(self,
                  rttddft: RTTDDFT,
                  *,
-                 world):
+                 world=None):
+        world = normalize_communicator(world)
         self._rttddft = rttddft
         self.td_hamiltonian = FakeTDHamiltonian(rttddft)
         self.observers: list[Any] = []

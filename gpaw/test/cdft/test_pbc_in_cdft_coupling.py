@@ -29,6 +29,7 @@ def test_pbc_cdft(in_tmp_dir, not_parallelized, comm):
         nbands=4,
         mixer=Mixer(beta=0.25, nmaxold=3, weight=100.0),
         txt='He2+_initial.txt',
+        communicator=comm,
         convergence={
             'eigenstates': 1.0,
             'density': 1.0,
@@ -66,6 +67,7 @@ def test_pbc_cdft(in_tmp_dir, not_parallelized, comm):
         nbands=4,
         mixer=Mixer(beta=0.25, nmaxold=3, weight=100.0),
         txt='He2+_final.txt',
+        communicator=comm,
         convergence={
             'eigenstates': 1.0,
             'density': 1.0,
