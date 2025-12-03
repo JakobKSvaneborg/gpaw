@@ -103,7 +103,8 @@ class PW(Mode):
                  qspiral=None,
                  dedecut=None,
                  dtype: DTypeLike | None = None,
-                 force_complex_dtype: bool = False):
+                 force_complex_dtype: bool = False,
+                 **kwargs):
         """PW-mode.
 
         Parameters
@@ -111,11 +112,15 @@ class PW(Mode):
         ecut:
             Plane-wave cutoff energy in eV.
         """
+        if 'interpolation' in kwargs:
+            raise NotImplementedError
+
         self.ecut = ecut
         self.qspiral = qspiral
         self.dedecut = dedecut
         super().__init__(dtype=dtype,
-                         force_complex_dtype=force_complex_dtype)
+                         force_complex_dtype=force_complex_dtype,
+                         **kwargs)
 
     def todict(self):
         dct = super().todict()
@@ -173,7 +178,7 @@ class Eigensolver(Parameter):
                 warnings.warn('Please use "davidson" instead of "dav"')
             if name in eigensolvers:
                 return eigensolvers[name](**eigensolver)
-            if name in {'etdm-lcao', 'etdm'}:
+            if name in {'etdm-lcao', 'etdm', 'direct'}:
                 raise NotImplementedError
             raise ValueError(f'Unknown eigensolver: {name}')
         return DefaultEigensolver(eigensolver)
