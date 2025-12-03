@@ -15,11 +15,11 @@ def test_systems(name):
     assert isinstance(atoms, Atoms)
 
 
-def test_pw_benchmark(in_tmp_dir):
-    if world.rank == 0:
+def test_pw_benchmark(in_tmp_dir, mpi):
+    if mpi.comm.rank == 0:
         Path('params.json').write_text(
             '{"mode": "pw"}')
-    world.barrier()
-    work('H2-0')
-    main([])
-    main(['.', '.'])
+    mpi.comm.barrier()
+    work('H2-0', world=mpi.comm)
+    main([], world=mpi.comm)
+    main(['.', '.'], world=mpi.comm)
