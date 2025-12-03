@@ -116,9 +116,9 @@ class PPCG(PWFDEigensolver):
 
         if self.blocksize is None:
             if xp == np:
-                self.blocksize = 128
+                self.blocksize = 24
             else:
-                self.blocksize = 1024
+                self.blocksize = 512
 
         if isinstance(self.wf_grid, PWDesc):
             S = self.wf_grid.comm.size
@@ -341,11 +341,11 @@ class PPCG(PWFDEigensolver):
                     domain_comm.sum(S_bb)
 
                     # Scale the diagonal elements, to improve numerical
-                    # stability. Here, we use the expontent -0.5, which
+                    # stability. Here, we use the expontent -0.25, which
                     # makes the diagonal elements closer to 1, by the a
                     # factor of sqrt(X), with X being the previous diagonal.
                     # This value performed best of the ones attempted.
-                    diag_scale_b = xp.diag(S_bb)[block:]**(-0.5)
+                    diag_scale_b = xp.diag(S_bb)[block:]**(-0.25)
                     S_bb[block:, :] *= diag_scale_b[:, None]
                     S_bb[:, block:] *= diag_scale_b[None, :]
                     buff_bX.matrix.data[block:nblocks, :] \
