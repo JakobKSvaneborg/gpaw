@@ -7,7 +7,7 @@ from ase.units import Bohr, Ha
 
 from gpaw.lcao.projected_wannier import dots
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
-from gpaw.mpi import world
+from gpaw.mpi import parallel
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.tools import tri2full
 
@@ -39,8 +39,9 @@ class ElectronPhononCouplingMatrix:
 
     """
 
+    @parallel(name='world')
     def __init__(self, atoms, indices=None, name='v', delta=0.005, nfree=2,
-                 derivativemethod='tci'):
+                 derivativemethod='tci', *, world):
         assert nfree in [2, 4]
         self.nfree = nfree
         self.delta = delta
@@ -62,6 +63,8 @@ class ElectronPhononCouplingMatrix:
             self.get_dP_aMix = get_tci_dP_aMix
         else:
             raise ValueError('derivativemethod must be grid, grid2, or tci')
+
+        self.world = world
 
     def run(self):
         if not isfile(self.name + '.eq.pckl'):
@@ -87,15 +90,15 @@ class ElectronPhononCouplingMatrix:
             forces = self.atoms.get_forces()
             self.calc.write('eq.gpw')
 
-            world.barrier()
-            if world.rank == 0:
+            self.world.barrier()
+            if self.world.rank == 0:
                 vd = open(self.name + '.eq.pckl', 'wb')
                 fd = open('vib.eq.pckl', 'wb')
                 pickle.dump((Vt_G, alldH_asp), vd, 2)
                 pickle.dump(forces, fd)
                 vd.close()
                 fd.close()
-            world.barrier()
+            self.world.barrier()
 
         p = self.atoms.positions.copy()
         for a in self.indices:
@@ -125,15 +128,15 @@ class ElectronPhononCouplingMatrix:
                             alldH_asp[a2] = tmpdH_sp
 
                         forces = self.atoms.get_forces()
-                        world.barrier()
-                        if world.rank == 0:
+                        self.world.barrier()
+                        if self.world.rank == 0:
                             vd = open(self.name + name, 'wb')
                             fd = open('vib' + name, 'wb')
                             pickle.dump((Vt_G, alldH_asp), vd)
                             pickle.dump(forces, fd)
                             vd.close()
                             fd.close()
-                        world.barrier()
+                        self.world.barrier()
                         self.atoms.positions[a, j] = p[a, j]
         self.atoms.set_positions(p)
 
@@ -239,7 +242,7 @@ class ElectronPhononCouplingMatrix:
         spin = 0  # XXX
 
         M_lii = {}
-        parprint('Starting gradient of pseudo part')
+        parprint('Starting gradient of pseudo part', comm=self.world)
         for f, mode in modes.items():
             mo = []
             M_ii = np.zeros((nao, nao), dtype)
@@ -250,7 +253,7 @@ class ElectronPhononCouplingMatrix:
             bfs.calculate_potential_matrix(dvtdP_G, M_ii, q=q)
             tri2full(M_ii, 'L')
             M_lii[f] = M_ii
-        parprint('Finished gradient of pseudo part')
+        parprint('Finished gradient of pseudo part', comm=self.world)
 
         P_aqMi = calc.wfs.P_aqMi
         # Add the term
@@ -264,7 +267,7 @@ class ElectronPhononCouplingMatrix:
         for f, mode in modes.items():
             Ma_lii[f] = np.zeros_like(M_lii.values()[0])
 
-        parprint('Starting gradient of dH^a part')
+        parprint('Starting gradient of dH^a part', comm=self.world)
         for f, mode in modes.items():
             mo = []
             for a in self.indices:
@@ -275,11 +278,11 @@ class ElectronPhononCouplingMatrix:
                 ddHdP_sp = np.dot(ddH_spx, mode)
                 ddHdP_ii = unpack_hermitian(ddHdP_sp[spin])
                 Ma_lii[f] += dots(P_aqMi[a][q], ddHdP_ii, P_aqMi[a][q].T)
-        parprint('Finished gradient of dH^a part')
+        parprint('Finished gradient of dH^a part', comm=self.world)
 
-        parprint('Starting gradient of projectors part')
+        parprint('Starting gradient of projectors part', comm=self.world)
         dP_aMix = self.get_dP_aMix(calc.spos_ac, wfs, q)
-        parprint('Finished gradient of projectors part')
+        parprint('Finished gradient of projectors part', comm=self.world)
 
         dH_asp = pickle.load(open('v.eq.pckl', 'rb'))[1]
 
@@ -341,7 +344,8 @@ def get_grid_dP_aMix(spos_ac, wfs, q):  # XXXXXX q
             pt.derivative(phi_MG, dP_bMix, q=q)
             dP_Mix[ni:ni + nao] = dP_bMix[0]
             ni += nao
-            parprint(f'projector grad. doing atoms ({a}, {b}) ')
+            parprint(f'projector grad. doing atoms ({a}, {b}) ',
+                     comm=wfs.world)
 
         dP_aMix[a] = dP_Mix
     return dP_aMix

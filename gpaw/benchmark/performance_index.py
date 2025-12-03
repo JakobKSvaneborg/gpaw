@@ -9,7 +9,7 @@ from ase.geometry.cell import cell_to_cellpar
 from gpaw.benchmark.systems import systems
 from gpaw.calcinfo import get_calculation_info
 from gpaw.dft import GPAW
-from gpaw.mpi import world
+from gpaw.mpi import parallel
 from gpaw.utilities.memory import maxrss
 
 PARAMS = dict(
@@ -54,6 +54,14 @@ REFERENCES0 |= {
 # Rescaling to 17 systems:
 RESCALE_FACTOR = 17 * 0.9434 / (14 * 0.9434 + 3)
 
+# New system for MnVS2-2M
+# (new GPAW, master branch Nov 25 2025):
+REFERENCES0 |= {
+    'MnVS2-2M': (-29.11777, -0.00014, 24, 68.767)}
+OLDSCORE = 103.56 * 17
+NEWSCORE = 103.56 * (16 + 98.608 / 68.767)
+RESCALE_FACTOR *= OLDSCORE / NEWSCORE
+
 REFERENCES = REFERENCES0 | {
     'ErGe-2M': (0.0, 0.0, 24, 9999999),
     'Mn2O2-3M': (0.0, 0.0, 24, 9999999),
@@ -90,7 +98,7 @@ def workflow():
     """MyQueue workflow."""
     from myqueue.workflow import run
     for name, (_, _, cores, _) in REFERENCES.items():
-        tmax = '1h'
+        tmax = '2h'
         if cores == 24:
             nodename = 'xeon24el8'
         if cores == 40:
@@ -109,7 +117,8 @@ def workflow():
             creates=[f'{name}.json'])
 
 
-def work(name: str, params: dict | None = None) -> None:
+@parallel(name='world')
+def work(name: str, params: dict | None = None, *, world) -> None:
     """Do two steps."""
 
     params = params or PARAMS.copy()

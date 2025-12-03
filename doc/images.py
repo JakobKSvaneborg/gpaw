@@ -14,7 +14,7 @@ def setup(app):
         fro = doc / path.relative_to(data)
         if not fro.is_file():
             print(fro, '->', path)
-            if fro.is_file():
+            if fro.is_symlink():
                 fro.unlink()
             fro.symlink_to(path)
 

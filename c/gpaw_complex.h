@@ -2,7 +2,7 @@
 
 #ifdef __cplusplus
     #include <complex>
-    
+
     // Some headers (lfc.h) are used from both C and C++ code => need a common typedef for complex numbers that works in both C and C++.
     using double_complex = std::complex<double>;
 
@@ -15,7 +15,7 @@
     // Computes the complex base-e exponential of z. Provided for compatibility with C99 code
     inline double_complex cexp(const double_complex& z) { return std::exp(z); }
     // NB: std::exp is not constexpr until C++26
-    
+
 #else
     // C99
     #include <complex.h>

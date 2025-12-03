@@ -39,6 +39,10 @@ Git master branch
   ``parallel_python_interpreter`` in ``siteconfig.py``
   should not be used.
 
+* The FDTD code has been removed.  If this code is important to you,
+  please contact the developers.  You will probably need to port the code
+  to :ref:`newgpaw` in order to use it in the future.
+
 
 Version 25.7.0
 ==============
@@ -572,7 +576,7 @@ Jun 24, 2021: :git:`21.6.0 <../21.6.0>`
   * The observers for :ref:`inducedfield` need now to be defined before
     the kick instead of after it.
 
-  * Corresponding updates for :ref:`qsfdtd` and :ref:`hybridscheme`.
+  * Corresponding updates for ``qsfdtd`` and ``hybridscheme``.
 
 * It is now possible to calculate electronic circular dichroism spectra
   with real-time time-propagation TDDFT.
@@ -1344,7 +1348,7 @@ July 22, 2015: :git:`0.11.0 <../0.11.0>`.
 
 * A :ref:`orbital-free DFT <ofdft>` with PAW transformation is available.
 
-* GPAW can now perform :ref:`electrodynamics` simulations using the
+* GPAW can now perform ``electrodynamics`` simulations using the
   quasistatic finite-difference time-domain (QSFDTD) method.
 
 * BEEF-vdW, mBEEF and mBEEF-vdW functionals added.

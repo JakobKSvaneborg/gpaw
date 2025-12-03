@@ -3,7 +3,7 @@ import re
 import numpy as np
 
 from gpaw import __version__ as version
-from gpaw.mpi import world
+from gpaw.mpi import parallel
 from gpaw.tddft.folding import FoldedFrequencies, Folding
 from gpaw.tddft.units import au_to_as, au_to_eV, au_to_fs, rot_au_to_cgs
 
@@ -326,13 +326,16 @@ def write_spectrum(dipole_moment_file, spectrum_file,
     return folding.envelope(time_t[-1])
 
 
+@parallel(name='world')
 def photoabsorption_spectrum(dipole_moment_file: str,
                              spectrum_file: str,
                              folding: str = 'Gauss',
                              width: float = 0.2123,
                              e_min: float = 0.0,
                              e_max: float = 30.0,
-                             delta_e: float = 0.05):
+                             delta_e: float = 0.05,
+                             *,
+                             world):
     """Calculates photoabsorption spectrum from the time-dependent
     dipole moment.
 
@@ -375,9 +378,12 @@ def photoabsorption_spectrum(dipole_moment_file: str,
               % spectrum_file)
 
 
+@parallel(name='world')
 def polarizability_spectrum(dipole_moment_file, spectrum_file,
                             folding='Gauss', width=0.2123,
-                            e_min=0.0, e_max=30.0, delta_e=0.05):
+                            e_min=0.0, e_max=30.0, delta_e=0.05,
+                            *,
+                            world):
     """Calculates polarizability spectrum from the time-dependent
     dipole moment.
 
@@ -415,9 +421,12 @@ def polarizability_spectrum(dipole_moment_file, spectrum_file,
               % spectrum_file)
 
 
+@parallel(name='world')
 def rotatory_strength_spectrum(magnetic_moment_files, spectrum_file,
                                folding='Gauss', width=0.2123,
-                               e_min=0.0, e_max=30.0, delta_e=0.05):
+                               e_min=0.0, e_max=30.0, delta_e=0.05,
+                               *,
+                               world):
     """Calculates rotatory strength spectrum from the time-dependent
     magnetic moment.
 

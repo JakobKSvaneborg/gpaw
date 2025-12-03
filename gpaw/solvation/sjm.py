@@ -722,7 +722,7 @@ class OldSJM(OldSolvationGPAW):
                 'background_charge': self.density.background_charge.mask_g,
                 'potential': (self.hamiltonian.vHt_g * Ha -
                               self.get_fermi_level())}
-        if not os.path.exists(path) and gpaw.mpi.world.rank == 0:
+        if not os.path.exists(path) and self.world.rank == 0:
             os.makedirs(path)
         for prop in props:
             if style == 'z':
@@ -1072,7 +1072,8 @@ class SJMPower12Potential(Power12Potential):
 
     def __init__(self, atomic_radii=None, u0=0.180, pbc_cutoff=1e-6,
                  tiny=1e-10, H2O_layer=False,
-                 unsolv_backside=True, communicator=gpaw.mpi.world):
+                 unsolv_backside=True, communicator=None):
+        communicator = gpaw.mpi.normalize_communicator(communicator)
         super().__init__(atomic_radii, u0, pbc_cutoff, tiny)
         self.H2O_layer = H2O_layer
         self.unsolv_backside = unsolv_backside

@@ -117,19 +117,19 @@ class TB09Kernel:
 
 class TB09(MGGA):
     def __init__(self, c=None, stencil=2):
-        MGGA.__init__(self, TB09Kernel(c), stencil=stencil)
+        super().__init__(TB09Kernel(c), stencil=stencil)
 
     def get_setup_name(self):
         return 'LDA'
 
     def initialize(self, dens, ham, wfs):
-        MGGA.initialize(self, dens, ham, wfs)
+        super().initialize(dens, ham, wfs)
         self.kernel.world = wfs.world
         self.kernel.gd = dens.finegd
         self.kernel.lapl = Laplace(dens.finegd)
 
     def create_mgga_radial_calculator(self):
-        rcalc = MGGA.create_mgga_radial_calculator(self)
+        rcalc = super().create_mgga_radial_calculator()
 
         def f(rgd, n_sLg, Y_L, dndr_sLg, rnablaY_Lv, n):
             self.kernel.n_sLg = n_sLg
@@ -139,8 +139,8 @@ class TB09(MGGA):
 
         return f
 
-    def apply_orbital_dependent_hamiltonian(self, kpt, psit_xG,
-                                            Htpsit_xG, dH_asp):
+    def apply_orbital_dependent_hamiltonian(
+            self, kpt, psit_xG, Htpsit_xG, dH_asp):
         pass
 
     @property

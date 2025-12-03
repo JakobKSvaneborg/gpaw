@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from gpaw.eigensolvers.eigensolver import Eigensolver
+from gpaw.old.eigensolvers.eigensolver import Eigensolver
 from gpaw.old.matrix_descriptor import MatrixDescriptor
 
 

@@ -43,9 +43,10 @@ class KSSingles(ExcitationList):
     def __init__(self,
                  restrict={},
                  log=None,
-                 txt=None):
-        ExcitationList.__init__(self, log=log, txt=txt)
-        self.world = mpi.world
+                 txt=None,
+                 world=None):
+        super().__init__(log=log, txt=txt)
+        self.world = mpi.normalize_communicator(world)
 
         self.restrict = KSSRestrictor()
         self.restrict.update(restrict)
@@ -384,7 +385,7 @@ class KSSingle(Excitation, PairDensity):
         # normal entry
 
         PairDensity.__init__(self, paw)
-        PairDensity.initialize(self, kpt, iidx, jidx)
+        super().initialize(kpt, iidx, jidx)
 
         self.pspin = pspin
 

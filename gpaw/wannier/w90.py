@@ -129,7 +129,7 @@ class Wannier90Functions(WannierFunctions):
     def __init__(self,
                  atoms: Atoms,
                  centers):
-        WannierFunctions.__init__(self, atoms, centers, 0.0, [])
+        super().__init__(atoms, centers, 0.0, [])
 
 
 def read_wout_all(fileobj: IO[str]) -> dict[str, Any]:

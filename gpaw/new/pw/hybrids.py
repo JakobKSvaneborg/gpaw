@@ -80,7 +80,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
            log: Logger | None = None,
            forces: bool = False) -> tuple[list[Psit], int]:
     """Compute BZ from IBZ and distribute."""
-    log = log or Logger(None)
+    log = log or Logger(None, None)
     nocc = number_of_non_empty_bands(ibzwfs)
     nspins = ibzwfs.nspins
     ibz = ibzwfs.ibz
@@ -273,7 +273,7 @@ class PWHybridHamiltonian(PWHamiltonian):
 
         evv = 0.0  # valence-valence contribution
         evc = 0.0  # valence-core contribution
-        V_aii = {}
+        V_aii = D_aii.new()
         for a, D_ii in D_aii.items():
             VV_ii = pawexxvv(self.VV_app[a], D_ii)
             VC_ii = self.VC_aii[a]
@@ -284,18 +284,25 @@ class PWHybridHamiltonian(PWHamiltonian):
                 ev = (D_ii * VV_ii).sum()
                 evv -= ev
                 evc -= ec
-            elif F1_av is not None:
-                for psit in self.mypsits:
-                    dP_anvi = psit.dP_anvi
-                    assert dP_anvi is not None
-                    F1_av[a] += 2 / self.nbzk * domain_comm.size * np.einsum(
-                        'ni, nvi, n -> v',
-                        psit.P_ani[a] @ V_ii,
-                        dP_anvi[a].conj(),
-                        psit.f_n).real
+
+        # distribute V_aii
+        V2_aii = V_aii.gather(broadcast=True)
+
         if calculate_energy:
             evv = domain_comm.sum_scalar(evv) * self.kpt_comm.size * kweight
             evc = domain_comm.sum_scalar(evc) * self.kpt_comm.size * kweight
+        elif F1_av is not None:
+            for a, V_ii in V2_aii.items():
+                for psit in self.mypsits:
+                    dP_anvi = psit.dP_anvi
+                    assert dP_anvi is not None
+                    force_v = np.einsum('ni, nvi, n -> v',
+                                        psit.P_ani[a] @ V_ii,
+                                        dP_anvi[a].conj(),
+                                        psit.f_n).real
+                    force_v = 2 / self.nbzk * force_v
+                    F1_av[a] += force_v
+
         ekin = -evc - 2 * evv
 
         e = self._apply1(spin, D_aii, pt_aiG,
@@ -356,7 +363,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                         data = (psit2_nG, P2_ani, f_n, spin, kweight)
 
                 rank = (brank + krank * band_comm.size) * domain_comm.size
-                psit2_nG, P2_ani, f2_n, s, w = broadcast(data, rank, comm)
+                psit2_nG, P2_ani, f2_n, s, w = broadcast(data, rank, comm=comm)
                 V_nG = psit2_nG.new()
                 V_nG.data[:] = 0.0
                 V_ani = P2_ani.new()

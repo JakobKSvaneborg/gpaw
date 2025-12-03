@@ -13,4 +13,4 @@ Electrostatics and -dynamics
    muonsites/mnsi
    continuum_solvent_model/continuum_solvent_model
    sjm/solvated_jellium_method
-   polarizabilty/polarizabilty
+   polarizability/polarizability

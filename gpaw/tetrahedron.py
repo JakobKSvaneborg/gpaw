@@ -144,7 +144,7 @@ class TetrahedronMethod(OccupationNumberCalculator):
         IBZ k-point indices must be given.
         """
 
-        OccupationNumberCalculator.__init__(self, parallel_layout)
+        super().__init__(parallel_layout)
 
         self.rcell_cv = np.asarray(rcell)
         self.size_c = np.asarray(size)

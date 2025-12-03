@@ -12,7 +12,7 @@ class LB94(XCKernel):
     """
 
     def __init__(self, beta=0.05):
-        XCKernel.__init__(self, 'LDA')
+        super().__init__('LDA')
         self.name = 'LB94'
         self.type = 'GGA'
         self.beta = beta
@@ -20,7 +20,7 @@ class LB94(XCKernel):
     def calculate(self, e_g, n_sg, dedn_sg,
                   sigma_xg=None, dedsigma_xg=None,
                   tau_sg=None, dedtau_sg=None):
-        XCKernel.calculate(self, e_g, n_sg, dedn_sg, sigma_xg, dedsigma_xg)
+        super().calculate(e_g, n_sg, dedn_sg, sigma_xg, dedsigma_xg)
         for s, n_g in enumerate(n_sg):
             n_g = n_g * len(n_sg)
             n_g[n_g < 1e-10] = 1e-10

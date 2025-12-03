@@ -3,11 +3,12 @@ from ase.parallel import parprint
 from ase.units import Ha, J, _e, _hbar
 from ase.utils.timing import Timer
 
-from gpaw.mpi import world
+from gpaw.mpi import parallel
 from gpaw.nlopt.matrixel import get_derivative, get_rml
 from gpaw.utilities.progressbar import ProgressBar
 
 
+@parallel(name='world')
 def get_shift(
         nlodata,
         freqs=[1.0],
@@ -16,7 +17,9 @@ def get_shift(
         eshift=0.0,
         ftol=1e-4, Etol=1e-6,
         band_n=None,
-        out_name='shift.npy'):
+        out_name='shift.npy',
+        *,
+        world):
     """
     Calculate RPA shift current for nonmagnetic semiconductors.
 
@@ -46,7 +49,8 @@ def get_shift(
 
     # Start a timer
     timer = Timer()
-    parprint(f'Calculating shift current (in {world.size:d} cores).')
+    parprint(f'Calculating shift current (in {world.size:d} cores).',
+             comm=world)
 
     # Covert inputs in eV to Ha
     nw = len(freqs)
