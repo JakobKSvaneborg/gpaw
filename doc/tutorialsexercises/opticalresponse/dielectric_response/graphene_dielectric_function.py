@@ -37,7 +37,7 @@ atoms.calc = calc
 atoms.get_potential_energy()
 calc.write('gs.gpw')
 
-kpts = find_high_symmetry_monkhorst_pack('gs.gpw', density=30)
+kpts = find_high_symmetry_monkhorst_pack(atoms, density=30)
 responseGS = GPAW('gs.gpw').fixed_density(
     kpts=kpts,
     parallel={'band': 1},
