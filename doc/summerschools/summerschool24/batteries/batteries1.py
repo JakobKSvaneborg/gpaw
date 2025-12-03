@@ -50,7 +50,7 @@ In the sections below we will calculate the lowest energy structures of each com
 
 # %%
 """
-To try some of the methods that we are going to use we will start out by utilizing the interatomic potential [EMT](https://wiki.fysik.dtu.dk/ase/ase/calculators/emt.html) (Effective Medium Theory) calculator. This will allow to quickly test some of the optimization procedures in ASE, and ensure that the scripts do what they are supposed to, before we move on to the more precise and time consuming DFT calculations. Initially we will calculate the C-C distance and interlayer spacing in graphite in a two step procedure.
+To try some of the methods that we are going to use we will start out by utilizing the interatomic potential [EMT](https://ase-lib.org/ase/calculators/emt.html) (Effective Medium Theory) calculator. This will allow to quickly test some of the optimization procedures in ASE, and ensure that the scripts do what they are supposed to, before we move on to the more precise and time consuming DFT calculations. Initially we will calculate the C-C distance and interlayer spacing in graphite in a two step procedure.
 """
 
 # %%
@@ -162,7 +162,6 @@ Make a script that calculates the interlayer distance with EMT in the cell below
 # This script will calculate the energy of graphite for a series of inter-layer distances.
 from ase.calculators.emt import EMT
 from ase.lattice.hexagonal import Graphite
-from ase.eos import EquationOfState
 import numpy as np
 
 # ccdist is already defined in the previous cell
@@ -257,7 +256,7 @@ n = calcname + '.log'
 
 # %%
 """
-Then we optimize the unit cell of the structure. We will take advantage of the [StrainFilter](https://wiki.fysik.dtu.dk/ase/ase/constraints.html#the-strainfilter-class) class. This allows us to simultaneously optimize both C-C distance and interlayer distance. We employ the [BFGS](https://aria42.com/blog/2014/12/understanding-lbfgs) algorithm to minimize the strain on the unit cell.
+Then we optimize the unit cell of the structure. We will take advantage of the [StrainFilter](https://ase-lib.org/ase/constraints.html#the-strainfilter-class) class. This allows us to simultaneously optimize both C-C distance and interlayer distance. We employ the [BFGS](https://aria42.com/blog/2014/12/understanding-lbfgs) algorithm to minimize the strain on the unit cell.
 """
 
 # %%
@@ -366,7 +365,7 @@ Check the status of the calculation by running the cell below. The column with `
 
 # %%
 """
-When the calculation finishes the result can be interpreted by [reading](https://wiki.fysik.dtu.dk/ase/ase/io/io.html#ase.io.read) in the Atoms object. This assumes that the trajectory file is called: `graphite-LDA.traj`, if not change accordingly.
+When the calculation finishes the result can be interpreted by [reading](https://ase-lib.org/ase/io/io.html#ase.io.read) in the Atoms object. This assumes that the trajectory file is called: `graphite-LDA.traj`, if not change accordingly.
 """
 
 # %%
@@ -403,10 +402,10 @@ view(relaxation)
 Now we need to calculate the energy of Li metal. We will use the same strategy as for graphite, i.e. first determine the lattice constant, then use the energy of that structure. This time though you will have to do most of the work.
 
 Some hints:
-1. The crystal structure of Li metal is shown in the image above. That structure is easily created with one of the functions in the [ase.build](https://wiki.fysik.dtu.dk/ase/ase/build/build.html) module
+1. The crystal structure of Li metal is shown in the image above. That structure is easily created with one of the functions in the [ase.build](https://ase-lib.org/ase/build/build.html) module
 2. A k-point density of approximately 2.4 points / Angstrom will be sufficient
-3. The DFTD3 correction is done _a posteriori_, this means the calculator should be created a little differently, see [the second example here](https://wiki.fysik.dtu.dk/ase/ase/calculators/dftd3.html#examples)
-4. See also the [equation of state module](https://wiki.fysik.dtu.dk/ase/ase/eos.html)
+3. The DFTD3 correction is done _a posteriori_, this means the calculator should be created a little differently, see [the second example here](https://ase-lib.org/ase/calculators/dftd3.html#examples)
+4. See also the [equation of state module](https://ase-lib.org/ase/eos.html)
 
 In the end try to compare the different functionals with experimental values:
 
@@ -421,8 +420,7 @@ In the end try to compare the different functionals with experimental values:
 # Teacher
 
 from ase import Atoms
-from gpaw import GPAW, FermiDirac, PW
-from ase.optimize import QuasiNewton
+from gpaw import GPAW, PW
 from ase.build import bulk
 from ase.calculators.dftd3 import DFTD3
 from ase.filters import StrainFilter
@@ -575,7 +573,6 @@ In the calculation of the intercalated Li we used a graphene layer with 8 Carbon
 """
 
 # %%
-from ase import Atoms
 from ase.visualize import view
 
 ccdist = 1.40

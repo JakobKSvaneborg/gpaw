@@ -1,22 +1,25 @@
 from __future__ import annotations
+
 import functools
 from io import StringIO
 from math import pi, sqrt
+
 import ase.units as units
 import numpy as np
 from ase.data import chemical_symbols
 
 from gpaw import debug
 from gpaw.basis_data import Basis, BasisFunction
-from gpaw.gaunt import gaunt, nabla
+from gpaw.core.atom_arrays import AtomArraysLayout
+from gpaw.mpi import parallel
+from gpaw.new import zips
 from gpaw.overlap import OverlapCorrections
 from gpaw.setup_data import SetupData, search_for_file
+from gpaw.sphere.gaunt import gaunt, nabla
 from gpaw.spline import Spline
 from gpaw.utilities import pack_density, unpack_hermitian
 from gpaw.xc import XC
-from gpaw.new import zips
 from gpaw.xc.ri.spherical_hse_kernel import RadialHSE
-from gpaw.core.atom_arrays import AtomArraysLayout
 
 
 class WrongMagmomForHundsRuleError(ValueError):
@@ -1249,9 +1252,10 @@ class Setups(list):
     ``core_charge`` Core hole charge.
     """
 
+    @parallel(name='world')
     def __init__(self, Z_a, setup_types, basis_sets, xc, *,
                  filter=None,
-                 world=None,
+                 world,
                  backwards_compatible=True):
         list.__init__(self)
         symbols = [chemical_symbols[Z] for Z in Z_a]
@@ -1367,7 +1371,7 @@ class Setups(list):
         """Find rotation matrices for spherical harmonics."""
         # XXX It is ugly that we set self.atomrotations from here;
         # it would be better to return it to the caller.
-        from gpaw.atomrotations import AtomRotations
+        from gpaw.old.atomrotations import AtomRotations
         self.atomrotations = AtomRotations(self.setups, self.id_a, symmetry)
 
     def empty_atomic_matrix(self, ns, atom_partition, dtype=float):
@@ -1415,12 +1419,13 @@ class Setups(list):
     def create_pseudo_core_ked(self,
                                domain,
                                positions,
-                               atomdist):
+                               atomdist,
+                               xp=np):
         return domain.atom_centered_functions(
             [[setup.tauct] for setup in self],
             positions,
             atomdist=atomdist,
-            cut=True)
+            cut=True, xp=xp)
 
     def create_local_potentials(self, domain, positions, atomdist, xp=np):
         return domain.atom_centered_functions(
@@ -1452,6 +1457,16 @@ class Setups(list):
             dS_ii[:] = self[a].dO_ii
         self.dS_aii = dS_aii.to_xp(xp)
         return self.dS_aii
+
+    def inverse_overlap_correction(self, P_ani, out_ani):
+        if len(P_ani.dims) == 2:  # (band, spinor)
+            subscripts = 'nsi, ij -> nsj'
+        else:
+            subscripts = 'ni, ij -> nj'
+        for (a, P_ni), out_ni in zip(P_ani.items(), out_ani.values()):
+            dC_ii = self[a].dC_ii
+            np.einsum(subscripts, P_ni, dC_ii, out=out_ni)
+        return out_ani
 
     def partial_wave_corrections(self) -> list[list[Spline]]:
         splines: dict[Setup, list[Spline]] = {}

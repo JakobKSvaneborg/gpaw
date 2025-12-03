@@ -1,19 +1,7 @@
 import pytest
 
 from gpaw.core import PWDesc, UGDesc
-from gpaw.mpi import world
-
-
-def comms():
-    """Yield communicator combinations."""
-    for s in [1, 2, 4, 8]:
-        if s > world.size:
-            return
-        domain_comm = world.new_communicator(
-            range(world.rank // s * s, world.rank // s * s + s))
-        band_comm = world.new_communicator(
-            range(world.rank % s, world.size, s))
-        yield domain_comm, band_comm
+from gpaw.core.matrix import Matrix
 
 
 def func(f):
@@ -24,11 +12,11 @@ def func(f):
 
 
 # TODO: test also UGArray
-@pytest.mark.parametrize('domain_comm, band_comm', list(comms()))
 @pytest.mark.parametrize('dtype', [float, complex])
 @pytest.mark.parametrize('nbands', [1, 7, 21])
 @pytest.mark.parametrize('function', [None, func])
-def test_me(domain_comm, band_comm, dtype, nbands, function):
+def test_me(domain_band_comms, dtype, nbands, function):
+    domain_comm, band_comm = domain_band_comms
     a = 2.5
     n = 20
     grid = UGDesc(cell=[a, a, a], size=(n, n, n))
@@ -36,8 +24,11 @@ def test_me(domain_comm, band_comm, dtype, nbands, function):
     desc = desc.new(comm=domain_comm, dtype=dtype)
     f = desc.empty(nbands, comm=band_comm)
     f.randomize()
+
     M = f.matrix_elements(f, function=function)
-    print(M)
+    out = Matrix(nbands, nbands, dist=(band_comm, -1, 1), dtype=dtype)
+    out.data[:] = 1e308  # will overflow when multiplied by 2
+    f.matrix_elements(f, function=function, out=out)
 
     f1 = f.gathergather()
     M2 = M.gather()
@@ -62,8 +53,3 @@ def test_me(domain_comm, band_comm, dtype, nbands, function):
             M2.tril2full()
             dM = M1.data - M2.data
             assert abs(dM).max() < 1e-11
-
-
-if __name__ == '__main__':
-    d, b = list(comms())[0]
-    test_me(d, b, float, 4, None)

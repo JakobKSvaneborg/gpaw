@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
 
+from gpaw.core import UGDesc
 from gpaw.new.pot_calc import calculate_non_local_potential1
 from gpaw.new.xc import create_functional
 from gpaw.setup import create_setup
-from gpaw.core import UGDesc
 from gpaw.xc import XC
 
 
@@ -34,7 +34,7 @@ def test_energy_from_complex_densmat():
 
     def calc_energies(D_sii):
         _, energies = calculate_non_local_potential1(
-            setup, xc, D_sii, np.zeros(1), soc)
+            setup, xc, D_sii, np.zeros(1), soc, [], 0)
         return energies
 
     energies1 = calc_energies(D_sii)

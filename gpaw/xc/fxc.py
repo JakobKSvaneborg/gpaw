@@ -1,23 +1,26 @@
 from abc import ABC, abstractmethod
-from time import time
 from pathlib import Path
+from time import time
 
 import ase.io.ulm as ulm
 import numpy as np
 from ase.units import Ha
-from gpaw.response import timer
 from scipy.special import p_roots, sici
 
 from gpaw.blacs import BlacsGrid, Redistributor
 from gpaw.fd_operators import Gradient
-from gpaw.kpt_descriptor import KPointDescriptor
-from gpaw.pw.descriptor import PWDescriptor
-from gpaw.response.pair_functions import SingleQPWDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
+from gpaw.old.pw.descriptor import PWDescriptor
+from gpaw.response import timer
+from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.utilities.blas import axpy, gemmdot
+from gpaw.xc.fxc_kernels import (get_fHxc_Gr, get_fspinHxc_Gr_rALDA,
+                                 get_fspinHxc_Gr_rAPBE, get_pbe_fxc)
 from gpaw.xc.rpa import RPACorrelation
-from gpaw.heg import HEG
-from gpaw.xc.fxc_kernels import (
-    get_fHxc_Gr, get_pbe_fxc, get_fspinHxc_Gr_rALDA, get_fspinHxc_Gr_rAPBE)
+
+
+def heg_rs2qF(rs: float) -> float:
+    return (9.0 * np.pi / 4.0)**(1.0 / 3.0) / rs
 
 
 def get_chi0v_spinsum(chi0_sGG, G_G):
@@ -633,8 +636,7 @@ class KernelWave(KernelIntegrator):
     def get_fHxc_q(self, rs, q, Gphase, s2_g):
         # Construct fHxc(q,G,:), divided by scaled Coulomb interaction
 
-        heg = HEG(rs)
-        qF = heg.qF
+        qF = heg_rs2qF(rs)
 
         fHxc_Gr = get_fHxc_Gr(self.xcflags, rs, q, qF, s2_g)
 
@@ -644,7 +646,7 @@ class KernelWave(KernelIntegrator):
         return fHxc_GG
 
     def get_spinfHxc_q(self, rs, q, Gphase, s2_g):
-        qF = HEG(rs).qF
+        qF = heg_rs2qF(rs)
 
         if self.xc == 'rALDA':
             fspinHxc_Gr = get_fspinHxc_Gr_rALDA(qF, q)

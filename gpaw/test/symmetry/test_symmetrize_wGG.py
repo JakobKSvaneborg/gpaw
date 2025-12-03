@@ -1,6 +1,8 @@
-from gpaw.cgpaw import GG_shuffle
-import numpy as np
 import time
+
+import numpy as np
+
+from gpaw.cgpaw import GG_shuffle
 
 
 def test_GG_shuffle(rng):

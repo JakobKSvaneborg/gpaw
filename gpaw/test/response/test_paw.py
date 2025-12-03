@@ -1,36 +1,28 @@
-import numpy as np
-import pytest
 from functools import partial
 
+import numpy as np
+import pytest
 from ase.units import Ha
-from ase.data import chemical_symbols
 
 from gpaw.response import ResponseGroundStateAdapter
-from gpaw.response.pair_functions import SingleQPWDescriptor
 from gpaw.response.groundstate import ResponsePAWDataset
-from gpaw.response.paw import (calculate_pair_density_correction,
-                               calculate_matrix_element_correction)
-from gpaw.response.site_paw import calculate_site_matrix_element_correction
 from gpaw.response.localft import add_LSDA_trans_fxc
-
+from gpaw.response.paw import (calculate_matrix_element_correction,
+                               calculate_pair_density_correction)
+from gpaw.response.qpd import SingleQPWDescriptor
+from gpaw.response.site_paw import calculate_site_matrix_element_correction
 from gpaw.setup import create_setup
 from gpaw.sphere.rshe import calculate_reduced_rshe
 
 
-def setups():
-    for symbol in chemical_symbols:
-        try:
-            setup = create_setup(symbol)
-        except FileNotFoundError:
-            pass
-        else:
-            yield setup
-
-
 @pytest.mark.response
 @pytest.mark.serial
-@pytest.mark.parametrize('setup', setups())
-def test_paw_corrections(setup):
+@pytest.mark.parametrize(
+    'symbol',
+    ['H', 'Li', 'O', 'Si', 'Fe', 'Mo', 'In', 'I', 'Au', 'Hg', 'Pb',
+     'La', 'Dy', 'Er'])
+def test_paw_corrections(symbol):
+    setup = create_setup(symbol)
     radial_points = 2**10
     if setup.symbol in {'I', 'Hg', 'Pb'}:
         # More points where needed, for performance.

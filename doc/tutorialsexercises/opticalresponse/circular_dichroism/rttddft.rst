@@ -19,12 +19,13 @@ We recall that the CD-LCAO calculations are in general
 :ref:`sensitive to the used basis sets <note basis sets>`,
 so we will demonstrate how to construct augmented basis sets,
 and compare them to standard basis sets. Additionally, a choice of gauge
-is essential. GPAW provides two possibilites, which are selected by providing
+is essential. GPAW provides two possibilities, which are selected by providing
 either ``gauge='length'`` (default) or ``gauge='velocity'`` keyword argument to
-the ``absorption_kick``-method. 
+the ``absorption_kick``-method.
 
 We augment the default dzp basis sets with
-numerical Gaussian-type orbitals (NGTOs):
+numerical Gaussian-type orbitals (NGTOs),
+for details see :ref:`augmented basis set generation <aug in lcao>` :
 
 .. literalinclude:: lcao/basis.py
 

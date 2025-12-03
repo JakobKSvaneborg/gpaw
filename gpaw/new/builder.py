@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import warnings
 from functools import cached_property
 from types import ModuleType, SimpleNamespace
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
+from ase.geometry.cell import cell_to_cellpar
 from ase.units import Bohr
+
+from gpaw import GPAW_CPUPY, GPAW_USE_GPUS
 from gpaw.core import UGDesc
 from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
                                    AtomDistribution)
@@ -16,8 +20,8 @@ from gpaw.gpu import cpupy as fake_cupy
 from gpaw.gpu.mpi import CuPyMPI
 from gpaw.lfc import BasisFunctions
 from gpaw.mixer import MixerWrapper, get_mixer_from_keywords
-from gpaw.mpi import (broadcast, MPIComm, Parallelization, serial_comm,
-                      synchronize_atoms, world)
+from gpaw.mpi import (MPIComm, Parallelization, broadcast,
+                      normalize_communicator, serial_comm, synchronize_atoms)
 from gpaw.new import prod
 from gpaw.new.basis import create_basis
 from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints
@@ -32,7 +36,7 @@ from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.typing import Array2D, ArrayLike1D, ArrayLike2D, DTypeLike
 from gpaw.utilities.gpts import get_number_of_grid_points
-from gpaw import GPAW_USE_GPUS, GPAW_CPUPY
+
 if TYPE_CHECKING:
     from gpaw.dft import Parameters
 
@@ -43,17 +47,25 @@ class DFTComponentsBuilder:
                  params: Parameters,
                  *,
                  log=None,
-                 comm=None):
+                 comm=None,
+                 world=None):
+        from gpaw.gpu import set_device
 
         self.atoms = atoms.copy()
         self.mode = params.mode.name
         self.params = params
         if not isinstance(log, Logger):
             log = Logger(log, comm)
+
         self.log = log
         comm = log.comm
 
         parallel = params.parallel
+        if self.gpu:
+            # XXX We should not be setting globals inside library code.
+            # It should probably be set by main().
+            world = normalize_communicator(world)
+            set_device(log, world)
 
         synchronize_atoms(atoms, comm)
         self.check_cell(atoms.cell)
@@ -65,7 +77,16 @@ class DFTComponentsBuilder:
         self.nspins = self.ncomponents % 3
         self.spin_degeneracy = self.ncomponents % 2 + 1
 
-        xcfunc = params.xc.functional(collinear=(self.ncomponents < 4))
+        self.relpos_ac = self.atoms.get_scaled_positions()
+        self.relpos_ac %= 1
+        self.relpos_ac %= 1  # yes, we need to do this twice!
+
+        xcfunc = params.xc.functional(collinear=(self.ncomponents < 4),
+                                      atoms=self.atoms)
+
+        if self.ncomponents == 4 and xcfunc.type != 'LDA':
+            raise ValueError('Only LDA supported for '
+                             'SC Non-collinear calculations')
 
         self._backwards_comatible = params.experimental.get(
             'backwards_compatible', True)
@@ -106,8 +127,9 @@ class DFTComponentsBuilder:
         d = parallel.get('domain', 1 if xcfunc.type == 'HYB' else None)
         k = parallel.get('kpt', None)
         b = parallel.get('band', None)
-        self.communicators = create_communicators(comm, len(self.ibz),
-                                                  d, k, b, self.xp)
+        self.communicators = create_communicators(
+            comm, len(self.ibz) * self.nspins,
+            d, k, b, self.xp)
 
         if self.mode == 'fd':
             pass  # filter = create_fourier_filter(grid)
@@ -135,10 +157,6 @@ class DFTComponentsBuilder:
 
         self.grid, self.fine_grid = self.create_uniform_grids()
 
-        self.relpos_ac = self.atoms.get_scaled_positions()
-        self.relpos_ac %= 1
-        self.relpos_ac %= 1  # yes, we need to do this twice!
-
         self.xc = create_functional(xcfunc, self.fine_grid, self.xp)
 
         self.interpolation_desc: Domain
@@ -148,13 +166,15 @@ class DFTComponentsBuilder:
         return f'{self.__class__.__name__}({self.atoms}, {self.params})'
 
     def get_extensions(self):
-        return [ext.build(self.atoms,
-                          self.communicators,
-                          self.log) for ext in self.params.extensions]
+        return [ext.build(self) for ext in self.params.extensions]
+
+    @cached_property
+    def charge(self) -> float:
+        return self.setups.core_charge + self.params.charge
 
     @cached_property
     def nelectrons(self) -> float:
-        return self.setups.nvalence - self.params.charge
+        return self.setups.nvalence - self.charge
 
     @cached_property
     def atomdist(self) -> AtomDistribution:
@@ -171,6 +191,17 @@ class DFTComponentsBuilder:
             raise ValueError(
                 'GPAW requires 3 lattice vectors.  '
                 f'Your system has {number_of_lattice_vectors}.')
+        angles = cell_to_cellpar(cell)[3:]
+        if not all(40.0 < a < 140.0 for a in angles):
+            a, b, c = angles
+            warnings.warn(
+                'The angles between your unit-cell vectors are '
+                f'{a:.1f}, {b:.1f} and {c:.1f} degrees.  '
+                'Results may be wrong!  '
+                'Please Niggli-reduce your unit-cell so that the angles '
+                'are closer to 90 degrees:\n\n'
+                '  from ase.build import niggli_reduce\n'
+                '  niggli_reduce(atoms)\n')
 
     @cached_property
     def wf_desc(self) -> Domain:
@@ -228,7 +259,9 @@ class DFTComponentsBuilder:
                             self.relpos_ac,
                             self.communicators['w'],
                             self.communicators['k'],
-                            self.communicators['b'])
+                            self.communicators['b'],
+                            self.xp,
+                            gpu_add_and_integrate=False)
 
     def density_from_superposition(self, basis_set):
         return Density.from_superposition(
@@ -240,7 +273,7 @@ class DFTComponentsBuilder:
             basis_set=basis_set,
             magmom_av=self.initial_magmom_av,
             ncomponents=self.ncomponents,
-            charge=self.params.charge,
+            charge=self.charge,
             hund=self.params.hund,
             mgga=self.xc.type == 'MGGA')
 
@@ -254,7 +287,25 @@ class DFTComponentsBuilder:
             self.initial_magmom_av.sum(0),
             self.ncomponents,
             self.nelectrons,
-            np.linalg.inv(self.atoms.cell.complete()).T)
+            np.linalg.inv(self.atoms.cell.complete()).T,
+            orbital_free=any(setup.orbital_free for setup in self.setups))
+
+    def create_poisson_solver(self, extensions):
+        poisson_solvers = []
+        for ext in extensions:
+            ps = ext.create_poisson_solver(
+                self.fine_grid,
+                pw=self.electrostatic_potential_desc,
+                charge=self.charge,
+                xp=self.xp)
+            if ps is not None:
+                poisson_solvers.append(ps)
+        if not poisson_solvers:
+            raise NotImplementedError
+        assert len(poisson_solvers) == 1
+        psparams = self.params.poissonsolver.params
+        assert not psparams
+        return poisson_solvers[0]
 
     def create_ibz_wave_functions(self,
                                   basis: BasisFunctions,
@@ -318,7 +369,7 @@ class DFTComponentsBuilder:
                 dims = [self.nbands, 2]
                 index = (wfs.k,)
 
-            wfs._eig_n = eig_skn[index] / ha
+            wfs.eig_n = eig_skn[index] / ha
             wfs._occ_n = occ_skn[index]
             layout = AtomArraysLayout([(setup.ni,) for setup in self.setups],
                                       atomdist=self.atomdist,
@@ -353,20 +404,14 @@ class DFTComponentsBuilder:
             ibzwfs.fermi_levels = np.array(
                 [reader.occupations.fermilevel / ha])
 
-    def create_environment(self, grid):
-        return self.params.environment.build(
-            setups=self.setups,
-            grid=grid, relpos_ac=self.relpos_ac, log=self.log,
-            comm=self.communicators['w'])
 
-
-def create_communicators(comm: MPIComm = None,
+def create_communicators(comm: MPIComm,
                          nibzkpts: int = 1,
                          domain: int | tuple[int, int, int] | None = None,
                          kpt: int = None,
                          band: int = None,
                          xp: ModuleType = np) -> dict[str, MPIComm]:
-    parallelization = Parallelization(comm or world, nibzkpts)
+    parallelization = Parallelization(comm, nibzkpts)
     if domain is not None and not isinstance(domain, int):
         domain = prod(domain)
     parallelization.set(kpt=kpt,

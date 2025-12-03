@@ -1,11 +1,13 @@
 """This module defines Coulomb and XC kernels for the response model.
 """
 import warnings
+
 import numpy as np
 from ase.dft import monkhorst_pack
-from gpaw.response.pair_functions import SingleQPWDescriptor
+
+from gpaw.old.kpt_descriptor import to1bz
 from gpaw.response.dyson import PWKernel
-from gpaw.kpt_descriptor import to1bz
+from gpaw.response.qpd import SingleQPWDescriptor
 
 
 class NewCoulombKernel(PWKernel):
@@ -145,7 +147,8 @@ def calculate_2D_truncated_coulomb(qpd, q_v=None, *, pbc_c):
 
 def get_integrated_kernel(qpd, N_c, truncation=None,
                           reduced=False, tofirstbz=False, *, pbc_c, N):
-    from scipy.special import j1, k0, j0, k1  # type: ignore
+    from scipy.special import j0, j1, k0, k1  # type: ignore
+
     # ignore type hints for the above import
     B_cv = 2 * np.pi * qpd.gd.icell_cv
     Nf_c = np.array([N, N, N])

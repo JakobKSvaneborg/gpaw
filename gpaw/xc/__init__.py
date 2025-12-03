@@ -6,7 +6,6 @@ from gpaw.xc.libxc import LibXC
 from gpaw.xc.mgga import MGGA
 from gpaw.xc.noncollinear import NonCollinearLDAKernel
 
-
 libraries = get_libraries()
 
 
@@ -50,7 +49,7 @@ def XC(kernel,
     See xc_funcs.h for the complete list.
 
     Warning - if an MGGA from libxc is used, libxc should be compiled
-    with --disable-fhc. Otherwise the calcualtions won't converge"""
+    with --disable-fhc. Otherwise the calculations won't converge"""
 
     if isinstance(kernel, str):
         kernel = xc_string_to_dict(kernel)
@@ -72,7 +71,7 @@ def XC(kernel,
             # HSExx, since otherwise PWHybrid would hijack the control flow.
             from gpaw.xc.ri import RI
             return RI(name, **kwargs)
-        elif backend == 'pw' or name in ['HSE03', 'HSE06']:
+        elif backend == 'pw' or name in ['HSE03', 'HSE06', 'YS-PBE0']:
             from gpaw.hybrids import HybridXC
             return HybridXC(name, **kwargs)  # type: ignore
         elif backend:

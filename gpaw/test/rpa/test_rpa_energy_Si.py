@@ -1,6 +1,7 @@
 import pytest
-from gpaw.mpi import serial_comm
+
 from gpaw import GPAW
+from gpaw.mpi import serial_comm
 from gpaw.xc.rpa import RPACorrelation
 
 

@@ -1,34 +1,28 @@
 """Module for linear response TDDFT class with indexed K-matrix storage."""
 
-import os
 import datetime
 import glob
+import os
 
 import numpy as np
-
 from ase.units import Hartree
 from ase.utils import IOContext
 
+# Matrix Kip,jq <ia|f_Hxc|jq>
+from gpaw.lrtddft2.k_matrix import Kmatrix
+# a list of KS determinants with single occ-uncc excitations
+from gpaw.lrtddft2.ks_singles import KohnShamSingles
+# communicators
+from gpaw.lrtddft2.lr_communicators import LrCommunicators
+# a linear combination of KS single determinants
+# for a CW laser with Lorentzian width (in energy)
+from gpaw.lrtddft2.lr_response import LrResponse
+# a set of linear combinations of KS single determinants
+from gpaw.lrtddft2.lr_transitions import LrtddftTransitions
 from gpaw.xc import XC
 
 # a KS determinant with a single occ-uncc excitation
 # from gpaw.lrtddft2.ks_singles import KohnShamSingleExcitation
-
-# a list of KS determinants with single occ-uncc excitations
-from gpaw.lrtddft2.ks_singles import KohnShamSingles
-
-# Matrix Kip,jq <ia|f_Hxc|jq>
-from gpaw.lrtddft2.k_matrix import Kmatrix
-
-# a set of linear combinations of KS single determinants
-from gpaw.lrtddft2.lr_transitions import LrtddftTransitions
-
-# a linear combination of KS single determinants
-# for a CW laser with Lorentzian width (in energy)
-from gpaw.lrtddft2.lr_response import LrResponse
-
-# communicators
-from gpaw.lrtddft2.lr_communicators import LrCommunicators
 
 
 class LrTDDFT2:
@@ -118,6 +112,7 @@ class LrTDDFT2:
             self.max_energy_diff = None
         self.recalculate = recalculate
         # Don't init calculator yet if it's not needed (to save memory)
+        gs_calc = gs_calc._to_old()
         self.calc = gs_calc
         self.calc_ready = False
 
@@ -312,7 +307,7 @@ class LrTDDFT2:
         Includes population difference.
 
         This method is meant to be used for small number of transitions.
-        It is not suitable for analysing densely packed transitions of
+        It is not suitable for analyzing densely packed transitions of
         large systems. Use transition contribution map (TCM) or similar
         approach for this.
 

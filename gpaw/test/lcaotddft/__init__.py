@@ -1,11 +1,11 @@
 import numpy as np
 
-from gpaw.mpi import world, broadcast_float
 from gpaw.lcaotddft import LCAOTDDFT
-from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
-from gpaw.lcaotddft.wfwriter import WaveFunctionWriter, WaveFunctionReader
 from gpaw.lcaotddft.densitymatrix import DensityMatrix
+from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.lcaotddft.frequencydensitymatrix import FrequencyDensityMatrix
+from gpaw.lcaotddft.wfwriter import WaveFunctionReader, WaveFunctionWriter
+from gpaw.mpi import broadcast_float, world
 from gpaw.tddft.folding import frequencies
 from gpaw.utilities import compiled_with_sl
 
@@ -88,7 +88,7 @@ def check_wfs(wf_ref_fpath, wf_fpath, atol=1e-12):
 
 
 def copy_and_cut_file(src, dst, *, cut_lines=0):
-    with open(src, 'r', encoding='utf-8') as fd:
+    with open(src, encoding='utf-8') as fd:
         lines = fd.readlines()
         if cut_lines > 0:
             lines = lines[:-cut_lines]

@@ -1,11 +1,11 @@
 import json
 import re
-from typing import Tuple
 
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr
 from ase.utils import IOContext
+
 from gpaw.fd_operators import Gradient
 from gpaw.lcaotddft.densitymatrix import DensityMatrix
 from gpaw.lcaotddft.observer import TDDFTObserver
@@ -240,7 +240,7 @@ def get_origin_coordinates(atoms: Atoms,
     return origin_v / Bohr
 
 
-def parse_header(line: str) -> Tuple[str, int, dict]:
+def parse_header(line: str) -> tuple[str, int, dict]:
     """Parse header line.
 
     Example header line (keyword arguments as json):

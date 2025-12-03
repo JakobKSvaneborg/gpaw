@@ -4,10 +4,20 @@
 Running GPU-GPAW with A100 nodes on Niflheim
 ============================================
 
-To get started, make sure you have
-used the virtual environment script ``gpaw_venv.py`` on this page :ref:`Compiling GPAW on Niflheim <build on niflheim>`.
-This will automatically build the latest GPU version of GPAW.
+To get started, you either need to
 
+  * Load a GPU aware GPAW module, e.g. ``GPAW/25.7.0-foss-2025b-CUDA-12.9.1`` (only available on GPU nodes and the
+    corresponding login nodes)
+
+or
+
+  * Build GPAW using the virtual environment script ``gpaw_venv.py``
+    on this page :ref:`Compiling GPAW on Niflheim <build on
+    niflheim>`.  This will automatically build the latest GPU version
+    of GPAW.
+
+Then follow this procedure:
+   
 1. Add A100 nodes to myqueue config.
 
    * Type ``mq info`` to locate the myqueue root, and the config.py file in

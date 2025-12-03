@@ -1,13 +1,12 @@
-import pytest
 import numpy as np
+import pytest
 
-from gpaw import GPAW, LCAO
+from gpaw import GPAW
 from gpaw.directmin.derivatives import Derivatives
-from ase import Atoms
 
 
 @pytest.mark.do
-def test_gradient_numerically_lcao(in_tmp_dir):
+def test_gradient_numerically_lcao(in_tmp_dir, gpw_files):
     """
     test exponential transformation
     direct minimization method for KS-DFT in LCAO
@@ -15,25 +14,8 @@ def test_gradient_numerically_lcao(in_tmp_dir):
     :return:
     """
 
-    atoms = Atoms('H3', positions=[(0, 0, 0),
-                                   (0.59, 0, 0),
-                                   (1.1, 0, 0)])
-    atoms.center(vacuum=2.0)
-    atoms.set_pbc(True)
-    calc = GPAW(mode=LCAO(force_complex_dtype=True),
-                basis='sz(dzp)',
-                h=0.3,
-                spinpol=False,
-                convergence={'eigenstates': 10.0,
-                             'density': 10.0,
-                             'energy': 10.0},
-                occupations={'name': 'fixed-uniform'},
-                eigensolver={'name': 'etdm-lcao',
-                             'matrix_exp': 'egdecomp'},
-                mixer={'backend': 'no-mixing'},
-                nbands='nao',
-                symmetry='off',
-                txt=None)
+    calc = GPAW(gpw_files['h3_do_num_lcao'])
+    atoms = calc.atoms
     atoms.calc = calc
 
     params = [{'name': 'etdm-lcao',

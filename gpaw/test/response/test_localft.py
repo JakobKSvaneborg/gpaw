@@ -3,24 +3,21 @@
 # General modules
 import numpy as np
 import pytest
-
 # Script modules
 from ase.units import Ha
 
-from gpaw import GPAW
 import gpaw.mpi as mpi
-from gpaw.pw.descriptor import PWDescriptor
-from gpaw.kpt_descriptor import KPointDescriptor
-from gpaw.grid_descriptor import GridDescriptor
-from gpaw.lfc import LFC
+from gpaw import GPAW
 from gpaw.atom.radialgd import AERadialGridDescriptor
-
-from gpaw.response import ResponseGroundStateAdapter, ResponseContext
-from gpaw.response.localft import (LocalFTCalculator, MicroSetup,
-                                   add_total_density, add_LSDA_Wxc)
+from gpaw.lfc import LFC
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
+from gpaw.old.pw.descriptor import PWDescriptor
+from gpaw.response import ResponseContext, ResponseGroundStateAdapter
+from gpaw.response.localft import (LocalFTCalculator, MicroSetup, add_LSDA_Wxc,
+                                   add_total_density)
 from gpaw.response.pair_functions import get_pw_coordinates
 from gpaw.test.response.test_site_kernels import get_pw_descriptor
-
 
 # ---------- Test parametrization ---------- #
 

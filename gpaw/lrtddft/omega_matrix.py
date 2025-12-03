@@ -1,15 +1,15 @@
 import numpy as np
-from scipy.linalg import eigh
-
 from ase.units import Hartree
 from ase.utils.timing import Timer
+from scipy.linalg import eigh
 
 import gpaw.mpi as mpi
-from .kssingle import KSSingles
 from gpaw.setup import CachedYukawaInteractions
 from gpaw.transformers import Transformer
 from gpaw.utilities import pack_density
 from gpaw.xc import XC
+
+from .kssingle import KSSingles
 
 """This module defines a Omega Matrix class."""
 
@@ -616,12 +616,13 @@ class OmegaMatrix:
         if fh is None:
             f.close()
 
-    def write(self, filename=None, fh=None):
+    def write(self, filename=None, fh=None, world=None):
         """Write current state to a file."""
         try:
             rank = self.paw.wfs.world.rank
         except AttributeError:
-            rank = mpi.world.rank
+            rank = mpi.normalize_communicator(world).rank
+
         if rank == 0:
             if fh is None:
                 f = open(filename, 'w')

@@ -1,9 +1,10 @@
 """Parallelization scheme for frequency–planewave–planewave arrays."""
-from gpaw.mpi import world
+import numpy as np
+
+from gpaw.blacs import BlacsGrid
+from gpaw.mpi import parallel
 from gpaw.response.pw_parallelization import block_partition
 from gpaw.utilities.scalapack import scalapack_set, scalapack_solve
-from gpaw.blacs import BlacsGrid
-import numpy as np
 
 
 def get_blocksize(length, commsize):
@@ -180,7 +181,8 @@ def choose_parallelization(nW, nG, commsize):
     return wGG_min
 
 
-def main(comm=world):
+@parallel
+def main(comm):
     nW = 3
     nG = 31
 

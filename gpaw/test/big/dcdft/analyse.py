@@ -1,21 +1,14 @@
+import csv
 import os
-
 import sys
-
-import urllib.request
-import urllib.parse
 import urllib.error
-
+import urllib.parse
+import urllib.request
 import zipfile
 
-import csv
-
 import numpy as np
-
-from ase.test import NotAvailable
-
 from ase import units
-
+from ase.test import NotAvailable
 from ase.test.tasks.dcdft import DeltaCodesDFTTask as Task
 
 dir = 'Delta'

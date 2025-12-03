@@ -9,10 +9,10 @@ differentt uniform 3D grids.
 
 import numpy as np
 
+import gpaw.cgpaw as cgpaw
 from gpaw import debug
 from gpaw.gpu import cupy_is_fake
 from gpaw.utilities import is_contiguous
-import gpaw.cgpaw as cgpaw
 
 
 class _Transformer:

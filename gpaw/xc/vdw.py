@@ -12,21 +12,21 @@ XC-functional.  There are two implementations:
 import os
 import sys
 import time
-from math import sin, cos, exp, pi, log, sqrt, ceil
+from math import ceil, cos, exp, log, pi, sin, sqrt
 
 import numpy as np
-from numpy.fft import fft, rfftn, irfftn
 from ase.utils import seterr
+from numpy.fft import fft, irfftn, rfftn
 
-from gpaw.utilities.timing import nulltimer
-from gpaw.xc.libxc import LibXC
-from gpaw.xc.gga import GGA, gga_vars, add_gradient_correction
-from gpaw.xc.mgga import MGGA
-from gpaw.grid_descriptor import GridDescriptor
-from gpaw.utilities.tools import construct_reciprocal
-from gpaw import setup_paths
-import gpaw.mpi as mpi
 import gpaw.cgpaw as cgpaw
+import gpaw.mpi as mpi
+from gpaw import setup_paths
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.utilities.timing import nulltimer
+from gpaw.utilities.tools import construct_reciprocal
+from gpaw.xc.gga import GGA, add_gradient_correction, gga_vars
+from gpaw.xc.libxc import LibXC
+from gpaw.xc.mgga import MGGA
 
 
 def T(w, x, y, z):
@@ -139,7 +139,7 @@ class VDWFunctionalBase:
         name: str
             Name of functional.
         world: MPI communicator
-            Communicator to parallelize over.  Defaults to gpaw.mpi.world.
+            Communicator to parallelize over.  Defaults to MPI world.
         q0cut: float
             Maximum value for q0.
         phi0: float
@@ -164,11 +164,7 @@ class VDWFunctionalBase:
             Print useful information.
         """
 
-        if world is None:
-            self.world = mpi.world
-        else:
-            self.world = world
-
+        self.world = mpi.normalize_communicator(world)
         self.Zab = Zab
         self.vdwcoef = vdwcoef
         self.q0cut = q0cut
@@ -404,7 +400,7 @@ class RealSpaceVDWFunctional(VDWFunctionalBase):
             Density cutoff.
         """
 
-        VDWFunctionalBase.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.repeat = repeat
         self.ncut = ncut
 
@@ -508,7 +504,7 @@ class FFTVDWFunctional(VDWFunctionalBase):
            algorithm (powers of two are more efficient).  The density
            array will be zero padded to the correct size."""
 
-        VDWFunctionalBase.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.Nalpha = Nalpha
         self.lambd = lambd
         self.rcut = rcut
@@ -849,7 +845,7 @@ class GGARealSpaceVDWFunctional(RealSpaceVDWFunctional, GGA):
         self.kernel.calculate(*args)
 
     def set_grid_descriptor(self, gd):
-        GGA.set_grid_descriptor(self, gd)
+        super().set_grid_descriptor(gd)
 
 
 class MGGAFFTVDWFunctional(FFTVDWFunctional, MGGA):
@@ -859,7 +855,7 @@ class MGGAFFTVDWFunctional(FFTVDWFunctional, MGGA):
         self.name = name
 
     def calculate_exchange(self, *args):
-        MGGA.process_mgga(self, *args)
+        super().process_mgga(*args)
 
     def initialize(self, *args):
         MGGA.initialize(self, *args)

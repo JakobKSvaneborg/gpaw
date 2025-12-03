@@ -1,16 +1,16 @@
 import numpy as np
 
-from gpaw.mpi import have_mpi
+import gpaw
+import gpaw.cgpaw as cgpaw
+from gpaw.mpi import have_mpi, parallel
 from gpaw.utilities import compiled_with_libvdwxc
 from gpaw.utilities.grid_redistribute import Domains, general_redistribute
 from gpaw.utilities.timing import nulltimer
 from gpaw.xc.functional import XCFunctional
+from gpaw.xc.gga import GGA, add_gradient_correction, gga_vars, stress_gga_term
 from gpaw.xc.lda import stress_lda_term
-from gpaw.xc.gga import GGA, gga_vars, add_gradient_correction, stress_gga_term
 from gpaw.xc.libxc import LibXC
 from gpaw.xc.mgga import MGGA
-import gpaw
-import gpaw.cgpaw as cgpaw
 
 
 def libvdwxc_has_mpi():
@@ -303,8 +303,7 @@ class VDWXC(XCFunctional):
 
         # XXX We should probably not initialize with the same data as the
         # semilocal XC kernel.
-        XCFunctional.__init__(self, semilocal_xc.kernel.name,
-                              semilocal_xc.kernel.type)
+        super().__init__(semilocal_xc.kernel.name, semilocal_xc.kernel.type)
         # Really, 'type' should be something along the lines of vdw-df.
         self.semilocal_xc = semilocal_xc
 
@@ -365,7 +364,7 @@ class VDWXC(XCFunctional):
         return dct
 
     def set_grid_descriptor(self, gd):
-        XCFunctional.set_grid_descriptor(self, gd)
+        super().set_grid_descriptor(gd)
         self.semilocal_xc.set_grid_descriptor(gd)
 
     def get_description(self):
@@ -791,9 +790,11 @@ def test_derivatives():
     print('dedsigma', dedsigma_err)
 
 
-def test_selfconsistent():
-    from gpaw import GPAW
+@parallel(name='world')
+def test_selfconsistent(world):
     from ase.build import molecule
+
+    from gpaw import GPAW
     from gpaw.xc.gga import GGA
 
     system = molecule('H2O')
@@ -828,7 +829,6 @@ def test_selfconsistent():
         vdw.vdwcoef = 1.0  # Leave nicest text file by running real calc last
         vdw_results[vdw.__class__.__name__] = test(vdw)
 
-    from gpaw.mpi import world
     # These tests basically verify that the LDA/GGA parts of vdwdf
     # work correctly.
     if world.rank == 0:

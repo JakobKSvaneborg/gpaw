@@ -7,16 +7,18 @@ import pickle
 import sys
 import time
 import traceback
+import warnings
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Any
 
-import gpaw.cgpaw as cgpaw
 import numpy as np
-import warnings
 from ase.parallel import MPI as ASE_MPI
 from ase.parallel import world as aseworld
 
 import gpaw
+from gpaw.gpu import cupy, is_hip
+from gpaw.new.c import GPU_AWARE_MPI
 
 from ._broadcast_imports import world as _world
 
@@ -26,6 +28,53 @@ MASTER = 0
 def is_contiguous(*args, **kwargs):
     from gpaw.utilities import is_contiguous
     return is_contiguous(*args, **kwargs)
+
+
+class RegisteredPointer:
+    """This is a workaround for the MPI race condition in LUMI with MI250X.
+
+       MPI Transferred data will be corrupted including data which is never
+       even sent trough MPI. If one performs a direct hipMalloc (as done
+       by doing Memory, and doing GPU-GPU transfer, this works around this
+       behaviour (for a currently unknown reason, but perhaps open-mpi or hip
+       has problems identifying GPU pointers, but the reason could also be
+       somewhere in GPAW equally well).
+    """
+    def __init__(self, a, _input=True, _output=True, enabled=True):
+        enabled = enabled and is_hip  # Disable extra transfer on cuda
+
+        self.enabled = enabled
+        if not enabled:
+            self.array = a
+            return
+
+        self.a = a
+        self._output = _output
+        if isinstance(a, cupy.ndarray):
+            if 1:
+                from cupy.cuda.memory import Memory, MemoryPointer
+                mem = Memory(a.nbytes)  # Direct malloc
+                memptr = MemoryPointer(mem, 0)
+                self.array = cupy.ndarray(a.shape,
+                                          memptr=memptr,
+                                          dtype=a.dtype,
+                                          strides=a.strides)
+                if _input:
+                    self.array[...] = a
+            else:
+                self.array = a.copy()  # This SEGFAULTS!
+        else:
+            self.array = a
+
+    def __enter__(self):
+        return self.array
+
+    def __exit__(self, *args):
+        if not self.enabled:
+            return
+
+        if self._output and isinstance(self.a, cupy.ndarray):
+            self.a[...] = self.array
 
 
 @contextmanager
@@ -46,13 +95,13 @@ def broadcast_exception(comm):
     except Exception as ex:
         rank = comm.max_scalar(comm.rank)
         if rank == comm.rank:
-            broadcast(ex, rank, comm)
+            broadcast(ex, rank, comm=comm)
             raise
     else:
         rank = comm.max_scalar(-1)
     # rank will now be the highest failing rank or -1
     if rank >= 0:
-        raise broadcast(None, rank, comm)
+        raise broadcast(None, rank, comm=comm)
 
 
 class _Communicator:
@@ -130,7 +179,14 @@ class _Communicator:
             tc = a.dtype
             assert is_contiguous(a, tc)
             assert root == -1 or 0 <= root < self.size
-            self.comm.sum(a, root)
+            # Right now comm.sum is the only place where one needs this
+            # extra malloc + intradevice memory copies for HIP and
+            # gpu-aware MPI
+            with RegisteredPointer(a, enabled=GPU_AWARE_MPI,
+                                   _input=True,
+                                   _output=((root == -1) or
+                                            (root == self.rank))) as a:
+                self.comm.sum(a, root)
 
     def sum_scalar(self, a, root=-1):
         assert isinstance(a, (int, float, complex))
@@ -225,7 +281,8 @@ class _Communicator:
             assert tc == int or tc == float
             assert is_contiguous(a, tc)
             assert root == -1 or 0 <= root < self.size
-            self.comm.min(a, root)
+            with RegisteredPointer(a, enabled=False) as a:
+                self.comm.min(a, root)
 
     def min_scalar(self, a, root=-1):
         assert isinstance(a, (int, float))
@@ -319,6 +376,7 @@ class _Communicator:
 
         assert np.all(0 <= sdispls)
         assert np.all(0 <= rdispls)
+        # what if scounts is zeros?
         assert np.all(sdispls + scounts <= sbuffer.size)
         assert np.all(rdispls + rcounts <= rbuffer.size)
         self.comm.alltoallv(sbuffer, scounts, sdispls,
@@ -512,7 +570,7 @@ class _Communicator:
     def testall(self, requests):
         """Test whether non-blocking MPI operations have completed. A boolean
         is returned immediately but requests may have been deallocated as a
-        result, provided they have completed before or during this invokation.
+        result, provided they have completed before or during this invocation.
 
         Parameters:
 
@@ -575,7 +633,7 @@ class _Communicator:
         This method corresponds to MPI_Comm_compare."""
         if isinstance(self.comm, SerialCommunicator):
             return self.comm.compare(othercomm.comm)  # argh!
-        result = self.comm.compare(othercomm.get_c_object())
+        result = self.comm.compare(othercomm.comm)
         assert result in ['ident', 'congruent', 'similar', 'unequal']
         return result
 
@@ -593,7 +651,7 @@ class _Communicator:
         assert all(rank < self.size for rank in ranks)
         if isinstance(self.comm, SerialCommunicator):
             return self.comm.translate_ranks(other.comm, ranks)  # argh!
-        otherranks = self.comm.translate_ranks(other.get_c_object(), ranks)
+        otherranks = self.comm.translate_ranks(other.comm, ranks)
         assert all(-1 <= rank for rank in otherranks)
         assert ranks.dtype == otherranks.dtype
         return otherranks
@@ -629,10 +687,7 @@ class _Communicator:
         implementation which returns itself; thus, always call
         comm.get_c_object() and pass the resulting object to the C code.
         """
-        c_obj = self.comm.get_c_object()
-        if isinstance(c_obj, cgpaw.Communicator):
-            return c_obj
-        return c_obj.get_c_object()
+        return self.comm.get_c_object()
 
 
 MPIComm = _Communicator  # for type hints
@@ -746,7 +801,7 @@ class SerialCommunicator:
     def get_c_object(self):
         if gpaw.dry_run:
             return None  # won't actually be passed to C
-        return _world
+        return _world.get_c_object()
 
 
 _serial_comm = SerialCommunicator()
@@ -759,16 +814,17 @@ if not have_mpi:
 if gpaw.debug:
     serial_comm = _Communicator(_serial_comm)
     if _world.size == 1:
-        world = serial_comm
+        # On purpose create a different instance for world than serial comm
+        # That way we can on tests detect world
+        world = _Communicator(SerialCommunicator())
     else:
         world = _Communicator(_world)
 else:
     serial_comm = _serial_comm  # type: ignore
-    world = _world  # type: ignore
-
-rank = world.rank
-size = world.size
-parallel = (size > 1)
+    if is_hip:
+        world = _Communicator(_world)
+    else:
+        world = _world  # type: ignore
 
 
 def verify_ase_world():
@@ -795,7 +851,61 @@ def verify_ase_world():
 verify_ase_world()
 
 
-def broadcast(obj, root=0, comm=world):
+def parallel(func=None, *, name='comm'):
+    """Decorator for functions that take comm=world.
+
+    We want this decorator so as to control access to world and prevent
+    deadlocks when callers of these functions forget to set the
+    communicator."""
+    import functools
+
+    if func is None:
+        def decorator(func):
+            return parallel(func, name=name)
+        return decorator
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        comm = kwargs.get(name)
+        if comm is None:
+            comm = world
+            try:
+                _check_world_protected(comm)
+            except DontDoThat:
+                raise DontDoThat(
+                    f'Must call method with keyword {name}=<communicator> '
+                    'and communicator must not be gpaw.mpi.world'
+                ) from None
+            kwargs[name] = comm
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def _check_world_protected(comm):
+    """Raise an error if we got global world in no-touch-world mode."""
+    if comm is world and _NO_TOUCH_WORLD:
+        raise DontDoThat('We are in no-touch-world mode and touched world')
+
+
+def normalize_communicator(comm: MPIComm | None) -> MPIComm:
+    if comm is None:
+        _check_world_protected(world)
+        comm = world
+    elif not hasattr(comm, 'new_communicator'):
+        import warnings
+        warnings.warn('Please pass a communicator object instead of a '
+                      'sequence of ranks.  That will not be supported in '
+                      'the future.', FutureWarning)
+        # comm is a list of ranks.
+        # Maybe we don't truly need the communicator=<list of ranks> syntax?
+        _check_world_protected(world)
+        comm = world.new_communicator(np.asarray(comm))
+    return comm
+
+
+@parallel
+def broadcast(obj, root=0, *, comm):
     """Broadcast a Python object across an MPI communicator and return it."""
     if comm.rank == root:
         assert obj is not None
@@ -803,7 +913,7 @@ def broadcast(obj, root=0, comm=world):
     else:
         assert obj is None
         b = None
-    b = broadcast_bytes(b, root, comm)
+    b = broadcast_bytes(b, root, comm=comm)
     if comm.rank == root:
         return obj
     else:
@@ -871,13 +981,15 @@ def synchronize_atoms(atoms, comm, tolerance=1e-8):
     atoms.cell = cell
 
 
-def broadcast_string(string=None, root=0, comm=world):
+@parallel
+def broadcast_string(string=None, root=0, *, comm):
     if comm.rank == root:
         string = string.encode()
-    return broadcast_bytes(string, root, comm).decode()
+    return broadcast_bytes(string, root, comm=comm).decode()
 
 
-def broadcast_bytes(b=None, root=0, comm=world):
+@parallel
+def broadcast_bytes(b=None, root=0, *, comm):
     """Broadcast a bytes across an MPI communicator and return it."""
     if comm.rank == root:
         assert isinstance(b, bytes)
@@ -920,13 +1032,15 @@ def receive(rank: int, comm: MPIComm) -> Any:
     return pickle.loads(buf.tobytes())
 
 
-def send_string(string, rank, comm=world):
+@parallel
+def send_string(string, rank, comm):
     b = string.encode()
     comm.send(np.array(len(b)), rank)
     comm.send(np.frombuffer(b, np.int8).copy(), rank)
 
 
-def receive_string(rank, comm=world):
+@parallel
+def receive_string(rank, comm):
     n = np.array(0)
     comm.receive(n, rank)
     string = np.empty(n, np.int8)
@@ -934,7 +1048,8 @@ def receive_string(rank, comm=world):
     return string.tobytes().decode()
 
 
-def alltoallv_string(send_dict, comm=world):
+@parallel
+def alltoallv_string(send_dict, comm):
     scounts = np.zeros(comm.size, dtype=int)
     sdispls = np.zeros(comm.size, dtype=int)
     stotal = 0
@@ -973,7 +1088,8 @@ def alltoallv_string(send_dict, comm=world):
     return rdict
 
 
-def ibarrier(timeout=None, root=0, tag=123, comm=world):
+@parallel
+def ibarrier(timeout=None, root=0, tag=123, *, comm):
     """Non-blocking barrier returning a list of requests to wait for.
     An optional time-out may be given, turning the call into a blocking
     barrier with an upper time limit, beyond which an exception is raised."""
@@ -1182,7 +1298,7 @@ class Parallelization:
 def cleanup():
     error = getattr(sys, 'last_type', None)
     if error is not None:  # else: Python script completed or raise SystemExit
-        if parallel and not (gpaw.dry_run > 1):
+        if world.size > 1 and not (gpaw.dry_run > 1):
             sys.stdout.flush()
             sys.stderr.write(('GPAW CLEANUP (node %d): %s occurred.  '
                               'Calling MPI_Abort!\n') % (world.rank, error))
@@ -1218,14 +1334,45 @@ def print_mpi_stack_trace(type, value, tb):
         sys.stderr.write(f'rank={rankstring} L{lineno}: {line}\n')
 
 
+def pretty_print_parallel_traceback_file(path: Path) -> None:
+    """Pretty-print rank-0 part of traceback files.
+
+    See print_mpi_stack_trace() exception hook.
+    """
+    lines = []
+    with path.open() as fd:
+        for line in fd:
+            if line.startswith('rank='):
+                x, line = line.split(': ', 1)
+                rank = int(x[5:].split()[0])
+                if rank == 0:
+                    lines.append(line)
+    text = ''.join(lines)
+    try:
+        from pygments import highlight
+        from pygments.formatters import TerminalFormatter
+        from pygments.lexers.python import PythonTracebackLexer
+    except ImportError:
+        print(text)
+    else:
+        print(highlight(text, PythonTracebackLexer(), TerminalFormatter()))
+
+
 if world.size > 1:  # Triggers for dry-run communicators too, but we care not.
     sys.excepthook = print_mpi_stack_trace
+
+
+_NO_TOUCH_WORLD = False  # Monkeypatchable from test suite
+
+
+class DontDoThat(Exception):
+    pass
 
 
 def exit(error='Manual exit'):
     # Note that exit must be called on *all* MPI tasks
     atexit._exithandlers = []  # not needed because we are intentially exiting
-    if parallel and not (gpaw.dry_run > 1):
+    if world.size > 1 and not (gpaw.dry_run > 1):
         sys.stdout.flush()
         sys.stderr.write(('GPAW CLEANUP (node %d): %s occurred.  ' +
                           'Calling MPI_Finalize!\n') % (world.rank, error))

@@ -4,8 +4,8 @@ gradient stabilized method. Requires Numpy and GPAW's own BLAS."""
 
 import numpy as np
 
+from gpaw.mpi import parallel
 from gpaw.utilities.blas import axpy
-from gpaw.mpi import rank
 
 from .base import BaseSolver
 
@@ -25,7 +25,8 @@ class BiCGStab(BaseSolver):
     Now x and b are multivectors, i.e., list of vectors.
     """
 
-    def solve(self, A, x, b):
+    @parallel(name='world')
+    def solve(self, A, x, b, world):
         if self.timer is not None:
             self.timer.start('BiCGStab')
 
@@ -138,7 +139,7 @@ class BiCGStab(BaseSolver):
 
             # print if slow convergence
             if ((i + 1) % slow_convergence_iters) == 0:
-                print('Log10 S2 of proc #', rank, '  = ',
+                print('Log10 S2 of proc #', world.rank, '  = ',
                       np.round(np.log10(np.abs(tmp)), 1),
                       ' after ', i + 1, ' iterations')
 
@@ -168,7 +169,7 @@ class BiCGStab(BaseSolver):
 
             # print if slow convergence
             if ((i + 1) % slow_convergence_iters) == 0:
-                print('Log10 R2 of proc #', rank, '  = ',
+                print('Log10 R2 of proc #', world.rank, '  = ',
                       np.round(np.log10(np.abs(tmp)), 1),
                       ' after ', i + 1, ' iterations')
 

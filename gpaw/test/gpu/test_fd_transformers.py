@@ -1,9 +1,12 @@
-import pytest
 import numpy as np
-from gpaw.grid_descriptor import GridDescriptor
-from gpaw.transformers import Transformer
+import pytest
+
+from gpaw import GPAW_NO_C_EXTENSION
+from gpaw.gpu import cupy as cp
+from gpaw.gpu import cupy_is_fake
 from gpaw.mpi import world
-from gpaw.gpu import cupy as cp, cupy_is_fake
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.transformers import Transformer
 
 
 @pytest.mark.gpu
@@ -11,6 +14,9 @@ from gpaw.gpu import cupy as cp, cupy_is_fake
 @pytest.mark.parametrize('pbc', [True, False])
 @pytest.mark.parametrize('nn', [1, 2, 3, 4])
 def test_fd_transformers(pbc, nn):
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
+
     if world.size > 4:
         # Grid is so small that domain decomposition cannot exceed 4 domains
         assert world.size % 4 == 0

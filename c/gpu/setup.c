@@ -5,19 +5,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef GPAW_WITH_MAGMA
+    #include "cpp/magma/magma_python_interface.h"
+#endif
 
-void bc_init_buffers_gpu();
-void blas_init_gpu();
-void transformer_init_buffers_gpu();
-void operator_init_buffers_gpu();
-void reduce_init_buffers_gpu();
-void lfc_reduce_init_buffers_gpu();
-void bc_dealloc_gpu(int force);
-void transformer_dealloc_gpu(int force);
-void operator_dealloc_gpu(int force);
-void reduce_dealloc_gpu();
-void lfc_reduce_dealloc_gpu();
-
+#include "lfc_gpu.h"
 
 PyObject* gpaw_gpu_init(PyObject *self, PyObject *args)
 {
@@ -31,6 +23,10 @@ PyObject* gpaw_gpu_init(PyObject *self, PyObject *args)
     lfc_reduce_init_buffers_gpu();
     blas_init_gpu();
 
+#ifdef GPAW_WITH_MAGMA
+    gpaw_magma_init();
+#endif
+
     if (PyErr_Occurred())
         return NULL;
     else
@@ -41,6 +37,10 @@ PyObject* gpaw_gpu_delete(PyObject *self, PyObject *args)
 {
     if (!PyArg_ParseTuple(args, ""))
         return NULL;
+
+#ifdef GPAW_WITH_MAGMA
+    gpaw_magma_finalize();
+#endif
 
     reduce_dealloc_gpu();
     lfc_reduce_dealloc_gpu();

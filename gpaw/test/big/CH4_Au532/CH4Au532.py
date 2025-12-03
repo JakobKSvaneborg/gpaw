@@ -1,6 +1,7 @@
 from ase.io import read
-from gpaw import GPAW
 from ase.optimize.bfgslinesearch import BFGSLineSearch
+
+from gpaw import GPAW
 
 slab = read('CH4Au532.xyz')
 slab.set_cell([[7.309254, 0., 0.], [4.872836, 7.509545, 0.], [0., 0., 20.]],

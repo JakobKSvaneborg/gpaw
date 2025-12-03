@@ -1,15 +1,17 @@
 import numpy as np
 import pytest
+
 from gpaw.core.matrix import Matrix
-from gpaw.gpu import cupy as cp, as_np, as_xp
+from gpaw.gpu import as_np, as_xp
+from gpaw.gpu import cupy as cp
+from gpaw.gpu.mpi import CuPyMPI
 from gpaw.mpi import world
 from gpaw.new.c import GPU_AWARE_MPI
-from gpaw.gpu.mpi import CuPyMPI
 
 
 @pytest.mark.gpu
 @pytest.mark.serial
-def test_zyrk():
+def test_zyrk(set_device):
     a = np.array([[1, 1 + 2j, 2], [1, 0.5j, -1 - 0.5j]])
     m = Matrix(2, 3, data=a)
     b = m.multiply(m, opb='C', beta=0.0, symmetric=True)
@@ -24,7 +26,7 @@ def test_zyrk():
 
 @pytest.mark.gpu
 @pytest.mark.serial
-def test_eigh():
+def test_eigh(set_device):
     H1 = Matrix(2, 2, data=np.array([[2, 42.1 + 42.1j], [0.1 - 0.1j, 3]]))
     S1 = Matrix(2, 2, data=np.array([[1, 42.1 + 42.2j], [0.1 - 0.2j, 0.9]]))
     H2 = Matrix(2, 2, data=cp.asarray(H1.data))
@@ -44,6 +46,16 @@ def test_eigh():
     # Check that eigenvectors are parallel:
     X = C1.conj() @ S0.data @ C2.T
     assert abs(X) == pytest.approx(np.eye(2))
+
+
+@pytest.mark.gpu
+@pytest.mark.serial
+def test_to_cp(set_device):
+    H1 = Matrix(2, 2, data=np.array([[2, 42.1 + 42.1j], [0.1 - 0.1j, 3]]))
+    H2 = H1.to_xp(cp)
+    H3 = H2.copy()
+    HH = H2.multiply(H3)
+    HH.eigh()
 
 
 def op(a: np.ndarray, o: str) -> np.ndarray:
@@ -66,7 +78,8 @@ def op(a: np.ndarray, o: str) -> np.ndarray:
 @pytest.mark.parametrize('beta', [0.0, 1.0])
 @pytest.mark.parametrize('dtype', [float, complex])
 @pytest.mark.parametrize('xp', [np, cp])
-def test_mul(shape1, shape2, op1, op2, beta, sym, same, dtype, xp, rng):
+def test_mul(shape1, shape2, op1, op2, beta, sym, same, dtype, xp, rng,
+             set_device):
     if world.size > 1 and xp is cp:
         if op1 == 'C' or (op1 == 'N' and op2 == 'C' and sym and beta == 0.0):
             pytest.skip('Not implemented!')

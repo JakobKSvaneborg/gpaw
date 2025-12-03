@@ -6,8 +6,8 @@ from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
 from gpaw.basis_data import Basis, BasisFunction
 from gpaw.setup import BaseSetup, LocalCorrectionVar
 from gpaw.spline import Spline
-from gpaw.utilities import divrl, hartree as hartree_solve
-
+from gpaw.utilities import divrl
+from gpaw.utilities import hartree as hartree_solve
 
 null_spline = Spline.from_data(0, 1.0, [0., 0., 0.])
 
@@ -98,8 +98,10 @@ def screen_potential(r, v, charge, rcut=None, a=None):
 
 
 def figure_out_valence_states(ppdata):
-    from gpaw.atom.configurations import configurations
     from ase.data import chemical_symbols
+
+    from gpaw.atom.configurations import configurations
+
     # ppdata.symbol may not be a chemical symbol so use Z
     chemical_symbol = chemical_symbols[ppdata.Z]
     Z, config = configurations[chemical_symbol]

@@ -1,24 +1,24 @@
 import numpy as np
-
 from ase.units import Bohr
 from ase.utils.timing import Timer
 
-from gpaw.density import RealSpaceDensity
 from gpaw.lfc import BasisFunctions
+from gpaw.mpi import parallel
+from gpaw.old.density import RealSpaceDensity
+from gpaw.old.logger import GPAWLogger
 from gpaw.setup import Setups
-from gpaw.xc import XC
-from gpaw.utilities.tools import coordinates
 from gpaw.utilities.partition import AtomPartition
-from gpaw.mpi import world
-from gpaw.io.logger import GPAWLogger
+from gpaw.utilities.tools import coordinates
+from gpaw.xc import XC
 
 
 class HirshfeldDensity(RealSpaceDensity):
     """Density as sum of atomic densities."""
 
-    def __init__(self, calculator, log=None):
-        self.calculator = calculator
-        dens = calculator.density
+    @parallel(name='world')
+    def __init__(self, calculator, log=None, *, world):
+        self.calculator = calculator._to_old()
+        dens = self.calculator.density
         super().__init__(dens.gd, dens.finegd,
                          dens.nspins, collinear=True, charge=0.0,
                          stencil=getattr(dens, 'stencil', 3),
@@ -104,7 +104,7 @@ class HirshfeldPartitioning:
     """
 
     def __init__(self, calculator, density_cutoff=1.e-12):
-        self.calculator = calculator
+        self.calculator = calculator._to_old()
         self.density_cutoff = density_cutoff
 
         if hasattr(self.calculator, 'timer'):

@@ -3,15 +3,15 @@ from itertools import product
 import numpy as np
 from ase.dft.kpoints import monkhorst_pack
 from scipy.spatial import ConvexHull, Delaunay, Voronoi
+
 try:
     from scipy.spatial import QhullError
 except ImportError:  # scipy < 1.8
     from scipy.spatial.qhull import QhullError
 
-import gpaw.mpi as mpi
 from gpaw import GPAW, restart
-from gpaw.kpt_descriptor import kpts2sizeandoffsets, to1bz
-from gpaw.mpi import world
+from gpaw.mpi import parallel
+from gpaw.old.kpt_descriptor import kpts2sizeandoffsets, to1bz
 from gpaw.symmetry import Symmetry, aglomerate_points
 
 
@@ -60,6 +60,7 @@ def find_high_symmetry_monkhorst_pack(calc, density):
     """
 
     atoms, calc = restart(calc, txt=None)
+    world = calc.wfs.world
     pbc = atoms.pbc
     minsize, offset = kpts2sizeandoffsets(density=density, even=True,
                                           gamma=True, atoms=atoms)
@@ -73,7 +74,7 @@ def find_high_symmetry_monkhorst_pack(calc, density):
     minsize[~pbc] = 1
     maxsize[~pbc] = 2
 
-    if mpi.rank == 0:
+    if world.rank == 0:
         print('Brute force search for symmetry ' +
               'complying MP-grid... please wait.')
 
@@ -96,11 +97,11 @@ def find_high_symmetry_monkhorst_pack(calc, density):
                         if not (np.mod(np.mod(diff_kc, 1), 1) <
                                 1e-5).all(axis=1).any():
                             raise AssertionError('Did not find ' + str(ibzk_c))
-                    if mpi.rank == 0:
+                    if world.rank == 0:
                         print('Done. Monkhorst-Pack grid:', size, offset)
                     return kpts_kc
 
-    if mpi.rank == 0:
+    if world.rank == 0:
         print('Did not find matching kpoints for the IBZ')
         print(ibzk_kc.round(5))
 
@@ -364,7 +365,8 @@ def get_reduced_bz(cell_cv, cU_scc, time_reversal,
     return bzk_kc, ibzk_kc, latibzk_kc
 
 
-def expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=np.ones(3, bool)):
+@parallel(name='world')
+def expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=np.ones(3, bool), *, world):
     """Expand IBZ from lattice group to crystal group.
 
     Parameters

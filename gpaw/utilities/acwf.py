@@ -5,6 +5,7 @@ the AiiDA common workflows (ACWF) benchmark:
 DIAMOND, FCC, SC, BCC, XO3, XO, X4O6, XO2, X4O10, X2O.
 """
 from __future__ import annotations
+
 import json
 from pathlib import Path
 from typing import Any
@@ -12,10 +13,11 @@ from typing import Any
 import numpy as np
 from ase import Atoms
 from ase.data import atomic_numbers
+
 from gpaw.atom.check import all_names
-from gpaw.mpi import world
-from gpaw.new.ase_interface import GPAW
 from gpaw.dft import Parameters
+from gpaw.mpi import parallel
+from gpaw.new.ase_interface import GPAW
 
 
 def eos(atoms: Atoms,
@@ -31,16 +33,16 @@ def eos(atoms: Atoms,
         e = atoms.get_potential_energy()
         energies.append(e)
 
-    strain, e0, d2eds2 = fit(strains, energies)
+    strain0, e0, d2eds2 = fit(strains, energies)
     v0 = abs(np.linalg.det(cell_cv))
-    volume = v0 * (1 + strain)**3
+    volume = v0 * (1 + strain0)**3
 
     return dict(
         volume=volume,
         strains=strains.tolist(),
         energies=energies,
         energy=e0,
-        strain=strain,
+        strain=strain0,
         d2eds2=d2eds2)
 
 
@@ -104,10 +106,13 @@ def workflow() -> None:
             cores=24, tmax='5h', name=f'lcao-{x}', restart=2)
 
 
+@parallel(name='world')
 def work(structure: str,
          symbol: str,
          setup_name: str = '',
-         mode: str = 'pw'):
+         mode: str = 'pw',
+         *,
+         world):
     """Do single EOS calculations with PBE."""
     params: dict[str, Any] = dict(
         xc='PBE',
@@ -154,7 +159,7 @@ def collect_data() -> None:
 def reference_structure(symbol: str,
                         name: str) -> Atoms:
     """Create one of the ACWF structures with the WIEN2K volume."""
-    atoms = acwf_structures[name]
+    atoms = acwf_structures[name].copy()
     x = (volumes[symbol][name] / atoms.get_volume())**(1 / 3)
     if symbol == 'O' and name in ['X4O10', 'XO']:
         x *= 2**(1 / 3)

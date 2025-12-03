@@ -1,30 +1,29 @@
-from typing import Any, Dict, Optional, List, Sequence, Union
+from collections.abc import Sequence
+from typing import Any, Union
 
 import numpy as np
 from ase.units import Bohr
-from ase.utils.timing import Timer
+from ase.utils.timing import Timer, timer
+
 from gpaw.poisson import _PoissonSolver, create_poisson_solver
-from gpaw.utilities.gauss import Gaussian
 from gpaw.typing import Array1D
-from gpaw.utilities.timing import nulltimer, NullTimer
+from gpaw.utilities.gauss import Gaussian
+from gpaw.utilities.timing import NullTimer, nulltimer
 
-from ase.utils.timing import timer
-
-
-MomentCorrectionsType = Union[int, List[Dict[str, Any]]]
+MomentCorrectionsType = Union[int, list[dict[str, Any]]]
 
 
 class MomentCorrection:
 
     def __init__(self,
-                 center: Optional[Union[Sequence, Array1D]],
-                 moms: Union[int, Sequence[int]]):
+                 center: Sequence | Array1D | None,
+                 moms: int | Sequence[int]):
         if center is not None:
             center = np.asarray(center) / Bohr
         self.center = center
         self.moms = np.asarray(moms)
 
-    def todict(self) -> Dict[str, Any]:
+    def todict(self) -> dict[str, Any]:
         """ return dictionary description, converting the moment correction
         from units of Bohr to Ångström """
 
@@ -89,9 +88,9 @@ class MomentCorrectionPoissonSolver(_PoissonSolver):
     """
 
     def __init__(self,
-                 poissonsolver: Union[_PoissonSolver, Dict[str, Any]],
-                 moment_corrections: Optional[MomentCorrectionsType],
-                 timer: Union[NullTimer, Timer] = nulltimer):
+                 poissonsolver: _PoissonSolver | dict[str, Any],
+                 moment_corrections: MomentCorrectionsType | None,
+                 timer: NullTimer | Timer = nulltimer):
 
         self._initialized = False
         self.poissonsolver = create_poisson_solver(poissonsolver)

@@ -3,10 +3,10 @@ from __future__ import annotations
 import numpy as np
 from ase.units import Bohr, Ha
 
+from gpaw.core import PWArray, UGArray, UGDesc
 from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.core.domain import Domain as XDesc
-from gpaw.core import PWArray, UGArray, UGDesc
 from gpaw.mpi import MPIComm, broadcast_float
 from gpaw.new import zips
 
@@ -54,6 +54,24 @@ class Potential:
         """Move atoms inplace."""
         self.dH_asii = self.dH_asii.moved(atomdist)
 
+    def copy(self) -> Potential:
+        """ Make a deep copy of the potential, preserving the
+        parallel distribution of data.
+
+        Useful, e.g. in RTTDDFT, where the potential is
+        copied in order to be restored later.
+        """
+        dH_asii = self.dH_asii.new()
+        dH_asii.data[:] = self.dH_asii.data
+        dedtaut_sR = None
+        if self.dedtaut_sR is not None:
+            dedtaut_sR = self.dedtaut_sR.copy()
+        return Potential(
+            self.vt_sR.copy(),
+            dH_asii,
+            dedtaut_sR,
+            None if self.vHt_x is None else self.vHt_x.copy())
+
     def redist(self,
                grid: UGDesc,
                desc: XDesc,
@@ -78,8 +96,9 @@ class Potential:
         if dH_asp is None:
             return
 
+        converted_potential = flags.to_storage_dtype(vt_sR.data * Ha)
         writer.write(
-            potential=flags.to_storage_dtype(vt_sR.data * Ha),
+            potential=converted_potential,
             atomic_hamiltonian_matrices=dH_asp.data * Ha)
         if self.vHt_x is not None:
             vHt_x_data = flags.to_storage_dtype(vHt_x.data * Ha)

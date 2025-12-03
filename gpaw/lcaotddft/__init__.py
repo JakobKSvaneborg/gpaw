@@ -1,32 +1,33 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 from ase.units import Bohr, Hartree
 
 from gpaw import GPAW_NEW
-from gpaw.calculator import GPAW
 from gpaw.external import ConstantElectricField, ExternalPotential
 from gpaw.lcaotddft.hamiltonian import TimeDependentHamiltonian
 from gpaw.lcaotddft.logger import TDDFTLogger
 from gpaw.lcaotddft.propagators import create_propagator
+from gpaw.old.calculator import GPAW
 from gpaw.tddft.units import attosec_to_autime
 from gpaw.typing import Any, Vector
 
 
 def LCAOTDDFT(filename: str, **kwargs) -> Any:
     if GPAW_NEW:
-        from gpaw.new.rttddft import RTTDDFT
-        assert kwargs.get('propagator', None) in [None, 'ecn'], \
-            'Not implemented yet'
-        assert kwargs.get('rremisison', None) in [None], 'Not implemented yet'
-        assert kwargs.get('fxc', None) in [None], 'Not implemented yet'
-        assert kwargs.get('scale', None) in [None], 'Not implemented yet'
-        assert kwargs.get('parallel', None) in [None], 'Not implemented yet'
-        assert kwargs.get('communicator', None) in [None], \
-            'Not implemented yet'
-        new_tddft = RTTDDFT.from_dft_file(filename)
+        from gpaw.new.rttddft.backwards_compatibility import RTTDDFTAdapter
+        kwargs.pop('txt', None)  # Ignore silently
+        kwargs.pop('parallel', None)  # Ignore silently
+        kwargs.pop('communicator', None)  # Ignore silently
+        assert kwargs.pop('td_potential', None) in [None], \
+            'td_potential not implemented yet'
+        assert kwargs.pop('rremission', None) in [None], \
+            'rremission not implemented yet'
+        assert kwargs.pop('fxc', None) in [None], \
+            'fxc not implemented yet'
+        assert kwargs.pop('scale', None) in [None], \
+            'scale not implemented yet'
+        new_tddft = RTTDDFTAdapter.from_file(filename, **kwargs)
         return new_tddft
     return OldLCAOTDDFT(filename, **kwargs)
 
@@ -72,7 +73,7 @@ class OldLCAOTDDFT(GPAW):
         self.niter = 0
         # TODO: deprecate kick keywords (and store them as td_potential)
         self.kick_strength = np.zeros(3)
-        self.kick_ext: Optional[ExternalPotential] = None
+        self.kick_ext: ExternalPotential | None = None
         self.tddft_initialized = False
         self.action = ''
         tdh = TimeDependentHamiltonian(fxc=fxc, td_potential=td_potential,
@@ -81,8 +82,8 @@ class OldLCAOTDDFT(GPAW):
 
         self.propagator_set = propagator is not None
         self.propagator = create_propagator(propagator)
-        GPAW.__init__(self, filename, parallel=parallel,
-                      communicator=communicator, txt=txt)
+        super().__init__(filename, parallel=parallel,
+                         communicator=communicator, txt=txt)
         if len(self.symmetry.op_scc) > 1:
             raise ValueError('Symmetries are not allowed for LCAOTDDFT. '
                              'Run the ground state calculation with '
@@ -93,10 +94,10 @@ class OldLCAOTDDFT(GPAW):
     def write(self, filename, mode=''):
         # This function is included here in order to generate
         # documentation for LCAOTDDFT.write() with autoclass in sphinx
-        GPAW.write(self, filename, mode=mode)
+        super().write(filename, mode=mode)
 
     def _write(self, writer, mode):
-        GPAW._write(self, writer, mode)
+        super()._write(writer, mode)
         if self.tddft_initialized:
             w = writer.child('tddft')
             w.write(time=self.time,
@@ -106,7 +107,7 @@ class OldLCAOTDDFT(GPAW):
             self.td_hamiltonian.write(w.child('td_hamiltonian'))
 
     def read(self, filename):
-        reader = GPAW.read(self, filename)
+        reader = super().read(filename)
         if 'tddft' in reader:
             r = reader.tddft
             self.time = r.time

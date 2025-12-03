@@ -2,12 +2,12 @@
 
 """
 from math import sqrt
-import numpy as np
 
+import numpy as np
 from ase.units import Ha
 
 import gpaw.mpi as mpi
-from gpaw.io.logger import GPAWLogger
+from gpaw.old.logger import GPAWLogger
 
 
 def get_filehandle(cls, filename, mode='r'):
@@ -29,7 +29,8 @@ class ExcitationLogger(GPAWLogger):
 class ExcitationList(list):
     """General Excitation List class.
     """
-    def __init__(self, log=None, txt='-'):
+    def __init__(self, log=None, txt='-', comm=None):
+        comm = mpi.normalize_communicator(comm)
         # initialise empty list
         list.__init__(self)
         self.energy_to_eV_scale = Ha
@@ -38,7 +39,7 @@ class ExcitationList(list):
         if log is not None:
             self.log = log
         else:
-            self.log = ExcitationLogger(world=mpi.world)
+            self.log = ExcitationLogger(world=comm)
             self.log.fd = txt
 
     @property

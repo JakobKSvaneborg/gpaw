@@ -1,6 +1,7 @@
 import pytest
-from gpaw.fftw import rfftn_patch, irfftn_patch
-from gpaw.gpu import is_hip, cupy_is_fake
+
+from gpaw.fftw import irfftn_patch, rfftn_patch
+from gpaw.gpu import cupy_is_fake, is_hip
 
 
 @pytest.mark.gpu

@@ -1,17 +1,33 @@
 import numpy as np
 from ase.units import _e
+from ase.parallel import paropen
 from gpaw import GPAW
-from gpaw.berryphase import get_polarization_phase
-from gpaw.mpi import world
+from gpaw.mpi import serial_comm
+from gpaw.berryphase import polarization_phase
+from pathlib import Path
 
-# Create gpw-file with wave functions for all k-points in the BZ:
-calc = GPAW('BaTiO3.gpw').fixed_density(symmetry='off')
-calc.write('BaTiO3+wfs.gpw', mode='all')
+gpw_gs = Path("BaTiO3.gpw")
+gpw_wfs = Path("BaTiO3+wfs.gpw")
 
-phi_c = get_polarization_phase('BaTiO3+wfs.gpw')
-cell_cv = calc.atoms.cell * 1e-10
-V = calc.atoms.get_volume() * 1e-30
-px, py, pz = (phi_c / (2 * np.pi) % 1) @ cell_cv / V * _e
-if world.rank == 0:
-    with open('polarization_BaTiO3.out', 'w') as fd:
-        print(f'P: {pz} C/m^2', file=fd)
+# create gpw-file with wave functions for all k-points in the BZ
+calc = GPAW(gpw_gs).fixed_density(symmetry="off",
+                                  kpts={'size': (8, 8, 8),
+                                        'gamma': True})
+
+calc.write(gpw_wfs, mode="all")
+
+phases_c = polarization_phase(gpw_wfs, comm=serial_comm)
+# extract total phase: electronic + ionic
+phi_c = phases_c["phase_c"]
+
+cell_cv = calc.atoms.cell * 1e-10  # in m
+vol = calc.atoms.get_volume() * 1e-30  # in m^3
+
+# phase defined modulo 2 pi
+pi2 = 2 * np.pi
+phi_c -= np.rint(phi_c / pi2) * pi2
+
+# polarization in C/m^2
+px, py, pz = phi_c @ cell_cv / vol * _e / pi2
+with paropen("polarization_BaTiO3.out", "w") as fd:
+    fd.write(f"Pz= {pz} C/m^2\n")

@@ -1,5 +1,7 @@
 import atexit
+
 import numpy as np
+
 import gpaw.cgpaw as cgpaw
 
 

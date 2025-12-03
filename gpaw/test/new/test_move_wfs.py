@@ -1,13 +1,14 @@
 import numpy as np
 import pytest
+
 from gpaw.core import PWDesc
+from gpaw.core.atom_arrays import AtomArraysLayout
 from gpaw.gpu import cupy as cp
+from gpaw.gpu.mpi import CuPyMPI
 from gpaw.mpi import world
+from gpaw.new.c import GPU_AWARE_MPI
 from gpaw.new.pwfd.move_wfs import move_wave_functions
 from gpaw.setup import create_setup
-from gpaw.new.c import GPU_AWARE_MPI
-from gpaw.gpu.mpi import CuPyMPI
-from gpaw.core.atom_arrays import AtomArraysLayout
 
 
 @pytest.mark.parametrize('xp',
@@ -27,6 +28,3 @@ def test_move(xp):
     move_wave_functions(pos1, pos2, P_ani, psit_nG, [setup])
     move_wave_functions(pos2, pos1, P_ani, psit_nG, [setup])
     assert abs(psit_nG.to_xp(np).data).max() < 1e-12
-
-
-test_move(np)

@@ -94,7 +94,7 @@ Write a workflow class called ``MaterialsWorkflow`` which:
  * takes ``calculator`` as an input variable, which is a dictionary
    of keyword arguments that will be passed to GPAW
  * defines a ``relax`` task which performs a structure optimization
-   that includes optimising the unit cell.
+   that includes optimizing the unit cell.
 
 The wise scientist first writes a relax task which only prints the
 atoms.  That is enough to verify that the workflow works, and that the
@@ -119,10 +119,10 @@ ASE concepts like atoms and calculators.  What the function does is:
  * Attach a GPAW calculator to the atoms
  * Create a
    `Frechet cell filter
-   <https://wiki.fysik.dtu.dk/ase/ase/filters.html#the-frechetcellfilter-class>`_
+   <https://ase-lib.org/ase/filters.html#the-frechetcellfilter-class>`_
    which exposes the cell degrees
    of freedom and stresses to an optimizer
- * Run a `BFGS <https://wiki.fysik.dtu.dk/ase/ase/optimize.html#bfgs>`_
+ * Run a `BFGS <https://ase-lib.org/ase/optimize.html#bfgs>`_
    optimization algorithm on the Frechet cell filter.
 
 It also tells the optimizer to write a trajectory file, ``opt.traj``.
@@ -176,7 +176,7 @@ to do this as a standalone task, so we can visualize it independently:
    :pyobject: bandpath
 
 Run the workflow and the resulting task.  Go to the directory.  The
-band path object was saved in ASE's JSON format, so it can be viualized
+band path object was saved in ASE's JSON format, so it can be visualized
 using ASE's reciprocal cell tool::
 
   ase reciprocal tree/bandstructure/output.json
@@ -237,7 +237,7 @@ Note that the syntax for some of these features is still being worked
 on, and is a little bit convoluted.  This will be simplified in the
 future, but for now we need some slightly verbose and specific
 modifications.  First, create a workflow file which specifies
-a parametrization:
+a parameterization:
 
 .. literalinclude:: materials.py
 

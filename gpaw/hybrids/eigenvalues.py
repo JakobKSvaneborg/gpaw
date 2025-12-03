@@ -1,38 +1,39 @@
 """Calculate non self-consistent eigenvalues for hybrid functionals."""
 from __future__ import annotations
+
 import functools
 import json
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator, List, Optional, Tuple, Union
 
 import numpy as np
 from ase.units import Ha
-from gpaw.calculator import GPAW as GPAWOld
-from gpaw import GPAW
-from gpaw.new.ase_interface import ASECalculator
-from gpaw.kpt_descriptor import KPointDescriptor
-from gpaw.mpi import serial_comm
-from gpaw.pw.descriptor import PWDescriptor
-from gpaw.pw.lfc import PWLFC
-from gpaw.typing import Array3D
-from gpaw.xc import XC
-from gpaw.xc.kernel import XCNull
-from gpaw.xc.tools import vxc
 
+from gpaw import GPAW
 from gpaw.hybrids import parse_name
 from gpaw.hybrids.coulomb import coulomb_interaction
 from gpaw.hybrids.kpts import RSKPoint, get_kpt, to_real_space
 from gpaw.hybrids.paw import calculate_paw_stuff
 from gpaw.hybrids.symmetry import Symmetry
+from gpaw.mpi import serial_comm
+from gpaw.new.ase_interface import ASECalculator
+from gpaw.old.calculator import GPAW as GPAWOld
+from gpaw.old.kpt_descriptor import KPointDescriptor
+from gpaw.old.pw.descriptor import PWDescriptor
+from gpaw.old.pw.lfc import PWLFC
+from gpaw.typing import Array3D
+from gpaw.xc import XC
+from gpaw.xc.kernel import XCNull
+from gpaw.xc.tools import vxc
 
 
 def non_self_consistent_eigenvalues(
-        calc: Union[GPAWOld, ASECalculator, str, Path],
+        calc: GPAWOld | ASECalculator | str | Path,
         xcname: str,
         n1: int = 0,
         n2: int = 0,
-        kpt_indices: List[int] = None,
-        snapshot: Union[str, Path] = None,
+        kpt_indices: list[int] = None,
+        snapshot: str | Path | None = None,
         ftol: float = 1e-9) -> tuple[Array3D,
                                      Array3D,
                                      Array3D]:
@@ -75,12 +76,12 @@ def non_self_consistent_eigenvalues(
 
     # sl=semilocal, nl=nonlocal
     v_hyb_sl_sin = np.zeros(0)
-    v_hyb_nl_sin: Optional[List[List[np.ndarray]]] = None
+    v_hyb_nl_sin: list[list[np.ndarray]] | None = None
 
     if path:
         e_dft_sin, v_dft_sin, v_hyb_sl_sin, v_hyb_nl_sin = read_snapshot(path)
 
-    xcname, exx_fraction, omega = parse_name(xcname)
+    xcname, exx_fraction, omega, yukawa = parse_name(xcname)
 
     if v_dft_sin.size == 0:
         xc = XC(xcname)
@@ -98,7 +99,7 @@ def non_self_consistent_eigenvalues(
 
     if any(len(kpt_indices) > 0 for kpt_indices in kpt_indices_s):
         for s, v_hyb_nl_n in _non_local(calc, n1, n2, kpt_indices_s,
-                                        ftol, omega):
+                                        ftol, omega, yukawa):
             v_hyb_nl_sin[s].append(v_hyb_nl_n * exx_fraction)
             write_snapshot(e_dft_sin, v_dft_sin, v_hyb_sl_sin, v_hyb_nl_sin,
                            path, wfs.world)
@@ -112,8 +113,8 @@ def _semi_local(calc: GPAWOld | ASECalculator,
                 xc,
                 n1: int,
                 n2: int,
-                kpt_indices: List[int]
-                ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+                kpt_indices: list[int]
+                ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     wfs = calc.wfs
     nspins = wfs.nspins
     e_dft_sin = np.array([[calc.get_eigenvalues(k, spin)[n1:n2]
@@ -130,9 +131,10 @@ def _semi_local(calc: GPAWOld | ASECalculator,
 def _non_local(calc: GPAWOld | ASECalculator,
                n1: int,
                n2: int,
-               kpt_indices_s: List[List[int]],
+               kpt_indices_s: list[list[int]],
                ftol: float,
-               omega: float) -> Generator[Tuple[int, np.ndarray], None, None]:
+               omega: float,
+               yukawa: bool) -> Generator[tuple[int, np.ndarray]]:
     wfs = calc.wfs
     kd = wfs.kd
     dens = calc.density
@@ -141,7 +143,7 @@ def _non_local(calc: GPAWOld | ASECalculator,
                for kpt in wfs.kpt_u)
     nocc = kd.comm.max_scalar(wfs.bd.comm.sum_scalar(int(nocc)))
 
-    coulomb = coulomb_interaction(omega, wfs.gd, kd)
+    coulomb = coulomb_interaction(omega, wfs.gd, kd, yukawa=yukawa)
     sym = Symmetry(kd)
 
     paw_s = calculate_paw_stuff(wfs, dens)
@@ -244,8 +246,8 @@ def _calculate_eigenvalues(kpt1, kpts2, paw, kd, coulomb, sym, wfs, spos_ac):
 def write_snapshot(e_dft_sin: np.ndarray,
                    v_dft_sin: np.ndarray,
                    v_hyb_sl_sin: np.ndarray,
-                   v_hyb_nl_sin: Optional[List[List[np.ndarray]]],
-                   path: Optional[Path],
+                   v_hyb_nl_sin: list[list[np.ndarray]] | None,
+                   path: Path | None,
                    comm) -> None:
     """Write to json-file what has been calculated so far."""
     if comm.rank == 0 and path:
@@ -260,10 +262,10 @@ def write_snapshot(e_dft_sin: np.ndarray,
 
 
 def read_snapshot(snapshot: Path
-                  ) -> Tuple[np.ndarray,
+                  ) -> tuple[np.ndarray,
                              np.ndarray,
                              np.ndarray,
-                             Optional[List[List[np.ndarray]]]]:
+                             list[list[np.ndarray]] | None]:
     """Read from json-file what has already been calculated."""
     if snapshot.is_file():
         dct = json.loads(snapshot.read_text())
@@ -279,8 +281,8 @@ def read_snapshot(snapshot: Path
     return np.array([[[]]]), np.array([[[]]]), np.array([[[]]]), None
 
 
-@functools.lru_cache()
-def layout(n1: int, n2: int, size: int) -> Tuple[int, int]:
+@functools.lru_cache
+def layout(n1: int, n2: int, size: int) -> tuple[int, int]:
     """Distribute n1*n2 matrix over s1*s2=size blocks.
 
     Returns s1, s2.
@@ -288,7 +290,7 @@ def layout(n1: int, n2: int, size: int) -> Tuple[int, int]:
     >>> layout(10, 10, 8)
     (4, 2)
     """
-    candidates: List[Tuple[float, int, int]] = []
+    candidates: list[tuple[float, int, int]] = []
     for s1 in range(1, size + 1):
         s2, r = divmod(size, s1)
         if r > 0:

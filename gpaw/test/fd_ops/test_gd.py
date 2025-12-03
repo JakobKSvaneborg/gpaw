@@ -1,6 +1,7 @@
-import pytest
 import numpy as np
-from gpaw.grid_descriptor import GridDescriptor
+import pytest
+
+from gpaw.old.grid_descriptor import GridDescriptor
 
 
 def test_fd_ops_gd():

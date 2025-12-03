@@ -5,6 +5,7 @@
 
 #include "../gpu.h"
 #include "../gpu-complex.h"
+#include "../bmgs.h"
 
 #ifndef GPU_USE_COMPLEX
 #  define BLOCK_SIZEX 32
@@ -163,7 +164,6 @@ __global__ void Zgpu(bmgs_paste_zero_kernel)(
  *       3 4        . 3 4 .
  *                  . . . .
  */
-extern "C"
 void Zgpu(bmgs_paste_gpu)(const Tgpu* a, const int sizea[3],
                           Tgpu* b, const int sizeb[3],
                           const int startb[3], int blocks,
@@ -193,7 +193,6 @@ void Zgpu(bmgs_paste_gpu)(const Tgpu* a, const int sizea[3],
  * Copy a smaller array into a given position in a larger one and
  * set all other elements to 0.
  */
-extern "C"
 void Zgpu(bmgs_paste_zero_gpu)(const Tgpu* a, const int sizea[3],
                                     Tgpu* b, const int sizeb[3],
                                     const int startb[3], int blocks,

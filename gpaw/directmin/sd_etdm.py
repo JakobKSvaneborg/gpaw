@@ -7,8 +7,10 @@ J. Chem. Theory Comput. 16, 6968 (2020).
 https://doi.org/10.1021/acs.jctc.0c00597
 """
 
-import numpy as np
 import copy
+
+import numpy as np
+
 from gpaw.directmin.tools import array_to_dict, dict_to_array
 
 

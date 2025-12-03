@@ -1,12 +1,11 @@
 from __future__ import annotations
+
 import numpy as np
 
-from typing import Type
-from gpaw.mpi import world
+from gpaw.mpi import parallel
 from gpaw.tddft.units import as_to_au, eV_to_au
 
-
-known_lasers: dict[str, Type[Laser]] = dict()
+known_lasers: dict[str, type[Laser]] = dict()
 
 
 def create_laser(name, **kwargs):
@@ -28,7 +27,7 @@ def create_laser(name, **kwargs):
 
 
 def register_custom_laser(name: str,
-                          cls: Type[Laser]):
+                          cls: type[Laser]):
     """ Register a custom laser object
 
     This function must be used when restarting TDDFT calculations using
@@ -65,7 +64,8 @@ class Laser:
     def fourier(self, omega):
         return 0.0
 
-    def write(self, fname, time_t):
+    @parallel(name='world')
+    def write(self, fname, time_t, *, world):
         """
         Write the values of the pulse to a file.
 

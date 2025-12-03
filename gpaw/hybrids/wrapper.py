@@ -1,8 +1,7 @@
-from typing import Tuple, Dict
-
 import numpy as np
 
 from gpaw.xc import XC
+
 from .coulomb import coulomb_interaction
 from .forces import calculate_forces
 from .paw import calculate_paw_stuff
@@ -17,13 +16,14 @@ class HybridXC:
     def __init__(self,
                  xcname: str,
                  fraction: float = None,
-                 omega: float = None):
+                 omega: float = None,
+                 yukawa=None):
         from . import parse_name
-        if xcname in ['EXX', 'PBE0', 'HSE03', 'HSE06', 'B3LYP']:
-            if fraction is not None or omega is not None:
+        if xcname in ['EXX', 'PBE0', 'HSE03', 'HSE06', 'B3LYP', 'YS-PBE0']:
+            if fraction is not None or omega is not None or yukawa is not None:
                 raise ValueError
             self.name = xcname
-            xcname, fraction, omega = parse_name(xcname)
+            xcname, fraction, omega, yukawa = parse_name(xcname)
         else:
             if fraction is None or omega is None:
                 raise ValueError
@@ -32,6 +32,7 @@ class HybridXC:
         self.xc = XC(xcname)
         self.exx_fraction = fraction
         self.omega = omega
+        self.yukawa = yukawa
 
         if xcname == 'null':
             self.description = ''
@@ -40,7 +41,7 @@ class HybridXC:
         self.description += f'{fraction} * EXX(omega = {omega} bohr^-1)'
 
         self.vlda_sR = None
-        self.v_sknG: Dict[Tuple[int, int], np.ndarray] = {}
+        self.v_sknG: dict[tuple[int, int], np.ndarray] = {}
 
         self.ecc = np.nan
         self.evc = np.nan
@@ -80,7 +81,8 @@ class HybridXC:
                                             Htpsit_xG=None, dH_asp=None):
         wfs = self.wfs
         if self.coulomb is None:
-            self.coulomb = coulomb_interaction(self.omega, wfs.gd, wfs.kd)
+            self.coulomb = coulomb_interaction(
+                self.omega, wfs.gd, wfs.kd, yukawa=self.yukawa)
             self.description += '\n' + self.coulomb.get_description()
             self.sym = Symmetry(wfs.kd)
 

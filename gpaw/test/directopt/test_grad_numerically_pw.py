@@ -1,15 +1,14 @@
-import pytest
 import numpy as np
+import pytest
 
-from ase import Atoms
-from gpaw import GPAW, PW
-from gpaw.directmin.etdm_fdpw import FDPWETDM
+from gpaw import GPAW
 from gpaw.directmin.derivatives import Derivatives
+from gpaw.directmin.etdm_fdpw import FDPWETDM
 from gpaw.mom import prepare_mom_calculation
 
 
 @pytest.mark.do
-def test_gradient_numerically_pw(in_tmp_dir):
+def test_gradient_numerically_pw(in_tmp_dir, gpw_files):
     """
     Test analytical vs. numerical gradients exponential
     transformation in pw
@@ -20,26 +19,13 @@ def test_gradient_numerically_pw(in_tmp_dir):
     tol_between_methods = dict(abs=1.0e-4)
     tol_between_rngs = dict(abs=1.0e-4)
 
-    for complex in [False, True]:
-        atoms = Atoms('H3', positions=[(0, 0, 0),
-                                       (0.59, 0, 0),
-                                       (1.1, 0, 0)])
-        atoms.center(vacuum=2.0)
-        atoms.set_pbc(True)
-        calc = GPAW(mode=PW(300, force_complex_dtype=complex),
-                    basis='sz(dzp)',
-                    h=0.3,
-                    spinpol=False,
-                    convergence={'energy': np.inf,
-                                 'eigenstates': np.inf,
-                                 'density': np.inf,
-                                 'minimum iterations': 1},
-                    eigensolver=FDPWETDM(converge_unocc=True),
-                    occupations={'name': 'fixed-uniform'},
-                    mixer={'backend': 'no-mixing'},
-                    nbands='nao',
-                    symmetry='off')
+    for calc in [
+        GPAW(gpw_files["h3_do_num_pw_complex"]),
+        GPAW(gpw_files["h3_do_num_pw"]),
+    ]:
+        atoms = calc.atoms
         atoms.calc = calc
+        # Repeated for False
         atoms.get_potential_energy()
 
         calc.set(eigensolver=FDPWETDM(excited_state=True))

@@ -7,7 +7,7 @@ import xml.sax
 from glob import glob
 from math import pi, sqrt
 from pathlib import Path
-from typing import IO, Tuple
+from typing import IO
 
 import numpy as np
 from ase.data import atomic_names, atomic_numbers
@@ -431,7 +431,7 @@ def read_maybe_unzipping(path: Path | str) -> bytes:
         return fd.read()
 
 
-def search_for_file(name: str, world=None) -> Tuple[str, bytes]:
+def search_for_file(name: str, world=None) -> tuple[str, bytes]:
     """Traverse gpaw setup paths to find file.
 
     Returns the file path and file contents.  If the file is not
@@ -454,9 +454,9 @@ def search_for_file(name: str, world=None) -> Tuple[str, bytes]:
 
     if world is not None:
         if world.rank == 0:
-            broadcast((filename, source), 0, world)
+            broadcast((filename, source), 0, comm=world)
         else:
-            filename, source = broadcast(None, 0, world)
+            filename, source = broadcast(None, 0, comm=world)
 
     if filename is None:
         if name.endswith('basis'):
@@ -593,7 +593,13 @@ class PAWXMLParser(xml.sax.handler.ContentHandler):
         elif name == 'core_hole_state':
             setup.has_corehole = True
             setup.fcorehole = float(attrs['removed'])
-            setup.lcorehole = 'spdf'.find(attrs['state'][1])
+            full_state = attrs['state']
+            state_l = full_state.lstrip('0123456789')
+            assert state_l
+            state_n = full_state[:-len(state_l)]
+            assert state_n
+            setup.ncorehole = int(state_n)
+            setup.lcorehole = 'spdf'.find(state_l)
             setup.core_hole_e = float(attrs['eig'])
             setup.core_hole_e_kin = float(attrs['ekin'])
             self.data = []

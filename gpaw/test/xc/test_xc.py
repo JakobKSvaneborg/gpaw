@@ -1,8 +1,9 @@
-import pytest
 import numpy as np
-from gpaw.xc.libxc import LibXC, short_names
-from gpaw.xc.kernel import XCKernel, codes
+import pytest
+
 from gpaw.xc import libraries
+from gpaw.xc.kernel import XCKernel, codes
+from gpaw.xc.libxc import LibXC, short_names
 
 HAS_LIBXC_7 = int((libraries['libxc'] or '0.0').split('.')[0]) >= 7
 

@@ -1,13 +1,13 @@
-import numpy as np
 import pickle
 
-from ase.units import Hartree, Bohr
+import numpy as np
+from ase.units import Bohr, Hartree
 
-from gpaw.kpt_descriptor import to1bz
-from gpaw.new.ase_interface import GPAW
-from gpaw.spinorbit import soc_eigenstates
-from gpaw.pw.descriptor import PWDescriptor
 import gpaw.mpi as mpi
+from gpaw.new.ase_interface import GPAW
+from gpaw.old.kpt_descriptor import to1bz
+from gpaw.old.pw.descriptor import PWDescriptor
+from gpaw.spinorbit import soc_eigenstates
 
 
 class Unfold:
@@ -24,7 +24,10 @@ class Unfold:
                  spinorbit=None,
                  theta=90,
                  scale=1.0,
-                 phi=90):
+                 phi=90,
+                 world=None):
+
+        self.world = mpi.normalize_communicator(world)
 
         self.name = name
         self.calc = GPAW(calc, txt=None, communicator=mpi.serial_comm)
@@ -50,13 +53,13 @@ class Unfold:
         if spinorbit:
             assert self.calc.density.collinear
             self.nb *= 2
-            if mpi.world.rank == 0:
+            if self.world.rank == 0:
                 print('Calculating spinorbit Corrections')
             soc = soc_eigenstates(self.calc,
                                   scale=scale, theta=theta, phi=phi)
             self.e_mK = soc.eigenvalues().T
             self.v_Kmn = soc.eigenvectors()
-            if mpi.world.rank == 0:
+            if self.world.rank == 0:
                 print('Done with the spinorbit Corrections')
 
     def get_K_index(self, K):
@@ -187,11 +190,11 @@ class Unfold:
         Nk = len(kpoints)
         Nb = self.nb
 
-        world = mpi.world
+        world = self.world
         if filename is None:
             try:
-                e_mK, P_mK = pickle.load(open('weights_' + self.name +
-                                              '.pckl', 'rb'))
+                with open('weights_' + self.name + '.pckl', 'rb') as fd:
+                    e_mK, P_mK = pickle.load(fd)
             except OSError:
                 e_Km = []
                 P_Km = []
@@ -216,10 +219,11 @@ class Unfold:
                 e_mK = np.array(e_Km).T
                 P_mK = np.array(P_Km).T
                 if world.rank == 0:
-                    pickle.dump((e_mK, P_mK),
-                                open('weights_' + self.name + '.pckl', 'wb'))
+                    with open('weights_' + self.name + '.pckl', 'wb') as fd:
+                        pickle.dump((e_mK, P_mK), fd)
         else:
-            e_mK, P_mK = pickle.load(open(filename, 'rb'))
+            with open(filename, 'rb') as fd:
+                e_mK, P_mK = pickle.load(fd)
 
         return e_mK, P_mK
 
@@ -240,7 +244,7 @@ class Unfold:
         Nk = len(kpts)
         A_ke = np.zeros((Nk, npts), float)
 
-        world = mpi.world
+        world = self.world
         e_mK, P_mK = self.get_spectral_weights(kpts, filename)
         if world.rank == 0:
             print('Calculating the Spectral Function')
@@ -254,8 +258,8 @@ class Unfold:
                 D = (width / 2 / np.pi) / ((e - e0)**2 + (width / 2)**2)
                 A_ke[ik] += P_mK[ie, ik] * D
         if world.rank == 0:
-            pickle.dump((e * Hartree, A_ke, x, X, points_name),
-                        open('sf_' + self.name + '.pckl', 'wb'))
+            with open('sf_' + self.name + '.pckl', 'wb') as fd:
+                pickle.dump((e * Hartree, A_ke, x, X, points_name), fd)
             print('Spectral Function calculation completed!')
         return
 
@@ -326,8 +330,8 @@ def plot_spectral_function(filename, color='blue', eref=None,
     along the kpoints path."""
 
     try:
-        e, A_ke, x, X, points_name = pickle.load(open(filename + '.pckl',
-                                                      'rb'))
+        with open(filename + '.pckl', 'rb') as fd:
+            e, A_ke, x, X, points_name = pickle.load(fd)
     except OSError:
         print('You Need to Calculate the SF first!')
         raise SystemExit()

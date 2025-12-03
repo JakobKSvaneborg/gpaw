@@ -2,23 +2,25 @@ from __future__ import annotations
 
 import itertools
 import warnings
+from collections.abc import Callable
 from math import inf
 from types import SimpleNamespace
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
+
+from gpaw import KohnShamConvergenceError
 from gpaw.convergence_criteria import (Criterion, check_convergence,
                                        dict2criterion)
-from gpaw.scf import write_iteration
-from gpaw.typing import Array2D
-from gpaw.new.logger import indent
-from gpaw import KohnShamConvergenceError
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.ibzwfs import IBZWaveFunctions
+from gpaw.new.logger import indent
+from gpaw.scf import write_iteration
+from gpaw.typing import Array2D
 
 
 class TooFewBandsError(KohnShamConvergenceError):
-    """Not enough bands for CBM+x convergence cfriterium."""
+    """Not enough bands for CBM+x convergence criterion."""
 
 
 class SCFLoop:
@@ -82,8 +84,7 @@ class SCFLoop:
             eig_error, wfs_error, energies = self.eigensolver.iterate(
                 ibzwfs, density, potential,
                 self.hamiltonian, pot_calc, energies)
-            nelectrons = (density.nvalence - density.charge +
-                          pot_calc.environment.charge)
+            nelectrons = density.nvalence - density.charge + pot_calc.charge
             e_band, e_entropy, e_extrapolation = ibzwfs.calculate_occs(
                 self.occ_calc,
                 nelectrons,
@@ -111,8 +112,10 @@ class SCFLoop:
                 write_iteration(cc, converged_items, entries, ctx, log)
 
             if converged:
-                converged = pot_calc.environment.post_scf_convergence(
-                    ibzwfs, nelectrons, self.occ_calc, self.mixer, log)
+                converged = all(
+                    ext.post_scf_convergence(
+                        ibzwfs, nelectrons, self.occ_calc, self.mixer, log)
+                    for ext in pot_calc.extensions)
                 if converged:
                     break
 
@@ -126,6 +129,7 @@ class SCFLoop:
                 dens_error = self.mixer.mix(density)
                 potential, energies, _ = pot_calc.calculate(
                     density, ibzwfs, potential.vHt_x)
+                energies.sanity_check()
 
         self.eigensolver.postprocess(
             ibzwfs, density, potential, self.hamiltonian)
@@ -156,7 +160,7 @@ class SCFContext:
         self.ham = SimpleNamespace(e_total_extrapolated=energy,
                                    get_workfunctions=self._get_workfunctions)
         self.wfs = SimpleNamespace(nvalence=density.nvalence +
-                                   pot_calc.environment.charge,
+                                   pot_calc.charge,
                                    world=comm,
                                    eigensolver=SimpleNamespace(
                                        error=wfs_error),

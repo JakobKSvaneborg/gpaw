@@ -1,8 +1,7 @@
-import pytest
 import numpy as np
+import pytest
 
-from gpaw.response.tool import (get_bz_transitions,
-                                get_chi0_integrand,
+from gpaw.response.tool import (get_bz_transitions, get_chi0_integrand,
                                 get_degeneracy_matrix,
                                 get_individual_transition_strengths)
 

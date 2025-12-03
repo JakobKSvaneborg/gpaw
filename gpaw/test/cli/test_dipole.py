@@ -1,5 +1,6 @@
 """Test CLI-dipole script."""
 import pytest
+
 from gpaw.utilities.dipole import main
 
 

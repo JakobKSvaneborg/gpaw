@@ -4,14 +4,14 @@ Potentials for orbital density dependent energy functionals
 
 import numpy as np
 
-from gpaw.directmin.tools import get_n_occ, d_matrix
+import gpaw.cgpaw as cgpaw
+from gpaw.directmin.tools import d_matrix, get_n_occ
 from gpaw.lfc import LFC
 from gpaw.poisson import PoissonSolver
 from gpaw.transformers import Transformer
 from gpaw.utilities import pack_density, unpack_hermitian
 from gpaw.utilities.ewald import madelung
 from gpaw.utilities.partition import AtomPartition
-import gpaw.cgpaw as cgpaw
 
 
 class PZSICFDPW:
@@ -37,7 +37,7 @@ class PZSICFDPW:
         self.pd3 = None
         self.corr = None
         if wfs.mode == 'pw':
-            from gpaw.wavefunctions.pw import PWLFC
+            from gpaw.old.wavefunctions.pw import PWLFC
 
             assert self.sic_coarse_grid
             self.pd2 = dens.pd2

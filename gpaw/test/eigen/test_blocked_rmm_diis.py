@@ -1,10 +1,10 @@
+import pytest
 from ase import Atom, Atoms
 
-from gpaw import GPAW, Mixer, RMMDIIS
-import pytest
+from gpaw import GPAW, RMMDIIS, Mixer
 
 
-@pytest.mark.old_gpaw_only
+@pytest.mark.legacy
 def test_eigen_blocked_rmm_diis(in_tmp_dir):
     a = 4.0
     n = 20

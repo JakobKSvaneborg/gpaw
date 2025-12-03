@@ -1,12 +1,13 @@
-import pytest
-import numpy as np
 import subprocess
 import sys
 
+import numpy as np
+import pytest
 from ase.build import molecule
 
-from gpaw.new.ase_interface import GPAW
+from gpaw import GPAW_NO_C_EXTENSION
 from gpaw.gpu import cupy_is_fake
+from gpaw.new.ase_interface import GPAW
 
 
 @pytest.mark.serial
@@ -18,11 +19,11 @@ from gpaw.gpu import cupy_is_fake
 @pytest.mark.parametrize('gpu', [False, True])
 def test_single_precision(dtype, gpu):
     try:
-        result = subprocess.run(
-            'GPAW_NO_C_EXTENSION=1 GPAW_CPUPY=1 '
-            f'python {__file__} {dtype} {gpu}',
-            shell=True, capture_output=True,
-            text=True, check=True)
+        cmd = ('GPAW_NO_C_EXTENSION=1 GPAW_CPUPY=1 '
+               f'python {__file__} {dtype} {gpu}')
+        print(cmd)
+        result = subprocess.run(cmd, shell=True, capture_output=True,
+                                text=True, check=True)
     except subprocess.CalledProcessError as e:
         print(e.output)
         print(e.stderr)
@@ -42,6 +43,18 @@ def test_single_precision_gpu(dtype):
     run_single_precision(dtype=dtype, gpu='True')
 
 
+@pytest.mark.serial
+@pytest.mark.gpu
+@pytest.mark.skipif(cupy_is_fake, reason='No cupy')
+@pytest.mark.parametrize('dtype',
+                         [np.complex128,
+                          np.complex64,
+                          np.float64,
+                          np.float32])
+def test_single_precision_rmmdiis_gpu(dtype):
+    run_single_precision_rmmdiis(dtype=dtype)
+
+
 def run_single_precision(dtype, gpu):
     atoms = molecule('H2O')
     atoms.center(vacuum=2.5)
@@ -51,7 +64,12 @@ def run_single_precision(dtype, gpu):
     atoms.calc = GPAW(xc={'name': 'LDA'},
                       symmetry='off',
                       random=True,
-                      convergence={'maximum iterations': 1},
+                      convergence={'energy': 1e-5,
+                                   'forces': 1e-3,
+                                   'eigenstates': 1e-6},
+                      eigensolver={'name': 'ppcg', 'include_cg': True},
+                      **{'mixer': {'backend': 'fft'}}
+                      if GPAW_NO_C_EXTENSION else {},
                       mode={'name': 'pw',
                             'ecut': 200.0,
                             'dtype': dtype},
@@ -70,6 +88,33 @@ def run_single_precision(dtype, gpu):
     atoms.calc.create_new_calculation_from_old(atoms)
     e_pot = atoms.get_potential_energy()
 
+    expected_e = 9.595593485742606
+
+    assert atoms.calc.wfs.dtype == dtype
+
+    assert e_pot == pytest.approx(expected_e, rel=1e-3)
+
+
+def run_single_precision_rmmdiis(dtype):
+    atoms = molecule('H2O')
+    atoms.center(vacuum=2.5)
+
+    atoms.calc = GPAW(xc={'name': 'LDA'},
+                      symmetry='off',
+                      convergence={'energy': 1e-5,
+                                   'forces': 1e-3},
+                      mode={'name': 'pw',
+                            'ecut': 200.0,
+                            'dtype': dtype},
+                      nbands=125,
+                      **{'random': True,
+                         'mixer': {'backend': 'fft'}}
+                      if GPAW_NO_C_EXTENSION else {},
+                      eigensolver={'name': 'rmm-diis'},
+                      parallel={'gpu': True}
+                      )
+
+    e_pot = atoms.get_potential_energy()
     expected_e = 9.595593485742606
 
     assert atoms.calc.wfs.dtype == dtype

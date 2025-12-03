@@ -4,10 +4,7 @@
  *  Please see the accompanying LICENSE file for further information. */
 
 #ifndef GPAW_WITHOUT_BLAS
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
+#include "python_utils.h"
 #include "extensions.h"
 
 #ifdef GPAW_NO_UNDERSCORE_BLAS
@@ -154,14 +151,12 @@ PyObject* r2k(PyObject *self, PyObject *args)
     int k, lda;
     if (*trans == 'c') {
         k = PyArray_DIMS(a)[1];
-        for (int d = 2; d < PyArray_NDIM(a); d++)
-            k *= PyArray_DIMS(a)[d];
-        lda = MAX(k, 1);
+        lda = MAX(1, PyArray_STRIDES(a)[0] / PyArray_ITEMSIZE(a));
     } else {
         k = PyArray_DIMS(a)[0];
         lda = MAX(n, 1);
     }
-  int ldc = MAX(MAX(1, n), PyArray_STRIDES(c)[0] / PyArray_ITEMSIZE(c));
+  int ldc = MAX(1, PyArray_STRIDES(c)[0] / PyArray_ITEMSIZE(c));
 
   if (PyArray_DESCR(a)->type_num == NPY_DOUBLE)
     dsyr2k_("u", trans, &n, &k,

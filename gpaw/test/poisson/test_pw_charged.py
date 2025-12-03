@@ -1,10 +1,11 @@
+import numpy as np
 import pytest
 from ase import Atoms
+
 from gpaw import GPAW
-import numpy as np
-from gpaw.grid_descriptor import GridDescriptor
-from gpaw.pw.descriptor import PWDescriptor
-from gpaw.pw.poisson import ChargedReciprocalSpacePoissonSolver as CRSPC
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.old.pw.descriptor import PWDescriptor
+from gpaw.old.pw.poisson import ChargedReciprocalSpacePoissonSolver as CRSPC
 
 
 def test_charged_pw_poisson():

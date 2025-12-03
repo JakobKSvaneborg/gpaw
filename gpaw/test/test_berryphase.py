@@ -3,8 +3,8 @@ import pytest
 
 import gpaw.mpi as mpi
 from gpaw import GPAW
-from gpaw.berryphase import (get_berry_phases, get_polarization_phase,
-                             parallel_transport)
+from gpaw.berryphase import (get_berry_phases, parallel_transport,
+                             polarization_phase)
 
 # Values from an earlier test
 ref_phi_mos2_km = np.array(
@@ -32,8 +32,8 @@ def test_parallel_transport_mos2(in_tmp_dir, gpw_files):
 
 def test_parallel_transport_i2sb2(in_tmp_dir, gpw_files):
     # Calculate the berry phases and spin projections
-    calc = GPAW(gpw_files['i2sb2_pw_nosym'],
-                txt=None, communicator=mpi.serial_comm)
+    calc = GPAW(gpw_files['i2sb2_pw_nosym'], txt=None,
+                communicator=mpi.serial_comm)
     nelec = int(calc.get_number_of_electrons())
     parallel_transport(calc, name='i2sb2', scale=1,
                        # To calculate the valence bands berry
@@ -64,10 +64,10 @@ def test_parallel_transport_i2sb2(in_tmp_dir, gpw_files):
     phi_qm = phi_km[bands]
     S_qm = S_km[bands]
     Svalues = S_qm[phi_qm > 3.0]
-    assert Svalues == pytest.approx(np.array([-1, 1,  # k=0
-                                              -1, 1,  # k=1
-                                              1, -1,  # k=2
-                                              1, -1]),   # k=3
+    assert Svalues == pytest.approx(np.array([-1, 1,    # k=0
+                                              -1, 1,    # k=1
+                                              1, -1,    # k=2
+                                              1, -1]),  # k=3
                                     abs=0.01)
     # Test also the berry phases for the same bands
     phivalues = phi_qm[phi_qm > 3.0]
@@ -75,9 +75,8 @@ def test_parallel_transport_i2sb2(in_tmp_dir, gpw_files):
     # We test that the values don't change too much. This will
     # also guarantee that the results agree qualitatively with
     # the c2db plot
-    assert phivalues == pytest.approx(
-        [3.115, 5.309, 3.970, 4.455,
-         3.970, 4.455, 3.115, 5.309], abs=0.05)
+    assert phivalues == pytest.approx([3.115, 5.309, 3.970, 4.455,
+                                       3.970, 4.455, 3.115, 5.309], abs=0.05)
 
 
 def load_renormalized_data(name):
@@ -96,36 +95,43 @@ def load_renormalized_data(name):
     return phi_km, S_km
 
 
-def test_pol(in_tmp_dir, gpw_files):
+def test_polarization_phase(in_tmp_dir, gpw_files):
+    pi2 = 2.0 * np.pi
+    phases_c = polarization_phase(gpw_files['mos2_pw_nosym'],
+                                  comm=mpi.world)
 
-    # It is ugly to convert to string. But this is required in
-    # get_polarization_phase. Should be changed in the future...
-    phi_c = get_polarization_phase(str(gpw_files['mos2_pw_nosym']))
+    phases_t = {
+        'phase_c': pi2 * np.array([8.66037602, 3.33962524, 8.54861146e-15]),
+        'electronic_phase_c': pi2 * np.array([0.66037602, -0.66037476, 1.0]),
+        'atomic_phase_c': pi2 * np.array([8.0, 4.0, 13.0]),
+        'dipole_phase_c': pi2
+        * np.array([7.23912394e-01, -7.23912423e-01, 8.54861146e-15])}
 
-    # Only should test modulo 2pi
-    phi = phi_c / (2 * np.pi)
-    phitest = [6.60376287e-01, 3.39625036e-01, 0.0]
-    err = phi - phitest
-    assert err == pytest.approx(err.round(), abs=1e-3)
+    # test all components
+    # apply modulo
+    for key in phases_c:
+        # only should test modulo 2pi
+        dphi = phases_c[key] - phases_t[key]
+        phases_c[key] -= np.rint(dphi / pi2) * pi2
+        print(key)
+        assert phases_c[key] == pytest.approx(phases_t[key], abs=1e-6)
 
 
 def test_berry_phases(in_tmp_dir, gpw_files):
-
-    calc = GPAW(gpw_files['mos2_pw_nosym'],
-                communicator=mpi.serial_comm)
+    calc = GPAW(gpw_files['mos2_pw_nosym'], communicator=mpi.serial_comm)
 
     ind, phases = get_berry_phases(calc)
 
-    indtest = [[0, 6, 12, 18, 24, 30],
-               [1, 7, 13, 19, 25, 31],
-               [2, 8, 14, 20, 26, 32],
-               [3, 9, 15, 21, 27, 33],
-               [4, 10, 16, 22, 28, 34],
-               [5, 11, 17, 23, 29, 35]]
+    indtest = np.array([[0, 6, 12, 18, 24, 30],
+                        [1, 7, 13, 19, 25, 31],
+                        [2, 8, 14, 20, 26, 32],
+                        [3, 9, 15, 21, 27, 33],
+                        [4, 10, 16, 22, 28, 34],
+                        [5, 11, 17, 23, 29, 35]])
 
     phasetest = [1.66179, 2.54985, 3.10069, 2.54985, 1.66179, 0.92385]
-    assert np.allclose(ind, indtest)
-    assert np.allclose(phases, phasetest, atol=1e-3)
+    assert ind == pytest.approx(indtest)
+    assert phases == pytest.approx(phasetest, abs=1e-3)
 
 
 # only master will raise, so this test will hang in parallel
@@ -139,15 +145,13 @@ def test_assertions(in_tmp_dir, gpw_files):
 
     gpw_file = gpw_files['mos2_pw']
     with pytest.raises(AssertionError):
-        get_polarization_phase(str(gpw_file))
+        polarization_phase(gpw_file, comm=mpi.serial_comm)
 
-    calc = GPAW(gpw_file,
-                communicator=mpi.serial_comm)
+    calc = GPAW(gpw_file, communicator=mpi.serial_comm)
 
     with pytest.raises(AssertionError):
         ind, phases = get_berry_phases(calc)
 
     with pytest.raises(AssertionError):
-        phi_km, S_km = parallel_transport(calc,
-                                          direction=0,
+        phi_km, S_km = parallel_transport(calc, direction=0,
                                           name='mos2', scale=0)

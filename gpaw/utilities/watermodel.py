@@ -1,11 +1,9 @@
-from ase.constraints import FixBondLengths
-from ase.calculators.tip3p import TIP3P
-from ase.calculators.tip3p import qH, sigma0, epsilon0
-
-from gpaw.cgpaw import adjust_positions, adjust_momenta, calculate_forces_H2O
-from ase.calculators.calculator import Calculator, all_changes
-
 import numpy as np
+from ase.calculators.calculator import Calculator, all_changes
+from ase.calculators.tip3p import TIP3P, epsilon0, qH, sigma0
+from ase.constraints import FixBondLengths
+
+from gpaw.cgpaw import adjust_momenta, adjust_positions, calculate_forces_H2O
 
 A = 4 * epsilon0 * sigma0**12
 B = -4 * epsilon0 * sigma0**6
@@ -64,12 +62,12 @@ class FixBondLengthsWaterModel(FixBondLengths):
 
     def __init__(self, pairs, tolerance=1e-13, bondlengths=None,
                  iterations=None):
-        FixBondLengths.__init__(self, pairs, tolerance=tolerance,
-                                bondlengths=bondlengths,
-                                iterations=iterations)
+        super().__init__(pairs, tolerance=tolerance,
+                         bondlengths=bondlengths,
+                         iterations=iterations)
 
     def initialize_bond_lengths(self, atoms):
-        bondlengths = FixBondLengths.initialize_bond_lengths(self, atoms)
+        bondlengths = super().initialize_bond_lengths(atoms)
         # Make sure that the constraints are compatible with the C-code
         assert len(self.pairs) % 3 == 0
         masses = atoms.get_masses()

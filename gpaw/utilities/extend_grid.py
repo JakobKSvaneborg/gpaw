@@ -1,6 +1,7 @@
 import numpy as np
 from ase.units import Bohr
-from gpaw.grid_descriptor import GridDescriptor
+
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.utilities.grid import grid2grid
 
 

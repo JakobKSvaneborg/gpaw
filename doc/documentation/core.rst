@@ -99,7 +99,7 @@ Overview:
         * ``symmetries``
         * ``bz``
 
-      * ``wfs_qs[q][s]``:
+      * ``_wfs_u[u]``:
 
         * ``psit_nX``
         * ``occ_n``
@@ -188,14 +188,14 @@ Examples:
   * - ``density.nt_sR``
     - `\tilde{n}_\sigma(\mathbf{r})`
     - :class:`~UGArray`
-  * - ``ibzwfs.wfs_qs[q][s].P_ani``
+  * - ``ibzwfs._wfs_u[u].P_ani``
     - `P_{\sigma \mathbf{k} ni}^a`
     - :class:`~atom_arrays.AtomArrays`
-  * - ``ibzwfs.wfs_qs[q][s].psit_nX``
+  * - ``ibzwfs._wfs_u[u].psit_nX``
     - `\tilde{\psi}_{\sigma \mathbf{k} n}(\mathbf{r})`
     - :class:`~UGArray` |
       :class:`~PWArray`
-  * - ``ibzwfs.wfs_qs[q][s].pt_aX``
+  * - ``ibzwfs._wfs_u[u].pt_aX``
     - `\tilde{p}_{\sigma \mathbf{k} i}^a(\mathbf{r}-\mathbf{R}^a)`
     - :class:`~atom_centered_functions.AtomCenteredFunctions`
 
@@ -281,7 +281,7 @@ Atoms-arrays
 ============
 
 As an example, here is how to store the PAW atomic density-matrices for
-a water molcule
+a water molecule
 (:math:`D_{\sigma,i_1,i_2}^a`):
 
 .. code-block:: python
@@ -427,7 +427,7 @@ Input-parameter objects
 .. autoclass:: gpaw.dft.LCAO
 .. autoclass:: gpaw.dft.FD
 .. autoclass:: gpaw.dft.Mode
-.. autoclass:: gpaw.dft.Extension
+.. autoclass:: gpaw.dft.ExtensionInput
 .. autoclass:: gpaw.dft.MonkhorstPack
 .. autoclass:: gpaw.dft.Mixer
 .. autoclass:: gpaw.dft.Occupations
@@ -485,7 +485,7 @@ DFT-components
    :members:
    :undoc-members:
 
-.. autoclass:: gpaw.new.environment.Environment
+.. autoclass:: gpaw.new.extensions.Extension
    :members:
    :undoc-members:
 

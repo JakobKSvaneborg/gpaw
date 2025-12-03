@@ -1,10 +1,9 @@
 import numpy as np
-
 from scipy.optimize import minimize
 
-from gpaw.spline import Spline
 from gpaw.lfc import LocalizedFunctionsCollection
 from gpaw.sphere.lebedev import weight_n
+from gpaw.spline import Spline
 
 
 def integrate_lebedev(f_nx):
@@ -155,11 +154,11 @@ def radial_truncation_function(r_g, rcut, drcut=None, lambd=None):
         # cutoff
         g1, g2 = find_two_closest_grid_points(r_g, rcut)
         drcut = 2 * abs(r_g[g2] - r_g[g1])
-    assert rcut > 0. and drcut > 0. and rcut - drcut / 2. >= 0.
+    assert rcut > 0. and drcut > 0.
     if lambd is None:
+        assert rcut - drcut / 2. >= 0. and np.any(r_g >= rcut + drcut / 2.)
         lambd = find_volume_conserving_lambd(rcut, drcut, r_g)
     assert 0. < lambd and lambd < 1.
-    assert np.any(r_g >= rcut + drcut / 2.)
 
     def f(x):
         out = np.zeros_like(x)

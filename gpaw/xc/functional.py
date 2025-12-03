@@ -1,4 +1,5 @@
 import numpy as np
+
 from gpaw.xc.kernel import XCKernel
 
 

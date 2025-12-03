@@ -26,12 +26,12 @@ FD and PW modes:
 
 import time
 
+import numpy as np
 from ase.parallel import parprint
 from ase.units import Hartree
 from ase.utils import basestring
-import numpy as np
 
-from gpaw.directmin import search_direction, line_search_algorithm
+from gpaw.directmin import line_search_algorithm, search_direction
 from gpaw.directmin.fdpw.etdm_inner_loop import ETDMInnerLoop
 from gpaw.directmin.fdpw.pz_localization import PZLocalization
 from gpaw.directmin.functional.fdpw import get_functional
@@ -339,10 +339,10 @@ class FDPWETDM:
         self.initialize_eigensolver(wfs, ham)
         self.initialize_orbitals(wfs, ham)
 
-        wfs.calculate_occupation_numbers(dens.fixed)
+        if not wfs.read_from_file_init_wfs_dm or self.excited_state:
+            wfs.calculate_occupation_numbers(dens.fixed)
 
-        # MOM
-        self.initial_sort_orbitals_mom(wfs)
+        self.initial_sort_orbitals(wfs)
 
         # localize orbitals?
         self.localize(wfs, dens, ham, log)
@@ -372,7 +372,7 @@ class FDPWETDM:
             else:
                 self.blocksize = 10
 
-        from gpaw.eigensolvers.eigensolver import Eigensolver
+        from gpaw.old.eigensolvers.eigensolver import Eigensolver
         self.eigensolver = Eigensolver(keep_htpsit=False,
                                        blocksize=self.blocksize)
         self.eigensolver.initialize(wfs)
@@ -454,14 +454,17 @@ class FDPWETDM:
         self.total_eg_count_outer_iloop = 0
 
         self.initialized = True
+        wfs.read_from_file_init_wfs_dm = False
 
-    def initial_sort_orbitals_mom(self, wfs):
+    def initial_sort_orbitals(self, wfs):
         occ_name = getattr(wfs.occupations, "name", None)
-        if occ_name == 'mom':
-            if self.globaliters == 0:
-                self.initial_occupation_numbers = \
-                    wfs.occupations.numbers.copy()
-            sort_orbitals_according_to_occ(wfs, update_mom=True)
+        if occ_name == 'mom' and self.globaliters == 0:
+            update_mom = True
+            self.initial_occupation_numbers = \
+                wfs.occupations.numbers.copy()
+        else:
+            update_mom = False
+        sort_orbitals_according_to_occ(wfs, update_mom=update_mom)
 
     def iterate(self, ham, wfs, dens, log, converge_unocc=False):
         """
@@ -928,21 +931,11 @@ class FDPWETDM:
             lumo = lumo.T
             kpt.eps_n[n_occ:n_occ + dim] = evals_lumo.real
 
-            if rewrite_psi:
+            if rewrite_psi:  # Only for SIC
                 kpt.psit_nG[:n_occ] = np.tensordot(
                     lamb1.conj(), kpt.psit_nG[:n_occ], axes=1)
                 kpt.psit_nG[n_occ:n_occ + dim] = np.tensordot(
                     lumo.conj(), kpt.psit_nG[n_occ:n_occ + dim], axes=1)
-
-            if scalewithocc:
-                orb_en = [lo_nn, lu_nn]
-                for i in [0, 1]:
-                    ind = np.argsort(orb_en[i])
-                    orb_en[i][:] = orb_en[i][ind]
-                    if not rewrite_psi:
-                        # we need to sort wfs
-                        kpt.psit_nG[n_occ * i + np.arange(len(ind)), :] = \
-                            kpt.psit_nG[n_occ * i + ind, :]
 
             wfs.pt.integrate(kpt.psit_nG, kpt.P_ani, kpt.q)
 

@@ -1,5 +1,6 @@
-import pytest
 import numpy as np
+import pytest
+
 from gpaw.core.matrix import Matrix
 from gpaw.mpi import world
 

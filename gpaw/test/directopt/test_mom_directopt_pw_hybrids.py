@@ -1,25 +1,16 @@
-import pytest
-
 import numpy as np
-
-from ase import Atoms
-from ase.units import Bohr
+import pytest
 
 from gpaw import GPAW, PW
 from gpaw.mom import prepare_mom_calculation
-from gpaw.mpi import world
 
 
-# @pytest.mark.new_gpaw_ready
 @pytest.mark.do
-def test_mom_directopt_pw_hybrids(in_tmp_dir, gpaw_new):
-    if gpaw_new and world.size > 1:
-        pytest.skip('ETDM not parallelized over bands')
-    d = 1.4 * Bohr
-    h2 = Atoms('H2',
-               positions=[[-d / 2, 0, 0],
-                          [d / 2, 0, 0]])
-    h2.center(vacuum=3)
+def test_mom_directopt_pw_hybrids(in_tmp_dir, gpw_files):
+    calc = GPAW(gpw_files['h2_mom_do_pwh'])
+    h2 = calc.atoms
+    h2.calc = calc
+    e = h2.get_potential_energy()
 
     # Total and orbital energies calculated using
     # RMMDIIS with disabled code below
@@ -51,18 +42,6 @@ def test_mom_directopt_pw_hybrids(in_tmp_dir, gpaw_new):
         h2.get_forces()
         calc.get_eigenvalues()
 
-    calc = GPAW(mode=PW(300),
-                # h=0.3,
-                xc={'name': 'HSE06', 'backend': 'pw'},
-                eigensolver={'name': 'etdm-fdpw',
-                             'converge_unocc': True},
-                mixer={'backend': 'no-mixing'},
-                occupations={'name': 'fixed-uniform'},
-                symmetry='off',
-                nbands=2,
-                convergence={'eigenstates': 4.0e-6})
-    h2.calc = calc
-    e = h2.get_potential_energy()
     eig = calc.get_eigenvalues()
     assert e == pytest.approx(e_ref, abs=1.0e-3)
     assert eig == pytest.approx(eig_ref, abs=0.1)

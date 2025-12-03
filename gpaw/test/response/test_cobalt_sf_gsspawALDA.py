@@ -1,16 +1,15 @@
+import numpy as np
 import pytest
 
-import numpy as np
-
 from gpaw import GPAW
-from gpaw.response import ResponseGroundStateAdapter, ResponseContext
-from gpaw.response.frequencies import ComplexFrequencyDescriptor
+from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator, SelfEnhancementCalculator
 from gpaw.response.dyson import DysonSolver
-from gpaw.response.goldstone import NewFMGoldstoneScaling
-from gpaw.response.susceptibility import (spectral_decomposition,
-                                          read_eigenmode_lineshapes)
-
+from gpaw.response.frequencies import ComplexFrequencyDescriptor
+from gpaw.response.goldstone import (NewFMGoldstoneScaling,
+                                     RefinedFMGoldstoneScaling)
+from gpaw.response.susceptibility import (read_eigenmode_lineshapes,
+                                          spectral_decomposition)
 from gpaw.test import findpeak
 from gpaw.test.gpwfile import response_band_cutoff
 
@@ -50,7 +49,8 @@ def test_response_cobalt_sf_gsspawALDA(in_tmp_dir, gpw_files):
     xi_calc = SelfEnhancementCalculator(*calc_args,
                                         rshelmax=rshelmax,
                                         **calc_kwargs)
-    hxc_scaling = NewFMGoldstoneScaling.from_xi_calculator(xi_calc)
+    base_scaling = NewFMGoldstoneScaling.from_xi_calculator(xi_calc)
+    refi_scaling = RefinedFMGoldstoneScaling.from_xi_calculator(xi_calc)
     dyson_solver = DysonSolver(context)
 
     for q, q_c in enumerate(q_qc):
@@ -64,9 +64,11 @@ def test_response_cobalt_sf_gsspawALDA(in_tmp_dir, gpw_files):
         xi = xi.copy_with_global_frequency_distribution()
         chi = dyson_solver(chiks, xi)
         # Test ability to apply Goldstone scaling when inverting the dyson eq.
-        scaled_chi = dyson_solver(chiks, xi, hxc_scaling=hxc_scaling)
+        scaled_chi = dyson_solver(chiks, xi, hxc_scaling=base_scaling)
+        refined_chi = dyson_solver(chiks, xi, hxc_scaling=refi_scaling)
         # Simulate a "restart" of the GoldstoneScaling
-        hxc_scaling = NewFMGoldstoneScaling(lambd=hxc_scaling.lambd)
+        base_scaling = NewFMGoldstoneScaling(lambd=base_scaling.lambd)
+        refi_scaling = RefinedFMGoldstoneScaling(lambd=refi_scaling.lambd)
 
         # Calculate majority spectral function
         Amaj, _ = spectral_decomposition(chi, pos_eigs=pos_eigs)
@@ -75,23 +77,33 @@ def test_response_cobalt_sf_gsspawALDA(in_tmp_dir, gpw_files):
         sAmaj, _ = spectral_decomposition(scaled_chi, pos_eigs=pos_eigs)
         sAmaj.write_eigenmode_lineshapes(
             f'cobalt_sAmaj_q{q}.csv', nmodes=nmodes)
+        rAmaj, _ = spectral_decomposition(refined_chi, pos_eigs=pos_eigs)
+        rAmaj.write_eigenmode_lineshapes(
+            f'cobalt_rAmaj_q{q}.csv', nmodes=nmodes)
 
         # Store Re ξ^++(q=0,ω), to test the self-enhancement after scaling
         if q == 0:
-            chiks_mW, xi_mW = get_mode_projections(
-                chiks, xi, sAmaj, lambd=hxc_scaling.lambd, nmodes=nmodes)
+            _, xi_mW = get_mode_projections(
+                chiks, xi, sAmaj, lambd=base_scaling.lambd, nmodes=nmodes)
             xi0_w = xi_mW[0].real
+            _, xi_mW = get_mode_projections(
+                chiks, xi, sAmaj, lambd=refi_scaling.lambd, nmodes=nmodes)
+            rxi0_w = xi_mW[0].real
 
         # plot_enhancement(chiks, xi, Amaj, sAmaj,
-        #                  lambd=hxc_scaling.lambd, nmodes=nmodes)
+        #                  lambd=base_scaling.lambd, nmodes=nmodes)
+        # plot_enhancement(chiks, xi, Amaj, rAmaj,
+        #                  lambd=refi_scaling.lambd, nmodes=nmodes)
 
     context.write_timer()
 
     # Compare scaling coefficient to reference
-    assert hxc_scaling.lambd == pytest.approx(1.0541, abs=0.001)
+    assert base_scaling.lambd == pytest.approx(1.0541, abs=0.001)
+    assert refi_scaling.lambd == pytest.approx(1.0526, abs=0.001)
     # Test that Re ξ^++(q=0,ω) ≾ 1 at ω=0
     w0 = np.argmin(np.abs(frq_w))
     assert xi0_w[w0] == pytest.approx(0.987, abs=0.01)
+    assert rxi0_w[w0] == pytest.approx(0.986, abs=0.01)
 
     # Compare magnon peaks to reference data
     refs_mqa = [
@@ -126,7 +138,7 @@ def test_response_cobalt_sf_gsspawALDA(in_tmp_dir, gpw_files):
             ],
         ],
     ]
-    for a, Astr in enumerate(['Amaj', 'sAmaj']):
+    for a, Astr in zip([0, 1, 1], ['Amaj', 'sAmaj', 'rAmaj']):
         for q in range(len(q_qc)):
             w_w, a_wm = read_eigenmode_lineshapes(f'cobalt_{Astr}_q{q}.csv')
             for m in range(nmodes):
@@ -135,6 +147,10 @@ def test_response_cobalt_sf_gsspawALDA(in_tmp_dir, gpw_files):
                 print(m, q, a, wpeak, Apeak)
                 assert wpeak == pytest.approx(refw, abs=0.01)  # eV
                 assert Apeak == pytest.approx(refA, abs=0.05)  # a.u.
+                if q == 0 and m == 0 and Astr == 'rAmaj':
+                    # Check that the gap error is completely removed when using
+                    # the refined scaling
+                    assert wpeak == pytest.approx(0.0, abs=1e-4)  # eV
 
 
 def get_mode_projections(chiks, xi, Amaj, *, lambd, nmodes):
@@ -153,8 +169,9 @@ def get_mode_projections(chiks, xi, Amaj, *, lambd, nmodes):
 
 def plot_enhancement(chiks, xi, Amaj0, sAmaj, *, lambd, nmodes):
     import matplotlib.pyplot as plt
-    from gpaw.mpi import world
     from ase.units import Ha
+
+    from gpaw.mpi import world
 
     for Amaj, _lambd in zip([Amaj0, sAmaj], [1., lambd]):
         a_mW = Amaj.get_eigenmode_lineshapes(nmodes=nmodes).T

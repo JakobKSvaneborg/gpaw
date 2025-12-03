@@ -7,17 +7,19 @@ import pickle
 import random
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from time import time
-from typing import Any, TypeVar, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
 from ase import Atoms
 from ase.build import bulk
 from ase.units import Bohr, Ha
-from gpaw.calculator import GPAW as OldGPAW
+
 from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW as NewGPAW
+from gpaw.old.calculator import GPAW as OldGPAW
 
 if TYPE_CHECKING:
     T = TypeVar('T')
@@ -323,7 +325,8 @@ def create_parameters(modes: list[str],
             else:
                 kpts = kpt
                 ktag = f'-k{"x".join(str(k) for k in kpt)}'
-            yield {'mode': mode,
+            yield {'eigensolver': 'davidson' if mode == 'pw' else None,
+                   'mode': mode,
                    'kpts': kpts}, f'-m{mode} {ktag}'
 
 

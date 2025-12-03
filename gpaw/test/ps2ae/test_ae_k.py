@@ -1,9 +1,9 @@
 import pytest
 from ase.units import Bohr
 
-from gpaw.calculator import GPAW as GPAW1
-from gpaw.mpi import size
+from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW as GPAW2
+from gpaw.old.calculator import GPAW as GPAW1
 from gpaw.utilities.ps2ae import PS2AE
 
 
@@ -15,7 +15,7 @@ def test_ae_k(gpw_files, name, tol, gpaw_new):
 
     if gpaw_new:
         # New API:
-        if size > 1:
+        if world.size > 1:
             return
         calc = GPAW2(gpw_files[name])
         ae = calc.dft.ibzwfs.get_all_electron_wave_function(

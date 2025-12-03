@@ -1,36 +1,15 @@
+import numpy as np
 import pytest
 
-from gpaw import GPAW, LCAO
-
-from ase import Atoms
-import numpy as np
+from gpaw import GPAW
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.do
-def test_constraints_directopt_lcao(in_tmp_dir):
-    # H2O molecule:
-    d = 0.9575
-    t = np.pi / 180 * 104.51
-    H2O = Atoms('OH2',
-                positions=[(0, 0, 0),
-                           (d, 0, 0),
-                           (d * np.cos(t), d * np.sin(t), 0)])
-    H2O.center(vacuum=4.0)
-
-    calc = GPAW(mode=LCAO(),
-                basis='dzp',
-                h=0.22,
-                occupations={'name': 'fixed-uniform'},
-                eigensolver={'name': 'etdm-lcao'},
-                mixer={'backend': 'no-mixing'},
-                nbands='nao',
-                symmetry='off',
-                spinpol=True,
-                convergence={'density': 1.0e-4,
-                             'eigenstates': 4.0e-8})
+def test_constraints_directopt_lcao(in_tmp_dir, gpw_files):
+    calc = GPAW(gpw_files['h2o_cdo_lcao'])
+    H2O = calc.atoms
     H2O.calc = calc
-    H2O.get_potential_energy()
-
     homo = 3
     lumo = 4
     a = 0.5 * np.pi

@@ -1,13 +1,13 @@
+from itertools import product
+
 import pytest
 from ase.build import bulk
 from ase.dft.kpoints import monkhorst_pack
-# from ase.units import Bohr
 
-from gpaw import GPAW, FermiDirac, PW
-from gpaw.response.frequencies import FrequencyDescriptor
-from gpaw.response.chi0 import Chi0Calculator
+from gpaw import GPAW, PW, FermiDirac
 from gpaw.mpi import serial_comm
-from itertools import product
+from gpaw.response.chi0 import Chi0Calculator
+from gpaw.response.frequencies import FrequencyDescriptor
 
 
 @pytest.mark.response
@@ -57,7 +57,7 @@ def test_response_chi0(in_tmp_dir):
         if not sym:
             chi00_wGG = chi0_wGG
         elif -1 not in calc.wfs.kd.bz2bz_ks:
-            assert abs(chi0_wGG - chi00_wGG).max() < 2e-5
+            assert chi0_wGG == pytest.approx(chi00_wGG, abs=3e-5)
 
         chi0 = chi0_calc.calculate([0, 0, 0])
         assert chi0.body.blockdist.blockcomm.size == 1

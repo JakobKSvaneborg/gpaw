@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import warnings
 from functools import cached_property
 
 import numpy as np
@@ -9,9 +11,9 @@ from gpaw.core import PWDesc, UGDesc
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
 from gpaw.core.plane_waves import PWArray
+from gpaw.gpu import as_xp
 from gpaw.new import zips
 from gpaw.new.builder import create_uniform_grid
-from gpaw.new.gpw import as_double_precision
 from gpaw.new.pw.bloechl_poisson import BloechlPAWPoissonSolver
 from gpaw.new.pw.hamiltonian import PWHamiltonian, SpinorPWHamiltonian
 from gpaw.new.pw.hybrids import PWHybridHamiltonian
@@ -38,6 +40,10 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         self._nct_ag = None
         self._tauct_ag = None
 
+        nthreads = int(os.environ.get('OMP_NUM_THREADS', '') or '1')
+        if nthreads > 1:
+            warnings.warn(
+                'Using OMP_NUM_THREADS>1 in PW-mode is not useful!')
         # We should just distribute the atom evenly, but that is not compatible
         # with LCAO initialization!
         # return AtomDistribution.from_number_of_atoms(len(self.relpos_ac),
@@ -110,11 +116,23 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
     def get_pseudo_core_ked(self):
         if self._tauct_ag is None:
             self._tauct_ag = self.setups.create_pseudo_core_ked(
-                self.interpolation_desc, self.relpos_ac, self.atomdist)
+                self.interpolation_desc, self.relpos_ac, self.atomdist,
+                xp=self.xp)
         return self._tauct_ag
 
-    def create_poisson_solver(self, env):
-        psparams = self.params.poissonsolver.params.copy() or {'strength': 1.0}
+    def create_poisson_solver(self, extensions):
+        try:
+            ps = super().create_poisson_solver(extensions)
+        except NotImplementedError:
+            pass
+        else:
+            return SlowPAWPoissonSolver(
+                self.interpolation_desc,
+                self.setups,
+                ps, self.relpos_ac, self.atomdist, self.xp)
+
+        psparams = (self.params.poissonsolver.params.copy() or
+                    {'strength': 1.0})
         psparams.pop('fast', False)
 
         if self.fast_poisson_solver:
@@ -125,8 +143,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         pw = self.electrostatic_potential_desc
         ps = make_poisson_solver(pw,
                                  grid,
-                                 self.params.charge,
-                                 env,
+                                 self.charge,
                                  **psparams)
 
         if self.fast_poisson_solver:
@@ -140,32 +157,30 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             ps, self.relpos_ac, self.atomdist, self.xp)
 
     def create_potential_calculator(self):
-        env = self.create_environment(self.fine_grid)
+        extensions = self.get_extensions()
         return PlaneWavePotentialCalculator(
-            self.grid, self.fine_grid,
+            self.grid,
+            self.fine_grid,
             self.interpolation_desc,
             self.setups,
             self.xc,
-            self.create_poisson_solver(env),
+            self.create_poisson_solver(extensions),
             relpos_ac=self.relpos_ac,
             atomdist=self.atomdist,
             soc=self.soc,
             xp=self.xp,
-            environment=env,
-            extensions=self.get_extensions())
+            extensions=extensions)
 
     def create_hamiltonian_operator(self, blocksize=10):
         if self.ncomponents < 4:
             if self.xc.exx_fraction == 0.0:
-                return PWHamiltonian(self.grid, self.wf_desc, self.xp)
-            assert self.communicators['d'].size == 1
-            assert self.communicators['k'].size == 1
-            assert self.nbands % self.communicators['b'].size == 0
+                return PWHamiltonian(self.grid, self.dtype, self.xp)
             return PWHybridHamiltonian(
                 self.grid, self.wf_desc, self.xc, self.setups,
-                self.relpos_ac, self.atomdist,
-                comp_charge_in_real_space=self.params.experimental.get(
-                    'ccirs'))
+                self.relpos_ac, self.atomdist, self.log,
+                self.communicators['k'],
+                self.communicators['b'],
+                self.communicators['w'])
         return SpinorPWHamiltonian(self.qspiral_v)
 
     def convert_wave_functions_from_uniform_grid(self,
@@ -173,12 +188,31 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                                                  basis_set,
                                                  kpt_c,
                                                  q):
-        # Replace this with code that goes directly from C_nM to
-        # psit_nG via PWAtomCenteredFunctions.
-        # XXX
+        if self.params.experimental.get('fast_pw_init', True):
+            if self.ncomponents < 4:
+                from gpaw.core.pwacf import PWAtomCenteredFunctions
+                pw = self.wf_desc.new(kpt=kpt_c)
+                phit_aJG = PWAtomCenteredFunctions(
+                    [setup.basis_functions_J for setup in self.setups],
+                    self.relpos_ac,
+                    pw,
+                    atomdist=self.atomdist,
+                    xp=self.xp)
+                psit_nG = pw.empty(self.nbands,
+                                   comm=self.communicators['b'],
+                                   xp=self.xp)
+                mynbands, M = C_nM.dist.shape
+                phit_aJG.multiply(C_nM.to_dtype(pw.dtype),
+                                  out_nG=psit_nG[:mynbands])
+                return psit_nG
 
-        grid = self.grid.new(kpt=kpt_c, dtype=self.dtype)
-        pw = self.wf_desc.new(kpt=kpt_c)
+        lcao_dtype = complex if \
+            np.issubdtype(self.dtype, np.complexfloating) else float
+
+        grid = self.grid.new(kpt=kpt_c, dtype=lcao_dtype)
+        pw = self.wf_desc.new(kpt=kpt_c, dtype=lcao_dtype)
+        if self.dtype != lcao_dtype:
+            pw_correct = self.wf_desc.new(kpt=kpt_c, dtype=self.dtype)
 
         if np.issubdtype(self.dtype, np.complexfloating):
             emikr_R = grid.eikr(-kpt_c)
@@ -193,6 +227,12 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 if np.issubdtype(self.dtype, np.complexfloating):
                     psit_R.data *= emikr_R
                 psit_R.fft(out=psit_G)
+
+            if self.dtype != lcao_dtype:
+                psit2_nG = pw_correct.empty(self.nbands,
+                                            self.communicators['b'])
+                psit2_nG.data[:] = psit_nG.data
+                return psit2_nG.to_xp(self.xp)
             return psit_nG.to_xp(self.xp)
         else:
             psit_nsG = pw.empty((self.nbands, 2), self.communicators['b'])
@@ -207,12 +247,27 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             return psit_nsG
 
     def read_ibz_wave_functions(self, reader):
+        from gpaw.utilities import as_dtype_precision, get_dtype_precision
+
+        def convert_precision(array):
+            """Convert array to match calculation precision."""
+            target_precision = get_dtype_precision(self.dtype)
+            if (target_precision == 'double' and
+                    array.dtype in [np.complex64, np.float32]):
+                target_dtype = as_dtype_precision(array.dtype, 'double')
+                return np.array(array, dtype=target_dtype)
+            elif (target_precision == 'single' and
+                  array.dtype in [np.complex128, np.float64]):
+                target_dtype = as_dtype_precision(array.dtype, 'single')
+                return np.array(array, dtype=target_dtype)
+            else:
+                return array
+
         ibzwfs = super().read_ibz_wave_functions(reader)
 
         if 'coefficients' not in reader.wave_functions:
             return ibzwfs
 
-        singlep = reader.get('precision', 'double') == 'single'
         c = reader.bohr**1.5
         if reader.version < 0:
             c = 1  # very old gpw file
@@ -220,14 +275,10 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             c /= self.grid.size_c.prod()
 
         index_kG = reader.wave_functions.indices
-
-        if self.ncomponents == 4:
-            shape = (self.nbands, 2)
-        else:
-            shape = (self.nbands,)
+        shape = (self.nbands, 2) if self.ncomponents == 4 else (self.nbands,)
 
         for wfs in ibzwfs:
-            pw = self.wf_desc.new(kpt=wfs.kpt_c)
+            pw = self.wf_desc.new(kpt=wfs.kpt_c, dtype=self.dtype)
             if wfs.spin == 0:
                 check_g_vector_ordering(self.grid, pw, index_kG[wfs.k])
 
@@ -236,16 +287,17 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             data.scale = c
             data.length_of_last_dimension = pw.shape[-1]
 
-            if self.communicators['w'].size == 1 and not singlep:
+            if self.communicators['w'].size == 1:
                 orig_shape = data.shape
                 data.shape = shape + pw.shape
-                wfs.psit_nX = pw.from_data(data)
+                converted_data = convert_precision(data)
+
+                wfs.psit_nX = pw.from_data(converted_data)
                 data.shape = orig_shape
             else:
                 band_comm = self.communicators['b']
                 wfs.psit_nX = PWArray(pw, shape, comm=band_comm)
-                mynbands = (self.nbands +
-                            band_comm.size - 1) // band_comm.size
+                mynbands = (self.nbands + band_comm.size - 1) // band_comm.size
                 n1 = min(band_comm.rank * mynbands, self.nbands)
                 n2 = min((band_comm.rank + 1) * mynbands, self.nbands)
                 if pw.comm.rank == 0:
@@ -254,10 +306,10 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 else:
                     data = [None] * (n2 - n1)
                 for psit_G, array in zips(wfs.psit_nX, data):
-                    if singlep:
-                        psit_G.scatter_from(as_double_precision(array))
-                    else:
-                        psit_G.scatter_from(array)
+                    if array is not None:
+                        array = convert_precision(array)
+                        array = as_xp(array, psit_G.xp)
+                    psit_G.scatter_from(array)
 
         return ibzwfs
 

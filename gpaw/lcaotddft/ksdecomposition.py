@@ -1,20 +1,17 @@
-import numpy as np
 from typing import NamedTuple
 
-from ase.units import Hartree, Bohr
-
+import numpy as np
 from ase.io.ulm import Reader
-from gpaw.io import Writer
+from ase.units import Bohr, Hartree
+
 from gpaw.external import ConstantElectricField
-from gpaw.kpoint import KPoint
+from gpaw.io import Writer
 from gpaw.lcaotddft.hamiltonian import KickHamiltonian
-from gpaw.lcaotddft.utilities import collect_MM
-from gpaw.lcaotddft.utilities import distribute_nM
-from gpaw.lcaotddft.utilities import read_uMM
-from gpaw.lcaotddft.utilities import write_uMM
-from gpaw.lcaotddft.utilities import read_uX, write_uX
-from gpaw.utilities.scalapack import \
-    pblas_simple_gemm, pblas_simple_hemm, scalapack_tri2full
+from gpaw.lcaotddft.utilities import (collect_MM, distribute_nM, read_uMM,
+                                      read_uX, write_uMM, write_uX)
+from gpaw.old.kpoint import KPoint
+from gpaw.utilities.scalapack import (pblas_simple_gemm, pblas_simple_hemm,
+                                      scalapack_tri2full)
 from gpaw.utilities.tools import tri2full
 
 

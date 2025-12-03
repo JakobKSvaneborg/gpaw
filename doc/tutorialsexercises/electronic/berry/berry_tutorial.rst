@@ -20,17 +20,14 @@ script :download:`gs_BaTiO3.py`. We can then run the script
 .. literalinclude:: polarization_BaTiO3.py
 
 which calculates the polarization. It will take a few minutes on a single CPU,
-but can also be parallelized. It generates a .json file that contains the
-polarization and will read if the script is run again. It is thus possible to
-submit the polarization script and print the polarization by rerunning the
-script above in the terminal. The calculation adds the contribution from the
-electrons and the nucleii, which implies that the result is independent of the
+but can also be parallelized. The calculation adds the contribution from the
+electrons and the nuclei, which implies that the result is independent of the
 positions of the atoms relative to the unit cell. The results should be 0.27
 `C/m^2` for LDA and 0.45 `C/m^2` for PBE , which agrees with the values from
 literature [#Zhang]_.  Technically this approach is incorrect since an
 adiabatic path between a non-polar reference structure (in this case the cubic
 phase of BaTiO3) and the polar phase (the tetragonal phase of BaTiO3) is
-needed in order to properly compute the spontanous polarization [#King-Smith]_.
+needed in order to properly compute the spontaneous polarization [#King-Smith]_.
 However for BaTiO3 the spontaneous polarization happens to be smaller
 than the so called polarization quantum, and therefore the approach presented
 here yields the correct result.
@@ -52,15 +49,21 @@ above the calculation is performed with the script
 
 .. literalinclude:: born_BaTiO3.py
 
-Again the results are written to a .json file and the Born effective charges
+The results are written to the ``born_charges.json`` file and the Born effective charges
 can be viewed with the script
 
 .. literalinclude:: get_borncharges.py
+    :start-after: literalinclude import-start
+    :end-before: literalinclude import-end
 
 Due to symmetry all the tensors are diagonal. Note, however, the large
 differences between the components for each of the O atoms. The Born effective
 charges tell us how the atoms are affected by an external electric field.
 
+.. csv-table::
+  :align: center
+  :header: Ba, , , ,Ti, , , ,O, , , ,O, , , ,O, , ,
+  :file: born_charges_BaTiO3.csv
 
 Topological properties of stanene from parallel transport
 =========================================================
@@ -94,7 +97,7 @@ Berry phases of all occupied bands are calculated with
 
 .. literalinclude:: Sn_parallel_transport.py
 
-Finally the berry phase spectrum can be plottet with
+Finally the berry phase spectrum can be plotted with
 :download:`plot_phase.py` and the result is shown below.
 
 .. image:: phases.png
@@ -106,7 +109,7 @@ number of phases in half the Brillouin zone (for example the `\Gamma-M`
 line). We also display the expectation value of `S_z` according to color.
 This is possible because the individual phases correspond to the first
 moments of hybrid Wannier functions localized along the `x`-direction and
-these functions have a spinorial structure with a well-defined value of
+these functions have a spinor structure with a well-defined value of
 `\langle S_z\rangle`. [#Olsen]_
 
 Polarization from from parallel transport

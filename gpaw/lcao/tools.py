@@ -1,19 +1,15 @@
-from time import localtime
 import pickle
 
 import numpy as np
-from ase.units import Ha
 from ase.calculators.singlepoint import SinglePointCalculator
-from ase.utils import IOContext
+from ase.units import Ha
 
-from gpaw.utilities import pack_density
-from gpaw.utilities.tools import tri2full
-from gpaw.utilities.blas import rk, mmm, mmmx
 from gpaw.basis_data import Basis
+from gpaw.mpi import parallel
 from gpaw.setup import types2atomtypes
-from gpaw.coulomb import CoulombNEW as Coulomb
-from gpaw.mpi import world, rank, serial_comm
-from gpaw import GPAW
+from gpaw.utilities import pack_density
+from gpaw.utilities.blas import mmm, mmmx, rk
+from gpaw.utilities.tools import tri2full
 
 
 def get_bf_centers(atoms, basis=None):
@@ -67,9 +63,10 @@ def get_realspace_hs(h_skmm, s_kmm, bzk_kc, weight_k,
                      R_c=(0, 0, 0), direction='x',
                      symmetry={'enabled': False}):
 
+    from ase.dft.kpoints import (get_monkhorst_pack_size_and_offset,
+                                 monkhorst_pack)
+
     from gpaw.symmetry import Symmetry
-    from ase.dft.kpoints import get_monkhorst_pack_size_and_offset, \
-        monkhorst_pack
 
     if symmetry['point_group']:
         raise NotImplementedError('Point group symmetry not implemented')
@@ -189,7 +186,7 @@ def dump_hamiltonian(filename, atoms, direction=None, Ef=None):
                 else:
                     remove_pbc(atoms, h_skmm[s, k], None, d)
 
-    if atoms.calc.master:
+    if atoms.calc.master:  # This attribute does not exist does it?
         with open(filename, 'wb') as fd:
             pickle.dump((h_skmm, s_kmm), fd, 2)
             atoms_data = {'cell': atoms.cell, 'positions': atoms.positions,
@@ -201,7 +198,7 @@ def dump_hamiltonian(filename, atoms, direction=None, Ef=None):
 
             pickle.dump(calc_data, fd, 2)
 
-    world.barrier()
+    atoms.calc.wfs.world.barrier()
 
 
 def dump_hamiltonian_parallel(filename, atoms, direction=None, Ef=None):
@@ -282,7 +279,7 @@ def get_lcao_hamiltonian(calc):
             S_kMM[wfs.k] = S_MM.data
     ibzwfs.kpt_comm.sum(H_skMM)
     ibzwfs.kpt_comm.sum(S_kMM)
-    if rank == 0:
+    if calc.wfs.world.rank == 0:
         return H_skMM, S_kMM
     return None, None
 
@@ -307,15 +304,16 @@ def old_get_lcao_hamiltonian(calc):
         tri2full(H_skMM[kpt.s, kpt.k])
     calc.wfs.kd.comm.sum(S_kMM, 0)
     calc.wfs.kd.comm.sum(H_skMM, 0)
-    if rank == 0:
+    if calc.wfs.world.rank == 0:
         return H_skMM, S_kMM
     else:
         return None, None
 
 
-def get_lead_lcao_hamiltonian(calc, direction='x'):
+@parallel(name='world')  # get from calc?
+def get_lead_lcao_hamiltonian(calc, direction='x', *, world):
     H_skMM, S_kMM = get_lcao_hamiltonian(calc)
-    if rank == 0:
+    if world.rank == 0:
         return lead_kspace2realspace(H_skMM, S_kMM,
                                      bzk_kc=calc.wfs.kd.bzk_kc,
                                      weight_k=calc.wfs.kd.weight_k,
@@ -408,7 +406,8 @@ def basis_subset2(symbols, largebasis='dzp', smallbasis='sz'):
     return np.asarray(mask, bool)
 
 
-def collect_orbitals(a_xo, coords, root=0):
+@parallel(name='world')
+def collect_orbitals(a_xo, coords, root=0, *, world):
     """Collect array distributed over orbitals to root-CPU.
 
     Input matrix has last axis distributed amongst CPUs,
@@ -445,9 +444,11 @@ def collect_orbitals(a_xo, coords, root=0):
     return a_xO
 
 
+@parallel(name='world')
 def makeU(gpwfile='grid.gpw', orbitalfile='w_wG__P_awi.pckl',
           rotationfile='eps_q__U_pq.pckl', tolerance=1e-5,
-          writeoptimizedpairs=False, dppname='D_pp.pckl', S_w=None):
+          writeoptimizedpairs=False, dppname='D_pp.pckl', S_w=None,
+          *, world):
 
     # S_w: None or diagonal of overlap matrix. In the latter case
     # the optimized and truncated pair orbitals are obtained from
@@ -456,8 +457,7 @@ def makeU(gpwfile='grid.gpw', orbitalfile='w_wG__P_awi.pckl',
     # Tolerance is used for truncation of optimized pairorbitals
     # calc = GPAW(gpwfile, txt=None)
     from gpaw import GPAW
-    from gpaw.mpi import world
-    calc = GPAW(gpwfile, txt='pairorb.txt')  # XXX
+    calc = GPAW(gpwfile, txt='pairorb.txt', communicator=world)  # XXX
     gd = calc.wfs.gd
     setups = calc.wfs.setups
     myatoms = calc.density.D_asp.keys()
@@ -545,102 +545,3 @@ def makeU(gpwfile='grid.gpw', orbitalfile='w_wG__P_awi.pckl',
             P_aqp = {a: np.dot(Uisq_qp, Px_pp) for a, Px_pp in P_app.items()}
             with open(writeoptimizedpairs, 'wb') as fd:
                 pickle.dump((g_qG, P_aqp), fd, 2)
-
-
-def makeV(gpwfile='grid.gpw', orbitalfile='w_wG__P_awi.pckl',
-          rotationfile='eps_q__U_pq.pckl', coulombfile='V_qq.pckl',
-          log='V_qq.log', fft=False):
-
-    with IOContext() as io:
-        log = io.openfile(log, comm=serial_comm)
-        _makeV(gpwfile=gpwfile, orbitalfile=orbitalfile,
-               rotationfile=rotationfile, coulombfile=coulombfile,
-               log=log, fft=fft)
-
-
-def _makeV(gpwfile, orbitalfile, rotationfile, coulombfile, log, fft):
-    # Extract data from files
-    calc = GPAW(gpwfile, txt=None, communicator=serial_comm)
-    coulomb = Coulomb(calc.wfs.gd, calc.wfs.setups, calc.spos_ac, fft)
-    with open(orbitalfile, 'rb') as fd:
-        w_wG, P_awi = pickle.load(fd)
-    with open(rotationfile, 'rb') as fd:
-        eps_q, U_pq = pickle.load(fd)
-    del calc
-
-    # Make rotation matrix divided by sqrt of norm
-    Nq = len(eps_q)
-    Ni = len(w_wG)
-    Uisq_iqj = (U_pq / np.sqrt(eps_q)).reshape(
-        Ni, Ni, Nq).swapaxes(1, 2).copy()
-    del eps_q, U_pq
-
-    # Determine number of opt. pairorb on each cpu
-    Ncpu = world.size
-    nq, R = divmod(Nq, Ncpu)
-    nq_r = nq * np.ones(Ncpu, int)
-    if R > 0:
-        nq_r[-R:] += 1
-
-    # Determine number of opt. pairorb on this cpu
-    nq1 = nq_r[world.rank]
-    q1end = nq_r[:world.rank + 1].sum()
-    q1start = q1end - nq1
-    V_qq = np.zeros((Nq, nq1), float)
-
-    def make_optimized(qstart, qend):
-        g_qG = np.zeros((qend - qstart,) + w_wG.shape[1:], float)
-        P_aqp = {}
-        for a, P_wi in P_awi.items():
-            ni = P_wi.shape[1]
-            nii = ni * (ni + 1) // 2
-            P_aqp[a] = np.zeros((qend - qstart, nii), float)
-        for w1, w1_G in enumerate(w_wG):
-            U = Uisq_iqj[w1, qstart: qend].copy()
-            mmmx(1, U, 'N', w1_G * w_wG, 'N', 1, g_qG)
-            for a, P_wi in P_awi.items():
-                P_wp = np.array([pack_density(np.outer(P_wi[w1], P_wi[w2]))
-                                 for w2 in range(Ni)])
-                mmm(1., U, 'N', P_wp, 'N', 1.0, P_aqp[a])
-        return g_qG, P_aqp
-
-    g1_qG, P1_aqp = make_optimized(q1start, q1end)
-    for block, nq2 in enumerate(nq_r):
-        if block == world.rank:
-            g2_qG, P2_aqp = g1_qG, P1_aqp
-            q2start, q2end = q1start, q1end
-        else:
-            q2end = nq_r[:block + 1].sum()
-            q2start = q2end - nq2
-            g2_qG, P2_aqp = make_optimized(q2start, q2end)
-
-        for q1, q2 in np.ndindex(nq1, nq2):
-            P1_ap = {a: P_qp[q1] for a, P_qp in P1_aqp.items()}
-            P2_ap = {a: P_qp[q2] for a, P_qp in P2_aqp.items()}
-            V_qq[q2 + q2start, q1] = coulomb.calculate(g1_qG[q1], g2_qG[q2],
-                                                       P1_ap, P2_ap)
-            if q2 == 0 and world.rank == 0:
-                T = localtime()
-                log.write(
-                    'Block %i/%i is %4.1f percent done at %02i:%02i:%02i\n' %
-                    (block + 1, world.size,
-                     100.0 * q1 / nq1, T[3], T[4], T[5]))
-                log.flush()
-
-    # Collect V_qq array on master node
-    if world.rank == 0:
-        T = localtime()
-        log.write('Starting collect at %02i:%02i:%02i\n' % (
-            T[3], T[4], T[5]))
-        log.flush()
-
-    V_qq = collect_orbitals(V_qq, coords=nq_r, root=0)
-    if world.rank == 0:
-        # V can be slightly asymmetric due to numerics
-        V_qq = 0.5 * (V_qq + V_qq.T)
-        V_qq.dump(coulombfile)
-
-        T = localtime()
-        log.write('Finished at %02i:%02i:%02i\n' % (
-            T[3], T[4], T[5]))
-        log.flush()

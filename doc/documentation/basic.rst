@@ -18,7 +18,7 @@ Below, there will be Python code examples starting with ``>>>`` (and
 Python interpreter and try some of the examples below.
 
 .. _Python: https://www.python.org
-.. _Atomic Simulation Environment: https://wiki.fysik.dtu.dk/ase
+.. _Atomic Simulation Environment: https://ase-lib.org
 
 The units used by the GPAW calculator correspond to the :mod:`ASE
 conventions <ase.units>`, most importantly electron volts and
@@ -72,6 +72,7 @@ Here, we want to use one electronic band, the Perdew, Burke, Ernzerhof
 (PBE)\ [#PBE]_ exchange-correlation functional and 24 grid points in
 each direction.
 
+.. _parameters:
 
 ----------
 Parameters
@@ -183,6 +184,10 @@ given in the following sections.
       - ``str``
       - ``'LDA'``
       - :ref:`manual_xc`
+    * - ``extensions``
+      - ``list[ExtensionInput]``
+      - ``[]``
+      - :ref:`extensions`
 
 
 *seq*: A sequence of three ``int``'s.
@@ -420,7 +425,7 @@ in chemistry corresponds to ``'LDA_X+LDA_C_VWN'``.
 
 XC functionals can also be specified as dictionaries. This is useful for
 functionals that depend on one or more parameters. For example, to use a
-stencil with two nearest neighbours for the density-gradient with the PBE
+stencil with two nearest neighbors for the density-gradient with the PBE
 functional, use ``xc={'name': 'PBE', 'stencil': 2}``. The ``stencil``
 keyword applies to any GGA or MGGA. Some functionals may take other
 parameters; see their respective documentation pages.
@@ -721,7 +726,7 @@ criteria.  However, with the ``'bands'`` set to ``'all'``, it is
 possible to force convergence also for the unoccupied states.  One can
 also use ``{'bands': 200}`` to converge the lowest 200 bands. One can
 also write ``{'bands': -10}`` to converge all bands except the last
-10. It is often hard to converge the last few bands in a calculation.
+10.  It is often hard to converge the last few bands in a calculation.
 Finally, one can also use ``{'bands': 'CBM+5.0'}`` to specify that bands
 up to the conduction band minimum plus 5.0 eV should be converged
 (for a metal, CBM is taken as the Fermi level).
@@ -888,7 +893,7 @@ the ``Atoms`` object.
 
 .. note::
 
-    If you want to use only the ``sz`` basis functinons from a ``dzp``
+    If you want to use only the ``sz`` basis functions from a ``dzp``
     basis set, then you can use this syntax: ``basis='sz(dzp)'``.
     This will read the basis functions for, say hydrogen, from the
     ``H.dzp.basis`` file.  If the basis has a custom name,
@@ -918,7 +923,7 @@ subspace), (``eigensolver='rmm-diis'``), which performs well when only a few
 unoccupied states are calculated. Another option is the conjugate gradient
 method (``eigensolver='cg'``), which is stable but slower.
 
-If parallellization over bands is necessary, then Davidson or RMM-DIIS must
+If parallelization over bands is necessary, then Davidson or RMM-DIIS must
 be used.
 
 More control can be obtained by using directly the eigensolver objects::
@@ -1039,7 +1044,7 @@ where the default value is also ``n=3``.
 
 In PW-mode, the interpolation of the density from the coarse grid to the
 fine grid is done with FFT's.  In FD and LCAO mode, tri-quintic interpolation
-is used (5. degree polynomium)::
+is used (5. degree polynomial)::
 
     from gpaw import GPAW, FD
     calc = GPAW(mode=FD(interpolation=n))
@@ -1047,7 +1052,7 @@ is used (5. degree polynomium)::
     from gpaw import GPAW, LCAO
     calc = GPAW(mode=LCAO(interpolation=n))
 
-The order of polynomium is `2n-1`, default value is ``n=3`` and ``n`` must be
+The order of polynomial is `2n-1`, default value is ``n=3`` and ``n`` must be
 between 1 and 4 (linear, cubic, quintic, heptic).
 
 
@@ -1057,7 +1062,7 @@ Using Hund's rule for guessing initial magnetic moments
 -------------------------------------------------------
 
 With ``hund=True``, the calculation will become spinpolarized, and the initial
-ocupations, and magnetic moments of all atoms will be set to the values
+occupations, and magnetic moments of all atoms will be set to the values
 required by Hund's rule.  You may further wish to specify that the
 total magnetic moment be fixed, by passing e.g. ``occupations={'name': ...,
 'fixmagmom': True}``. Any user specified magnetic moment is ignored. Default
@@ -1084,7 +1089,7 @@ Output verbosity
 
 By default, only a limited number of information is printed out for each SCF
 step. It is possible to obtain more information (e.g. for investigating
-convergen problems in more detail) by ``verbose=1`` keyword.
+convergence problems in more detail) by ``verbose=1`` keyword.
 
 
 .. _manual_communicator:
@@ -1169,7 +1174,7 @@ More details can be found on the :ref:`restart_files` page.
 
 
 ---------------------------------------
-Customizing behaviour through observers
+Customizing behavior through observers
 ---------------------------------------
 
 An *observer* function can be *attached* to the calculator so that it
@@ -1193,16 +1198,23 @@ example saves a differently named restart file every 5 iterations::
 See also :meth:`~gpaw.calculator.GPAW.attach`.
 
 
+.. _debug mode:
+
+----------
+Debug mode
+----------
+
+.. envvar:: GPAW_DEBUG
+
+   Run GPAW in debug-mode, e.g. check consistency of arrays passed
+   to C-extensions.
+
+
 .. _command line options:
 
 --------------------
 Command-line options
 --------------------
-
-I order to run GPAW in debug-mode, e.g. check consistency of arrays passed
-to C-extensions, use Python's :option:`python:-d` option:
-
-    $ python3 -d script.py
 
 If you run Python through the ``gpaw python`` command, then you can run your
 script in dry-run mode like this::

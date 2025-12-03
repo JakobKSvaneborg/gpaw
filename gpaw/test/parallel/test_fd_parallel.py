@@ -1,13 +1,11 @@
-import pytest
 import sys
 
+import pytest
 from ase.build import molecule
-from gpaw.utilities import devnull
 
 from gpaw import GPAW, FermiDirac
-from gpaw import KohnShamConvergenceError
-from gpaw.utilities import compiled_with_sl
 from gpaw.mpi import world
+from gpaw.utilities import compiled_with_sl, devnull
 
 # Calculates energy and forces for various parallelizations
 
@@ -42,11 +40,7 @@ def test_parallel_fd_parallel():
         else:
             system.set_cell(cell)
         system.set_pbc(pbc)
-
-        try:
-            system.get_potential_energy()
-        except KohnShamConvergenceError:
-            pass
+        system.get_potential_energy()
 
         E = calc.hamiltonian.e_total_free
         F_av = calc.get_forces()
@@ -74,7 +68,7 @@ def test_parallel_fd_parallel():
                 stderr = devnull
             if eerr > tolerance:
                 print('Failed!', file=stderr)
-                print('E = %f, Eref = %f' % (E, Eref), file=stderr)
+                print(f'E = {E:f}, Eref = {Eref:f}', file=stderr)
                 msg = 'Energy err larger than tolerance: %f' % eerr
             if ferr > tolerance:
                 print('Failed!', file=stderr)

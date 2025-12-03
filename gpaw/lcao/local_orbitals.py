@@ -1,19 +1,20 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 from ase.data import covalent_radii
 from ase.data.colors import jmol_colors
 from ase.units import Bohr, Hartree
-from gpaw.calculator import GPAW
+from scipy.linalg import eigh
+
 from gpaw.lcao.tightbinding import TightBinding  # as LCAOTightBinding
 from gpaw.lcao.tools import get_bfi
+from gpaw.old.calculator import GPAW
 from gpaw.typing import Array1D, Array2D, Array4D
 from gpaw.utilities.blas import r2k
 from gpaw.utilities.tools import lowdin, tri2full
-from scipy.linalg import eigh
 
 
 def get_subspace(A_MM: Array2D, indices: Sequence[int]):
@@ -317,7 +318,7 @@ class Subdiagonalization(BasisTransform):
         for index in show:
             groups[eps[index]].append(index)
 
-        self.groups = groups
+        self.groups = groups  # type: ignore[assignment]
         return self.groups
 
     def group_symmetries(self, decimals: int = 1, cutoff: float = 0.9):
@@ -336,7 +337,9 @@ class Subdiagonalization(BasisTransform):
         groups = defaultdict(set)
         blocks = self.blocks
         # Loop over pair of blocks.
-        for b1, b2 in zip(*np.triu_indices(len(blocks), k=1)):
+        for bb1, bb2 in zip(*np.triu_indices(len(blocks), k=1)):
+            b1 = int(bb1)
+            b2 = int(bb2)
             if len(blocks[b1]) != len(blocks[b2]):
                 # Blocks with different dimensions not compatible.
                 continue
@@ -593,7 +596,7 @@ class LocalOrbitals(TightBinding):
         # Broute force hack to restore matrices.
         H_NMM = self.H_NMM
         S_NMM = self.S_NMM
-        ret = TightBinding.band_structure(self, path_kc, blochstates)
+        ret = super().band_structure(path_kc, blochstates)
         self.H_NMM = H_NMM
         self.S_NMM = S_NMM
         return ret

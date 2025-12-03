@@ -12,14 +12,14 @@ See:
 from math import pi
 
 import numpy as np
-from scipy.special import erf
 from ase.units import Bohr
 from ase.utils import seterr
+from scipy.special import erf
 
 import gpaw.mpi as mpi
+from gpaw.core import PWArray, PWDesc, UGDesc
 from gpaw.fftw import get_efficient_fft_size
-from gpaw.grid_descriptor import GridDescriptor
-from gpaw.core import PWDesc, UGDesc, PWArray
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.typing import Array1D
 
 

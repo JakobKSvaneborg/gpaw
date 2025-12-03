@@ -1,15 +1,16 @@
-import pytest
 import numpy as np
+import pytest
 from ase import Atoms
 
 from gpaw import GPAW
-from gpaw.tddft import TDDFT, DipoleMomentWriter
 from gpaw.inducedfield.inducedfield_base import BaseInducedField
 from gpaw.inducedfield.inducedfield_tddft import TDDFTInducedField
 from gpaw.poisson import PoissonSolver
+from gpaw.tddft import TDDFT, DipoleMomentWriter
 
 
 @pytest.mark.ci
+@pytest.mark.old_gpaw_only
 def test_inducedfield_td(in_tmp_dir):
     poisson_eps = 1e-12
     density_eps = 1e-6

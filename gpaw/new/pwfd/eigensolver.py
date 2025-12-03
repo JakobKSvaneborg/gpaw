@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import partial
-from typing import Callable
 
 import numpy as np
 
@@ -13,8 +13,9 @@ from gpaw.new.c import calculate_residuals_gpu
 from gpaw.new.eigensolver import Eigensolver, calculate_weights
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.hamiltonian import Hamiltonian
-from gpaw.utilities.blas import axpy
+from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.utilities import as_real_dtype
+from gpaw.utilities.blas import axpy
 
 
 class PWFDEigensolver(Eigensolver):
@@ -22,7 +23,7 @@ class PWFDEigensolver(Eigensolver):
                  hamiltonian,
                  converge_bands: int | str = 'occupied',
                  blocksize: int = 10,
-                 max_buffer_mem: int = 200 * 1024 ** 2):
+                 max_buffer_mem: int | None = 200 * 1024 ** 2):
         self.converge_bands = converge_bands
         self.blocksize = blocksize
         self.preconditioner: Callable
@@ -31,9 +32,9 @@ class PWFDEigensolver(Eigensolver):
         self.data_buffers: np.ndarray
 
         # Maximal memory to be used for the eigensolver
-        # should be infinite if hamiltonian is not band-local
-        self.max_buffer_mem = max_buffer_mem \
-            if hamiltonian.band_local else 'infinite'
+        # should be infinite if hamiltonian is not band-local (hybrids)
+        self.max_buffer_mem = (
+            max_buffer_mem if hamiltonian.band_local else None)
 
     def _initialize(self, ibzwfs):
         # First time: allocate work-arrays
@@ -44,10 +45,10 @@ class PWFDEigensolver(Eigensolver):
         G_max = np.prod(ibzwfs.get_max_shape())
         b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
         nbands = ibzwfs.nbands
-        dtype_size = ibzwfs.wfs_qs[0][0].psit_nX.data.dtype.itemsize
+        dtype_size = ibzwfs._wfs_u[0].psit_nX.data.dtype.itemsize
         domain_size = ibzwfs.domain_comm.size
 
-        if isinstance(self.max_buffer_mem, int):
+        if self.max_buffer_mem is not None:
             # Buffer size needs to ensure that the number of bands
             # of the buffer is a multiple of domain_size.
             buffer_size_per_domain = max(self.max_buffer_mem,
@@ -67,12 +68,12 @@ class PWFDEigensolver(Eigensolver):
     def _allocate_work_arrays(self, ibzwfs, shape):
         b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
         shape += (b,) + ibzwfs.get_max_shape()
-        dtype = ibzwfs.wfs_qs[0][0].psit_nX.data.dtype
+        dtype = ibzwfs._wfs_u[0].psit_nX.data.dtype
         self.work_arrays = ibzwfs.xp.empty(shape, dtype)
 
     @trace
     def iterate(self,
-                ibzwfs,
+                ibzwfs: IBZWaveFunctions,
                 density,
                 potential,
                 hamiltonian: Hamiltonian,
@@ -93,9 +94,14 @@ class PWFDEigensolver(Eigensolver):
         if not hasattr(self, 'preconditioner'):
             self._initialize(ibzwfs)
 
-        wfs = ibzwfs.wfs_qs[0][0]
+        wfs = ibzwfs._wfs_u[0]
         dS_aii = wfs.setups.get_overlap_corrections(wfs.P_ani.layout.atomdist,
                                                     wfs.xp)
+
+        ibzwfs.orthonormalize()
+        # ibzwfs = kpad(ibzwfs)
+        hamiltonian.update_wave_functions(ibzwfs)
+
         apply = partial(hamiltonian.apply,
                         potential.vt_sR,
                         potential.dedtaut_sR,
@@ -165,14 +171,7 @@ def calculate_residuals(psit_nX,
     dH(P_ani, P1_ani)
     P_ani.block_diag_multiply(dS_aii, out_ani=P2_ani)
 
-    if P_ani.data.ndim == 2:
-        subscripts = 'nI, n -> nI'
-    else:
-        subscripts = 'nsI, n -> nsI'
-    if xp is np:
-        np.einsum(subscripts, P2_ani.data, eig_n, out=P2_ani.data,
-                  dtype=P2_ani.data.dtype, casting='same_kind')
-    else:
-        P2_ani.data[:] = xp.einsum(subscripts, P2_ani.data, eig_n)
+    P2_ani.matrix.data *= eig_n[:, np.newaxis]
+
     P1_ani.data -= P2_ani.data
     pt_aiX.add_to(residual_nX, P1_ani)

@@ -1,62 +1,25 @@
+import io
+
+import numpy as np
+import numpy.testing as npt
 import pytest
 
-from gpaw import GPAW, LCAO, restart
-from ase import Atoms
-import numpy as np
-from gpaw.directmin.etdm_lcao import LCAOETDM
-from gpaw.directmin.tools import excite
-from gpaw.mom import prepare_mom_calculation
+from gpaw import GPAW
+from gpaw.mpi import world
+from gpaw.old.logger import GPAWLogger
+from gpaw.old.wavefunctions.base import eigenvalue_string
+from gpaw.test.sic._utils import (MockWorld, extract_lagrange_section,
+                                  mk_arr_from_str)
 
 
 @pytest.mark.old_gpaw_only
 @pytest.mark.sic
-def test_mom_lcaosic(in_tmp_dir):
-    # Water molecule:
-    d = 0.9575
-    t = np.pi / 180 * 104.51
-    H2O = Atoms('OH2',
-                positions=[(0, 0, 0),
-                           (d, 0, 0),
-                           (d * np.cos(t), d * np.sin(t), 0)])
-    H2O.center(vacuum=3.0)
-
-    calc = GPAW(mode=LCAO(force_complex_dtype=True),
-                h=0.24,
-                basis='sz(dzp)',
-                spinpol=True,
-                symmetry='off',
-                eigensolver='etdm-lcao',
-                mixer={'backend': 'no-mixing'},
-                occupations={'name': 'fixed-uniform'},
-                convergence={'eigenstates': 1e-4}
-                )
+def test_mom_lcaosic(in_tmp_dir, gpw_files):
+    calc = GPAW(gpw_files['h2o_mom_lcaosic'])
+    H2O = calc.atoms
     H2O.calc = calc
-    H2O.get_potential_energy()
-
-    calc.set(eigensolver=LCAOETDM(excited_state=True))
-    f_sn = excite(calc, 0, 0, (0, 0))
-    prepare_mom_calculation(calc, H2O, f_sn)
-    H2O.get_potential_energy()
-
-    test_restart = False
-    if test_restart:
-        calc.write('h2o.gpw', mode='all')
-        H2O, calc = restart('h2o.gpw', txt='-')
-
-    calc.set(eigensolver=LCAOETDM(searchdir_algo={'name': 'l-sr1p'},
-                                  linesearch_algo={'name': 'max-step'},
-                                  need_init_orbs=False,
-                                  localizationtype='PM_PZ',
-                                  localizationseed=42,
-                                  functional={'name': 'pz-sic',
-                                              'scaling_factor': (0.5, 0.5)}),
-             convergence={'eigenstates': 1e-2})
-
     e = H2O.get_potential_energy()
-    assert e == pytest.approx(-2.007092, abs=5.0e-3)
-
     f = H2O.get_forces()
-
     # Saved analytical forces
     f_old = np.array([[-8.76835930e+00, -1.44190257e+01, 2.53281902e-03],
                       [1.46304433e+01, -1.00089622e+00, -1.03430589e-02],
@@ -75,5 +38,44 @@ def test_mom_lcaosic(in_tmp_dir):
         print(f_num)
         print(f - f_num, np.abs(f - f_num).max())
 
+    assert e == pytest.approx(-2.007092, abs=5.0e-3)
     assert f == pytest.approx(f_old, abs=0.5)
     assert f == pytest.approx(f_num, abs=1.0)
+
+    if world.rank == 0:
+        logger = GPAWLogger(MockWorld(rank=0))
+        string_io = io.StringIO()
+        logger.fd = string_io
+        calc.wfs.summary_func(logger)
+        lstr = extract_lagrange_section(string_io.getvalue())
+
+        expect_lagrange_str = """\
+        Band         L_ii   Occupancy   Band      L_ii   Occupancy
+           0    -19.72305    1.00000    0    -23.07192    1.00000
+           1    -18.87889    1.00000    1    -22.32765    1.00000
+           2    -16.46949    1.00000    2    -18.76539    1.00000
+           3    -12.38574    1.00000    3    -18.76537    1.00000
+           4     -9.12084    0.00000    4      2.49357    0.00000
+           5      4.16510    0.00000    5      4.81118    0.00000
+        """
+        expect_eigen_str = """\
+        Band  Eigenvalues  Occupancy  Eigenvalues  Occupancy
+           0    -32.37420    1.00000    -32.74320    1.00000
+           1    -17.73904    1.00000    -18.76757    1.00000
+           2    -15.58035    1.00000    -15.92320    1.00000
+           3     -1.76357    1.00000    -15.49637    1.00000
+           4     -9.12084    0.00000      2.48462    0.00000
+           5      4.16510    0.00000      4.82013    0.00000
+        """
+
+        npt.assert_allclose(
+            mk_arr_from_str(expect_lagrange_str, 6),
+            mk_arr_from_str(lstr, 6),
+            atol=0.3,
+        )
+
+        npt.assert_allclose(
+            mk_arr_from_str(expect_eigen_str, 5),
+            mk_arr_from_str(eigenvalue_string(calc.wfs), 5, skip_rows=1),
+            atol=0.3,
+        )

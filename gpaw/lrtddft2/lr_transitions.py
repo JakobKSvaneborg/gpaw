@@ -1,13 +1,14 @@
-import numpy as np
 import ase.units
+import numpy as np
 from scipy.linalg import eigh
 
-from gpaw.mpi import world
 from gpaw.lrtddft2.lr_layouts import LrDiagonalizeLayout
+from gpaw.mpi import parallel
 
 
 class LrtddftTransitions:
-    def __init__(self, ks_singles, K_matrix, sl_lrtddft=None):
+    @parallel(name='world')
+    def __init__(self, ks_singles, K_matrix, sl_lrtddft=None, *, world):
         self.ks_singles = ks_singles
         self.K_matrix = K_matrix
         self.lr_comms = self.ks_singles.lr_comms
@@ -18,6 +19,7 @@ class LrtddftTransitions:
 
         # only for pros
         self.custom_axes = None
+        self.world = world
 
     def initialize(self):
         self.trans_prop_ready = False
@@ -431,7 +433,7 @@ class LrtddftTransitions:
         Sy = np.array(Sy)
         Sz = np.array(Sz)
 
-        if filename is not None and world.rank == 0:
+        if filename is not None and self.world.rank == 0:
             sfile = open(filename, 'w')
             sfile.write("# %12s  %12s  %12s     %12s  %12s  %12s    %s\n" %
                         ('energy', 'osc str', 'rot str', 'osc str x',
@@ -515,7 +517,7 @@ class LrtddftTransitions:
             c = RR[k] / width / np.sqrt(2 * np.pi)
             R += c * np.exp((-.5 / width / width) * np.power(w - ww[k], 2))
 
-        if filename is not None and world.rank == 0:
+        if filename is not None and self.world.rank == 0:
             sfile = open(filename, 'w')
             sfile.write("# %12s  %12s  %12s     %12s  %12s  %12s    %s\n" %
                         ('energy', 'osc str', 'rot str', 'osc str x',

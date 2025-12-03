@@ -1,7 +1,8 @@
 import pytest
-from gpaw.mpi import world
 from ase import Atoms
+
 from gpaw import GPAW
+from gpaw.mpi import world
 from gpaw.spinorbit import soc_eigenstates
 
 pytestmark = pytest.mark.skipif(world.size > 1,

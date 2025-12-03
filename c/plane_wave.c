@@ -1,14 +1,14 @@
 #include "extensions.h"
 #include <stdlib.h>
-#include <numpy/arrayobject.h>
+#include "python_utils.h"
 
 
 void _pw_insert(int nG,
                 int nQ,
-                double complex* c_G,
+                double_complex* c_G,
                 npy_int32* Q_G,
                 double scale,
-                double complex* tmp_Q)
+                double_complex* tmp_Q)
 // Does the same as these two lines of Python:
 //
 //     tmp_Q[:] = 0.0
@@ -34,9 +34,9 @@ PyObject *pw_insert(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "OOdO",
                           &c_G_obj, &Q_G_obj, &scale, &tmp_Q_obj))
         return NULL;
-    double complex *c_G = PyArray_DATA(c_G_obj);
+    double_complex *c_G = PyArray_DATA(c_G_obj);
     npy_int32 *Q_G = PyArray_DATA(Q_G_obj);
-    double complex *tmp_Q = PyArray_DATA(tmp_Q_obj);
+    double_complex *tmp_Q = PyArray_DATA(tmp_Q_obj);
     int nG = PyArray_SIZE(c_G_obj);
     int nQ = PyArray_SIZE(tmp_Q_obj);
     _pw_insert(nG, nQ, c_G, Q_G, scale, tmp_Q);
@@ -56,8 +56,8 @@ PyObject *pw_precond(PyObject *self, PyObject *args)
         return NULL;
 
     double *G2_G = PyArray_DATA(G2_G_obj);
-    double complex *R_G = PyArray_DATA(R_G_obj);
-    double complex *out_G = PyArray_DATA(out_G_obj);
+    double_complex *R_G = PyArray_DATA(R_G_obj);
+    double_complex *out_G = PyArray_DATA(out_G_obj);
     int nG = PyArray_SIZE(G2_G_obj);
 
     for (int G = 0; G < nG; G++) {
@@ -69,8 +69,110 @@ PyObject *pw_precond(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
-
 PyObject *pwlfc_expand(PyObject *self, PyObject *args)
+{
+    // This algorithm depends on a_J being sorted, for
+    // optimal performance.
+    PyArrayObject *f_Gs_obj;
+    PyArrayObject *GK_Gv_obj;
+    PyArrayObject *pos_av_obj;
+    PyArrayObject *eikR_a_obj;
+    PyArrayObject *Y_GL_obj;
+    PyArrayObject *l_s_obj;
+    PyArrayObject *a_J_obj;
+    PyArrayObject *s_J_obj;
+    int cc;
+    PyArrayObject *f_GI_obj;
+
+    if (!PyArg_ParseTuple(args, "OOOOOOOOiO",
+                          &f_Gs_obj, &GK_Gv_obj, &pos_av_obj,
+                          &eikR_a_obj, &Y_GL_obj,
+                          &l_s_obj, &a_J_obj, &s_J_obj,
+                          &cc, &f_GI_obj))
+        return NULL;
+
+    double *f_Gs = PyArray_DATA(f_Gs_obj);
+    double *GK_Gv = PyArray_DATA(GK_Gv_obj);
+    double *pos_av = PyArray_DATA(pos_av_obj);
+    double_complex *eikR_a = PyArray_DATA(eikR_a_obj);
+    
+    double *Y_GL = PyArray_DATA(Y_GL_obj);
+    npy_int32 *l_s = PyArray_DATA(l_s_obj);
+    npy_int32 *a_J = PyArray_DATA(a_J_obj);
+    npy_int32 *s_J = PyArray_DATA(s_J_obj);
+    double *f_GI = PyArray_DATA(f_GI_obj);
+
+    int nG = PyArray_DIM(GK_Gv_obj, 0);
+    int nJ = PyArray_DIM(a_J_obj, 0);
+    int nL = PyArray_DIM(Y_GL_obj, 1);
+    int nsplines = PyArray_DIM(f_Gs_obj, 1);
+
+    double_complex imag_powers[4] = {1.0, -I, -1.0, I};
+
+    double_complex emiGR = 0;
+
+    if (PyArray_ITEMSIZE(f_GI_obj) == 16)
+        for(int G = 0; G < nG; G++) {
+            int a_old = -1;
+            for (int J = 0; J < nJ; J++) {
+                int s = s_J[J];
+                int l = l_s[s];
+
+                if (a_J[J] != a_old) {
+                    a_old = a_J[J];
+                    double f0 = (GK_Gv[0] * pos_av[0 + 3 * a_old] +
+                                 GK_Gv[1] * pos_av[1 + 3 * a_old] +
+                                 GK_Gv[2] * pos_av[2 + 3 * a_old]);
+                    emiGR = (cos(f0) - I * sin(f0)) * eikR_a[a_old];
+                }
+                double_complex f1 = (emiGR *
+                                     f_Gs[s] * imag_powers[l % 4]);
+                for (int m = 0; m < 2 * l + 1; m++) {
+                    double_complex f = f1 * Y_GL[l * l + m];
+                    *f_GI++ = creal(f);
+                    *f_GI++ = cc ? -cimag(f) : cimag(f);
+                }
+            }
+            f_Gs += nsplines;
+            GK_Gv += 3;
+            Y_GL += nL;
+        }
+    else {
+        int nI = PyArray_DIM(f_GI_obj, 1);
+        for(int G = 0; G < nG; G++) {
+            int a_old = -1;
+            for (int J = 0; J < nJ; J++) {
+                int s = s_J[J];
+                int l = l_s[s];
+
+                if (a_J[J] != a_old) {
+                    a_old = a_J[J];
+                    double f0 = (GK_Gv[0] * pos_av[0 + 3 * a_old] +
+                                 GK_Gv[1] * pos_av[1 + 3 * a_old] +
+                                 GK_Gv[2] * pos_av[2 + 3 * a_old]);
+                    emiGR = (cos(f0) - I * sin(f0)) * eikR_a[a_old];
+                }
+
+                double_complex f1 = (emiGR * 
+                                     f_Gs[s] * imag_powers[l % 4]);
+                for (int m = 0; m < 2 * l + 1; m++) {
+                    double_complex f = f1 * Y_GL[l * l + m];
+                    f_GI[0] = creal(f);
+                    f_GI[nI] = cc ? -cimag(f) : cimag(f);
+                    f_GI++;
+                }
+            }
+            f_Gs += nsplines;
+            GK_Gv += 3;
+            Y_GL += nL;
+            f_GI += nI;
+        }
+    }
+
+    Py_RETURN_NONE;
+}
+
+PyObject *pwlfc_expand_old(PyObject *self, PyObject *args)
 {
     PyArrayObject *f_Gs_obj;
     PyArrayObject *emiGR_Ga_obj;
@@ -88,7 +190,7 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
         return NULL;
 
     double *f_Gs = PyArray_DATA(f_Gs_obj);
-    double complex *emiGR_Ga = PyArray_DATA(emiGR_Ga_obj);
+    double_complex *emiGR_Ga = PyArray_DATA(emiGR_Ga_obj);
     double *Y_GL = PyArray_DATA(Y_GL_obj);
     npy_int32 *l_s = PyArray_DATA(l_s_obj);
     npy_int32 *a_J = PyArray_DATA(a_J_obj);
@@ -101,18 +203,18 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
     int natoms = PyArray_DIM(emiGR_Ga_obj, 1);
     int nsplines = PyArray_DIM(f_Gs_obj, 1);
 
-    double complex imag_powers[4] = {1.0, -I, -1.0, I};
+    double_complex imag_powers[4] = {1.0, -I, -1.0, I};
 
     if (PyArray_ITEMSIZE(f_GI_obj) == 16)
         for(int G = 0; G < nG; G++) {
             for (int J = 0; J < nJ; J++) {
                 int s = s_J[J];
                 int l = l_s[s];
-                double complex f1 = (emiGR_Ga[a_J[J]] *
+                double_complex f1 = (emiGR_Ga[a_J[J]] *
                                      f_Gs[s] *
                                      imag_powers[l % 4]);
                 for (int m = 0; m < 2 * l + 1; m++) {
-                    double complex f = f1 * Y_GL[l * l + m];
+                    double_complex f = f1 * Y_GL[l * l + m];
                     *f_GI++ = creal(f);
                     *f_GI++ = cc ? -cimag(f) : cimag(f);
                 }
@@ -127,11 +229,11 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
             for (int J = 0; J < nJ; J++) {
                 int s = s_J[J];
                 int l = l_s[s];
-                double complex f1 = (emiGR_Ga[a_J[J]] *
+                double_complex f1 = (emiGR_Ga[a_J[J]] *
                                      f_Gs[s] *
                                      imag_powers[l % 4]);
                 for (int m = 0; m < 2 * l + 1; m++) {
-                    double complex f = f1 * Y_GL[l * l + m];
+                    double_complex f = f1 * Y_GL[l * l + m];
                     f_GI[0] = creal(f);
                     f_GI[nI] = cc ? -cimag(f) : cimag(f);
                     f_GI++;
@@ -146,7 +248,6 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
 
     Py_RETURN_NONE;
 }
-
 
 PyObject *plane_wave_grid(PyObject *self, PyObject *args)
 {

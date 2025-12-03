@@ -26,7 +26,7 @@ hooked on to the ``atom`` object, and the energy is calculated (the
 
 The ``molecule`` object is defined, holding the hydrogen molecule at
 the experimental lattice constant.  The calculator used for the atom
-calculation is used again for the molecule caluclation - only the
+calculation is used again for the molecule calculation - only the
 filename for the output file needs to be changed to ``H2.out``.  We
 extract the energy into the ``e2`` variable.
 

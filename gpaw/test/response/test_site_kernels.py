@@ -1,23 +1,20 @@
 """Test the site kernel calculation functionality of the response code"""
 
 # General modules
-import pytest
 import numpy as np
+import pytest
 import scipy.special as sc
-
 # Script modules
 from ase.build import bulk
 
 from gpaw import GPAW, PW
-from gpaw.response.site_kernels import (SphericalSiteKernels,
-                                        CylindricalSiteKernels,
-                                        ParallelepipedicSiteKernels,
-                                        sinc,
-                                        spherical_geometry_factor,
-                                        cylindrical_geometry_factor,
-                                        parallelepipedic_geometry_factor)
 from gpaw.response.pair_functions import get_pw_coordinates
-
+from gpaw.response.site_kernels import (CylindricalSiteKernels,
+                                        ParallelepipedicSiteKernels,
+                                        SphericalSiteKernels,
+                                        cylindrical_geometry_factor,
+                                        parallelepipedic_geometry_factor, sinc,
+                                        spherical_geometry_factor)
 
 # ---------- Actual tests ---------- #
 
@@ -263,8 +260,7 @@ def test_Co_hcp_site_kernels():
                 spinpol=True,
                 mode=PW(pw),
                 kpts={'size': (kpts, kpts, kpts),
-                      'gamma': True}
-                )
+                      'gamma': True})
 
     # Perform inexpensive calculator initialization
     calc.initialize(atoms)
@@ -548,7 +544,8 @@ def get_pw_descriptor(atoms, calc, q_c, ecut=50., gammacentered=False):
 
     Works on a bare calculator instance without any actual data in it."""
     from ase.units import Ha
-    from gpaw.response.pair_functions import SingleQPWDescriptor
+
+    from gpaw.response.qpd import SingleQPWDescriptor
 
     # Create the plane wave descriptor
     q_c = np.asarray(q_c, dtype=float)

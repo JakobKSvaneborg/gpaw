@@ -1,27 +1,40 @@
 import copy
 import sys
+from itertools import cycle
 from math import pi
 
+import ase.units as units
 import numpy as np
+from ase.data import atomic_names, atomic_numbers, chemical_symbols
+from ase.utils import seterr
 from numpy.linalg import eigh
 from scipy.special import gamma
-import ase.units as units
-from ase.data import atomic_numbers, atomic_names, chemical_symbols
-from ase.utils import seterr
 
 import gpaw.cgpaw as cgpaw
-from gpaw.xc import XC
-from gpaw.gaunt import gaunt
 from gpaw.atom.configurations import configurations
-from gpaw.atom.radialgd import (AERadialGridDescriptor,
-                                AbinitRadialGridDescriptor)
-
+from gpaw.atom.radialgd import (AbinitRadialGridDescriptor,
+                                AERadialGridDescriptor)
+from gpaw.sphere.gaunt import gaunt
+from gpaw.xc import XC
 
 # Velocity of light in atomic units:
 c = 2 * units._hplanck / (units._mu0 * units._c * units._e**2)
 
 # Colors for s, p, d, f, g:
-colors = 'krgbycmkrgbycmmmm'
+
+
+class _Colors:
+    def __init__(self, items):
+        self.items = items
+
+    def __getitem__(self, i):
+        return self.items[i % len(self.items)]
+
+    def __iter__(self):
+        yield from cycle(self.items)
+
+
+colors = _Colors('krgbycm')
 
 
 class GaussianBasis:
@@ -77,11 +90,11 @@ class GaussianBasis:
         self.K_bb = np.dot(np.dot(Q_Bb.T, K_BB), Q_Bb)
 
         r_g = rgd.r_g
-        with seterr(divide='ignore'):
-            # Avoid errors in debug mode from division by zero:
-            gaussians_Bg = np.exp(-np.outer(alpha_B, r_g**2)) * r_g**l
         prefactors_B = (2 * (2 * alpha_B)**(l + 1.5) / gamma(l + 1.5))**0.5
-        self.basis_bg = np.dot(Q_Bb.T, prefactors_B[:, None] * gaussians_Bg)
+        with seterr(divide='ignore', invalid='ignore'):
+            # Avoid errors division by zero when l<0.0:
+            gaussians_Bg = np.exp(-np.outer(alpha_B, r_g**2)) * r_g**l
+            self.basis_bg = Q_Bb.T @ (prefactors_B[:, None] * gaussians_Bg)
 
     def __len__(self):
         return self.nbasis
@@ -96,7 +109,7 @@ class GaussianBasis:
         return V_bb
 
 
-def coefs(rgd, l, vr_g, e, scalar_relativistic=False, Z=None):
+def coefs(rgd, l, vr_g, e, scalar_relativistic=True, Z=None):
     r_g = rgd.r_g
 
     x0_g = 2 * (e * r_g - vr_g) * r_g
@@ -147,7 +160,7 @@ class Channel:
         self.C_nb = C_bn.T
         self.phi_ng = self.basis.expand(self.C_nb[:len(self.f_n)])
 
-    def solve2(self, vr_g, scalar_relativistic=False, Z=None, rgd=None):
+    def solve2(self, vr_g, scalar_relativistic=True, Z=None, rgd=None):
         rgd = rgd or self.basis.rgd
         r_g = rgd.r_g
         l = self.l
@@ -233,7 +246,7 @@ class Channel:
         return np.dot(f_n, self.e_n[:len(f_n)])
 
     def integrate_outwards(self, u_g, rgd, vr_g, g0, e,
-                           scalar_relativistic=False, Z=None, pt_g=None):
+                           scalar_relativistic=True, Z=None, pt_g=None):
         l = self.l
         r_g = rgd.r_g
 
@@ -291,7 +304,7 @@ class Channel:
         return dudr, phi0
 
     def integrate_inwards(self, u_g, rgd, vr_g, g0, e,
-                          scalar_relativistic=False, Z=None, gmax=None):
+                          scalar_relativistic=True, Z=None, gmax=None):
         l = self.l
         r_g = rgd.r_g
 
@@ -387,7 +400,8 @@ class AllElectronAtom:
                  configuration=None,
                  ee_interaction=True,
                  Z=None,
-                 log=None):
+                 log=None,
+                 scalar_relativistic=True):
         """All-electron calculation for spherically symmetric atom.
 
         symbol: str (or int)
@@ -423,7 +437,7 @@ class AllElectronAtom:
         else:
             self.configuration = None
 
-        self.scalar_relativistic = False
+        self.scalar_relativistic = bool(scalar_relativistic)
 
         if isinstance(xc, str):
             self.xc = XC(xc)
@@ -461,9 +475,21 @@ class AllElectronAtom:
         self.f_lsn = {}
 
         if configuration is None:
-            configuration = configurations[self.symbol][1]
+            configs = configurations[self.symbol][1]
+        elif isinstance(configuration, str):
+            configs = []
+            if configuration[0] == '[':
+                symbol, configuration = configuration[1:].split(']')
+                configs = configurations[symbol][1]
+            for nlf in configuration.split(','):
+                configs.append((int(nlf[0]),
+                                'spdfg'.index(nlf[1]),
+                                int(nlf[2:]),
+                                -1.0))
+        else:
+            configs = configuration
 
-        for n, l, f, e in configuration:
+        for n, l, f, e in configs:
 
             if l not in self.f_lsn:
                 self.f_lsn[l] = [[] for s in range(self.nspins)]
@@ -626,7 +652,8 @@ class AllElectronAtom:
 
         if self.dirac:
             equation = 'Dirac'
-        elif self.scalar_relativistic:
+        elif self.scalar_relativistic and self.method != 'Gaussian basis-set':
+
             equation = 'scalar-relativistic Schrödinger'
         else:
             equation = 'non-relativistic Schrödinger'
@@ -844,7 +871,9 @@ class CLICommand:
         add('-n', '--ngrid', help='Specify number of grid points.')
         add('-R', '--rcut', help='Radial cutoff.')
         add('-r', '--refine', action='store_true')
-        add('-s', '--scalar-relativistic', action='store_true')
+        add('--non-relativistic', action='store_true',
+            help='Do a non-relativistic calculation.  '
+            'Default is scalar-relativistic')
         add('--no-ee-interaction', action='store_true',
             help='Turn off electron-electron interaction.')
 
@@ -887,11 +916,12 @@ def main(args):
                 f = 1
             nlfs.append((n, l, f, s))
 
-    aea = AllElectronAtom(symbol,
-                          xc=args.xc_functional,
-                          spinpol=args.spin_polarized,
-                          dirac=args.dirac,
-                          ee_interaction=not args.no_ee_interaction)
+    aea_kwargs = dict(xc=args.xc_functional,
+                      spinpol=args.spin_polarized,
+                      dirac=args.dirac,
+                      ee_interaction=not args.no_ee_interaction,
+                      scalar_relativistic=not args.non_relativistic)
+    aea = AllElectronAtom(symbol, **aea_kwargs)
 
     kwargs = {}
     if args.exponents:
@@ -913,11 +943,7 @@ def main(args):
     aea.initialize(**kwargs)
     aea.run()
 
-    if args.refine:
-        aea.refine()
-
-    if args.scalar_relativistic:
-        aea.scalar_relativistic = True
+    if args.refine or not args.non_relativistic:
         aea.refine()
 
     if args.logarithmic_derivatives:

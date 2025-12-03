@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from typing import Dict, Tuple
-
 import numpy as np
+
 from gpaw.core.uniform_grid import UGArray
 from gpaw.new import zips
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
@@ -10,9 +9,9 @@ from gpaw.new.potential import Potential
 from gpaw.typing import Array2D, Array3D
 from gpaw.utilities.blas import mmm
 
-Derivatives = Tuple[Array3D,
+Derivatives = tuple[Array3D,
                     Array3D,
-                    Dict[int, Array3D]]
+                    dict[int, Array3D]]
 
 
 class TCIDerivatives:

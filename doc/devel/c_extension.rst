@@ -97,7 +97,7 @@ code not work with the old C-code.
 
 Version numbers:
 
-1) Jun 29, 2022: Compatibilty with numpy-1.23 (:mr:`1181`).
+1) Jun 29, 2022: Compatibility with numpy-1.23 (:mr:`1181`).
 2) Sep 7, 2022: Remove old spherical harmonics C-code and add `\ell=7`
    functions (:mr:`914`)
 3) ...

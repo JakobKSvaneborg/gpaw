@@ -8,11 +8,11 @@ from ase.units import Bohr
 
 from gpaw.core.atom_arrays import AtomArrays, AtomArraysLayout
 from gpaw.core.uniform_grid import UGArray
+from gpaw.new import zips as zip
 from gpaw.setup import Setups
-from gpaw.spherical_harmonics import Y
+from gpaw.sphere.spherical_harmonics import Y
 from gpaw.spline import Spline
-from gpaw.typing import Array1D, Array3D, Vector, Array2D
-from gpaw.new import zips
+from gpaw.typing import Array1D, Array2D, Array3D, Vector
 
 if TYPE_CHECKING:
     from gpaw.new.calculation import DFTCalculation
@@ -97,6 +97,7 @@ class Densities:
         nspins = ncomponents % 3
         grid = n_sR.desc
 
+        electrons_as = np.zeros((len(self.relpos_ac), ncomponents))
         splines = {}
         for a, D_sii in self.D_asii.items():
             D_sii = D_sii.real
@@ -123,13 +124,17 @@ class Densities:
             # Add PAW correction:
             R_v = relpos_c @ grid.cell_cv
             electrons_s -= add(R_v, n_sR, phi_j, phit_j, nc, nct, rcut, D_sii)
+            electrons_as[a] = electrons_s
 
-            if not skip_core:
-                # Add missing charge to grid point closest to atom:
-                R_c = np.around(grid.size * relpos_c).astype(int) % grid.size
+        if not skip_core:
+            # Add missing charge to grid-points closest to atoms:
+            grid.comm.sum(electrons_as)
+            R_ac = np.around(grid.size * self.relpos_ac).astype(int)
+            R_ac %= grid.size
+            for R_c, electrons_s in zip(R_ac, electrons_as):
                 R_c -= grid.start_c
                 if (R_c >= 0).all() and (R_c < grid.mysize_c).all():
-                    for n_R, e in zips(n_sR.data, electrons_s):
+                    for n_R, e in zip(n_sR.data, electrons_s):
                         n_R[tuple(R_c)] += e / grid.dv
 
         return n_sR.scaled(Bohr, Bohr**-3)
@@ -162,7 +167,7 @@ def add(R_v: Vector,
         D_sii: Array3D) -> Array1D:
     """Add PAW corrections to real-space grid.
 
-    Returns number of elctrons added.
+    Returns number of electrons added.
     """
     ug = a_sR.desc
     R_Rv = ug.xyz()
@@ -191,11 +196,11 @@ def add(R_v: Vector,
                 l_j = [phi.l for phi in phi_j]
 
                 i1 = 0
-                for l1, phi1_r, phit1_r in zips(l_j, phi_jr, phit_jr):
+                for l1, phi1_r, phit1_r in zip(l_j, phi_jr, phit_jr):
                     i2 = 0
                     i1b = i1 + 2 * l1 + 1
                     D_smi = D_sii[:, i1:i1b]
-                    for l2, phi2_r, phit2_r in zips(l_j, phi_jr, phit_jr):
+                    for l2, phi2_r, phit2_r in zip(l_j, phi_jr, phit_jr):
                         i2b = i2 + 2 * l2 + 1
                         D_smm = D_smi[:, :, i2:i2b]
                         b_sr = np.einsum(

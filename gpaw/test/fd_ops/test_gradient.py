@@ -3,8 +3,8 @@ import pytest
 
 from gpaw.core import UGDesc
 from gpaw.fd_operators import FDOperator, Gradient
-from gpaw.grid_descriptor import GridDescriptor
 from gpaw.mpi import world
+from gpaw.old.grid_descriptor import GridDescriptor
 
 
 @pytest.mark.parametrize('cell, size',

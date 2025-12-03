@@ -1,5 +1,5 @@
-from time import localtime
 from math import log as ln
+from time import localtime
 
 from gpaw.lcaotddft.observer import TDDFTObserver
 from gpaw.tddft.units import autime_to_attosec
