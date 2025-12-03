@@ -485,6 +485,10 @@ class MPIHelper:
         return AnyGPAW(*args, communicator=self.comm,
                        _use_old_gpaw=True, **kwargs)
 
+    def restart(self, *args, **kwargs):
+        from gpaw import restart
+        return restart(*args, communicator=self.comm, **kwargs)
+
 
 @pytest.fixture
 def mpi(comm):
