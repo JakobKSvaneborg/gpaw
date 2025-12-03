@@ -32,7 +32,8 @@ def test_vdw_ts09(in_tmp_dir):
         cc = GPAW(mode='fd', h=h, xc='PBE', txt=out_txt)
 
         # this is needed to initialize txt output
-        cc.initialize(s)
+        if cc.old:
+            cc.initialize(s)
 
         hp = HirshfeldPartitioning(cc)
         c = vdWTkatchenko09prl(hp,

@@ -10,10 +10,7 @@ from gpaw.new.extensions import D3
 
 @pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
 @pytest.mark.parametrize('mode', [{'name': 'pw', 'ecut': 300}, 'lcao'])
-def test_d3_extensions(mode, parallel, in_tmp_dir, gpaw_new, dftd3):
-    if not gpaw_new:
-        pytest.skip('Only GPAW new.')
-
+def test_d3_extensions(mode, parallel, in_tmp_dir, dftd3):
     from ase.calculators.dftd3 import PureDFTD3
     domain, band = parallel
     if world.size < domain * band:

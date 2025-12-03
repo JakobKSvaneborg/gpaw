@@ -62,6 +62,8 @@ class ResponseGroundStateAdapter:
             if isinstance(calc, NewGPAW):
                 raise ValueError('LCAO calculations are only '
                                  'supported by old GPAW')
+            # calc = calc._to_old()
+            # self._wfs = wfs = calc.wfs
             calc.initialize_positions()
             for kpt in wfs.kpt_u:
                 assert kpt.C_nM is not None

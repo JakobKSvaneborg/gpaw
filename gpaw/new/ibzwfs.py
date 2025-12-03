@@ -389,7 +389,7 @@ class IBZWaveFunctions(Generic[WFT]):
                         self.kpt_comm.receive(data, rank)
                         writer.fill(data.astype(proj_dtype))
 
-        if flags.include_wfs:
+        if flags.include_wfs and self.has_wave_functions():
             self._write_wave_functions(writer, spin_k_shape, flags)
 
     def _write_wave_functions(self, writer, spin_k_shape, flags):

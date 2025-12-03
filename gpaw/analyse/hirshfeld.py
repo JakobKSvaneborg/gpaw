@@ -17,8 +17,8 @@ class HirshfeldDensity(RealSpaceDensity):
 
     @parallel(name='world')
     def __init__(self, calculator, log=None, *, world):
-        self.calculator = calculator
-        dens = calculator.density
+        self.calculator = calculator._to_old()
+        dens = self.calculator.density
         super().__init__(dens.gd, dens.finegd,
                          dens.nspins, collinear=True, charge=0.0,
                          stencil=getattr(dens, 'stencil', 3),
@@ -104,7 +104,7 @@ class HirshfeldPartitioning:
     """
 
     def __init__(self, calculator, density_cutoff=1.e-12):
-        self.calculator = calculator
+        self.calculator = calculator._to_old()
         self.density_cutoff = density_cutoff
 
         if hasattr(self.calculator, 'timer'):
