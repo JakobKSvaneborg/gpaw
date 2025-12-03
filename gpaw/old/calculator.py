@@ -1019,12 +1019,6 @@ class GPAW(Calculator):
         if gpaw.dry_run:
             self.dry_run()
 
-        if (realspace and
-            self.hamiltonian.poisson.get_description() == 'FDTD+TDDFT'):
-            self.hamiltonian.poisson.set_density(self.density)
-            self.hamiltonian.poisson.print_messages(self.log)
-            self.log.fd.flush()
-
         self.initialized = True
         self.log('... initialized\n')
 
@@ -2240,6 +2234,9 @@ class GPAW(Calculator):
         # Make calc.dft.scf_loop.niter work:
         scf_loop = type('SCF', (), {'niter': self.scf.niter})()
         return type('DFT', (), {'scf_loop': scf_loop})()
+
+    def _to_old(self):
+        return self
 
 
 class DeprecatedParameterWarning(FutureWarning):

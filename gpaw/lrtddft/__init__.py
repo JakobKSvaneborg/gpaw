@@ -68,8 +68,8 @@ class LrTDDFT(ExcitationList):
         self.diagonalized = False
 
         self.set(**kwargs)
-        # if calculator is not None and not calculator.old:
-        #     calculator = calculator._to_old()
+        if calculator is not None:
+            calculator = calculator._to_old()
         self.calculator = calculator
 
         if world is None and calculator is not None:
