@@ -13,9 +13,13 @@ from ase.dft.kpoints import monkhorst_pack
 import gpaw.mpi as mpi
 from gpaw.kpt_descriptor import KPointDescriptor
 from gpaw.response.chi0 import HilbertTransform
-from gpaw.response.old_pair import PairDensity
-from gpaw.wavefunctions.pw import PWDescriptor
 from gpaw.response.g0w0 import select_kpts
+from gpaw.response.groundstate import ResponseGroundStateAdapter
+from gpaw.response.context import ResponseContext
+from gpaw.response.pair import (KPointPairFactory, ActualPairDensityCalculator,
+                                phase_shifted_fft_indices)
+from gpaw.response.paw import get_pair_density_paw_corrections
+from gpaw.response.qpd import SingleQPWDescriptor
 
 
 def frequency_grid(domega0, omega2, omegamax):
@@ -26,7 +30,7 @@ def frequency_grid(domega0, omega2, omegamax):
     return omega_w
 
 
-class GWQEHCorrection(PairDensity):
+class GWQEHCorrection:
     def __init__(self, calc, gwfile=None, filename=None, kpts=[0], bands=None,
                  structure=None, d=None, layer=0,
                  dW_qw=None, qqeh=None, wqeh=None,
@@ -95,28 +99,44 @@ class GWQEHCorrection(PairDensity):
         self.gwfile = gwfile
 
         self.inputcalc = calc
+        self.gs = ResponseGroundStateAdapter.from_input(calc)
+        self.context = ResponseContext(txt=filename + '.txt', comm=world)
+        self.world = world
+
+        # Initialize parallelization communicators
+        # Assuming nblocks=1 as per original code behavior
+        self.blockcomm = world.new_communicator([world.rank])
+        self.kncomm = world
+
         # Set low ecut in order to use PairDensity object since only
         # G=0 is needed.
         self.ecut = 1.
-        PairDensity.__init__(self, calc, ecut=self.ecut, world=world,
-                             txt=filename + '.txt')
+
+        self.kptpair_factory = KPointPairFactory(self.gs, self.context)
+        self.pair_calc = ActualPairDensityCalculator(self.kptpair_factory,
+                                                     self.blockcomm)
+
         if txt == sys.stdout:
             self.fd = sys.stdout
+        else:
+            self.fd = self.context.fd
+
         self.filename = filename
         self.ecut /= Hartree
         self.eta = eta / Hartree
         self.domega0 = domega0 / Hartree
         self.omega2 = omega2 / Hartree
 
-        self.kpts = list(select_kpts(kpts, self.calc))
+        self.kpts = list(select_kpts(kpts, self.gs.kd))
 
+        self.nocc2 = self.gs.nocc2
         if bands is None:
             bands = [0, self.nocc2]
 
         self.bands = bands
 
         b1, b2 = bands
-        self.shape = shape = (self.calc.wfs.nspins, len(self.kpts), b2 - b1)
+        self.shape = shape = (self.gs.nspins, len(self.kpts), b2 - b1)
         self.eps_sin = np.empty(shape)     # KS-eigenvalues
         self.f_sin = np.empty(shape)       # occupation numbers
         self.sigma_sin = np.zeros(shape)   # self-energies
@@ -126,14 +146,15 @@ class GWQEHCorrection(PairDensity):
         self.Qp_sin = None
 
         self.ecutnb = 150 / Hartree
-        vol = abs(np.linalg.det(self.calc.wfs.gd.cell_cv))
+        vol = abs(np.linalg.det(self.gs.gd.cell_cv))
         self.vol = vol
-        self.nbands = min(self.calc.get_number_of_bands(),
+        # get_number_of_bands is typically nbands in gd
+        self.nbands = min(self.gs.bd.nbands,
                           int(vol * (self.ecutnb)**1.5 * 2**0.5 / 3 / pi**2))
 
-        self.nspins = self.calc.wfs.nspins
+        self.nspins = self.gs.nspins
 
-        kd = self.calc.wfs.kd
+        kd = self.gs.kd
 
         self.mysKn1n2 = None  # my (s, K, n1, n2) indices
         self.distribute_k_points_and_bands(b1, b2, kd.ibz2bz_k[self.kpts])
@@ -143,7 +164,7 @@ class GWQEHCorrection(PairDensity):
         offset_c = 0.5 * ((kd.N_c + 1) % 2) / kd.N_c
         bzq_qc = monkhorst_pack(kd.N_c) + offset_c
         self.qd = KPointDescriptor(bzq_qc)
-        self.qd.set_symmetry(self.calc.atoms, kd.symmetry)
+        self.qd.set_symmetry(self.gs.atoms, kd.symmetry)
 
         # frequency grid
         omax = self.find_maximum_frequency()
@@ -184,31 +205,62 @@ class GWQEHCorrection(PairDensity):
 
         print('Initialized GWQEHCorrection object', file=self.fd)
 
+    def distribute_k_points_and_bands(self, band1, band2, kpts=None):
+        """Distribute spins, k-points and bands."""
+        if kpts is None:
+            kpts = np.arange(self.gs.kd.nbzkpts)
+
+        nbands = band2 - band1
+        size = self.kncomm.size
+        rank = self.kncomm.rank
+        ns = self.gs.nspins
+        nk = len(kpts)
+        n = (ns * nk * nbands + size - 1) // size
+        i1 = rank * n
+        i2 = min(i1 + n, ns * nk * nbands)
+
+        self.mysKn1n2 = []
+        i = 0
+        for s in range(ns):
+            for K in kpts:
+                n1 = min(max(0, i1 - i), nbands)
+                n2 = min(max(0, i2 - i), nbands)
+                if n1 != n2:
+                    self.mysKn1n2.append((s, K, n1 + band1, n2 + band1))
+                i += nbands
+
+        print('BZ k-points:', self.gs.kd, file=self.fd)
+        print('Distributing spins, k-points and bands (%d x %d x %d)' %
+              (ns, nk, nbands),
+              'over %d process%s' %
+              (self.kncomm.size, ['es', ''][self.kncomm.size == 1]),
+              file=self.fd)
+        print('Number of blocks:', self.blockcomm.size, file=self.fd)
+
     def calculate_QEH(self):
-        from gpaw.atomrotations import AtomRotations
         print('Calculating QEH self-energy contribution', file=self.fd)
 
-        kd = self.calc.wfs.kd
-        atomrotations = AtomRotations(
-            self.calc.wfs.setups.setups,
-            self.calc.wfs.setups.id_a,
-            kd.symmetry)
+        kd = self.gs.kd
+        # Use ResponseGroundStateAdapter's atomrotations
+        atomrotations = self.gs.atomrotations
+
         # Reset calculation
         self.sigma_sin = np.zeros(self.shape)   # self-energies
         self.dsigma_sin = np.zeros(self.shape)  # derivatives of self-energies
 
         # Get KS eigenvalues and occupation numbers:
         b1, b2 = self.bands
-        nibzk = self.calc.wfs.kd.nibzkpts
+        nibzk = self.gs.kd.nibzkpts
         for i, k in enumerate(self.kpts):
             for s in range(self.nspins):
                 u = s * nibzk + k
-                kpt = self.calc.wfs.kpt_u[u]
+                kpt = self.gs.kpt_u[u]
                 self.eps_sin[s, i] = kpt.eps_n[b1:b2]
                 self.f_sin[s, i] = kpt.f_n[b1:b2] / kpt.weight
 
         # My part of the states we want to calculate QP-energies for:
-        mykpts = [self.get_k_point(s, K, n1, n2)
+        # Use KPointPairFactory to get KPoints
+        mykpts = [self.kptpair_factory.get_k_point(s, K, n1, n2)
                   for s, K, n1, n2 in self.mysKn1n2]
 
         Nq = len((self.qd.ibzk_kc))
@@ -224,7 +276,7 @@ class GWQEHCorrection(PairDensity):
             # Screened potential
             dW_w = self.dW_qw[nq]
             dW_w = dW_w[:, np.newaxis, np.newaxis]
-            L = abs(self.calc.wfs.gd.cell_cv[2, 2])
+            L = abs(self.gs.gd.cell_cv[2, 2])
             dW_w *= L
 
             nw = self.nw
@@ -237,14 +289,14 @@ class GWQEHCorrection(PairDensity):
                 self.htp(Wpm_w[:nw])
                 self.htm(Wpm_w[nw:])
 
-            qd = KPointDescriptor([q_c])
-            pd0 = PWDescriptor(self.ecut, self.calc.wfs.gd, complex, qd,
-                               gamma_only=True)
+            # Setup q-point descriptor
+            pd0 = SingleQPWDescriptor.from_q(q_c, self.ecut, self.gs.gd)
             G_Gv = pd0.get_reciprocal_vectors()
             assert len(G_Gv) == 1
             assert np.allclose(pd0.get_reciprocal_vectors(add_q=False), 0)
 
-            self.Q_aGii = self.initialize_paw_corrections(pd0)
+            # Initialize PAW corrections
+            self.Q_aGii = self.gs.pair_density_paw_corrections(pd0).Q_aGii
 
             # Loop over all k-points in the BZ and find those that are related
             # to the current IBZ k-point by symmetry
@@ -265,32 +317,24 @@ class GWQEHCorrection(PairDensity):
 
                 for u1, kpt1 in enumerate(mykpts):
                     K2 = kd.find_k_plus_q(Q_c, [kpt1.K])[0]
-                    kpt2 = self.get_k_point(kpt1.s, K2, 0, self.nbands,
-                                            block=True)
+                    # Get kpt2 using factory, blockcomm for parallel distribution
+                    kpt2 = self.kptpair_factory.get_k_point(
+                        kpt1.s, K2, 0, self.nbands, blockcomm=self.blockcomm)
                     k1 = kd.bz2ibz_k[kpt1.K]
                     i = self.kpts.index(k1)
 
-                    N_c = pd0.gd.N_c
-                    i_cG = self.sign * np.dot(U_cc,
-                                              np.unravel_index(pd0.Q_qG[0],
-                                                               N_c))
+                    # Determine FFT indices
+                    def coordinate_transformation(q_c):
+                        return self.sign * np.dot(U_cc, q_c)
 
-                    k1_c = kd.bzk_kc[kpt1.K]
-                    k2_c = kd.bzk_kc[K2]
-                    # This is the q that connects K1 and K2 in the 1st BZ
-                    q1_c = k2_c - k1_c
+                    I_G = phase_shifted_fft_indices(
+                        kpt1.k_c, kpt2.k_c, pd0,
+                        coordinate_transformation=coordinate_transformation)
 
-                    # G-vector that connects the full Q_c with q1_c
-                    shift1_c = q1_c - self.sign * np.dot(U_cc, q_c)
-                    assert np.allclose(shift1_c.round(), shift1_c)
-                    shift1_c = shift1_c.round().astype(int)
-                    shift_c = kpt1.shift_c - kpt2.shift_c - shift1_c
-                    I_G = np.ravel_multi_index(i_cG + shift_c[:, None],
-                                               N_c, 'wrap')
-                    pos_av = np.dot(self.spos_ac, pd0.gd.cell_cv)
-                    M_vv = np.dot(pd0.gd.cell_cv.T,
+                    pos_av = self.gs.get_pos_av()
+                    M_vv = np.dot(self.gs.gd.cell_cv.T,
                                   np.dot(U_cc.T,
-                                         np.linalg.inv(pd0.gd.cell_cv).T))
+                                         np.linalg.inv(self.gs.gd.cell_cv).T))
                     Q_aGii = []
                     for a, Q_Gii in enumerate(self.Q_aGii):
                         x_G = np.exp(1j * np.dot(G_Gv, (pos_av[a] -
@@ -308,11 +352,14 @@ class GWQEHCorrection(PairDensity):
                     for n in range(kpt1.n2 - kpt1.n1):
                         ut1cc_R = kpt1.ut_nR[n].conj()
                         eps1 = kpt1.eps_n[n]
+                        # PAW correction application
                         C1_aGi = [np.dot(Qa_Gii, P1_ni[n].conj())
                                   for Qa_Gii, P1_ni in zip(Q_aGii, kpt1.P_ani)]
 
-                        n_mG = self.calculate_pair_densities(ut1cc_R, C1_aGi,
-                                                             kpt2, pd0, I_G)
+                        # Calculate pair density
+                        n_mG = self.pair_calc.calculate_pair_density(
+                            ut1cc_R, C1_aGi, kpt2, pd0, I_G)
+
                         if self.sign == 1:
                             n_mG = n_mG.conj()
 
@@ -456,7 +503,7 @@ class GWQEHCorrection(PairDensity):
 
         q_cs = self.qd.ibzk_kc
 
-        rcell_cv = 2 * pi * np.linalg.inv(self.calc.wfs.gd.cell_cv).T
+        rcell_cv = 2 * pi * np.linalg.inv(self.gs.gd.cell_cv).T
         q_vs = np.dot(q_cs, rcell_cv)
         q_grid = (q_vs**2).sum(axis=1)**0.5
         self.q_grid = q_grid
@@ -561,7 +608,7 @@ class GWQEHCorrection(PairDensity):
     def find_maximum_frequency(self):
         self.epsmin = 10000.0
         self.epsmax = -10000.0
-        for kpt in self.calc.wfs.kpt_u:
+        for kpt in self.gs.kpt_u:
             self.epsmin = min(self.epsmin, kpt.eps_n[0])
             self.epsmax = max(self.epsmax, kpt.eps_n[self.nbands - 1])
 
@@ -571,6 +618,9 @@ class GWQEHCorrection(PairDensity):
               file=self.fd)
 
         return self.epsmax - self.epsmin
+
+    def timer(self, name):
+        return self.context.timer(name)
 
 
 def interlayer_to_thickness(d):
