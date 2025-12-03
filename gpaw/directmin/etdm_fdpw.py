@@ -1097,7 +1097,8 @@ class FDPWETDM:
         wfs.timer.start('Inner loop')
 
         if self.printinnerloop:
-            log = parprint
+            from functools import partial
+            log = partial(parprint, comm=wfs.world)
         else:
             log = None
 

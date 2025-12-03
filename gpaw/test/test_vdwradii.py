@@ -3,7 +3,7 @@ from gpaw.analyse.vdwradii import vdWradii
 # data from A. Bondi, J. Phys. Chem. 68 (1964) 441
 
 
-def test_vdwradii():
+def test_vdwradii(comm):
     data_Bondi = {  # units Anstrom
         'He': 1.40,
         'Ne': 1.54,
@@ -20,7 +20,7 @@ def test_vdwradii():
         'Cu': 1.9897063095999996,
     }
     for symbol in ['He', 'Ne', 'Ar', 'Kr', 'H', 'C', 'N', 'O', 'Cu']:
-        R = vdWradii([symbol], 'PBE')[0]
+        R = vdWradii([symbol], 'PBE', world=comm)[0]
         if symbol in data_Bondi:
             Rref = data_Bondi[symbol]
         else:

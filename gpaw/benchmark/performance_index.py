@@ -9,7 +9,7 @@ from ase.geometry.cell import cell_to_cellpar
 from gpaw.benchmark.systems import systems
 from gpaw.calcinfo import get_calculation_info
 from gpaw.dft import GPAW
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 from gpaw.utilities.memory import maxrss
 
 PARAMS = dict(
@@ -117,9 +117,9 @@ def workflow():
             creates=[f'{name}.json'])
 
 
-@parallel(name='world')
-def work(name: str, params: dict | None = None, *, world) -> None:
+def work(name: str, params: dict | None = None, world=None) -> None:
     """Do two steps."""
+    world = normalize_communicator(world)
 
     params = params or PARAMS.copy()
     extra = Path('params.json')

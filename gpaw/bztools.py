@@ -11,7 +11,7 @@ except ImportError:  # scipy < 1.8
     from scipy.spatial.qhull import QhullError
 
 from gpaw import GPAW
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 from gpaw.old.kpt_descriptor import kpts2sizeandoffsets, to1bz
 from gpaw.symmetry import Symmetry, aglomerate_points
 
@@ -38,10 +38,9 @@ def get_lattice_symmetry(cell_cv, tolerance=1e-7):
     return latsym
 
 
-@parallel(name='world')
 def find_high_symmetry_monkhorst_pack(atoms: Atoms,
                                       density: float,
-                                      world):
+                                      world=None):
     """Make high symmetry Monkhorst Pack k-point grid.
 
     Searches for and returns a Monkhorst Pack grid which
@@ -62,6 +61,8 @@ def find_high_symmetry_monkhorst_pack(atoms: Atoms,
         Array of shape (nk, 3) containing the k-points.
 
     """
+    world = normalize_communicator(world)
+
     if not isinstance(atoms, Atoms):
         raise TypeError(f'Use atoms instead of {type(atoms)}.')
 
@@ -380,8 +381,7 @@ def get_reduced_bz(cell_cv, cU_scc, time_reversal,
     return bzk_kc, ibzk_kc, latibzk_kc
 
 
-@parallel(name='world')
-def expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=np.ones(3, bool), *, world):
+def expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=np.ones(3, bool), world=None):
     """Expand IBZ from lattice group to crystal group.
 
     Parameters
@@ -403,6 +403,8 @@ def expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=np.ones(3, bool), *, world):
     # Find right cosets. The lattice group is partioned into right cosets of
     # the crystal group. This can in practice be done by testing whether
     # U1 U2^{-1} is in the crystal group as done below.
+    world = normalize_communicator(world)
+
     cosets = []
     Utmp_scc = lU_scc.copy()
     while len(Utmp_scc):

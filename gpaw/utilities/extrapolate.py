@@ -2,19 +2,22 @@ import sys
 
 import numpy as np
 from ase.parallel import paropen
+from gpaw.mpi import normalize_communicator
 
 
-def extrapolate(x, y, n=-1.5, plot=0, reg=0, txt=None):
+def extrapolate(x, y, n=-1.5, plot=0, reg=0, txt=None, comm=None):
     """Extrapolation tool. Mainly intended for RPA correlation energies,
     but could be useful for other purposes. Fits a straight line to an
     expression of the form: y=b + alpha*x**n and extrapolates the result
     to infinite x. reg=N gives linear regression using the last N points in
     x. reg should be larger than 2"""
 
+    comm = normalize_communicator(comm)
+
     if txt is None:
         f = sys.stdout
     elif isinstance(txt, str):
-        f = paropen(txt, 'a')
+        f = paropen(txt, 'a', comm=comm)
     else:
         f = txt
     assert len(x) == len(y)

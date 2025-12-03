@@ -71,7 +71,7 @@ class Multipole:
             self.initialize(calculator.density.finegd)
         q_L = self.expand(-calculator.density.rhot_g)
 
-        f = paropen(filename, mode)
+        f = paropen(filename, mode, comm=calculator.wfs.world)
 
         print('# Multipole expansion of the charge density', file=f)
         print('# center =', self.center * Bohr, 'Angstrom', file=f)

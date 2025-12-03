@@ -18,7 +18,7 @@ from ase.units import kB as kb
 
 from gpaw.cdft.cdft import (WeightFunc, get_all_weight_functions,
                             get_ks_energy_wo_external)
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 from gpaw.utilities.ps2ae import PS2AE, interpolate_weight
 
 spin_state_error = ('The cDFT wave functions have\n' +
@@ -36,7 +36,6 @@ migliore_warning = ('WARNING! Migliore coupling might be unreliable!:\n' +
 
 
 class CouplingParameters:
-    @parallel(name='world')
     def __init__(self,
                  cdft_a=None,
                  cdft_b=None,
@@ -82,8 +81,7 @@ class CouplingParameters:
                  reaction_energy=0.,
                  band_occupation_cutoff=0.5,
                  energy_gap=None,
-                 *,
-                 world):
+                 world=None):
         '''cdft_a cdft_b: cdft calculators
         h = grid spacing in S_AB and W_AB calculations in AE mode
         AE = Use all electron wave functions
@@ -160,6 +158,7 @@ class CouplingParameters:
             the ones from a cdft will be used
         '''
 
+        world = normalize_communicator(world)
         self.world = world
         self.charge_difference = charge_difference
         self.AE = AE
