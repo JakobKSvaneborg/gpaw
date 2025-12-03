@@ -1,53 +1,56 @@
 import pytest
 from ase.build import bulk
 
-from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW
 
 # Prevent grid-dependent crash:
-parallel = dict(band=1 if world.size < 8 else 4)
+@pytest.fixture(scope='module')
+def parallel(_not_world):
+    return dict(band=1 if _not_world.size < 8 else 4)
 
 
 @pytest.fixture(scope='module', params=['fd', 'lcao', 'pw'])
-def noprojs_gpw(module_tmp_path, request):
+def noprojs_gpw(module_tmp_path, request, _not_world, parallel):
     mode = request.param
     atoms = bulk('Al')
     if mode in {'fd', 'lcao'}:
         kwargs = dict(mode=mode, gpts=(8, 8, 8))
     else:
         kwargs = dict(mode={'name': 'pw', 'ecut': 200.0})
-    atoms.calc = GPAW(kpts=[2, 2, 2], txt=None, parallel=parallel,
-                      convergence={'density': 1e-3, 'eigenstates': 1e-3},
-                      **kwargs)
+    atoms.calc = GPAW(
+        kpts=[2, 2, 2], txt=None, parallel=parallel,
+        convergence={'density': 1e-3, 'eigenstates': 1e-3},
+        communicator=_not_world,
+        **kwargs)
     atoms.get_potential_energy()
     gpw_path = module_tmp_path / f'gs_noprojs_{mode}.gpw'
     atoms.calc.write(gpw_path, include_projections=False)
     return gpw_path
 
 
-def test_no_save_projections(noprojs_gpw):
-    calc = GPAW(noprojs_gpw, parallel=parallel)
+def test_no_save_projections(noprojs_gpw, mpi, parallel):
+    calc = mpi.NewGPAW(noprojs_gpw, parallel=parallel)
     ibzwfs = list(calc.dft.ibzwfs)
     assert len(ibzwfs) > 0
     for wfs in ibzwfs:
         assert wfs._P_ani is None
 
 
-def test_nice_error_message(noprojs_gpw):
+def test_nice_error_message(noprojs_gpw, mpi, parallel):
     if 'lcao' in noprojs_gpw.name:
         pytest.skip('LCAO is not quite ready for this')
     # We want there to be a good error message when we do not have
     # projections.  This only tests the most obvious case of .P_ani access,
     # but there could be code paths that will crash less controllably.
-    calc = GPAW(noprojs_gpw, parallel=parallel)
+    calc = mpi.NewGPAW(noprojs_gpw, parallel=parallel)
 
     wfs = next(iter(calc.dft.ibzwfs))
     with pytest.raises(RuntimeError, match='There are no proj'):
         wfs.P_ani
 
 
-def test_fixed_density_bandstructure(noprojs_gpw):
-    calc = GPAW(noprojs_gpw, parallel=parallel)
+def test_fixed_density_bandstructure(noprojs_gpw, mpi, parallel):
+    calc = mpi.NewGPAW(noprojs_gpw, parallel=parallel)
 
     fixed_calc = calc.fixed_density(
         parallel=parallel,
