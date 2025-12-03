@@ -16,10 +16,10 @@ ref_phi_mos2_km = np.array(
      [3.75847658e-03, 2.67197983e+00, 4.36511629e+00, 5.60446187e+00]])
 
 
-def test_parallel_transport_mos2(in_tmp_dir, gpw_files):
+def test_parallel_transport_mos2(in_tmp_dir, gpw_files, mpi):
     # Calculate the berry phases and spin projections
     gpw = gpw_files['mos2_pw_nosym']
-    parallel_transport(str(gpw), name='mos2', scale=1)
+    parallel_transport(str(gpw), name='mos2', scale=1, comm=mpi.comm)
 
     # Load phase-ordered data
     phi_km, S_km = load_renormalized_data('mos2')
@@ -30,7 +30,7 @@ def test_parallel_transport_mos2(in_tmp_dir, gpw_files):
     assert phi_km[:, ::7] == pytest.approx(ref_phi_mos2_km, abs=0.05)
 
 
-def test_parallel_transport_i2sb2(in_tmp_dir, gpw_files):
+def test_parallel_transport_i2sb2(in_tmp_dir, gpw_files, mpi):
     # Calculate the berry phases and spin projections
     calc = GPAW(gpw_files['i2sb2_pw_nosym'], txt=None,
                 communicator=serial_comm)
@@ -40,7 +40,8 @@ def test_parallel_transport_i2sb2(in_tmp_dir, gpw_files):
                        # phases, we only need the top valence
                        # group of bands. This corresponds to 2x8
                        # bands, see c2db (x2 for spin)
-                       bands=range(nelec - 2 * 8, nelec))
+                       bands=range(nelec - 2 * 8, nelec),
+                       comm=mpi.comm)
 
     # Load phase-ordered data
     phi_km, S_km = load_renormalized_data('i2sb2')
@@ -117,7 +118,7 @@ def test_polarization_phase(in_tmp_dir, gpw_files, mpi):
         assert phases_c[key] == pytest.approx(phases_t[key], abs=1e-6)
 
 
-def test_berry_phases(in_tmp_dir, gpw_files):
+def test_berry_phases(in_tmp_dir, gpw_files, mpi):
     calc = GPAW(gpw_files['mos2_pw_nosym'], communicator=serial_comm)
 
     ind, phases = get_berry_phases(calc)
