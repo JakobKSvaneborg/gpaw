@@ -62,7 +62,8 @@ def find_high_symmetry_monkhorst_pack(atoms: Atoms,
         Array of shape (nk, 3) containing the k-points.
 
     """
-    assert isinstance(atoms, Atoms), f"Use atoms instead of {type(atoms)}."
+    if not isinstance(atoms, Atoms):
+        raise TypeError(f'Use atoms instead of {type(atoms)}.')
 
     pbc = atoms.pbc
     minsize, offset = kpts2sizeandoffsets(density=density, even=True,
