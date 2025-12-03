@@ -5,7 +5,8 @@ from gpaw.mpi import SerialCommunicator, _Communicator, serial_comm, world
 from gpaw.mpi4pywrapper import MPI4PYWrapper
 
 
-def test_mpicomm():
+def test_mpicomm(mpi):
+    world = mpi.comm
     even_comm = world.new_communicator(np.arange(0, world.size, 2))
     if world.size > 1:
         odd_comm = world.new_communicator(np.arange(1, world.size, 2))
@@ -26,7 +27,8 @@ def test_mpicomm():
     except (ImportError, AttributeError):
         pass
 
-    assert world.parent is None
+    # The mpi.comm is actually a subcommunicator of global world:
+    assert world.parent.parent is None
     assert comm.parent is world
     if hasmpi:
         # Compare pointers (as PyLongs)

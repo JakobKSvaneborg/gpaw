@@ -1,7 +1,7 @@
 import sys
 
 
-def test_stdout():
+def test_stdout(mpi):
     class Out:
         def write(self, x):
             sys.__stdout__.write(x)
@@ -17,10 +17,11 @@ def test_stdout():
 
         a = 5.0
         h = 0.2
-        calc = GPAW(mode='fd', h=h, nbands=1, kpts=(1, 1, 1),
-                    occupations=FermiDirac(width=1e-9),
-                    xc='PBE',
-                    txt=None)
+        calc = mpi.GPAW(
+            mode='fd', h=h, nbands=1, kpts=(1, 1, 1),
+            occupations=FermiDirac(width=1e-9),
+            xc='PBE',
+            txt=None)
         hydrogen = Atoms([Atom('H', (a / 2, a / 2, a / 2), magmom=0)],
                          cell=(a, a, a),
                          calculator=calc)

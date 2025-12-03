@@ -10,11 +10,11 @@ pytestmark = pytest.mark.skipif(world.size > 1,
 
 
 @pytest.mark.soc
-def test_spinorbit_Kr():
+def test_spinorbit_Kr(mpi):
     a = Atoms('Kr')
     a.center(vacuum=3.0)
 
-    calc = GPAW(mode='pw', xc='LDA')
+    calc = mpi.GPAW(mode='pw', xc='LDA')
 
     a.calc = calc
     a.get_potential_energy()
