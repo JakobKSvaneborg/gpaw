@@ -104,12 +104,26 @@ class Densities:
             relpos_c = self.relpos_ac[a]
             setup = self.setups[a]
             if setup not in splines:
-                phi_j, phit_j, nc, nct = setup.get_partial_waves()[:4]
-                if skip_core:
-                    nc = Spline.from_data(0, 10.0, [0.0, 0.0])
                 rcut = max(setup.rcut_j)
-                splines[setup] = (rcut, phi_j, phit_j, nc, nct)
-            rcut, phi_j, phit_j, nc, nct = splines[setup]
+                phi_j, phit_j = setup.get_partial_waves()[:2]
+                nct_r = setup.data.nct_g
+                nc_r = setup.data.nc_g
+                rcore = 2 * rcut
+                rgd = setup.data.rgd
+                if skip_core:
+                    nc_r = 0.0
+                    rcut = rcore
+                dnc_r = (nc_r - nct_r) / nspins
+                if setup.data.has_core_hole and nspins > 1 and not skip_core:
+                    phich_r = setup.data.phicorehole_g
+                    nch_r = setup.data.fcorehole * phich_r**2 / (4 * pi)
+                    dnc_s = [rgd.spline(dnc_r + nch_r, rcore, points=1000),
+                             rgd.spline(dnc_r - nch_r, rcore, points=1000)]
+                    rcut = rcore
+                else:
+                    dnc_s = [rgd.spline(dnc_r, rcore, points=1000)] * nspins
+                splines[setup] = (rcut, phi_j, phit_j, dnc_s)
+            rcut, phi_j, phit_j, dnc_s = splines[setup]
 
             # Expected integral of PAW correction:
             electrons_s = np.zeros(ncomponents)
@@ -123,7 +137,7 @@ class Densities:
 
             # Add PAW correction:
             R_v = relpos_c @ grid.cell_cv
-            electrons_s -= add(R_v, n_sR, phi_j, phit_j, nc, nct, rcut, D_sii)
+            electrons_s -= add(R_v, n_sR, phi_j, phit_j, dnc_s, rcut, D_sii)
             electrons_as[a] = electrons_s
 
         if not skip_core:
@@ -161,8 +175,7 @@ def add(R_v: Vector,
         a_sR: UGArray,
         phi_j: list[Spline],
         phit_j: list[Spline],
-        nc: Spline,
-        nct: Spline,
+        dnc_s: list[Spline],
         rcut: float,
         D_sii: Array3D) -> Array1D:
     """Add PAW corrections to real-space grid.
@@ -213,8 +226,9 @@ def add(R_v: Vector,
                         i2 = i2b
                     i1 = i1b
 
-                dn_r = nc.map(d_r) - nct.map(d_r)
-                a_sr[:nspins] += dn_r * ((4 * pi)**-0.5 / nspins)
+                for dnc, a_r in zip(dnc_s, a_sr[:nspins]):
+                    dn_r = dnc.map(d_r)
+                    a_r += dn_r * (4 * pi)**-0.5
                 electrons_s += a_sr.sum(1) * a_sR.desc.dv
                 a_sR.data[:, mask_R] += a_sr
     return electrons_s
