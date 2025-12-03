@@ -64,7 +64,7 @@ def test_d3_extensions(mode, parallel, in_tmp_dir, dftd3, mpi):
     atoms.positions[0, 2] += 0.1
 
     # 3. Calculate a reference result without extensions
-    calc = mpi.GPAW(
+    calc = mpi.NewGPAW(
         mode=mode,
         kpts=(2, 1, 1),
         symmetry='off')
@@ -83,7 +83,7 @@ def test_d3_extensions(mode, parallel, in_tmp_dir, dftd3, mpi):
     assert movedF == pytest.approx(movedF0 + movedD3_F)
 
     # 4. Test restarting from a file
-    atoms, calc = restart('calc.gpw', Class=GPAW)
+    atoms, calc = restart('calc.gpw', Class=GPAW, communicator=mpi.comm)
     # Make sure the cached energies and forces are correct
     # without a new calculation
     assert E == pytest.approx(atoms.get_potential_energy())
@@ -131,8 +131,6 @@ def test_d3_stress(parallel, in_tmp_dir, dftd3, mpi):
     from ase.calculators.dftd3 import DFTD3
     from ase.filters import FrechetCellFilter
     from ase.optimize import CellAwareBFGS
-
-    from gpaw.new.ase_interface import GPAW
 
     domain, band = parallel
     if mpi.comm.size < domain * band:
