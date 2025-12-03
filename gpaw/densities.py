@@ -114,11 +114,11 @@ class Densities:
                     nc_r = 0.0
                     rcut = rcore
                 dnc_r = (nc_r - nct_r) / nspins
-                if setup.data.has_core_hole and nspins > 1 and not skip_core:
+                if setup.data.has_corehole and nspins > 1 and not skip_core:
                     phich_r = setup.data.phicorehole_g
-                    nch_r = setup.data.fcorehole * phich_r**2 / (4 * pi)
-                    dnc_s = [rgd.spline(dnc_r + nch_r, rcore, points=1000),
-                             rgd.spline(dnc_r - nch_r, rcore, points=1000)]
+                    nch_r = setup.data.fcorehole * phich_r**2 / (4 * pi)**0.5
+                    dnc_s = [rgd.spline(dnc_r - nch_r / 2, rcore, points=1000),
+                             rgd.spline(dnc_r + nch_r / 2, rcore, points=1000)]
                     rcut = rcore
                 else:
                     dnc_s = [rgd.spline(dnc_r, rcore, points=1000)] * nspins
@@ -131,6 +131,10 @@ class Densities:
                 electrons_s[:nspins] = -setup.Nct / nspins
             else:
                 electrons_s[:nspins] = (setup.Nc - setup.Nct) / nspins
+                if setup.data.has_corehole and nspins > 1:
+                    electrons_s[0] -= setup.data.fcorehole / 2
+                    electrons_s[1] += setup.data.fcorehole / 2
+
             electrons_s += (4 * pi)**0.5 * np.einsum('sij, ij -> s',
                                                      D_sii,
                                                      setup.Delta_iiL[:, :, 0])
