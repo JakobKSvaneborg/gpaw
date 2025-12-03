@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-import gpaw.mpi as mpi
+from gpaw.mpi import serial_comm
 from gpaw import GPAW
 from gpaw.berryphase import (get_berry_phases, parallel_transport,
                              polarization_phase)
@@ -33,7 +33,7 @@ def test_parallel_transport_mos2(in_tmp_dir, gpw_files):
 def test_parallel_transport_i2sb2(in_tmp_dir, gpw_files):
     # Calculate the berry phases and spin projections
     calc = GPAW(gpw_files['i2sb2_pw_nosym'], txt=None,
-                communicator=mpi.serial_comm)
+                communicator=serial_comm)
     nelec = int(calc.get_number_of_electrons())
     parallel_transport(calc, name='i2sb2', scale=1,
                        # To calculate the valence bands berry
@@ -95,10 +95,10 @@ def load_renormalized_data(name):
     return phi_km, S_km
 
 
-def test_polarization_phase(in_tmp_dir, gpw_files):
+def test_polarization_phase(in_tmp_dir, gpw_files, mpi):
     pi2 = 2.0 * np.pi
     phases_c = polarization_phase(gpw_files['mos2_pw_nosym'],
-                                  comm=mpi.world)
+                                  comm=mpi.comm)
 
     phases_t = {
         'phase_c': pi2 * np.array([8.66037602, 3.33962524, 8.54861146e-15]),
@@ -118,7 +118,7 @@ def test_polarization_phase(in_tmp_dir, gpw_files):
 
 
 def test_berry_phases(in_tmp_dir, gpw_files):
-    calc = GPAW(gpw_files['mos2_pw_nosym'], communicator=mpi.serial_comm)
+    calc = GPAW(gpw_files['mos2_pw_nosym'], communicator=serial_comm)
 
     ind, phases = get_berry_phases(calc)
 
@@ -136,7 +136,7 @@ def test_berry_phases(in_tmp_dir, gpw_files):
 
 # only master will raise, so this test will hang in parallel
 @pytest.mark.serial
-def test_assertions(in_tmp_dir, gpw_files):
+def test_assertions(in_tmp_dir, gpw_files, mpi):
     """
     Functions should only work without symmetry
     Tests so that proper assertion is raised for calculator
@@ -145,13 +145,14 @@ def test_assertions(in_tmp_dir, gpw_files):
 
     gpw_file = gpw_files['mos2_pw']
     with pytest.raises(AssertionError):
-        polarization_phase(gpw_file, comm=mpi.serial_comm)
+        polarization_phase(gpw_file, comm=serial_comm)
 
-    calc = GPAW(gpw_file, communicator=mpi.serial_comm)
+    calc = GPAW(gpw_file, communicator=serial_comm)
 
     with pytest.raises(AssertionError):
         ind, phases = get_berry_phases(calc)
 
     with pytest.raises(AssertionError):
         phi_km, S_km = parallel_transport(calc, direction=0,
-                                          name='mos2', scale=0)
+                                          name='mos2', scale=0,
+                                          comm=mpi.comm)
