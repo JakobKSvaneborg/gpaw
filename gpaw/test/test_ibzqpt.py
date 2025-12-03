@@ -2,10 +2,7 @@ import numpy as np
 from ase.build import bulk
 from ase.dft.kpoints import monkhorst_pack
 
-from gpaw import GPAW
-
-
-def test_ibzqpt():
+def test_ibzqpt(mpi):
     for kpt in (3, 4):
         kpts = (kpt, kpt, kpt)
         bzk_kc = monkhorst_pack(kpts)
@@ -18,9 +15,10 @@ def test_ibzqpt():
         bzk_kc += shift_c
 
         atoms = bulk('Si', 'diamond', a=5.431)
-        calc = GPAW(mode='fd',
-                    h=0.2,
-                    kpts=bzk_kc)
+        calc = mpi.GPAW(
+            mode='fd',
+            h=0.2,
+            kpts=bzk_kc)
 
         atoms.calc = calc
         atoms.get_potential_energy()

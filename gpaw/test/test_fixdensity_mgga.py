@@ -1,24 +1,23 @@
 import pytest
 from ase import Atoms
 
-from gpaw import GPAW
-
 
 @pytest.mark.ci
 @pytest.mark.mgga
 @pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg'])
-def test_fixdensity(in_tmp_dir, gpaw_new, eigensolver):
+def test_fixdensity(in_tmp_dir, gpaw_new, eigensolver, mpi):
     if not gpaw_new and eigensolver == 'ppcg':
         pytest.skip('PPCG only implemented for new GPAW')
     a = 2.5
     slab = Atoms('Li', cell=(a, a, 2 * a), pbc=1)
-    slab.calc = GPAW(mode='fd',
-                     random=True,  # Better for MGGAs
-                     eigensolver=eigensolver,
-                     xc='revTPSS',
-                     h=0.12,
-                     kpts=(3, 3, 1), txt='li-1.txt',
-                     parallel=dict(kpt=1))
+    slab.calc = mpi.GPAW(
+        mode='fd',
+        random=True,  # Better for MGGAs
+        eigensolver=eigensolver,
+        xc='revTPSS',
+        h=0.12,
+        kpts=(3, 3, 1), txt='li-1.txt',
+        parallel=dict(kpt=1))
     slab.get_potential_energy()
     slab.calc.write('li.gpw', mode='all')
     slab.calc.write('li_nowf.gpw')
@@ -39,7 +38,7 @@ def test_fixdensity(in_tmp_dir, gpaw_new, eigensolver):
     f2 = calc.get_fermi_level()
 
     # Start from gpw-file:
-    calc = GPAW('li.gpw', txt=None)
+    calc = mpi.GPAW('li.gpw', txt=None)
     calc = calc.fixed_density(
         txt='li-3.txt',
         convergence={'minimum iterations': 5},
@@ -53,7 +52,7 @@ def test_fixdensity(in_tmp_dir, gpaw_new, eigensolver):
     assert e2 == pytest.approx(e1, abs=3e-5)
     assert e3 == pytest.approx(e1, abs=3e-5)
 
-    calc = GPAW('li_nowf.gpw')
+    calc = mpi.GPAW('li_nowf.gpw')
     if not gpaw_new:
         with pytest.raises(ValueError):
             calc = calc.fixed_density(txt='li-3.txt', nbands=5, kpts=kpts)

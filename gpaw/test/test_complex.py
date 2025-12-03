@@ -1,7 +1,7 @@
 import pytest
 from ase.build import molecule
 
-from gpaw import FD, GPAW, restart
+from gpaw import FD
 
 
 def test_complex(in_tmp_dir, gpaw_new, mpi):
