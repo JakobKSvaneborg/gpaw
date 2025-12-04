@@ -355,7 +355,11 @@ class ASECalculator:
         yield from self.iconverge(atoms)
 
     def new(self, **kwargs) -> ASECalculator:
-        kwargs = {**self.params.todict(), **kwargs}
+        kwargs = {
+            'communicator': self.comm,
+            **self.params.todict(),
+            **kwargs}
+
         return GPAW(**kwargs)
 
     def get_pseudo_wave_function(self, band, kpt=0, spin=None,
