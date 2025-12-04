@@ -1,4 +1,5 @@
 import pytest
+
 from gpaw.new.ase_interface import GPAW
 
 

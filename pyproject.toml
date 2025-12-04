@@ -71,5 +71,7 @@ gpaw = ['py.typed']
 
 [tool.coverage.report]
 exclude_also = [
-    'if __name__ == .__main__.:'
+    'if __name__ == .__main__.:',
+    '(abc\\.)?abstractmethod',
+    'if TYPE_CHECKING:'
 ]

@@ -11,8 +11,9 @@
 #
 # This test also ensures that lcao forces are tested with non-pbc.
 import numpy as np
-from numpy import array
 from ase import Atoms
+from numpy import array
+
 from gpaw import GPAW
 from gpaw.atom.basis import BasisMaker
 
@@ -38,8 +39,8 @@ def test_lcao_largecellforce(gpaw_new):
     F_ac = system.get_forces()
 
     # Check that rightmost domain is in fact outside range of basis functions
-    from gpaw.mpi import rank, size
-    if rank == 0 and size > 1:
+    from gpaw.mpi import world
+    if world.rank == 0 and world.size > 1:
         if gpaw_new:
             basis = calc.dft.scf_loop.hamiltonian.basis
         else:

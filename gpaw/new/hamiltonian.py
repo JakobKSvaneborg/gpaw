@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+
 from gpaw.core import UGArray
 from gpaw.core.arrays import DistributedArrays as XArray
 

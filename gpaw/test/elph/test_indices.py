@@ -7,10 +7,11 @@ Note: If the users gives an index twice that's passed through, because that's
 """
 import numpy as np
 import pytest
-
 from ase.build import bulk
+
 # from ase.phonons import Phonons
-from gpaw.elph import Supercell, ElectronPhononMatrix
+from gpaw.elph import ElectronPhononMatrix, Supercell
+
 # from gpaw.mpi import world
 
 

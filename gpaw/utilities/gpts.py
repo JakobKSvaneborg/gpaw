@@ -1,12 +1,11 @@
 import warnings
 
 import numpy as np
-
 from ase.units import Bohr, Hartree
 
 from gpaw.fftw import get_efficient_fft_size
-from gpaw.utilities import h2gpts
 from gpaw.old.wavefunctions.fd import FD
+from gpaw.utilities import h2gpts
 
 
 def get_number_of_grid_points(cell_cv,
@@ -74,3 +73,14 @@ def get_number_of_grid_points(cell_cv,
                         '({},{},{})'.format(*N_c))
 
     return N_c
+
+
+def pw_ecut_from_lcao_grid(gd) -> float:
+    """Ecut,PW=Gmax^2/2. Link to real-space grid with hmax:
+        Gmax=π/h_max -> Ecut≈1/4*(π/h_max)^2 """
+    if hasattr(gd, "h_c"):
+        h_max = np.max(gd.h_c)
+    else:  # non-orthorhombic
+        h_max = np.max(np.linalg.norm(np.asarray(gd.h_cv), axis=1))
+    ecut_pw = Hartree * 1 / 4 * (np.pi / h_max)**2
+    return ecut_pw

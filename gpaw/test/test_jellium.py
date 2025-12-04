@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from ase import Atoms
 from ase.units import Bohr
+
 from gpaw import GPAW, Mixer
 from gpaw.core import UGArray
 from gpaw.jellium import JelliumSlab

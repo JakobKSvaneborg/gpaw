@@ -1,9 +1,9 @@
 import argparse
-from typing import List, Union
 
 import numpy as np
 from ase import Atoms
-from gpaw.new.ase_interface import ASECalculator, GPAW
+
+from gpaw.new.ase_interface import GPAW, ASECalculator
 from gpaw.point_groups import SymmetryChecker, point_group_names
 from gpaw.typing import Array1D, Array3D
 
@@ -26,7 +26,7 @@ class CubeCalc:
         return 1
 
 
-def main(argv: List[str] = None) -> None:
+def main(argv: list[str] = None) -> None:
     parser = argparse.ArgumentParser(
         prog='python3 -m gpaw.point_groups',
         description='Analyse point-group of atoms and wave-functions.')
@@ -46,7 +46,7 @@ def main(argv: List[str] = None) -> None:
         help='Example: "-a z=x,x=-y".')
     args = parser.parse_intermixed_args(argv)
 
-    calc: Union[None, ASECalculator, CubeCalc]
+    calc: None | ASECalculator | CubeCalc
 
     if args.file.endswith('.gpw'):
         calc = GPAW(args.file)

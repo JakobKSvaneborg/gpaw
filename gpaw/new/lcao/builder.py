@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import numpy as np
+from scipy import sparse
+
 from gpaw.core.matrix import Matrix, MatrixWithNoData
 from gpaw.dft import Parameters
 from gpaw.lcao.tci import TCIExpansions
@@ -12,7 +14,6 @@ from gpaw.new.lcao.hybrids import HybridXCFunctional
 from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.utilities.timing import NullTimer
-from scipy import sparse
 
 
 class LCAODFTComponentsBuilder(DFTComponentsBuilder):
@@ -39,7 +40,7 @@ class LCAODFTComponentsBuilder(DFTComponentsBuilder):
             mode = params.mode
             params.mode = mode.from_param(mode_dict)
             self.builder = params.mode.dft_components_builder(
-                atoms, params, log=log)
+                atoms, params, log=log, comm=comm)
         finally:
             params.mode = mode
 
@@ -136,7 +137,8 @@ def create_lcao_ibzwfs(basis,
     S_qMM, T_qMM, P_qaMi, tciexpansions, tci_derivatives = tci_helper(
         basis, ibz, domain_comm, band_comm, kpt_comm,
         relpos_ac, atomdist,
-        grid, dtype, setups, xp)
+        grid, dtype, setups, xp,
+        nspins=ncomponents % 3)
 
     nao = setups.nao
 
@@ -189,9 +191,10 @@ def tci_helper(basis,
                grid,
                dtype,
                setups,
-               xp):
-    rank_k = ibz.ranks(kpt_comm)
-    here_k = rank_k == kpt_comm.rank
+               xp,
+               nspins):
+    rank_ks = ibz.ranks(kpt_comm, nspins)
+    here_k = (rank_ks == kpt_comm.rank).any(axis=1)
     kpt_qc = ibz.kpt_kc[here_k]
 
     tciexpansions = TCIExpansions.new_from_setups(setups)

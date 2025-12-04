@@ -1,6 +1,7 @@
-from dataclasses import replace
-from gpaw.basis_data import BasisFunction
 from collections import defaultdict
+from dataclasses import replace
+
+from gpaw.basis_data import BasisFunction
 
 
 def generate_ri_basis(basis, accuracy):
@@ -11,7 +12,7 @@ def generate_ri_basis(basis, accuracy):
         return Hartree(basis.rgd, n_g, l)
 
     # Auxiliary basis functions per angular momentum channel
-    auxt_lng = defaultdict(lambda: [])
+    auxt_lng = defaultdict(list)
 
     ribf_j = []
 

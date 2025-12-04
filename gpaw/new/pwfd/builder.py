@@ -2,12 +2,12 @@ from math import pi
 
 import numpy as np
 
+from gpaw.core.arrays import XArrayWithNoData
 from gpaw.new.builder import DFTComponentsBuilder
-from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.lcao.eigensolver import LCAOEigensolver
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
+from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.core.arrays import XArrayWithNoData
 
 
 class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
@@ -103,7 +103,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
         self.log('Converting LCAO to grid', flush=True)
 
         def create_wfs(spin, q, k, kpt_c, weight):
-            lcaowfs = lcao_ibzwfs.wfs_qs[q][spin]
+            lcaowfs = lcao_ibzwfs._get_wfs(k, spin)
             assert lcaowfs.spin == spin
 
             # Convert to PW-coefs in PW-mode:

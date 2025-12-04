@@ -104,8 +104,7 @@ class UniformGridWaveFunctions(ArrayWaveFunctions):
     def __init__(self, nbands, gd, dtype=None, data=None, kpt=None, dist=None,
                  spin=0, collinear=True):
         ngpts = gd.n_c.prod()
-        ArrayWaveFunctions.__init__(self, nbands, ngpts, dtype, data, dist,
-                                    collinear)
+        super().__init__(nbands, ngpts, dtype, data, dist, collinear)
 
         M = self.matrix
 
@@ -169,8 +168,7 @@ class PlaneWaveExpansionWaveFunctions(ArrayWaveFunctions):
             if isinstance(data, np.ndarray):
                 data = data.view(float)
 
-        ArrayWaveFunctions.__init__(self, nbands, ng, dtype, data, dist,
-                                    collinear)
+        super().__init__(nbands, ng, dtype, data, dist, collinear)
         self.pd = pd
         self.gd = pd.gd
         self.comm = pd.gd.comm

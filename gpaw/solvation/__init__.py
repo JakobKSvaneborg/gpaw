@@ -5,19 +5,13 @@ continuum solvent models.
 """
 
 from gpaw.solvation.calculator import SolvationGPAW
-from gpaw.solvation.cavity import (EffectivePotentialCavity,
-                                   Power12Potential,
-                                   ElDensity,
-                                   SSS09Density,
-                                   ADM12SmoothStepCavity,
-                                   FG02SmoothStepCavity,
-                                   GradientSurface,
-                                   KB51Volume)
-from gpaw.solvation.dielectric import (LinearDielectric,
-                                       CMDielectric)
-from gpaw.solvation.interactions import (SurfaceInteraction,
-                                         VolumeInteraction,
-                                         LeakedDensityInteraction)
+from gpaw.solvation.cavity import (ADM12SmoothStepCavity,
+                                   EffectivePotentialCavity, ElDensity,
+                                   FG02SmoothStepCavity, GradientSurface,
+                                   KB51Volume, Power12Potential, SSS09Density)
+from gpaw.solvation.dielectric import CMDielectric, LinearDielectric
+from gpaw.solvation.interactions import (LeakedDensityInteraction,
+                                         SurfaceInteraction, VolumeInteraction)
 
 
 def get_HW14_water_kwargs():

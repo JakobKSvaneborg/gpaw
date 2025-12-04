@@ -1,15 +1,16 @@
+from abc import ABC, abstractmethod
+from copy import copy
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+from warnings import warn
+
+import numpy as np
+
+from gpaw import debug
 from gpaw.gpu import cupy as cp
 from gpaw.gpu import cupy_is_fake
 from gpaw.new.timer import trace
 from gpaw.utilities import as_real_dtype
-from gpaw import debug
-
-import numpy as np
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from copy import copy
-from typing import TYPE_CHECKING, Union
-from warnings import warn
 
 if TYPE_CHECKING:
     from gpaw.core.matrix import Matrix
@@ -40,7 +41,6 @@ class GPUDiagonalizer(ABC):
              ) -> tuple[cp.ndarray, "Matrix"]:
         """Eigensolver that is aware of matrix internal distribution.
         """
-        pass
 
 
 class NonDistributedDiagonalizer(GPUDiagonalizer):
@@ -55,9 +55,8 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
         """Solve eigenvalues and eigenvectors of a GPU matrix, represented by
         CuPy array.
         """
-        pass
 
-    def check_matrix(self, mat: Union[cp.ndarray, np.ndarray]):
+    def check_matrix(self, mat: cp.ndarray | np.ndarray):
         """"""
 
         xp = cp if isinstance(mat, cp.ndarray) else np

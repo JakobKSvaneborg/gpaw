@@ -5,7 +5,7 @@ STM simulations
 Scanning Tunneling Microscopy (STM) is a widely used experimental
 technique. STM maps out a convolution of the geometric and electronic
 structure of a given surface and it is often difficult if not
-impossiple to intrepret STM images without the aid of theoretical
+impossible to intrepret STM images without the aid of theoretical
 tools.
 
 We will use GPAW to simulate an STM image.  Start by doing an Al(100)

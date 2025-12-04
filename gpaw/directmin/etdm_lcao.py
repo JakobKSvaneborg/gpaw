@@ -31,19 +31,22 @@ calculations LCAO mode:
 """
 
 
-import numpy as np
 import warnings
+from copy import deepcopy
+
+import numpy as np
 from ase.utils import basestring
-from gpaw.directmin.tools import expm_ed, expm_ed_unit_inv, random_a, \
-    sort_orbitals_according_to_occ, sort_orbitals_according_to_energies
+from scipy.linalg import expm
+
+from gpaw import BadParallelization
+from gpaw.directmin import line_search_algorithm, search_direction
+from gpaw.directmin.derivatives import get_approx_analytical_hessian
 from gpaw.directmin.lcao.etdm_helper_lcao import ETDMHelperLCAO
 from gpaw.directmin.locfunc.localize_orbitals import localize_orbitals
-from scipy.linalg import expm
-from gpaw.directmin import search_direction, line_search_algorithm
-from gpaw.directmin.tools import get_n_occ
-from gpaw.directmin.derivatives import get_approx_analytical_hessian
-from gpaw import BadParallelization
-from copy import deepcopy
+from gpaw.directmin.tools import (expm_ed, expm_ed_unit_inv, get_n_occ,
+                                  random_a,
+                                  sort_orbitals_according_to_energies,
+                                  sort_orbitals_according_to_occ)
 
 
 class LCAOETDM:
@@ -858,7 +861,7 @@ class LCAOETDM:
         within equally occupied subspaces.
         """
 
-        with ((wfs.timer('Get canonical representation'))):
+        with (wfs.timer('Get canonical representation')):
             for kpt in wfs.kpt_u:
                 self.dm_helper.update_to_canonical_orbitals(
                     wfs, ham, kpt, self.update_ref_orbs_canonical,

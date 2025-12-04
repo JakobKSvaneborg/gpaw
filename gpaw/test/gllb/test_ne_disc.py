@@ -1,9 +1,9 @@
 import pytest
 from ase import Atom, Atoms
 
-from gpaw import GPAW, restart, Davidson, Mixer
-from gpaw.atom.generator import Generator
+from gpaw import GPAW, Davidson, Mixer, restart
 from gpaw.atom.configurations import parameters
+from gpaw.atom.generator import Generator
 from gpaw.mpi import world
 
 # This test calculates the derivative discontinuity of Ne-atom

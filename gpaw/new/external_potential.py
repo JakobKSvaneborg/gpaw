@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import numpy as np
-from ase.units import Ha, Bohr
+from ase.units import Bohr, Ha
 
-from gpaw.typing import Array1D, Array2D, ArrayLike1D
 from gpaw.core import UGArray
 from gpaw.new.density import Density
+from gpaw.typing import Array1D, Array2D, ArrayLike1D
 
 
 def create_external_potential(params: dict) -> ExternalPotential:

@@ -116,7 +116,8 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
     def get_pseudo_core_ked(self):
         if self._tauct_ag is None:
             self._tauct_ag = self.setups.create_pseudo_core_ked(
-                self.interpolation_desc, self.relpos_ac, self.atomdist)
+                self.interpolation_desc, self.relpos_ac, self.atomdist,
+                xp=self.xp)
         return self._tauct_ag
 
     def create_poisson_solver(self, extensions):
@@ -246,7 +247,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             return psit_nsG
 
     def read_ibz_wave_functions(self, reader):
-        from gpaw.utilities import get_dtype_precision, as_dtype_precision
+        from gpaw.utilities import as_dtype_precision, get_dtype_precision
 
         def convert_precision(array):
             """Convert array to match calculation precision."""

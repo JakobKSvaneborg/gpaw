@@ -1,15 +1,15 @@
 import time
-import pytest
-import numpy as np
 
+import numpy as np
+import pytest
 from ase import Atom, Atoms, io
-from ase.parallel import parprint, paropen
+from ase.parallel import paropen, parprint
 from ase.units import Ha
 
 from gpaw import GPAW
-from gpaw.mpi import world
 from gpaw.lrtddft import LrTDDFT
 from gpaw.lrtddft.excited_state import ExcitedState
+from gpaw.mpi import world
 
 
 def get_H2(calculator=None):
@@ -58,7 +58,7 @@ def test_split(in_tmp_dir):
     if world.rank == 0:
         with open(fname) as f:
             string = f.read()
-            assert 'Total number of cores used: {0}'.format(n) in string
+            assert f'Total number of cores used: {n}' in string
             assert 'Total number of cores used: 1' in string
 
 

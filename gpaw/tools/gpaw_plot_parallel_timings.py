@@ -1,5 +1,6 @@
 import re
 from optparse import OptionParser
+
 import matplotlib.pyplot as plt
 
 
@@ -118,9 +119,9 @@ def main():
             # lines left, only last line was mangled (file was incomplete) and
             # that is okay.  Otherwise it's an error:
             for line in fd:
-                p.error('Bad syntax: {}'.format(failing_line))
+                p.error(f'Bad syntax: {failing_line}')
 
-        assert alignment is not None, 'Cannot align to "{}"'.format(opts.align)
+        assert alignment is not None, f'Cannot align to "{opts.align}"'
         alignments.append(alignment)
 
         # End any remaining ongoing calls:

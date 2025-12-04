@@ -1,8 +1,8 @@
-import pytest
 import numpy as np
+import pytest
 
-from gpaw.tddft import TDDFT, DipoleMomentWriter
 from gpaw.mpi import world
+from gpaw.tddft import TDDFT, DipoleMomentWriter
 
 
 @pytest.mark.gllb

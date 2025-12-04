@@ -11,14 +11,15 @@ from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.pwacf import PWAtomCenteredFunctions
 from gpaw.hybrids.paw import pawexxvv
 from gpaw.mpi import broadcast
-from gpaw.new import zips as zip
 from gpaw.new.ibzwfs import IBZWaveFunctions
+from gpaw.new.logger import Logger
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
-from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
+from gpaw.new import zips as zip
 from gpaw.setup import Setups
 from gpaw.utilities import unpack_hermitian
-from gpaw.new.logger import Logger
+from gpaw.utilities.blas import mmm
+from scipy.linalg.blas import get_blas_funcs
 
 
 @dataclass
@@ -79,8 +80,9 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
            log: Logger | None = None,
            forces: bool = False) -> tuple[list[Psit], int]:
     """Compute BZ from IBZ and distribute."""
-    log = log or Logger(None)
+    log = log or Logger(None, None)
     nocc = number_of_non_empty_bands(ibzwfs)
+    nspins = ibzwfs.nspins
     ibz = ibzwfs.ibz
     log(ibz)
     log('Occupied bands:', nocc)
@@ -90,33 +92,28 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
     nbzk = len(ibz.bz)
     comm = ibzwfs.comm
     symmetries = ibzwfs.ibz.symmetries
-    rank_K = np.zeros(nbzk, int)
+    rank_Ks = np.zeros((nbzk, nspins), int)
     kpt_Kc = np.zeros((nbzk, 3))
     psit_KsnG = {}
-    for wfs1_s in ibzwfs.wfs_qs:
-        wfs_s: list[PWFDWaveFunctions] = []
-        for wfs1 in wfs1_s:
-            wfs = wfs1.collect(0, nocc)
-            if wfs is not None:
-                wfs_s.append(wfs)
-        if len(wfs_s) == 0:
+    for wfs1 in ibzwfs:
+        wfs = wfs1.collect(0, nocc)
+        if wfs is None:
             continue
         for K, k in enumerate(ibz.bz2ibz_K):
-            if k != wfs_s[0].k:
+            if k != wfs.k:
                 continue
-            rank_K[K] = comm.rank
+            rank_Ks[K, wfs.spin] = comm.rank
             s = ibz.s_K[K]
             U_cc = symmetries.rotation_scc[s]
             complex_conjugate = ibz.time_reversal_K[K]
-            psit_snG = []
-            for wfs in wfs_s:
-                psit1_nG = wfs.psit_nX
-                assert isinstance(psit1_nG, PWArray)
-                psit2_nG = psit1_nG.transform(U_cc, complex_conjugate)
-                psit_snG.append(psit2_nG)
+            psit1_nG = wfs.psit_nX
+            assert isinstance(psit1_nG, PWArray)
+            psit2_nG = psit1_nG.transform(U_cc, complex_conjugate)
+            if wfs.spin == 0:
                 kpt_Kc[K] = psit2_nG.desc.kpt_c
-            psit_KsnG[K] = psit_snG
-    comm.sum(rank_K)
+            assert abs(psit2_nG.desc.kpt_c - ibz.bz.kpt_Kc[K]).max() < 1e-8
+            psit_KsnG[(K, wfs.spin)] = psit2_nG
+    comm.sum(rank_Ks)
     comm.sum(kpt_Kc)
     t2 = time()
     log(f'{t2 - t1:.3f} seconds')
@@ -136,17 +133,16 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
     log('Distributing wave functions and iFFT-ing to real space: ', end='')
     t1 = time()
     requests = []
-    for K, psit_snG in psit_KsnG.items():
+    for (K, spin), psit_nG in psit_KsnG.items():
         for rank, KK, (na, nb) in blocks:
             if KK != K:
                 continue
             if rank != comm.rank:
-                for psit_nG in psit_snG:
-                    requests.append(
-                        comm.send(psit_nG.data[na:nb], rank,
-                                  block=False, tag=K))
+                requests.append(
+                    comm.send(psit_nG.data[na:nb], rank,
+                              block=False, tag=K * nspins + spin))
 
-    pw = ibzwfs.wfs_qs[0][0].psit_nX.desc.new(comm=None)
+    pw = ibzwfs._wfs_u[0].psit_nX.desc.new(comm=None)
     _, occ_skn = ibzwfs.get_all_eigs_and_occs(broadcast=True)
 
     mypsits = []
@@ -154,12 +150,13 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
         if rank != comm.rank:
             continue
         pt_aiG = None
-        for spin in range(ibzwfs.nspins):
-            if rank_K[K] == rank:
-                psit_nG = psit_KsnG[K][spin][na:nb]
+        for spin in range(nspins):
+            if rank_Ks[K, spin] == rank:
+                psit_nG = psit_KsnG[(K, spin)][na:nb]
             else:
                 psit_nG = pw.new(kpt=kpt_Kc[K]).empty(nb - na)
-                comm.receive(psit_nG.data, rank_K[K], tag=K)
+                comm.receive(psit_nG.data, rank_Ks[K, spin],
+                             tag=K * nspins + spin)
             pt_aiG = pt_aiG or psit_nG.desc.atom_centered_functions(
                 [setup.pt_j for setup in setups],
                 relpos_ac)
@@ -220,6 +217,8 @@ class PWHybridHamiltonian(PWHamiltonian):
 
         self.mypsits: list[Psit] = []
         self.nbzk = 0
+        self.real = np.issubdtype(pw.dtype, np.floating)
+        self.zaxpy = get_blas_funcs('axpy', dtype=complex)
 
     def update_wave_functions(self,
                               ibzwfs: PWFDIBZWaveFunctions,
@@ -246,7 +245,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         assert isinstance(psit2_nG, PWArray)
         assert Htpsit2_nG is None or isinstance(Htpsit2_nG, PWArray)
         assert isinstance(ibzwfs, PWFDIBZWaveFunctions)
-        assert len(ibzwfs.ibz) % self.kpt_comm.size == 0
+        assert len(ibzwfs.ibz) * ibzwfs.nspins % self.kpt_comm.size == 0
 
         domain_comm = psit2_nG.desc.comm
 
@@ -255,6 +254,18 @@ class PWHybridHamiltonian(PWHamiltonian):
         else:
             F1_av = None
 
+        # Find projectors and k-point weight for psit2_nG:
+        for wfs in ibzwfs:
+            if wfs.spin != spin:
+                continue
+            if np.allclose(wfs.psit_nX.desc.kpt_c, psit2_nG.desc.kpt_c):
+                pt_aiG = wfs.pt_aiX
+                assert isinstance(pt_aiG, PWAtomCenteredFunctions)
+                kweight = wfs.weight
+                break
+        else:  # no break
+            assert False, f'k-point not found: {psit2_nG.desc.kpt_c}'
+
         D_aii = D_asii[:, spin].copy()
         if ibzwfs.nspins == 1:
             D_aii = D_aii.copy()
@@ -262,7 +273,7 @@ class PWHybridHamiltonian(PWHamiltonian):
 
         evv = 0.0  # valence-valence contribution
         evc = 0.0  # valence-core contribution
-        V_aii = {}
+        V_aii = D_aii.new()
         for a, D_ii in D_aii.items():
             VV_ii = pawexxvv(self.VV_app[a], D_ii)
             VC_ii = self.VC_aii[a]
@@ -273,42 +284,39 @@ class PWHybridHamiltonian(PWHamiltonian):
                 ev = (D_ii * VV_ii).sum()
                 evv -= ev
                 evc -= ec
-            elif F1_av is not None:
+
+        # distribute V_aii
+        V2_aii = V_aii.gather(broadcast=True)
+
+        if calculate_energy:
+            evv = domain_comm.sum_scalar(evv) * self.kpt_comm.size * kweight
+            evc = domain_comm.sum_scalar(evc) * self.kpt_comm.size * kweight
+        elif F1_av is not None:
+            for a, V_ii in V2_aii.items():
                 for psit in self.mypsits:
                     dP_anvi = psit.dP_anvi
                     assert dP_anvi is not None
-                    F1_av[a] += 2 / self.nbzk * domain_comm.size * np.einsum(
-                        'ni, nvi, n -> v',
-                        psit.P_ani[a] @ V_ii,
-                        dP_anvi[a].conj(),
-                        psit.f_n).real
-        if calculate_energy:
-            evv = domain_comm.sum_scalar(evv) * self.kpt_comm.size
-            evc = domain_comm.sum_scalar(evc) * self.kpt_comm.size
-        ekin = -evc - 2 * evv
+                    force_v = np.einsum('ni, nvi, n -> v',
+                                        psit.P_ani[a] @ V_ii,
+                                        dP_anvi[a].conj(),
+                                        psit.f_n).real
+                    force_v = 2 / self.nbzk * force_v
+                    F1_av[a] += force_v
 
-        # Find projectors and k-point weight for psit2_nG:
-        for wfs_s in ibzwfs.wfs_qs:
-            wfs = wfs_s[spin]
-            if np.allclose(wfs.psit_nX.desc.kpt_c, psit2_nG.desc.kpt_c):
-                pt_aiG = wfs.pt_aiX
-                assert isinstance(pt_aiG, PWAtomCenteredFunctions)
-                kweight = wfs.weight
-                break
-        else:  # no break
-            assert False, f'k-point not found: {psit2_nG.desc.kpt_c}'
+        ekin = -evc - 2 * evv
 
         e = self._apply1(spin, D_aii, pt_aiG,
                          psit2_nG, Htpsit2_nG,
-                         wfs.myocc_n, V_aii,
+                         kweight, wfs.myocc_n, V_aii,
                          calculate_energy, F1_av)
+
         evv += 0.5 * e
         ekin -= e
 
         if calculate_energy:
             for name, e in [('hybrid_xc', evv + evc),
                             ('hybrid_kinetic_correction', ekin)]:
-                e *= ibzwfs.spin_degeneracy * kweight
+                e *= ibzwfs.spin_degeneracy
                 self.xc.energies[name] += e
             self.xc.energies['hybrid_xc'] += self.exx_cc
 
@@ -322,6 +330,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 pt_aiG: PWAtomCenteredFunctions,
                 psit_nG: PWArray,
                 Htpsit_nG: PWArray | None,
+                kweight: float,
                 f_n: np.ndarray,
                 V_aii,
                 calculate_energy: bool,
@@ -351,16 +360,16 @@ class PWHybridHamiltonian(PWHamiltonian):
                         P2_ani = AtomArrays(P2_ani.layout,
                                             dims=(len(P2_ani.data),),
                                             data=P2_ani.data)
-                        data = (psit2_nG, P2_ani, f_n, spin)
+                        data = (psit2_nG, P2_ani, f_n, spin, kweight)
 
                 rank = (brank + krank * band_comm.size) * domain_comm.size
-                psit2_nG, P2_ani, f2_n, s = broadcast(data, rank, comm)
+                psit2_nG, P2_ani, f2_n, s, w = broadcast(data, rank, comm=comm)
                 V_nG = psit2_nG.new()
                 V_nG.data[:] = 0.0
                 V_ani = P2_ani.new()
                 V_ani.data[:] = 0.0
                 e += self._apply2(psit2_nG, P2_ani, s, V_nG, V_ani, f2_n,
-                                  calculate_energy, F1_av)
+                                  calculate_energy, F1_av) * w
                 if Htpsit_nG is None:
                     continue
                 comm.sum(V_nG.data, root=rank)
@@ -401,6 +410,8 @@ class PWHybridHamiltonian(PWHamiltonian):
         e *= -self.exx_fraction / self.nbzk
         return self.comm.sum_scalar(e)
 
+    # from line_profiler import profile
+    # @profile
     def _apply3(self,
                 pw: PWDesc,
                 v_G: np.ndarray,
@@ -416,51 +427,82 @@ class PWHybridHamiltonian(PWHamiltonian):
         Q1_aniL = psit1.Q_aniL
         f1_n = psit1.f_n
         ghat_aLG = self.setups.create_compensation_charges(pw, self.relpos_ac)
-        v2_G = Htpsit2_nG.desc.empty()
+        ghat_aLG._lazy_init()
+        ghat_GA = ghat_aLG._lfc.expand(cc=not self.real)
+        N2 = len(ut2_nR)
+        Q_anL = ghat_aLG.layout.empty(N2)
+        rhot2_nG = pw.empty(N2)
+        tmp_Q = self.plan.tmp_Q
+        tmp_R = self.plan.tmp_R
+        eikR_a = ghat_aLG._lfc.eikR_a
+        pw2 = Htpsit2_nG.desc
+        NR = tmp_R.size
+        NG = pw.myshape[0]
+        NG2 = pw2.myshape[0]
+        tmp_G = np.empty(NG, complex)
+        Q_G = pw.indices(tmp_Q.shape)
+        Q2_G = pw2.indices(tmp_Q.shape)
         e = 0.0
         for n1, ut1_R in enumerate(ut1_nR.data):
-            rhot_nR = ut2_nR.copy()
-            rhot_nR.data *= ut1_R.conj()
-            Q_anL = {}
+            f1 = f1_n[n1]
             for a, Q1_niL in Q1_aniL.items():
-                Q_anL[a] = P2_ani[a] @ Q1_niL[n1]
-            rhot_nG = pw.empty(len(rhot_nR))
-            rhot_nR.fft(out=rhot_nG, plan=self.plan)
-            ghat_aLG.add_to(rhot_nG, Q_anL)
-            if not calculate_energy:
-                rhot_nG.data *= v_G
-                if F1_av is not None:
-                    forces(ghat_aLG, rhot_nG, P2_ani,
-                           Q_anL,
-                           f1_n[n1], f2_n, self.nbzk, self.delta_aiiL,
-                           psit1.dP_anvi,
-                           n1, F1_av)
-                    continue
+                Q_anL[a] = P2_ani[a] @ Q1_niL[n1] * eikR_a[a].conj()
+            if self.real:
+                mmm(1.0 / pw.dv, Q_anL.data, 'N', ghat_GA, 'T',
+                    0.0, rhot2_nG.data.view(float))
             else:
-                for rhot_G, f2 in zip(rhot_nG, f2_n):
-                    a_G = rhot_G.copy()
-                    rhot_G.data *= v_G
-                    e12 = a_G.integrate(rhot_G).real * f2 * f1_n[n1]
-                    e += e12
-            V2_anL = ghat_aLG.integrate(rhot_nG)
-            rhot_nG.ifft(out=rhot_nR)
-            rhot_nR.data *= ut1_R.data
-            x = self.exx_fraction * f1_n[n1] / self.nbzk
-            for v2_R, Htpsit2_G in zip(rhot_nR, Htpsit2_nG):
-                v2_R.fft(out=v2_G)
-                Htpsit2_G.data -= v2_G.data * x
+                mmm(1.0 / pw.dv, Q_anL.data, 'N', ghat_GA, 'C',
+                    0.0, rhot2_nG.data)
+            for n2, (rhot_G, ut2_R) in enumerate(zip(rhot2_nG.data,
+                                                     ut2_nR.data)):
+                tmp_R[:] = ut2_R
+                tmp_R *= ut1_R.conj()
+                self.plan.fft()
+                a_G = tmp_Q.ravel()[Q_G]
+                self.zaxpy(a_G, rhot_G, NG, 1.0 / NR)
+                if not calculate_energy:
+                    rhot_G *= v_G
+                else:
+                    tmp_G[:] = rhot_G
+                    rhot_G *= v_G
+                    e12 = tmp_G.view(float) @ rhot_G.view(float)
+                    if self.real:
+                        e12 = 2 * e12 - (tmp_G[0] * rhot_G[0]).real
+                    e += e12 * f2_n[n2] * f1 * pw.dv
+            if F1_av is not None:
+                forces(ghat_aLG, rhot2_nG, P2_ani,
+                       Q_anL,
+                       f1, f2_n, self.nbzk, self.delta_aiiL,
+                       psit1.dP_anvi,
+                       n1, eikR_a, F1_av)
+                continue
+            if self.real:
+                ghat_GA[0] *= 0.5
+                mmm(2.0, rhot2_nG.data.view(float), 'N', ghat_GA, 'N',
+                    0.0, Q_anL.data)
+                ghat_GA[0] *= 2.0
+            else:
+                mmm(1.0, rhot2_nG.data, 'N', ghat_GA, 'N', 0.0, Q_anL.data)
+            x = self.exx_fraction * f1 / self.nbzk
+            for rhot_G, Htpsit2_G in zip(rhot2_nG.data, Htpsit2_nG.data):
+                self.plan.ifft_sphere(rhot_G, pw)
+                tmp_R *= ut1_R.data
+                self.plan.fft()
+                # Htpsit2_G -= x / NR * pw2.cut(tmp_Q)
+                v2_G = tmp_Q.ravel()[Q2_G]
+                self.zaxpy(v2_G, Htpsit2_G, NG2, -x / NR)
             for a, Q1_niL in Q1_aniL.items():
-                V2_ani[a][:] -= x * V2_anL[a] @ Q1_niL[n1].T.conj()
+                V2_ani[a] -= x * Q_anL[a] @ Q1_niL[n1].T.conj() * eikR_a[a]
         return e
 
 
 def forces(ghat_aLG, vrhot2_nG, P2_ani, Q2_anL, f1, f2_n, nbzk, delta_aiiL,
-           dP_anvi, n1, F_av):
+           dP_anvi, n1, eikR_a, F_av):
     f12_n = f1 * f2_n
     for a, F_nvL in ghat_aLG.derivative(vrhot2_nG).items():
         F_av[a] -= 0.25 / nbzk * np.einsum('n, nL, nvL -> v',
                                            f12_n,
-                                           Q2_anL[a].conj(),
+                                           (Q2_anL[a] * eikR_a[a]).conj(),
                                            F_nvL).real
     for a, F_nL in ghat_aLG.integrate(vrhot2_nG).items():
         F_iin = delta_aiiL[a] @ F_nL.T

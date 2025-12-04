@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Callable, Generator
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 from ase import Atoms
@@ -10,7 +11,6 @@ from ase.units import Ha
 
 from gpaw import __version__
 from gpaw.core import UGArray
-from gpaw.core.arrays import XArrayWithNoData
 from gpaw.dft import GPAW, Parameters
 from gpaw.dos import DOSCalculator
 from gpaw.mpi import broadcast, synchronize_atoms
@@ -20,6 +20,7 @@ from gpaw.new.calculation import (CalculationModeError, DFTCalculation,
 from gpaw.new.gpw import GPWFlags, write_gpw
 from gpaw.new.logger import Logger
 from gpaw.new.pw.fulldiag import diagonalize
+from gpaw.new.scf import SCFContext
 from gpaw.new.xc import create_functional
 from gpaw.typing import Array1D, Array2D, Array3D
 from gpaw.utilities import pack_density
@@ -108,7 +109,9 @@ class ASECalculator:
     def __repr__(self):
         return f'ASECalculator({self.params!r})'
 
-    def iconverge(self, atoms: Atoms | None):
+    def iconverge(self, atoms: Atoms | None,
+                  *,
+                  need_wfs: bool = False) -> Generator[SCFContext]:
         """Iterate to self-consistent solution.
 
         Will also calculate "cheap" properties: energy, magnetic moments
@@ -152,6 +155,8 @@ class ASECalculator:
         elif not self._dft.results:
             # Something cleared the results dict
             converged = False
+        elif need_wfs and not self.dft.ibzwfs.has_wave_functions():
+            converged = False
 
         if converged:
             return
@@ -193,7 +198,11 @@ class ASECalculator:
         * magmoms
         * dipole
         """
-        for _ in self.iconverge(atoms):
+        if self._dft is None:
+            need_wfs = True
+        else:
+            need_wfs = prop not in self.dft.results
+        for _ in self.iconverge(atoms, need_wfs=need_wfs):
             pass
 
         if prop == 'forces':
@@ -418,14 +427,15 @@ class ASECalculator:
         return self.dft.electrostatic_potential().atomic_corrections()
 
     def get_pseudo_density(self,
-                           spin=None,
-                           gridrefinement=1,
-                           broadcast=True) -> Array3D | None:
-        assert spin is None
+                           spin: int | None = None,
+                           gridrefinement: int = 1,
+                           broadcast: bool = True) -> Array3D | None:
         nt_sr = self.dft.densities().pseudo_densities(
             grid_refinement=gridrefinement)
         nt_sr = nt_sr.gather(broadcast=broadcast)
-        return None if nt_sr is None else nt_sr.data.sum(0)
+        if spin is None:
+            return None if nt_sr is None else nt_sr.data.sum(0)
+        return None if nt_sr is None else nt_sr.data[spin]
 
     def get_all_electron_density(self,
                                  spin=None,
@@ -442,7 +452,7 @@ class ASECalculator:
         return None if n_sr is None else n_r.data
 
     def get_eigenvalues(self, kpt=0, spin=0, broadcast=True):
-        eig_n = self.dft.ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[0] * Ha
+        eig_n = self.dft.ibzwfs.get_eigs_and_occs(kpt=kpt, spin=spin)[0] * Ha
         assert eig_n.dtype == np.float64
         if broadcast:
             if self.comm.rank != 0:
@@ -453,7 +463,7 @@ class ASECalculator:
     def get_occupation_numbers(self, kpt=0, spin=0, broadcast=True,
                                raw=False):
         ibzwfs = self.dft.ibzwfs
-        occ_n = ibzwfs.get_eigs_and_occs(k=kpt, s=spin)[1]
+        occ_n = ibzwfs.get_eigs_and_occs(kpt=kpt, spin=spin)[1]
         if not raw:
             weight = ibzwfs.ibz.weight_k[kpt] * ibzwfs.spin_degeneracy
             occ_n *= weight
@@ -561,7 +571,7 @@ class ASECalculator:
         xc = create_functional(xcparams, pot_calc.fine_grid)
         if xc.type == 'MGGA' and density.taut_sR is None:
             dft.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
-            if isinstance(dft.ibzwfs.wfs_qs[0][0].psit_nX, XArrayWithNoData):
+            if not dft.ibzwfs.has_wave_functions():
                 builder = self.params.dft_component_builder(self.atoms,
                                                             log=dft.log)
                 basis_set = builder.create_basis_set()
@@ -597,6 +607,8 @@ class ASECalculator:
             assert isinstance(nbands, int)
 
         dft.scf_loop.occ_calc._set_nbands(nbands)
+        from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
+        assert isinstance(dft.ibzwfs, PWFDIBZWaveFunctions)
         ibzwfs = diagonalize(dft.potential,
                              dft.ibzwfs,
                              dft.scf_loop.occ_calc,
@@ -617,7 +629,23 @@ class ASECalculator:
                       update_fermi_level: bool = False,
                       **kwargs) -> ASECalculator:
         kwargs.pop('communicator', None)  # Ignore silently
-        kwargs = {**self.params.todict(), **kwargs}
+        allowed = {'nbands', 'occupations', 'poissonsolver',
+                   'kpts', 'eigensolver', 'random', 'maxiter',
+                   'basis', 'symmetry', 'convergence', 'verbose',
+                   'parallel', 'mode'}
+        illegal = kwargs.keys() - allowed
+        if illegal:
+            raise TypeError(f'Illegal keyword(s): {illegal}.  '
+                            f'Only {allowed} allowed.')
+
+        mode = kwargs.get('mode', {})
+        if mode.keys() - {'dtype'}:
+            raise TypeError('Only mode={"dtype": dtype} is allowed.')
+
+        old_params = self.params.todict()
+        kwargs = {**old_params, **kwargs,
+                  'mode': {**old_params['mode'], **mode}}
+
         params = Parameters(**kwargs)
         log = Logger(txt, self.comm)
         builder = params.dft_component_builder(self.atoms, log=log)
@@ -744,3 +772,19 @@ class ASECalculator:
     def get_bz_to_ibz_map(self):
         """Return indices from BZ to IBZ."""
         return self.dft.ibzwfs.ibz.bz2ibz_K.copy()
+
+    def _to_old(self):
+        import tempfile
+        from gpaw.old.calculator import GPAW as OldGPAW
+        from gpaw.mpi import broadcast_string
+
+        if self._dft is None:
+            return OldGPAW(**self.params.todict(), txt=self.log.fd)
+
+        if self.comm.rank == 0:
+            gpw = tempfile.mkstemp(suffix='.gpw')[1]
+        else:
+            gpw = ''
+        gpw = broadcast_string(gpw, comm=self.comm)
+        self.write(gpw, mode='all')
+        return OldGPAW(gpw)

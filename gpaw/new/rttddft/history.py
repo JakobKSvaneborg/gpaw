@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from dataclasses import asdict, dataclass
 from typing import Any, Union
 
@@ -6,14 +7,13 @@ import numpy as np
 
 from gpaw.typing import Vector
 
-
 RTTDDFTKickLike = Union['RTTDDFTKick', dict[str, Any]]
 
 
 class RTTDDFTHistory:
 
     """ Representation of the history of a RT-TDDFT calculation.
-    The class stores the curent time and the number of propagation steps,
+    The class stores the current time and the number of propagation steps,
     as well as a list of previous kicks.
     """
 

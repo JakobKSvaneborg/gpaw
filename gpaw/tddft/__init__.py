@@ -9,29 +9,23 @@ from math import log
 import numpy as np
 
 from gpaw import GPAW_NEW
-from gpaw.old.calculator import GPAW
-from gpaw.mixer import DummyMixer
-from gpaw.preconditioner import Preconditioner
-from gpaw.tddft.units import (attosec_to_autime, autime_to_attosec,
-                              aufrequency_to_eV)
-from gpaw.tddft.utils import MultiBlas
-from gpaw.tddft.solvers import create_solver
-from gpaw.tddft.propagators import \
-    create_propagator, \
-    AbsorptionKick
-from gpaw.tddft.tdopers import \
-    TimeDependentHamiltonian, \
-    TimeDependentOverlap, \
-    TimeDependentWaveFunctions, \
-    TimeDependentDensity, \
-    AbsorptionKickHamiltonian
-from gpaw.old.wavefunctions.fd import FD
-
-from gpaw.tddft.spectrum import photoabsorption_spectrum
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.lcaotddft.magneticmomentwriter import MagneticMomentWriter
 from gpaw.lcaotddft.restartfilewriter import RestartFileWriter
-
+from gpaw.mixer import DummyMixer
+from gpaw.old.calculator import GPAW
+from gpaw.old.wavefunctions.fd import FD
+from gpaw.preconditioner import Preconditioner
+from gpaw.tddft.propagators import AbsorptionKick, create_propagator
+from gpaw.tddft.solvers import create_solver
+from gpaw.tddft.spectrum import photoabsorption_spectrum
+from gpaw.tddft.tdopers import (AbsorptionKickHamiltonian,
+                                TimeDependentDensity, TimeDependentHamiltonian,
+                                TimeDependentOverlap,
+                                TimeDependentWaveFunctions)
+from gpaw.tddft.units import (attosec_to_autime, aufrequency_to_eV,
+                              autime_to_attosec)
+from gpaw.tddft.utils import MultiBlas
 
 __all__ = ['TDDFT', 'photoabsorption_spectrum',
            'DipoleMomentWriter', 'MagneticMomentWriter',
@@ -152,8 +146,8 @@ class OldTDDFT(GPAW):
 
         # NB: TDDFT restart files contain additional information which
         #     will override the initial settings for time/kick/niter.
-        GPAW.__init__(self, filename, parallel=parallel,
-                      communicator=communicator, txt=txt)
+        super().__init__(filename, parallel=parallel,
+                         communicator=communicator, txt=txt)
         if len(self.symmetry.op_scc) > 1:
             raise ValueError('Symmetries are not allowed for TDDFT. '
                              'Run the ground state calculation with '
@@ -257,18 +251,6 @@ class OldTDDFT(GPAW):
                              wfs.bd.comm.size)
             self.log('States per processor =', wfs.bd.mynbands)
 
-        # Restarting an FDTD run generates hamiltonian.fdtd_poisson, which
-        # now overwrites hamiltonian.poisson
-        if hasattr(self.hamiltonian, 'fdtd_poisson'):
-            self.hamiltonian.poisson = self.hamiltonian.fdtd_poisson
-            self.hamiltonian.poisson.set_grid_descriptor(self.density.finegd)
-
-        # For electrodynamics mode
-        if self.hamiltonian.poisson.get_description() == 'FDTD+TDDFT':
-            self.hamiltonian.poisson.set_density(self.density)
-            self.hamiltonian.poisson.print_messages(self.log)
-            self.log.flush()
-
         # Update density and Hamiltonian
         self.propagator.update_time_dependent_operators(self.time)
 
@@ -284,10 +266,10 @@ class OldTDDFT(GPAW):
 
     def create_wave_functions(self, mode, *args, **kwargs):
         mode = FDTDDFTMode(mode.nn, mode.interpolation, True)
-        GPAW.create_wave_functions(self, mode, *args, **kwargs)
+        super().create_wave_functions(mode, *args, **kwargs)
 
     def read(self, filename):
-        reader = GPAW.read(self, filename)
+        reader = super().read(filename)
         if 'tddft' in reader:
             r = reader.tddft
             self.time = r.time
@@ -295,7 +277,7 @@ class OldTDDFT(GPAW):
             self.kick_strength = r.kick_strength
 
     def _write(self, writer, mode):
-        GPAW._write(self, writer, mode)
+        super()._write(writer, mode)
         w = writer.child('tddft')
         w.write(time=self.time,
                 niter=self.niter,
@@ -375,24 +357,6 @@ class OldTDDFT(GPAW):
         niterpropagator = 0
         self.maxiter = self.niter + iterations
 
-        # FDTD requires extra care
-        if self.hamiltonian.poisson.get_description() == 'FDTD+TDDFT':
-            self.hamiltonian.poisson.set_time(self.time)
-            self.hamiltonian.poisson.set_time_step(self.time_step)
-
-            # The propagate calculation_mode causes classical part to evolve
-            # in time when self.hamiltonian.poisson.solve(...) is called
-            self.hamiltonian.poisson.set_calculation_mode('propagate')
-
-            # During each time step, self.hamiltonian.poisson.solve may be
-            # called several times (depending on the used propagator).
-            # Using the attached observer one ensures that actual propagation
-            # takes place only once. This is because the FDTDPoissonSolver
-            # changes the calculation_mode from propagate to
-            # something else when the propagation is finished.
-            self.attach(self.hamiltonian.poisson.set_calculation_mode, 1,
-                        'propagate')
-
         self.timer.start('Propagate')
         while self.niter < self.maxiter:
             norm = self.density.finegd.integrate(self.density.rhot_g)
@@ -449,10 +413,6 @@ class OldTDDFT(GPAW):
             # self.finalize_dipole_moment_file(norm)
             self.finalize_dipole_moment_file()
 
-        # Finalize FDTDPoissonSolver
-        if self.hamiltonian.poisson.get_description() == 'FDTD+TDDFT':
-            self.hamiltonian.poisson.finalize_propagation()
-
         if restart_file is not None:
             self.write(restart_file, 'all')
 
@@ -480,10 +440,7 @@ class OldTDDFT(GPAW):
                 self.dm_file.flush()
 
     def calculate_dipole_moment(self):
-        dm = self.density.finegd.calculate_dipole_moment(self.density.rhot_g)
-        if self.hamiltonian.poisson.get_description() == 'FDTD+TDDFT':
-            dm += self.hamiltonian.poisson.get_classical_dipole_moment()
-        return dm
+        return self.density.finegd.calculate_dipole_moment(self.density.rhot_g)
 
     def update_dipole_moment_file(self, norm, dm):
         if self.rank == 0:
@@ -576,10 +533,6 @@ class OldTDDFT(GPAW):
                                   self.wfs.overlap, self.solver,
                                   self.preconditioner, self.wfs.gd, self.timer)
         abs_kick.kick()
-
-        # Kick the classical part, if it is present
-        if self.hamiltonian.poisson.get_description() == 'FDTD+TDDFT':
-            self.hamiltonian.poisson.set_kick(kick=self.kick_strength)
 
         # Update density and Hamiltonian
         self.propagator.update_time_dependent_operators(self.time)

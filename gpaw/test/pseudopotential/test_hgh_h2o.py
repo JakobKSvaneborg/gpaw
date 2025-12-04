@@ -13,10 +13,10 @@ Forces are compared to a previous finite-difference result.
 
 
 import numpy as np
+import pytest
 from ase.build import molecule
 
 from gpaw import GPAW, PoissonSolver
-import pytest
 
 
 def test_pseudopotential_hgh_h2o():

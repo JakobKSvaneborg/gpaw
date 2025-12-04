@@ -1,7 +1,7 @@
-from ase.spacegroup import crystal
-from gpaw import GPAW
-from gpaw import PW
 import pytest
+from ase.spacegroup import crystal
+
+from gpaw import GPAW, PW
 
 
 def test_symmetry_fractional_translations_big():

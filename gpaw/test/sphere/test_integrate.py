@@ -1,17 +1,14 @@
-import pytest
-
 import numpy as np
-
+import pytest
 from ase.units import Bohr
 
 from gpaw import GPAW
-
-from gpaw.sphere.integrate import (integrate_lebedev, radial_trapz,
+from gpaw.sphere.integrate import (default_spherical_drcut,
+                                   find_volume_conserving_lambd,
+                                   integrate_lebedev,
+                                   periodic_truncation_function, radial_trapz,
                                    radial_truncation_function,
-                                   periodic_truncation_function,
-                                   spherical_truncation_function_collection,
-                                   default_spherical_drcut,
-                                   find_volume_conserving_lambd)
+                                   spherical_truncation_function_collection)
 
 
 def generate_analytical_integrals():

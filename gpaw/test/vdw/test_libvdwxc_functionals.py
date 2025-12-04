@@ -1,10 +1,11 @@
-import pytest
-from gpaw.utilities import compiled_with_libvdwxc
 import numpy as np
+import pytest
+
 from gpaw.old.grid_descriptor import GridDescriptor
-from gpaw.xc.libvdwxc import vdw_df, vdw_df2, vdw_df_cx, \
-    vdw_optPBE, vdw_optB88, vdw_C09, vdw_beef, \
-    libvdwxc_has_mpi, libvdwxc_has_pfft
+from gpaw.utilities import compiled_with_libvdwxc
+from gpaw.xc.libvdwxc import (libvdwxc_has_mpi, libvdwxc_has_pfft, vdw_beef,
+                              vdw_C09, vdw_df, vdw_df2, vdw_df_cx, vdw_optB88,
+                              vdw_optPBE)
 
 pytestmark = pytest.mark.skipif(not compiled_with_libvdwxc(),
                                 reason='not compiled_with_libvdwxc()')

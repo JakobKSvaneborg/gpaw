@@ -121,7 +121,7 @@ spanned by the hydrogen TB sites::
 
 ``eps_n[i]`` and ``vec_nn[:,i]`` contains the i'th eigenvalue and
 eigenvector of the hydrogen molecule.  Try to calculate the pdos
-again. What happpened?
+again. What happened?
 
 You can try to remove the coupling to the bonding state and calculate
 the calculate the transmission function::
@@ -138,7 +138,7 @@ DFT description
 ===============
 
 We now continue to explore the Pt-H2-Pt system using a more realistic
-desciption derived from ab-initio calculations.
+description derived from ab-initio calculations.
 
 The functions ``gpaw.lcao.tools.get_lcao_hamiltonian`` and
 ``gpaw.lcao.tools.get_lead_lcao_hamiltonian`` (in gpaw.lcao.tools)

@@ -1,16 +1,67 @@
-import pytest
 import numpy as np
-
-from gpaw import GPAW, PW, FD
+import pytest
 from ase import Atoms
+from ase.build import molecule
+
+from gpaw import FD, GPAW, PW
 from gpaw.mpi import world
 
 
 @pytest.mark.new_gpaw_ready
 @pytest.mark.do
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
-def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
-    if gpaw_new and (world.size > 1 or mode == 'fd'):
+def test_directmin_H2(in_tmp_dir, mode, gpaw_new):
+    if gpaw_new and world.size > 1:
+        pytest.skip('Does not work yet for new GPAW')
+
+    atoms = molecule('H2')
+    atoms.center(vacuum=4.0)
+    atoms.set_pbc(False)
+
+    if mode == 'pw':
+        kwargs = dict(mode=PW(300, force_complex_dtype=True))
+        e0 = -6.586933
+        f0 = np.array([[0., 0., 0.61711],
+                       [0., 0., -0.61711]])
+    else:
+        kwargs = dict(mode=FD(force_complex_dtype=True))
+        e0 = -6.733991
+        f0 = np.array([[0., 0., 0.48365],
+                       [0., 0., -0.48365]])
+
+    calc = GPAW(**kwargs,
+                xc='PBE',
+                occupations={'name': 'fixed-uniform'},
+                eigensolver={'name': 'etdm-fdpw',
+                             'converge_unocc': False},
+                mixer={'backend': 'no-mixing'},
+                spinpol=True,
+                symmetry='off',
+                nbands=-3,
+                convergence={'eigenstates': 4.0e-6})
+    atoms.calc = calc
+    energy = atoms.get_potential_energy()
+    f = atoms.get_forces()
+
+    assert energy == pytest.approx(e0, abs=1.0e-4)
+    assert f == pytest.approx(f0, abs=1e-2)
+
+    calc.write('H2.gpw', mode='all')
+    from gpaw import restart
+    atoms, calc = restart('H2.gpw', txt='-')
+    atoms.positions += 1.0e-6
+    f2 = atoms.get_forces()
+    niter = calc.get_number_of_iterations()
+
+    assert niter == pytest.approx(3, abs=1)
+    assert f2 == pytest.approx(f0, abs=1e-2)
+
+
+@pytest.mark.new_gpaw_ready
+@pytest.mark.do
+@pytest.mark.parametrize('mode', ['pw', 'fd'])
+def test_directmin_C2H4(in_tmp_dir, mode, gpaw_new):
+    if gpaw_new and (world.size > 1):
         pytest.skip('Does not work yet for new GPAW')
     atoms = Atoms('CCHHHH',
                   positions=[
@@ -48,7 +99,7 @@ def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
                 xc='PBE',
                 occupations={'name': 'fixed-uniform'},
                 eigensolver={'name': 'etdm-fdpw',
-                             'converge_unocc': not gpaw_new},
+                             'converge_unocc': False},
                 mixer={'backend': 'no-mixing'},
                 spinpol=True,
                 symmetry='off',
@@ -64,26 +115,31 @@ def test_directmin_pw(in_tmp_dir, mode, gpaw_new):
     f = atoms.get_forces()
 
     assert energy == pytest.approx(e0, abs=1.0e-4)
-    if gpaw_new:
-        return
-    assert f0 == pytest.approx(f, abs=1e-2)
-    assert calc.wfs.kpt_u[0].f_n[6] == 1.0
-    assert calc.wfs.kpt_u[0].f_n[5] == 0.0
-    assert calc.wfs.kpt_u[0].eps_n[6] > calc.wfs.kpt_u[0].eps_n[5]
+    assert f == pytest.approx(f0, abs=1e-2)
+
+    if 0:
+        # If unoccupied orbitals are not converged:
+        #     energy(LUMO) > energy(HOMO)
+        assert calc.wfs.kpt_u[0].f_n[6] == 1.0
+        assert calc.wfs.kpt_u[0].f_n[5] == 0.0
+        assert calc.wfs.kpt_u[0].eps_n[6] > calc.wfs.kpt_u[0].eps_n[5]
 
     calc.write('ethylene.gpw', mode='all')
     from gpaw import restart
     atoms, calc = restart('ethylene.gpw', txt='-')
     atoms.positions += 1.0e-6
     f2 = atoms.get_forces()
+    assert f2 == pytest.approx(f0, abs=1e-2)
     niter = calc.get_number_of_iterations()
-
     assert niter == pytest.approx(3, abs=1)
-    assert f0 == pytest.approx(f2, abs=1e-2)
-    assert calc.wfs.kpt_u[0].f_n[6] == 1.0
-    assert calc.wfs.kpt_u[0].f_n[5] == 0.0
-    assert calc.wfs.kpt_u[0].eps_n[6] > calc.wfs.kpt_u[0].eps_n[5]
+
+    if 0:
+        # If unoccupied orbitals are not converged:
+        #     energy(LUMO) > energy(HOMO)
+        assert calc.wfs.kpt_u[0].f_n[6] == 1.0
+        assert calc.wfs.kpt_u[0].f_n[5] == 0.0
+        assert calc.wfs.kpt_u[0].eps_n[6] > calc.wfs.kpt_u[0].eps_n[5]
 
 
 if __name__ == '__main__':
-    test_directmin_pw(1, 'pw', 1)
+    test_directmin_C2H4(1, 'pw', 1)

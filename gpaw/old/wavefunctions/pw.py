@@ -1,27 +1,28 @@
 from __future__ import annotations
-from math import pi
-import numbers
 
+import numbers
+from math import pi
+
+import numpy as np
 from ase.units import Bohr, Ha
 from ase.utils.timing import timer
-import numpy as np
 
-from gpaw.old.band_descriptor import BandDescriptor
+import gpaw
+import gpaw.cgpaw as cgpaw
+import gpaw.fftw as fftw
 from gpaw.blacs import BlacsDescriptor, BlacsGrid, Redistributor
 from gpaw.lfc import BasisFunctions
+from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.old.matrix_descriptor import MatrixDescriptor
 from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.old.pw.lfc import PWLFC
+from gpaw.old.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
+from gpaw.old.wavefunctions.fdpw import FDPWWaveFunctions
+from gpaw.old.wavefunctions.mode import Mode
 from gpaw.typing import Array2D
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.blas import axpy
 from gpaw.utilities.progressbar import ProgressBar
-from gpaw.old.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
-from gpaw.old.wavefunctions.fdpw import FDPWWaveFunctions
-from gpaw.old.wavefunctions.mode import Mode
-import gpaw
-import gpaw.cgpaw as cgpaw
-import gpaw.fftw as fftw
 
 
 class PW(Mode):
@@ -84,7 +85,7 @@ class PW(Mode):
         else:
             self.cell_cv = cell / Bohr
 
-        Mode.__init__(self, force_complex_dtype)
+        super().__init__(force_complex_dtype)
 
     def __call__(self, parallel, initksl, gd, **kwargs):
         dedepsilon = 0.0
@@ -164,12 +165,12 @@ class Preconditioner:
 class NonCollinearPreconditioner(Preconditioner):
     def calculate_kinetic_energy(self, psit_xsG, kpt):
         shape = psit_xsG.shape
-        ekin_xs = Preconditioner.calculate_kinetic_energy(
-            self, psit_xsG.reshape((-1, shape[-1])), kpt)
+        ekin_xs = super().calculate_kinetic_energy(
+            psit_xsG.reshape((-1, shape[-1])), kpt)
         return ekin_xs.reshape(shape[:-1]).sum(-1)
 
     def __call__(self, R_sG, kpt, ekin, out=None):
-        return Preconditioner.__call__(self, R_sG, kpt, [ekin, ekin], out)
+        return super().__call__(R_sG, kpt, [ekin, ekin], out)
 
 
 class PWWaveFunctions(FDPWWaveFunctions):
@@ -186,12 +187,12 @@ class PWWaveFunctions(FDPWWaveFunctions):
 
         self.ng_k = None  # number of G-vectors for all IBZ k-points
 
-        FDPWWaveFunctions.__init__(self, parallel, initksl,
-                                   reuse_wfs_method=reuse_wfs_method,
-                                   collinear=collinear,
-                                   gd=gd, nvalence=nvalence, setups=setups,
-                                   bd=bd, dtype=dtype, world=world, kd=kd,
-                                   kptband_comm=kptband_comm, timer=timer)
+        super().__init__(parallel, initksl,
+                         reuse_wfs_method=reuse_wfs_method,
+                         collinear=collinear,
+                         gd=gd, nvalence=nvalence, setups=setups,
+                         bd=bd, dtype=dtype, world=world, kd=kd,
+                         kptband_comm=kptband_comm, timer=timer)
         self.read_from_file_init_wfs_dm = False
 
     def empty(self, n=(), global_array=False, realspace=False, q=None):
@@ -228,7 +229,7 @@ class PWWaveFunctions(FDPWWaveFunctions):
 
         self.pt = PWLFC([setup.pt_j for setup in setups], self.pd)
 
-        FDPWWaveFunctions.set_setups(self, setups)
+        super().set_setups(setups)
 
         if self.dedepsilon == 'estimate':
             dedecut = self.setups.estimate_dedecut(self.ecut)
@@ -258,7 +259,7 @@ class PWWaveFunctions(FDPWWaveFunctions):
             s += '  Using FFTW library\n'
         else:
             s += "  Using Numpy's FFT\n"
-        return s + FDPWWaveFunctions.__str__(self)
+        return s + super().__str__()
 
     def make_preconditioner(self, block=1):
         if self.collinear:
@@ -481,8 +482,7 @@ class PWWaveFunctions(FDPWWaveFunctions):
 
     def get_wave_function_array(self, n, k, s, realspace=True,
                                 cut=True, periodic=False):
-        kpt_rank, q = self.kd.get_rank_and_index(k)
-        u = q * self.nspins + s
+        kpt_rank, u = self.kd.get_rank_and_index(k, s)
         band_rank, myn = self.bd.who_has(n)
 
         rank = self.world.rank
@@ -531,7 +531,7 @@ class PWWaveFunctions(FDPWWaveFunctions):
         return np.nan
 
     def write(self, writer, write_wave_functions=False):
-        FDPWWaveFunctions.write(self, writer)
+        super().write(writer)
 
         if not write_wave_functions:
             return
@@ -577,7 +577,7 @@ class PWWaveFunctions(FDPWWaveFunctions):
                     kk += 1
 
     def read(self, reader):
-        FDPWWaveFunctions.read(self, reader)
+        super().read(reader)
 
         if 'coefficients' not in reader.wave_functions:
             return
@@ -807,26 +807,28 @@ See issue #241 in GPAW. Creashing to prevent corrupted results."""
 
     def initialize_from_lcao_coefficients(self,
                                           basis_functions: BasisFunctions,
-                                          block_size: int = 10) -> None:
+                                          block_size: int = 10,
+                                          lazy=False,
+                                          reset_C_nM=True) -> None:
         """Convert from LCAO to PW coefficients."""
-        nlcao = len(self.kpt_qs[0][0].C_nM)
+        nlcao = len(self.kpt_u[0].C_nM)
 
         # We go from LCAO to real-space and then to PW's.
         # It's too expensive to allocate one big real-space array:
         block_size = min(max(nlcao, 1), block_size)
         psit_nR = self.gd.empty(block_size, self.dtype)
 
-        for kpt in self.kpt_u:
+        def create_psit(kpt):
             if self.kd.gamma:
                 emikr_R = 1.0
             else:
                 k_c = self.kd.ibzk_kc[kpt.k]
                 emikr_R = self.gd.plane_wave(-k_c)
-            kpt.psit = PlaneWaveExpansionWaveFunctions(
+            psit = PlaneWaveExpansionWaveFunctions(
                 self.bd.nbands, self.pd, self.dtype, kpt=kpt.q,
                 dist=(self.bd.comm, -1, 1),
                 spin=kpt.s, collinear=self.collinear)
-            psit_nG = kpt.psit.array
+            psit_nG = psit.array
             if psit_nG.ndim == 3:  # non-collinear calculation
                 N, S, G = psit_nG.shape
                 psit_nG = psit_nG.reshape((N * S, G))
@@ -839,7 +841,20 @@ See issue #241 in GPAW. Creashing to prevent corrupted results."""
                                              block_size)
                 for psit_R, psit_G in zip(psit_nR, psit_nG[n1:n2]):
                     psit_G[:] = self.pd.fft(psit_R * emikr_R, kpt.q)
-            kpt.C_nM = None
+            if reset_C_nM:
+                kpt.C_nM = None
+            return psit
+
+        class LazyPsit:
+            def __init__(self, kpt):
+                self.kpt = kpt
+
+            @property
+            def array(self):
+                return create_psit(self.kpt).array
+
+        for kpt in self.kpt_u:
+            kpt.psit = LazyPsit(kpt) if lazy else create_psit(kpt)
 
     def random_wave_functions(self, mynao):
         rs = np.random.RandomState(self.world.rank)
@@ -858,7 +873,7 @@ See issue #241 in GPAW. Creashing to prevent corrupted results."""
                 array[:, 0].imag = 0.0
 
     def estimate_memory(self, mem):
-        FDPWWaveFunctions.estimate_memory(self, mem)
+        super().estimate_memory(mem)
         self.pd.estimate_memory(mem.subnode('PW-descriptor'))
 
     def get_kinetic_stress(self):

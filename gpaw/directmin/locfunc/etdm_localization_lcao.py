@@ -1,5 +1,7 @@
 import time
+
 from ase.units import Hartree
+
 from gpaw.directmin.derivatives import get_approx_analytical_hessian
 
 

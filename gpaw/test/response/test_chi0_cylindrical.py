@@ -1,6 +1,6 @@
 import pytest
-
 from ase.units import Hartree
+
 from gpaw.response.df import DielectricFunction
 from gpaw.response.qpd import SingleCylQPWDescriptor
 

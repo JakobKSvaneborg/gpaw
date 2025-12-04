@@ -1,36 +1,32 @@
 from __future__ import annotations
+
 import pickle
 import warnings
-from math import pi, isclose
-from pathlib import Path
 from collections.abc import Iterable
+from contextlib import ExitStack
+from math import isclose, pi
+from pathlib import Path
 
 import numpy as np
-
-from ase.parallel import paropen
+from ase.parallel import broadcast, paropen
 from ase.units import Ha
-
-from gpaw import GPAW, debug
-import gpaw.mpi as mpi
-from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
-from gpaw.old.pw.descriptor import (count_reciprocal_vectors, PWMapping)
-from gpaw.utilities.progressbar import ProgressBar
-
-from gpaw.response import ResponseContext, ResponseGroundStateAdapter
-from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
-from gpaw.response.pair import phase_shifted_fft_indices
-from gpaw.response.qpd import SingleQPWDescriptor
-from gpaw.response.pw_parallelization import Blocks1D
-from gpaw.response.screened_interaction import (initialize_w_calculator,
-                                                GammaIntegrationMode)
-from gpaw.response.coulomb_kernels import CoulombKernel
-from gpaw.response import timer
-from gpaw.response.mpa_sampling import mpa_frequency_sampling
-from gpaw.mpi import broadcast_exception
-
 from ase.utils.filecache import MultiFileJSONCache as FileCache
-from contextlib import ExitStack
-from ase.parallel import broadcast
+
+import gpaw.mpi as mpi
+from gpaw import GPAW, debug
+from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
+from gpaw.mpi import broadcast_exception
+from gpaw.old.pw.descriptor import PWMapping, count_reciprocal_vectors
+from gpaw.response import ResponseContext, ResponseGroundStateAdapter, timer
+from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
+from gpaw.response.coulomb_kernels import CoulombKernel
+from gpaw.response.mpa_sampling import mpa_frequency_sampling
+from gpaw.response.pair import phase_shifted_fft_indices
+from gpaw.response.pw_parallelization import Blocks1D
+from gpaw.response.qpd import SingleQPWDescriptor
+from gpaw.response.screened_interaction import (GammaIntegrationMode,
+                                                initialize_w_calculator)
+from gpaw.utilities.progressbar import ProgressBar
 
 
 def compare_inputs(inp1, inp2, rel_tol=1e-14, abs_tol=1e-14):
@@ -507,10 +503,12 @@ class G0W0Calculator:
             (see :ref:`frequency grid`).
         ecut_e: array(float)
             Plane wave cut-off energies in eV. Defined with choose_ecut_things
-        nbands: int
-            Number of bands to use in the calculation. If None, the number will
-            be determined from :ecut: to yield a number close to the number of
-            plane waves used.
+        nbands: int | None
+            Number of bands to use in the calculation. If None, and groundstate
+            gpw file is a plane wave calculations, the number will be
+            determined from :ecut: to yield a number close to the number of
+            plane waves used. If None, and LCAO, the number of bands will be
+            determined by the number of total bands in the gpw-file.
         do_GW_too: bool
             When carrying out a calculation including vertex corrections, it
             is possible to get the standard GW results at the same time
@@ -551,7 +549,7 @@ class G0W0Calculator:
         self.mpa = mpa
         if evaluate_sigma is None:
             evaluate_sigma = np.array([])
-        self.evaluate_sigma = evaluate_sigma
+        self.evaluate_sigma = evaluate_sigma / Ha
         self.qcache = qcache
 
         # Note: self.wd should be our only representation of the frequencies.
@@ -996,7 +994,7 @@ class G0W0Calculator:
 
                 for (progress, kpt1, kpt2)\
                         in self.pair_distribution.kpt_pairs_by_q(bzq_c, 0, m2):
-                    pb.update((nQ + progress) / self.wcalc.qd.mynk)
+                    pb.update((nQ + progress) / self.wcalc.qd.get_count())
 
                     k1 = self.wcalc.gs.kd.bz2ibz_k[kpt1.K]
                     i = self.kpts.index(k1)
@@ -1146,7 +1144,7 @@ class G0W0(G0W0Calculator):
                  nblocks=1,
                  nblocksmax=False,
                  kpts=None,
-                 world=mpi.world,
+                 world=None,
                  timer=None,
                  fxc_mode='GW',
                  fxc_modes=None,
@@ -1189,10 +1187,10 @@ class G0W0(G0W0Calculator):
             for the cutoff energy.
             If an array is given, the extrapolation will be performed based on
             the cutoff energies given in the array.
-        nbands: int
+        nbands: int | str
             Number of bands to use in the calculation. If None, the number will
             be determined from :ecut: to yield a number close to the number of
-            plane waves used.
+            plane waves used. If in LCAO, nao can be used
         ppa: bool
             Sets whether the Godby-Needs plasmon-pole approximation for the
             dielectric function should be used.
@@ -1230,7 +1228,7 @@ class G0W0(G0W0Calculator):
             {'type': 'reciprocal', 'reduced':True} or 'reciprocal2D':
                 Numerical integration of q=0, G=0 1/q^2 integral in a area
                 resembling the reciprocal 2D cell (parallelogram) to be used
-                to be usedwith 2D systems.
+                to be used with 2D systems.
                 Used to be integrate_gamma=2.
 
             {'type': '1BZ'} or '1BZ':
@@ -1276,6 +1274,8 @@ class G0W0(G0W0Calculator):
             (given by filename-prefix), while writing to different out
             files.
         """
+        world = mpi.normalize_communicator(world)
+
         if fxc_mode:
             assert fxc_modes is None
         if fxc_modes:
@@ -1301,10 +1301,17 @@ class G0W0(G0W0Calculator):
         # (calc can not actually be a calculator at all.)
         gpwfile = Path(calc)
 
-        output_prefix = filename or output_prefix
+        output_prefix = output_prefix or filename
         context = ResponseContext(txt=output_prefix + '.txt',
                                   comm=world, timer=timer)
-        gs = ResponseGroundStateAdapter.from_gpw_file(gpwfile)
+        gs = ResponseGroundStateAdapter.from_gpw_file(gpwfile, lazy=True)
+
+        if gs.is_lcao:
+            if ecut_extrapolation:
+                raise ValueError('ecut_extrapolation is '
+                                 'disabled in LCAO mode.')
+
+        context.print(gs.gs_info)
 
         # Check if nblocks is compatible, adjust if not
         if nblocksmax:
@@ -1315,7 +1322,13 @@ class G0W0(G0W0Calculator):
         ecut, ecut_e = choose_ecut_things(ecut, ecut_extrapolation)
 
         if nbands is None:
-            nbands = int(gs.volume * (ecut / Ha)**1.5 * 2**0.5 / 3 / pi**2)
+            if gs.is_planewave:
+                nbands = int(gs.volume * (ecut / Ha)**1.5 * 2**0.5 / 3 / pi**2)
+            elif gs.is_lcao:
+                nbands = gs.nbands
+            else:
+                raise ValueError('Unknown type of gpw calclations for'
+                                 ' response.')
         else:
             if ecut_extrapolation:
                 raise RuntimeError(
@@ -1373,7 +1386,7 @@ class G0W0(G0W0Calculator):
             fxc_modes.append('GW')
 
         exx_vxc_calculator = EXXVXCCalculator(
-            gpwfile,
+            gpwfile, world=world,
             snapshotfile_prefix=filename)
 
         super().__init__(filename=filename,
@@ -1407,13 +1420,23 @@ class G0W0(G0W0Calculator):
 class EXXVXCCalculator:
     """EXX and Kohn-Sham XC contribution."""
 
-    def __init__(self, gpwfile, snapshotfile_prefix):
+    def __init__(self, gpwfile, snapshotfile_prefix, world=None):
         self._gpwfile = gpwfile
         self._snapshotfile_prefix = snapshotfile_prefix
+        self.world = world
 
     def calculate(self, n1, n2, kpt_indices):
+        calc = GPAW(self._gpwfile, parallel={'kpt': 1, 'band': 1},
+                    communicator=self.world)
+
+        # To convert the LCAO wave functions, we need to add the
+        # custom psit to all k-points which know how to convert
+        # the wave functions. Initializing the ResponseGroundStateAdapter
+        # establishes that.
+        # TODO: Now we call this for all files, not just LCAO
+        ResponseGroundStateAdapter(calc, lazy=False)
         _, vxc_skn, exx_skn = non_self_consistent_eigenvalues(
-            self._gpwfile,
+            calc,
             'EXX',
             n1, n2,
             kpt_indices=kpt_indices,

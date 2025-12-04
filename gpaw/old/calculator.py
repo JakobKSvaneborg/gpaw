@@ -4,7 +4,7 @@ The central object that glues everything together.
 """
 
 import warnings
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 from ase import Atoms
@@ -17,7 +17,7 @@ import gpaw
 import gpaw.mpi as mpi
 from gpaw.convergence_criteria import dict2criterion
 from gpaw.dos import DOSCalculator
-from gpaw.eigensolvers import get_eigensolver
+from gpaw.old.eigensolvers import get_eigensolver
 from gpaw.external import PointChargePotential
 from gpaw.hybrids import HybridXC
 from gpaw.io import Reader, Writer
@@ -59,7 +59,7 @@ class GPAW(Calculator):
                               'forces', 'stress',
                               'dipole', 'magmom', 'magmoms']
 
-    default_parameters: Dict[str, Any] = {
+    default_parameters: dict[str, Any] = {
         'mode': None,  # issue #897: start deprecating reliance on default mode
         'xc': 'LDA',
         'occupations': None,
@@ -98,7 +98,7 @@ class GPAW(Calculator):
         'fixdensity': False,  # deprecated
         'dtype': None}  # deprecated
 
-    default_parallel: Dict[str, Any] = {
+    default_parallel: dict[str, Any] = {
         'kpt': None,
         'domain': None,
         'band': None,
@@ -117,12 +117,13 @@ class GPAW(Calculator):
 
     old = True
 
+    @mpi.parallel(name='communicator')
     def __init__(self,
                  restart=None,
                  *,
                  label=None,
                  timer=None,
-                 communicator=None,
+                 communicator,
                  txt='?',
                  parallel=None,
                  **kwargs):
@@ -154,18 +155,13 @@ class GPAW(Calculator):
         self.observers = []  # XXX move to self.scf
         self.initialized = False
 
-        self.world = communicator
-        if self.world is None:
-            self.world = mpi.world
-        elif not hasattr(self.world, 'new_communicator'):
-            self.world = mpi.world.new_communicator(np.asarray(self.world))
-
+        self.world = mpi.normalize_communicator(communicator)
         self.log = GPAWLogger(world=self.world)
         self.log.fd = txt
 
         self.reader = None
 
-        Calculator.__init__(self, restart, label=label, _set_ok=True, **kwargs)
+        super().__init__(restart, label=label, _set_ok=True, **kwargs)
 
     def new(self,
             timer=None,
@@ -208,9 +204,8 @@ class GPAW(Calculator):
 
     def fixed_density(self, *,
                       update_fermi_level: bool = False,
-                      communicator=None,
                       txt='-',
-                      parallel: Dict[str, Any] = None,
+                      parallel: dict[str, Any] = None,
                       **kwargs) -> 'GPAW':
         """Create new calculator and do SCF calculation with fixed density.
 
@@ -243,7 +238,7 @@ class GPAW(Calculator):
             # Backwards compatibility
             params['gpts'] = self.density.gd.N_c
 
-        calc = GPAW(communicator=communicator,
+        calc = GPAW(communicator=self.world,
                     txt=txt,
                     parallel=parallel,
                     **params)
@@ -404,7 +399,7 @@ class GPAW(Calculator):
         return reader
 
     def check_state(self, atoms, tol=1e-12):
-        system_changes = Calculator.check_state(self, atoms, tol)
+        system_changes = super().check_state(atoms, tol)
         if 'positions' not in system_changes:
             if self.hamiltonian:
                 if self.hamiltonian.vext:
@@ -422,7 +417,7 @@ class GPAW(Calculator):
                    system_changes=['cell']):
         """Calculate things."""
 
-        Calculator.calculate(self, atoms)
+        super().calculate(atoms)
         atoms = self.atoms
 
         if system_changes:
@@ -580,7 +575,7 @@ class GPAW(Calculator):
             warnings.warn('Ignoring deprecated keyword "idiotproof"',
                           DeprecatedParameterWarning)
 
-        changed_parameters = Calculator.set(self, **kwargs)
+        changed_parameters = super().set(**kwargs)
 
         for key in ['setups', 'basis']:
             if key in changed_parameters:
@@ -1023,12 +1018,6 @@ class GPAW(Calculator):
 
         if gpaw.dry_run:
             self.dry_run()
-
-        if (realspace and
-            self.hamiltonian.poisson.get_description() == 'FDTD+TDDFT'):
-            self.hamiltonian.poisson.set_density(self.density)
-            self.hamiltonian.poisson.print_messages(self.log)
-            self.log.fd.flush()
 
         self.initialized = True
         self.log('... initialized\n')
@@ -2231,9 +2220,23 @@ class GPAW(Calculator):
     def eigenvalues(self):
         return np.array(
             [[self.get_eigenvalues(kpt=kpt, spin=spin)
-
               for kpt in range(len(self.get_ibz_k_points()))]
              for spin in range(self.get_number_of_spins())])
+
+    def occupations(self):
+        return np.array(
+            [[self.get_occupation_numbers(kpt=kpt, spin=spin)
+              for kpt in range(len(self.get_ibz_k_points()))]
+             for spin in range(self.get_number_of_spins())])
+
+    @property
+    def dft(self):
+        # Make calc.dft.scf_loop.niter work:
+        scf_loop = type('SCF', (), {'niter': self.scf.niter})()
+        return type('DFT', (), {'scf_loop': scf_loop})()
+
+    def _to_old(self):
+        return self
 
 
 class DeprecatedParameterWarning(FutureWarning):

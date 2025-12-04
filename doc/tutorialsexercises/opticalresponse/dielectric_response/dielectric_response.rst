@@ -199,7 +199,7 @@ is split into different parts for illustration.
 
   The macroscopic dielectric constant is defined as the real part of dielectric
   function at `\omega=0`.   In the following script, only a single
-  point at `\omega=0` is calculated without using the hilbert transform
+  point at `\omega=0` is calculated without using the Hilbert transform
   (which is only compatible with the non-linear frequency grid specification).
 
   .. literalinclude:: silicon_ABS.py
@@ -315,11 +315,11 @@ The combination of using the tetrahedron method and reducing the kpoint
 integral using crystal symmetries means that it is necessary to be careful
 with the kpoint sampling which should span the whole irreducible zone.
 Luckily, :git:`~gpaw/bztools.py` provides the tool to generate such an
-k-point sampling autimatically::
+k-point sampling automatically::
 
     from gpaw.bztools import find_high_symmetry_monkhorst_pack
     kpts = find_high_symmetry_monkhorst_pack(
-        'gs.gpw',  # Path to ground state .gpw file
+        atoms,  # Atoms object
         density=20.0)  # The required minimum density
 
 
@@ -377,14 +377,14 @@ should be determined by
 .. math:: \varepsilon = 1 + \frac{4 \pi i}{\omega d} \sigma_s
 
 where `d=3.22` Å is the thickness of graphene. Below we show the
-calculated dielectic function
+calculated dielectric function
 (:download:`graphene_dielectric_function.py`) for a minimum
 k-point density of 30 Å\ `^{-1}` corresponding to a kpoint sampling of size
-``(90, 90, 1)`` and room temperatur broadening ``eta = 25 meV``. It
+``(90, 90, 1)`` and room temperature broadening ``eta = 25 meV``. It
 is clear that the properties are well converged for large frequencies
 using the tetrahedron method. For smaller frequencies the tetrahedron
 method fares comparably but convergence is tough for frequencies below
-0.5 eV where the absorption spectrum goes to zero. This behaviour is
+0.5 eV where the absorption spectrum goes to zero. This behavior is
 due to the partially occupied Dirac point which sensitively effects the
 integrand of the density response function.
 
@@ -399,10 +399,10 @@ k-point convergence comparison
 Elemental aluminium is another material which can be difficult to
 converge with respect to the number of k-points.
 This is due to the Fermi surface of the metal penetrating
-the surface of the first Brilluoin zone.
+the surface of the first Brillouin zone.
 This means that the fermi surface has to be finely resolved when
 calculating ´q = 0´ EELS spectra.
-The EELS spectrum of Al shows a clear plasmonic resonsance and
+The EELS spectrum of Al shows a clear plasmonic resonance and
 below we show the k-point convergence of the plasmon frequency.
 We compare the tetrahedron integration described here with the
 default point integration method.
@@ -552,7 +552,7 @@ keyword            type               default value        description
 ``domega0``        ``float``          0.1                  `\Delta\omega_0` for
                                                            non-linear frequency grid.
 ``omega2``         ``float``          10.0 (eV)            `\omega_2` for
-                                                           non-linear frequencygrid.
+                                                           non-linear frequency grid.
 ``omegamax``       ``float``          Maximum energy       Maximum frequency.
                                       eigenvalue
                                       difference.
@@ -563,7 +563,7 @@ keyword            type               default value        description
 ``ftol``           ``float``          1e-6                 The threshold for transition:
                                                            `f_{ik} - f_{jk} > ftol`
 ``txt``            ``str``            stdout               Output filename.
-``hilbert``        ``bool``           True                 Switch for hilbert transform.
+``Hilbert``        ``bool``           True                 Switch for Hilbert transform.
 ``nbands``         ``int``            nbands from gs calc  Number of bands from gs calc
                                                            to include.
 ``rate``           ``float`` or

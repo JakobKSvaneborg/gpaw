@@ -31,7 +31,7 @@ Creating an SSH key pair (while at DTU!)
 .. _keypair:
 
 When you are on the DTU network (or use a VPN) logging in requires
-authentification with *either* a password *or* a cryptographic key.
+authentication with *either* a password *or* a cryptographic key.
 But once we are off-campus, it requires *both*.  It is much easier to
 set up while still on DTU.
 
@@ -97,10 +97,10 @@ Now log out of the databar and close the MobaKeyGen window.
 
 Click on the Settings button (one of the last ones on the MobaXTerm
 toolbar). On the configuration window that opens you select the SSH
-tab. The last box is labelled “SSH agents”, select “Use internal SSH
+tab. The last box is labeled “SSH agents”, select “Use internal SSH
 agent MobAgent”.
 
-Click the Plus sign next to the box labelled “Load the following keys
+Click the Plus sign next to the box labeled “Load the following keys
 at MobAgent startup” and then select the file you just saved with your
 private SSH key.  Then press OK; MobaXterm will then need to restart.
 
@@ -125,7 +125,7 @@ environment.  Remove it and activate manually if it causes trouble.
 Summerschool Notebooks
 ======================
 
-The summerschool notebooks exist in two versions, the **student
+The summer school notebooks exist in two versions, the **student
 version** and the **teacher version**.  The student version is
 somewhat censored, the teacher version also contain a working
 solution.

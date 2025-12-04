@@ -1,26 +1,26 @@
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
-
-import numpy as np
-
 from typing import TYPE_CHECKING
 
+import numpy as np
 from ase.units import Ha
+
 from gpaw.bztools import convex_hull_volume
 from gpaw.response import timer
-from gpaw.response.pair import KPointPairFactory
 from gpaw.response.frequencies import NonLinearFrequencyDescriptor
-from gpaw.response.qpd import SingleQPWDescriptor
-from gpaw.response.pw_parallelization import block_partition
-from gpaw.response.integrators import (
-    Integrand, PointIntegrator, TetrahedronIntegrator, Domain)
-from gpaw.response.symmetry import QSymmetryInput, QSymmetryAnalyzer
+from gpaw.response.integrators import (Domain, Integrand, PointIntegrator,
+                                       TetrahedronIntegrator)
 from gpaw.response.kpoints import KPointDomain, KPointDomainGenerator
+from gpaw.response.pair import KPointPairFactory
+from gpaw.response.pw_parallelization import block_partition
+from gpaw.response.qpd import SingleQPWDescriptor
+from gpaw.response.symmetry import QSymmetryAnalyzer, QSymmetryInput
 
 if TYPE_CHECKING:
-    from gpaw.response.pair import ActualPairDensityCalculator
     from gpaw.response.context import ResponseContext
     from gpaw.response.groundstate import ResponseGroundStateAdapter
+    from gpaw.response.pair import ActualPairDensityCalculator
 
 
 class Chi0Integrand(Integrand):
@@ -165,9 +165,9 @@ class Chi0Integrand(Integrand):
 
         ik1 = kd.bz2ibz_k[K1]
         ik2 = kd.bz2ibz_k[K2]
-        kpt1 = gs.kpt_qs[ik1][point.spin]
+        kpt1 = gs.kpt_ks[ik1][point.spin]
         assert kd.comm.size == 1
-        kpt2 = gs.kpt_qs[ik2][point.spin]
+        kpt2 = gs.kpt_ks[ik2][point.spin]
         deps_nm = np.subtract(kpt1.eps_n[self.n1:self.n2][:, np.newaxis],
                               kpt2.eps_n[self.m1:self.m2])
         return deps_nm.reshape(-1)

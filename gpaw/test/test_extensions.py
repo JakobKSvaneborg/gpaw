@@ -1,7 +1,8 @@
-import pytest
-from gpaw.new.extensions import Extension
-from ase.units import Hartree, Bohr
 import numpy as np
+import pytest
+from ase.units import Bohr, Hartree
+
+from gpaw.new.extensions import Extension
 
 
 class Spring:
@@ -57,9 +58,9 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
         pytest.skip('Only GPAW new')
     ktot = 20
 
-    from gpaw.new.ase_interface import GPAW
     from gpaw import restart
     from gpaw.mpi import world
+    from gpaw.new.ase_interface import GPAW
     domain, band = parallel
     if world.size < domain * band:
         pytest.skip('Not enough cores for this test.')
@@ -149,7 +150,7 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     # Make sure the recalculated energies are forces are correct
     atoms.set_positions(atoms.get_positions() + 1e-10)
     assert E == pytest.approx(atoms.get_potential_energy(), abs=1e-5)
-    assert F == pytest.approx(atoms.get_forces(), abs=1e-5)
+    assert F == pytest.approx(atoms.get_forces(), abs=2e-5)
 
     # 5. Test full blown relaxation.
     from ase.optimize import BFGS

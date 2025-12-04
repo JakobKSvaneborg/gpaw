@@ -5,19 +5,18 @@ from ase.units import Hartree
 
 import gpaw.cgpaw as cgpaw
 from gpaw import GPAW
-from gpaw.utilities.adjust_cell import adjust_cell
 from gpaw.eigensolvers import RMMDIIS
 from gpaw.lrtddft import LrTDDFT
 from gpaw.mpi import world
 from gpaw.occupations import FermiDirac
+from gpaw.utilities.adjust_cell import adjust_cell
 
 
 @pytest.mark.hybrids
 def test_rsf_yukawa_lrtddft_short(in_tmp_dir):
     libxc_version = getattr(cgpaw, 'libxc_version', '2.x.y')
     if int(libxc_version.split('.')[0]) < 3:
-        from unittest import SkipTest
-        raise SkipTest
+        pytest.skip('libxc too old')
 
     o_plus = Atoms('Be', positions=[[0, 0, 0]])
     o_plus.set_initial_magnetic_moments([1.0])

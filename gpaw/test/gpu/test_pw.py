@@ -2,10 +2,11 @@ import pytest
 from ase import Atoms
 from ase.units import Ha
 
+from gpaw import GPAW_NO_C_EXTENSION
 from gpaw.dft import DFT
-from gpaw.mpi import size
-from gpaw.poisson import FDPoissonSolver
+from gpaw.mpi import world
 from gpaw.new.c import GPU_AWARE_MPI
+from gpaw.poisson import FDPoissonSolver
 
 
 @pytest.mark.gpu
@@ -15,6 +16,10 @@ from gpaw.new.c import GPU_AWARE_MPI
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
 @pytest.mark.parametrize('random', [True, False])
 def test_gpu(dtype, gpu, mode, random):
+    if GPAW_NO_C_EXTENSION and not random:
+        pytest.skip('No LCAO Initialization with GPAW_NO_C_EXTENSION')
+    if GPAW_NO_C_EXTENSION and mode == 'fd':
+        pytest.skip('No FD mode with GPAW_NO_C_EXTENSION')
     from gpaw.gpu import cupy
     stream = cupy.cuda.stream.Stream(non_blocking=mode == 'pw',
                                      null=mode != 'pw')
@@ -32,6 +37,8 @@ def test_gpu(dtype, gpu, mode, random):
             mode={'name': mode,
                   'force_complex_dtype': dtype == complex},
             random=random,
+            **{'symmetry': 'off',
+               'mixer': {'backend': 'fft'}} if GPAW_NO_C_EXTENSION else {},
             convergence={'density': 1e-8},
             parallel={'gpu': gpu},
             setups='paw',
@@ -46,13 +53,18 @@ def test_gpu(dtype, gpu, mode, random):
 
 
 @pytest.mark.gpu
-@pytest.mark.skipif(size > 2, reason='Not implemented')
+@pytest.mark.skipif(world.size > 2, reason='Not implemented')
 @pytest.mark.parametrize('gpu', [False, True])
 @pytest.mark.parametrize('par', ['domain', 'kpt', 'band'])
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
 @pytest.mark.parametrize('xc', ['LDA', 'PBE'])
 def test_gpu_k(gpu, par, mode, xc):
-    if gpu and size > 1 and not GPU_AWARE_MPI:
+    if GPAW_NO_C_EXTENSION and mode == 'fd':
+        pytest.skip('No FD mode with GPAW_NO_C_EXTENSION')
+    if GPAW_NO_C_EXTENSION and xc == 'PBE':
+        pytest.skip('No GGA with GPAW_NO_C_EXTENSION')
+
+    if gpu and world.size > 1 and not GPU_AWARE_MPI:
         if mode == 'fd' and par == 'domain':
             pytest.skip('Domain decomposition needs GPU-aware MPI')
         if mode == 'pw' and par == 'domain' and xc == 'PBE':
@@ -62,11 +74,11 @@ def test_gpu_k(gpu, par, mode, xc):
         if mode == 'pw' and par in ['kpt', 'band'] and xc == 'PBE':
             pytest.skip('???')
 
-    if gpu and size > 1:
+    if gpu and world.size > 1:
         if mode == 'fd' and par == 'band':
             pytest.skip('FAILING')
 
-    if size == 1 and par in ['kpt', 'band']:
+    if world.size == 1 and par in ['kpt', 'band']:
         pytest.skip('Not testing parallelization on single core')
 
     atoms = Atoms('H', pbc=True, cell=[1, 1.1, 1.1])
@@ -85,15 +97,19 @@ def test_gpu_k(gpu, par, mode, xc):
         h=h,
         convergence={'density': 1e-8},
         kpts=(4, 1, 1),
+        **{'random': 'True',
+           'mixer': {'backend': 'fft'},
+           'symmetry': 'off'} if GPAW_NO_C_EXTENSION else {},
         poissonsolver=poisson,
         parallel={'gpu': gpu,
-                  par: size},
+                  par: world.size},
         setups='paw')
     dft.converge()
     dft.energy()
     if mode == 'pw':
         dft.forces()
-        dft.stress()
+        if not GPAW_NO_C_EXTENSION:
+            dft.stress()
     energy = dft.results['energy'] * Ha
     ref = {'LDAfd': -17.685022604078714,
            'PBEfd': -17.336991943070384,
@@ -111,7 +127,9 @@ def test_2d():
         mode={'name': 'pw'},
         mixer={'backend': 'fft'},  # avoid FD-stencil in mixer-metric
         spinpol=True,
+        random=True,
         xc='LDA',
+        **{'symmetry': 'off'} if GPAW_NO_C_EXTENSION else {},
         convergence={'density': 1e-8},
         kpts=(2, 2, 1),
         parallel={'gpu': True})
@@ -119,11 +137,12 @@ def test_2d():
     assert dft.potential.get_vacuum_level() == pytest.approx(2.9436, 1e-2)
     dft.energy()
     dft.forces()
-    dft.stress()
     E = dft.results['energy']
     F = dft.results['forces']
-    S = dft.results['stress']
     assert E == pytest.approx(0.1769, 1e-2)
-    assert F[0] == pytest.approx([0, 0, 0], 1e-6)
-    assert S == pytest.approx([-0.0110, -0.0110, 0.0002,
-                               0.0, 0.0, 0.0], abs=0.001)
+    assert F[0] == pytest.approx([0, 0, 0], abs=1e-8)
+    if not GPAW_NO_C_EXTENSION:
+        dft.stress()
+        S = dft.results['stress']
+        assert S == pytest.approx([-0.0110, -0.0110, 0.0002,
+                                   0.0, 0.0, 0.0], abs=0.001)

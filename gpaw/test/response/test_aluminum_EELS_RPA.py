@@ -1,15 +1,15 @@
 import time
-import pytest
-import numpy as np
 
+import numpy as np
+import pytest
 from ase.build import bulk
 from ase.parallel import parprint
 
 from gpaw import GPAW, PW
-from gpaw.test import findpeak
 from gpaw.bztools import find_high_symmetry_monkhorst_pack
+from gpaw.mpi import world
 from gpaw.response.df import DielectricFunction, read_response_function
-from gpaw.mpi import size, world
+from gpaw.test import findpeak
 
 
 # Affected by https://gitlab.com/gpaw/gpaw/-/issues/840
@@ -19,7 +19,7 @@ from gpaw.mpi import size, world
 @pytest.mark.tetrahedron
 @pytest.mark.response
 def test_response_aluminum_EELS_RPA(in_tmp_dir):
-    assert size <= 4**3
+    assert world.size <= 4**3
 
     # Ground state calculation
 
@@ -39,7 +39,7 @@ def test_response_aluminum_EELS_RPA(in_tmp_dir):
     calc.write('Al_gs.gpw')
 
     # Generate grid compatible with tetrahedron integration
-    kpts = find_high_symmetry_monkhorst_pack('Al_gs.gpw', 2.0)
+    kpts = find_high_symmetry_monkhorst_pack(atoms, 2.0)
 
     # Calculate the wave functions on the new kpts grid
     calc = GPAW('Al_gs.gpw').fixed_density(kpts=kpts, update_fermi_level=True)

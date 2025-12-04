@@ -40,13 +40,13 @@ Use with care.
 
 """
 from __future__ import annotations
-import numpy as np
 
+import numpy as np
 from ase import Atoms
 from ase.phonons import Displacement
 
-from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.new.ase_interface import ASECalculator
+from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.utilities import pack_hermitian
 
 dr_version = 1
@@ -91,8 +91,8 @@ class DisplacementRunner(Displacement):
 
         # Init base class and make the center cell in the supercell the
         # reference cell
-        Displacement.__init__(self, atoms, calc=calc, supercell=supercell,
-                              name=name, delta=delta, center_refcell=True)
+        super().__init__(atoms, calc=calc, supercell=supercell,
+                         name=name, delta=delta, center_refcell=True)
         self.calculate_forces = calculate_forces
 
     def calculate(self, atoms_N: Atoms, disp):

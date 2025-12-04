@@ -1,22 +1,23 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Union
-from pathlib import Path
-from functools import cached_property
-from types import SimpleNamespace
-from typing import TYPE_CHECKING
-import numpy as np
 
-from ase.units import Ha, Bohr
+from dataclasses import dataclass
+from functools import cached_property
+from pathlib import Path
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Union
+
+import numpy as np
+from ase.units import Bohr, Ha
 
 import gpaw.mpi as mpi
 from gpaw.ibz2bz import IBZ2BZMaps
-from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.new.ase_interface import ASECalculator as NewGPAW
+from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.response.paw import LeanPAWDataset
+from gpaw.utilities.gpts import pw_ecut_from_lcao_grid
 
 if TYPE_CHECKING:
-    from gpaw.setup import Setups, LeanSetup
+    from gpaw.setup import LeanSetup, Setups
 
 
 class PAWDatasetCollection:
@@ -52,8 +53,27 @@ ResponseGroundStateAdaptable = Union['ResponseGroundStateAdapter',
 
 
 class ResponseGroundStateAdapter:
-    def __init__(self, calc: GPAWCalculator):
+    def __init__(self, calc: GPAWCalculator, lazy=False):
         wfs = calc.wfs  # wavefunction object from gpaw.old.wavefunctions
+        self._wfs = wfs
+        self.gs_info = ""
+
+        if self.is_lcao:
+            if isinstance(calc, NewGPAW):
+                raise ValueError('LCAO calculations are only '
+                                 'supported by old GPAW')
+            # calc = calc._to_old()
+            # self._wfs = wfs = calc.wfs
+            calc.initialize_positions()
+            for kpt in wfs.kpt_u:
+                assert kpt.C_nM is not None
+            ecut_pw = pw_ecut_from_lcao_grid(wfs.gd)
+            wfs.planewavefy(ecut=ecut_pw / Ha, lazy=lazy)
+            assert wfs.pd is not None
+
+            self.gs_info = f"""Converting LCAO wf to PW wf
+                         with cutoff of Ecut={ecut_pw:.3f} eV"""
+            # calc = planewavefy_completed
 
         self.atoms = calc.atoms
         self.kd = wfs.kd  # KPointDescriptor object
@@ -72,7 +92,6 @@ class ResponseGroundStateAdapter:
         self.spos_ac = calc.spos_ac  # scaled position vector: np.ndarray
 
         self.kpt_u = wfs.kpt_u  # list of Kpoint from gpaw.old.kpoint
-        self.kpt_qs = wfs.kpt_qs  # list of Kpoint from gpaw.old.kpoint
 
         self.fermi_level = wfs.fermi_level  # float
         self.atoms = calc.atoms  # ASE Atoms object
@@ -88,10 +107,17 @@ class ResponseGroundStateAdapter:
 
         self.ibz2bz = IBZ2BZMaps.from_calculator(calc)
 
-        self._wfs = wfs
         self._density = calc.density
         self._hamiltonian = calc.hamiltonian
         self._calc = calc
+
+    @property
+    def is_planewave(self):
+        return self._wfs.mode == 'pw'
+
+    @property
+    def is_lcao(self):
+        return self._wfs.mode == 'lcao'
 
     @staticmethod
     def from_input(
@@ -105,13 +131,20 @@ class ResponseGroundStateAdapter:
         raise ValueError('Expected ResponseGroundStateAdaptable, got', gs)
 
     @classmethod
-    def from_gpw_file(cls, gpw: GPWFilename) -> ResponseGroundStateAdapter:
+    def from_gpw_file(cls, gpw, lazy=False) -> ResponseGroundStateAdapter:
         """Initiate the ground state adapter directly from a .gpw file."""
         from gpaw import GPAW, disable_dry_run
         assert Path(gpw).is_file()
         with disable_dry_run():
             calc = GPAW(gpw, txt=None, communicator=mpi.serial_comm)
-        return cls(calc)
+        return cls(calc, lazy=lazy)
+
+    @cached_property
+    def kpt_ks(self):
+        assert self.kd.comm.size == 1
+        return [[self.kpt_u[k * self.nspins + s]
+                 for s in range(self.nspins)]
+                for k in range(self.kd.nibzkpts)]
 
     @property
     def pd(self):
@@ -258,10 +291,11 @@ class ResponseGroundStateAdapter:
             pawdatasets=self.pawdatasets, qpd=qpd, spos_ac=self.spos_ac,
             atomrotations=self.atomrotations)
 
-    def matrix_element_paw_corrections(self, qpd, rshe_a):
+    @mpi.parallel
+    def matrix_element_paw_corrections(self, qpd, rshe_a, comm):
         from gpaw.response.paw import get_matrix_element_paw_corrections
         return get_matrix_element_paw_corrections(
-            qpd, self.pawdatasets, rshe_a, self.spos_ac)
+            qpd, self.pawdatasets, rshe_a, self.spos_ac, comm=comm)
 
     def get_pos_av(self):
         # gd.cell_cv must always be the same as pd.gd.cell_cv, right??
@@ -303,7 +337,7 @@ class ResponseGroundStateAdapter:
         elif isinstance(nbands, int):
             n1 = 0
             m2 = nbands
-            assert 1 <= m2 <= self.nbands
+            assert 1 <= m2 <= self.nbands, (m2, self.nbands)
         elif isinstance(nbands, slice):
             n1 = nbands.start
             m2 = nbands.stop
@@ -355,6 +389,7 @@ class ResponseGroundStateAdapter:
     def get_ibz_vertices(self):
         # For the tetrahedron method in Chi0
         from gpaw.bztools import get_bz
+
         # NB: We are ignoring the pbc_c keyword to get_bz() in order to mimic
         # find_high_symmetry_monkhorst_pack() in gpaw.bztools. XXX
         _, ibz_vertices_kc, _ = get_bz(self._calc)

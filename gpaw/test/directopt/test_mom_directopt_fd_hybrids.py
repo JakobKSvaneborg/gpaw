@@ -1,15 +1,13 @@
-import pytest
-
 import numpy as np
-
+import pytest
 from ase import Atoms
 from ase.units import Bohr
 
-from gpaw import GPAW, FD
+from gpaw import FD, GPAW
 from gpaw.directmin.etdm_fdpw import FDPWETDM
-from gpaw.xc.hybrid import HybridXC
 from gpaw.eigensolvers import RMMDIIS
 from gpaw.mom import prepare_mom_calculation
+from gpaw.xc.hybrid import HybridXC
 
 
 @pytest.mark.do

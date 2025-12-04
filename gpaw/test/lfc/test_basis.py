@@ -1,7 +1,8 @@
-from typing import Callable
+from collections.abc import Callable
 
 import numpy as np
 import pytest
+
 from gpaw.core import UGArray, UGDesc
 from gpaw.core.matrix import Matrix
 from gpaw.lfc import BasisFunctions

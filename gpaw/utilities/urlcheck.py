@@ -3,7 +3,7 @@ import re
 import sys
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.request import urlopen, Request
+from urllib.request import Request, urlopen
 
 OK = {'https://doi.org/%s',
       'https://arxiv.org/abs/%s',

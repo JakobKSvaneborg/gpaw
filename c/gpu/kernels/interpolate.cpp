@@ -2,9 +2,11 @@
 #include <time.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <cassert>
 
 #include "../gpu.h"
 #include "../gpu-complex.h"
+#include "../bmgs.h"
 
 #ifndef GPU_USE_COMPLEX
 #  define BLOCK_X   (32)
@@ -146,7 +148,6 @@ __global__ void Zgpu(interpolate_kernel)(
     }
 }
 
-extern "C"
 void Zgpu(bmgs_interpolate_gpu)(int k, int skip[3][2],
                                 const Tgpu* a, const int size[3],
                                 Tgpu* b, const int sizeb[3],
@@ -207,7 +208,6 @@ void Zgpu(bmgs_interpolate_gpu)(int k, int skip[3][2],
 #undef IP1D_kernel
 #undef K
 
-extern "C"
 void Zgpu(bmgs_interpolate_stencil_gpu)(int k, int skip[3][2],
                                         const Tgpu* a, const int sizea[3],
                                         Tgpu* b, const int sizeb[3],

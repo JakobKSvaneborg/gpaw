@@ -1,14 +1,15 @@
-import pytest
 import numpy as np
-from gpaw.response import ResponseContext, ResponseGroundStateAdapter
-from gpaw.response.coulomb_kernels import CoulombKernel
-from gpaw import GPAW, PW, FermiDirac
-from gpaw.response.chi0 import Chi0Calculator
-from gpaw.response.frequencies import FrequencyDescriptor
-from gpaw.response.screened_interaction import (initialize_w_calculator,
-                                                GammaIntegrationMode)
-from ase.build import bulk
+import pytest
 from ase import Atoms
+from ase.build import bulk
+
+from gpaw import GPAW, PW, FermiDirac
+from gpaw.response import ResponseContext, ResponseGroundStateAdapter
+from gpaw.response.chi0 import Chi0Calculator
+from gpaw.response.coulomb_kernels import CoulombKernel
+from gpaw.response.frequencies import FrequencyDescriptor
+from gpaw.response.screened_interaction import (GammaIntegrationMode,
+                                                initialize_w_calculator)
 
 
 @pytest.mark.response

@@ -5,6 +5,7 @@ from functools import partial
 from pprint import pformat
 
 import numpy as np
+
 from gpaw.gpu import as_np
 from gpaw.new import zips as zip
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals

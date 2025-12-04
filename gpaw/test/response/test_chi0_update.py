@@ -1,7 +1,6 @@
 # General modules
-import pytest
 import numpy as np
-
+import pytest
 # Script modules
 from ase.build import bulk
 

@@ -2,21 +2,23 @@ from __future__ import annotations
 
 import importlib
 import warnings
+from collections.abc import Sequence
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Sequence, Union, Literal
+from typing import IO, TYPE_CHECKING, Any, Literal, Union
 
 import numpy as np
 from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
 from numpy.typing import DTypeLike
 
+from gpaw import GPAW_NEW
 from gpaw.mpi import MPIComm
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.logger import Logger
-from gpaw.new.symmetry import Symmetries, create_symmetries_object
 from gpaw.new.pwfd.davidson import Davidson as DavidsonEigensolver
 from gpaw.new.pwfd.ppcg import PPCG as PPCGEigensolver
 from gpaw.new.pwfd.rmmdiis import RMMDIIS as RMMDIISEigensolver
+from gpaw.new.symmetry import Symmetries, create_symmetries_object
 
 if TYPE_CHECKING:
     from gpaw.new.ase_interface import ASECalculator
@@ -26,7 +28,9 @@ PARAMETER_NAMES = [
     'experimental', 'extensions', 'gpts', 'h', 'hund',
     'interpolation', 'kpts', 'magmoms', 'maxiter', 'mixer', 'nbands',
     'occupations', 'parallel', 'poissonsolver', 'random', 'setups', 'soc',
-    'spinpol', 'symmetry', 'xc']
+    'spinpol', 'symmetry', 'xc',
+    # for old GPAW:
+    'background_charge', 'external']
 
 
 class DeprecatedParameterWarning(FutureWarning):
@@ -53,10 +57,13 @@ class Mode(Parameter):
     def __init__(self,
                  *,
                  dtype: DTypeLike | None = None,
-                 force_complex_dtype: bool = False):
+                 force_complex_dtype: bool = False,
+                 interpolation=117):
         self.dtype = dtype
         self.force_complex_dtype = force_complex_dtype
         self.name = self.__class__.__name__.lower()
+        if interpolation != 117:
+            raise NotImplementedError
 
     def todict(self) -> dict:
         dct = self._not_none('dtype')
@@ -96,7 +103,8 @@ class PW(Mode):
                  qspiral=None,
                  dedecut=None,
                  dtype: DTypeLike | None = None,
-                 force_complex_dtype: bool = False):
+                 force_complex_dtype: bool = False,
+                 **kwargs):
         """PW-mode.
 
         Parameters
@@ -104,11 +112,15 @@ class PW(Mode):
         ecut:
             Plane-wave cutoff energy in eV.
         """
+        if 'interpolation' in kwargs:
+            raise NotImplementedError
+
         self.ecut = ecut
         self.qspiral = qspiral
         self.dedecut = dedecut
         super().__init__(dtype=dtype,
-                         force_complex_dtype=force_complex_dtype)
+                         force_complex_dtype=force_complex_dtype,
+                         **kwargs)
 
     def todict(self):
         dct = super().todict()
@@ -166,6 +178,8 @@ class Eigensolver(Parameter):
                 warnings.warn('Please use "davidson" instead of "dav"')
             if name in eigensolvers:
                 return eigensolvers[name](**eigensolver)
+            if name in {'etdm-lcao', 'etdm', 'direct'}:
+                raise NotImplementedError
             raise ValueError(f'Unknown eigensolver: {name}')
         return DefaultEigensolver(eigensolver)
 
@@ -216,12 +230,13 @@ class PPCG(PWFDEigensolverParamater):
     cls = PPCGEigensolver
 
     def __init__(self,
-                 niter: int = 2,
-                 min_niter: int | None = None,
+                 niter: int = 5,
+                 min_niter: int | None = 2,
                  max_buffer_mem: int = 200 * 1024**2,
                  blocksize=None,
                  rr_modulo=5,
                  include_cg=True,
+                 promote_inner_dtype=False,
                  tolerances: tuple[float] | None = None):
         self.niter = niter
         self.min_niter = min_niter
@@ -229,6 +244,7 @@ class PPCG(PWFDEigensolverParamater):
         self.blocksize = blocksize
         self.rr_modulo = rr_modulo
         self.include_cg = include_cg
+        self.promote_inner_dtype = promote_inner_dtype
         self.tolerances = tolerances
 
     def todict(self):
@@ -238,6 +254,7 @@ class PPCG(PWFDEigensolverParamater):
                 'blocksize': self.blocksize,
                 'rr_modulo': self.rr_modulo,
                 'include_cg': self.include_cg,
+                'promote_inner_dtype': self.promote_inner_dtype,
                 'tolerances': self.tolerances}
 
     def build(self,
@@ -260,6 +277,7 @@ class PPCG(PWFDEigensolverParamater):
             blocksize=self.blocksize,
             rr_modulo=self.rr_modulo,
             include_cg=self.include_cg,
+            promote_inner_dtype=self.promote_inner_dtype,
             tolerances=self.tolerances)
 
 
@@ -566,6 +584,8 @@ class XC(Parameter):
             return xc
         if isinstance(xc, str):
             xc = {'name': xc}
+        if not isinstance(xc, dict):
+            raise NotImplementedError
         return XC(**xc)
 
 
@@ -658,7 +678,7 @@ class Parameters:
         interpolation:
             ...
         kpts:
-            Brilluin-zone sampling.  Default is Γ-point only.
+            Brillouin-zone sampling.  Default is Γ-point only.
         magmoms:
             Initial magnetic moments for non-collinear calculations.
         maxiter:
@@ -770,7 +790,7 @@ class Parameters:
     def dft_calculation(self,
                         atoms,
                         txt: str | Path | IO[str] | None = '-',
-                        communicator: MPIComm | Sequence[int] | None = None
+                        communicator: MPIComm | None = None
                         ) -> DFTCalculation:
         log = Logger(txt, communicator)
         return DFTCalculation.from_parameters(atoms, self, log.comm, log)
@@ -851,7 +871,7 @@ def DFT(
     symmetry: str | dict | Symmetry | None = None,
     xc: str | dict | XC | None = None,
     txt: str | Path | IO[str] | None = '-',
-    communicator: MPIComm | Sequence[int] | None = None) -> DFTCalculation:
+    communicator: MPIComm | None = None) -> DFTCalculation:
     """Create a DFTCalculation object.
 
     See :class:`gpaw.dft.Parameters` for the complete list of parameters.
@@ -861,7 +881,7 @@ def DFT(
     atoms:
         ASE-Atoms object.
     txt:
-        Text log-file.  Use ``None`` for no loggin and ``'-'`` for using
+        Text log-file.  Use ``None`` for no logging and ``'-'`` for using
         standard out.
     communicator:
         MPI-communicator.  Default is to use ``gpaw.mpi.world``.
@@ -870,6 +890,9 @@ def DFT(
     params = Parameters(**{k: v for k, v in locals().items()
                            if k in PARAMETER_NAMES})
     return params.dft_calculation(atoms, txt, communicator)
+
+
+_USE_OLD_GPAW = None  # used py the "gpaw_newp" parametrized fixture
 
 
 def GPAW(
@@ -901,8 +924,11 @@ def GPAW(
     symmetry: str | dict | Symmetry | None = None,
     xc: str | dict | XC | None = None,
     txt: str | Path | IO[str] | None = '?',
-    communicator: MPIComm | Sequence[int] | None = None,
-    object_hooks=None) -> ASECalculator:
+    communicator: MPIComm | None = None,
+    object_hooks=None,
+    _use_old_gpaw: bool | None = False,
+    external=None,
+    background_charge=None) -> ASECalculator:
     """Create ASE-compatible GPAW calculator.
 
     See :class:`gpaw.dft.Parameters` for the complete list of parameters.
@@ -912,7 +938,7 @@ def GPAW(
     filename:
         Name of gpw-file to restart from.
     txt:
-        Text log-file.  Use ``None`` for no loggin and ``'-'``
+        Text log-file.  Use ``None`` for no logging and ``'-'``
         for using standard out.
     communicator:
         MPI-communicator.  Default is to use ``gpaw.mpi.world``.
@@ -922,16 +948,42 @@ def GPAW(
     from gpaw.new.ase_interface import ASECalculator
     from gpaw.new.gpw import read_gpw
 
-    if txt == '?':
-        txt = '-' if filename is None else None
-
-    log = Logger(txt, communicator)
-
     if mode is None:
         del mode
 
     kwargs = {key: value for key, value in locals().items()
               if key in PARAMETER_NAMES}
+    for key in ['background_charge', 'external']:
+        value = kwargs[key]
+        if value is None:
+            del kwargs[key]
+        else:
+            _use_old_gpaw = True
+
+    use_old_if_reading_fails = False
+    if _use_old_gpaw is None:
+        if _USE_OLD_GPAW is None:
+            if GPAW_NEW == 147:
+                if filename is not None:
+                    _use_old_gpaw = False
+                    use_old_if_reading_fails = True
+                else:
+                    _use_old_gpaw = not _can_use_new(kwargs)
+            else:
+                _use_old_gpaw = not GPAW_NEW
+        else:
+            _use_old_gpaw = _USE_OLD_GPAW
+
+    if _use_old_gpaw:
+        from gpaw.old.calculator import GPAW as OldGPAW
+        kwargs = {key: value
+                  for key, value in kwargs.items() if value is not None}
+        return OldGPAW(filename, txt=txt, communicator=communicator, **kwargs)
+
+    if txt == '?':
+        txt = '-' if filename is None else None
+
+    log = Logger(txt, communicator)
 
     if filename is not None:
         args = Parameters(mode='pw', **kwargs)._non_defaults
@@ -939,12 +991,38 @@ def GPAW(
             raise ValueError(
                 'Illegal argument(s) when reading from a file: '
                 f'{", ".join(args)}')
-        atoms, dft, params, _ = read_gpw(filename,
-                                         log=log,
-                                         parallel=parallel,
-                                         object_hooks=object_hooks)
+        try:
+            atoms, dft, params, _ = read_gpw(filename,
+                                             log=log,
+                                             parallel=parallel,
+                                             object_hooks=object_hooks)
+        except NotImplementedError:
+            if use_old_if_reading_fails:
+                from gpaw.old.calculator import GPAW as OldGPAW
+                return OldGPAW(filename, txt=txt, communicator=communicator)
+            raise
         return ASECalculator(params,
                              log=log, dft=dft, atoms=atoms)
 
     params = Parameters(**kwargs)
     return ASECalculator(params, log=log)
+
+
+def _can_use_new(kwargs) -> bool:
+    try:
+        params = Parameters(**kwargs)
+    except NotImplementedError:
+        return False
+    if params.mode.name == 'lcao':
+        return False
+    xcname = params.xc.name
+    if xcname.startswith(('GLLB', 'TB09')):
+        return False
+    FD_HYBRIDS = {'EXX', 'PBE0', 'B3LYP',
+                  'CAMY-BLYP', 'CAMY-B3LYP',
+                  'LCY-BLYP', 'LCY-PBE'}
+    if params.mode.name == 'fd' and xcname in FD_HYBRIDS:
+        return False
+    if xcname.startswith('LCY-PBE:'):
+        return False
+    return True

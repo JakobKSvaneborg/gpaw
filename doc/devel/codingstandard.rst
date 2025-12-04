@@ -28,7 +28,7 @@ Conventions`_ PEPs, clarified and extended as follows:
 
 * No trailing commas.
 
-* No hanging end-parentesis.
+* No hanging end-parenthesis.
 
 * Do not use "``*``" imports such as ``from module import *``.  Instead,
   list imports explicitly.
