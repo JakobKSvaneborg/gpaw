@@ -39,7 +39,13 @@ def charged_defect_corrections(calc_pristine, calc_defect, defect_index=0,
     phiR_prs = gather_electrostatic_potential(calc_pristine)
     phiR_def = gather_electrostatic_potential(calc_defect)
     atoms_prs = calc_pristine.get_atoms()
-    r0 = atoms_prs.positions[defect_index, :]
+
+    if isinstance(defect_index, int):
+        r0 = atoms_prs.positions[defect_index, :]
+    else:
+        # average over defect_index list
+        r0 = np.average(atoms_prs.positions[defect_index, :], axis=0)
+
     sigma = rc / (2. * np.sqrt(2. * np.log(2.)))
     return ElectrostaticCorrections(phi_pristine=phiR_prs,
                                     phi_defect=phiR_def,

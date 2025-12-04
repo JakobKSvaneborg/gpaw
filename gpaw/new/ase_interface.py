@@ -198,7 +198,11 @@ class ASECalculator:
         * magmoms
         * dipole
         """
-        for _ in self.iconverge(atoms, need_wfs=prop in {'forces', 'stress'}):
+        if self._dft is None:
+            need_wfs = True
+        else:
+            need_wfs = prop not in self.dft.results
+        for _ in self.iconverge(atoms, need_wfs=need_wfs):
             pass
 
         if prop == 'forces':

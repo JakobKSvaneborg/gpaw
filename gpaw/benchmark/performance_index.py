@@ -44,24 +44,26 @@ REFERENCES0 = {
     'VI2-2M': (-9.29013, -0.77486, 24, 31.65),
     'Ti2Br6-3': (-32.64699, -0.00286, 24, 155.44)}
 
+RESCALE_FACTOR = 1.0
+
 # New materials for second run
 # (new GPAW, master branch Nov. 11 2025):
 REFERENCES0 |= {
     'MnVS2-2M': (-29.11777, -0.00014, 24, 98.608),
     'PtLi2O6-2M': (0.0, 0.0, 24, 454.22),
     'V3Cl6-2N': (0.0, 0.0, 24, 3364.039)}
+
 # Score for the 14 systems was 94.34.
 # Rescaling to 17 systems:
-RESCALE_FACTOR = 17 * 0.9434 / (14 * 0.9434 + 3)
+old = 94.34
+new = (old / 100 * 14 + 3) / 17 * 100
+RESCALE_FACTOR *= old / new
 
-# New system for MnVS2-2M
-# (new GPAW, master branch Nov 25 2025):
-REFERENCES0 |= {
-    'MnVS2-2M': (-29.11777, -0.00014, 24, 68.767)}
-OLDSCORE = 103.56 * 17
-NEWSCORE = 103.56 * (16 + 98.608 / 68.767)
-RESCALE_FACTOR *= OLDSCORE / NEWSCORE
+# New initial magmoms for MnVS2-2M (new GPAW, master branch Nov 25 2025).
+# Time for MnVS2-2M system changed from 98.608 to 68.767 seconds:
+REFERENCES0['MnVS2-2M'] = (-29.11777, -0.00014, 24, 68.767)
 
+# New stuff not yet included in benchmark:
 REFERENCES = REFERENCES0 | {
     'ErGe-2M': (0.0, 0.0, 24, 9999999),
     'Mn2O2-3M': (0.0, 0.0, 24, 9999999),

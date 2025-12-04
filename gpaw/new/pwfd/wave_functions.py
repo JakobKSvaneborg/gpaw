@@ -243,14 +243,12 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         self.orthonormalized = True
 
     @trace
-    def subspace_diagonalize(self,
-                             Ht,
-                             dH,
-                             psit2_nX,
-                             data_buffer=None,
-                             scalapack_parameters=(None, 1, 1, None)):
+    def build_hamiltonian(self,
+                          Ht,
+                          dH,
+                          psit2_nX):
         """
-        If data_buffer is None, psit2_nX will be used as a buffer
+        psit2_nX will be used as a buffer
         for the wave functions.
 
         Ht(in, out):::
@@ -271,38 +269,98 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         domain_comm = psit_nX.desc.comm
 
         Ht = partial(Ht, out=psit2_nX, spin=self.spin, calculate_energy=True)
-        H = psit_nX.matrix_elements(psit_nX,
-                                    function=Ht,
-                                    domain_sum=False,
-                                    cc=True)
+        H_nm = psit_nX.matrix_elements(psit_nX,
+                                       function=Ht,
+                                       domain_sum=False,
+                                       cc=True)
         dH(P_ani, out_ani=P2_ani, spin=self.spin)
         P_ani.matrix.multiply(P2_ani, opb='C', symmetric=True,
-                              out=H, beta=1.0)
-        domain_comm.sum(H.data, 0)
+                              out=H_nm, beta=1.0)
+        domain_comm.sum(H_nm.data, 0)
+
+        # XXX correct return?
+        # gives correct result only on master
+        return H_nm
+
+    @trace
+    def subspace_eigenvalues(self, H_nm,
+                             scalapack_params=(None, 1, 1, None)):
+
+        psit_nX = self.psit_nX
+        domain_comm = psit_nX.desc.comm
         if domain_comm.rank == 0:
-            slcomm, r, c, b = scalapack_parameters
+            slcomm, r, c, b = scalapack_params
             if r == c == 1:
                 slcomm = None
-            self.eig_n = as_np(H.eigh(scalapack=(slcomm, r, c, b)),
+            self.eig_n = as_np(H_nm.eigh(scalapack=(slcomm, r, c, b)),
                                dtype=np.float64)
-            H.complex_conjugate()
+            H_nm.complex_conjugate()
             # H.data[n, :] now contains the nth eigenvector and eps_n[n]
             # the nth eigenvalue
         else:
             self.eig_n = np.empty(psit_nX.dims[0])
 
-        domain_comm.broadcast(H.data, 0)
+        # broad cast eigenvalues
         domain_comm.broadcast(self.eig_n, 0)
+
+        # broadcast eigenvectors (not needed if only eigenvalues used)
+        domain_comm.broadcast(H_nm.data, 0)
+        self.eigvec_n = H_nm.data[:]
+        return
+
+    @trace
+    def canonical_transformation(self, H_nm, psit2_nX, data_buffer):
+        # transform to canonical representation
+        # needed for force calculations
+        psit_nX = self.psit_nX
+        P_ani = self.P_ani
+        P2_ani = P_ani.new()
         if data_buffer is None:
-            H.multiply(psit_nX, out=psit2_nX)
-            psit_nX.data[:] = psit2_nX.data
-            H.multiply(P_ani, out=P2_ani)
-            P_ani.data[:] = P2_ani.data
+            H_nm.multiply(psit_nX, out=psit2_nX)
+            self.psit_nX.data[:] = psit2_nX.data
+            H_nm.multiply(P_ani, out=P2_ani)
+            self.P_ani.data[:] = P2_ani.data
         else:
-            H.multiply(psit_nX, out=psit_nX, data_buffer=data_buffer)
-            H.multiply(psit2_nX, out=psit2_nX, data_buffer=data_buffer)
-            H.multiply(P_ani, out=P2_ani)
+            H_nm.multiply(psit_nX, out=psit_nX, data_buffer=data_buffer)
+            H_nm.multiply(psit2_nX, out=psit2_nX, data_buffer=data_buffer)
+            H_nm.multiply(P_ani, out=P2_ani)
             P_ani.data[:] = P2_ani.data
+
+    @trace
+    def subspace_diagonalize(self,
+                             Ht,
+                             dH,
+                             psit2_nX,
+                             data_buffer=None,
+                             scalapack_parameters=(None, 1, 1, None),
+                             nocc=None,
+                             eigenvalues_only=False):
+        """
+        If data_buffer is None, psit2_nX will be used as a buffer
+        for the wave functions.
+
+        Ht(in, out):::
+
+           ~   ^   ~
+           H = T + v
+
+        dH:::
+
+           ~  ~    a  ~  ~
+          <𝜓 |p> ΔH  <p |𝜓>
+            m  i   ij  j  n
+        """
+
+        H_nm = self.build_hamiltonian(Ht, dH, psit2_nX)
+        if nocc is not None:
+            # decouple occupied from unoccupied orbitals
+            H_nm.data[:nocc, nocc:] = 0
+            H_nm.data[nocc:, :nocc] = 0
+        self.subspace_eigenvalues(H_nm,
+                                  scalapack_params=scalapack_parameters)
+        if eigenvalues_only:
+            return
+        self.canonical_transformation(H_nm, psit2_nX, data_buffer)
 
     def force_contribution(self,
                            potential: Potential,
