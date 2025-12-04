@@ -1,9 +1,16 @@
 import numpy as np
 
 
+class DistributedArrays:
+    def __init__(self, a_unX, comm):
+        self.a_unX = a_unX
+        self.comm = comm
+
+
 class LBFGS:
-    def __init__(self, *, array_shape=None, dtype=None,
-                 array_unX=None, kpt_comm=None, memory=5):
+    def __init__(self,
+                 *,
+                 memory=5):
         """
         L-BFGS optimizer initialization.
 
@@ -21,28 +28,8 @@ class LBFGS:
             Number of past steps to store for the L-BFGS approximation.
         """
 
-        if array_shape is None:
-            # retrieve array_shape from distributed object
-            assert array_unX is not None
-            assert dtype is None
-            # Grab the first wave function data to infer array properties
-            first = array_unX[0].data
-
-            # The LBFGS optimizer works on NumPy arrays
-            # we need the full shape
-            array_shape = (len(array_unX),) + first.shape
-
-            # Data type of the wave function
-            dtype = first.dtype
-
-        self.array_shape = array_shape
-        self.dtype = dtype
-
         # Maximum number of previous steps to store for limited-memory Hessian
         self.memory = memory
-
-        # Communication object for parallel sum across k-points
-        self.kpt_comm = kpt_comm
 
         # init empty arrays
         self.reset()
@@ -61,12 +48,11 @@ class LBFGS:
         # Arrays to store last 'memory' differences in variables and gradients
         # ds[m] ~ change in parameters (search direction)
         # dy[m] ~ change in gradients
-        var_shape = (self.memory,) + self.array_shape
-        self.ds = np.zeros(shape=var_shape, dtype=self.dtype)
-        self.dy = np.zeros(shape=var_shape, dtype=self.dtype)
+        self.ds = [None] * self.memory
+        self.dy = [None] * self.memory
 
         # Scaling factors for L-BFGS (1 / (y^T * s))
-        self.rho = np.zeros(self.memory, dtype=self.dtype)
+        self.rho = np.zeros(self.memory)
 
     def update(self, a_cur, g_cur):
         """
@@ -185,17 +171,19 @@ class LBFGS:
             # Return updated search direction
             return self.search_dir
 
-    def update_distributed(self, psit_unX, pg_unX):
+    def update_distributed(self, psit_unX, pg_unX, kpt_comm):
         """
         Convert distributed vectors to NumPy arrays,
         call L-BFGS, and convert back.
         """
         # Convert old vectors to NumPy arrays
-        a_cur = np.stack([x.data for x in psit_unX])
-        g_cur = np.stack([g.data for g in pg_unX])
+        # a_cur = np.stack([x.data for x in psit_unX])
+        # g_cur = np.stack([g.data for g in pg_unX])
 
         # Call the new LBFGS
-        p_cur = self.update(a_cur, g_cur)
+        p_cur = self.update(DistributedArrays(psit_unX, kpt_comm),
+                            DistributedArrays(pg_unX, kpt_comm))
+        return p_cur.a_unX
 
         # Convert back to old-style objects
         p_unX_new = []
