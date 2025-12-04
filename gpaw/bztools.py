@@ -3,14 +3,15 @@ from itertools import product
 import numpy as np
 from ase.dft.kpoints import monkhorst_pack
 from scipy.spatial import ConvexHull, Delaunay, Voronoi
+from ase import Atoms
 
 try:
     from scipy.spatial import QhullError
 except ImportError:  # scipy < 1.8
     from scipy.spatial.qhull import QhullError
 
-from gpaw import GPAW, restart
-from gpaw.mpi import world
+from gpaw import GPAW
+from gpaw.mpi import normalize_communicator
 from gpaw.old.kpt_descriptor import kpts2sizeandoffsets, to1bz
 from gpaw.symmetry import Symmetry, aglomerate_points
 
@@ -37,39 +38,44 @@ def get_lattice_symmetry(cell_cv, tolerance=1e-7):
     return latsym
 
 
-def find_high_symmetry_monkhorst_pack(calc, density):
+def find_high_symmetry_monkhorst_pack(atoms: Atoms,
+                                      density: float,
+                                      world=None):
     """Make high symmetry Monkhorst Pack k-point grid.
 
     Searches for and returns a Monkhorst Pack grid which
     contains the corners of the irreducible BZ so that when the
-    number of kpoints are reduced the full irreducible brillouion
+    number of k-points are reduced the full irreducible brillouion
     zone is spanned.
 
     Parameters
     ----------
-    calc : str
-        The path to a calculator object.
+    atoms : Atoms
+        Atoms object to find symmetries of.
     density : float
         The required minimum density of the Monkhorst Pack grid.
 
     Returns
     -------
     ndarray
-        Array of shape (nk, 3) containing the kpoints.
+        Array of shape (nk, 3) containing the k-points.
 
     """
+    world = normalize_communicator(world)
 
-    atoms, calc = restart(calc, txt=None)
+    if not isinstance(atoms, Atoms):
+        raise TypeError(f'Use atoms instead of {type(atoms)}.')
+
     pbc = atoms.pbc
     minsize, offset = kpts2sizeandoffsets(density=density, even=True,
                                           gamma=True, atoms=atoms)
 
-    # NB: get_bz() wants a pbc_c, but never gets it. This means that the
-    # pbc always will fall back to True along all dimensions. XXX
+    # NB: get_bz() and get_bz_from_atoms() wants a pbc_c, but never gets it.
+    # The pbc will therefore fall back to True along all dimensions.
     # NB: Why return latibzk_kc, if we never use it? XXX
-    bzk_kc, ibzk_kc, latibzk_kc = get_bz(calc)
+    bzk_kc, ibzk_kc, latibzk_kc = get_bz_from_atoms(atoms)
 
-    maxsize = minsize + 10
+    maxsize = minsize + 9
     minsize[~pbc] = 1
     maxsize[~pbc] = 2
 
@@ -77,10 +83,10 @@ def find_high_symmetry_monkhorst_pack(calc, density):
         print('Brute force search for symmetry ' +
               'complying MP-grid... please wait.')
 
-    for n1 in range(minsize[0], maxsize[0]):
-        for n2 in range(minsize[1], maxsize[1]):
-            for n3 in range(minsize[2], maxsize[2]):
-                size = [n1, n2, n3]
+    for n1 in range(minsize[0], maxsize[0], 2):
+        for n2 in range(minsize[1], maxsize[1], 2):
+            for n3 in range(minsize[2], maxsize[2], 2):
+                size = n1, n2, n3
                 size, offset = kpts2sizeandoffsets(size=size, gamma=True,
                                                    atoms=atoms)
 
@@ -88,23 +94,21 @@ def find_high_symmetry_monkhorst_pack(calc, density):
 
                 if (np.abs(ints - np.round(ints)) < 1e-5).all():
                     kpts_kc = monkhorst_pack(size) + offset
-                    kpts_kc = to1bz(kpts_kc, calc.wfs.gd.cell_cv)
+                    kpts_kc = to1bz(kpts_kc, atoms.cell)
 
                     for ibzk_c in ibzk_kc:
                         diff_kc = np.abs(kpts_kc - ibzk_c)[:, pbc].round(6)
-                        # NB: The second np.mod() statement seems redundant XXX
                         if not (np.mod(np.mod(diff_kc, 1), 1) <
                                 1e-5).all(axis=1).any():
                             raise AssertionError('Did not find ' + str(ibzk_c))
                     if world.rank == 0:
                         print('Done. Monkhorst-Pack grid:', size, offset)
-                    return kpts_kc
+                    return {'size': size, 'gamma': True}
 
     if world.rank == 0:
-        print('Did not find matching kpoints for the IBZ')
         print(ibzk_kc.round(5))
 
-    raise RuntimeError
+    raise RuntimeError('Did not find matching k-points for the IBZ')
 
 
 def unfold_points(points, U_scc, tol=1e-8, mod=None):
@@ -115,16 +119,16 @@ def unfold_points(points, U_scc, tol=1e-8, mod=None):
     points: ndarray
     U_scc: ndarray
     tol: float
-        Tolerance indicating when kpoints are considered to be
+        Tolerance indicating when k-points are considered to be
         identical.
     mod: integer 1 or None
-        Consider kpoints spaced by a full reciprocal lattice vector
+        Consider k-points spaced by a full reciprocal lattice vector
         to be identical.
 
     Returns
     -------
     ndarray
-        Array of shape (nk, 3) containing the unfolded kpoints.
+        Array of shape (nk, 3) containing the unfolded k-points.
     """
 
     points = np.concatenate(np.dot(points, U_scc.transpose(0, 2, 1)))
@@ -138,10 +142,10 @@ def unique_rows(ain, tol=1e-10, mod=None, aglomerate=True):
     ----------
     ain : 2D ndarray
     tol : float
-        Tolerance indicating when kpoints are considered to be
+        Tolerance indicating when k-points are considered to be
         identical.
     mod : integer 1 or None
-        Consider kpoints spaced by a full reciprocal lattice vector
+        Consider k-points spaced by a full reciprocal lattice vector
         to be identical.
     aglomerate : bool
         Aglomerate clusters of points before comparing.
@@ -320,6 +324,19 @@ def get_bz(calc, pbc_c=np.ones(3, bool)):
     return get_reduced_bz(cell_cv, cU_scc, False, pbc_c=pbc_c)
 
 
+def get_bz_from_atoms(atoms):
+    pbc_c = atoms.pbc
+    cell_cv = atoms.cell
+    from gpaw.symmetry import Symmetry
+    id_a = atoms.get_chemical_symbols()
+    symmetry = Symmetry(id_a, atoms.cell, atoms.pbc)
+    symmetry.analyze(atoms.get_scaled_positions())
+    cU_scc = get_symmetry_operations(symmetry.op_scc,
+                                     symmetry.time_reversal)
+
+    return get_reduced_bz(cell_cv, cU_scc, False, pbc_c=pbc_c)
+
+
 def get_reduced_bz(cell_cv, cU_scc, time_reversal,
                    pbc_c=np.ones(3, bool), tolerance=1e-7):
 
@@ -364,7 +381,7 @@ def get_reduced_bz(cell_cv, cU_scc, time_reversal,
     return bzk_kc, ibzk_kc, latibzk_kc
 
 
-def expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=np.ones(3, bool)):
+def expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=np.ones(3, bool), world=None):
     """Expand IBZ from lattice group to crystal group.
 
     Parameters
@@ -386,6 +403,8 @@ def expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=np.ones(3, bool)):
     # Find right cosets. The lattice group is partioned into right cosets of
     # the crystal group. This can in practice be done by testing whether
     # U1 U2^{-1} is in the crystal group as done below.
+    world = normalize_communicator(world)
+
     cosets = []
     Utmp_scc = lU_scc.copy()
     while len(Utmp_scc):

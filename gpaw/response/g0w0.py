@@ -1144,7 +1144,7 @@ class G0W0(G0W0Calculator):
                  nblocks=1,
                  nblocksmax=False,
                  kpts=None,
-                 world=mpi.world,
+                 world=None,
                  timer=None,
                  fxc_mode='GW',
                  fxc_modes=None,
@@ -1228,7 +1228,7 @@ class G0W0(G0W0Calculator):
             {'type': 'reciprocal', 'reduced':True} or 'reciprocal2D':
                 Numerical integration of q=0, G=0 1/q^2 integral in a area
                 resembling the reciprocal 2D cell (parallelogram) to be used
-                to be usedwith 2D systems.
+                to be used with 2D systems.
                 Used to be integrate_gamma=2.
 
             {'type': '1BZ'} or '1BZ':
@@ -1274,6 +1274,8 @@ class G0W0(G0W0Calculator):
             (given by filename-prefix), while writing to different out
             files.
         """
+        world = mpi.normalize_communicator(world)
+
         if fxc_mode:
             assert fxc_modes is None
         if fxc_modes:

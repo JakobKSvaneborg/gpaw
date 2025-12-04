@@ -3,7 +3,7 @@ import re
 import numpy as np
 
 from gpaw import __version__ as version
-from gpaw.mpi import world
+from gpaw.mpi import normalize_communicator
 from gpaw.tddft.folding import FoldedFrequencies, Folding
 from gpaw.tddft.units import au_to_as, au_to_eV, au_to_fs, rot_au_to_cgs
 
@@ -332,7 +332,8 @@ def photoabsorption_spectrum(dipole_moment_file: str,
                              width: float = 0.2123,
                              e_min: float = 0.0,
                              e_max: float = 30.0,
-                             delta_e: float = 0.05):
+                             delta_e: float = 0.05,
+                             world=None):
     """Calculates photoabsorption spectrum from the time-dependent
     dipole moment.
 
@@ -360,6 +361,7 @@ def photoabsorption_spectrum(dipole_moment_file: str,
     delta_e
         Energy resolution (eV)
     """
+    world = normalize_communicator(world)
     if world.rank == 0:
         print('Calculating photoabsorption spectrum from file "%s"'
               % dipole_moment_file)
@@ -377,7 +379,8 @@ def photoabsorption_spectrum(dipole_moment_file: str,
 
 def polarizability_spectrum(dipole_moment_file, spectrum_file,
                             folding='Gauss', width=0.2123,
-                            e_min=0.0, e_max=30.0, delta_e=0.05):
+                            e_min=0.0, e_max=30.0, delta_e=0.05,
+                            world=None):
     """Calculates polarizability spectrum from the time-dependent
     dipole moment.
 
@@ -401,6 +404,7 @@ def polarizability_spectrum(dipole_moment_file, spectrum_file,
     delta_e: float
         Energy resolution (eV)
     """
+    world = normalize_communicator(world)
     if world.rank == 0:
         print('Calculating polarizability spectrum from file "%s"'
               % dipole_moment_file)
@@ -417,7 +421,8 @@ def polarizability_spectrum(dipole_moment_file, spectrum_file,
 
 def rotatory_strength_spectrum(magnetic_moment_files, spectrum_file,
                                folding='Gauss', width=0.2123,
-                               e_min=0.0, e_max=30.0, delta_e=0.05):
+                               e_min=0.0, e_max=30.0, delta_e=0.05,
+                               world=None):
     """Calculates rotatory strength spectrum from the time-dependent
     magnetic moment.
 
@@ -440,6 +445,7 @@ def rotatory_strength_spectrum(magnetic_moment_files, spectrum_file,
     delta_e: float
         Energy resolution (eV)
     """
+    world = normalize_communicator(world)
     if world.rank != 0:
         return
 

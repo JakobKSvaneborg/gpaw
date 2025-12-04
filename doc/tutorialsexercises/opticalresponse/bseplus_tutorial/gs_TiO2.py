@@ -17,30 +17,22 @@ calc = GPAW(mode=PW(800),
             xc='PBE',
             occupations=FermiDirac(width=0.01),
             parallel={'domain': 1, 'band': 1},
-            convergence={'bands': 50, 'density': 0.0001,
-                         'eigenstates': 4e-07, 'energy': 0.0005},
+            convergence={'bands': 50, 'density': 1e-4,
+                         'eigenstates': 4e-07, 'energy': 5e-4},
             kpts={'density': 8, 'gamma': True, 'even': True})
 a.calc = calc
 a.get_potential_energy()
 calc.write(name_calc + ".gpw")
 
-calc_es = GPAW(name_calc + '.gpw',
-               fixdensity=True,
-               convergence={'bands': 50},
-               nbands=60, parallel={'domain': 1},
-               kpts={'density': 6, 'gamma': True, 'even': True})
-
-a.calc = calc_es
-a.get_potential_energy()
+calc_es = GPAW(name_calc + '.gpw').fixed_density(
+    convergence={'bands': 50},
+    nbands=60, parallel={'domain': 1},
+    kpts={'density': 6, 'gamma': True, 'even': True})
 calc_es.diagonalize_full_hamiltonian(nbands=100)
 calc_es.write(name_bse_plus + '.gpw', mode='all')
 
-calc_es = GPAW(name_calc + '.gpw',
-               fixdensity=True,
-               convergence={'bands': 100},
-               nbands=240, parallel={'domain': 4},
-               kpts={'density': 15, 'gamma': True, 'even': True})
-
-a.calc = calc_es
-a.get_potential_energy()
+calc_es = GPAW(name_calc + '.gpw').fixed_density(
+    convergence={'bands': 100},
+    nbands=240, parallel={'domain': 4},
+    kpts={'density': 15, 'gamma': True, 'even': True})
 calc_es.write(name_rpa + '.gpw', mode='all')

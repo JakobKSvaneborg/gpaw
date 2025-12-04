@@ -12,7 +12,7 @@ import gpaw.cgpaw as cgpaw
 import gpaw.fftw as fftw
 from gpaw.gpu import __file__ as gpaw_gpu_filename
 from gpaw.gpu import cupy, cupy_is_fake
-from gpaw.mpi import have_mpi, world
+from gpaw.mpi import have_mpi, normalize_communicator
 from gpaw.new.c import GPU_AWARE_MPI, GPU_ENABLED, GPAW_IS_CPP
 from gpaw.utilities import compiled_with_libvdwxc, compiled_with_sl
 from gpaw.utilities.elpa import LibElpa
@@ -56,8 +56,9 @@ def warn(text: str,
                      **kwargs) + pad
 
 
-def info() -> None:
+def info(comm=None) -> None:
     """Show versions of GPAW and its dependencies."""
+    comm = normalize_communicator(comm)
     results: list[tuple[str, str | bool]] = [
         ('python-' + sys.version.split()[0], sys.executable)]
     warnings = {}
@@ -146,7 +147,7 @@ def info() -> None:
 
     # XXX Why are we not appending to result below, but made this
     # function parallel half way
-    if world.rank != 0:
+    if comm.rank != 0:
         return
 
     lines = [(a, b if isinstance(b, str) else ['no', 'yes'][b])

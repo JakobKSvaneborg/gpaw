@@ -258,7 +258,7 @@ computes the Co MFT Heisenberg exchange constants for the band path
 G-M-K-G-A using several different spatial partitionings into magnetic sites:
 
 1) A partitioning where the two cobalt atoms are assigned each a spherical
-   site, but where only one of the spherical cutoff radii is varried.
+   site, but where only one of the spherical cutoff radii is varied.
 2) A similar partitioning with spheres of varying, but equal radii.
 3) A partitioning with only one sublattice that fills out the entire unit
    cell.
@@ -302,7 +302,7 @@ long wavelength limit `\mathbf{q}\rightarrow 0` the magnetic moment on the
 two cobalt atoms inside the unit cell will precess in-phase for an acoustic
 spin-wave, why both of the single sublattice models provide reasonable
 results in this limit. Interestingly, both models actually also provide a
-good describtion of the acoustic magnon dispersion on the entire G-M path, a
+good description of the acoustic magnon dispersion on the entire G-M path, a
 conclusion extending even all the way to the K-point in the case of a
 cylindrical site volume.
 

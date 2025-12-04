@@ -5,7 +5,6 @@ for complex symmetric matrices. Requires Numpy and GPAW's own BLAS."""
 
 import numpy as np
 
-from gpaw.mpi import world
 from gpaw.utilities.blas import axpy
 
 from .base import BaseSolver
@@ -25,7 +24,7 @@ class CSCG(BaseSolver):
     Now x and b are multivectors, i.e., list of vectors.
     """
 
-    def solve(self, A, x, b):
+    def solve(self, A, x, b, *, world):
         if self.timer is not None:
             self.timer.start('CSCG')
 

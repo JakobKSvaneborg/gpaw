@@ -22,9 +22,9 @@ class ReciprocalSpaceHamiltonian(Hamiltonian):
         if vext is None:
             vext = NoExternalPotential()
 
-        Hamiltonian.__init__(self, gd, finegd, nspins, collinear, setups,
-                             timer, xc, world, vext=vext,
-                             redistributor=redistributor)
+        super().__init__(gd, finegd, nspins, collinear, setups,
+                         timer, xc, world, vext=vext,
+                         redistributor=redistributor)
 
         self.vbar = PWLFC([[setup.vbar] for setup in setups], pd2)
         self.pd2 = pd2
@@ -75,7 +75,7 @@ class ReciprocalSpaceHamiltonian(Hamiltonian):
         return self.xc_redistributor.aux_gd
 
     def set_positions(self, spos_ac, atom_partition):
-        Hamiltonian.set_positions(self, spos_ac, atom_partition)
+        super().set_positions(spos_ac, atom_partition)
         self.vbar_Q = self.pd2.zeros()
         self.vbar.add(self.vbar_Q)
 

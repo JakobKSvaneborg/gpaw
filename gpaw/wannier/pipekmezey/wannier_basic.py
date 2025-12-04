@@ -13,7 +13,6 @@ from time import time
 import numpy as np
 from ase.dft.kpoints import get_monkhorst_pack_size_and_offset
 from ase.dft.wannier import calculate_weights, gram_schmidt
-from ase.parallel import parprint
 from ase.transport.tools import dagger
 
 dag = dagger
@@ -36,8 +35,8 @@ def random_orthogonal_matrix(dim, rng, real=False):
 
 def md_min(func, step=.25, tolerance=1e-6, verbose=False, **kwargs):
     if verbose:
-        parprint('Localize with step =', step,
-                 'and tolerance =', tolerance)
+        print('Localize with step =', step,
+              'and tolerance =', tolerance)
     t = -time()
     fvalueold = 0.
     fvalue = fvalueold + 10
@@ -58,13 +57,13 @@ def md_min(func, step=.25, tolerance=1e-6, verbose=False, **kwargs):
         func.niter = count
 
         if verbose:
-            parprint('MDmin: iter=%s, step=%s, value=%s'
-                     % (count, step, fvalue))
+            print('MDmin: iter=%s, step=%s, value=%s'
+                  % (count, step, fvalue))
     t += time()
     if verbose:
-        parprint('%d iterations in %0.2f seconds(%0.2f ms/iter),'
-                 ' endstep = %s'
-                 % (count, t, t * 1000. / count, step))
+        print('%d iterations in %0.2f seconds(%0.2f ms/iter),'
+              ' endstep = %s'
+              % (count, t, t * 1000. / count, step))
 
 
 def get_atoms_object_from_wfs(wfs):

@@ -47,7 +47,7 @@ class ExcitedState(GPAW):
             try:
                 communicator = lrtddft.calculator.wfs.world
             except AttributeError:
-                communicator = mpi.world
+                communicator = mpi.normalize_communicator(None)
         self.world = communicator
 
         self.lrtddft = lrtddft
@@ -67,7 +67,7 @@ class ExcitedState(GPAW):
         if log:
             self.log = log
         else:
-            self.log = ExcitationLogger(mpi.world)
+            self.log = ExcitationLogger(self.world)
             self.log.fd = txt
 
         self.log('#', self.__class__.__name__, __version__)
@@ -322,13 +322,13 @@ class ExcitedState(GPAW):
         """Return pseudo-density array."""
         method = kwargs.pop('method', 'dipole')
         self.initialize_density(method)
-        return GPAW.get_pseudo_density(self, **kwargs)
+        return super().get_pseudo_density(**kwargs)
 
     def get_all_electron_density(self, **kwargs):
         """Return all electron density array."""
         method = kwargs.pop('method', 'dipole')
         self.initialize_density(method)
-        return GPAW.get_all_electron_density(self, **kwargs)
+        return super().get_all_electron_density(**kwargs)
 
 
 class UnconstraintIndex:
@@ -432,7 +432,7 @@ class ExcitedStateDensity(RealSpaceDensity):
 
     def __init__(self, *args, **kwargs):
         self.method = kwargs.pop('method', 'dipole')
-        RealSpaceDensity.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.lrtddft = None
         self.index = None
         self.gsdensity = None

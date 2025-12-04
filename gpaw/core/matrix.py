@@ -133,7 +133,7 @@ class Matrix(XP):
                 xp = cp
             else:
                 xp = np
-        XP.__init__(self, xp)
+        super().__init__(xp)
 
         dist = dist or ()
         if isinstance(dist, tuple):
@@ -677,7 +677,7 @@ class Matrix(XP):
         self.data.ravel()[n1::N + 1] += d
 
     def to_cpu(self) -> Matrix:
-        """Create new matrix object with values transfered from GPU to CPU."""
+        """Create new matrix object with values transferred from GPU to CPU."""
         return self.to_xp(np)
 
     def to_xp(self, xp) -> Matrix:

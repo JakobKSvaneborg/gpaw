@@ -7,8 +7,7 @@ from gpaw import __version__
 class FMF:
     """Full-Metadata Format
 
-    Full-Metadata Format after
-    https://www.sir.uni-freiburg.de/repository/2009/SI20090302a/SI20090302a.pdf
+    Full-Metadata Format after https://doi.org/10.1016/j.cpc.2009.11.014
     """
     def __init__(self,
                  title='-',

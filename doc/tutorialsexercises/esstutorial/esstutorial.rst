@@ -151,7 +151,7 @@ increase the `k`-point sampling and we will not attempt that here. On the
 other hand, if we know the exchange constants in real space we can perform
 the calculation using any value of `\mathbf{q}` and obtain a magnon dispersion
 with much better resolution. The exchange constants in real space will also
-enable us to analyse which interactions induce the magnon splitting.  The
+enable us to analyze which interactions induce the magnon splitting.  The
 script :download:`mft_allbz.py` computes `J^{ab}(\mathbf{q})` on the entire
 `4\times4\times4` mesh. This will allow us Fourier transform the results and
 get all interactions in a range of 4 unit cells. The script will take 10
@@ -169,7 +169,7 @@ the script :download:`get_Jij.py`. This essentially calculates:
 where both `\mathbf{R}_i` and `\mathbf{q}` are given in reduced coordinates
 in the script. Inspect the output
 
- * What is the largest exchange constant? Is the nearest neighbour one?
+ * What is the largest exchange constant? Is the nearest neighbor one?
 
  * How does the estimate from the two DFT calculations (FM and AFM) above
    compare to the present results?
@@ -180,7 +180,7 @@ We can be a bit more systematic about this and loop over all unit cells.
 The script :download:`get_allJ.py` does exactly that and sorts the
 results according to exchange distances. It should be clear from the output
 that the altermagnetic symmetry breaking does not enter before the seventh
-nearest neighbour interaction.
+nearest neighbor interaction.
 
 Now that we have all the exchange constants, we may calculate a refined
 magnon dispersion.

@@ -236,7 +236,7 @@ class FFTBaseMixer(BaseMixer):
 
     """Mix the density in Fourier space"""
     def __init__(self, beta, nmaxold, weight):
-        BaseMixer.__init__(self, beta, nmaxold, weight)
+        super().__init__(beta, nmaxold, weight)
         self.gd1 = None
 
     def initialize_metric(self, gd):
@@ -266,7 +266,7 @@ class FFTBaseMixer(BaseMixer):
         else:
             nt1_sG = np.empty((len(nt_sR), 0, 0, 0), dtype=complex)
 
-        dNt = BaseMixer.mix_density(self, nt1_sG, D_asp)
+        dNt = super().mix_density(nt1_sG, D_asp)
 
         # Return density in real space
         for nt_G, nt_R in zip(nt1_sG, nt_sR):

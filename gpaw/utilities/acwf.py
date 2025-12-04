@@ -16,7 +16,7 @@ from ase.data import atomic_numbers
 
 from gpaw.atom.check import all_names
 from gpaw.dft import Parameters
-from gpaw.mpi import world
+from gpaw.mpi import normalize_communicator
 from gpaw.new.ase_interface import GPAW
 
 
@@ -109,8 +109,11 @@ def workflow() -> None:
 def work(structure: str,
          symbol: str,
          setup_name: str = '',
-         mode: str = 'pw'):
+         mode: str = 'pw',
+         *,
+         world=None):
     """Do single EOS calculations with PBE."""
+    world = normalize_communicator(world)
     params: dict[str, Any] = dict(
         xc='PBE',
         occupations=dict(name='fermi-dirac', width=0.0612),

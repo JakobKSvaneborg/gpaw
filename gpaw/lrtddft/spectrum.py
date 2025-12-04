@@ -172,7 +172,7 @@ class Writer(Folder):
         """
         self.folding = folding
         if folding is not None:
-            Folder.__init__(self, width, folding)
+            super().__init__(width, folding)
 
     def write(self, filename=None,
               emin=None, emax=None, de=None,

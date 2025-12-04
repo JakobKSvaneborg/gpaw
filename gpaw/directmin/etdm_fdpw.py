@@ -372,7 +372,7 @@ class FDPWETDM:
             else:
                 self.blocksize = 10
 
-        from gpaw.eigensolvers.eigensolver import Eigensolver
+        from gpaw.old.eigensolvers.eigensolver import Eigensolver
         self.eigensolver = Eigensolver(keep_htpsit=False,
                                        blocksize=self.blocksize)
         self.eigensolver.initialize(wfs)
@@ -1097,7 +1097,8 @@ class FDPWETDM:
         wfs.timer.start('Inner loop')
 
         if self.printinnerloop:
-            log = parprint
+            from functools import partial
+            log = partial(parprint, comm=wfs.world)
         else:
             log = None
 

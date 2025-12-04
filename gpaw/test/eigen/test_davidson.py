@@ -2,7 +2,7 @@ import pytest
 from ase import Atom, Atoms
 
 from gpaw import GPAW
-from gpaw.eigensolvers.davidson import Davidson
+from gpaw.eigensolvers import Davidson
 from gpaw.mpi import world
 
 

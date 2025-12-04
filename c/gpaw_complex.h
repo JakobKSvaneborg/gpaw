@@ -2,7 +2,7 @@
 
 #ifdef __cplusplus
     #include <complex>
-    
+
     // Some headers (lfc.h) are used from both C and C++ code => need a common typedef for complex numbers that works in both C and C++.
     using double_complex = std::complex<double>;
 
