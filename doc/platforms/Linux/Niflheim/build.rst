@@ -38,7 +38,7 @@ and run it like this::
 
 .. tip::
 
-    You will need Python 3.9 or later.  You can install that with::
+    You will need Python 3.10 or later.  You can install that with::
 
         $ module load Python
 
@@ -113,7 +113,7 @@ to install ASR-Lib_::
 
     Pip may need to compile some code.
     It is therefore safest to use the ``thul`` login node to pip install
-    software as it is the oldest CPU architcture and the other login nodes
+    software as it is the oldest CPU architecture and the other login nodes
     will understand its code.
 
 .. _ASR-Lib: https://asr-lib.fysik.dtu.dk/

@@ -1,15 +1,15 @@
 import re
 
-import pytest
 import numpy as np
+import pytest
 from ase.build import molecule
 from ase.units import Hartree
 
 from gpaw import GPAW
-from gpaw.mpi import world
 from gpaw.gauss import Gauss
 from gpaw.lrtddft import LrTDDFT, photoabsorption_spectrum
 from gpaw.lrtddft.kssingle import KSSingles
+from gpaw.mpi import world
 
 
 @pytest.mark.lrtddft

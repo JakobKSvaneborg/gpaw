@@ -1,5 +1,6 @@
 import numpy as np
 from ase.units import Ha
+
 from gpaw.xc.functional import XCFunctional
 
 
@@ -9,7 +10,7 @@ class NonLocalFunctional(XCFunctional):
         # TODO: remove self.xcs once deprecated calculate_delta_xc()
         # in c_response.py is removed
         self.xcs = {}
-        XCFunctional.__init__(self, xcname, 'GLLB')
+        super().__init__(xcname, 'GLLB')
         if setup_name is None:
             self.setup_name = self.name
         else:

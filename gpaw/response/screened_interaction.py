@@ -1,13 +1,15 @@
-import numpy as np
 from math import pi
-from gpaw.response.q0_correction import Q0Correction
-from ase.units import Ha
+
+import numpy as np
 from ase.dft.kpoints import monkhorst_pack
+from ase.units import Ha
+
+from gpaw.cgpaw import evaluate_mpa_poly
 from gpaw.old.kpt_descriptor import KPointDescriptor
-from gpaw.response.temp import DielectricFunctionCalculator
 from gpaw.response.hilbert import GWHilbertTransforms
 from gpaw.response.mpa_interpolation import RESolver
-from gpaw.cgpaw import evaluate_mpa_poly
+from gpaw.response.q0_correction import Q0Correction
+from gpaw.response.temp import DielectricFunctionCalculator
 
 
 class GammaIntegrationMode:

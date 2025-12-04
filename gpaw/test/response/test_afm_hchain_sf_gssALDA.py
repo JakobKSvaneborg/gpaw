@@ -1,24 +1,22 @@
 """Simple magnons calculation in a 1D hydrogen chain."""
 
 # General modules
-import pytest
 import numpy as np
-
+import pytest
 # Script modules
 from ase import Atoms
 from ase.dft.kpoints import monkhorst_pack
 
-from gpaw import PW, GPAW
+from gpaw import GPAW, PW
 from gpaw.mpi import world
-from gpaw.test import findpeak
-
 from gpaw.response import ResponseGroundStateAdapter
-from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.chiks import ChiKSCalculator
-from gpaw.response.susceptibility import ChiFactory
+from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.fxc_kernels import AdiabaticFXCCalculator
 from gpaw.response.goldstone import AFMGoldstoneScaling
 from gpaw.response.pair_functions import read_pair_function
+from gpaw.response.susceptibility import ChiFactory
+from gpaw.test import findpeak
 
 
 @pytest.mark.old_gpaw_only  # interpolate=3 for PW-mode not implemented!

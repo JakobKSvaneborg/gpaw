@@ -1,7 +1,8 @@
+import pytest
 from ase import Atoms
 from ase.units import Hartree
-from gpaw import GPAW, PoissonSolver, FermiDirac, Davidson, MixerSum
-import pytest
+
+from gpaw import GPAW, Davidson, FermiDirac, MixerSum, PoissonSolver
 
 
 def test_xc_revPBE_Li():

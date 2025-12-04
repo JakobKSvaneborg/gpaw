@@ -1,11 +1,11 @@
-import pytest
 import numpy as np
+import pytest
 
 from gpaw import GPAW
-from gpaw.test import findpeak
 from gpaw.bztools import find_high_symmetry_monkhorst_pack
-from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.mpi import world
+from gpaw.response.df import DielectricFunction, read_response_function
+from gpaw.test import findpeak
 
 
 @pytest.mark.dielectricfunction
@@ -14,11 +14,13 @@ from gpaw.mpi import world
 def test_response_Na_EELS_RPA_tetra_point_comparison(in_tmp_dir, gpw_files):
     gpwname = gpw_files['na_chain']
 
+    calc = GPAW(gpwname)
+
     # Generate grid compatible with tetrahedron integration
-    kpts = find_high_symmetry_monkhorst_pack(gpwname, 6.0)
+    kpts = find_high_symmetry_monkhorst_pack(calc.atoms, 6.0)
 
     # Calculate the wave functions on the new kpts grid
-    calc = GPAW(gpwname).fixed_density(kpts=kpts, update_fermi_level=True)
+    calc = calc.fixed_density(kpts=kpts, update_fermi_level=True)
     calc.write('Na', 'all')
 
     # Excited state calculation

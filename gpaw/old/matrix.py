@@ -3,10 +3,9 @@ import numpy as np
 import scipy.linalg as linalg
 
 import gpaw.cgpaw as cgpaw
-from gpaw import debug
-from gpaw.mpi import serial_comm, _Communicator
 import gpaw.utilities.blas as blas
-
+from gpaw import debug
+from gpaw.mpi import _Communicator, serial_comm
 
 _global_blacs_context_store: dict[tuple[_Communicator, int, int], int] = {}
 

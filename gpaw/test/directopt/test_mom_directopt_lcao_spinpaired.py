@@ -1,8 +1,9 @@
 import numpy as np
 import pytest
+
 from gpaw import GPAW
-from gpaw.mom import prepare_mom_calculation
 from gpaw.directmin.tools import excite
+from gpaw.mom import prepare_mom_calculation
 
 
 @pytest.mark.mom

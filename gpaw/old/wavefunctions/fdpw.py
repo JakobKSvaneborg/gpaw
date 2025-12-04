@@ -3,11 +3,12 @@ from ase.utils.timing import timer
 
 from gpaw.lcao.eigensolver import DirectLCAO
 from gpaw.lfc import BasisFunctions
-from gpaw.old.matrix import Matrix, matrix_matrix_multiply as mmm
-from gpaw.utilities import unpack_hermitian
-from gpaw.utilities.timing import nulltimer
+from gpaw.old.matrix import Matrix
+from gpaw.old.matrix import matrix_matrix_multiply as mmm
 from gpaw.old.wavefunctions.base import WaveFunctions
 from gpaw.old.wavefunctions.lcao import LCAOWaveFunctions, update_phases
+from gpaw.utilities import unpack_hermitian
+from gpaw.utilities.timing import nulltimer
 
 
 class NullWfsMover:
@@ -195,7 +196,7 @@ class LCAOWfsMover:
 class FDPWWaveFunctions(WaveFunctions):
     """Base class for finite-difference and planewave classes."""
     def __init__(self, parallel, initksl, reuse_wfs_method=None, **kwargs):
-        WaveFunctions.__init__(self, **kwargs)
+        super().__init__(**kwargs)
 
         ranks = [rbd * self.gd.comm.size + rgd
                  for rgd in range(self.gd.comm.size)
@@ -249,7 +250,7 @@ class FDPWWaveFunctions(WaveFunctions):
         return '\n'.join([L1, L2])
 
     def set_setups(self, setups):
-        WaveFunctions.set_setups(self, setups)
+        super().set_setups(setups)
 
     def set_orthonormalized(self, flag):
         self.orthonormalized = flag
@@ -266,7 +267,7 @@ class FDPWWaveFunctions(WaveFunctions):
         # This will update the positions -- and transfer, if necessary --
         # the projection matrices which may be necessary for updating
         # the wavefunctions.
-        WaveFunctions.set_positions(self, spos_ac, atom_partition)
+        super().set_positions(spos_ac, atom_partition)
 
         if move_wfs and paste_wfs is not None:
             paste_wfs()

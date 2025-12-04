@@ -2,13 +2,12 @@ import pytest
 from ase import Atom, Atoms
 from ase.parallel import parprint
 
-from gpaw import GPAW, mpi
 from gpaw.lrtddft import LrTDDFT
 
 
 @pytest.mark.lrtddft
 @pytest.mark.libxc
-def test_lrtddft_apmb():
+def test_lrtddft_apmb(mpi):
     txt = '-'
     txt = '/dev/null'
 
@@ -21,11 +20,11 @@ def test_lrtddft_apmb():
         H2 = Atoms([Atom('H', (a / 2, a / 2, (c - R) / 2)),
                     Atom('H', (a / 2, a / 2, (c + R) / 2))],
                    cell=(a, a, c))
-        calc = GPAW(mode='fd', xc='PBE', nbands=2, spinpol=False, txt=txt)
+        calc = mpi.GPAW(mode='fd', xc='PBE', nbands=2, spinpol=False, txt=txt)
         H2.calc = calc
         H2.get_potential_energy()
     else:
-        calc = GPAW('H2.gpw', txt=txt)
+        calc = mpi.GPAW('H2.gpw', txt=txt)
 
     # DFT only
 
@@ -47,13 +46,14 @@ def test_lrtddft_apmb():
     parprint('------ with spin')
 
     if not load:
-        c_spin = GPAW(mode='fd', xc='PBE', nbands=2,
-                      spinpol=True, parallel={'domain': mpi.world.size},
-                      txt=txt)
+        c_spin = mpi.GPAW(
+            mode='fd', xc='PBE', nbands=2,
+            spinpol=True, parallel={'domain': mpi.comm.size},
+            txt=txt)
         H2.calc = c_spin
         c_spin.calculate(H2)
     else:
-        c_spin = GPAW('H2spin.gpw', txt=txt)
+        c_spin = mpi.GPAW('H2spin.gpw', txt=txt)
     lr = LrTDDFT(c_spin, xc=xc)
     lr.diagonalize()
 

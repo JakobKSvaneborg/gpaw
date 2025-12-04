@@ -2,16 +2,16 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Callable
 from math import inf, nan, pi
 from typing import Any, NamedTuple, cast
-from collections.abc import Callable
 
 import numpy as np
 from ase.units import Ha
 from scipy.special import erf
 
-from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.mpi import MPIComm, broadcast_float, serial_comm
+from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.typing import Array1D, Array2D, ArrayLike2D
 
 
@@ -280,7 +280,7 @@ class SmoothDistribution(OccupationNumberCalculator):
         """
 
         self._width = width
-        OccupationNumberCalculator.__init__(self, parallel_layout)
+        super().__init__(parallel_layout)
 
     def todict(self):
         return {'name': self.name, 'width': self._width}
@@ -361,12 +361,12 @@ class MethfesselPaxtonCalculator(SmoothDistribution):
     name = 'methfessel_paxton'
 
     def __init__(self, width, order=0, parallel_layout: ParallelLayout = None):
-        SmoothDistribution.__init__(self, width, parallel_layout)
+        super().__init__(width, parallel_layout)
         self.order = order
         self.extrapolate_factor = -1.0 / (self.order + 2)
 
     def todict(self):
-        dct = SmoothDistribution.todict(self)
+        dct = super().todict()
         dct['order'] = self.order
         return dct
 
@@ -615,7 +615,7 @@ class FixedOccupationNumbers(OccupationNumberCalculator):
             occ = FixedOccupationNumbers([[1, 0, 1, 0], [1, 1, 0, 0]])
 
         """
-        OccupationNumberCalculator.__init__(self, parallel_layout)
+        super().__init__(parallel_layout)
         self.f_sn = np.array(numbers)
 
     def _calculate(self,
@@ -647,7 +647,7 @@ class FixedOccupationNumbersUniform(OccupationNumberCalculator):
         k-point per spin has the same number of occupied states
         Magnetic moment defines difference between two spins occ. numb.
         """
-        OccupationNumberCalculator.__init__(self, parallel_layout)
+        super().__init__(parallel_layout)
 
         def get_f(nelectrons, magmom, nkpts, nbands, spin):
             """

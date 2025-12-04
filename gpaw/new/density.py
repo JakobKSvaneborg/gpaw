@@ -4,6 +4,7 @@ from math import pi, sqrt
 
 import numpy as np
 from ase.units import Bohr, Ha
+
 from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.core.atom_centered_functions import (AtomArraysLayout,
                                                AtomCenteredFunctions)
@@ -12,11 +13,11 @@ from gpaw.core.uniform_grid import UGArray, UGDesc
 from gpaw.gpu import as_np
 from gpaw.mpi import MPIComm
 from gpaw.new import trace, zips
-from gpaw.typing import Array3D, Vector
-from gpaw.utilities import unpack_hermitian, unpack_density
-from gpaw.new.symmetry import SymmetrizationPlan, GPUSymmetrizationPlan
 from gpaw.new.ibzwfs import IBZWaveFunctions
+from gpaw.new.symmetry import GPUSymmetrizationPlan, SymmetrizationPlan
 from gpaw.setup import Setups
+from gpaw.typing import Array3D, Vector
+from gpaw.utilities import unpack_density, unpack_hermitian
 
 
 class Density:

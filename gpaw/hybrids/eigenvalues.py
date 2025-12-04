@@ -1,29 +1,30 @@
 """Calculate non self-consistent eigenvalues for hybrid functionals."""
 from __future__ import annotations
+
 import functools
 import json
-from pathlib import Path
 from collections.abc import Generator
+from pathlib import Path
 
 import numpy as np
 from ase.units import Ha
-from gpaw.old.calculator import GPAW as GPAWOld
+
 from gpaw import GPAW
-from gpaw.new.ase_interface import ASECalculator
-from gpaw.old.kpt_descriptor import KPointDescriptor
+from gpaw.hybrids import parse_name
+from gpaw.hybrids.coulomb import coulomb_interaction
+from gpaw.hybrids.kpts import RSKPoint, get_kpt, to_real_space
+from gpaw.hybrids.paw import calculate_paw_stuff
+from gpaw.hybrids.symmetry import Symmetry
 from gpaw.mpi import serial_comm
+from gpaw.new.ase_interface import ASECalculator
+from gpaw.old.calculator import GPAW as GPAWOld
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.old.pw.lfc import PWLFC
 from gpaw.typing import Array3D
 from gpaw.xc import XC
 from gpaw.xc.kernel import XCNull
 from gpaw.xc.tools import vxc
-
-from gpaw.hybrids import parse_name
-from gpaw.hybrids.coulomb import coulomb_interaction
-from gpaw.hybrids.kpts import RSKPoint, get_kpt, to_real_space
-from gpaw.hybrids.paw import calculate_paw_stuff
-from gpaw.hybrids.symmetry import Symmetry
 
 
 def non_self_consistent_eigenvalues(

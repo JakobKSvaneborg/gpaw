@@ -2,16 +2,19 @@
 from __future__ import annotations
 
 from types import ModuleType
-import gpaw.cgpaw as cgpaw
+
 import numpy as np
 import scipy.linalg as sla
 
+import gpaw.cgpaw as cgpaw
 import gpaw.utilities.blas as blas
 from gpaw import debug
-from gpaw.gpu import cupy as cp, XP, gpu_gemm
-from gpaw.mpi import MPIComm, _Communicator, serial_comm
-from gpaw.typing import Array1D, ArrayLike1D, ArrayLike2D, Array2D
+from gpaw.gpu import XP
+from gpaw.gpu import cupy as cp
+from gpaw.gpu import gpu_gemm
 from gpaw.gpu.diagonalization import suggest_diagonalizer
+from gpaw.mpi import MPIComm, _Communicator, serial_comm
+from gpaw.typing import Array1D, Array2D, ArrayLike1D, ArrayLike2D
 
 _global_blacs_context_store: dict[tuple[_Communicator, int, int], int] = {}
 
@@ -130,7 +133,7 @@ class Matrix(XP):
                 xp = cp
             else:
                 xp = np
-        XP.__init__(self, xp)
+        super().__init__(xp)
 
         dist = dist or ()
         if isinstance(dist, tuple):
@@ -674,7 +677,7 @@ class Matrix(XP):
         self.data.ravel()[n1::N + 1] += d
 
     def to_cpu(self) -> Matrix:
-        """Create new matrix object with values transfered from GPU to CPU."""
+        """Create new matrix object with values transferred from GPU to CPU."""
         return self.to_xp(np)
 
     def to_xp(self, xp) -> Matrix:

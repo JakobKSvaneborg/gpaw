@@ -3,6 +3,7 @@ Atomic Density Functional Theory
 """
 
 from __future__ import annotations
+
 from dataclasses import dataclass
 from functools import cached_property
 from math import log, pi, sqrt
@@ -14,9 +15,9 @@ from ase.utils import IOContext
 from gpaw import ConvergenceError
 from gpaw.atom.configurations import configurations
 from gpaw.atom.radialgd import AERadialGridDescriptor
+from gpaw.mpi import serial_comm
 from gpaw.utilities import hartree
 from gpaw.xc import XC
-from gpaw.mpi import serial_comm
 
 # fine-structure constant
 alpha = 1 / 137.036

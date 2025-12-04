@@ -45,18 +45,17 @@ on the lower-level ones.
 from math import pi
 
 import numpy as np
-
-from ase.neighborlist import PrimitiveNeighborList
 from ase.data import covalent_radii
+from ase.neighborlist import PrimitiveNeighborList
 from ase.units import Bohr
 
 import gpaw.cgpaw as cgpaw
-from gpaw.ffbt import ffbt, FourierBesselTransformer
+from gpaw.ffbt import FourierBesselTransformer, ffbt
 from gpaw.sphere.gaunt import gaunt
 from gpaw.sphere.spherical_harmonics import Yl, nablarlYL
 from gpaw.spline import Spline
-from gpaw.utilities.tools import tri2full
 from gpaw.utilities.timing import nulltimer
+from gpaw.utilities.tools import tri2full
 
 timer = nulltimer  # XXX global timer object, only for hacking
 
@@ -79,7 +78,7 @@ class OverlapExpansion(BaseOverlapExpansionSet):
         self.lmaxgaunt = max(la, lb)
         self.spline_l = spline_l
         self.lmaxspline = (la + lb) % 2 + 2 * len(self.spline_l)
-        BaseOverlapExpansionSet.__init__(self, (2 * la + 1, 2 * lb + 1))
+        super().__init__((2 * la + 1, 2 * lb + 1))
         self.cspline_l = [spline.spline for spline in self.spline_l]
 
     def evaluate(self, r, rlY_lm, G_LLL, x_mi, _nil=np.empty(0)):
@@ -101,7 +100,7 @@ class TwoSiteOverlapExpansions(BaseOverlapExpansionSet):
         self.oe_jj = oe_jj
         shape = (sum([2 * l + 1 for l in la_j]),
                  sum([2 * l + 1 for l in lb_j]))
-        BaseOverlapExpansionSet.__init__(self, shape)
+        super().__init__(shape)
         if oe_jj.size == 0:
             self.lmaxgaunt = 0
             self.lmaxspline = 0
@@ -166,7 +165,7 @@ class ManySiteOverlapExpansions(BaseOverlapExpansionSet):
         shape = (sum([tsoe_II[I, 0].shape[0] for I in I1_a]),
                  sum([tsoe_II[0, I].shape[1] for I in I2_a]))
         assert (M1, M2) == shape
-        BaseOverlapExpansionSet.__init__(self, shape)
+        super().__init__(shape)
 
     def get(self, a1, a2):
         return self.tsoe_II[self.I1_a[a1], self.I2_a[a2]]
@@ -190,7 +189,7 @@ class DomainDecomposedExpansions(BaseOverlapExpansionSet):
     def __init__(self, msoe, local_indices):
         self.msoe = msoe
         self.local_indices = local_indices
-        BaseOverlapExpansionSet.__init__(self, msoe.shape)
+        super().__init__(msoe.shape)
 
     def evaluate_slice(self, disp, x_xqMM):
         if disp.a2 in self.local_indices:
@@ -221,7 +220,7 @@ class BlacsOverlapExpansions(BaseOverlapExpansionSet):
     def __init__(self, msoe, local_indices, Mmystart, mynao):
         self.msoe = msoe
         self.local_indices = local_indices
-        BaseOverlapExpansionSet.__init__(self, msoe.shape)
+        super().__init__(msoe.shape)
 
         self.Mmystart = Mmystart
         self.mynao = mynao

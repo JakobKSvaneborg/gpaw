@@ -1,4 +1,5 @@
 import pytest
+
 from gpaw.lrtddft import LrTDDFT
 
 

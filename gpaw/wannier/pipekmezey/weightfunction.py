@@ -13,8 +13,9 @@ r""" Class which builds a weight function for each atom
 
 """
 
-import numpy as np
 from math import pi
+
+import numpy as np
 from ase.units import Bohr
 
 # Cut-offs: [Ang]

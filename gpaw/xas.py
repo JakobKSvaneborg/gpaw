@@ -1,15 +1,13 @@
 import pickle
-from math import log, pi, sqrt, ceil
+from math import ceil, log, pi, sqrt
 
 import numpy as np
-
 from ase.units import Hartree
 
 from gpaw.overlap import Overlap
-from gpaw.utilities.cg import CG
 from gpaw.sphere.gaunt import gaunt
 from gpaw.typing import Array1D, Array2D, Array3D, ArrayND
-import gpaw.mpi as mpi
+from gpaw.utilities.cg import CG
 
 
 def dipole_matrix_elements(setup):
@@ -82,7 +80,7 @@ class XAS:
             nocc_cor (int, optional): correction for number of occupied states
             used in e.g. XCH XAS simulations. Defaults to 0.
         """
-
+        paw = paw._to_old()
         self.log = paw.log
         wfs = paw.wfs
         self.world = paw.world
@@ -492,6 +490,7 @@ class RecursionMethod:
                  proj_xyz=True):
 
         if paw is not None:
+            paw = paw._to_old()
             wfs = paw.wfs
             assert wfs.gd.orthogonal
 
@@ -756,7 +755,7 @@ class RecursionMethod:
 
     def get_spectra(self, eps_s, delta=0.1, imax=None, kpoint=None, fwhm=None,
                     linbroad=None, spin=0):
-        assert not mpi.parallel
+        assert self.wfs.world.size == 1
 
         # the following lines are to stop the user to make mistakes
         # if spin == 1:

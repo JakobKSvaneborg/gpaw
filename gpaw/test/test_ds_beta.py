@@ -1,12 +1,11 @@
 from ase import Atoms
-from ase.units import Ha
 from ase.parallel import parprint
+from ase.units import Ha
 
 from gpaw import GPAW
-
-from gpaw.utilities.adjust_cell import adjust_cell
-from gpaw.pes.state import BoundState, H1s
 from gpaw.pes.ds_beta import CrossSectionBeta
+from gpaw.pes.state import BoundState, H1s
+from gpaw.utilities.adjust_cell import adjust_cell
 
 
 def test_ds_beta(in_tmp_dir):

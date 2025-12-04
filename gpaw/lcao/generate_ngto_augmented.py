@@ -2,12 +2,10 @@ from collections.abc import Sequence
 
 import numpy as np
 
-from gpaw.atom.basis import BasisMaker
-from gpaw.atom.basis import QuasiGaussian
-from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
+from gpaw.atom.basis import BasisMaker, QuasiGaussian
 from gpaw.atom.configurations import parameters, parameters_extra
-from gpaw.basis_data import BasisFunction
-from gpaw.basis_data import parse_basis_name
+from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
+from gpaw.basis_data import BasisFunction, parse_basis_name
 
 # Module for generating basis sets that compose of usual basis sets
 # augmented with Gaussian type orbital (GTO).
@@ -176,6 +174,7 @@ def generate_nao_ngto_basis(atom, *, xc, nao, name,
                             gtos, gto_description=None,
                             rmax=100.0, tol=0.001):
     from dataclasses import replace
+
     # Choose basis sets without semi-core states XXXXXX
     if atom == 'Ag':
         name = '11.%s' % name

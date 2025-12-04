@@ -1,18 +1,17 @@
-import numpy as np
 import warnings
 
+import numpy as np
+from ase.neighborlist import build_neighbor_list, natural_cutoffs
 from ase.units import Bohr, Hartree
-from ase.neighborlist import natural_cutoffs, build_neighbor_list
 
-from gpaw.sphere.integrate import (integrate_lebedev,
+from gpaw.response import (ResponseGroundStateAdaptable,
+                           ResponseGroundStateAdapter)
+from gpaw.response.localft import add_LSDA_zeeman_energy, add_spin_polarization
+from gpaw.sphere.integrate import (default_spherical_drcut,
+                                   find_volume_conserving_lambd,
+                                   integrate_lebedev,
                                    radial_truncation_function,
-                                   spherical_truncation_function_collection,
-                                   default_spherical_drcut,
-                                   find_volume_conserving_lambd)
-from gpaw.response import (ResponseGroundStateAdapter,
-                           ResponseGroundStateAdaptable)
-from gpaw.response.localft import (add_spin_polarization,
-                                   add_LSDA_zeeman_energy)
+                                   spherical_truncation_function_collection)
 
 
 class AtomicSites:

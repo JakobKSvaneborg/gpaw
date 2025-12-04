@@ -1,5 +1,6 @@
 def workflow():
     from myqueue.workflow import run
+
     from gpaw import GPAW_NEW
     if GPAW_NEW:
         return

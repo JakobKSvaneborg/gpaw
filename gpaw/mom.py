@@ -7,11 +7,10 @@ See:
 """
 
 import numpy as np
-
 from ase.units import Ha
+from scipy.optimize import linear_sum_assignment
 
 from gpaw.occupations import FixedOccupationNumbers, ParallelLayout
-from scipy.optimize import linear_sum_assignment
 
 
 def prepare_mom_calculation(calc,

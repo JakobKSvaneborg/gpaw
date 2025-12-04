@@ -2,11 +2,11 @@ import pytest
 from ase import Atoms
 from ase.units import Ha
 
-from gpaw.dft import DFT
-from gpaw.mpi import size
-from gpaw.poisson import FDPoissonSolver
-from gpaw.new.c import GPU_AWARE_MPI
 from gpaw import GPAW_NO_C_EXTENSION
+from gpaw.dft import DFT
+from gpaw.mpi import world
+from gpaw.new.c import GPU_AWARE_MPI
+from gpaw.poisson import FDPoissonSolver
 
 
 @pytest.mark.gpu
@@ -53,7 +53,7 @@ def test_gpu(dtype, gpu, mode, random):
 
 
 @pytest.mark.gpu
-@pytest.mark.skipif(size > 2, reason='Not implemented')
+@pytest.mark.skipif(world.size > 2, reason='Not implemented')
 @pytest.mark.parametrize('gpu', [False, True])
 @pytest.mark.parametrize('par', ['domain', 'kpt', 'band'])
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
@@ -64,7 +64,7 @@ def test_gpu_k(gpu, par, mode, xc):
     if GPAW_NO_C_EXTENSION and xc == 'PBE':
         pytest.skip('No GGA with GPAW_NO_C_EXTENSION')
 
-    if gpu and size > 1 and not GPU_AWARE_MPI:
+    if gpu and world.size > 1 and not GPU_AWARE_MPI:
         if mode == 'fd' and par == 'domain':
             pytest.skip('Domain decomposition needs GPU-aware MPI')
         if mode == 'pw' and par == 'domain' and xc == 'PBE':
@@ -74,11 +74,11 @@ def test_gpu_k(gpu, par, mode, xc):
         if mode == 'pw' and par in ['kpt', 'band'] and xc == 'PBE':
             pytest.skip('???')
 
-    if gpu and size > 1:
+    if gpu and world.size > 1:
         if mode == 'fd' and par == 'band':
             pytest.skip('FAILING')
 
-    if size == 1 and par in ['kpt', 'band']:
+    if world.size == 1 and par in ['kpt', 'band']:
         pytest.skip('Not testing parallelization on single core')
 
     atoms = Atoms('H', pbc=True, cell=[1, 1.1, 1.1])
@@ -102,7 +102,7 @@ def test_gpu_k(gpu, par, mode, xc):
            'symmetry': 'off'} if GPAW_NO_C_EXTENSION else {},
         poissonsolver=poisson,
         parallel={'gpu': gpu,
-                  par: size},
+                  par: world.size},
         setups='paw')
     dft.converge()
     dft.energy()

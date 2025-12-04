@@ -1,8 +1,9 @@
 from ase.data import chemical_symbols
 from ase.units import Bohr, Hartree
+
 from gpaw import GPAW_NEW
-from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.io import Reader
+from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.solvation.hamiltonian import SolvationRealSpaceHamiltonian
 
 
@@ -42,7 +43,7 @@ class OldSolvationGPAW(OldGPAW):
 
         self.stuff_for_hamiltonian = (cavity, dielectric, interactions)
 
-        OldGPAW.__init__(self, restart, **gpaw_kwargs)
+        super().__init__(restart, **gpaw_kwargs)
 
         self.log('Implicit solvation parameters:')
         for stuff in self.stuff_for_hamiltonian:
@@ -114,11 +115,11 @@ class OldSolvationGPAW(OldGPAW):
 
             self.stuff_for_hamiltonian = (cavity, dielectric, interactions)
 
-        reader = OldGPAW.read(self, filename)
+        reader = super().read(filename)
         return reader
 
     def _write(self, writer, mode):
-        OldGPAW._write(self, writer, mode)
+        super()._write(writer, mode)
         stuff = self.stuff_for_hamiltonian
         writer.child('implicit_solvent').write(cavity=stuff[0],
                                                dielectric=stuff[1],
@@ -150,7 +151,7 @@ class OldSolvationGPAW(OldGPAW):
         xc.set_grid_descriptor(self.hamiltonian.finegd)
 
     def initialize_positions(self, atoms=None):
-        spos_ac = OldGPAW.initialize_positions(self, atoms)
+        spos_ac = super().initialize_positions(atoms)
         self.hamiltonian.update_atoms(self.atoms, self.log)
         return spos_ac
 

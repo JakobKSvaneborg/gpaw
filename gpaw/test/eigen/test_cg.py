@@ -1,10 +1,10 @@
-from ase import Atom, Atoms
-from gpaw import GPAW
 import pytest
+from ase import Atom, Atoms
+
+from gpaw import GPAW
 
 
-@pytest.mark.legacy
-def test_eigen_cg():
+def test_eigen_ppcg():
     a = 4.05
     d = a / 2**0.5
     bulk = Atoms([Atom('Al', (0, 0, 0)),
@@ -21,7 +21,8 @@ def test_eigen_cg():
     calc = GPAW(**base_params)
     bulk.calc = calc
     e0 = bulk.get_potential_energy()
-    calc = GPAW(**base_params, eigensolver='cg')
+    calc = GPAW(**base_params,
+                eigensolver='cg' if calc.old else 'ppcg')
     bulk.calc = calc
     e1 = bulk.get_potential_energy()
     assert e0 == pytest.approx(e1, abs=5.e-5)

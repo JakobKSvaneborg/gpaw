@@ -1,6 +1,7 @@
 # Tests of GPU functionality
 
 import numpy as np
+
 from gpaw.gpu import cupy as cp
 
 # Comparing eigenvectors from different solvers is challenging because of

@@ -29,23 +29,23 @@ Self-consistent minimization of self-interaction corrected
 functionals (Perdew-Zunger).
 """
 
+from collections.abc import Callable
 from math import pi
 from typing import cast
-from collections.abc import Callable
 
 import numpy as np
 from ase.units import Bohr, Hartree
 from scipy.linalg import eigh
 
+import gpaw.cgpaw as cgpaw
+from gpaw.lfc import LFC
+from gpaw.poisson import PoissonSolver
+from gpaw.transformers import Transformer
+from gpaw.typing import RNG, ArrayND, IntVector
+from gpaw.utilities import pack_density, unpack_hermitian
 from gpaw.utilities.blas import mmmx
 from gpaw.xc import XC
 from gpaw.xc.functional import XCFunctional
-from gpaw.poisson import PoissonSolver
-from gpaw.transformers import Transformer
-from gpaw.typing import ArrayND, IntVector, RNG
-from gpaw.utilities import pack_density, unpack_hermitian
-from gpaw.lfc import LFC
-import gpaw.cgpaw as cgpaw
 
 
 def matrix_exponential(G_nn, dlt):
@@ -178,7 +178,7 @@ class SIC(XCFunctional):
             raise ValueError('SIC does not support ' + xc.name)
 
         self.xc = xc
-        XCFunctional.__init__(self, xc.name + '-PZ-SIC', xc.type)
+        super().__init__(xc.name + '-PZ-SIC', xc.type)
         self.finegrid = finegrid
         self.parameters = parameters
 

@@ -2,11 +2,11 @@ import numpy as np
 from ase.units import Hartree
 
 import gpaw.cgpaw as cgpaw
+from gpaw import debug
 from gpaw.xc import XC
 from gpaw.xc.kernel import XCKernel
 from gpaw.xc.libxc import LibXC
 from gpaw.xc.vdw import VDWFunctional
-from gpaw import debug
 
 
 class BEE2(XCKernel):

@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import numpy as np
+
 from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
                                    AtomDistribution)
 from gpaw.core.matrix import Matrix
+from gpaw.gpu import XP
 from gpaw.mpi import MPIComm, receive, send, serial_comm
 from gpaw.new.potential import Potential
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.setup import Setups
 from gpaw.typing import Array2D
-from gpaw.gpu import XP
 
 
 class LCAOWaveFunctions(WaveFunctions, XP):

@@ -5,11 +5,11 @@ from ase.units import Hartree
 
 import gpaw.cgpaw as cgpaw
 from gpaw import GPAW
-from gpaw.utilities.adjust_cell import adjust_cell
 from gpaw.eigensolvers import RMMDIIS
 from gpaw.lrtddft import LrTDDFT
 from gpaw.mpi import world
 from gpaw.occupations import FermiDirac
+from gpaw.utilities.adjust_cell import adjust_cell
 
 
 @pytest.mark.hybrids

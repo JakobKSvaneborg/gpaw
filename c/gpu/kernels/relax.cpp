@@ -3,9 +3,11 @@
 #include <time.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <cassert>
 
 #include "../gpu.h"
 #include "../gpu-complex.h"
+#include "../bmgs.h"
 
 #undef BLOCK_X
 #undef BLOCK_Y
@@ -451,14 +453,6 @@ __global__ void RELAX_kernel_onlyb(
 #  undef MYJ
 
 
-extern "C"
-bmgsstencil_gpu bmgs_stencil_to_gpu(const bmgsstencil* s);
-
-extern "C"
-int bmgs_fd_boundary_test(const bmgsstencil_gpu* s, int boundary,
-                          int ndouble);
-
-extern "C"
 void bmgs_relax_gpu(const int relax_method,
                     const bmgsstencil_gpu* s_gpu,
                     double* adev, double* bdev, const double* src,

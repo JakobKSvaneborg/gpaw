@@ -1,10 +1,12 @@
+import time
+
 import numpy as np
 import pytest
-import time
-from ase.units import Bohr
-from gpaw.core import PWDesc, UGDesc, PWArray
-from gpaw.new.pw.poisson import ConjugateGradientPoissonSolver
 from ase.parallel import parprint
+from ase.units import Bohr
+
+from gpaw.core import PWArray, PWDesc, UGDesc
+from gpaw.new.pw.poisson import ConjugateGradientPoissonSolver
 
 nn = 3
 accuracy = 2e-10

@@ -2,14 +2,14 @@ from dataclasses import dataclass
 
 from ase import Atoms
 
+from gpaw.core import UGDesc
+from gpaw.core.domain import Domain
+from gpaw.dft import Parameters
+from gpaw.mpi import MPIComm, normalize_communicator
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.ibzwfs import IBZ
 from gpaw.new.logger import Logger
-from gpaw.core import UGDesc
-from gpaw.core.domain import Domain
 from gpaw.setup import Setups
-from gpaw.mpi import MPIComm
-from gpaw.dft import Parameters
 
 
 @dataclass
@@ -38,10 +38,11 @@ class CalcInfo:
         return get_calculation_info(self.atoms, **params)
 
     def dft_calculation(self) -> DFTCalculation:
-        return DFTCalculation.from_parameters(self.atoms.copy(),
-                                              Parameters(**self.input_params),
-                                              comm=self.comm,
-                                              log=self.log)
+        return DFTCalculation.from_parameters(
+            self.atoms.copy(),
+            Parameters(**self.input_params),
+            comm=normalize_communicator(self.comm),
+            log=self.log)
 
     def ase_calculator(self):
         return self.dft_calculation().ase_calculator()

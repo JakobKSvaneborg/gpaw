@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 import numpy as np
+
 from gpaw.mpi import MPIComm, broadcast
 
 

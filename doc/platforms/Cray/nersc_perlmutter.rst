@@ -5,7 +5,7 @@ perlmutter.nersc.gov (Cray EX)
 ==============================
 
 .. note::
-   These instructions are up-to-date as of Feburary 2024.
+   These instructions are up-to-date as of February 2024.
 
 GPAW
 ====

@@ -1,18 +1,19 @@
 from __future__ import annotations
+
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
-from collections.abc import Sequence
 
 import numpy as np
 from ase.dft.dos import linear_tetrahedron_integration as lti
 
 from gpaw.setup import Setup
-from gpaw.spinorbit import soc_eigenstates, BZWaveFunctions
+from gpaw.spinorbit import BZWaveFunctions, soc_eigenstates
 from gpaw.typing import Array1D, Array2D, Array3D, ArrayLike1D
 
 if TYPE_CHECKING:
-    from gpaw.old.calculator import GPAW
     from gpaw.new.ase_interface import ASECalculator
+    from gpaw.old.calculator import GPAW
 
 
 class IBZWaveFunctions:

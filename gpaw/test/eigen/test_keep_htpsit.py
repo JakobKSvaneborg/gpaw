@@ -1,7 +1,8 @@
-from gpaw import GPAW
-from gpaw.eigensolvers.rmmdiis import RMMDIIS
-from ase import Atoms
 import pytest
+from ase import Atoms
+
+from gpaw import GPAW
+from gpaw.eigensolvers import RMMDIIS
 
 
 @pytest.mark.legacy

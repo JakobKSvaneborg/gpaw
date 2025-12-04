@@ -1,6 +1,5 @@
-import pytest
-
 import numpy as np
+import pytest
 from ase.units import Ha
 
 from gpaw.hubbard import hubbard

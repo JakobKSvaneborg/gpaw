@@ -1,12 +1,14 @@
 import warnings
-import pytest
+
 import numpy as np
+import pytest
 from ase.build import bulk
 from ase.dft.bee import BEEFEnsemble, readbee
-from gpaw import GPAW, Mixer, PW
-from gpaw.test import gen
-from gpaw.mpi import world
+
 import gpaw.cgpaw as cgpaw
+from gpaw import GPAW, PW, Mixer
+from gpaw.mpi import world
+from gpaw.test import gen
 
 
 @pytest.mark.mgga

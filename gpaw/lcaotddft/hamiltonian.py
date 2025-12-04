@@ -1,11 +1,7 @@
+from gpaw.lcaotddft.laser import create_laser
+from gpaw.lcaotddft.utilities import read_uMM, read_wuMM, write_uMM, write_wuMM
 from gpaw.mixer import DummyMixer
 from gpaw.xc import XC
-
-from gpaw.lcaotddft.laser import create_laser
-from gpaw.lcaotddft.utilities import read_uMM
-from gpaw.lcaotddft.utilities import read_wuMM
-from gpaw.lcaotddft.utilities import write_uMM
-from gpaw.lcaotddft.utilities import write_wuMM
 
 
 class TimeDependentPotential:

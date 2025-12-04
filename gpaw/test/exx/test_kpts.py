@@ -1,13 +1,13 @@
 """Test case where q=k1-k2 has component outside 0<=q<1 range."""
-import pytest
 import numpy as np
+import pytest
 from ase import Atoms
 
 from gpaw import GPAW, PW
 from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
-from gpaw.mpi import size
-from gpaw.new.pw.nschse import NonSelfConsistentHSE06
+from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW as NewGPAW
+from gpaw.new.pw.nschse import NonSelfConsistentHSE06
 
 
 @pytest.fixture(scope='module')
@@ -21,10 +21,12 @@ def atoms() -> Atoms:
                         {1: [1, 1, 1],
                          2: [2, 1, 1],
                          4: [2, 2, 1],
-                         8: [2, 2, 2]}[size]))
+                         8: [2, 2, 2]}[world.size]))
     a.calc = GPAW(mode=PW(200),
                   kpts=(n, n, 1),
                   xc='PBE',
+                  convergence={'bands': 2},
+                  nbands=4,
                   parallel=parallel)
     a.get_potential_energy()
     return a
@@ -34,27 +36,31 @@ def bandgap(eps: np.ndarray) -> tuple[int, int, float]:
     """Find band-gap."""
     k1 = eps[0, :, 0].argmax()
     k2 = eps[0, :, 1].argmin()
+    print(eps)
     return k1, k2, eps[0, k2, 1] - eps[0, k1, 0]
 
 
-gaps = {'EXX': 21.45,
-        'PBE0': 13.93,
-        'HSE06': 14.44,
-        'PBE': 11.63}
+gaps = {'EXX': 21.04,
+        'PBE0': 13.56,
+        'HSE06': 14.08,
+        'PBE': 11.29}
 
 
 @pytest.mark.libxc
 @pytest.mark.hybrids
+@pytest.mark.new_gpaw_ready
 @pytest.mark.parametrize('xc', ['EXX', 'PBE0', 'HSE06'])
-def test_kpts(xc: str, atoms: Atoms) -> None:
+def test_kpts(xc: str, atoms: Atoms, gpaw_new, comm) -> None:
+    if gpaw_new and comm.size >= 4:
+        pytest.skip('only parallel over domain')
     c = atoms.calc
     e0, v0, v = non_self_consistent_eigenvalues(c, xc)
     e = e0 - v0 + v
     k1, k2, gap = bandgap(e)
-    assert k1 == 4 and k2 == 7
+    assert k1 == 4 and k2 == 5
     assert gap == pytest.approx(gaps[xc], abs=0.01)
     k1, k2, gap = bandgap(e0)
-    assert k1 == 4 and k2 == 7
+    assert k1 == 4 and k2 == 5
     assert gap == pytest.approx(gaps['PBE'], abs=0.01)
 
 

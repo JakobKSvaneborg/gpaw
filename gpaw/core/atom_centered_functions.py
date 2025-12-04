@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
+
 from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
                                    AtomDistribution)
-from gpaw.old.kpt_descriptor import KPointDescriptor
+from gpaw.gpu import XP
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
 from gpaw.mpi import MPIComm, serial_comm
-from gpaw.new import zips, trace
+from gpaw.new import trace, zips
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.spline import Spline
 from gpaw.typing import Array1D, ArrayLike2D
-from gpaw.gpu import XP
 
 if TYPE_CHECKING:
     from gpaw.core.uniform_grid import UGArray
@@ -32,7 +33,7 @@ class AtomCenteredFunctions(XP):
                  relpos_ac: ArrayLike2D,
                  atomdist: AtomDistribution | None = None,
                  xp=None):
-        XP.__init__(self, xp or np)
+        super().__init__(xp or np)
         self.functions = [[to_spline(*f) if isinstance(f, tuple) else f
                            for f in funcs]
                           for funcs in functions]
@@ -133,10 +134,7 @@ class UGAtomCenteredFunctions(AtomCenteredFunctions):
                  integrals=None,
                  cut=False,
                  xp=np):
-        AtomCenteredFunctions.__init__(self,
-                                       functions,
-                                       relpos_ac,
-                                       atomdist, xp=xp)
+        super().__init__(functions, relpos_ac, atomdist, xp=xp)
         self.grid = grid
         self.integrals = integrals
         self.cut = cut

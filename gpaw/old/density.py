@@ -9,15 +9,15 @@ import numpy as np
 from ase.units import Bohr
 
 from gpaw import debug
-from gpaw.mixer import get_mixer_from_keywords, MixerWrapper
-from gpaw.transformers import Transformer
 from gpaw.lfc import LFC, BasisFunctions
+from gpaw.mixer import MixerWrapper, get_mixer_from_keywords
+from gpaw.old.arraydict import ArrayDict
 from gpaw.old.wavefunctions.lcao import LCAOWaveFunctions
-from gpaw.utilities import (unpack_density, unpack_atomic_matrices,
-                            pack_atomic_matrices)
+from gpaw.transformers import Transformer
+from gpaw.utilities import (pack_atomic_matrices, unpack_atomic_matrices,
+                            unpack_density)
 from gpaw.utilities.partition import AtomPartition
 from gpaw.utilities.timing import nulltimer
-from gpaw.old.arraydict import ArrayDict
 
 
 class CompensationChargeExpansionCoefficients:
@@ -406,7 +406,7 @@ class Density:
     def get_correction(self, a, spin):
         """Integrated atomic density correction.
 
-        Get the integrated correction to the pseuso density relative to
+        Get the integrated correction to the pseudo density relative to
         the all-electron density.
         """
         setup = self.setups[a]
@@ -687,7 +687,7 @@ class RealSpaceDensity(Density):
     def __init__(self, gd, finegd, nspins, collinear, charge, redistributor,
                  stencil=3,
                  background_charge=None):
-        Density.__init__(self, gd, finegd, nspins, collinear,
+        super().__init__(gd, finegd, nspins, collinear,
                          charge, redistributor,
                          background_charge=background_charge)
         self.stencil = stencil
@@ -695,7 +695,7 @@ class RealSpaceDensity(Density):
         self.interpolator = None
 
     def initialize(self, setups, timer, magmom_a, hund):
-        Density.initialize(self, setups, timer, magmom_a, hund)
+        super().initialize(setups, timer, magmom_a, hund)
 
         # Interpolation function for the density:
         self.interpolator = Transformer(self.redistributor.aux_gd,
@@ -714,7 +714,7 @@ class RealSpaceDensity(Density):
                         integral=sqrt(4 * pi), forces=True)
 
     def set_positions(self, spos_ac, atom_partition):
-        Density.set_positions(self, spos_ac, atom_partition)
+        super().set_positions(spos_ac, atom_partition)
         self.nct_G = self.gd.zeros()
         self.nct.add(self.nct_G, 1.0 / self.nspins)
 

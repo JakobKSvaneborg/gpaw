@@ -1,6 +1,6 @@
 from math import sqrt
-import pytest
 
+import pytest
 from ase import Atoms
 
 from gpaw.cluster import Cluster

@@ -1,10 +1,11 @@
-from gpaw.mpi import world
 import numpy as np
+import pytest
 from ase.units import Ha
-from gpaw.response.pair import get_gs_and_context
+
+from gpaw.mpi import world
 from gpaw.response.chi0 import (Chi0Calculator, get_frequency_descriptor,
                                 get_omegamax)
-import pytest
+from gpaw.response.pair import get_gs_and_context
 
 
 @pytest.mark.response
