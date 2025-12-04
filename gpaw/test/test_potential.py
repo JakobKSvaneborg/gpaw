@@ -1,8 +1,6 @@
 import pytest
 from ase import Atoms
 
-from gpaw.mpi import world
-
 
 @pytest.mark.serial
 def test_potential(gpaw_new, mpi):

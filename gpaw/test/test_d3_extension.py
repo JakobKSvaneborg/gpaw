@@ -3,7 +3,6 @@ import pytest
 from ase import Atoms
 
 from gpaw import restart
-from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW
 from gpaw.new.extensions import D3
 

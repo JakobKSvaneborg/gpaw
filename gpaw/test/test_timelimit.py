@@ -1,7 +1,7 @@
 import pytest
 from ase.build import molecule
 
-from gpaw import GPAW, KohnShamConvergenceError
+from gpaw import KohnShamConvergenceError
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.tddft import TDDFT
 from gpaw.utilities.timelimit import TimeLimiter

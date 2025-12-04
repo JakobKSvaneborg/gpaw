@@ -1,7 +1,6 @@
 import pytest
 from ase import Atoms
 
-from gpaw import GPAW
 from gpaw.mpi import world
 from gpaw.spinorbit import soc_eigenstates
 

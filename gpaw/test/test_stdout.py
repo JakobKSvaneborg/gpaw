@@ -13,7 +13,7 @@ def test_stdout(mpi):
     try:
         from ase import Atom, Atoms
 
-        from gpaw import GPAW, FermiDirac
+        from gpaw import FermiDirac
 
         a = 5.0
         h = 0.2

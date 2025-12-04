@@ -2,7 +2,6 @@
 import pytest
 from ase import Atoms
 
-from gpaw import GPAW
 from gpaw.old.grid_descriptor import GridBoundsError
 from gpaw.utilities import AtomsTooClose
 

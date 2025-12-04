@@ -6,7 +6,6 @@ import pytest
 from ase import Atoms
 from ase.calculators.tip3p import TIP3P, angleHOH, rOH
 from ase.constraints import FixBondLengths
-from ase.io import read
 from ase.io.trajectory import Trajectory
 from ase.md import Langevin as Langevin0
 

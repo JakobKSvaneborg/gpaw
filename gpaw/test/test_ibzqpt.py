@@ -2,6 +2,7 @@ import numpy as np
 from ase.build import bulk
 from ase.dft.kpoints import monkhorst_pack
 
+
 def test_ibzqpt(mpi):
     for kpt in (3, 4):
         kpts = (kpt, kpt, kpt)

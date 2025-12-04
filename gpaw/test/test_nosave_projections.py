@@ -3,6 +3,7 @@ from ase.build import bulk
 
 from gpaw.new.ase_interface import GPAW
 
+
 # Prevent grid-dependent crash:
 @pytest.fixture(scope='module')
 def parallel(_not_world):

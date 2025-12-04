@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from ase import Atoms
 
-from gpaw import GPAW, FermiDirac, MixerSum
+from gpaw import FermiDirac, MixerSum
 
 
 def test_fermisplit(in_tmp_dir, mpi):

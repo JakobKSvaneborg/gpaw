@@ -1,7 +1,5 @@
 from ase import Atoms
 
-from gpaw import GPAW
-
 
 def test_force_as_stop(mpi):
     H2 = Atoms('H2', positions=[(0, 0, 0), (1, 0, 0)])
