@@ -6,6 +6,21 @@ class DistributedArrays:
         self.a_unX = a_unX
         self.comm = comm
 
+    def copy(self):
+        return DistributedArrays(
+            [a_nX.copy() for a_nX in self.a_unX], self.comm)
+
+    def __neg__(self):
+        b_unX = self.copy()
+        for b_nX in b_unX:
+            b_nX.data *= -1.0
+        return b_unX
+
+    def __mmul__(self, other):
+        return self.comm.sum_scalar(
+            sum(a_nX.trace_inner_product(b_nX)
+                for a_nX, b_nX in zip(self.a_unX, other.a_unX)))
+
 
 class LBFGS:
     def __init__(self,
@@ -96,9 +111,7 @@ class LBFGS:
             self.dy[m] = g_cur - self.g_old
 
             # Compute curvature y^T * s
-            dyds = np.sum(self.dy[m].conj() * self.ds[m]).real
-            # Sum over k-points for parallel calculations
-            dyds = self.kpt_comm.sum_scalar(dyds)
+            dyds = self.dy[m] @ self.ds[m]
 
             # Compute L-BFGS scaling factor rho = 1 / (y^T * s)
             if abs(dyds) > 1.0e-20:
@@ -110,9 +123,9 @@ class LBFGS:
             # Step 3: Stability check
             if self.rho[m] < 0:
                 self.local_iter = 0
-                self.rho *= 0
-                self.ds *= 0
-                self.dy *= 0
+                self.rho[:] = 0.0
+                self.ds[:] = 0.0
+                self.dy[:] = 0.0
                 return self.update(a_cur, g_cur)
 
             # Step 4: Two-loop recursion to compute search direction
@@ -128,21 +141,19 @@ class LBFGS:
                 k -= 1
 
                 # Dot product s^T * q
-                sq = np.sum(self.ds[c_ind].conj() * q).real
-                sq = self.kpt_comm.sum_scalar(sq)
+                sq = self.ds[c_ind] @ q
 
                 # Scaling factor for this step
                 alpha[c_ind] = self.rho[c_ind] * sq
 
                 # Update q
-                q -= alpha[c_ind] * self.dy[c_ind]
+                q += -alpha[c_ind] * self.dy[c_ind]
 
             # Step 5: Scale by initial Hessian approximation
-            yy = np.sum(self.dy[m].conj() * self.dy[m]).real
-            yy = self.kpt_comm.sum_scalar(yy)
+            yy = self.dy[m] @ self.dy[m]
             # avoid divide by zero
             devis = np.maximum(self.rho[m] * yy, 1.0e-20)
-            self.search_dir = q / devis
+            self.search_dir = q * (1 / devis)
 
             # Second loop: forward over stored vectors
             for k in range(self.memory):
@@ -152,8 +163,7 @@ class LBFGS:
                     c_ind = (k + m + 1) % self.memory
 
                 # Compute beta = rho * y^T * r
-                yr = np.sum(self.dy[c_ind].conj() * self.search_dir).real
-                yr = self.kpt_comm.sum_scalar(yr)
+                yr = self.dy[c_ind] @ self.search_dir
                 beta = self.rho[c_ind] * yr
 
                 # Update search direction with alpha and beta corrections

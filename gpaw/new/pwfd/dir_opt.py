@@ -117,9 +117,10 @@ class DirOptPWFD(PWFDEigensolver):
             kpt_comm = getattr(ibzwfs, 'kpt_comm', None)
 
             # Create LBFGS
-            self.search_dir = LBFGS(array_unX=psit_unX, kpt_comm=kpt_comm)
+            self.search_dir = LBFGS()#array_unX=psit_unX, kpt_comm=kpt_comm)
 
-        p_unX = self.search_dir.update_distributed(psit_unX, pg_unX)
+        p_unX = self.search_dir.update_distributed(psit_unX, pg_unX,
+                                                   ibzwfs.kpt_comm)
         for wfs, p_nX in zips(ibzwfs, p_unX):
             # projecting search direction on tangent space at psi
             # is slightly different from project gradient
