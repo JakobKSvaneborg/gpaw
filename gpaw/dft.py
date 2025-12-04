@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any, Union, Literal, Dict
 
 import numpy as np
+from numpy.typing import DTypeLike
+
 from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
 
