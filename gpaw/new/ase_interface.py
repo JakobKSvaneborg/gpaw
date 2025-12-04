@@ -784,7 +784,7 @@ class ASECalculator:
         if self.comm.rank == 0:
             gpw = tempfile.mkstemp(suffix='.gpw')[1]
         else:
-            gpw = ''
+            gpw = None
         gpw = broadcast_string(gpw, comm=self.comm)
         self.write(gpw, mode='all')
         return OldGPAW(gpw)
