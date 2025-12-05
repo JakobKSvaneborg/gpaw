@@ -73,19 +73,10 @@ def run_single_precision(dtype, gpu):
                       mode={'name': 'pw',
                             'ecut': 200.0,
                             'dtype': dtype},
-                      eigensolver={'name': 'dav',
-                                   'niter': 5},
                       parallel={'gpu': gpu}
                       )
     atoms.get_potential_energy()
 
-    atoms.calc.dft.params.convergence = {'energy': 1e-4,
-                                         'density': 1e-4,
-                                         'eigenstates': 1e-7}
-    atoms.calc.dft.params.eigensolver = {'name': 'rmm-diis',
-                                         'niter': 5,
-                                         'trial_step': 0.1}
-    atoms.calc.create_new_calculation_from_old(atoms)
     e_pot = atoms.get_potential_energy()
 
     expected_e = 9.595593485742606
@@ -110,7 +101,10 @@ def run_single_precision_rmmdiis(dtype):
                       **{'random': True,
                          'mixer': {'backend': 'fft'}}
                       if GPAW_NO_C_EXTENSION else {},
-                      eigensolver={'name': 'rmm-diis'},
+                      eigensolver={'name': 'rmm-diis',
+                                   'trial_step': 0.1,
+                                   'niter': 1,
+                                   'diis_steps': 1,},
                       parallel={'gpu': True}
                       )
 
