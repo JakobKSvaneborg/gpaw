@@ -144,9 +144,9 @@ class RMMDIIS(PWFDEigensolver):
         PR_nX = psit_nX.create_work_buffer(self.data_buffers[0, 0])
         dR_nX = psit_nX.create_work_buffer(self.data_buffers[1, 0])
 
-        Ht(PR_nX, out=dR_nX)
         preconditioner(psit_nX, R_nX, out=PR_nX,
                        ekin_n=ekin_n)
+        Ht(PR_nX, out=dR_nX)
         pt_aiX.integrate(PR_nX, out=P_ani)  # XXX: This is expensive
         calculate_residuals(PR_nX, dR_nX, pt_aiX, P_ani, eig_n,
                             dH, dS_aii, P1_ani, P2_ani)

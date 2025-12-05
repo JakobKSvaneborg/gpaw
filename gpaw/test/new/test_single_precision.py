@@ -101,10 +101,7 @@ def run_single_precision_rmmdiis(dtype):
                       **{'random': True,
                          'mixer': {'backend': 'fft'}}
                       if GPAW_NO_C_EXTENSION else {},
-                      eigensolver={'name': 'rmm-diis',
-                                   'trial_step': 0.1,
-                                   'niter': 1,
-                                   'diis_steps': 1,},
+                      eigensolver={'name': 'rmm-diis'},
                       parallel={'gpu': True}
                       )
 
