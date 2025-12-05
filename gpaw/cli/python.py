@@ -35,6 +35,11 @@ class CLICommand:
 
     @staticmethod
     def run(args):
+        import os
+
+        if 'OMP_NUM_THREADS' not in os.environ:
+            os.environ['OMP_NUM_THREADS'] = '1'
+
         from gpaw import __getattr__, all_lazy_imports, broadcast_imports
         with broadcast_imports:
             for attr in all_lazy_imports:
