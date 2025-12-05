@@ -360,7 +360,8 @@ class CSCGAdapter:
               time_step: float):
         self._time_step = time_step
         out_nR.data[:] = init_guess_nR.data
-        self.solver.solve(self, out_nR.data, rhs_nR.data)
+        # XXX Where do we get world from?
+        self.solver.solve(self, out_nR.data, rhs_nR.data, world=None)
         self._time_step = None
 
     def dot(self, psit_nR: np.ndarray, out_nR: np.ndarray):

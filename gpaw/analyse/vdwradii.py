@@ -1,7 +1,7 @@
 from ase.data import atomic_numbers, chemical_symbols
 from ase.units import Bohr
 
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 from gpaw.setup import Setups
 from gpaw.xc import XC
 
@@ -26,7 +26,6 @@ collected_vdWradii = Bondi64jpc_vdWradii
 collected_vdWradii['Rn'] = Pyykko97cr_vdWradii['Rn']
 
 
-@parallel(name='world')
 def vdWradii(symbols, xc, *, world):
     """Find the elements van der Waals radius.
 
@@ -35,6 +34,7 @@ def vdWradii(symbols, xc, *, world):
 
     The returned radii are given in Angstroms.
     """
+    world = normalize_communicator(world)
     Z_rare_gas = [atomic_numbers[symbol] for symbol in Bondi64jpc_vdWradii]
     Z_rare_gas.append(atomic_numbers['Rn'])
     Z_rare_gas.sort()

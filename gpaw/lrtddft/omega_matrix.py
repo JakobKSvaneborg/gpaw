@@ -51,7 +51,7 @@ class OmegaMatrix:
         self.fullkss = kss
 
         if filehandle is not None:
-            self.read(fh=filehandle)
+            self.read(fh=filehandle, world=eh_comm)
             return None
 
         self.finegrid = finegrid
@@ -540,7 +540,7 @@ class OmegaMatrix:
         t = .5 * t * (nij - ij)  # estimated time for n*(n+1)/2, n=nij-(ij+1)
         return self.timestring(t0 * (nij - ij - 1) + t)
 
-    def get_map(self, restrict=None):
+    def get_map(self, restrict=None, comm=None):
         """Return the reduction map for the given requirements
 
         Returns
@@ -548,6 +548,7 @@ class OmegaMatrix:
         map - list of original indices
         kss - reduced KSSingles object
         """
+        comm = mpi.normalize_communicator(comm)
         self.log('# diagonalize: %d transitions original'
                  % len(self.fullkss))
 
@@ -556,7 +557,7 @@ class OmegaMatrix:
         rst_dict = self.fullkss.restrict.values
         if restrict is not None:
             rst_dict.update(restrict)
-        kss = KSSingles(restrict=rst_dict)
+        kss = KSSingles(restrict=rst_dict, world=comm)
         kss.dtype = self.fullkss.dtype
 
         for ij, k in zip(range(len(self.fullkss)), self.fullkss):
@@ -568,9 +569,10 @@ class OmegaMatrix:
 
         return map, kss
 
-    def diagonalize(self, restrict=None):
+    def diagonalize(self, restrict=None, comm=None):
         """Evaluate Eigenvectors and Eigenvalues:"""
-        map, kss = self.get_map(restrict)
+        comm = mpi.normalize_communicator(comm)
+        map, kss = self.get_map(restrict, comm=comm)
 
         nij = len(kss)
         if map is None:
@@ -597,8 +599,10 @@ class OmegaMatrix:
         """Set current (restricted) KSSingles object"""
         self._kss = kss
 
-    def read(self, filename=None, fh=None):
+    def read(self, filename=None, fh=None, *, world):
         """Read myself from a file"""
+        # This implementation does not use world, but another one exists
+        # which does use it.
         if fh is None:
             f = open(filename)
         else:

@@ -284,7 +284,7 @@ class AEOrbital:
         elif txt == '-':
             self.txt = sys.stdout
         elif isinstance(txt, str):
-            self.txt = paropen(txt, 'w')
+            self.txt = paropen(txt, 'w', comm=paw.wfs.world)
         else:
             self.txt = txt
 

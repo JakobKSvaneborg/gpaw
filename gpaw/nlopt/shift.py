@@ -3,12 +3,11 @@ from ase.parallel import parprint
 from ase.units import Ha, J, _e, _hbar
 from ase.utils.timing import Timer
 
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 from gpaw.nlopt.matrixel import get_derivative, get_rml
 from gpaw.utilities.progressbar import ProgressBar
 
 
-@parallel(name='world')
 def get_shift(
         nlodata,
         freqs=[1.0],
@@ -18,8 +17,7 @@ def get_shift(
         ftol=1e-4, Etol=1e-6,
         band_n=None,
         out_name='shift.npy',
-        *,
-        world):
+        world=None):
     """
     Calculate RPA shift current for nonmagnetic semiconductors.
 
@@ -46,6 +44,7 @@ def get_shift(
         Numpy array containing the spectrum and frequencies.
 
     """
+    world = normalize_communicator(world)
 
     # Start a timer
     timer = Timer()
@@ -61,7 +60,7 @@ def get_shift(
     # Useful variables
     pol_v = ['xyz'.index(ii) for ii in pol]
 
-    parprint(f'Calculation for element {pol}.')
+    parprint(f'Calculation for element {pol}.', comm=world)
 
     # Load the required data
     with timer('Load and distribute the data'):
@@ -73,7 +72,8 @@ def get_shift(
             if band_n is None:
                 band_n = list(range(nb))
             mem = 6 * 3 * nk * nb**2 * 16 / 2**20
-            parprint(f'At least {mem:.2f} MB of memory is required.')
+            parprint(f'At least {mem:.2f} MB of memory is required.',
+                     comm=world)
 
     # Initial call to print 0% progress
     count = 0

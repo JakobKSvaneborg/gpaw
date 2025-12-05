@@ -30,7 +30,7 @@ from ase.phonons import Phonons
 from ase.utils.filecache import MultiFileJSONCache
 from ase.utils.timing import Timer, timer
 
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 from gpaw.old.calculator import GPAW
 from gpaw.typing import ArrayND
 
@@ -42,10 +42,9 @@ OPTIMIZE = "optimal"
 class ElectronPhononMatrix:
     """Class for containing the electron-phonon matrix"""
 
-    @parallel(name='world')
     def __init__(self, atoms: Atoms, supercell_cache: str, phonon,
                  load_sc_as_needed: bool = True, indices=None,
-                 *, world) -> None:
+                 world=None) -> None:
         """Initialize with base class args and kwargs.
 
         Parameters
@@ -65,6 +64,7 @@ class ElectronPhononMatrix:
         indices: list
             List of atoms (indices) to use. Default: Use all.
         """
+        world = normalize_communicator(world)
 
         self.world = world
         if not load_sc_as_needed:

@@ -198,7 +198,11 @@ class ASECalculator:
         * magmoms
         * dipole
         """
-        for _ in self.iconverge(atoms, need_wfs=prop in {'forces', 'stress'}):
+        if self._dft is None:
+            need_wfs = True
+        else:
+            need_wfs = prop not in self.dft.results
+        for _ in self.iconverge(atoms, need_wfs=need_wfs):
             pass
 
         if prop == 'forces':
@@ -780,7 +784,7 @@ class ASECalculator:
         if self.comm.rank == 0:
             gpw = tempfile.mkstemp(suffix='.gpw')[1]
         else:
-            gpw = ''
+            gpw = None
         gpw = broadcast_string(gpw, comm=self.comm)
         self.write(gpw, mode='all')
         return OldGPAW(gpw)

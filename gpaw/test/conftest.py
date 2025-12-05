@@ -466,6 +466,31 @@ def rng():
     return np.random.default_rng(42)
 
 
+class MPIHelper:
+    def __init__(self, comm):
+        self.comm = comm
+
+    def GPAW(self, *args, **kwargs):
+        from gpaw import GPAW
+
+        return GPAW(*args, communicator=self.comm, **kwargs)
+
+    def NewGPAW(self, *args, **kwargs):
+        from gpaw.new.ase_interface import GPAW
+
+        return GPAW(*args, communicator=self.comm, **kwargs)
+
+    def OldGPAW(self, *args, **kwargs):
+        from gpaw.dft import GPAW as AnyGPAW
+        return AnyGPAW(*args, communicator=self.comm,
+                       _use_old_gpaw=True, **kwargs)
+
+
+@pytest.fixture
+def mpi(comm):
+    return MPIHelper(comm)
+
+
 @pytest.fixture
 def gpaw_new() -> bool:
     """Are we testing the new code?"""

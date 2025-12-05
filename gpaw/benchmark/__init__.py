@@ -9,7 +9,7 @@ from time import time
 import numpy as np
 
 from gpaw.benchmark.systems import parse_system
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 from gpaw.utilities.memory import maxrss
 
 pw_default_parameters = {'mode': {'name': 'pw', 'ecut': 400}}
@@ -82,12 +82,12 @@ benchmarks_list = [
      '56-:100G:2-GPU')]
 
 
-@parallel(name='world')
-def get_domainband(size=None, *, world):
+def get_domainband(size=None, world=None):
     """Divide a world size to domain and bands (as square as possible)
 
     If size is None then use the mpi.world.size.
     """
+    world = normalize_communicator(world)
     if size is None:
         size = world.size
 
@@ -245,7 +245,6 @@ def shell_command(cmd, cwd=None):
     return output
 
 
-@parallel(name='world')
 def gather_system_information(world):
     import gpaw
     return {'processor': shell_command('lscpu'),
@@ -294,11 +293,11 @@ def parse_name(name):
     return short_name, long_name, calc_info
 
 
-@parallel(name='world')
-def benchmark_atoms_and_calc(long_name, calc_info, world):
+def benchmark_atoms_and_calc(long_name, calc_info, world=None):
     """Create atoms and calculator ibject from long name and calculator
     info (new/old)
     """
+    world = normalize_communicator(world)
     if calc_info == 'new':
         from gpaw.new.ase_interface import GPAW
     elif calc_info == 'old':
@@ -386,14 +385,14 @@ class Benchmark(Walltime):
         Path(fname).write_text(dumps(self.todict()))
 
 
-@parallel(name='world')
-def benchmark_main(name, *, world):
+def benchmark_main(name, world=None):
+    world = normalize_communicator(world)
     # Run the gs_and_move_atoms benchmars for 'name' where
     # name can be either a short name or a long name.
     short_name, long_name, calc_info = parse_name(name)
 
     if world.rank == 0:
-        system_info = gather_system_information()
+        system_info = gather_system_information(world)
         print('Running benchmark', name)
     else:
         system_info = None

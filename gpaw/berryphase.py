@@ -7,7 +7,6 @@ import numpy as np
 from ase import Atoms
 from ase.dft.bandgap import bandgap
 from ase.dft.kpoints import get_monkhorst_pack_size_and_offset
-from ase.parallel import parprint
 
 from gpaw import GPAW
 from gpaw.ibz2bz import (get_overlap, get_overlap_coefficients,
@@ -214,11 +213,11 @@ def polarization_phase(gpw_wfs: Path, comm, cleanup: bool = False):
 
 
 def _get_phases(gpw_wfs: Path, cleanup: bool = False):
-    parprint(f'Reading wfs from {gpw_wfs}')
+    print(f'Reading wfs from {gpw_wfs}')
     calc = GPAW(gpw_wfs, communicator=serial_comm, txt=None)
     atoms = calc.get_atoms()
 
-    parprint('Calculating polarization')
+    print('Calculating polarization')
     electronic_phase_c = get_electronic_polarization_phase(calc)
     # valence electron number for each atom
     Nv_a = [setup.Nv for setup in calc.setups]
@@ -294,7 +293,7 @@ def get_dipole_polarization_phase(dipole_v, cell_cv):
 
 
 def parallel_transport(calc, direction=0, name=None, scale=1.0, bands=None,
-                       theta=0.0, phi=0.0, *, comm=None):
+                       theta=0.0, phi=0.0, comm=None):
     """
     Parallel transport.
     The parallel transport algorithm corresponds to the construction
@@ -309,7 +308,6 @@ def parallel_transport(calc, direction=0, name=None, scale=1.0, bands=None,
     Output:
     phi_km, S_km (see above)
     """
-
     comm = normalize_communicator(comm)
 
     if isinstance(calc, str):
