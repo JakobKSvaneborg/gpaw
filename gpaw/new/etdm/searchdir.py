@@ -2,9 +2,11 @@ import numpy as np
 
 
 class MultiXArrays:
-    def __init__(self, a_unX, weihgts, comm):
+    def __init__(self, a_unX, weights=None, comm=None):
         self.a_unX = a_unX
-        self.weights = weihgts
+        if weights is None:
+            weights = [1.0] * len(a_unX)
+        self.weights = weights
         self.comm = comm
 
     def new(self, a_unX):

@@ -1,6 +1,6 @@
 import numpy as np
 from ase.parallel import parprint as print
-from .searchdir import LBFGS
+from gpaw.new.etdm.searchdir import LBFGS, MultiXArrays
 
 
 class ETDM:
@@ -47,9 +47,10 @@ class ETDM:
         # Initialize LBFGS search direction algorithm
         # `searchdir_algo` keeps track of the search direction `p_u`
         # and performs the quasi-Newton update.
-        self.searchdir_algo = LBFGS(array_shape=a_u_init.shape,
-                                    dtype=objfunc._dtype,
-                                    kpt_comm=objfunc.kpt_comm)
+        self.searchdir_algo = LBFGS()
+        # array_shape=a_u_init.shape,
+        # dtype=objfunc._dtype,
+        # kpt_comm=objfunc.kpt_comm)
 
         self.iter = 0                   # Iteration counter
         self._tolerance = tolerance     # Convergence threshold
@@ -71,7 +72,10 @@ class ETDM:
         """
         while (not self.is_converged) and self.iter < self._max_iter:
             # Update the search direction using LBFGS
-            self.searchdir_algo.update(self.a_u, self.gradient)
+            print(self.a_u.shape);Asdg
+            self.searchdir_algo.update(
+                MultiXArrays(self.a_u, comm=self.objfunc.kpt_comm),
+                MultiXArrays(self.gradient, comm=self.objfunc.kpt_comm))
 
             # Move parameters along the search direction
             self.move()
