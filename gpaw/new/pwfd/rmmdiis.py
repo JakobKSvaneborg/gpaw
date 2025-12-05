@@ -8,7 +8,6 @@ from gpaw.gpu import as_np
 from gpaw.new import zips as zip
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.new.pwfd.davidson import sliced_preconditioner
 
 
 class RMMDIIS(PWFDEigensolver):
@@ -76,11 +75,11 @@ class RMMDIIS(PWFDEigensolver):
         P0_ani = P_ani.layout.empty(blocksize)
         P1_ani = P_ani.layout.empty(blocksize)
         P2_ani = P_ani.layout.empty(blocksize)
-            
+
         for iteration in range(self.niter):
             wfs.subspace_diagonalize(Ht, dH,
-                                    psit2_nX=residual_nX,
-                                    data_buffer=self.data_buffers[0, 0])
+                                     psit2_nX=residual_nX,
+                                     data_buffer=self.data_buffers[0, 0])
             calculate_residuals(wfs.psit_nX, residual_nX, wfs.pt_aiX,
                                 wfs.P_ani, wfs.myeig_n,
                                 dH, dS_aii, work1_ani, work2_ani)
@@ -213,9 +212,10 @@ class RMMDIIS(PWFDEigensolver):
                 psit_new_nX.data += R_new_nX.data * lambda_n
 
                 Ht(psit_new_nX, out=R_new_nX)
-                pt_aiX.integrate(psit_new_nX, out=P_ani)  # XXX: This is expensive
-                calculate_residuals(psit_new_nX, R_new_nX, pt_aiX, P_ani,
-                                    eig_n, dH, dS_aii, P1_ani, P2_ani)
+                pt_aiX.integrate(psit_new_nX, out=P_ani)  # XXX: Expensive
+                calculate_residuals(psit_new_nX, R_new_nX, pt_aiX,
+                                    P_ani, eig_n, dH, dS_aii,
+                                    P1_ani, P2_ani)
             R_mnX.append(R_new_nX)
             psits_mnX.append(psit_new_nX)
 
