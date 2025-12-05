@@ -172,7 +172,7 @@ class RMMDIIS(PWFDEigensolver):
 
         A_nmm = -xp.ones(
             (blocksize, self.diis_steps + 1, self.diis_steps + 1), dtype=dtype)
-        b_nm = -xp.ones((blocksize, self.diis_steps + 1), dtype=dtype)  # XXX: +/-?
+        b_nm = -xp.ones((blocksize, self.diis_steps + 1), dtype=dtype)
         for m1, R1_nX in enumerate(R_mnX):
             for m2, R2_nX in enumerate(R_mnX):
                 for b in range(blocksize):
