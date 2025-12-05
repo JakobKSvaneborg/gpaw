@@ -1,25 +1,30 @@
 import numpy as np
 
 
-class DistributedArrays:
-    def __init__(self, a_unX, comm):
+class MultiXArrays:
+    def __init__(self, a_unX, weihgts, comm):
         self.a_unX = a_unX
+        self.weights = weihgts
         self.comm = comm
 
+    def new(self, a_unX):
+        return MultiXArrays(a_unX, self.weights, self.comm)
+
     def copy(self):
-        return DistributedArrays(
-            [a_nX.copy() for a_nX in self.a_unX], self.comm)
+        return self.new(
+            [a_nX.copy() for a_nX in self.a_unX])
 
     def __neg__(self):
         b_unX = self.copy()
-        for b_nX in b_unX:
+        for b_nX in b_unX.a_unX:
             b_nX.data *= -1.0
         return b_unX
 
     def __mmul__(self, other):
         return self.comm.sum_scalar(
-            sum(a_nX.trace_inner_product(b_nX)
-                for a_nX, b_nX in zip(self.a_unX, other.a_unX)))
+            sum(weight * a_nX.trace_inner_product(b_nX)
+                for weight, a_nX, b_nX
+                in zip(self.weights, self.a_unX, other.a_unX)))
 
 
 class LBFGS:
@@ -180,26 +185,3 @@ class LBFGS:
 
             # Return updated search direction
             return self.search_dir
-
-    def update_distributed(self, psit_unX, pg_unX, kpt_comm):
-        """
-        Convert distributed vectors to NumPy arrays,
-        call L-BFGS, and convert back.
-        """
-        # Convert old vectors to NumPy arrays
-        # a_cur = np.stack([x.data for x in psit_unX])
-        # g_cur = np.stack([g.data for g in pg_unX])
-
-        # Call the new LBFGS
-        p_cur = self.update(DistributedArrays(psit_unX, kpt_comm),
-                            DistributedArrays(pg_unX, kpt_comm))
-        return p_cur.a_unX
-
-        # Convert back to old-style objects
-        p_unX_new = []
-        for p_vec, old_vec in zip(p_cur, psit_unX):
-            new_vec = old_vec.new()  # create empty vector same type as old
-            new_vec.data[:] = p_vec
-            p_unX_new.append(new_vec)
-
-        return p_unX_new

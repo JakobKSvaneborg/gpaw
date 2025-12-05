@@ -11,7 +11,7 @@ from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.potential import Potential
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver
-from gpaw.new.etdm.searchdir import LBFGS
+from gpaw.new.etdm.searchdir import LBFGS, MultiXArrays
 
 
 class DirOptPWFD(PWFDEigensolver):
@@ -111,16 +111,15 @@ class DirOptPWFD(PWFDEigensolver):
             pg_nX.data *= -1.0 / (2 * (3 - len(self.nocc_s)))
             pg_unX.append(pg_nX)
 
-        # initialize LBFGS
         if self.search_dir is None:
-            # Communication object
-            kpt_comm = getattr(ibzwfs, 'kpt_comm', None)
+            self.search_dir = LBFGS()
 
-            # Create LBFGS
-            self.search_dir = LBFGS()#array_unX=psit_unX, kpt_comm=kpt_comm)
+        weights = [wfs.weight for wfs in ibzwfs]
 
-        p_unX = self.search_dir.update_distributed(psit_unX, pg_unX,
-                                                   ibzwfs.kpt_comm)
+        p_unX = self.search_dir.update(
+            MultiXArrays(psit_unX, weights, ibzwfs.kpt_comm),
+            MultiXArrays(pg_unX, weights, ibzwfs.kpt_comm)).a_unX
+
         for wfs, p_nX in zips(ibzwfs, p_unX):
             # projecting search direction on tangent space at psi
             # is slightly different from project gradient
