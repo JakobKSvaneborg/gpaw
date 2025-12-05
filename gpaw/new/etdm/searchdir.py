@@ -20,7 +20,26 @@ class MultiXArrays:
             b_nX.data *= -1.0
         return b_unX
 
-    def __mmul__(self, other):
+    def __iadd__(self, other):
+        for a_nX, b_nX in zip(self.a_unX, other.a_unX):
+            a_nX.data += b_nX.data
+        return self
+
+    def __sub__(self, other):
+        a_unX = self.copy()
+        for a_nX, b_nX in zip(a_unX.a_unX, other.a_unX):
+            a_nX.data -= b_nX.data
+        return a_unX
+
+    def __mul__(self, other):
+        a_unX = self.copy()
+        for a_nX in a_unX.a_unX:
+            a_nX.data *= other
+        return a_unX
+
+    __rmul__ = __mul__
+
+    def __matmul__(self, other):
         return self.comm.sum_scalar(
             sum(weight * a_nX.trace_inner_product(b_nX)
                 for weight, a_nX, b_nX
@@ -68,8 +87,8 @@ class LBFGS:
         # Arrays to store last 'memory' differences in variables and gradients
         # ds[m] ~ change in parameters (search direction)
         # dy[m] ~ change in gradients
-        self.ds = [None] * self.memory
-        self.dy = [None] * self.memory
+        self.ds = ['None'] * self.memory
+        self.dy = ['None'] * self.memory
 
         # Scaling factors for L-BFGS (1 / (y^T * s))
         self.rho = np.zeros(self.memory)
@@ -93,6 +112,9 @@ class LBFGS:
 
         # Step 1: First iteration initialization
         if self.local_iter == 0:
+            self.ds = [0.0 * g_cur for _ in range(self.memory)]
+            self.dy = [0.0 * g_cur for _ in range(self.memory)]
+
             # Store current gradient and variables
             self.g_old = g_cur.copy()
             self.a_old = a_cur.copy()

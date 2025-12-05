@@ -886,3 +886,9 @@ class UGArray(DistributedArrays[UGDesc]):
         if show:
             go.Figure(data=[surf]).show()
         return surf
+
+    def trace_inner_product(self, other: UGArray) -> float:
+        assert self.desc.dtype == other.desc.dtype
+        a_xR = self._arrays()
+        b_yR = other._arrays()
+        return np.vdot(a_xR, b_yR).real * self.desc.dv

@@ -909,6 +909,19 @@ class PWArray(DistributedArrays[PWDesc]):
             np.negative(data.imag, data.imag)
         return PWArray(pw2, self.dims, self.comm, data)
 
+    def trace_inner_product(self, other: PWArray) -> float:
+        assert self.comm.size == 1
+        assert self.desc.dtype == other.desc.dtype
+        result = 0.0
+        for a, b in zip(self._arrays(), other._arrays()):
+            result += np.vdot(a, b)
+        if self.desc.dtype == self.real_dtype and self.desc.comm.rank == 0:
+            result -= 0.5 * np.vdot(self.data[:, 0], other.data[:, 0])
+        result = self.desc.comm.sum_scalar(result.real)
+        if self.desc.dtype == self.real_dtype:
+            result *= 2
+        return result * self.dv
+
 
 def a2a_stuff(comm, N, ng, myng, maxmyng):
     """Create arrays for MPI alltoallv call."""
