@@ -8,14 +8,11 @@ from gpaw import GPAW, PW
 def test_pw_bulk():
     bulk = Atoms('Li', pbc=True)
     k = 4
-
     calc = GPAW(mode=PW(200),
                 kpts=(k, k, k),
-                eigensolver={'name': 'rmm-diis',
-                             'niter': 5,
-                             'trial_step': 0.1})
-    bulk.calc = calc
+                eigensolver='rmm-diis')
 
+    bulk.calc = calc
     e = []
     A = [2.6, 2.65, 2.7, 2.75, 2.8]
     for a in A:

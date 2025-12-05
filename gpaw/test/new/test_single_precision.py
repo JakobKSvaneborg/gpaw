@@ -75,10 +75,8 @@ def run_single_precision(dtype, gpu):
                             'dtype': dtype},
                       parallel={'gpu': gpu}
                       )
-    atoms.get_potential_energy()
 
     e_pot = atoms.get_potential_energy()
-
     expected_e = 9.595593485742606
 
     assert atoms.calc.wfs.dtype == dtype
