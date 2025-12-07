@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class MultiXArrays:
+class MultiXArray:
     def __init__(self, a_unX, weights=None, comm=None):
         self.a_unX = a_unX
         if weights is None:
@@ -10,7 +10,7 @@ class MultiXArrays:
         self.comm = comm
 
     def new(self, a_unX):
-        return MultiXArrays(a_unX, self.weights, self.comm)
+        return MultiXArray(a_unX, self.weights, self.comm)
 
     def copy(self):
         return self.new(
@@ -153,8 +153,10 @@ class LBFGS:
             if self.rho[m] < 0:
                 self.local_iter = 0
                 self.rho[:] = 0.0
-                self.ds[:] = 0.0
-                self.dy[:] = 0.0
+                for x in self.ds:
+                    x[:] = 0.0
+                for x in self.dy:
+                    x[:] = 0.0
                 return self.update(a_cur, g_cur)
 
             # Step 4: Two-loop recursion to compute search direction

@@ -1,6 +1,6 @@
 import numpy as np
 from ase.parallel import parprint as print
-from gpaw.new.etdm.searchdir import LBFGS, MultiXArrays
+from gpaw.new.etdm.searchdir import LBFGS
 
 
 class ETDM:
@@ -72,10 +72,9 @@ class ETDM:
         """
         while (not self.is_converged) and self.iter < self._max_iter:
             # Update the search direction using LBFGS
-            print(self.a_u.shape);Asdg
             self.searchdir_algo.update(
-                MultiXArrays(self.a_u, comm=self.objfunc.kpt_comm),
-                MultiXArrays(self.gradient, comm=self.objfunc.kpt_comm))
+                KArray(self.a_u, comm=self.objfunc.kpt_comm),
+                KArray(self.gradient, comm=self.objfunc.kpt_comm))
 
             # Move parameters along the search direction
             self.move()
@@ -97,8 +96,11 @@ class ETDM:
         p_u = self.searchdir_algo.search_dir  # Current LBFGS search direction
 
         # Compute norm of search direction across all k-points
-        strength = np.sum(p_u.conj() * p_u)
-        strength = self.objfunc.kpt_comm.sum(strength.real) ** 0.5
+        # strength = np.sum(p_u.conj() * p_u)
+        # strength = self.objfunc.kpt_comm.sum(strength.real) ** 0.5
+        strength = (p_u @ p_u)**0.5
+
+        p_u = np.array(p_u.a_ux)
 
         # Scale step to prevent too large updates
         alpha = np.minimum(0.25 / strength, 1.0)
@@ -208,3 +210,57 @@ class ETDM:
         """
         self.objfunc.a_vec_u = self.a_u
         return self.objfunc.energy, self.objfunc.gradient
+
+
+class KArray:
+    def __init__(self, a_ux, weights=None, comm=None):
+        self.a_ux = a_ux
+        if weights is None:
+            weights = [1.0] * len(a_ux)
+        self.weights = weights
+        self.comm = comm
+
+    def new(self, a_ux):
+        return KArray(a_ux, self.weights, self.comm)
+
+    def copy(self):
+        return self.new(
+            [a_x.copy() for a_x in self.a_ux])
+
+    def __neg__(self):
+        b_ux = self.copy()
+        for b_x in b_ux.a_ux:
+            b_x *= -1.0
+        return b_ux
+
+    def __iadd__(self, other):
+        for a_x, b_x in zip(self.a_ux, other.a_ux):
+            a_x += b_x
+        return self
+
+    def __sub__(self, other):
+        a_ux = self.copy()
+        for a_x, b_x in zip(a_ux.a_ux, other.a_ux):
+            a_x -= b_x
+        return a_ux
+
+    def __mul__(self, other):
+        a_ux = self.copy()
+        for a_x in a_ux.a_ux:
+            a_x *= other
+        return a_ux
+
+    __rmul__ = __mul__
+
+    def __matmul__(self, other):
+        return self.comm.sum_scalar(
+            sum(weight * np.vdot(a_x, b_x).real
+                for weight, a_x, b_x
+                in zip(self.weights, self.a_ux, other.a_ux)))
+
+    def __setitem__(self, i, v):
+        for a_x in self.a_ux:
+            a_x[i] = v
+
+
+
