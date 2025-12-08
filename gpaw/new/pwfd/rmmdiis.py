@@ -8,6 +8,7 @@ from gpaw.gpu import as_np
 from gpaw.new import zips as zip
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
+from gpaw.utilities import as_dtype_precision
 
 
 class RMMDIIS(PWFDEigensolver):
@@ -132,7 +133,7 @@ class RMMDIIS(PWFDEigensolver):
                 https://gpaw.readthedocs.io/documentation/rmm-diis.html
         """
         xp = psit_nX.xp
-        dtype = psit_nX.data.dtype
+        dtype = psit_nX.desc.dtype
 
         # RMM Part:
         PR_nX = psit_nX.create_work_buffer(self.data_buffers[0, 0])
@@ -164,49 +165,66 @@ class RMMDIIS(PWFDEigensolver):
             blocksize = psit_nX.data.shape[0]
 
             A_nmm = -xp.ones(
-                (blocksize, self.diis_steps + 1, self.diis_steps + 1),
-                dtype=dtype)
-            b_nm = -xp.ones((blocksize, self.diis_steps + 1), dtype=dtype)
+                (blocksize, self.diis_steps + 2, self.diis_steps + 2),
+                dtype=as_dtype_precision(dtype, 'double'))
+            b_nm = -xp.ones((blocksize, self.diis_steps + 2),
+                            dtype=as_dtype_precision(dtype, 'double'))
 
             for m1, R1_nX in enumerate(R_mnX):
                 for m2, R2_nX in enumerate(R_mnX):
                     for b in range(blocksize):
                         A_nmm[b, m1, m2] = R1_nX[b].integrate(R2_nX[b])
 
-            for i in range(2, self.diis_steps + 1):
-                psit_new_nX = psit_nX.create_work_buffer(
-                    self.data_buffers[0, i - 1])
-                R_new_nX = psit_nX.create_work_buffer(
-                    self.data_buffers[1, i - 1])
-                if i > 2:
-                    for m in range(i):
+            for i in range(1, self.diis_steps + 1):
+                # We are already on step 2
+                if i < self.diis_steps:
+                    # Create some buffers
+                    psit_new_nX = psit_nX.create_work_buffer(
+                        self.data_buffers[0, i])
+                    R_new_nX = psit_nX.create_work_buffer(
+                        self.data_buffers[1, i])
+                else:
+                    # Last step, use original wave functions
+                    psit_new_nX = psit_nX
+                    R_new_nX = R_nX
+                if i > 1:
+                    # Avoid DIIS on the first step, since the matrix
+                    # is singular.
+                    for m in range(i + 1):
                         for b in range(blocksize):
-                            A_nmm[b, m, i - 1] = \
-                                R_mnX[m][b].integrate(R_mnX[i - 1][b])
-                            A_nmm[b, i - 1, m] = A_nmm[b, m, i - 1].conj()
-                    A_nmm[:, i, i] = 0
-                    b_nm[:, :i] = 0
+                            A_nmm[b, m, i] = \
+                                R_mnX[m][b].integrate(R_mnX[i][b])
+                            if m != i:
+                                A_nmm[b, i, m] = A_nmm[b, m, i].conj()
+                    A_nmm[:, i + 1, i + 1] = 0
+                    b_nm[:, :i + 1] = 0
                     lambda_nm = xp.linalg.solve(
-                        A_nmm[:, :i + 1, :i + 1],
-                        b_nm[:, :i + 1, np.newaxis])[:, :i, 0]
+                        A_nmm[:, :i + 2, :i + 2],
+                        b_nm[:, :i + 2, np.newaxis])[:, :i + 1, 0]
 
-                    psit_new_nX.data[:] = 0
-                    R_new_nX.data[:] = 0
+                    psit_new_nX.data[:] = \
+                        lambda_nm[:, 0, None]  * psits_mnX[0].data
+                    R_new_nX.data[:] = \
+                        lambda_nm[:, 0, None] * R_mnX[0].data
 
-                    for m in range(i):
+                    for m in range(1, i + 1):
                         psit_new_nX.data += \
                             lambda_nm[:, m, None] * psits_mnX[m].data
                         R_new_nX.data += \
                             lambda_nm[:, m, None] * R_mnX[m].data
                 else:
+                    # Special case for first DIIS step, which is
+                    # numerically unstable:
                     psit_new_nX.data[:] = psits_mnX[-1].data
                     R_new_nX.data[:] = R_mnX[-1].data
 
-                if i < self.diis_steps + 1:
+                if i < self.diis_steps:
+                    # Take the step!
                     preconditioner(psit_nX, R_new_nX,
                                    out=R_new_nX, ekin_n=ekin_n)
                     psit_new_nX.data += R_new_nX.data * lambda_n
 
+                    # Get the next trial vector
                     Ht(psit_new_nX, out=R_new_nX)
                     pt_aiX.integrate(psit_new_nX, out=P_ani)  # XXX: Expensive
                     calculate_residuals(psit_new_nX, R_new_nX, pt_aiX,
@@ -214,9 +232,10 @@ class RMMDIIS(PWFDEigensolver):
                                         P1_ani, P2_ani)
                 R_mnX.append(R_new_nX)
                 psits_mnX.append(psit_new_nX)
+        else:
+            psit_nX.data[:] = psits_mnX[-1].data
 
         # NUTS Part ("free" bonus diis step):
-        psit_nX.data[:] = psits_mnX[-1].data
         preconditioner(psit_nX, R_mnX[-1], out=PR_nX, ekin_n=ekin_n)
         if trial_step is None:
             PR_nX.data *= lambda_n
