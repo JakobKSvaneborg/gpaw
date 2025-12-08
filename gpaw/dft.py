@@ -976,11 +976,9 @@ def GPAW(
     if _use_old_gpaw is None:
         if _USE_OLD_GPAW is None:
             if GPAW_NEW == 147:
-                if filename is not None:
-                    _use_old_gpaw = False
+                _use_old_gpaw = not _can_use_new(filename, kwargs)
+                if not _use_old_gpaw and filename:
                     use_old_if_reading_fails = True
-                else:
-                    _use_old_gpaw = not _can_use_new(kwargs)
             else:
                 _use_old_gpaw = not GPAW_NEW
         else:
@@ -1020,7 +1018,17 @@ def GPAW(
     return ASECalculator(params, log=log)
 
 
-def _can_use_new(kwargs) -> bool:
+def _can_use_new(filename, kwargs) -> bool:
+    if filename is not None:
+        from ase.io.ulm import ulmopen
+        from gpaw.mpi import world, broadcast
+        version = None
+        if world.rank == 0:
+            with ulmopen(filename) as reader:
+                version = reader.version
+        version = broadcast(version, comm=world)
+        return version < 4
+
     try:
         params = Parameters(**kwargs)
     except NotImplementedError:
