@@ -25,7 +25,7 @@ import sys
 from importlib.machinery import ModuleSpec, PathFinder
 
 import gpaw.cgpaw as cgpaw
-from gpaw import GPAW_MPI4PY, GPAW_NO_C_EXTENSION
+from gpaw import GPAW_MPI_INIT, GPAW_MPI4PY, GPAW_NO_C_EXTENSION
 
 cgpaw_version = getattr(cgpaw, 'version', 0)
 if not GPAW_NO_C_EXTENSION and cgpaw_version != 10:
@@ -42,7 +42,7 @@ if GPAW_MPI4PY:
 
     from gpaw.mpi4pywrapper import MPI4PYWrapper
     world = MPI4PYWrapper(COMM_WORLD)
-elif hasattr(cgpaw, 'Communicator'):
+elif GPAW_MPI_INIT and hasattr(cgpaw, 'Communicator'):
     libmpi = os.environ.get('GPAW_MPI', 'libmpi.so')
     import ctypes
     try:

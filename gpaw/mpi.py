@@ -17,6 +17,7 @@ from ase.parallel import MPI as ASE_MPI
 from ase.parallel import world as aseworld
 
 import gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw.gpu import cupy, is_hip
 from gpaw.new.c import GPU_AWARE_MPI
 
@@ -807,6 +808,7 @@ class SerialCommunicator:
 _serial_comm = SerialCommunicator()
 
 have_mpi = _world is not None
+compiled_with_mpi = hasattr(cgpaw, 'Communicator')
 
 if not have_mpi:
     _world = _serial_comm  # type: ignore
