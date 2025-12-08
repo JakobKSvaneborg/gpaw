@@ -10,10 +10,10 @@ from gpaw.fftw import get_efficient_fft_size
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.typing import (Array2D, ArrayLike, ArrayLike1D, ArrayLike2D,
                          DTypeLike, Self, Vector)
-from gpaw.core.arrays import XArray
 
 if TYPE_CHECKING:
     from gpaw.core import UGDesc
+    from gpaw.core.arrays import XArray
 
 
 def normalize_cell(cell: ArrayLike) -> Array2D:
