@@ -32,7 +32,7 @@ def normalize_cell(cell: ArrayLike) -> Array2D:
     return cellpar_to_cell(cell)
 
 
-X = TypeVar('X', bound=XArray)
+X = TypeVar('X', bound='XArray')
 
 
 class Domain(Generic[X]):
