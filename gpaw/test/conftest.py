@@ -313,7 +313,6 @@ def mme_files(request, gpw_files):
 
 class GPAWPlugin:
     def __init__(self):
-        no_mpi_please()
         if world.rank == -1:
             print()
             info()
@@ -349,7 +348,6 @@ class GRRR:
 
 
 def pytest_configure(config):
-    no_mpi_please()
     if world.rank != 0:
         try:
             tw = config.get_terminal_writer()
@@ -429,7 +427,6 @@ def pytest_report_header(config, start_path):
     # actually creating a subdirectory:
     cachedir = config.cache.mkdir('')
     yield f'Cache directory including gpw files: {cachedir}'
-    no_mpi_please()
 
 
 @pytest.fixture
@@ -464,8 +461,10 @@ def no_touch_world(monkeypatch, _not_world):
 
 @pytest.fixture(scope='session')
 def _not_world():
-    no_mpi_please()
-    from gpaw.mpi import world
+    from gpaw.mpi import world, SerialCommunicator
+
+    if isinstance(world, SerialCommunicator):
+        no_mpi_please()
 
     return world.new_communicator(range(world.size))
 
@@ -505,14 +504,14 @@ class MPIHelper:
 
 
 def no_mpi_please():
+    """This is to disallow uncontrolled MPI init by mpi4py."""
     assert 'mpi4py.MPI' not in sys.modules
-    assert 'mpi4py' not in sys.modules
-    assert sys.modules.get('mpi4py', GRRR()) == GRRR()
-    assert sys.modules.get('mpi4py.MPI', GRRR()) == GRRR()
 
 
 @pytest.fixture(autouse=True)
 def no_use_mpi4py(_not_world):
+    """Forbid unexpected MPI initialization as part of tests."""
+
     from gpaw.mpi import SerialCommunicator
 
     serial = isinstance(_not_world, SerialCommunicator)
