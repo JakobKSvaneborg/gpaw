@@ -203,7 +203,7 @@ class RMMDIIS(PWFDEigensolver):
                         b_nm[:, :i + 2, np.newaxis])[:, :i + 1, 0]
 
                     psit_new_nX.data[:] = \
-                        lambda_nm[:, 0, None]  * psits_mnX[0].data
+                        lambda_nm[:, 0, None] * psits_mnX[0].data
                     R_new_nX.data[:] = \
                         lambda_nm[:, 0, None] * R_mnX[0].data
 
