@@ -250,7 +250,7 @@ class CuPyFFTPlans(FFTPlans):
     @trace(gpu=True)
     def fft(self):
         from gpaw.gpu import cupyx
-        if self.tmp_R.dtype == float:
+        if np.issubdtype(self.tmp_R.dtype, np.floating):
             if is_hip:
                 self.tmp_Q[:] = rfftn_patch(self.tmp_R)
             else:
@@ -261,7 +261,7 @@ class CuPyFFTPlans(FFTPlans):
     @trace(gpu=True)
     def ifft(self):
         from gpaw.gpu import cupyx
-        if self.tmp_R.dtype == float:
+        if np.issubdtype(self.tmp_R.dtype, np.floating):
             if is_hip:
                 self.tmp_R[:] = irfftn_patch(self.tmp_Q, self.tmp_R.shape) \
                     * self.tmp_R.size
