@@ -26,7 +26,7 @@ class SkewHermitian:
     """
 
     def __init__(self, ndim: int, dtype: type,
-                 data: np.ndarray = None, representation="full"):
+                 data: np.ndarray = None, representation='full'):
         """
         Initialize a SkewHermitian object.
 
@@ -50,7 +50,7 @@ class SkewHermitian:
         self._evecs = None      # eigenvectors of i*A
         self._evals = None      # eigenvalues of i*A
         self._rotation_mat = None  # U = exp(A)
-        self._representation = "full"
+        self._representation = 'full'
 
         # Indices of the independent parameters:
         # - if real → strictly upper triangle
@@ -65,7 +65,7 @@ class SkewHermitian:
 
         # Assign initial data (if provided)
         self.data = data
-        assert representation == "full"
+        assert representation == 'full'
 
     # ------------------------
     # Properties
@@ -124,8 +124,7 @@ class SkewHermitian:
             a_mat = vec2skewmat(self.data, self.ndim, self.ind_up, self.dtype)
             # Compute matrix exponential, eigenvectors, and eigenvalues
             self._rotation_mat, self._evecs, self._evals = expm_ed(
-                a_mat, evalevec=True
-            )
+                a_mat, evalevec=True)
         return self._evecs
 
     @property
@@ -141,8 +140,7 @@ class SkewHermitian:
         if self._evecs is None:  # triggers only if not already computed
             a_mat = vec2skewmat(self.data, self.ndim, self.ind_up, self.dtype)
             self._rotation_mat, self._evecs, self._evals = expm_ed(
-                a_mat, evalevec=True
-            )
+                a_mat, evalevec=True)
         return self._evals
 
     @property
@@ -160,8 +158,7 @@ class SkewHermitian:
         elif self._rotation_mat is None:  # compute only once
             a_mat = vec2skewmat(self.data, self.ndim, self.ind_up, self.dtype)
             self._rotation_mat, self._evecs, self._evals = expm_ed(
-                a_mat, evalevec=True
-            )
+                a_mat, evalevec=True)
         return self._rotation_mat
 
     # ------------------------

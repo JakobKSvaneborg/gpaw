@@ -6,7 +6,7 @@ from time import time
 
 import numpy as np
 from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
-from gpaw.core.arrays import DistributedArrays as XArray
+from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.pwacf import PWAtomCenteredFunctions
 from gpaw.hybrids.paw import pawexxvv

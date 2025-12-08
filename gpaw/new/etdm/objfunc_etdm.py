@@ -46,7 +46,7 @@ class ObjectiveFunctionETDM(ABC):
         # with `ndim` and `dtype`. These hold the independent parameters
         # that will be optimized.
         self._a_vec_u = [
-            SkewHermitian(ndim, dtype, representation="full")
+            SkewHermitian(ndim, dtype, representation='full')
             for _ in range(nkps)
         ]
 

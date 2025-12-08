@@ -10,6 +10,7 @@ and includes the Fluctuation Dissipation Theorem.
 import copy
 import os
 import textwrap
+import warnings
 from collections import deque
 
 import ase.io
@@ -258,6 +259,7 @@ class OldSJM(OldSolvationGPAW):
          'previous_electrons': [],
          'previous_potentials': [],
          'slope_regression_depth': 4,
+         'dirichlet': False,
          'cip': {'autoinner': {'nlayers': None,
                                'threshold': 0.0001},
                  'inner_region': None,
@@ -265,7 +267,6 @@ class OldSJM(OldSolvationGPAW):
                  'phi_pzc': None,
                  'filter': 10}})
 
-    _sj_default_parameters.update({'dirichlet': False})
     default_parameters = copy.deepcopy(OldSolvationGPAW.default_parameters)
     default_parameters.update({'poissonsolver': {'dipolelayer': 'xy'}})
     default_parameters['convergence'].update({'work function': 0.001})
@@ -362,6 +363,10 @@ class OldSJM(OldSolvationGPAW):
                 self.log('Changed Solvated Jellium parameters:')
             self.log.print_dict({i: p[i] for i in sj_changes})
             self.log()
+
+        if 'dirichlet' in sj_changes and self.wfs is not None:
+            raise InputError('Cannot change the poissonsolver boundary '
+                             'after the calculation has been initialized.')
 
         if 'target_potential' in sj_changes and p.target_potential is not None:
             # If target potential is changed by the user and the slope is
@@ -1054,15 +1059,29 @@ class SJMPower12Potential(Power12Potential):
     pbc_cutoff: float
         Cutoff in eV for including neighbor cells in a calculation with
         periodic boundary conditions.
-    H2O_layer: bool, int or str
-        True: Exclude the implicit solvent from the interface region
-        between electrode and water. Ghost atoms will be added below
-        the water layer.
-        False: The opposite of True. [default]
-        int: Explicitly account for the given number of water molecules above
-        electrode. This is handy if H2O is directly adsorbed and a water layer
-        is present in the unit cell at the same time.
-        'plane': Use a plane instead of ghost atoms for freeing the surface.
+    H2O_layer: dict
+        Dictionary to control the non-local part of solvation, i.e.
+        (exclusion of solvent from the electrode-water interface).
+        It has 4 keys:
+
+        style: 'ghost_atoms' or 'plane'
+            'ghost_atoms': Add ghost atoms below the water layer to
+            exclude implicit solvent from the interface region.
+            'plane': Use a plane instead of ghost atoms for freeing the
+            surface.
+        nox: 'all' (default) or int
+            'all': Free the interface only between the lowest lying O and
+            the electrode.
+            int: Explicitly mention under which water molecule counter from
+            the top the interface is cleaned from implicit solvent.
+        ghosts_below_ox: bool
+            Only relevant if style is 'ghost_atoms'. Add extra ghost atoms
+            below the oxygen atoms of the water layer. [default: True]
+        ghost_spacing: float
+            Only relevant if style is 'ghost_atoms'. Spacing between ghost
+            atoms in Angstroms. [default: 2/3 Bohr].  Note that the
+            default is overly dense and leads to longer waiting times between
+            SCF cycles. A spacing of 1.5 Bohr is likely sufficient.
     unsolv_backside: bool
         Exclude implicit solvent from the region behind the electrode
 
@@ -1076,7 +1095,27 @@ class SJMPower12Potential(Power12Potential):
                  unsolv_backside=True, communicator=None):
         communicator = gpaw.mpi.normalize_communicator(communicator)
         super().__init__(atomic_radii, u0, pbc_cutoff, tiny)
-        self.H2O_layer = H2O_layer
+
+        # The following guarantees backwards compatibility
+        self.H2O_layer = False
+        if H2O_layer is not False:
+            # Default parameters for cleaning the interface
+            # 1/1.5 is just there to give exact results as before
+            self.H2O_layer = {'style': 'ghost_atoms', 'nox': 'all',
+                              'ghosts_below_ox': True,
+                              'ghost_spacing': 1 / 1.5}
+            if not isinstance(H2O_layer, dict):
+                warnings.warn('The provided syntax for cleaning the interface '
+                              'is deprecated. Please use a dictionary with '
+                              'keys "style" and "nox". See documentation for '
+                              'details.', DeprecationWarning)
+            if H2O_layer is True:
+                H2O_layer = {}
+            elif isinstance(H2O_layer, int):
+                H2O_layer = {'nox': H2O_layer}
+            elif isinstance(H2O_layer, str):
+                H2O_layer = {'style': H2O_layer}
+            self.H2O_layer.update(H2O_layer)
         self.unsolv_backside = unsolv_backside
         self.communicator = communicator
 
@@ -1130,7 +1169,7 @@ class SJMPower12Potential(Power12Potential):
                               if atom.symbol == 'O']
 
             # Disregard oxygens that don't belong to the water layer
-            allwater_oxygen_ind = []
+            i_all_ox_in_h2o = []
             for ox in all_oxygen_ind:
                 nH = 0
 
@@ -1141,75 +1180,99 @@ class SJMPower12Potential(Power12Potential):
                             nH += 1
 
                 if nH >= 2:
-                    allwater_oxygen_ind.append(ox)
+                    i_all_ox_in_h2o.append(ox)
 
-            # If the number of waters in the water layer is given as an input
-            # (H2O_layer=i) then only the uppermost i water molecules are
-            # regarded for unsolvating the interface (this is relevant if
-            # water is adsorbed on the surface)
-            if not isinstance(self.H2O_layer, (bool, str)):
-                if self.H2O_layer % 1 < self.tiny:
-                    self.H2O_layer = int(self.H2O_layer)
-                else:
-                    raise InputError('Only an integer number of water '
-                                     'molecules is possible in the water '
-                                     'layer')
+            # If nox is given as an int as is recommended in the case of
+            # multiple water layers or adsorbed water, then only the nox
+            # water molecule counter from the top will define the highest
+            # z-value where the interface is cleaned from implicit solvent
+            nox = self.H2O_layer['nox']
+            i_ox_in_h2o = []
+            if nox != 'all':
+                if not isinstance(nox, (int, float)):
+                    raise InputError('nox must either be a positive integer '
+                                     '(number of regarded oxygens) or a '
+                                     'negative float (plane position)')
 
-                allwaters = atoms[allwater_oxygen_ind]
-                indizes_water_ox_ind = np.argsort(allwaters.positions[:, 2],
-                                                  axis=0)
+                if nox > len(i_all_ox_in_h2o):
+                    raise InputError('nox must be smaller or equal to the '
+                                     'number of water molecules in the layer')
+                if nox > 0:
+                    if nox % 1:
+                        raise InputError('nox for number of regarded oxygens '
+                                         'must be a positive integer')
+                    allwaters = atoms[i_all_ox_in_h2o]
+                    sorted_ox_ind = np.argsort(allwaters.positions[:, 2],
+                                               axis=0)
 
-                water_oxygen_ind = []
-                for i in range(self.H2O_layer):
-                    water_oxygen_ind.append(
-                        allwater_oxygen_ind[indizes_water_ox_ind[-1 - i]])
+                    for i in range(nox):
+                        i_ox_in_h2o.append(
+                            i_all_ox_in_h2o[sorted_ox_ind[-1 - i]])
 
             else:
-                water_oxygen_ind = allwater_oxygen_ind
+                i_ox_in_h2o = i_all_ox_in_h2o
 
-            oxygen = self.pos_aav[water_oxygen_ind[0]] * Bohr
-            if len(water_oxygen_ind) > 1:
-                for windex in water_oxygen_ind[1:]:
-                    oxygen = np.concatenate(
-                        (oxygen, self.pos_aav[windex] * Bohr))
+            r_vdw_O = self.atomic_radii_output[i_all_ox_in_h2o[0]]
+            # Write oxygen positions of water layer in cell and
+            # 8 periodic neighbors into oxygen array
+            if len(i_ox_in_h2o):
+                oxygen = self.pos_aav[i_ox_in_h2o[0]] * Bohr
+                if len(i_ox_in_h2o) > 1:
+                    for iw, windex in enumerate(i_ox_in_h2o[1:]):
+                        oxygen = np.concatenate(
+                            (oxygen, self.pos_aav[windex] * Bohr))
 
-            O_layer = []
-            if isinstance(self.H2O_layer, str):
+            # if isinstance(self.H2O_layer, str):
+            if 'plane' in self.H2O_layer['style']:
                 # Add a virtual plane
-                if len(self.H2O_layer.split('-')) > 1:
-                    plane_z = float(self.H2O_layer.split('-')[1]) - \
-                        1.0 * self.atomic_radii_output[water_oxygen_ind[0]]
-                else:
-                    plane_rel_oxygen = -1.5 * self.atomic_radii_output[
-                        water_oxygen_ind[0]]
-                    plane_z = oxygen[:, 2].min() + plane_rel_oxygen
+                plane_z = None
+                if nox != 'all':
+                    if nox < 0:
+                        plane_z = -nox - r_vdw_O
+                if plane_z is None:
+                    plane_z = oxygen[:, 2].min() - 1.5 * r_vdw_O
 
+                # Remove solvent below plane_z
                 r_diff_zg = self.r_vg[2, :, :, :] - plane_z / Bohr
                 r_diff_zg[r_diff_zg < self.tiny] = self.tiny
                 r_diff_zg2 = r_diff_zg ** 2
-                u_g = self.r12_a[water_oxygen_ind[0]] / r_diff_zg2 ** 6
+                u_g = self.r12_a[i_all_ox_in_h2o[0]] / r_diff_zg2 ** 6
                 self.u_g += u_g.copy()
                 u_g /= r_diff_zg2
                 r_diff_zg *= u_g.copy()
                 self.grad_u_vg[2, :, :, :] += r_diff_zg
 
-            else:
+            elif self.H2O_layer['style'] == 'ghost_atoms':
                 # Ghost atoms are added below the explicit water layer
+                O_layer = []
+                gh_spacing = self.H2O_layer.get('ghost_spacing', 2)  # in Bohr
+                # TODO: Why is the cell in Bohr?
                 cell = atoms.cell.copy() / Bohr
                 cell[2][2] = 1.
-                natoms_in_plane = [round(np.linalg.norm(cell[0]) * 1.5),
-                                   round(np.linalg.norm(cell[1]) * 1.5)]
 
-                plane_z = (oxygen[:, 2].min() - 1.75 *
-                           self.atomic_radii_output[water_oxygen_ind[0]])
+                # A ghost atom grid spacing of 1/Angstrom
+                # TODO: This should actually not follow the unit cell vectors
+                # but be aligned to the cartesian axes.
+                natoms_in_plane = [round(np.linalg.norm(cell[0]) / gh_spacing),
+                                   round(np.linalg.norm(cell[1]) / gh_spacing)]
+
+                # z-value below which the implicit solvent will be removed
+                plane_z = oxygen[:, 2].min() - 1.75 * r_vdw_O
+
+                # Number of ghost atoms in z-direction
                 nghatoms_z = int(round(oxygen[:, 2].min() -
                                  atoms.positions[:, 2].min()))
 
+#                print('Ghost atoms added before the ones under Os')
                 for i in range(int(natoms_in_plane[0])):
                     for j in range(int(natoms_in_plane[1])):
                         for k in np.linspace(atoms.positions[:, 2].min(),
                                              plane_z, num=nghatoms_z):
 
+                            # Add ghost O atoms in a grid below the water layer
+                            # ghost atoms span -1/4 unit cell to 1.25 unit cell
+                            # to account for pbc and are placed at every
+                            # 1/gh_spacing Bohr
                             O_layer.append(np.dot(np.array(
                                 [(1.5 * i - natoms_in_plane[0] / 4) /
                                  natoms_in_plane[0],
@@ -1220,18 +1283,19 @@ class SJMPower12Potential(Power12Potential):
                 # Add additional ghost O-atoms below the actual water O atoms
                 # of water which frees the interface in case of corrugated
                 # water layers
-                for ox in oxygen / Bohr:
-                    O_layer.append([ox[0], ox[1], ox[2] - 1.0 *
-                                    self.atomic_radii_output[
-                                        water_oxygen_ind[0]] / Bohr])
+                if self.H2O_layer.get('ghosts_below_ox', True):
+                    for iox, ox in enumerate(oxygen.copy() / Bohr):
+                        O_layer.append(np.array([ox[0], ox[1], ox[2]
+                                                - 1.0 * r_vdw_O / Bohr]))
 
                 r12_add = []
                 for i in range(len(O_layer)):
                     ghost_aav[len(atoms) + i] = [O_layer[i]]
-                    r12_add.append(self.r12_a[water_oxygen_ind[0]])
+                    r12_add.append(self.r12_a[i_ox_in_h2o[0]])
+
                 r12_add = np.array(r12_add)
                 # r12_a must have same dimensions as pos_aav items
-                self.r12_a = np.concatenate((self.r12_a, r12_add))
+                self.r12_a = np.concatenate((self.r12_a, np.array(r12_add)))
 
         for index, pos_av in {**self.pos_aav, **ghost_aav}.items():
             pos_av = np.array(pos_av)
@@ -1273,6 +1337,7 @@ class SJM_RealSpaceHamiltonian(SolvationRealSpaceHamiltonian):
         self.cavity = cavity
         self.dielectric = dielectric
         self.interactions = interactions
+        self.dirichlet = dirichlet
         cavity.set_grid_descriptor(finegd)
         dielectric.set_grid_descriptor(finegd)
         for ia in interactions:
@@ -1326,6 +1391,30 @@ class SJM_RealSpaceHamiltonian(SolvationRealSpaceHamiltonian):
         for ia in self.interactions:
             ia.allocate()
         RealSpaceHamiltonian.initialize(self)
+
+    def get_workfunctions(self, wfs):
+        """
+        Wrapper around RealSpaceHamiltonian.get_workfunctions which
+        only triggers if dirichlet boundary conditions are used.
+        It will correctly identify the two work functions in that case,
+        where the right one is equal to the Fermi level as the vacuum
+        level there defines the potential reference.
+        """
+        if not self.dirichlet:
+            return super().get_workfunctions(wfs)
+
+        try:
+            dipole_correction = self.poisson.correction
+        except AttributeError:
+            raise ValueError(
+                'Work function not defined if no field-free region. Consider '
+                'using a dipole correction if you are looking for a '
+                'work function.')
+        fermilevel = wfs.fermi_level
+
+        wf1 = - fermilevel + 2 * dipole_correction
+        wf2 = - fermilevel
+        return np.array([wf1, wf2])
 
 
 class CavityShapedJellium(Jellium):

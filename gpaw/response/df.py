@@ -147,7 +147,7 @@ class Chi0DysonEquations:
             if not same_direction:
                 raise ValueError(
                     '`qinf_v` must be in the same direction as `direction`. '
-                    f'Obtained {qinf_v = } and {direction = }')
+                    f'Obtained {qinf_v=} and {direction=}')
             chi0_wGG[:, 1:, 0] *= np.dot(qinf_v, d_v)
             chi0_wGG[:, 0, 1:] *= np.dot(qinf_v, d_v)
             chi0_wGG[:, 0, 0] *= np.dot(qinf_v, d_v)**2

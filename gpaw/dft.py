@@ -4,12 +4,13 @@ import importlib
 import warnings
 from collections.abc import Sequence
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Literal, Union
+from typing import IO, TYPE_CHECKING, Any, Union, Literal, Dict
 
 import numpy as np
+from numpy.typing import DTypeLike
+
 from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
-from numpy.typing import DTypeLike
 
 from gpaw import GPAW_NEW
 from gpaw.mpi import MPIComm
@@ -56,9 +57,23 @@ class Mode(Parameter):
 
     def __init__(self,
                  *,
-                 dtype: DTypeLike | None = None,
+                 dtype: DTypeLike = 'double',
                  force_complex_dtype: bool = False,
                  interpolation=117):
+        # Translate legacy dtypes
+        if dtype == 'float32' or dtype == np.float32:
+            dtype = 'single'
+            force_complex_dtype = False
+        elif dtype == 'float64' or dtype == np.float64:
+            dtype = 'double'
+            force_complex_dtype = False
+        elif dtype == 'complex64' or dtype == np.complex64:
+            dtype = 'single'
+            force_complex_dtype = True
+        elif dtype == 'complex128' or dtype == np.complex128:
+            dtype = 'double'
+            force_complex_dtype = True
+
         self.dtype = dtype
         self.force_complex_dtype = force_complex_dtype
         self.name = self.__class__.__name__.lower()
@@ -66,11 +81,11 @@ class Mode(Parameter):
             raise NotImplementedError
 
     def todict(self) -> dict:
-        dct = self._not_none('dtype')
+        dct: Dict[str, Any] = {}
         if self.force_complex_dtype:
             dct['force_complex_dtype'] = True
-        if 'dtype' in dct:
-            dct['dtype'] = np.dtype(self.dtype).name
+        if self.dtype == 'single':
+            dct['dtype'] = 'single'
         return dct
 
     @classmethod
@@ -82,9 +97,6 @@ class Mode(Parameter):
         elif not isinstance(mode, dict):
             mode = mode.todict()
         mode = mode.copy()
-        if 'dtype' in mode:
-            if isinstance(mode['dtype'], str):
-                mode['dtype'] = np.dtype(mode['dtype'])
         return {'pw': PW,
                 'lcao': LCAO,
                 'fd': FD,
@@ -102,7 +114,7 @@ class PW(Mode):
                  *,
                  qspiral=None,
                  dedecut=None,
-                 dtype: DTypeLike | None = None,
+                 dtype: DTypeLike = 'double',
                  force_complex_dtype: bool = False,
                  **kwargs):
         """PW-mode.
@@ -136,7 +148,7 @@ class FD(Mode):
     def __init__(self,
                  *,
                  nn=3,
-                 dtype: DTypeLike | None = None,
+                 dtype: str = 'double',
                  force_complex_dtype: bool = False):
         self.nn = nn
         super().__init__(dtype=dtype,

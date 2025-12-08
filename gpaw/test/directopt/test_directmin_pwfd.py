@@ -4,16 +4,12 @@ from ase import Atoms
 from ase.build import molecule
 
 from gpaw import FD, GPAW, PW
-from gpaw.mpi import world
 
 
 @pytest.mark.new_gpaw_ready
 @pytest.mark.do
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
-def test_directmin_H2(in_tmp_dir, mode, gpaw_new):
-    if gpaw_new and world.size > 1:
-        pytest.skip('Does not work yet for new GPAW')
-
+def test_directmin_H2(in_tmp_dir, mode):
     atoms = molecule('H2')
     atoms.center(vacuum=4.0)
     atoms.set_pbc(False)
@@ -60,9 +56,7 @@ def test_directmin_H2(in_tmp_dir, mode, gpaw_new):
 @pytest.mark.new_gpaw_ready
 @pytest.mark.do
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
-def test_directmin_C2H4(in_tmp_dir, mode, gpaw_new):
-    if gpaw_new and (world.size > 1):
-        pytest.skip('Does not work yet for new GPAW')
+def test_directmin_C2H4(in_tmp_dir, mode):
     atoms = Atoms('CCHHHH',
                   positions=[
                       [-0.66874198, -0.00001714, -0.00001504],
@@ -70,9 +64,7 @@ def test_directmin_C2H4(in_tmp_dir, mode, gpaw_new):
                       [-1.24409879, 0.00000108, -0.93244784],
                       [-1.24406253, 0.00000112, 0.93242153],
                       [1.24406282, -0.93242148, 0.00000108],
-                      [1.24409838, 0.93244792, 0.00000112]
-                  ]
-                  )
+                      [1.24409838, 0.93244792, 0.00000112]])
     atoms.center(vacuum=4.0)
     atoms.set_pbc(False)
 

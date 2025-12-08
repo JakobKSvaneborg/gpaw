@@ -5,7 +5,7 @@ from functools import partial
 
 import numpy as np
 
-from gpaw.core.arrays import DistributedArrays as XArray
+from gpaw.core.arrays import XArray
 from gpaw.core.atom_centered_functions import AtomArrays
 from gpaw.mpi import broadcast_exception
 from gpaw.new import trace, zips
