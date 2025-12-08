@@ -1,53 +1,6 @@
 import numpy as np
 
 
-class MultiXArray:
-    def __init__(self, a_unX, weights=None, comm=None):
-        self.a_unX = a_unX
-        if weights is None:
-            weights = [1.0] * len(a_unX)
-        self.weights = weights
-        self.comm = comm
-
-    def new(self, a_unX):
-        return MultiXArray(a_unX, self.weights, self.comm)
-
-    def copy(self):
-        return self.new(
-            [a_nX.copy() for a_nX in self.a_unX])
-
-    def __neg__(self):
-        b_unX = self.copy()
-        for b_nX in b_unX.a_unX:
-            b_nX.data *= -1.0
-        return b_unX
-
-    def __iadd__(self, other):
-        for a_nX, b_nX in zip(self.a_unX, other.a_unX):
-            a_nX.data += b_nX.data
-        return self
-
-    def __sub__(self, other):
-        a_unX = self.copy()
-        for a_nX, b_nX in zip(a_unX.a_unX, other.a_unX):
-            a_nX.data -= b_nX.data
-        return a_unX
-
-    def __mul__(self, other):
-        a_unX = self.copy()
-        for a_nX in a_unX.a_unX:
-            a_nX.data *= other
-        return a_unX
-
-    __rmul__ = __mul__
-
-    def __matmul__(self, other):
-        return self.comm.sum_scalar(
-            sum(weight * a_nX.trace_inner_product(b_nX)
-                for weight, a_nX, b_nX
-                in zip(self.weights, self.a_unX, other.a_unX)))
-
-
 class LBFGS:
     def __init__(self,
                  *,

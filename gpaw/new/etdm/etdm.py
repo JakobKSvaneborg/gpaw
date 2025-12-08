@@ -213,7 +213,10 @@ class ETDM:
 
 
 class KArray:
-    def __init__(self, a_ux, weights=None, comm=None):
+    def __init__(self,
+                 a_ux: list[np.ndarray],
+                 comm=None,
+                 weights=None):
         self.a_ux = a_ux
         if weights is None:
             weights = [1.0] * len(a_ux)
@@ -258,9 +261,6 @@ class KArray:
                 for weight, a_x, b_x
                 in zip(self.weights, self.a_ux, other.a_ux)))
 
-    def __setitem__(self, i, v):
+    def __setitem__(self, x, value: float):
         for a_x in self.a_ux:
-            a_x[i] = v
-
-
-
+            a_x[x] = value

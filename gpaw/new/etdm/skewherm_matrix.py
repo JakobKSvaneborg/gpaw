@@ -124,8 +124,7 @@ class SkewHermitian:
             a_mat = vec2skewmat(self.data, self.ndim, self.ind_up, self.dtype)
             # Compute matrix exponential, eigenvectors, and eigenvalues
             self._rotation_mat, self._evecs, self._evals = expm_ed(
-                a_mat, evalevec=True
-            )
+                a_mat, evalevec=True)
         return self._evecs
 
     @property
@@ -141,8 +140,7 @@ class SkewHermitian:
         if self._evecs is None:  # triggers only if not already computed
             a_mat = vec2skewmat(self.data, self.ndim, self.ind_up, self.dtype)
             self._rotation_mat, self._evecs, self._evals = expm_ed(
-                a_mat, evalevec=True
-            )
+                a_mat, evalevec=True)
         return self._evals
 
     @property
@@ -160,8 +158,7 @@ class SkewHermitian:
         elif self._rotation_mat is None:  # compute only once
             a_mat = vec2skewmat(self.data, self.ndim, self.ind_up, self.dtype)
             self._rotation_mat, self._evecs, self._evals = expm_ed(
-                a_mat, evalevec=True
-            )
+                a_mat, evalevec=True)
         return self._rotation_mat
 
     # ------------------------

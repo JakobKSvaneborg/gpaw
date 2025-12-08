@@ -332,6 +332,9 @@ class DistributedArrays(Generic[DomainType], XP):
     def norm2(self, kind: str = 'normal', skip_sum=False) -> np.ndarray:
         raise NotImplementedError
 
+    def trace_inner_product(self, other: Self) -> float:
+        raise NotImplementedError
+
 
 def _parallel_me(psit1_nX: DistributedArrays,
                  psit2_nX: DistributedArrays,
