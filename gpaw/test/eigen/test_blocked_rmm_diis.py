@@ -5,7 +5,9 @@ from gpaw import GPAW, Mixer
 
 
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
-def test_eigen_blocked_rmm_diis(in_tmp_dir, gpaw_new, mode):
+@pytest.mark.parametrize('force_complex_dtype', [True, False])
+def test_eigen_blocked_rmm_diis(in_tmp_dir, gpaw_new,
+                                mode, force_complex_dtype):
     a = 4.0
     n = 20
     d = 1.0
@@ -16,8 +18,10 @@ def test_eigen_blocked_rmm_diis(in_tmp_dir, gpaw_new, mode):
                    Atom('H', (x, -x, -x)),
                    Atom('H', (-x, x, -x))],
                   cell=(a, a, a), pbc=True)
+    atoms.set_initial_magnetic_moments([0, 0, 0, 0, 0])
     base_params = dict(
-        mode=mode,
+        mode={'name': mode,
+              'force_complex_dtype': force_complex_dtype},
         gpts=(n, n, n),
         nbands=4,
         mixer=Mixer(0.25, 3, 1))
