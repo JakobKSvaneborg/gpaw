@@ -54,6 +54,19 @@ else:
     world = None  # type: ignore
 
 
+if world is None and 'OMPI_COMM_WORLD_SIZE' in os.environ:
+    # Check whether we might not have the same ideas about parallelism
+    # as the caller.
+    #
+    # This check is not portable to other MPIs.  Maybe we can have this
+    # sanity check for a few MPI implementations since it's nasty to get
+    # inconsistent MPI communicators.
+    raise RuntimeError(
+        'We appear to be running inside mpiexec, but '
+        'parallelism is disabled.  Please run '
+        'gpaw -P <nprocs> python to ensure that MPI is enabled.')
+
+
 def marshal_broadcast(obj):
     if world.rank == 0:
         buf = marshal.dumps(obj)
