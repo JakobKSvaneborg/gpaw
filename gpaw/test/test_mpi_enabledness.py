@@ -20,7 +20,8 @@ def test_ordinary_python():
 
 def test_gpaw_python():
     # Note: gpaw -P1 does not actually enable MPI.  Is that the best?
-    assert subprocess.call(['gpaw', '-P1', 'python', __file__]) == MPI_PRESENT
+    assert subprocess.call([sys.executable, '-m', 'gpaw', '-P1',
+                            'python', __file__]) == MPI_PRESENT
 
 
 MPI_MISSING = 234
