@@ -9,14 +9,6 @@ pytestmark = pytest.mark.skipif(not LibElpa.have_elpa(),
                                 reason='not LibElpa.have_elpa()')
 
 
-@pytest.fixture
-def require_real_mpi(comm):
-    try:
-        comm.get_c_object()
-    except RuntimeError:
-        pytest.skip()
-
-
 @pytest.mark.ci
 @pytest.mark.parametrize('dtype', [float, complex])
 @pytest.mark.parametrize('eigensolver', ['elpa', 'scalapack'])

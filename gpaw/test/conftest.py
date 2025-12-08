@@ -395,6 +395,14 @@ def scalapack():
 
 
 @pytest.fixture
+def require_real_mpi(comm):
+    try:
+        comm.get_c_object()
+    except RuntimeError:
+        pytest.skip('This test requires actual MPI to be enabled')
+
+
+@pytest.fixture
 def needs_ase_master():
     from ase.utils.filecache import MultiFileJSONCache
     try:
