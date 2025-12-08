@@ -18,7 +18,7 @@ class RMMDIIS(PWFDEigensolver):
                  hamiltonian,
                  converge_bands='occupied',
                  niter: int = 1,
-                 diis_steps: int = 2,
+                 diis_steps: int = 1,
                  trial_step: float | None = None,
                  scalapack_parameters=None,
                  max_buffer_mem: int = 200 * 1024 ** 2):
@@ -84,8 +84,6 @@ class RMMDIIS(PWFDEigensolver):
                                 wfs.P_ani, wfs.myeig_n,
                                 dH, dS_aii, work1_ani, work2_ani)
 
-            # ekin_n = psit_nX.norm2('kinetic')
-
             if weight_n is None:
                 error = np.inf
             else:
@@ -108,7 +106,6 @@ class RMMDIIS(PWFDEigensolver):
                     self.trial_step,
                     self.data_buffers,
                     sP1_ani, sP2_ani,
-                    # ekin_n[n1:n2],
                     wfs.pt_aiX,
                     self.preconditioner)
             wfs._P_ani = None
@@ -128,7 +125,6 @@ class RMMDIIS(PWFDEigensolver):
                    data_buffers,
                    P1_ani,
                    P2_ani,
-                   # ekin_n,
                    pt_aiX,
                    preconditioner) -> None:
         """See here:
@@ -158,67 +154,67 @@ class RMMDIIS(PWFDEigensolver):
         # Psi1_nX = Psi0_nX + lambda_n * P * R0_nX
         PR_nX.data[:] = lambda_n * PR_nX.data + psit_nX.data
 
-        R_mnX = [R_nX, dR_nX]
         psits_mnX = [psit_nX, PR_nX]
+        R_mnX = [R_nX, dR_nX]
 
-        # DIIS Part:
-        blocksize = psit_nX.data.shape[0]
+        # DIIS Part (only relevant if diis_steps > 1):
+        if self.diis_steps > 1:
+            blocksize = psit_nX.data.shape[0]
 
-        A_nmm = -xp.ones(
-            (blocksize, self.diis_steps + 1, self.diis_steps + 1), dtype=dtype)
-        b_nm = -xp.ones((blocksize, self.diis_steps + 1), dtype=dtype)
-        for m1, R1_nX in enumerate(R_mnX):
-            for m2, R2_nX in enumerate(R_mnX):
-                for b in range(blocksize):
-                    A_nmm[b, m1, m2] = R1_nX[b].integrate(R2_nX[b])
+            A_nmm = -xp.ones(
+                (blocksize, self.diis_steps + 1, self.diis_steps + 1),
+                dtype=dtype)
+            b_nm = -xp.ones((blocksize, self.diis_steps + 1), dtype=dtype)
 
-        for i in range(2, self.diis_steps + 1):
-            if i > 2:
-                for m in range(i):
+            for m1, R1_nX in enumerate(R_mnX):
+                for m2, R2_nX in enumerate(R_mnX):
                     for b in range(blocksize):
-                        A_nmm[b, m, i - 1] = \
-                            R_mnX[m][b].integrate(R_mnX[i - 1][b])
-                        A_nmm[b, i - 1, m] = A_nmm[b, m, i - 1].conj()
-                A_nmm[:, i, i] = 0
-                b_nm[:, :i] = 0
-                lambda_nm = xp.linalg.solve(A_nmm[:, :i + 1, :i + 1],
-                                            b_nm[:, :i + 1, None])[:, :i, 0]
+                        A_nmm[b, m1, m2] = R1_nX[b].integrate(R2_nX[b])
 
-                psit_new_nX = psit_nX.create_work_buffer(
-                    self.data_buffers[0, i - 1])
-                psit_new_nX.data[:] = 0
-                R_new_nX = psit_nX.create_work_buffer(
-                    self.data_buffers[1, i - 1])
-                R_new_nX.data[:] = 0
-                for m in range(i):
-                    psit_new_nX.data += \
-                        lambda_nm[:, m, None] * psits_mnX[m].data
-                    R_new_nX.data += \
-                        lambda_nm[:, m, None] * R_mnX[m].data
-            else:
+            for i in range(2, self.diis_steps + 1):
                 psit_new_nX = psit_nX.create_work_buffer(
                     self.data_buffers[0, i - 1])
                 R_new_nX = psit_nX.create_work_buffer(
                     self.data_buffers[1, i - 1])
-                psit_new_nX.data[:] = psits_mnX[-1].data
-                R_new_nX.data[:] = R_mnX[-1].data
+                if i > 2:
+                    for m in range(i):
+                        for b in range(blocksize):
+                            A_nmm[b, m, i - 1] = \
+                                R_mnX[m][b].integrate(R_mnX[i - 1][b])
+                            A_nmm[b, i - 1, m] = A_nmm[b, m, i - 1].conj()
+                    A_nmm[:, i, i] = 0
+                    b_nm[:, :i] = 0
+                    lambda_nm = xp.linalg.solve(
+                        A_nmm[:, :i + 1, :i + 1],
+                        b_nm[:, :i + 1, np.newaxis])[:, :i, 0]
 
-            if i < self.diis_steps:
-                # XXX: In-place preconditioning only works for PW
-                preconditioner(psit_nX, R_new_nX, out=R_new_nX, ekin_n=ekin_n)
-                psit_new_nX.data += R_new_nX.data * lambda_n
+                    psit_new_nX.data[:] = 0
+                    R_new_nX.data[:] = 0
 
-                Ht(psit_new_nX, out=R_new_nX)
-                pt_aiX.integrate(psit_new_nX, out=P_ani)  # XXX: Expensive
-                calculate_residuals(psit_new_nX, R_new_nX, pt_aiX,
-                                    P_ani, eig_n, dH, dS_aii,
-                                    P1_ani, P2_ani)
-            R_mnX.append(R_new_nX)
-            psits_mnX.append(psit_new_nX)
+                    for m in range(i):
+                        psit_new_nX.data += \
+                            lambda_nm[:, m, None] * psits_mnX[m].data
+                        R_new_nX.data += \
+                            lambda_nm[:, m, None] * R_mnX[m].data
+                else:
+                    psit_new_nX.data[:] = psits_mnX[-1].data
+                    R_new_nX.data[:] = R_mnX[-1].data
 
+                if i < self.diis_steps + 1:
+                    preconditioner(psit_nX, R_new_nX,
+                                   out=R_new_nX, ekin_n=ekin_n)
+                    psit_new_nX.data += R_new_nX.data * lambda_n
+
+                    Ht(psit_new_nX, out=R_new_nX)
+                    pt_aiX.integrate(psit_new_nX, out=P_ani)  # XXX: Expensive
+                    calculate_residuals(psit_new_nX, R_new_nX, pt_aiX,
+                                        P_ani, eig_n, dH, dS_aii,
+                                        P1_ani, P2_ani)
+                R_mnX.append(R_new_nX)
+                psits_mnX.append(psit_new_nX)
+
+        # NUTS Part ("free" bonus diis step):
         psit_nX.data[:] = psits_mnX[-1].data
-
-        # NUTS Part:
         preconditioner(psit_nX, R_mnX[-1], out=PR_nX, ekin_n=ekin_n)
         if trial_step is None:
             PR_nX.data *= lambda_n
