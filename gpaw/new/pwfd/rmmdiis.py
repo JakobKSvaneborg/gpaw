@@ -8,7 +8,7 @@ from gpaw.gpu import as_np
 from gpaw.new import zips as zip
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-
+from gpaw.new.fd.hamiltonian import FDHamiltonian
 
 class RMMDIIS(PWFDEigensolver):
     def __init__(self,
@@ -43,6 +43,7 @@ class RMMDIIS(PWFDEigensolver):
         self.trial_step = trial_step
         self.niter = niter
         self.diis_steps = diis_steps
+        self.babysit_fd = isinstance(hamiltonian, FDHamiltonian)
 
     def __str__(self):
         return pformat(dict(name='RMMDIIS',
@@ -182,7 +183,7 @@ class RMMDIIS(PWFDEigensolver):
                     R_new_nX = psit_nX.create_work_buffer(
                         self.data_buffers[1, i])
                 else:
-                    # Last step, use original wave functions
+                    # Last step, overwrite original wave functions
                     psit_new_nX = psit_nX
                     R_new_nX = R_nX
                 if i > 1:
@@ -194,22 +195,23 @@ class RMMDIIS(PWFDEigensolver):
                                 R_mnX[m][b].integrate(R_mnX[i][b]).real
                             if m != i:
                                 A_nmm[b, i, m] = A_nmm[b, m, i]
+                    
                     A_nmm[:, i + 1, i + 1] = 0
                     b_nm[:, :i + 1] = 0
                     lambda_nm = xp.linalg.solve(
                         A_nmm[:, :i + 2, :i + 2],
                         b_nm[:, :i + 2, np.newaxis])[:, :i + 1, 0]
 
-                    psit_new_nX.data[:] = \
-                        lambda_nm[:, 0, None] * psits_mnX[0].data
-                    R_new_nX.data[:] = \
-                        lambda_nm[:, 0, None] * R_mnX[0].data
+                    psit_new_nX.matrix.data[:] = \
+                        lambda_nm[:, 0, None] * psits_mnX[0].matrix.data
+                    R_new_nX.matrix.data[:] = \
+                        lambda_nm[:, 0, None] * R_mnX[0].matrix.data
 
                     for m in range(1, i + 1):
-                        psit_new_nX.data += \
-                            lambda_nm[:, m, None] * psits_mnX[m].data
-                        R_new_nX.data += \
-                            lambda_nm[:, m, None] * R_mnX[m].data
+                        psit_new_nX.matrix.data += \
+                            lambda_nm[:, m, None] * psits_mnX[m].matrix.data
+                        R_new_nX.matrix.data += \
+                            lambda_nm[:, m, None] * R_mnX[m].matrix.data
                 else:
                     # Special case for first DIIS step, which is
                     # numerically unstable:
@@ -217,10 +219,17 @@ class RMMDIIS(PWFDEigensolver):
                     R_new_nX.data[:] = R_mnX[-1].data
 
                 if i < self.diis_steps:
+                    if self.babysit_fd:
+                        # Gotta babysit FD mode, since in-place
+                        # preconditioning is not supported for
+                        # this mode.
+                        PR_new_nX = R_new_nX.copy()
+                    else:
+                        PR_new_nX = R_new_nX
                     # Take the step!
                     preconditioner(psit_nX, R_new_nX,
-                                   out=R_new_nX, ekin_n=ekin_n)
-                    psit_new_nX.data += R_new_nX.data * lambda_n
+                                   out=PR_new_nX, ekin_n=ekin_n)
+                    psit_new_nX.data += PR_new_nX.data * lambda_n
 
                     # Get the next trial vector
                     Ht(psit_new_nX, out=R_new_nX)
