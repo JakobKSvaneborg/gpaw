@@ -2,7 +2,6 @@ import pytest
 from ase.build import molecule
 
 from gpaw import GPAW, Mixer
-from gpaw.mpi import world
 from gpaw.utilities.elpa import LibElpa
 
 pytestmark = pytest.mark.skipif(not LibElpa.have_elpa(),

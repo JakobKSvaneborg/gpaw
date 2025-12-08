@@ -35,13 +35,6 @@ class CLICommand:
 
     @staticmethod
     def run(args):
-        import os
-
-        from gpaw import __getattr__, all_lazy_imports, broadcast_imports
-        with broadcast_imports:
-            for attr in all_lazy_imports:
-                __getattr__(attr)
-
         if args.cmd:
             sys.argv[:] = ['-c'] + args.cmd[1:]
             d = {}

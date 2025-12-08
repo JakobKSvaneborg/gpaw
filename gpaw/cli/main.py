@@ -48,7 +48,7 @@ def hook(parser, args):
             mpi.world.size = N
 
     if args.parallel is not None:
-        from gpaw.mpi import compiled_with_mpi, world, have_mpi
+        from gpaw.mpi import compiled_with_mpi, have_mpi
 
         if not compiled_with_mpi:
             raise SystemExit('MPI not available')
@@ -106,11 +106,10 @@ def gpaw_python_init_magic():
         for attr in all_lazy_imports:
             __getattr__(attr)
 
-        from ase.cli.main import main as ase_main
+        import ase.cli.main  # noqa
+        from ase.parallel import world as ase_world
         from gpaw.mpi import world
-        from gpaw import __version__
 
-    from ase.parallel import world as ase_world
     assert ase_world.size == world.size
 
 

@@ -2,7 +2,6 @@ import pytest
 from ase.build import bulk
 
 from gpaw import GPAW
-from gpaw.mpi import world
 from gpaw.utilities.elpa import LibElpa
 
 # Run single SCF iteration and compare total energy with elpa vs. scalapack

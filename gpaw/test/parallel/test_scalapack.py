@@ -13,7 +13,6 @@ from scipy.linalg import cholesky, eigh, inv
 
 from gpaw.blacs import BlacsGrid, Redistributor
 from gpaw.mpi import world
-from gpaw.utilities import compiled_with_sl
 from gpaw.utilities.blas import rk
 from gpaw.utilities.scalapack import (scalapack_diagonalize_dc,
                                       scalapack_general_diagonalize_dc,
