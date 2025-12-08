@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 from contextlib import contextmanager
 from functools import cached_property
 
@@ -492,6 +493,23 @@ class MPIHelper:
         from gpaw.dft import GPAW as AnyGPAW
         return AnyGPAW(*args, communicator=self.comm,
                        _use_old_gpaw=True, **kwargs)
+
+
+@pytest.fixture(autouse=True)
+def no_use_mpi4py(_not_world):
+    from gpaw.mpi import SerialCommunicator
+
+    serial = isinstance(_not_world, SerialCommunicator)
+
+    if serial:
+        assert 'mpi4py.MPI' not in sys.modules
+        assert 'mpi4py' not in sys.modules
+
+    yield
+
+    if serial:
+        assert 'mpi4py.MPI' not in sys.modules
+        assert 'mpi4py' not in sys.modules
 
 
 @pytest.fixture
