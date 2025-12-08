@@ -164,6 +164,7 @@ class DirOptPWFD(PWFDEigensolver):
             error += grad_nX.norm2() @ weight_n
             shape = (-1,) + (1,) * (grad_nX.data.ndim - 1)
             grad_nX.data *= weight_n.reshape(shape)
+        error = ibzwfs.kpt_comm.sum_scalar(error)
 
         return 0.0, error, energies
 

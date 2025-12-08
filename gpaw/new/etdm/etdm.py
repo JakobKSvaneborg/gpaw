@@ -223,12 +223,9 @@ class KArray:
         self.weights = weights
         self.comm = comm
 
-    def new(self, a_ux):
-        return KArray(a_ux, self.weights, self.comm)
-
     def copy(self):
-        return self.new(
-            [a_x.copy() for a_x in self.a_ux])
+        return KArray(
+            [a_x.copy() for a_x in self.a_ux], self.comm, self.weights)
 
     def __neg__(self):
         b_ux = self.copy()
