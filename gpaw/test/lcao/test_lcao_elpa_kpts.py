@@ -11,8 +11,8 @@ pytestmark = pytest.mark.skipif(not LibElpa.have_elpa(),
                                 reason='not LibElpa.have_elpa()')
 
 
-def test_lcao_lcao_elpa_kpts(gpaw_new):
-    if gpaw_new and world.size == 8:
+def test_lcao_lcao_elpa_kpts(gpaw_new, mpi, require_real_mpi):
+    if gpaw_new and mpi.comm.size == 8:
         pytest.skip('Not implementted')
 
     energies = []
@@ -23,8 +23,8 @@ def test_lcao_lcao_elpa_kpts(gpaw_new):
                     kpts=[2, 2, 2],
                     parallel=dict(sl_auto=True,
                                   use_elpa=elpasolver is not None,
-                                  band=2 if world.size > 4 else 1,
-                                  kpt=2 if world.size > 2 else 1,
+                                  band=2 if mpi.comm.size > 4 else 1,
+                                  kpt=2 if mpi.comm.size > 2 else 1,
                                   elpasolver=elpasolver),
                     convergence={'maximum iterations': 2},
                     txt='-')

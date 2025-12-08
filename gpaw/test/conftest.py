@@ -384,8 +384,8 @@ def pytest_runtest_setup(item):
         pytest.skip('No LibXC.')
 
 
-@pytest.fixture
-def scalapack():
+@pytest.fixture(scope='session')
+def scalapack(require_real_mpi):
     """Skip if not compiled with sl.
 
     This fixture otherwise does not return or do anything."""
@@ -394,10 +394,10 @@ def scalapack():
         pytest.skip('no scalapack')
 
 
-@pytest.fixture
-def require_real_mpi(comm):
+@pytest.fixture(scope='session')
+def require_real_mpi(_not_world):
     try:
-        comm.get_c_object()
+        _not_world.get_c_object()
     except RuntimeError:
         pytest.skip('This test requires actual MPI to be enabled')
 

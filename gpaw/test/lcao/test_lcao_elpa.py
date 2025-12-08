@@ -9,8 +9,8 @@ pytestmark = pytest.mark.skipif(not LibElpa.have_elpa(),
                                 reason='not LibElpa.have_elpa()')
 
 
-def test_lcao_lcao_elpa():
-    size = (world.size // 2, 2) if world.size > 1 else (1, 1)
+def test_lcao_lcao_elpa(mpi, require_real_mpi):
+    size = (mpi.comm.size // 2, 2) if mpi.comm.size > 1 else (1, 1)
 
     energies = []
     for use_elpa in [1, 0]:

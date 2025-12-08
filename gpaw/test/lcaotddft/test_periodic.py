@@ -69,7 +69,8 @@ def test_propagated_wave_function(initialize_system, module_tmp_path):
 @pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 @pytest.mark.parametrize('parallel', parallel_i)
-def test_propagation(initialize_system, module_tmp_path, parallel, in_tmp_dir):
+def test_propagation(initialize_system, module_tmp_path, parallel, in_tmp_dir,
+                     scalapack):
     calculate_time_propagation(module_tmp_path / 'gs.gpw',
                                kick=[0, 0, 1e-5],
                                parallel=parallel)
