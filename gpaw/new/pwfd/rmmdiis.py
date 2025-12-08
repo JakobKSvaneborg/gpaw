@@ -150,9 +150,11 @@ class RMMDIIS(PWFDEigensolver):
         lambda_n = (a_n / b_n).reshape(shape)
 
         # R1_nX = R0_nX + lambda_n * (H - S eps) * P * R0_nX
-        dR_nX.data[:] = lambda_n * dR_nX.data + R_nX.data
+        dR_nX.data *= lambda_n
+        dR_nX.data += R_nX.data
         # Psi1_nX = Psi0_nX + lambda_n * P * R0_nX
-        PR_nX.data[:] = lambda_n * PR_nX.data + psit_nX.data
+        PR_nX.data *= lambda_n
+        PR_nX.data += psit_nX.data
 
         psits_mnX = [psit_nX, PR_nX]
         R_mnX = [R_nX, dR_nX]
