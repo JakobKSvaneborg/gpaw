@@ -347,6 +347,7 @@ class GRRR:
     def __eq__(self, other):
         return isinstance(other, GRRR)
 
+
 def pytest_configure(config):
     no_mpi_please()
     if world.rank != 0:
@@ -508,16 +509,12 @@ def no_mpi_please():
     assert 'mpi4py' not in sys.modules
     assert sys.modules.get('mpi4py', GRRR()) == GRRR()
     assert sys.modules.get('mpi4py.MPI', GRRR()) == GRRR()
-    # assert sys.modules.get('mpi4py', GRRR()) == GRRR()
-    #not in sys.modules
-    # assert 'mpi4py' not in sys.modules
 
 
 @pytest.fixture(autouse=True)
 def no_use_mpi4py(_not_world):
     from gpaw.mpi import SerialCommunicator
 
-    modules = set(sys.modules)
     serial = isinstance(_not_world, SerialCommunicator)
 
     if serial:

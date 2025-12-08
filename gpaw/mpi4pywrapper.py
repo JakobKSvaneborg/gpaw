@@ -1,3 +1,5 @@
+from functools import cached_property
+
 import numpy as np
 
 
@@ -7,22 +9,18 @@ def maybe_sync(arr):
         cupy.cuda.deviceSynchronize()
 
 
-class LazyMPI:
-    def __getattr__(self, name):
-        import mpi4py.MPI as MPI
-
-        return getattr(MPI, name)
-
-
-MPI = LazyMPI()
-
-
 class MPI4PYWrapper:
     def __init__(self, comm, parent=None):
         self.comm = comm
         self.size = comm.size
         self.rank = comm.rank
         self.parent = parent  # XXX check C-object against comm.parent?
+
+    @cached_property
+    def _MPI(self):
+        import mpi4py.MPI
+
+        return mpi4py.MPI
 
     def new_communicator(self, ranks):
         comm = self.comm.Create(self.comm.group.Incl(ranks))
@@ -33,14 +31,14 @@ class MPI4PYWrapper:
             return None
 
     def max_scalar(self, a, root=-1):
-        return self.sum_scalar(a, root=-1, _op=MPI.MAX)
+        return self.sum_scalar(a, root=-1, _op=self._MPI.MAX)
 
     def min_scalar(self, a, root=-1):
-        return self.sum_scalar(a, root=-1, _op=MPI.MIN)
+        return self.sum_scalar(a, root=-1, _op=self._MPI.MIN)
 
     def sum_scalar(self, a, root=-1, _op=None):
         if _op is None:
-            _op = MPI.SUM
+            _op = self._MPI.SUM
         assert isinstance(a, (int, float, complex))
         if root == -1:
             return self.comm.allreduce(a, op=_op)
@@ -49,25 +47,25 @@ class MPI4PYWrapper:
 
     def sum(self, a, root=-1, _op=None):
         if _op is None:
-            _op = MPI.SUM
+            _op = self._MPI.SUM
 
         maybe_sync(a)
         if root == -1:
-            self.comm.Allreduce(MPI.IN_PLACE, a, op=_op)
+            self.comm.Allreduce(self._MPI.IN_PLACE, a, op=_op)
         else:
             if root == self.rank:
-                self.comm.Reduce(MPI.IN_PLACE, a, root=root, op=_op)
+                self.comm.Reduce(self._MPI.IN_PLACE, a, root=root, op=_op)
             else:
                 self.comm.Reduce(a, None, root=root, op=_op)
 
     def max(self, a, root=-1):
-        self.sum(a, root=-1, _op=MPI.MAX)
+        self.sum(a, root=-1, _op=self._MPI.MAX)
 
     def min(self, a, root=-1):
-        self.min(a, root=-1, _op=MPI.MIN)
+        self.min(a, root=-1, _op=self._MPI.MIN)
 
     def product(self, a, root=-1):
-        self.sum(a, root=-1, _op=MPI.PROD)
+        self.sum(a, root=-1, _op=self._MPI.PROD)
 
     def scatter(self, a, b, root):
         maybe_sync(a)
@@ -116,13 +114,13 @@ class MPI4PYWrapper:
         return request.test()
 
     def testall(self, requests):
-        return MPI.Request.testall(requests)
+        return self._MPI.Request.testall(requests)
 
     def wait(self, request):
         request.wait()
 
     def waitall(self, requests):
-        MPI.Request.waitall(requests)
+        self._MPI.Request.waitall(requests)
 
     def name(self):
         return self.comm.Get_name()
@@ -135,13 +133,13 @@ class MPI4PYWrapper:
 
     def compare(self, othercomm):
         code = self.comm.Compare(othercomm.comm)
-        if code == MPI.IDENT:
+        if code == self._MPI.IDENT:
             return 'ident'
-        elif code == MPI.CONGRUENT:
+        elif code == self._MPI.CONGRUENT:
             return 'congruent'
-        elif code == MPI.SIMILAR:
+        elif code == self._MPI.SIMILAR:
             return 'similar'
-        elif code == MPI.UNEQUAL:
+        elif code == self._MPI.UNEQUAL:
             return 'unequal'
         else:
             raise ValueError(f'Unknown compare code {code}')
@@ -155,4 +153,4 @@ class MPI4PYWrapper:
         return self.translate_ranks(self.parent, np.arange(self.size))
 
     def get_c_object(self):
-        return MPI._addressof(self.comm)
+        return self._MPI._addressof(self.comm)
