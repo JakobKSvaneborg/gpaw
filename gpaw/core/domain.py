@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Generic, Literal, TypeVar
+from typing import TYPE_CHECKING, Generic, Literal
 
 import numpy as np
 from ase.geometry.cell import cellpar_to_cell
@@ -13,7 +13,7 @@ from gpaw.typing import (Array2D, ArrayLike, ArrayLike1D, ArrayLike2D,
 
 if TYPE_CHECKING:
     from gpaw.core import UGDesc
-    from gpaw.core.arrays import DistributedArrays
+    from gpaw.core.arrays import XArray
 
 
 def normalize_cell(cell: ArrayLike) -> Array2D:
@@ -32,7 +32,7 @@ def normalize_cell(cell: ArrayLike) -> Array2D:
     return cellpar_to_cell(cell)
 
 
-XArray = TypeVar('XArray', bound='DistributedArrays')
+# XArray = TypeVar('XArray', bound='XArray')
 
 
 class Domain(Generic[XArray]):

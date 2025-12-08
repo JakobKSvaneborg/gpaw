@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import partial
 
-from gpaw.core.arrays import DistributedArrays as XArray
+from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.new import trace, zips
 from gpaw.new.density import Density

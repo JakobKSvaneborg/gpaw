@@ -4,7 +4,7 @@ import numpy as np
 from ase.units import Bohr, Ha
 
 from gpaw.core import PWArray, UGArray, UGDesc
-from gpaw.core.arrays import DistributedArrays as XArray
+from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.core.domain import Domain as XDesc
 from gpaw.mpi import MPIComm, broadcast_float

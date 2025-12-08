@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Literal
 import numpy as np
 
 import gpaw.fftw as fftw
-from gpaw.core.arrays import DistributedArrays
+from gpaw.core.arrays import XArray
 from gpaw.core.atom_centered_functions import UGAtomCenteredFunctions
 from gpaw.core.domain import Domain
 from gpaw.fd_operators import Gradient
@@ -301,7 +301,7 @@ class UGDesc(Domain['UGArray']):
                         scale=scale, n=n, dtype=self.dtype, xp=xp)
 
 
-class UGArray(DistributedArrays[UGDesc]):
+class UGArray(XArray[UGDesc]):
     def __init__(self,
                  grid: UGDesc,
                  dims: int | tuple[int, ...] = (),
@@ -321,9 +321,9 @@ class UGArray(DistributedArrays[UGDesc]):
         data:
             Data array for storage.
         """
-        DistributedArrays. __init__(self, dims, grid.myshape,
-                                    comm, grid.comm, data, grid.dv,
-                                    grid.dtype, xp)
+        XArray. __init__(self, dims, grid.myshape,
+                         comm, grid.comm, data, grid.dv,
+                         grid.dtype, xp)
         self.desc = grid
 
     def __repr__(self):

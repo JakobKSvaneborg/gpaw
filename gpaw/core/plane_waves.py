@@ -10,7 +10,7 @@ from ase.units import Ha
 
 import gpaw.fftw as fftw
 from gpaw import debug
-from gpaw.core.arrays import DistributedArrays
+from gpaw.core.arrays import XArray
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
 from gpaw.core.pwacf import PWAtomCenteredFunctions
@@ -284,7 +284,7 @@ class PWDesc(Domain['PWArray']):
                            qspiral_v=qspiral_v)
 
 
-class PWArray(DistributedArrays[PWDesc]):
+class PWArray(XArray[PWDesc]):
     def __init__(self,
                  pw: PWDesc,
                  dims: int | tuple[int, ...] = (),
@@ -308,10 +308,10 @@ class PWArray(DistributedArrays[PWDesc]):
         self.real_dtype = as_real_dtype(pw.dtype)
         self.complex_dtype = as_complex_dtype(pw.dtype)
 
-        DistributedArrays. __init__(self, dims, pw.myshape,
-                                    comm, pw.comm,
-                                    data, pw.dv,
-                                    self.complex_dtype, xp)
+        XArray. __init__(self, dims, pw.myshape,
+                         comm, pw.comm,
+                         data, pw.dv,
+                         self.complex_dtype, xp)
         self.desc = pw
         self._matrix: Matrix | None
 
