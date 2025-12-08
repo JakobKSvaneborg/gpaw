@@ -8,7 +8,6 @@ from gpaw.gpu import as_np
 from gpaw.new import zips as zip
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.utilities import as_dtype_precision
 
 
 class RMMDIIS(PWFDEigensolver):
@@ -133,7 +132,6 @@ class RMMDIIS(PWFDEigensolver):
                 https://gpaw.readthedocs.io/documentation/rmm-diis.html
         """
         xp = psit_nX.xp
-        dtype = psit_nX.desc.dtype
 
         # RMM Part:
         PR_nX = psit_nX.create_work_buffer(self.data_buffers[0, 0])
