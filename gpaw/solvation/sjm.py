@@ -258,6 +258,7 @@ class OldSJM(OldSolvationGPAW):
          'previous_electrons': [],
          'previous_potentials': [],
          'slope_regression_depth': 4,
+         'dirichlet': False,
          'cip': {'autoinner': {'nlayers': None,
                                'threshold': 0.0001},
                  'inner_region': None,
@@ -265,7 +266,6 @@ class OldSJM(OldSolvationGPAW):
                  'phi_pzc': None,
                  'filter': 10}})
 
-    _sj_default_parameters.update({'dirichlet': False})
     default_parameters = copy.deepcopy(OldSolvationGPAW.default_parameters)
     default_parameters.update({'poissonsolver': {'dipolelayer': 'xy'}})
     default_parameters['convergence'].update({'work function': 0.001})
@@ -362,6 +362,10 @@ class OldSJM(OldSolvationGPAW):
                 self.log('Changed Solvated Jellium parameters:')
             self.log.print_dict({i: p[i] for i in sj_changes})
             self.log()
+
+        if 'dirichlet' in sj_changes and self.wfs is not None:
+            raise InputError('Cannot change the poissonsolver boundary '
+                             'after the calculation has been initialized.')
 
         if 'target_potential' in sj_changes and p.target_potential is not None:
             # If target potential is changed by the user and the slope is
@@ -1273,6 +1277,7 @@ class SJM_RealSpaceHamiltonian(SolvationRealSpaceHamiltonian):
         self.cavity = cavity
         self.dielectric = dielectric
         self.interactions = interactions
+        self.dirichlet = dirichlet
         cavity.set_grid_descriptor(finegd)
         dielectric.set_grid_descriptor(finegd)
         for ia in interactions:
@@ -1326,6 +1331,30 @@ class SJM_RealSpaceHamiltonian(SolvationRealSpaceHamiltonian):
         for ia in self.interactions:
             ia.allocate()
         RealSpaceHamiltonian.initialize(self)
+
+    def get_workfunctions(self, wfs):
+        """
+        Wrapper around RealSpaceHamiltonian.get_workfunctions which
+        only triggers if dirichlet boundary conditions are used.
+        It will correctly identify the two work functions in that case,
+        where the right one is equal to the Fermi level as the vacuum
+        level there defines the potential reference.
+        """
+        if not self.dirichlet:
+            return super().get_workfunctions(wfs)
+
+        try:
+            dipole_correction = self.poisson.correction
+        except AttributeError:
+            raise ValueError(
+                'Work function not defined if no field-free region. Consider '
+                'using a dipole correction if you are looking for a '
+                'work function.')
+        fermilevel = wfs.fermi_level
+
+        wf1 = - fermilevel + 2 * dipole_correction
+        wf2 = - fermilevel
+        return np.array([wf1, wf2])
 
 
 class CavityShapedJellium(Jellium):
