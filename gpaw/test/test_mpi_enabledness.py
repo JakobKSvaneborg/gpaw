@@ -8,6 +8,9 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def skip_if_mpi_initialized(comm):
+    if 'mpi4py.MPI' in sys.modules:
+        pytest.fail('Someone initialized MPI via mpi4py')
+
     from gpaw.mpi import SerialCommunicator
 
     if not isinstance(comm, SerialCommunicator):
