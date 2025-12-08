@@ -1,3 +1,4 @@
+from __future__ import annotations
 from gpaw.mpi import MPIComm
 from gpaw.core.arrays import XArray
 from typing import Sequence
@@ -21,12 +22,9 @@ class MultiXArray:
         self.weights = weights
         self.comm = comm
 
-    def new(self, a_unX: list[XArray]) -> MultiXArray:
-        return MultiXArray(a_unX, self.comm, self.weights)
-
     def copy(self) -> MultiXArray:
-        return self.new(
-            [a_nX.copy() for a_nX in self.a_unX])
+        return MultiXArray(
+            [a_nX.copy() for a_nX in self.a_unX], self.comm, self.weights)
 
     def __neg__(self) -> MultiXArray:
         b_unX = self.copy()
