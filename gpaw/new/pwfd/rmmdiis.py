@@ -17,7 +17,7 @@ class RMMDIIS(PWFDEigensolver):
                  band_comm,
                  hamiltonian,
                  converge_bands='occupied',
-                 niter: int = 2,
+                 niter: int = 1,
                  diis_steps: int = 2,
                  trial_step: float | None = None,
                  scalapack_parameters=None,
@@ -84,7 +84,7 @@ class RMMDIIS(PWFDEigensolver):
                                 wfs.P_ani, wfs.myeig_n,
                                 dH, dS_aii, work1_ani, work2_ani)
 
-            ekin_n = psit_nX.norm2('kinetic')
+            # ekin_n = psit_nX.norm2('kinetic')
 
             if weight_n is None:
                 error = np.inf
@@ -97,20 +97,18 @@ class RMMDIIS(PWFDEigensolver):
             for i1, N1 in enumerate(
                     range(0, totalbands, blocksize_world)):
                 n1 = i1 * blocksize
-                n2 = n1 + blocksize
-                sP_ani = P0_ani[:, n1:n2]
-                if n2 > mynbands:
-                    n2 = mynbands
-                    P1_ani = P1_ani[:, :n2 - n1]
-                    P2_ani = P2_ani[:, :n2 - n1]
+                n2 = min(n1 + blocksize, mynbands)
+                sP_ani = P0_ani[:, :n2 - n1]
+                sP1_ani = P1_ani[:, :n2 - n1]
+                sP2_ani = P2_ani[:, :n2 - n1]
                 self.block_step(
                     psit_nX[n1:n2],
                     residual_nX[n1:n2],
                     sP_ani, wfs.myeig_n[n1:n2], Ht, dH, dS_aii,
                     self.trial_step,
                     self.data_buffers,
-                    P1_ani, P2_ani,
-                    ekin_n[n1:n2],
+                    sP1_ani, sP2_ani,
+                    # ekin_n[n1:n2],
                     wfs.pt_aiX,
                     self.preconditioner)
             wfs._P_ani = None
@@ -130,7 +128,7 @@ class RMMDIIS(PWFDEigensolver):
                    data_buffers,
                    P1_ani,
                    P2_ani,
-                   ekin_n,
+                   # ekin_n,
                    pt_aiX,
                    preconditioner) -> None:
         """See here:
@@ -144,8 +142,7 @@ class RMMDIIS(PWFDEigensolver):
         PR_nX = psit_nX.create_work_buffer(self.data_buffers[0, 0])
         dR_nX = psit_nX.create_work_buffer(self.data_buffers[1, 0])
 
-        preconditioner(psit_nX, R_nX, out=PR_nX,
-                       ekin_n=ekin_n)
+        ekin_n = preconditioner(psit_nX, R_nX, out=PR_nX)
         Ht(PR_nX, out=dR_nX)
         pt_aiX.integrate(PR_nX, out=P_ani)  # XXX: This is expensive
         calculate_residuals(PR_nX, dR_nX, pt_aiX, P_ani, eig_n,

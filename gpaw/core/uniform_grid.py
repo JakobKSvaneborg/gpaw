@@ -523,7 +523,7 @@ class UGArray(DistributedArrays[UGDesc]):
 
         return out
 
-    def norm2(self):
+    def norm2(self, kind: str = 'normal', skip_sum=False):
         """Calculate integral over cell of absolute value squared.
 
         :::
@@ -532,6 +532,9 @@ class UGArray(DistributedArrays[UGDesc]):
          ||a(r)| dr
          /
         """
+        if not kind == 'normal' or skip_sum:
+            raise NotImplementedError
+
         norm_x = []
         arrays_xR = self._arrays()
         for a_R in arrays_xR:
