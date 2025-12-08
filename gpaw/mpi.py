@@ -710,6 +710,9 @@ class SerialCommunicator:
             warnings.warn('Please use sum_scalar(...)', stacklevel=2)
             return array
 
+    def product(self, array, root=-1):
+        pass
+
     def sum_scalar(self, a, root=-1):
         return a
 
