@@ -1063,6 +1063,7 @@ class SJMPower12Potential(Power12Potential):
         Dictionary to control the non-local part of solvation, i.e.
         (exclusion of solvent from the electrode-water interface).
         It has 4 keys:
+
         style: 'ghost_atoms' or 'plane'
             'ghost_atoms': Add ghost atoms below the water layer to
             exclude implicit solvent from the interface region.
