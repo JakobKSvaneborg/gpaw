@@ -125,6 +125,8 @@ def ksd_transform_reference(ksd_reference):
 @pytest.fixture(scope='module', params=parallel_i)
 def build_ksd(initialize_system, request, scalapack):
     calc = GPAW('unocc.gpw', parallel=request.param, txt=None)
+    if not calc.wfs.ksl.using_blacs and calc.wfs.bd.comm.size > 1:
+        pytest.skip('Band parallelization without scalapack is not supported')
     ksd = KohnShamDecomposition(calc)
     ksd.initialize(calc)
     ksd.write('ksd.ulm')
@@ -233,6 +235,8 @@ def test_ksd_vs_dmat_density(density_reference):
 @pytest.fixture(scope='module')
 def density(load_ksd, scalapack):
     ksd, fdm = load_ksd
+    if ksd.ksl.using_blacs:
+        pytest.skip('Scalapack is not supported')
     dmat_rho_wg = get_density_fdm(ksd, fdm, 'dmat')
     ksd_rho_wg = get_density_fdm(ksd, fdm, 'ksd')
     return dict(dmat=dmat_rho_wg, ksd=ksd_rho_wg)
