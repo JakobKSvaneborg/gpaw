@@ -1,7 +1,7 @@
 import pytest
 from ase import Atom, Atoms
 
-from gpaw import GPAW, RMMDIIS, Mixer
+from gpaw import GPAW, Mixer
 
 
 @pytest.mark.parametrize('mode', ['pw', 'fd'])

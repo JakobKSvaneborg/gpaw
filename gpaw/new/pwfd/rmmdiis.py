@@ -10,6 +10,7 @@ from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.fd.hamiltonian import FDHamiltonian
 
+
 class RMMDIIS(PWFDEigensolver):
     def __init__(self,
                  nbands: int,
@@ -195,7 +196,7 @@ class RMMDIIS(PWFDEigensolver):
                                 R_mnX[m][b].integrate(R_mnX[i][b]).real
                             if m != i:
                                 A_nmm[b, i, m] = A_nmm[b, m, i]
-                    
+
                     A_nmm[:, i + 1, i + 1] = 0
                     b_nm[:, :i + 1] = 0
                     lambda_nm = xp.linalg.solve(
