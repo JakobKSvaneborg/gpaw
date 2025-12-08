@@ -166,14 +166,14 @@ class RMMDIIS(PWFDEigensolver):
 
             A_nmm = -xp.ones(
                 (blocksize, self.diis_steps + 2, self.diis_steps + 2),
-                dtype=as_dtype_precision(dtype, 'double'))
+                dtype=float)
             b_nm = -xp.ones((blocksize, self.diis_steps + 2),
-                            dtype=as_dtype_precision(dtype, 'double'))
+                            dtype=float)
 
             for m1, R1_nX in enumerate(R_mnX):
                 for m2, R2_nX in enumerate(R_mnX):
                     for b in range(blocksize):
-                        A_nmm[b, m1, m2] = R1_nX[b].integrate(R2_nX[b])
+                        A_nmm[b, m1, m2] = R1_nX[b].integrate(R2_nX[b]).real
 
             for i in range(1, self.diis_steps + 1):
                 # We are already on step 2
@@ -193,9 +193,9 @@ class RMMDIIS(PWFDEigensolver):
                     for m in range(i + 1):
                         for b in range(blocksize):
                             A_nmm[b, m, i] = \
-                                R_mnX[m][b].integrate(R_mnX[i][b])
+                                R_mnX[m][b].integrate(R_mnX[i][b]).real
                             if m != i:
-                                A_nmm[b, i, m] = A_nmm[b, m, i].conj()
+                                A_nmm[b, i, m] = A_nmm[b, m, i]
                     A_nmm[:, i + 1, i + 1] = 0
                     b_nm[:, :i + 1] = 0
                     lambda_nm = xp.linalg.solve(
