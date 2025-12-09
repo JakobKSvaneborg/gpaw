@@ -299,14 +299,17 @@ class RMMDIIS(PWFDEigensolverParamater):
 
     def __init__(self,
                  niter: int = 1,
+                 diis_steps: int = 1,
                  max_buffer_mem: int = 200 * 1024**2,
                  trial_step: float | None = None):
         self.niter = niter
+        self.diis_steps = diis_steps
         self.max_buffer_mem = max_buffer_mem
         self.trial_step = trial_step
 
     def todict(self):
         return {'niter': self.niter,
+                'diis_steps': self.diis_steps,
                 'max_buffer_mem': self.max_buffer_mem,
                 'trial_step': self.trial_step}
 
@@ -325,6 +328,7 @@ class RMMDIIS(PWFDEigensolverParamater):
             create_preconditioner,
             converge_bands,
             niter=self.niter,
+            diis_steps=self.diis_steps,
             max_buffer_mem=self.max_buffer_mem,
             trial_step=self.trial_step)
 

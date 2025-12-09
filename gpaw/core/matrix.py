@@ -265,8 +265,7 @@ class Matrix(XP):
                     N=r_buffer_size,
                     data=data_buffer[
                         :l_buffer_size].reshape(
-                        (other.data.shape[0], r_buffer_size)
-                    ),
+                        (other.data.shape[0], r_buffer_size)),
                     dist=dist.new(M=other.shape[0], N=r_buffer_size),
                     xp=other.xp)
                 buffer.data[:] \
