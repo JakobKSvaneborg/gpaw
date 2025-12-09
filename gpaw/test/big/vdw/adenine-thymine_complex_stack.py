@@ -38,7 +38,7 @@ for molecule in ['Adenine-thymine_complex_stack']:
         Energy['PBE'].append(s.get_potential_energy())
         cc = vdWTkatchenko09prl(
             HirshfeldPartitioning(c),
-            vdWradii(s.get_chemical_symbols(), 'PBE', world=c.comm))
+            vdWradii(s.get_chemical_symbols(), 'PBE', world=c.world))
         s.calc = cc
         Energy['TS09'].append(s.get_potential_energy())
 

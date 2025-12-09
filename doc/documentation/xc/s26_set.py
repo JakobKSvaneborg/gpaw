@@ -49,7 +49,7 @@ for molecule in data:
             s.get_potential_energy()
             cc = vdWTkatchenko09prl(
                 HirshfeldPartitioning(c),
-                vdWradii(s.get_chemical_symbols(), 'PBE', world=c.comm))
+                vdWradii(s.get_chemical_symbols(), 'PBE', world=c.world))
             s.calc = cc
         elif xc == 'dftd4':
             s.get_potential_energy()
