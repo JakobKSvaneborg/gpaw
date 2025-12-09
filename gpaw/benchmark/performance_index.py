@@ -96,10 +96,12 @@ def score(data: dict[str, float]) -> tuple[float, int]:
     return 100 * RESCALE_FACTOR * s / len(REFERENCES0), n
 
 
-def workflow():
+def workflow(skip: list[str] | None = None) -> None:
     """MyQueue workflow."""
     from myqueue.workflow import run
     for name, (_, _, cores, _) in REFERENCES.items():
+        if skip and name in skip:
+            continue
         tmax = '2h'
         if cores == 24:
             nodename = 'xeon24el8'
