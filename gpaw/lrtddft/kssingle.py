@@ -43,9 +43,9 @@ class KSSingles(ExcitationList):
     def __init__(self,
                  restrict={},
                  log=None,
-                 txt=None):
-        super().__init__(log=log, txt=txt)
-        self.world = mpi.world
+                 txt=None,
+                 world=None):
+        super().__init__(log=log, txt=txt, world=world)
 
         self.restrict = KSSRestrictor()
         self.restrict.update(restrict)
@@ -194,9 +194,10 @@ class KSSingles(ExcitationList):
             kss.distribute()
 
     @classmethod
-    def read(cls, filename=None, fh=None, restrict={}, log=None):
+    def read(cls, filename=None, fh=None, restrict={}, log=None, world=None):
         """Read myself from a file"""
         assert (filename is not None) or (fh is not None)
+        world = mpi.normalize_communicator(world)
 
         def fail(f):
             raise RuntimeError(f.name + ' does not contain ' +
@@ -220,7 +221,7 @@ class KSSingles(ExcitationList):
 
         words = f.readline().split()
         n = int(words[0])
-        kssl = cls(log=log)
+        kssl = cls(log=log, world=world)
         if len(words) == 1:
             # very old output style for real wave functions (finite systems)
             kssl.dtype = float

@@ -58,7 +58,7 @@ class ExteriorElectronDensity:
 
     def write_mies_weights(self, wfs):
         file = 'eed_mies.dat'
-        with paropen(file, 'a') as out:
+        with paropen(file, 'a', comm=wfs.world) as out:
             fmf = FMF(['exterior electron density weights after',
                        'Y. Harada et al., Chem. Rev. 97 (1997) 1897'])
             print(fmf.header(), end=' ', file=out)

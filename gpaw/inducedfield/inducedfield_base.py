@@ -277,7 +277,8 @@ class BaseInducedField:
         reader.close()
         self.world.barrier()
 
-    def _read(self, reader, reads):
+    @mpi.parallel(name='world')
+    def _read(self, reader, reads, world):
         r = reader
 
         # Test data type
@@ -312,7 +313,7 @@ class BaseInducedField:
             from ase.io.trajectory import read_atoms
             self.atoms = read_atoms(r.atoms)
 
-            self.world = mpi.world
+            self.world = world
             self.gd = GridDescriptor(ng + 1, self.atoms.get_cell() / Bohr,
                                      pbc_c=False, comm=self.world)
             self.domain_comm = self.gd.comm

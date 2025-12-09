@@ -31,7 +31,8 @@ def calculate_forces(wfs, coulomb, sym, paw_s, ftol=1e-9) -> np.ndarray:
             kpt = get_kpt(wfs, k, spin, 0, nocc)
             rank_a = kpt.proj.atom_partition.rank_a
             dPdR_aniv = [
-                broadcast(dPdR_skaniv[(spin, k)].get(a), rank_a[a], wfs.world)
+                broadcast(dPdR_skaniv[(spin, k)].get(a), rank_a[a],
+                          comm=wfs.world)
                 for a in range(natoms)]
             kpt.dPdR_aniv = dPdR_aniv
             kpts.append(kpt)

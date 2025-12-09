@@ -95,13 +95,13 @@ def broadcast_exception(comm):
     except Exception as ex:
         rank = comm.max_scalar(comm.rank)
         if rank == comm.rank:
-            broadcast(ex, rank, comm)
+            broadcast(ex, rank, comm=comm)
             raise
     else:
         rank = comm.max_scalar(-1)
     # rank will now be the highest failing rank or -1
     if rank >= 0:
-        raise broadcast(None, rank, comm)
+        raise broadcast(None, rank, comm=comm)
 
 
 class _Communicator:
@@ -851,7 +851,61 @@ def verify_ase_world():
 verify_ase_world()
 
 
-def broadcast(obj, root=0, comm=world):
+def parallel(func=None, *, name='comm'):
+    """Decorator for functions that take comm=world.
+
+    We want this decorator so as to control access to world and prevent
+    deadlocks when callers of these functions forget to set the
+    communicator."""
+    import functools
+
+    if func is None:
+        def decorator(func):
+            return parallel(func, name=name)
+        return decorator
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        comm = kwargs.get(name)
+        if comm is None:
+            comm = world
+            try:
+                _check_world_protected(comm)
+            except DontDoThat:
+                raise DontDoThat(
+                    f'Must call method with keyword {name}=<communicator> '
+                    'and communicator must not be gpaw.mpi.world'
+                ) from None
+            kwargs[name] = comm
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def _check_world_protected(comm):
+    """Raise an error if we got global world in no-touch-world mode."""
+    if comm is world and _NO_TOUCH_WORLD:
+        raise DontDoThat('We are in no-touch-world mode and touched world')
+
+
+def normalize_communicator(comm: MPIComm | None) -> MPIComm:
+    if comm is None:
+        _check_world_protected(world)
+        comm = world
+    elif not hasattr(comm, 'new_communicator'):
+        import warnings
+        warnings.warn('Please pass a communicator object instead of a '
+                      'sequence of ranks.  That will not be supported in '
+                      'the future.', FutureWarning)
+        # comm is a list of ranks.
+        # Maybe we don't truly need the communicator=<list of ranks> syntax?
+        _check_world_protected(world)
+        comm = world.new_communicator(np.asarray(comm))
+    return comm
+
+
+@parallel
+def broadcast(obj, root=0, *, comm):
     """Broadcast a Python object across an MPI communicator and return it."""
     if comm.rank == root:
         assert obj is not None
@@ -859,7 +913,7 @@ def broadcast(obj, root=0, comm=world):
     else:
         assert obj is None
         b = None
-    b = broadcast_bytes(b, root, comm)
+    b = broadcast_bytes(b, root, comm=comm)
     if comm.rank == root:
         return obj
     else:
@@ -927,13 +981,15 @@ def synchronize_atoms(atoms, comm, tolerance=1e-8):
     atoms.cell = cell
 
 
-def broadcast_string(string=None, root=0, comm=world):
+@parallel
+def broadcast_string(string=None, root=0, *, comm):
     if comm.rank == root:
         string = string.encode()
-    return broadcast_bytes(string, root, comm).decode()
+    return broadcast_bytes(string, root, comm=comm).decode()
 
 
-def broadcast_bytes(b=None, root=0, comm=world):
+@parallel
+def broadcast_bytes(b=None, root=0, *, comm):
     """Broadcast a bytes across an MPI communicator and return it."""
     if comm.rank == root:
         assert isinstance(b, bytes)
@@ -976,13 +1032,15 @@ def receive(rank: int, comm: MPIComm) -> Any:
     return pickle.loads(buf.tobytes())
 
 
-def send_string(string, rank, comm=world):
+@parallel
+def send_string(string, rank, *, comm):
     b = string.encode()
     comm.send(np.array(len(b)), rank)
     comm.send(np.frombuffer(b, np.int8).copy(), rank)
 
 
-def receive_string(rank, comm=world):
+@parallel
+def receive_string(rank, *, comm):
     n = np.array(0)
     comm.receive(n, rank)
     string = np.empty(n, np.int8)
@@ -990,7 +1048,8 @@ def receive_string(rank, comm=world):
     return string.tobytes().decode()
 
 
-def alltoallv_string(send_dict, comm=world):
+@parallel
+def alltoallv_string(send_dict, *, comm):
     scounts = np.zeros(comm.size, dtype=int)
     sdispls = np.zeros(comm.size, dtype=int)
     stotal = 0
@@ -1029,7 +1088,8 @@ def alltoallv_string(send_dict, comm=world):
     return rdict
 
 
-def ibarrier(timeout=None, root=0, tag=123, comm=world):
+@parallel
+def ibarrier(timeout=None, root=0, tag=123, *, comm):
     """Non-blocking barrier returning a list of requests to wait for.
     An optional time-out may be given, turning the call into a blocking
     barrier with an upper time limit, beyond which an exception is raised."""
@@ -1307,28 +1367,6 @@ _NO_TOUCH_WORLD = False  # Monkeypatchable from test suite
 
 class DontDoThat(Exception):
     pass
-
-
-def parallel(func):
-    """Decorator for functions that take comm=world.
-
-    We want this decorator so as to control access to world and prevent
-    deadlocks when callers of these functions forget to set the
-    communicator."""
-    import functools
-    from gpaw.mpi import world
-
-    @functools.wraps(func)
-    def wrapper(*args, comm=None, **kwargs):
-        if comm is None:
-            if _NO_TOUCH_WORLD:
-                raise DontDoThat(
-                    'Must call method with keyword comm=<communicator>'
-                )
-            comm = world
-        return func(*args, comm=comm, **kwargs)
-
-    return wrapper
 
 
 def exit(error='Manual exit'):

@@ -20,8 +20,8 @@ from gpaw.gpu import cpupy as fake_cupy
 from gpaw.gpu.mpi import CuPyMPI
 from gpaw.lfc import BasisFunctions
 from gpaw.mixer import MixerWrapper, get_mixer_from_keywords
-from gpaw.mpi import (MPIComm, Parallelization, broadcast, serial_comm,
-                      synchronize_atoms, world)
+from gpaw.mpi import (MPIComm, Parallelization, broadcast,
+                      normalize_communicator, serial_comm, synchronize_atoms)
 from gpaw.new import prod
 from gpaw.new.basis import create_basis
 from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints
@@ -47,7 +47,8 @@ class DFTComponentsBuilder:
                  params: Parameters,
                  *,
                  log=None,
-                 comm=None):
+                 comm=None,
+                 world=None):
         from gpaw.gpu import set_device
 
         self.atoms = atoms.copy()
@@ -61,7 +62,10 @@ class DFTComponentsBuilder:
 
         parallel = params.parallel
         if self.gpu:
-            set_device(log)
+            # XXX We should not be setting globals inside library code.
+            # It should probably be set by main().
+            world = normalize_communicator(world)
+            set_device(log, world)
 
         synchronize_atoms(atoms, comm)
         self.check_cell(atoms.cell)
@@ -140,7 +144,7 @@ class DFTComponentsBuilder:
             self.nbands *= 2
 
         self.dtype: DTypeLike
-        if params.mode.dtype is None:
+        if params.mode.dtype == 'double':
             if self.params.mode.force_complex_dtype:
                 self.dtype = complex
             else:
@@ -148,8 +152,16 @@ class DFTComponentsBuilder:
                     self.dtype = float
                 else:
                     self.dtype = complex
+        elif params.mode.dtype == 'single':
+            if self.params.mode.force_complex_dtype:
+                self.dtype = np.complex64
+            else:
+                if self.ibz.bz.gamma_only and self.ncomponents < 4:
+                    self.dtype = np.float32
+                else:
+                    self.dtype = np.complex64
         else:
-            self.dtype = params.mode.dtype
+            raise ValueError(f'Unknown dtype {params.mode.dtype}')
 
         self.grid, self.fine_grid = self.create_uniform_grids()
 
@@ -401,13 +413,13 @@ class DFTComponentsBuilder:
                 [reader.occupations.fermilevel / ha])
 
 
-def create_communicators(comm: MPIComm = None,
+def create_communicators(comm: MPIComm,
                          nibzkpts: int = 1,
                          domain: int | tuple[int, int, int] | None = None,
                          kpt: int = None,
                          band: int = None,
                          xp: ModuleType = np) -> dict[str, MPIComm]:
-    parallelization = Parallelization(comm or world, nibzkpts)
+    parallelization = Parallelization(comm, nibzkpts)
     if domain is not None and not isinstance(domain, int):
         domain = prod(domain)
     parallelization.set(kpt=kpt,

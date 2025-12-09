@@ -60,27 +60,27 @@ class LrTDDFT(ExcitationList):
         'eh_comm': None,  # parallelization over eh-pairs
         'poisson': None}  # use calculator's Poisson
 
-    def __init__(self, calculator=None, log=None, txt='-', **kwargs):
+    def __init__(self, calculator=None, log=None, txt='-', world=None,
+                 **kwargs):
 
         self.energy_to_eV_scale = Hartree
         self.timer = Timer()
         self.diagonalized = False
 
         self.set(**kwargs)
+        if calculator is not None:
+            calculator = calculator._to_old()
         self.calculator = calculator
 
-        super().__init__(log=log, txt=txt)
+        if world is None and calculator is not None:
+            world = calculator.world
+
+        super().__init__(log=log, txt=txt, world=world)
 
         if self.eh_comm is None:
             self.eh_comm = mpi.serial_comm
-        elif isinstance(self.eh_comm, (mpi.world.__class__,
-                                       mpi.serial_comm.__class__)):
-            # Correct type already.
-            pass
         else:
-            # world should be a list of ranks:
-            self.eh_comm = mpi.world.new_communicator(
-                np.asarray(self.eh_comm))
+            self.eh_comm = mpi.normalize_communicator(self.eh_comm)
 
         if calculator is not None and calculator.initialized:
             # XXXX not ready for k-points
@@ -168,7 +168,8 @@ class LrTDDFT(ExcitationList):
             name = 'LrTDDFThyb'
 
         kss = KSSingles(restrict=self.restrict,
-                        log=self.log)
+                        log=self.log,
+                        world=self.world)
         atoms = self.calculator.get_atoms()
         kss.calculate(atoms, self.nspins)
 
@@ -183,7 +184,7 @@ class LrTDDFT(ExcitationList):
         self.set(**kwargs)
         self.timer.start('diagonalize')
         self.timer.start('omega')
-        self.Om.diagonalize(kwargs.pop('restrict', {}))
+        self.Om.diagonalize(kwargs.pop('restrict', {}), comm=self.world)
         self.timer.stop('omega')
         self.diagonalized = True
 
@@ -202,9 +203,11 @@ class LrTDDFT(ExcitationList):
         self.timer.stop('diagonalize')
 
     @classmethod
-    def read(cls, filename=None, fh=None, restrict={}, log=None, txt=None):
+    def read(cls, filename=None, fh=None, restrict={}, log=None, txt=None,
+             world=None):
         """Read myself from a file"""
-        lr = cls(log=log, txt=txt)
+        world = mpi.normalize_communicator(world)
+        lr = cls(log=log, txt=txt, world=world)
         timer = lr.timer
         timer.start('name')
         if fh is None:
@@ -235,7 +238,7 @@ class LrTDDFT(ExcitationList):
         timer.stop('header')
 
         timer.start('init_kss')
-        kss = KSSingles.read(fh=f, log=log)
+        kss = KSSingles.read(fh=f, log=log, world=world)
         assert eps == kss.restrict['eps']
         lr.restrict = kss.restrict.values
         timer.stop('init_kss')
@@ -316,7 +319,7 @@ class LrTDDFT(ExcitationList):
         string += self.Om.kss.__str__()
         return string
 
-    def write(self, filename=None, fh=None):
+    def write(self, filename=None, fh=None, world=None):
         """Write current state to a file.
 
         'filename' is the filename. If the filename ends in .gz,
@@ -327,9 +330,11 @@ class LrTDDFT(ExcitationList):
         """
 
         if self.calculator is None:
-            rank = mpi.world.rank
+            world = mpi.normalize_communicator(world)
         else:
-            rank = self.calculator.wfs.world.rank
+            world = self.calculator.wfs.world
+
+        rank = world.rank
 
         if rank == 0:
             if fh is None:
@@ -351,7 +356,7 @@ class LrTDDFT(ExcitationList):
                                      int(self.derivative_level),
                                      self.numscale, int(self.finegrid)) + '\n')
             self.kss.write(fh=f)
-            self.Om.write(fh=f)
+            self.Om.write(fh=f, world=world)
 
             if len(self):
                 f.write('# Eigenvalues\n')
@@ -366,7 +371,7 @@ class LrTDDFT(ExcitationList):
 
             if fh is None:
                 f.close()
-        mpi.world.barrier()
+        world.barrier()
 
     def overlap(self, ov_nn, other):
         """Matrix element overlap determined from pair density overlaps.

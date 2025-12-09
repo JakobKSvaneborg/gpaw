@@ -209,7 +209,7 @@ def read_gpw(filename: str | Path | IO[str],
     parallel = parallel or {}
 
     if not isinstance(log, Logger):
-        log = Logger(log, comm or mpi.world)
+        log = Logger(log, mpi.normalize_communicator(comm))
 
     comm = log.comm
 

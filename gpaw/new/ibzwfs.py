@@ -389,10 +389,11 @@ class IBZWaveFunctions(Generic[WFT]):
                         self.kpt_comm.receive(data, rank)
                         writer.fill(data.astype(proj_dtype))
 
-        if flags.include_wfs:
+        if flags.include_wfs and self.has_wave_functions():
             self._write_wave_functions(writer, spin_k_shape, flags)
 
     def _write_wave_functions(self, writer, spin_k_shape, flags):
+        self.make_sure_wfs_are_read_from_gpw_file()
         # We collect all bands to master.  This may have to be changed
         # to only one band at a time XXX
         xshape = self.get_max_shape(global_shape=True)

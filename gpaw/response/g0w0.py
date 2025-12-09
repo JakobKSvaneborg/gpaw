@@ -1144,7 +1144,7 @@ class G0W0(G0W0Calculator):
                  nblocks=1,
                  nblocksmax=False,
                  kpts=None,
-                 world=mpi.world,
+                 world=None,
                  timer=None,
                  fxc_mode='GW',
                  fxc_modes=None,
@@ -1274,6 +1274,8 @@ class G0W0(G0W0Calculator):
             (given by filename-prefix), while writing to different out
             files.
         """
+        world = mpi.normalize_communicator(world)
+
         if fxc_mode:
             assert fxc_modes is None
         if fxc_modes:

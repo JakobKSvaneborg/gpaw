@@ -6,7 +6,7 @@ from time import time
 
 import numpy as np
 from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
-from gpaw.core.arrays import DistributedArrays as XArray
+from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.pwacf import PWAtomCenteredFunctions
 from gpaw.hybrids.paw import pawexxvv
@@ -80,7 +80,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
            log: Logger | None = None,
            forces: bool = False) -> tuple[list[Psit], int]:
     """Compute BZ from IBZ and distribute."""
-    log = log or Logger(None)
+    log = log or Logger(None, None)
     nocc = number_of_non_empty_bands(ibzwfs)
     nspins = ibzwfs.nspins
     ibz = ibzwfs.ibz
@@ -363,7 +363,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                         data = (psit2_nG, P2_ani, f_n, spin, kweight)
 
                 rank = (brank + krank * band_comm.size) * domain_comm.size
-                psit2_nG, P2_ani, f2_n, s, w = broadcast(data, rank, comm)
+                psit2_nG, P2_ani, f2_n, s, w = broadcast(data, rank, comm=comm)
                 V_nG = psit2_nG.new()
                 V_nG.data[:] = 0.0
                 V_ani = P2_ani.new()

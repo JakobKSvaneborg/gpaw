@@ -260,8 +260,7 @@ def test_Co_hcp_site_kernels():
                 spinpol=True,
                 mode=PW(pw),
                 kpts={'size': (kpts, kpts, kpts),
-                      'gamma': True}
-                )
+                      'gamma': True})
 
     # Perform inexpensive calculator initialization
     calc.initialize(atoms)

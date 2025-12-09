@@ -8,7 +8,7 @@ class LrCommunicators:
         Parameters
         ----------
         world
-          MPI parent communicator (usually ``gpaw.mpi.world``)
+          MPI parent communicator
         dd_size
           Number of domains for domain decomposition
         eh_size
