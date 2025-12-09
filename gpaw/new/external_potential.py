@@ -102,7 +102,7 @@ class BField(Extension):
                                      setup,
                                      atom_index,
                                      dH_sii) -> float:
-        dS_ii = setup.dO_ii
+        dS_ii = setup.Delta_iiL[:, :, 0]
         if len(dH_sii) == 2:
             c = (4 * np.pi)**0.5 * self.field_v[2]
             dH_sii[0] -= c * dS_ii
