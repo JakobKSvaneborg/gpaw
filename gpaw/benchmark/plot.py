@@ -49,39 +49,6 @@ def tables() -> None:
     Path('systems.csv').write_text('\n'.join(lines) + '\n')
 
 
-def plot() -> None:
-    import matplotlib.pyplot as plt
-    fig, axs = plt.subplots(3, 1, figsize=(9, 9), sharex=True)
-    titles = [
-        '$t_i^0/t_i$',
-        'Second step [%]',
-        'max_rss [Gbytes]']
-
-    for n, (title, ax) in enumerate(zip(titles, axs)):
-        for tag, day, score, results in data:
-            Y = []
-            for name in NAMES:
-                if name in results:
-                    r = results[name]
-                    if n == 0:
-                        y = REFERENCES[name][3] / (r[1] + r[5])
-                    elif n == 1:
-                        y = 100 * r[5] / (r[1] + r[5])
-                    else:
-                        y = r[7] * 1e-9
-                else:
-                    y = None
-                Y.append(y)
-            ax.plot(Y, 'x-', label=f'{day} ({score:.1f})')
-        ax.set_ylabel(title)
-        if n == 2:
-            ax.set_xticks(range(len(NAMES)), NAMES, rotation=70, ha='center')
-            ax.legend()
-        else:
-            ax.set_xticklabels([])
-
-    plt.tight_layout()
-    plt.savefig('benchmark.png')
 
 
 def plot_score() -> None:
