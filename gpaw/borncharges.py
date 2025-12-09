@@ -13,7 +13,7 @@ def born_charges_wf(atoms, calc, delta=0.01, cleanup=False,
     world = normalize_communicator(world)
 
     # generate displacement dictionary
-    disps_av = _all_disp(atoms, delta)
+    disps_av = get_cartesian_displacements(atoms, delta)
 
     # carry out polarization phase calculation
     # for each displacement
@@ -150,7 +150,7 @@ def _all_avs(atoms):
                 yield (ia, iv, sign)
 
 
-def _all_disp(atoms, delta):
+def get_cartesian_displacements(atoms, delta):
     all_disp = {}
     for dd, avs in enumerate(_all_avs(atoms)):
         dd = int(dd)
