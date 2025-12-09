@@ -11,7 +11,7 @@ from gpaw.new.pw.nschse import NonSelfConsistentHSE06
 
 
 @pytest.fixture(scope='module')
-def atoms() -> Atoms:
+def atoms(_not_world) -> Atoms:
     n = 7
     a = Atoms('HH',
               cell=[2, 2, 2.5, 90, 90, 60],
@@ -27,6 +27,7 @@ def atoms() -> Atoms:
                   xc='PBE',
                   convergence={'bands': 2},
                   nbands=4,
+                  communicator=_not_world,
                   parallel=parallel)
     a.get_potential_energy()
     return a
