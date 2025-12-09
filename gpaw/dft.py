@@ -1030,7 +1030,7 @@ def _can_use_new(filename, kwargs) -> bool:
             with ulmopen(filename) as reader:
                 version = reader.version
         version = broadcast(version, comm=world)
-        return version < 4
+        return version >= 4
 
     try:
         params = Parameters(**kwargs)
