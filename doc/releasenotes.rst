@@ -39,6 +39,16 @@ Git master branch
   ``parallel_python_interpreter`` in ``siteconfig.py``
   should not be used.
 
+* GPAW will no longer run in parallel when imported from a normal
+  Python interpreter.
+  To run in parallel, be sure to use ``gpaw python``
+  or see below.
+
+* To control MPI parallelism with the ``gpaw python`` command,
+  use the environment :envvar:`GPAW_MPI_BACKEND`.
+  Current valid values are ``serial``, ``cgpaw`` for GPAW's C implementation,
+  and ``mpi4py``.
+
 * The FDTD code has been removed.  If this code is important to you,
   please contact the developers.  You will probably need to port the code
   to :ref:`newgpaw` in order to use it in the future.
@@ -72,7 +82,9 @@ July 29, 2025: :git:`25.7.0 <../25.7.0>`
   **k**-points has been implemented.  See :ref:`hse06 on lda` and
   :class:`gpaw.new.pw.nschse.NonSelfConsistentHSE06`.
 
-* Experimental: Support for using MPI4PY_.  Set ``GPAW_MPI4PY=1`` to use this.
+* Experimental: Support for using MPI4PY_.
+  **Update:** Set GPAW_MPI_BACKEND=mpi4py to use this.
+  [Originally: Set ``GPAW_MPI4PY=1`` to use this.]
 
 * Bug fix for spin-polarized LCAO-TDDFT circular dichroism See :mr:`2667`.
 

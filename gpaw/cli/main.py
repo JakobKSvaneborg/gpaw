@@ -57,8 +57,8 @@ def hook(parser, args):
             # When the user runs "gpaw -Pn python" then that's in serial
             # but it ends up calling itself recursively (!) after adding
             # some MPI options.  When it runs the second time (actually in
-            # parallel) we set the GPAW_MPI_INIT variable.  If that envvar is
-            # set, then we are already parallel and this hook can return.
+            # parallel) we set the GPAW_MPI_BACKEND variable.  If that envvar
+            # is set, then we are already parallel and this hook can return.
             # Otherwise, we need to start the parallel subprocess.
             return args
 
@@ -82,7 +82,9 @@ def hook(parser, args):
 
         # Use a clean set of environment variables without any MPI stuff:
         env = dict(os.environ)
-        env['GPAW_MPI_INIT'] = '1'
+        if 'GPAW_MPI_BACKEND' not in env:
+            env['GPAW_MPI_BACKEND'] = 'cgpaw'
+        env['GPAW_INITIALIZE_MPI'] = '1'
         if 'OMP_NUM_THREADS' not in env:
             env['OMP_NUM_THREADS'] = '1'
 
@@ -114,7 +116,7 @@ def gpaw_python_init_magic():
 
 
 def main(args=None):
-    if os.environ.get('GPAW_MPI_INIT'):
+    if os.environ.get('GPAW_MPI_BACKEND') != 'serial':
         gpaw_python_init_magic()
 
     from ase.cli.main import main as ase_main

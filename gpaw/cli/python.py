@@ -23,7 +23,6 @@ class CLICommand:
             '--module', '-m',
             nargs=argparse.REMAINDER,
             help='Run library module as a script (terminates option list).')
-
         parser.add_argument(
             'arguments', metavar='ARG',
             help='Arguments passed to program in '
