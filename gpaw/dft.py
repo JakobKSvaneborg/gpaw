@@ -637,7 +637,8 @@ class Parameters:
         soc: bool | None = None,
         spinpol: bool | None = None,
         symmetry: str | dict | Symmetry | None = None,
-        xc: str | dict | XC | None = None):
+        xc: str | dict | XC | None = None,
+        external=None):
         r"""DFT-parameters object.
 
         >>> p = Parameters(mode=PW(400))
@@ -719,6 +720,8 @@ class Parameters:
         xc:
             XC-functional.  Default is PZ-LDA.
         """
+        if external is not None:
+            raise NotImplementedError
         soc, magmoms = _parse_experimental(experimental, soc, magmoms)
         self._non_defaults = [
             key for key, value in locals().items()

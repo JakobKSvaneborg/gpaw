@@ -779,7 +779,9 @@ class ASECalculator:
         from gpaw.mpi import broadcast_string
 
         if self._dft is None:
-            return OldGPAW(**self.params.todict(), txt=self.log.fd)
+            return OldGPAW(**self.params.todict(),
+                           communicator=self.comm,
+                           txt=self.log.fd)
 
         if self.comm.rank == 0:
             gpw = tempfile.mkstemp(suffix='.gpw')[1]
@@ -787,4 +789,4 @@ class ASECalculator:
             gpw = None
         gpw = broadcast_string(gpw, comm=self.comm)
         self.write(gpw, mode='all')
-        return OldGPAW(gpw)
+        return OldGPAW(gpw, communicator=self.comm)
