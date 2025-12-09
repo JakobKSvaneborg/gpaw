@@ -3,7 +3,7 @@ from ase import Atoms
 from ase.build import fcc111
 from gpaw import GPAW, PW
 from gpaw.occupations import FermiDirac
-from gpaw.mpi import rank
+from gpaw.mpi import world
 from gpaw.response import ResponseGroundStateAdapter, ResponseContext
 from gpaw.response.mft import HeisenbergExchangeCalculator
 from gpaw.response.site_data import (AtomicSites, get_site_radii_range,
@@ -60,7 +60,7 @@ pathq_q = [0.]
 for q in range(1, len(q_qc)):
     pathq_q.append(pathq_q[-1] + np.linalg.norm(q_qv[q] - q_qv[q - 1]))
 pathq_q = np.array(pathq_q)
-if rank == 0:
+if world.rank == 0:
     np.save('q_qc.npy', q_qc)
     np.save('pathq_q.npy', pathq_q)
 
