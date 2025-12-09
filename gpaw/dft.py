@@ -169,6 +169,10 @@ class Eigensolver(Parameter):
     @classmethod
     def from_param(cls, eigensolver):
         from gpaw.new.do import DirectOptimization
+        from gpaw.new.eigensolver import Eigensolver as NewEigensolver
+        from gpaw.old.eigensolvers.eigensolver import (
+            Eigensolver as OldEigensolver)
+
         eigensolvers = {
             'davidson': Davidson,
             'rmm-diis': RMMDIIS,
@@ -178,22 +182,24 @@ class Eigensolver(Parameter):
             'hybrid-lcao': HybridLCAOEigensolver,
             'scissors': Scissors}
 
-        if isinstance(eigensolver, str):
-            eigensolver = {'name': eigensolver}
-        elif not isinstance(eigensolver, dict):
-            return eigensolver
-        if 'name' in eigensolver:
-            eigensolver = eigensolver.copy()
-            name = eigensolver.pop('name')
-            if name == 'dav':
-                name = 'davidson'
-                warnings.warn('Please use "davidson" instead of "dav"')
-            if name in eigensolvers:
-                return eigensolvers[name](**eigensolver)
-            if name in {'etdm-lcao', 'etdm', 'direct'}:
-                raise NotImplementedError
-            raise ValueError(f'Unknown eigensolver: {name}')
-        return DefaultEigensolver(eigensolver)
+        match eigensolver:
+            case str(name):
+                return eigensolvers[name]()
+            case {'name': name, **kwargs}:
+                if name == 'dav':
+                    warnings.warn('Please use "davidson" instead of "dav"')
+                    return eigensolvers['davidson'](**kwargs)
+                if name in eigensolvers:
+                    return eigensolvers[name](**kwargs)
+                elif name in {'etdm-lcao', 'etdm', 'direct'}:
+                    raise NotImplementedError
+                raise ValueError(f'Unknown name of eigensolver: {name}')
+            case {**kwargs}:
+                return DefaultEigensolver(kwargs)
+            case OldEigensolver() | NewEigensolver():
+                return eigensolver
+            case _:  # Wildcard
+                raise ValueError(f'Unknown eigensolver input: {eigensolver}')
 
 
 class DefaultEigensolver(Eigensolver):
@@ -204,7 +210,7 @@ class DefaultEigensolver(Eigensolver):
         return self.params
 
 
-class PWFDEigensolverParamater(Eigensolver):
+class PWFDEigensolverParameter(Eigensolver):
     def __init__(self,
                  niter: int = 2,
                  max_buffer_mem: int = 200 * 1024**2):
@@ -232,12 +238,12 @@ class PWFDEigensolverParamater(Eigensolver):
             max_buffer_mem=self.max_buffer_mem)
 
 
-class Davidson(PWFDEigensolverParamater):
+class Davidson(PWFDEigensolverParameter):
     name = 'davidson'
     cls = DavidsonEigensolver
 
 
-class PPCG(PWFDEigensolverParamater):
+class PPCG(PWFDEigensolverParameter):
     name = 'ppcg'
     cls = PPCGEigensolver
 
@@ -293,7 +299,7 @@ class PPCG(PWFDEigensolverParamater):
             tolerances=self.tolerances)
 
 
-class RMMDIIS(PWFDEigensolverParamater):
+class RMMDIIS(PWFDEigensolverParameter):
     name = 'rmm-diis'
     cls = RMMDIISEigensolver
 
