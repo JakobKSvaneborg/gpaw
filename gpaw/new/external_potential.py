@@ -6,6 +6,7 @@ from ase.units import Bohr, Ha
 from gpaw.core import UGArray
 from gpaw.new.density import Density
 from gpaw.typing import Array1D, Array2D, ArrayLike1D
+from gpaw.new.extensions import Extension
 
 
 def create_external_potential(params: dict) -> ExternalPotential:
@@ -70,7 +71,7 @@ class ConstantElectricField(ExternalPotential):
         return 0.0
 
 
-class BField(ExternalPotential):
+class BField(Extension):
     def __init__(self, field: ArrayLike1D):
         """Constant magnetic field.
 
@@ -96,12 +97,17 @@ class BField(ExternalPotential):
             1 / 0
         return eext
 
-    def add_paw_correction(self, Delta_p: Array1D, dH_sp: Array2D) -> float:
-        if len(dH_sp) == 2:
+    def update_non_local_hamiltonian(self,
+                                     D_sii,
+                                     setup,
+                                     atom_index,
+                                     dH_sii) -> float:
+        dS_ii = setup.dO_ii
+        if len(dH_sii) == 2:
             c = (4 * np.pi)**0.5 * self.field_v[2]
-            dH_sp[0] -= c * Delta_p
-            dH_sp[1] += c * Delta_p
+            dH_sii[0] -= c * dS_ii
+            dH_sii[1] += c * dS_ii
         else:
             c_vp = (4 * np.pi)**0.5 * self.field_v[:, np.newaxis]
-            dH_sp[1:] -= c_vp * Delta_p
+            dH_sii[1:] -= c_vp * dS_ii
         return 0.0

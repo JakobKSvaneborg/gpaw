@@ -108,6 +108,10 @@ class PotentialCalculator:
                   ) -> tuple[Potential, DFTEnergies, AtomArrays]:
         energies, vt_sR, dedtaut_sr, vHt_x, V_aL, e_stress = (
             self.calculate_pseudo_potential(density, ibzwfs, vHt_x))
+
+        for ext in self.extensions:
+            energies['external'] = ext.update_potential(vt_sR, density)
+
         e_kinetic = 0.0
         for spin, (vt_R, nt_R) in enumerate(zips(vt_sR, density.nt_sR)):
             e_kinetic -= vt_R.integrate(nt_R)
@@ -229,8 +233,6 @@ def calculate_non_local_potential1(setup: Setup,
 
     dH_sp[:ndensities] = dH_p
     e_xc = xc.calculate_paw_correction(setup, D_sp, dH_sp, a=atom_index)
-
-    # e_external = ext_pot.add_paw_correction(setup.Delta_pL[:, 0], dH_sp)
 
     dH_sii = unpack_hermitian(dH_sp)
 
