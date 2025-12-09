@@ -85,7 +85,7 @@ J_qab = np.array([jcalc(q_c).array[..., 0] for q_c in q_qc])
 context.write_timer()
 
 # Save the bandpath, computed exchange constants and magnetic moments
-if rank == 0:
+if world.rank == 0:
     np.save('J_qab.npy', J_qab)
     np.save('m_a.npy', m_a)
 
@@ -114,6 +114,6 @@ jcalc = HeisenbergExchangeCalculator(gs,
 J_qab = np.array([jcalc(q_c).array[..., 0] for q_c in q_qc])
 context.write_timer()
 
-if rank == 0:
+if world.rank == 0:
     np.save('J_U_qab.npy', J_qab)
     np.save('m_U_a.npy', m_a)
