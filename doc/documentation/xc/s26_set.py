@@ -47,8 +47,9 @@ for molecule in data:
         adjust_cell(s, box, h=h)
         if xc == 'TS09':
             s.get_potential_energy()
-            cc = vdWTkatchenko09prl(HirshfeldPartitioning(c),
-                                    vdWradii(s.get_chemical_symbols(), 'PBE'))
+            cc = vdWTkatchenko09prl(
+                HirshfeldPartitioning(c),
+                vdWradii(s.get_chemical_symbols(), 'PBE', world=c.comm))
             s.calc = cc
         elif xc == 'dftd4':
             s.get_potential_energy()
