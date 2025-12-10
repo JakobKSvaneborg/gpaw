@@ -4,6 +4,7 @@ from ase.build import bulk
 
 from gpaw import GPAW
 
+
 @pytest.mark.parametrize('element', ['Al', 'Si'])
 @pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg', 'dir_opt'])
 def test_eigensolver(element, eigensolver, gpaw_new):
@@ -31,7 +32,7 @@ def test_eigensolver(element, eigensolver, gpaw_new):
         atoms.set_cell((d, d, a), scale_atoms=True)
         e0_t = -6.9786673
         nocc = 3
-        eig_t = [-1.36400629,  2.97388703,  6.63549518]
+        eig_t = [-1.36400629, 2.97388703, 6.63549518]
 
     params = {'mode': {'name': 'pw', 'ecut': 400},
               'nbands': 2 * 8,
