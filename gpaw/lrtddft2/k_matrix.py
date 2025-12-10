@@ -142,8 +142,8 @@ class Kmatrix:
 
         # send and receive elem_list
         # self.timer.start('Communicate K-matrix')
-        alltoall_dict = gpaw.mpi.alltoallv_string(elem_lists,
-                                                  self.lr_comms.parent_comm)
+        alltoall_dict = gpaw.mpi.alltoallv_string(
+            elem_lists, comm=self.lr_comms.parent_comm)
         # ready for garbage collection
         del elem_lists
         local_elem_list = ''.join(alltoall_dict.values())

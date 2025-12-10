@@ -101,10 +101,10 @@ class CDFT(Calculator):
 
         super().__init__()
 
-        self.calc = calc
+        self.calc = calc._to_old()
         self.restart = restart
         self.iocontext = IOContext()
-        self.log = self.iocontext.openfile(txt, calc.world)
+        self.log = self.iocontext.openfile(txt, self.calc.world)
         self.method = method
         self.forces = forces
         self.options = minimizer_options

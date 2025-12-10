@@ -26,7 +26,7 @@ class QuadrupoleMomentWriter(TDDFTObserver):
 
     def __init__(self, paw, filename, center=[0, 0, 0], density='comp',
                  interval=1):
-        TDDFTObserver.__init__(self, paw, interval)
+        super().__init__(paw, interval)
         self.ioctx = IOContext()
         if paw.niter == 0:
             # Initialize

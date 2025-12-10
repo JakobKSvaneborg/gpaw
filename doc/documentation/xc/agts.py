@@ -39,6 +39,6 @@ def check_s26():
     rms = (dE**2).mean()**0.5
     amean = abs(dE).mean()
     print(rms, amean)
-    # references from https://doi.org/10.1002/jcc.21724
+    # references from DOI:10.1002/jcc.21724
     assert abs(rms - 0.021) < 0.002
     assert abs(amean - 0.016) < 0.002

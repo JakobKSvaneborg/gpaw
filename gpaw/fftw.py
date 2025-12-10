@@ -20,6 +20,7 @@ from gpaw.new.c import pw_insert_gpu
 from gpaw.typing import Array1D, Array3D, DTypeLike, IntVector
 from gpaw.utilities import as_complex_dtype, as_real_dtype, get_dtype_precision
 
+
 ESTIMATE = 64
 MEASURE = 0
 PATIENT = 32
@@ -114,6 +115,7 @@ class FFTPlans:
         if np.issubdtype(dtype, np.floating):
             self.shape = (size_c[0], size_c[1], size_c[2] // 2 + 1)
             self.tmp_Q = empty(self.shape, as_complex_dtype(dtype))
+            # Real data with padding. NB: Numpy marks this as non-c-contiguous
             self.tmp_R = self.tmp_Q.view(dtype)[:, :, :size_c[2]]
         else:
             self.shape = tuple(size_c)
@@ -248,7 +250,7 @@ class CuPyFFTPlans(FFTPlans):
     @trace(gpu=True)
     def fft(self):
         from gpaw.gpu import cupyx
-        if self.tmp_R.dtype == float:
+        if np.issubdtype(self.tmp_R.dtype, np.floating):
             if is_hip:
                 self.tmp_Q[:] = rfftn_patch(self.tmp_R)
             else:
@@ -259,7 +261,7 @@ class CuPyFFTPlans(FFTPlans):
     @trace(gpu=True)
     def ifft(self):
         from gpaw.gpu import cupyx
-        if self.tmp_R.dtype == float:
+        if np.issubdtype(self.tmp_R.dtype, np.floating):
             if is_hip:
                 self.tmp_R[:] = irfftn_patch(self.tmp_Q, self.tmp_R.shape) \
                     * self.tmp_R.size
@@ -386,19 +388,22 @@ class FFTPlan:
 
 class FFTWPlan(FFTPlan):
     """FFTW3 3d transform."""
+
     def __init__(self, in_R, out_R, sign, flags=MEASURE):
         if not have_fftw():
             raise ImportError('Not compiled with FFTW.')
-        self._ptr = cgpaw.FFTWPlan(in_R, out_R, sign, flags)
-        FFTPlan.__init__(self, in_R, out_R, sign, flags)
+        # fftw_plan handle (integer)
+        self._handle = cgpaw.FFTWPlan(in_R, out_R, sign, flags)
+        super().__init__(in_R, out_R, sign, flags)
 
     def execute(self):
-        cgpaw.FFTWExecute(self._ptr)
+        """"""
+        cgpaw.FFTWExecute(self._handle)
 
     def __del__(self):
-        if getattr(self, '_ptr', None):
-            cgpaw.FFTWDestroy(self._ptr)
-        self._ptr = None
+        if getattr(self, '_handle', None):
+            cgpaw.FFTWDestroy(self._handle)
+        self._handle = None
 
 
 class NumpyFFTPlan(FFTPlan):

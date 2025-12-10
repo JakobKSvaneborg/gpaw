@@ -112,8 +112,8 @@ class GridDescriptor(Domain):
 
         if isinstance(pbc_c, int):
             pbc_c = (pbc_c,) * 3
-        if comm is None:
-            comm = mpi.world
+
+        comm = mpi.normalize_communicator(comm)
 
         self.N_c = np.array(N_c, int)
         if (self.N_c != N_c).any():

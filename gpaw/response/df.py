@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from ase.units import Hartree
 
-from gpaw.mpi import world
+from gpaw.mpi import normalize_communicator
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
 from gpaw.response.chi0_data import Chi0Data
 from gpaw.response.coulomb_kernels import CoulombKernel
@@ -143,6 +143,11 @@ class Chi0DysonEquations:
             # Restore the q-dependence of the head and wings in the q→0 limit
             assert qinf_v is not None and np.linalg.norm(qinf_v) > 0.
             d_v = self._normalize(direction)
+            same_direction = np.allclose(d_v, self._normalize(qinf_v))
+            if not same_direction:
+                raise ValueError(
+                    '`qinf_v` must be in the same direction as `direction`. '
+                    f'Obtained {qinf_v=} and {direction=}')
             chi0_wGG[:, 1:, 0] *= np.dot(qinf_v, d_v)
             chi0_wGG[:, 0, 1:] *= np.dot(qinf_v, d_v)
             chi0_wGG[:, 0, 0] *= np.dot(qinf_v, d_v)**2
@@ -658,7 +663,7 @@ class DielectricFunction(DielectricFunctionCalculator):
                  ecut=50,
                  hilbert=True,
                  nbands=None, eta=0.2,
-                 intraband=True, nblocks=1, world=world, txt=sys.stdout,
+                 intraband=True, nblocks=1, world=None, txt=sys.stdout,
                  truncation=None,
                  qsymmetry=True,
                  integrationmode='point integration', rate=0.0,
@@ -702,6 +707,7 @@ class DielectricFunction(DielectricFunctionCalculator):
         eshift: float
             Shift unoccupied bands
         """
+        world = normalize_communicator(world)
         gs, context = get_gs_and_context(calc, txt, world, timer=None)
         wd = get_frequency_descriptor(frequencies, gs=gs, nbands=nbands)
 
@@ -838,9 +844,9 @@ class ScalarResponseFunctionSet:
         # ... to be deprecated ...
         return self.rf0_w, self.rf_w
 
-    def write(self, filename):
-        # XXX Implicit use of world
-        if world.rank == 0:
+    def write(self, filename, *, comm=None):
+        comm = normalize_communicator(comm)
+        if comm.rank == 0:
             write_response_function(filename, *self.arrays)
 
     @property

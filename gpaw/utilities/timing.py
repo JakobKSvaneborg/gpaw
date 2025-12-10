@@ -51,14 +51,15 @@ nulltimer = NullTimer()
 class DebugTimer(Timer):
     def __init__(self, print_levels=1000, comm=None, txt=sys.stdout):
         import gpaw.mpi as mpi
-        comm = comm or mpi.world
-        Timer.__init__(self, print_levels)
+        comm = mpi.normalize_communicator(comm)
+
+        super().__init__(print_levels)
         ndigits = 1 + int(math.log10(comm.size))
         self.srank = '%0*d' % (ndigits, comm.rank)
         self.txt = txt
 
     def start(self, name):
-        Timer.start(self, name)
+        super().start(name)
         abstime = time.time()
         t = self.timers[tuple(self.running)] + abstime
         self.txt.write('T%s >> %15.8f %s (%7.5fs) started\n'
@@ -71,7 +72,7 @@ class DebugTimer(Timer):
         t = self.timers[tuple(self.running)] + abstime
         self.txt.write('T%s << %15.8f %s (%7.5fs) stopped\n'
                        % (self.srank, abstime, name, t))
-        Timer.stop(self, name)
+        super().stop(name)
 
 
 class GPUEvent:
@@ -143,18 +144,18 @@ class GPUTimer(Timer, GPUTimerBase):
         GPUTimerBase.__init__(self)
 
     def start(self, name):
-        Timer.start(self, name)
-        GPUTimerBase.gpu_start(self, name)
+        super().start(name)
+        super().gpu_start(name)
 
     def stop(self, name=None):
-        Timer.stop(self, name)
-        GPUTimerBase.gpu_stop(self)
+        super().stop(name)
+        super().gpu_stop()
 
     def write(self, out=sys.stdout):
         print('CPU event timings:', file=out)
-        Timer.write(self, out)
+        super().write(out)
         print('GPU event timings:', file=out)
-        GPUTimerBase.gpu_write(self, out)
+        super().gpu_write(out)
 
 
 def ranktxt(comm, rank=None):
@@ -172,17 +173,20 @@ class ParallelTimer(DebugTimer):
     determine bottlenecks in the parallelization.
 
     See the tool gpaw-plot-parallel-timings."""
-    def __init__(self, prefix='timings', flush=False):
+    def __init__(self, prefix='timings', flush=False, world=None):
         import gpaw.mpi as mpi
-        fname = f'{prefix}.{ranktxt(mpi.world)}.txt'
+        world = mpi.normalize_communicator(world)
+        # XXX This has global world
+        # but when we print info, we talk to wfs.world
+        fname = f'{prefix}.{ranktxt(world)}.txt'
         txt = open(fname, 'w', buffering=1 if flush else -1)
-        DebugTimer.__init__(self, comm=mpi.world, txt=txt)
+        super().__init__(comm=world, txt=txt)
         self.prefix = prefix
 
     def print_info(self, calc):
         """Print information about parallelization into a file."""
         fd = open('%s.metadata.txt' % self.prefix, 'w')
-        DebugTimer.print_info(self, calc)
+        super().print_info(calc)
         wfs = calc.wfs
 
         # We won't have to type a lot if everyone just sends all their numbers.
@@ -201,10 +205,10 @@ class ParallelTimer(DebugTimer):
 class Profiler(Timer):
     def __init__(self, prefix, comm=None):
         import atexit
-
         import gpaw.mpi as mpi
+
         self.prefix = prefix
-        self.comm = comm or mpi.world
+        self.comm = mpi.normalize_communicator(comm)
         self.ranktxt = ranktxt(self.comm)
         fname = f'{prefix}.{self.ranktxt}.json'
         self.txt = open(fname, 'w', buffering=-1)
@@ -214,7 +218,7 @@ class Profiler(Timer):
         self.u = 1_000_000
 
         self.synchronize()
-        Timer.__init__(self, 1000)
+        super().__init__(1000)
 
     def synchronize(self):
         # Synchronize in order to have same time reference
@@ -242,7 +246,7 @@ class Profiler(Timer):
         self.comm.barrier()
 
     def start(self, name):
-        Timer.start(self, name)
+        super().start(name)
         self.txt.write(
             f"""{{"name": "{name}", "cat": "PERF", "ph": "B","""
             f""" "pid": {self.pid}, "tid": "{self.ranktxt}", """
@@ -255,13 +259,12 @@ class Profiler(Timer):
             f"""{{"name": "{name}", "cat": "PERF", "ph": "E", """
             f""""pid": {self.pid}, "tid": "{self.ranktxt}", """
             f""""ts": {int((time.time() - self.ref) * self.u)}}},\n""")
-        Timer.stop(self, name)
+        super().stop(name)
 
 
 class GPUProfiler(Profiler, GPUTimerBase):
     def __init__(self, prefix, comm=None):
-        import gpaw.mpi as mpi
-        Profiler.__init__(self, prefix, comm=comm or mpi.world)
+        Profiler.__init__(self, prefix, comm=comm)
         GPUTimerBase.__init__(self)
 
     def synchronize(self):
@@ -289,12 +292,12 @@ class GPUProfiler(Profiler, GPUTimerBase):
         self.ref = buf[0]
 
     def start(self, name, gpu=False):
-        Profiler.start(self, name)
+        super().start(name)
         if gpu:
-            GPUTimerBase.gpu_start(self, name)
+            super().gpu_start(name)
 
     def stop(self, name=None, gpu=False):
-        Profiler.stop(self, name)
+        super().stop(name)
         if gpu:
             GPUTimerBase.gpu_stop(self)
 

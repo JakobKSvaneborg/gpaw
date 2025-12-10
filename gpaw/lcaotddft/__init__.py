@@ -82,8 +82,8 @@ class OldLCAOTDDFT(GPAW):
 
         self.propagator_set = propagator is not None
         self.propagator = create_propagator(propagator)
-        GPAW.__init__(self, filename, parallel=parallel,
-                      communicator=communicator, txt=txt)
+        super().__init__(filename, parallel=parallel,
+                         communicator=communicator, txt=txt)
         if len(self.symmetry.op_scc) > 1:
             raise ValueError('Symmetries are not allowed for LCAOTDDFT. '
                              'Run the ground state calculation with '
@@ -94,10 +94,10 @@ class OldLCAOTDDFT(GPAW):
     def write(self, filename, mode=''):
         # This function is included here in order to generate
         # documentation for LCAOTDDFT.write() with autoclass in sphinx
-        GPAW.write(self, filename, mode=mode)
+        super().write(filename, mode=mode)
 
     def _write(self, writer, mode):
-        GPAW._write(self, writer, mode)
+        super()._write(writer, mode)
         if self.tddft_initialized:
             w = writer.child('tddft')
             w.write(time=self.time,
@@ -107,7 +107,7 @@ class OldLCAOTDDFT(GPAW):
             self.td_hamiltonian.write(w.child('td_hamiltonian'))
 
     def read(self, filename):
-        reader = GPAW.read(self, filename)
+        reader = super().read(filename)
         if 'tddft' in reader:
             r = reader.tddft
             self.time = r.time

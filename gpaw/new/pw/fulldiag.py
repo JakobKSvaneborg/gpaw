@@ -6,7 +6,7 @@ from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.matrix import Matrix, create_distribution
 from gpaw.core.plane_waves import PWArray, PWAtomCenteredFunctions, PWDesc
 from gpaw.core.uniform_grid import UGArray
-from gpaw.new.ibzwfs import IBZWaveFunctions
+from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.potential import Potential
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.smearing import OccupationNumberCalculator
@@ -101,10 +101,10 @@ def pw_matrix(pw: PWDesc,
 
 
 def diagonalize(potential: Potential,
-                ibzwfs: IBZWaveFunctions,
+                ibzwfs: PWFDIBZWaveFunctions,
                 occ_calc: OccupationNumberCalculator,
                 nbands: int,
-                nelectrons: float) -> IBZWaveFunctions:
+                nelectrons: float) -> PWFDIBZWaveFunctions:
     """Diagonalize hamiltonian in plane-wave basis."""
     vt_sR = potential.vt_sR
     dH_asii = potential.dH_asii
@@ -142,7 +142,7 @@ def diagonalize(potential: Potential,
         new_wfs.eig_n = eig_n
         wfs_u.append(new_wfs)
 
-    new_ibzwfs = IBZWaveFunctions(
+    new_ibzwfs = PWFDIBZWaveFunctions(
         ibzwfs.ibz,
         ncomponents=ibzwfs.ncomponents,
         wfs_u=wfs_u,

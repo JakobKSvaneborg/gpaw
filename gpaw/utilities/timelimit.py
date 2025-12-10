@@ -63,7 +63,7 @@ class TimeLimiter(Observer):
         output: str
             The name of the output file for dumping the time estimates.
         """
-        Observer.__init__(self, interval)
+        super().__init__(interval)
         self.timelimit = time_to_seconds(timelimit)
         if timestart is None:
             self.time0 = time.time()

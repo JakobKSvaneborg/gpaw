@@ -18,7 +18,7 @@ from typing import DefaultDict
 import numpy as np
 from ase.units import Ha
 
-from gpaw.core.arrays import DistributedArrays
+from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.uniform_grid import UGArray
 from gpaw.mpi import MPIComm, serial_comm
@@ -60,11 +60,11 @@ class PotentialCalculator:
     def calculate_pseudo_potential(self,
                                    density,
                                    ibzwfs,
-                                   vHt_x: DistributedArrays | None
+                                   vHt_x: XArray | None
                                    ) -> tuple[dict[str, float],
                                               UGArray,
                                               UGArray,
-                                              DistributedArrays,
+                                              XArray,
                                               AtomArrays,
                                               float]:
         raise NotImplementedError
@@ -84,7 +84,7 @@ class PotentialCalculator:
     def calculate_without_orbitals(self,
                                    density,
                                    ibzwfs=None,
-                                   vHt_x: DistributedArrays | None = None,
+                                   vHt_x: XArray | None = None,
                                    kpt_band_comm: MPIComm | None = None
                                    ) -> tuple[Potential,
                                               DFTEnergies,
@@ -103,7 +103,7 @@ class PotentialCalculator:
     def calculate(self,
                   density,
                   ibzwfs=None,
-                  vHt_x: DistributedArrays | None = None,
+                  vHt_x: XArray | None = None,
                   kpt_band_comm: MPIComm | None = None
                   ) -> tuple[Potential, DFTEnergies, AtomArrays]:
         energies, vt_sR, dedtaut_sr, vHt_x, V_aL, e_stress = (

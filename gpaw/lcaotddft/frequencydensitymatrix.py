@@ -68,7 +68,7 @@ class FrequencyDensityMatrix(TDDFTObserver):
                  frequencies=None,
                  restart_filename=None,
                  interval=1):
-        TDDFTObserver.__init__(self, paw, interval)
+        super().__init__(paw, interval)
         self.has_initialized = False
         self.dmat = dmat
         self.filename = filename

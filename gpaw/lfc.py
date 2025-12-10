@@ -971,24 +971,20 @@ class BasisFunctions(LocalizedFunctionsCollection):
     def __init__(self, gd, spline_aj, kd=None, cut=False, dtype=float,
                  integral=None, forces=None, xp=np,
                  gpu_add_and_integrate=True):
-        LFC = LocalizedFunctionsCollection
-        LFC.__init__(self, gd, spline_aj,
-                     kd, cut,
-                     dtype, integral,
-                     forces, xp=xp,
-                     gpu_add_and_integrate=gpu_add_and_integrate)
+        super().__init__(gd, spline_aj, kd, cut, dtype, integral, forces,
+                         xp=xp, gpu_add_and_integrate=gpu_add_and_integrate)
         self.use_global_indices = True
         self.Mstart = None
         self.Mstop = None
 
     @trace
     def set_positions(self, spos_ac):
-        LocalizedFunctionsCollection.set_positions(self, spos_ac)
+        super().set_positions(spos_ac)
         self.Mstart = 0
         self.Mstop = self.Mmax
 
     def _update(self, spos_ac):
-        sdisp_Wc = LocalizedFunctionsCollection._update(self, spos_ac)
+        sdisp_Wc = super()._update(spos_ac)
 
         if not self.gamma or self.dtype == complex:
             self.x_W, self.sdisp_xc = self.create_displacement_arrays(sdisp_Wc)

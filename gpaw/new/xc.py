@@ -20,11 +20,15 @@ from gpaw.xc.gga import add_gradient_correction
 from gpaw.xc.libvdwxc import VDWXC
 from gpaw.xc.mgga import MGGA
 from gpaw.xc.vdw import VDWFunctionalBase
+from gpaw.xc.hybrid import HybridXC as OldHybridXC
 
 
 def create_functional(xc: OldXCFunctional | str | dict,
                       grid: UGDesc,
                       xp=np) -> Functional:
+    if isinstance(xc, OldHybridXC):
+        raise NotImplementedError
+
     exx_fraction = 0.0
     exx_omega = 0.0
     exx_yukawa = False
@@ -44,6 +48,8 @@ def create_functional(xc: OldXCFunctional | str | dict,
         functional = GGAFunctional(xc, grid, xp)
     elif xc.type == 'MGGA':
         functional = MGGAFunctional(xc, grid)
+    elif xc.type == 'GLLB':
+        raise NotImplementedError
     else:
         raise ValueError(f'{xc.type} not supported')
 
@@ -224,7 +230,7 @@ class GGAFunctional(LDAFunctional):
               density,
               interpolate: Callable[[UGArray], UGArray]
               ) -> tuple[tuple[UGArray, ...], dict]:
-        args, kwargs = LDAFunctional._args(self, ibzwfs, density, interpolate)
+        args, kwargs = super()._args(ibzwfs, density, interpolate)
         if args:
             e_r, nt_sr, vt_sr = args
             gradn_svr, sigma_xr = gradient_and_sigma(self.grad_v, nt_sr)
@@ -237,7 +243,7 @@ class GGAFunctional(LDAFunctional):
                 e_r, nt_sr, vt_sr, sigma_xr, dedsigma_xr,
                 gradn_svr,
                 ) -> Array2D:
-        stress_vv = LDAFunctional._stress(self, e_r, nt_sr, vt_sr)
+        stress_vv = super()._stress(e_r, nt_sr, vt_sr)
         P = 0.0
         for sigma_r, dedsigma_r in zip(sigma_xr, dedsigma_xr):
             P -= 2 * sigma_r.integrate(dedsigma_r, skip_sum=True)
@@ -344,7 +350,7 @@ class MGGAFunctional(GGAFunctional):
               ibzwfs,
               density,
               interpolate: Callable[[UGArray], UGArray]):
-        args, kwargs = GGAFunctional._args(self, ibzwfs, density, interpolate)
+        args, kwargs = super()._args(ibzwfs, density, interpolate)
         taut_swR = _taut(ibzwfs, density.nt_sR.desc)
 
         if not args:

@@ -113,7 +113,7 @@ def system_c2db():
                           [0.0, 0.5, 8.70],
                           [0.5, 0.0, 6.00]])
     atoms.center(vacuum=6.0, axis=2)
-    atoms.set_initial_magnetic_moments([2, 2, 0, 0])
+    atoms.set_initial_magnetic_moments([2, -2, 0, 0])
     return atoms
 
 
