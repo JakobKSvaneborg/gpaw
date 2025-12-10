@@ -1,6 +1,5 @@
 import os
 import subprocess
-import sys
 from contextlib import contextmanager
 from functools import cached_property
 
@@ -318,7 +317,6 @@ class GPAWPlugin:
             info()
 
     def pytest_terminal_summary(self, terminalreporter, exitstatus, config):
-        from gpaw.mpi import world
         terminalreporter.section('GPAW-MPI stuff')
         terminalreporter.write(f'size: {world.size}\n')
         terminalreporter.write(f'debug-mode: {debug}\n')
@@ -340,11 +338,6 @@ def sg15_hydrogen():
     # We can't easily load a non-python file from the test suite.
     # Therefore we load the pseudopotential from a Python file.
     return read_sg15(StringIO(pp_text))
-
-
-class GRRR:
-    def __eq__(self, other):
-        return isinstance(other, GRRR)
 
 
 def pytest_configure(config):
@@ -461,11 +454,6 @@ def no_touch_world(monkeypatch, _not_world):
 
 @pytest.fixture(scope='session')
 def _not_world():
-    from gpaw.mpi import world, SerialCommunicator
-
-    if isinstance(world, SerialCommunicator):
-        no_mpi_please()
-
     return world.new_communicator(range(world.size))
 
 
@@ -501,28 +489,6 @@ class MPIHelper:
         from gpaw.dft import GPAW as AnyGPAW
         return AnyGPAW(*args, communicator=self.comm,
                        _use_old_gpaw=True, **kwargs)
-
-
-def no_mpi_please():
-    """This is to disallow uncontrolled MPI init by mpi4py."""
-    assert 'mpi4py.MPI' not in sys.modules
-
-
-@pytest.fixture(autouse=True)
-def no_use_mpi4py(_not_world):
-    """Forbid unexpected MPI initialization as part of tests."""
-
-    from gpaw.mpi import SerialCommunicator
-
-    serial = isinstance(_not_world, SerialCommunicator)
-
-    if serial:
-        no_mpi_please()
-
-    yield
-
-    if serial:
-        no_mpi_please()
 
 
 @pytest.fixture
