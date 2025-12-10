@@ -510,7 +510,13 @@ def convex_hull_volume(pts):
 
 
 def mp_from_density(
-    atoms: Atoms, density: float, *, symmetry: bool, comm
+        atoms: Atoms, density: float, *, 
+        symmetry: bool,
+        gamma: bool,
+        even: bool,
+        high_symmetry_points: bool,
+        symmetric_bz: bool, 
+        comm
 ) -> tuple[np.ndarray, int]:
     """
     Get a monkhorstpack grid with the lowest number of k-points in the
@@ -532,11 +538,22 @@ def mp_from_density(
         min_distance=min_distance,
         maxperdim='auto',
         symmetry=symmetry,
+        even=even,
+        gamma=gamma,
+        high_symmetry_points=high_symmetry_points,
+        symmetric_bz=symmetric_bz,
         comm=comm,
     )
 
 def mindistance2monkhorstpack(
-    atoms, *, min_distance, maxperdim=16, even=True, symmetry=False, comm
+    atoms, *, min_distance, 
+    maxperdim=16, 
+    even, 
+    symmetry,
+    gamma,
+    high_symmetry_points,
+    symmetric_bz,
+    comm
 ) -> tuple[np.ndarray, int]:
     """
     If symmetry==False (default), find a Monkhorst-Pack grid
@@ -638,7 +655,7 @@ def _mindistance2monkhorstpack(
         )
 
     def check(nkpts_c):
-        nl.update(Atoms('H', cell=cell @ np.diag(nkpts_c), pbc=pbc_c))
+         nl.update(Atoms('H', cell=cell @ np.diag(nkpts_c), pbc=pbc_c))
         return len(nl.get_neighbors(0)[1]) == 0
 
     rank, size = (0, 1)
@@ -675,4 +692,105 @@ def _mindistance2monkhorstpack(
     print('VALUE_C', value_c.shape)
     assert len(value_c) == 3, 'BROKEN, or so I think.'
     return value_c
+
+
+
+if __name__ == "__main__":
+    def kpoint_generator(even=True):
+        assert even
+        for k1 in range(2, 18):
+            for k2 in range(2, 18):
+                for k3 in range(2, 18):
+                    yield np.array((k1,k2,k3))
+
+    def is_even(kpt_c):
+        return np.allclose(kpt_c % 2, [0,0,0])
+
+    print(filter(is_even, kpoint_generator()))
+
+# XXX
+# Demo code starts here
+import numpy as np
+from ase.neighborlist import NeighborList
+from ase import Atoms
+from ase.dft.kpoints import monkhorst_pack
+
+
+class KPoint:
+    def __init__(self, kpt_c):
+        self.kpt_c = np.array(kpt_c)
+
+    def is_even(self):
+        return np.allclose(self.kpt_c % 2, [0,0,0])
+
+    def __repr__(self):
+        return str(self.kpt_c)
+
+def kpoint_generator(maxk=10):
+    for k1 in range(maxk +1, 2, -1):
+        for k2 in range(2, maxk+1):
+            for k3 in range(2, maxk+1):
+                yield KPoint((k1,k2,k3))
+
+def is_even(kpoint: KPoint):
+    return kpoint.is_even()
+
+def min_distance(distance, atoms):
+    nl = NeighborList(
+        [distance / 2], skin=0.0, self_interaction=False, bothways=False
+    )
+    def _min_distance(kpoint):
+        nl.update(Atoms('H', cell=atoms.cell @ np.diag(kpoint.kpt_c), pbc=atoms.pbc))
+        return len(nl.get_neighbors(0)[1]) == 0
+
+    return _min_distance
+
+from gpaw.old.kpt_descriptor import KPointDescriptor
+from gpaw.symmetry import Symmetry
+
+def symmetric_mp_grid(atoms):
+    def _symmetric_mp_grid(kpoint):
+        id_a = atoms.get_chemical_symbols()
+        symmetry = Symmetry(id_a, atoms.cell, atoms.pbc)
+        symmetry.analyze(atoms.get_scaled_positions())
+        nkpts_c = kpoint.kpt_c
+        kpts_kc = monkhorst_pack(nkpts_c)
+        kpts_kc -= 1/(2*nkpts_c)
+        kd = KPointDescriptor(kpts_kc)
+        kd.set_symmetry(atoms, symmetry)
+        if -1 in kd.bz2bz_ks:
+            # Disfavor unsymmetric
+            return False
+
+        kpoint.nibz = len(kd.ibzk_kc)
+        return True
+
+    return _symmetric_mp_grid
+
+
+
+from ase.build import bulk
+#atoms = bulk('Si')
+from ase.io import read
+atoms = read('/home/kuisma/a.xyz')
+predicates = [is_even, min_distance(12, atoms), symmetric_mp_grid(atoms)]
+
+def satisfies_all(x):
+    for pred in predicates:
+        if not pred(x):
+            return False
+    return True
+
+lst = []
+for kpoint in filter(satisfies_all, kpoint_generator()):
+    print(kpoint)
+    lst.append(kpoint)
+
+def sort(kpoint):
+    return kpoint.nibz
+
+print('sorted:')
+for kpt in sorted(lst, key=sort):
+    print(kpt)
+
 
