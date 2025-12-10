@@ -13,10 +13,6 @@ def test_eigensolver(mode, element, eigensolver, gpaw_new):
     if not gpaw_new:
         pytest.skip('Only implemented for new GPAW')
 
-    # element = 'Si'
-    # eigensolver = 'davidson'
-    # eigensolver = 'ppcg'
-    # eigensolver = 'dir_opt'
     energy_tolerance = 5e-5
     eig_tolerance = 1e-3
     spinpol = False
