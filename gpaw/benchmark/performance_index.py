@@ -121,7 +121,9 @@ def workflow(skip: list[str] | None = None) -> None:
             creates=[f'{name}.json'])
 
 
-def work(name: str, params: dict | None = None, world=None) -> None:
+def work(name: str,
+         params: dict | None = None,
+         world=None) -> None:
     """Do two steps."""
     world = normalize_communicator(world)
 
