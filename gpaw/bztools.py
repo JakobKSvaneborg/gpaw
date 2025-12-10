@@ -507,3 +507,172 @@ def convex_hull_volume(pts):
     vol = np.sum(tetrahedron_volume(tets[:, 0], tets[:, 1],
                                     tets[:, 2], tets[:, 3]))
     return vol
+
+
+def mp_from_density(
+    atoms: Atoms, density: float, *, symmetry: bool, comm
+) -> tuple[np.ndarray, int]:
+    """
+    Get a monkhorstpack grid with the lowest number of k-points in the
+    reducible/irreducible Brillouin zone that still satisfies a given
+    minimum distance condition in the real space (nx, ny, nz)-supercell.
+
+    :param atoms: Atoms object used to the k-points
+    :param density: Density of k-points (kpts/Å^-1)
+    :param symmetry: Consider symmetry (irreducible) or not (reducible)
+        when determining the k-point grid.
+    :param comm: Communicator used to parallelize the symmetry reduction.
+    :return: np.array([nx, ny, nz]), number of points in the brillouin
+        zone
+    """
+    # For orthogonal cells: min_distance = 2 * np.pi * density
+    min_distance = 2 * np.pi * density
+    return mindistance2monkhorstpack(
+        atoms=atoms,
+        min_distance=min_distance,
+        maxperdim='auto',
+        symmetry=symmetry,
+        comm=comm,
+    )
+
+def mindistance2monkhorstpack(
+    atoms, *, min_distance, maxperdim=16, even=True, symmetry=False, comm
+) -> tuple[np.ndarray, int]:
+    """
+    If symmetry==False (default), find a Monkhorst-Pack grid
+    (nx, ny, nz) with lowest number of k-points in the *reducible*
+    Brillouin zone, which still satisfying a given minimum distance
+    (`min_distance`) condition in real space (nx, ny, nz)-supercell.
+    Returns kpt_c.
+
+    If symmetry==True (requires gpaw), returns the lowest number
+    of k-points in the *irreducible* Brillouin zone, with same
+    minimum distance condition.
+    Returns a tuple (kpt_c, nibz).
+
+    Compared to ase.calculators.calculator kptdensity2monkhorstpack
+    routine, this metric is based on a physical quantity (real space
+    distance), and it doesn't depend on non-physical quantities, such as
+    the cell vectors, since basis vectors can be always transformed
+    with integer determinant one matrices. In other words, it is
+    invariant to particular choice of cell representations.
+
+    On orthogonal cells, min_distance = 2 * np.pi * kptdensity.
+    """
+    if symmetry:
+        # XXX Needs replacement by some new GPAW object
+        from gpaw.old.kpt_descriptor import KPointDescriptor
+        from gpaw.symmetry import Symmetry
+
+        id_a = atoms.get_chemical_symbols()
+        symmetry = Symmetry(id_a, atoms.cell, atoms.pbc)
+        symmetry.analyze(atoms.get_scaled_positions())
+
+        def get_nibz(nkpts_c):
+            # Note: Neglects magnetic moments for now
+            kpts_kc = monkhorst_pack(nkpts_c)
+            kpts_kc -= 1/(2*nkpts_c)
+            kd = KPointDescriptor(kpts_kc)
+            print(kpts_kc)
+            kd.set_symmetry(atoms, symmetry)
+            if -1 in kd.bz2bz_ks:
+                # Disfavor unsymmetric
+                return 100000
+            return len(kd.ibzk_kc)
+
+        key = get_nibz
+    else:
+
+        def get_nk(nkpts_c):
+            return np.prod(nkpts_c)
+
+        key = get_nk  # lambda nkpts_c: np.prod(nkpts_c)
+
+    _maxperdim = maxperdim if maxperdim != 'auto' else 16
+    while 1:
+        try:
+            kpt_c = _mindistance2monkhorstpack(
+                atoms.cell,
+                atoms.pbc,
+                min_distance,
+                _maxperdim,
+                even,
+                key,
+                comm=comm,
+            )
+        except KPTGridNotFound:
+            if maxperdim != 'auto':
+                raise
+            print(
+                f'kpt grid not found with maxperdim={_maxperdim}, doubling it.'
+            )
+            _maxperdim *= 2
+            continue
+        break
+
+    return kpt_c, key(kpt_c)
+
+
+def _mindistance2monkhorstpack(
+    cell,
+    pbc_c,
+    min_distance,
+    maxperdim,
+    even,
+    key=lambda nkpts_c: np.prod(nkpts_c),
+    *,
+    comm,
+):
+    from ase import Atoms
+    from ase.neighborlist import NeighborList
+
+    step = 2 if even else 1
+    nl = NeighborList(
+        [min_distance / 2], skin=0.0, self_interaction=False, bothways=False
+    )
+
+    def err():
+        raise KPTGridNotFound(
+            'Could not find a proper k-point grid for the '
+            'system. Try running with a larger maxperdim.'
+        )
+
+    def check(nkpts_c):
+        nl.update(Atoms('H', cell=cell @ np.diag(nkpts_c), pbc=pbc_c))
+        return len(nl.get_neighbors(0)[1]) == 0
+
+    rank, size = (0, 1)
+    # rank, size = (comm.rank, comm.size)
+    ranges = [
+        range(step, maxperdim + 1, step) if pbc else range(1, 2)
+        for pbc in pbc_c
+    ]
+    kpts_nc = np.column_stack([*map(np.ravel, np.meshgrid(*ranges))])[
+        rank::size
+    ]
+    kpts_nx = np.array(
+        [[*nkpts_c, key(nkpts_c)] for nkpts_c in kpts_nc if check(nkpts_c)]
+    )
+    if len(kpts_nx):
+        minid = np.argmin(kpts_nx[:, 3])
+        minkpt_x = kpts_nx[minid]
+    else:
+        err()
+        # To enable parallelization, this is required
+        minkpt_x = np.array([0, 0, 0, 100_000_000], dtype=int)
+    # if comm is None:
+    if 1:
+        # XXX DISABLED PARALLEL CODE DUE TO APPARENT BUG.  --askhl
+        len(minkpt_x) or err()
+        value_c = minkpt_x[:3]
+        return value_c
+
+    minkpt_rx = np.zeros((4 * comm.size,), dtype=int)
+    comm.all_gather(minkpt_x, minkpt_rx)
+    minkpt_rx = minkpt_rx.reshape((-1, 4))
+    value_c = minkpt_rx[np.argmin(minkpt_rx[:, 3]), :3]
+    value_c[0] > 0 or err()
+    print('VALUE_C', value_c.shape)
+    assert len(value_c) == 3, 'BROKEN, or so I think.'
+    return value_c
+
