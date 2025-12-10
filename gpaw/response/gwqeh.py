@@ -6,7 +6,7 @@ import pickle
 
 import numpy as np
 
-from ase.utils.timing import timer
+#from ase.utils.timing import timer
 from ase.units import Hartree, Bohr
 from ase.dft.kpoints import monkhorst_pack
 
@@ -110,7 +110,7 @@ class GWQEHCorrection:
 
         # Set low ecut in order to use PairDensity object since only
         # G=0 is needed.
-        self.ecut = 1.
+        self.ecut = 0.1
 
         self.kptpair_factory = KPointPairFactory(self.gs, self.context)
         self.pair_calc = ActualPairDensityCalculator(self.kptpair_factory,
@@ -285,12 +285,14 @@ class GWQEHCorrection:
             Wpm_w[:nw] = dW_w
             Wpm_w[nw:] = Wpm_w[0:nw]
 
-            with self.timer('Hilbert transform'):
-                self.htp(Wpm_w[:nw])
-                self.htm(Wpm_w[nw:])
+            #with self.timer('Hilbert transform'):
+            #    self.htp(Wpm_w[:nw])
+            #    self.htm(Wpm_w[nw:])
+            self.htp(Wpm_w[:nw])
+            self.htm(Wpm_w[nw:])
 
             # Setup q-point descriptor
-            pd0 = SingleQPWDescriptor.from_q(q_c, self.ecut, self.gs.gd)
+            pd0 = SingleQPWDescriptor.from_q(q_c, self.ecut, self.gs.gd, gammacentered=True)
             G_Gv = pd0.get_reciprocal_vectors()
             assert len(G_Gv) == 1
             assert np.allclose(pd0.get_reciprocal_vectors(add_q=False), 0)
@@ -419,7 +421,7 @@ class GWQEHCorrection:
         self.save_state_file()
         return self.Qp_sin * Hartree
 
-    @timer('Sigma')
+    #@timer('Sigma')
     def calculate_sigma(self, n_mG, deps_m, f_m, W_wGG):
         """Calculates a contribution to the self-energy and its derivative for
         a given (k, k-q)-pair from its corresponding pair-density and
@@ -573,23 +575,28 @@ class GWQEHCorrection:
         # Single layer
         if len(d) == len(structure) - 1:
             d = interlayer_to_thickness(d)
-
+        print(f'{d = }')
+        print(f'{structure[layer] = }')
+        print(f'{structure = }')
+        print(f'{d[layer] = }')
         HS0 = QEH.heterostructure(
             BBfiles=[structure[layer]],
-            layerwidth_l=d[layer] / Bohr,
+            layerwidth_l=[d[layer] / Bohr],
             wmax=wmax,
             # qmax=qmax / Bohr
         )
 
-        W0_qw = HS0.get_screened_potential()
+        W0_qw = HS0.get_screened_potential()[..., 0, 0]
 
         # Full heterostructure
 
-        HS = QEH.heterostructure(BBfiles=structure, d=d / Bohr,
+        HS = QEH.heterostructure(BBfiles=structure, layerwidth_l=d / Bohr,
                                  wmax=wmax,
                                  # qmax=qmax / Bohr
                                  )
-        W_qw = HS.get_screened_potential(layer=layer)
+        basis_idx = 2 * layer
+        W_qw = HS.get_screened_potential()[..., basis_idx, basis_idx]
+
 
         # Difference in screened potential:
         dW_qw = W_qw - W0_qw
@@ -619,8 +626,8 @@ class GWQEHCorrection:
 
         return self.epsmax - self.epsmin
 
-    def timer(self, name):
-        return self.context.timer(name)
+    #def timer(self, name):
+        #return self.context.timer(name)
 
 
 def interlayer_to_thickness(d):
