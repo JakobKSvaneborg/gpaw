@@ -56,7 +56,7 @@ def plot_score(data) -> None:
             X.append(date(*day))
             Y.append(score)
         ax.plot(X, Y, 'o-', label=mode)
-    ax.axhline(100.0, ls=':', color='black', label='gpaw-25.7.0')
+    ax.axhline(100.0, ls=':', color='black', label='PW (gpaw-25.7.0)')
     ax.legend()
     ax.set_xlabel('date')
     ax.set_ylabel('score')
