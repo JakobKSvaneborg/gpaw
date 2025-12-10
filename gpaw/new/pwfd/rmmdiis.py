@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+from functools import partial
 from pprint import pformat
 
 import numpy as np
 
 from gpaw.gpu import as_np
 from gpaw.new import zips as zip
+from gpaw.new.fd.hamiltonian import FDHamiltonian
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.new.fd.hamiltonian import FDHamiltonian
 
 
 class RMMDIIS(PWFDEigensolver):
@@ -57,13 +58,16 @@ class RMMDIIS(PWFDEigensolver):
 
     def iterate1(self,
                  wfs: PWFDWaveFunctions,
-                 Ht, dH, dS_aii, weight_n):
-        """
+                 Ht, potential,
+                 dS_aii, weight_n):
+        """Do one step ...
+
         See here:
 
             https://gpaw.readthedocs.io/documentation/rmm-diis.html
         """
 
+        dH = partial(potential.deltaH, spin=wfs.spin)
         psit_nX = wfs.psit_nX
         mynbands = psit_nX.mydims[0]
 
