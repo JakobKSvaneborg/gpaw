@@ -6,7 +6,7 @@ import os
 def workflow():
     for mode in ['pw', 'lcao', 'fd']:
         dir = Path(mode)
-        if not dir.is__dir():
+        if not dir.is_dir():
             dir.mkdir()
             if mode == 'lcao':
                 (dir / 'params.json').write_text(

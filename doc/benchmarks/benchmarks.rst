@@ -51,7 +51,7 @@ Figure shows:
 
 .. image:: benchmark.png
 
-Results for latest development version :
+PW-mode results for latest version:
 
 .. csv-table::
     :file: benchmark.csv

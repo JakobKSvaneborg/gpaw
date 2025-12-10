@@ -114,6 +114,6 @@ def main(data):
     tables(data['latest']['PW'])
 
 
-if __name__ == '__main__':
+if 1:  # __name__ == '__main__':
     data = json.loads(Path('benchmarks.json').read_text())
     main(data)
