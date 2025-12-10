@@ -96,7 +96,8 @@ def score(data: dict[str, float]) -> tuple[float, int]:
     return 100 * RESCALE_FACTOR * s / len(REFERENCES0), n
 
 
-def workflow(skip: list[str] | None = None) -> None:
+def workflow(skip: list[str] | None = None,
+             mode: str = 'pw') -> None:
     """MyQueue workflow."""
     from myqueue.workflow import run
     for name, (_, _, cores, _) in REFERENCES.items():
@@ -121,7 +122,9 @@ def workflow(skip: list[str] | None = None) -> None:
             creates=[f'{name}.json'])
 
 
-def work(name: str, params: dict | None = None, world=None) -> None:
+def work(name: str,
+         params: dict | None = None,
+         world=None) -> None:
     """Do two steps."""
     world = normalize_communicator(world)
 
