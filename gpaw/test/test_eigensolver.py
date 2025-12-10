@@ -5,6 +5,7 @@ from ase.build import bulk
 from gpaw import GPAW
 from gpaw.mpi import world
 
+
 @pytest.mark.parametrize('element', ['Al', 'Si'])
 @pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg', 'dir_opt'])
 def test_eigensolver(element, eigensolver, gpaw_new):
