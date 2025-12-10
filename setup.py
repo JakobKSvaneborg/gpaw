@@ -22,7 +22,7 @@ from distutils.ccompiler import new_compiler, CCompiler
 from distutils.errors import CCompilerError
 from distutils.sysconfig import customize_compiler
 from setuptools import Extension, find_packages, setup
-from setuptools.command.build_ext import build_ext as _build_ext
+from setuptools.command.build_ext import build_ext
 
 config = runpy.run_path(Path(__file__).parent / 'config.py')
 
@@ -450,8 +450,81 @@ write_configuration(define_macros, include_dirs, libraries, library_dirs,
                     runtime_library_dirs, extra_objects, compiler)
 
 
-class build_ext(_build_ext):
+class BuildGPAW(build_ext):
+    """"""
+
+    def build_gpu(self, gpu_compiler, gpu_compile_args, gpu_include_dirs,
+                  define_macros, undef_macros, build_temp):
+        print("building gpu code", flush=True)
+
+        kernels_dpath = Path('c/gpu/kernels')
+
+        def create_build_dir(path_to_code: Path) -> None:
+            """Creates a temp build directory corresponding to given directory
+            in the code folder structure"""
+            path_to_create = self.build_temp / path_to_code
+            if not path_to_create.exists():
+                print(f'creating {path_to_create}', flush=True)
+                path_to_create.mkdir(parents=True)
+
+        # Create temp build directory for gpu/kernels
+        create_build_dir(kernels_dpath)
+
+        # Glob all kernel files, but remove those included by other kernels
+        kernels = sorted(kernels_dpath.glob('*.cpp'))
+        for name in ['interpolate-stencil.cpp',
+                     'lfc-reduce.cpp',
+                     'lfc-reduce-kernel.cpp',
+                     'reduce.cpp',
+                     'reduce-kernel.cpp',
+                     'restrict-stencil.cpp']:
+            kernels.remove(kernels_dpath / name)
+
+        # Add other C++ code
+        cpp_dpath = Path("c/gpu/cpp")
+        create_build_dir(cpp_dpath)
+        cpp_files = sorted(cpp_dpath.glob("*.cpp"))
+
+        cpp_files.extend(kernels)
+
+        # Add Magma-specific files if needed
+        if magma:
+            magma_dpath = Path(cpp_dpath / "magma")
+            create_build_dir(magma_dpath)
+
+            files_magma = sorted(magma_dpath.glob("*.cpp"))
+            cpp_files.extend(files_magma)
+
+        # Compile C++ code with cuda/hip compiler
+        objects = []
+        for src in cpp_files:
+            obj = build_temp / src.with_suffix('.o')
+            objects.append(str(obj))
+
+            run_args = [gpu_compiler]
+            run_args += gpu_compile_args
+
+            for (name, value) in define_macros:
+                arg = f'-D{name}'
+                if value is not None:
+                    arg += f'={value}'
+                run_args += [arg]
+            run_args += [f'-U{name}' for name in undef_macros]
+            run_args += [f'-I{dpath}' for dpath in gpu_include_dirs]
+            run_args += ['-c', str(src)]
+            run_args += ['-o', str(obj)]
+            print(shlex.join(run_args), flush=True)
+            p = run(run_args, check=False, shell=False)
+            if p.returncode != 0:
+                print(f'error: command {repr(gpu_compiler)} failed '
+                      f'with exit code {p.returncode}',
+                      file=sys.stderr, flush=True)
+                sys.exit(1)
+
+        return objects
+
     def run(self):
+        """"""
         import numpy as np
         self.include_dirs.append(np.get_include())
 
@@ -469,12 +542,13 @@ class build_ext(_build_ext):
         super().run()
 
     def build_extensions(self):
+        """Called from super().run()"""
+
         set_compiler_executables(self.compiler)
         super().build_extensions()
-
         print("Build temp:", self.build_temp)
         print("Build lib: ", self.build_lib)
 
 
 data = 'git+https://gitlab.com/gpaw/gpaw-web-page-data.git'
-setup(ext_modules=extensions, cmdclass={'build_ext': build_ext})
+setup(ext_modules=extensions, cmdclass={'build_ext': BuildGPAW})
