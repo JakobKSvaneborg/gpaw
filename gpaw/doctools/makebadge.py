@@ -7,9 +7,9 @@ To make a nice custom badge, try for example:
 On gitlab, these can be configured in Settings -> General (under "Badges").
 Also maybe add them to README.
 """
-
-
+import json
 import sys
+from pathlib import Path
 
 
 def coverage_badge(percentage: str | int | float) -> str:
@@ -18,67 +18,86 @@ def coverage_badge(percentage: str | int | float) -> str:
     # We cannot use gitlab's own coverage badge because it always reflects
     # the most recent pipeline, and the full coverage is only generated
     # nightly-or-manually.  Therefore this custom module.
-    return makebadge(value=f'{percentage}%',
+    return makebadge('Coverage', f'{percentage}%',
                      color=getcolor(float(percentage)))
 
 
-def getcolor(x: int | float) -> str:
+def getcolor(x: float) -> str:
     return ('4c1' if x >= 95 else
             'a3c51c' if x >= 90 else
             'dfb317' if x >= 75 else
             'e05d44')
 
 
-def makebadge(value: str, color: str) -> str:
-    # Note: If text changes length you need to revisit the widths
-    # including textLength, offsets etc., better use shields.io if you
-    # need to generate a badge with different text lengths.
-    width = 98
-    width_small = 35
+def perf_index(mode: str) -> str:
+    import gpaw_web_page_data
+    dir = Path(gpaw_web_page_data.__file__).parent
+    data = json.loads((dir / 'benchmarks/benchmarks.json')).read_text()
+    last, latest = (score for day, score in data['scores'][mode][-2:])
+    change = (latest - last) / last * 100
+    score = f'{last:.1f} ({change:+.1f})'
+    return makebadge(
+        f'{mode.upper()}-perf-index',
+        score,
+        getcolor(80 + change * 10))
 
-    return """\
-<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="20" role="img" aria-label="Coverage: {value}"><title>Coverage: {value}</title><linearGradient id="s" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient><clipPath id="r"><rect width="{width}" height="20" rx="3" fill="#fff"/></clipPath><g clip-path="url(#r)"><rect width="63" height="20" fill="#555"/><rect x="63" width="{width_small}" height="20" fill="#{color}"/><rect width="{width}" height="20" fill="url(#s)"/></g><g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="110"><text aria-hidden="true" x="325" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="530">Coverage</text><text x="325" y="140" transform="scale(.1)" fill="#fff" textLength="530">Coverage</text><text aria-hidden="true" x="795" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="250">{value}</text><text x="795" y="140" transform="scale(.1)" fill="#fff" textLength="250">{value}</text></g></svg>\
-""".format(value=value, color=color, width=width, width_small=width_small)  # noqa
 
-"""
-<svg xmlns="http://www.w3.org/2000/svg"
-     width="136" height="20" role="img" aria-label="pw-perf-index: 103.26">
-<title>pw-perf-index: 103.26</title>
-<linearGradient id="s" x2="0" y2="100%">
-  <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
-  <stop offset="1" stop-opacity=".1"/>
-</linearGradient>
-<clipPath id="r">
-  <rect width="136" height="20" rx="3" fill="#fff"/>
-</clipPath><g clip-path="url(#r)">
-<rect width="87" height="20" fill="#555"/>
-<rect x="87" width="49" height="20" fill="purple"/>
-<rect width="136" height="20" fill="url(#s)"/>
-</g>
-<g fill="#fff" text-anchor="middle"
-   font-family="Verdana,Geneva,DejaVu Sans,sans-serif"
-   text-rendering="geometricPrecision"
-   font-size="110">
-  <text aria-hidden="true"
-   x="445" y="150" fill="#010101" fill-opacity=".3"
-   transform="scale(.1)" textLength="770">
-  pw-perf-index
-  </text>
-  <text x="445" y="140" transform="scale(.1)" fill="#fff" textLength="770">
-  pw-perf-index
-  </text>
-  <text aria-hidden="true" x="1105" y="150" fill="#010101" fill-opacity=".3"
-  transform="scale(.1)" textLength="390">
-  103.26
-  </text>
-  <text x="1105" y="140" transform="scale(.1)" fill="#fff" textLength="390">
-  103.26
-  </text>
-</g>
-</svg>"""
+def makebadge(text1: str, text2: str, color='purple') -> str:
+    t1 = len(text1) / 13 * 770
+    w1 = t1 / 10 + 10
+    t2 = len(text2) / 6 * 390
+    w2 = t2 / 10 + 10
+    return f"""\
+    <svg xmlns="http://www.w3.org/2000/svg"
+     width="{w1 + w2}"
+     height="20"
+     role="img"
+     aria-label="{text1} {text2}">
+     <title>{text1} {text2}</title>
+     <linearGradient id="s" x2="0" y2="100%">
+      <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+      <stop offset="1" stop-opacity=".1"/>
+     </linearGradient>
+     <clipPath id="r">
+      <rect width="{w1 + w2}" height="20" rx="3" fill="#fff"/>
+     </clipPath>
+     <g clip-path="url(#r)">
+      <rect width="{w1}" height="20" fill="#555"/>
+      <rect x="{w1}" width="{w2}" height="20" fill="{color}"/>
+      <rect width="{w1 + w2}" height="20" fill="url(#s)"/>
+     </g>
+     <g fill="#fff" text-anchor="middle"
+      font-family="Verdana,Geneva,DejaVu Sans,sans-serif"
+      text-rendering="geometricPrecision"
+      font-size="110">
+      <text aria-hidden="true"
+       x="{50 + t1 / 2}" y="150" fill="#010101" fill-opacity=".3"
+       transform="scale(.1)" textLength="{t1}">
+       {text1}
+      </text>
+      <text x="{50 + t1 / 2}" y="140"
+       transform="scale(.1)" fill="#fff" textLength="{t1}">
+       {text1}
+      </text>
+      <text aria-hidden="true"
+       x="{w1 * 10 + 50 + t2 / 2}" y="150"
+       fill="#010101" fill-opacity=".3"
+       transform="scale(.1)" textLength="{t2}">
+       {text2}
+      </text>
+      <text x="{w1 * 10 + 50 + t2 / 2}" y="140"
+       transform="scale(.1)" fill="#fff" textLength="{t2}">
+       {text2}
+      </text>
+     </g>
+    </svg>"""
+
 
 def main(args: list[str]) -> None:
-    print(coverage_badge(args[1]))
+    if args[1] == 'coverage':
+        print(coverage_badge(args[2]))
+    else:
+        print(perf_index(mode=args[1]))
 
 
 if __name__ == '__main__':

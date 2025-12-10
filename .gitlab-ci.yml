@@ -799,7 +799,9 @@ coverage-combine:
       $(coverage report --format=total --precision 0)
       > htmlcov/coverage.svg
 
-    - python -m gpaw.doctools.makebadge pw-index > pw-index.svg
+    - python -m gpaw.doctools.makebadge pw > pw-index.svg
+    - python -m gpaw.doctools.makebadge lcao > lcao-index.svg
+    - python -m gpaw.doctools.makebadge fd > fd-index.svg
 
   artifacts:
     paths:
