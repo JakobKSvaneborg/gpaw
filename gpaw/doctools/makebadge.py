@@ -33,7 +33,7 @@ def perf_index(mode: str) -> str:
     import gpaw_web_page_data
     dir = Path(gpaw_web_page_data.__file__).parent
     data = json.loads((dir / 'benchmarks/benchmarks.json').read_text())
-    last, latest = (score for day, score in data['scores'][mode][-2:])
+    last, latest = (score for day, score in data['scores'][mode.upper()][-2:])
     change = (latest - last) / last * 100
     score = f'{last:.1f} ({change:+.1f})'
     return makebadge(
