@@ -92,7 +92,7 @@ class BField(Extension):
             vt_sR.data[0] -= self.field_v[2]
             vt_sR.data[1] += self.field_v[2]
         elif ncomponents == 4:
-            vt_sR.data[1:] = -self.field_v.reshape((3, 1, 1, 1))
+            vt_sR.data[1:] -= self.field_v.reshape((3, 1, 1, 1))
         else:
             1 / 0
         return eext
@@ -108,6 +108,6 @@ class BField(Extension):
             dH_sii[0] -= c * dS_ii
             dH_sii[1] += c * dS_ii
         else:
-            c_vp = (4 * np.pi)**0.5 * self.field_v[:, np.newaxis]
-            dH_sii[1:] -= c_vp * dS_ii
+            c_vii = (4 * np.pi)**0.5 * self.field_v[:, np.newaxis, np.newaxis]
+            dH_sii[1:] -= c_vii * dS_ii
         return 0.0
