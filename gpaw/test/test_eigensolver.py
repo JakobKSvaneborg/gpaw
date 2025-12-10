@@ -3,7 +3,7 @@ from ase import Atoms
 from ase.build import bulk
 
 from gpaw import GPAW
-
+from gpaw.mpi import world
 
 @pytest.mark.parametrize('element', ['Al', 'Si'])
 @pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg', 'dir_opt'])
@@ -17,6 +17,13 @@ def test_eigensolver(element, eigensolver, gpaw_new):
     # eigensolver = 'dir_opt'
     energy_tolerance = 5e-5
     eig_tolerance = 1e-3
+    spinpol = False
+
+    # enforce band parallelization
+    if world.size > 1:
+        parallel = {'band': 2}
+    else:
+        parallel = {'band': None}
 
     if element == 'Si':
         a = 5.431
@@ -37,7 +44,8 @@ def test_eigensolver(element, eigensolver, gpaw_new):
     params = {'mode': {'name': 'pw', 'ecut': 400},
               'nbands': 2 * 8,
               'kpts': {'size': [2, 2, 2]},
-              'spinpol': False,
+              'spinpol': spinpol,
+              'parallel': parallel,
               'convergence': {'eigenstates': 1e-8,
                               'energy': 1e-5}}
 
