@@ -19,9 +19,15 @@ Paramaters
 ==========
 
 * PBE
-* 800 eV plane-wave cutoff
+
 * k-point density: 5.0 Å
+
 * 14 electron potential for Cr
+
+  * PW: 800 eV plane-wave cutoff
+  * LCAO: 0.15 Å grid-spacing and ``dzp`` basis sets
+  * FD: 0.15 Å grid-spacing
+
 * default parameters for everything else
 
 
@@ -82,6 +88,11 @@ History
 
 * Changed initial magnetic moments for ``MnVS2-2M`` from ``[2, 2, 0, 0]``
   to ``[2, -2, 0, 0]`` and rescaled timings.  See :mr:`3032`.
+
+2025, December
+--------------
+
+* Added LCAO and FD results to the graphs.
 
 
 The future

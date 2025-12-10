@@ -96,8 +96,7 @@ def score(data: dict[str, float]) -> tuple[float, int]:
     return 100 * RESCALE_FACTOR * s / len(REFERENCES0), n
 
 
-def workflow(skip: list[str] | None = None,
-             mode: str = 'pw') -> None:
+def workflow(skip: list[str] | None = None) -> None:
     """MyQueue workflow."""
     from myqueue.workflow import run
     for name, (_, _, cores, _) in REFERENCES.items():
