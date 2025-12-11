@@ -14,7 +14,7 @@ import textwrap
 import traceback
 import warnings
 from pathlib import Path
-from subprocess import run
+import subprocess
 from sysconfig import get_config_var, get_platform
 from typing import Any, Callable, Optional
 
@@ -95,8 +95,8 @@ linker_so_args = None
 linker_exe_args = None
 
 makefile_build: bool = False
-"""Flag that enables generation of GPAW Makefiles and compiling the C++
-through make, instead of going through the usual setuptools build path.
+"""EXPERIMENTAL: Flag that enables generation of GPAW Makefiles and compiling
+the C++ through make, instead of going through the usual setuptools build path.
 This is intended for developers that actively modify the C++ code and has much
 better support for incremental builds over setuptools.
 
@@ -126,8 +126,8 @@ See also the `configure_only` flag.
 """
 
 configure_only: bool = False
-"""If True, will not compile anything. Use with `makefile_build` to
-quickly re-generate the Makefile after changing siteconfig.py."""
+"""EXPERIMENTAL: If True, will not compile anything. Use with `makefile_build`
+to quickly re-generate the Makefile after changing siteconfig.py."""
 
 
 # Search and store current git hash if possible
@@ -179,8 +179,8 @@ if 'mpicompiler' in locals():
 if mpi is None:
     if compiler is None:
         if (os.name != 'nt'
-                and run(['which', 'mpicc'],
-                        capture_output=True).returncode == 0):
+                and subprocess.run(['which', 'mpicc'],
+                                   capture_output=True).returncode == 0):
             mpi = True
             compiler = 'mpicc'
         else:
@@ -530,14 +530,6 @@ def parse_ldflags(libraries: Optional[list[str]],
     return ldflags
 
 
-def relative_build_path(build_dir: Path | str, path: Path | str) -> str:
-    """Converts /long/path/to/gpaw/build_dir/file.c
-    to build_dir/file.c. Used for generating more readable Makefiles.
-    """
-    relative_path = Path(path).relative_to(Path(build_dir).parent)
-    return str(relative_path)
-
-
 def build_gpu(gpu_compiler: str,
               gpu_compile_args: list[str],
               gpu_include_dirs: list[str],
@@ -632,7 +624,7 @@ def build_gpu(gpu_compiler: str,
 
         if not configure_only:
             print(shlex.join(run_args), flush=True)
-            p = run(run_args, check=False, shell=False)
+            p = subprocess.run(run_args, check=False, shell=False)
 
             if p.returncode != 0:
                 print(f'error: command {repr(gpu_compiler)} failed '
@@ -768,11 +760,43 @@ class BuildGPAW(build_ext):
                 mf.write("\n".join(self.makefile_lines))
             print("Generated Makefile")
 
-        # Then build normally with setuptools
-        if not configure_only:
+        if configure_only:
+            print(
+                "\n"
+                "***********************************************************\n"
+                "NOTE: your siteconfig is using `configure_only = True`.\n"
+                "GPAW C-extension has NOT been built.\n"
+                "You can either compile it manually using the generated\n"
+                "Makefile, or removing the configure_only flag and\n"
+                "rerunning this installation.\n"
+                "***********************************************************\n"
+                "\n")
+            return
+
+        if makefile_build:
+            # run make
+            print("Makefile build: running `make`", flush=True)
+            p = subprocess.run(["make"], check=False, shell=False)
+
+            if p.returncode != 0:
+                print(f'error: command make failed '
+                      f'with exit code {p.returncode}',
+                      file=sys.stderr, flush=True)
+                sys.exit(1)
+        else:
+            # Build normally with setuptools
             super().build_extensions()
-            print("Build temp:", self.build_temp)
-            print("Build lib: ", self.build_lib)
+
+        print("Build temp:", self.build_temp)
+        print("Build lib: ", self.build_lib)
+
+    def copy_extensions_to_source(self):
+        """Override to prevent copy errors when building using `make`, which
+        does not put the .so in a temp dir (self.build_lib). Also needed to
+        prevent errors if using `configure_only = True`.
+        """
+        if not makefile_build:
+            super().copy_extensions_to_source()
 
 
 data = 'git+https://gitlab.com/gpaw/gpaw-web-page-data.git'
