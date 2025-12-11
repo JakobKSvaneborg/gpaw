@@ -614,8 +614,12 @@ def build_gpu(gpu_compiler: str,
         inout_makefile_lines.append(f"GPU_BUILD_DIR := {build_dir}")
         inout_makefile_lines.append("GPU_OBJECTS := $(addprefix $(GPU_BUILD_DIR)/,$(addsuffix .o,$(basename $(GPU_SOURCES))))")
         inout_makefile_lines.append("GPU_DEPS := $(GPU_OBJECTS:.o=.d)")
-        inout_makefile_lines.append(f"\nCC_GPU := {gpu_compiler}\n")
 
+        inout_makefile_lines.append("GPU_PREBUILD_DIRS := $(sort $(dir $(GPU_OBJECTS)))")
+        inout_makefile_lines.append("gpu_prebuild:\n\t mkdir -p $(GPU_PREBUILD_DIRS)")
+        inout_makefile_lines.append("\n$(GPU_OBJECTS): | gpu_prebuild")
+
+        inout_makefile_lines.append(f"\nCC_GPU := {gpu_compiler}\n")
         inout_makefile_lines.append(f"CFLAGS_GPU := {cflags_str} -MMD -MP\n")
 
     # Compile with cuda/hip compiler
@@ -630,7 +634,7 @@ def build_gpu(gpu_compiler: str,
         run_args += ['-o', str(obj)]
 
         if should_write_makefile:
-            inout_makefile_lines.append(f"{obj}: {src}\n\t mkdir -p $(dir $@)\n\t$(CC_GPU) $(CFLAGS_GPU) -c {src} -o {obj}\n")
+            inout_makefile_lines.append(f"{obj}: {src}\n\t$(CC_GPU) $(CFLAGS_GPU) -c {src} -o {obj}\n")
 
         if not configure_only:
             print(shlex.join(run_args), flush=True)
@@ -707,6 +711,11 @@ class BuildGPAW(build_ext):
             makefile_local.append(f"BUILD_DIR := {self.makefile_build_dir}\n")
             makefile_local.append("OBJECTS := $(addprefix $(BUILD_DIR)/,$(addsuffix .o,$(basename $(SOURCES))))")
             makefile_local.append("DEPS := $(OBJECTS:.o=.d)")
+
+            makefile_local.append("PREBUILD_DIRS := $(sort $(dir $(OBJECTS)))")
+            makefile_local.append("prebuild:\n\t mkdir -p $(PREBUILD_DIRS)")
+            makefile_local.append("\n$(OBJECTS): | prebuild")
+
             makefile_local.append(f"\nCC := {self.compiler.compiler_so[0]}")
 
             for ext in self.extensions:
@@ -762,7 +771,7 @@ class BuildGPAW(build_ext):
 
                 # Compile rules
                 for src, obj in zip(ext.sources, objs):
-                    makefile_local.append(f"{obj}: {src}\n\t mkdir -p $(dir $@)\n\t$(CC) $(CFLAGS) -c {src} -o {obj}\n")
+                    makefile_local.append(f"{obj}: {src}\n\t$(CC) $(CFLAGS) -c {src} -o {obj}\n")
 
             makefile_local.append("\n-include $(DEPS)")
             self.makefile_lines += makefile_local
