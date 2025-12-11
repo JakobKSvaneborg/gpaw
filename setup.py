@@ -702,7 +702,8 @@ class BuildGPAW(build_ext):
 
         makefile_local = []
         if makefile_build:
-            makefile_local.append(f"SOURCES := {" ".join([str(src) for src in sources])}\n")
+            sources_str = " ".join([str(src) for src in sources])
+            makefile_local.append(f"SOURCES := {sources_str}\n")
             makefile_local.append(f"BUILD_DIR := {self.makefile_build_dir}\n")
             makefile_local.append("OBJECTS := $(addprefix $(BUILD_DIR)/,$(addsuffix .o,$(basename $(SOURCES))))")
             makefile_local.append("DEPS := $(OBJECTS:.o=.d)")
