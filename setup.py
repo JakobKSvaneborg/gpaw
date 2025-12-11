@@ -702,8 +702,8 @@ class BuildGPAW(build_ext):
         if makefile_build:
             makefile_local.append(f"SOURCES := {" ".join([str(src) for src in sources])}\n")
             makefile_local.append(f"BUILD_DIR := {self.makefile_build_dir}\n")
-            makefile_local.append(f"OBJECTS := $(addprefix $(BUILD_DIR)/,$(addsuffix .o,$(basename $(SOURCES))))")
-            makefile_local.append(f"DEPS := $(OBJECTS:.o=.d)")
+            makefile_local.append("OBJECTS := $(addprefix $(BUILD_DIR)/,$(addsuffix .o,$(basename $(SOURCES))))")
+            makefile_local.append("DEPS := $(OBJECTS:.o=.d)")
             makefile_local.append(f"\nCC := {self.compiler.compiler_so[0]}")
 
             for ext in self.extensions:
