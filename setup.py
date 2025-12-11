@@ -289,6 +289,14 @@ def set_compiler_executables(cc: CCompiler) -> None:
             new_args += old_args[1:]
         cc.set_executable(name, new_args)
 
+    # add language flag if not already added (preparation for C++ compilation)
+    lang = 'c'
+    args: list[str] = getattr(cc, 'compiler_so')
+    if not any(item.startswith('-x') for item in args):
+        print(f"Adding compiler flag: -x{lang}")
+        args += [f'-x{lang}']
+        cc.set_executable('compiler_so', args)
+
 
 def get_compiler() -> CCompiler:
     compiler = new_compiler()
