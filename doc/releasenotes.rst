@@ -45,7 +45,7 @@ Git master branch
   or see below.
 
 * To control MPI parallelism with the ``gpaw python`` command,
-  use the environment :envvar:`GPAW_MPI_BACKEND`.
+  use the environment ``GPAW_MPI_BACKEND``.
   Current valid values are ``serial``, ``cgpaw`` for GPAW's C implementation,
   and ``mpi4py``.
 
