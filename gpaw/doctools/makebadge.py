@@ -7,9 +7,7 @@ To make a nice custom badge, try for example:
 On gitlab, these can be configured in Settings -> General (under "Badges").
 Also maybe add them to README.
 """
-import json
 import sys
-from pathlib import Path
 
 
 def coverage_badge(percentage: str | int | float) -> str:
@@ -23,23 +21,10 @@ def coverage_badge(percentage: str | int | float) -> str:
 
 
 def getcolor(x: float) -> str:
-    return ('4c1' if x >= 95 else
-            'a3c51c' if x >= 90 else
-            'dfb317' if x >= 75 else
-            'e05d44')
-
-
-def perf_index(mode: str) -> str:
-    import gpaw_web_page_data
-    dir = Path(gpaw_web_page_data.__file__).parent
-    data = json.loads((dir / 'benchmarks/benchmarks.json').read_text())
-    last, latest = (score for day, score in data['scores'][mode.upper()][-2:])
-    change = (latest - last) / last * 100
-    score = f'{last:.1f} ({change:+.1f})'
-    return makebadge(
-        f'{mode.upper()}-perf-index',
-        score,
-        getcolor(80 + change * 10))
+    return ('#4c1' if x >= 95 else
+            '#a3c51c' if x >= 90 else
+            '#dfb317' if x >= 75 else
+            '#e05d44')
 
 
 def makebadge(text1: str, text2: str, color='purple') -> str:
@@ -94,10 +79,7 @@ def makebadge(text1: str, text2: str, color='purple') -> str:
 
 
 def main(args: list[str]) -> None:
-    if args[1] == 'coverage':
-        print(coverage_badge(args[2]))
-    else:
-        print(perf_index(mode=args[1]))
+    print(coverage_badge(args[1]))
 
 
 if __name__ == '__main__':

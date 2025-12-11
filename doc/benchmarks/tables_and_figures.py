@@ -1,4 +1,6 @@
-# creates: benchmark.csv, benchmark.png, systems.csv, score.png, H2-0.xyz
+# creates: benchmark.csv, benchmark.png, systems.csv, score.png
+# creates: H2-0.xyz
+# creates: pw-perf-index.svg, lcao-perf-index.svg, fd-perf-index.svg
 import json
 from datetime import date
 from pathlib import Path
@@ -7,6 +9,7 @@ from ase.geometry.cell import cell_to_cellpar
 from gpaw.benchmark.performance_index import PARAMS, REFERENCES
 from gpaw.benchmark.systems import systems
 from gpaw.calcinfo import get_calculation_info
+from gpaw.doctools.makebadge import makebadge, getcolor
 
 NAMES = sorted(REFERENCES, key=lambda name: name.split('-')[::-1])
 
@@ -108,10 +111,24 @@ def plot(data) -> None:
     plt.savefig('benchmark.png')
 
 
+def badges(data):
+    for mode, scores in data.items():
+        last, latest = (score for day, score in scores[-2:])
+        change = (latest - last) / last * 100
+        score = f'{last:.1f} ({change:+.1f})'
+        print(change, getcolor(80 + change * 10), 80 + change * 10)
+        svg = makebadge(
+            f'{mode}-perf-index',
+            score,
+            getcolor(80 + change * 10))
+        Path(f'{mode.lower()}-perf-index.svg').write_text(svg)
+
+
 def main(data):
     plot(data['latest'])
     plot_score(data['scores'])
     tables(data['latest']['PW'])
+    badges(data['scores'])
 
 
 if 1:  # __name__ == '__main__':
