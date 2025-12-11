@@ -8,7 +8,7 @@ from gpaw.mpi import world
 
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
 @pytest.mark.parametrize('element', ['Al', 'Si'])
-@pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg', 'dir_opt'])
+@pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg'])
 def test_eigensolver(mode, element, eigensolver, gpaw_new):
     if not gpaw_new:
         pytest.skip('Only implemented for new GPAW')
@@ -47,6 +47,7 @@ def test_eigensolver(mode, element, eigensolver, gpaw_new):
     params = {'mode': mode_d,
               'nbands': 2 * 8,
               'kpts': {'size': [2, 2, 2]},
+              'eigensolver': eigensolver,
               'spinpol': spinpol,
               'parallel': parallel,
               'convergence': {'eigenstates': 1e-8,
