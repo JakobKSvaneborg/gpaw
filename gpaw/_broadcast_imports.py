@@ -25,7 +25,7 @@ import sys
 from importlib.machinery import ModuleSpec, PathFinder
 
 import gpaw.cgpaw as cgpaw
-from gpaw import GPAW_MPI4PY, GPAW_NO_C_EXTENSION
+from gpaw import GPAW_INITIALIZE_MPI, GPAW_MPI_BACKEND, GPAW_NO_C_EXTENSION
 
 cgpaw_version = getattr(cgpaw, 'version', 0)
 if not GPAW_NO_C_EXTENSION and cgpaw_version != 10:
@@ -37,21 +37,53 @@ if not GPAW_NO_C_EXTENSION and cgpaw_version != 10:
     raise ImportError(improvement + 'Please recompile GPAW''s C-extensions!')
 
 
-if GPAW_MPI4PY:
+def init_mpi4py():
     from mpi4py.MPI import COMM_WORLD
 
     from gpaw.mpi4pywrapper import MPI4PYWrapper
-    world = MPI4PYWrapper(COMM_WORLD)
-elif hasattr(cgpaw, 'Communicator'):
+    return MPI4PYWrapper(COMM_WORLD)
+
+
+def init_cgpaw():
     libmpi = os.environ.get('GPAW_MPI', 'libmpi.so')
     import ctypes
     try:
         ctypes.CDLL(libmpi, ctypes.RTLD_GLOBAL)
     except OSError:
         pass
-    world = cgpaw.Communicator()
+    return cgpaw.Communicator()
+
+
+if GPAW_INITIALIZE_MPI:
+    if GPAW_MPI_BACKEND == 'mpi4py':
+        world = init_mpi4py()
+    elif GPAW_MPI_BACKEND == 'cgpaw':
+        if hasattr(cgpaw, 'Communicator'):
+            world = init_cgpaw()
+        else:
+            # Would be cleaner for this to be an error since we are not
+            # quite obeying the envvar.
+            world = None  # type: ignore
+    elif GPAW_MPI_BACKEND == 'serial':
+        world = None  # type: ignore
+    else:
+        raise ValueError(
+            "GPAW_MPI_BACKEND must be one of 'serial', 'cgpaw', 'mpi4py'")
 else:
     world = None  # type: ignore
+
+
+if world is None and 'OMPI_COMM_WORLD_SIZE' in os.environ:
+    # Check whether we might not have the same ideas about parallelism
+    # as the caller.
+    #
+    # This check is not portable to other MPIs.  Maybe we can have this
+    # sanity check for a few MPI implementations since it's nasty to get
+    # inconsistent MPI communicators.
+    raise RuntimeError(
+        'We appear to be running inside mpiexec, but '
+        'parallelism is disabled.  Please run '
+        'gpaw -P <nprocs> python to ensure that MPI is enabled.')
 
 
 def marshal_broadcast(obj):

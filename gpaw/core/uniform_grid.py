@@ -523,7 +523,7 @@ class UGArray(XArray[UGDesc]):
 
         return out
 
-    def norm2(self):
+    def norm2(self, kind: str = 'normal', skip_sum=False):
         """Calculate integral over cell of absolute value squared.
 
         :::
@@ -532,6 +532,9 @@ class UGArray(XArray[UGDesc]):
          ||a(r)| dr
          /
         """
+        if not kind == 'normal' or skip_sum:
+            raise NotImplementedError
+
         norm_x = []
         arrays_xR = self._arrays()
         for a_R in arrays_xR:
@@ -889,6 +892,5 @@ class UGArray(XArray[UGDesc]):
 
     def trace_inner_product(self, other: UGArray) -> float:
         assert self.desc.dtype == other.desc.dtype
-        a_xR = self._arrays()
-        b_yR = other._arrays()
-        return np.vdot(a_xR, b_yR).real * self.desc.dv
+        return self.desc.comm.sum_scalar(
+            np.vdot(self.data, other.data).real * self.desc.dv)

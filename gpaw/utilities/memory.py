@@ -153,7 +153,7 @@ def monkey_patch_timer():
 
     from ase.utils.timing import Timer
 
-    from gpaw.mpi import rank
+    from gpaw.mpi import world
 
     i = Timer.__init__
     st = Timer.start
@@ -161,7 +161,7 @@ def monkey_patch_timer():
 
     def init(self, print_levels=1000):
         i(self, print_levels)
-        self.fd = open('mem.%04d' % rank, 'w')
+        self.fd = open('mem.%04d' % world.rank, 'w')
         self.mem = []
         self.t0 = time()
 

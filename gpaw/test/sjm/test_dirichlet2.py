@@ -2,6 +2,7 @@ import pytest
 from .base_calc import calculator
 
 
+@pytest.mark.skip('See #1510')
 @pytest.mark.old_gpaw_only
 # @pytest.mark.ci maybe
 def test_dirichlet(atoms):

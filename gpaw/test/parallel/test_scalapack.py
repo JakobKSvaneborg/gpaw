@@ -13,7 +13,6 @@ from scipy.linalg import cholesky, eigh, inv
 
 from gpaw.blacs import BlacsGrid, Redistributor
 from gpaw.mpi import world
-from gpaw.utilities import compiled_with_sl
 from gpaw.utilities.blas import rk
 from gpaw.utilities.scalapack import (scalapack_diagonalize_dc,
                                       scalapack_general_diagonalize_dc,
@@ -25,16 +24,13 @@ from gpaw.utilities.tools import tri2full
 from .test_pblas import (calculate_error, initialize_matrix, initialize_random,
                          mnprocs_i)
 
-pytestmark = pytest.mark.skipif(not compiled_with_sl(),
-                                reason='not compiled with scalapack')
-
 
 tol = 1.0e-8
 
 
 @pytest.mark.parametrize('mprocs, nprocs', mnprocs_i)
 @pytest.mark.parametrize('dtype', [float, complex])
-def test_scalapack_diagonalize_inverse(dtype, mprocs, nprocs,
+def test_scalapack_diagonalize_inverse(dtype, mprocs, nprocs, scalapack,
                                        N=72, seed=42):
     gen = np.random.RandomState(seed)
     grid = BlacsGrid(world, mprocs, nprocs)
@@ -189,7 +185,7 @@ def test_scalapack_diagonalize_inverse(dtype, mprocs, nprocs,
 
 @pytest.mark.parametrize('mprocs, nprocs', mnprocs_i)
 @pytest.mark.parametrize('dtype', [float, complex])
-def test_scalapack_solve(dtype, mprocs, nprocs,
+def test_scalapack_solve(dtype, mprocs, nprocs, scalapack,
                          M=160, K=120, seed=42):
     """Test scalapack_solve()"""
     random = initialize_random(seed, dtype)

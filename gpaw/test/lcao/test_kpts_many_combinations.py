@@ -33,7 +33,7 @@ def ikwargs():
 
 
 @pytest.mark.old_gpaw_only
-def test_lcao_kpts_many_combinations(in_tmp_dir):
+def test_lcao_kpts_many_combinations(in_tmp_dir, require_real_mpi):
     counter = count()
 
     for spinpol in [False, True]:

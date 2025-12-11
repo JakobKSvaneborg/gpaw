@@ -69,7 +69,7 @@ class DirOptPWFD(PWFDEigensolver):
                 tmp_nX = wfs.psit_nX.new()
                 wfs.orthonormalized = False
                 wfs.orthonormalize(tmp_nX)
-                wfs.subspace_diagonalize(Ht, potential.dH, tmp_nX,
+                wfs.subspace_diagonalize(Ht, potential.deltaH, tmp_nX,
                                          nocc=self.nocc_s[wfs.spin],
                                          eigenvalues_only=True)
 
@@ -182,7 +182,7 @@ class DirOptPWFD(PWFDEigensolver):
             tmp_nX = wfs.psit_nX.new()
             wfs.orthonormalized = False
             wfs.orthonormalize(tmp_nX)
-            wfs.subspace_diagonalize(Ht, potential.dH, tmp_nX,
+            wfs.subspace_diagonalize(Ht, potential.deltaH, tmp_nX,
                                      nocc=self.nocc_s[wfs.spin],
                                      eigenvalues_only=False)
 

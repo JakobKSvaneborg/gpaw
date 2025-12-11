@@ -10,7 +10,7 @@ from gpaw.response.pair import get_gs_and_context
 
 
 @pytest.mark.response
-def test_BSEPlus(in_tmp_dir, gpw_files, monkeypatch):
+def test_BSEPlus(in_tmp_dir, gpw_files, monkeypatch, scalapack):
     """
     This test makes a BSE plus calculation with the BSEPlus class and
     manually to test that the BSEPlus code is working. It tests that the
