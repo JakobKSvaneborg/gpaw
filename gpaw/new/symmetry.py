@@ -393,7 +393,7 @@ class Symmetries:
         return F_av / len(self)
 
     def lcm(self) -> list[int]:
-        """Find least common multiple compatible with translations."""
+        """Find lowest common multiple compatible with translations."""
         return [np.lcm.reduce([frac(t, tol=1e-4)[1] for t in t_s])
                 for t_s in self.translation_sc.T]
 
