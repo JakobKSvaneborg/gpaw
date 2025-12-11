@@ -607,13 +607,15 @@ def build_gpu(gpu_compiler: str,
 
     should_write_makefile = (inout_makefile_lines is not None)
     if should_write_makefile:
+        sources_str = " ".join([str(src) for src in cpp_files])
+        cflags_str = " ".join(cflags)
         inout_makefile_lines.append("# BEGIN GPU SECTION\n")
-        inout_makefile_lines.append(f"GPU_SOURCES := {" ".join([str(src) for src in cpp_files])}\n")
+        inout_makefile_lines.append(f"GPU_SOURCES := {sources_str}\n")
         inout_makefile_lines.append(f"GPU_BUILD_DIR := {build_dir}")
         inout_makefile_lines.append("GPU_OBJECTS := $(addprefix $(GPU_BUILD_DIR)/,$(addsuffix .o,$(basename $(GPU_SOURCES))))")
         inout_makefile_lines.append("GPU_DEPS := $(GPU_OBJECTS:.o=.d)")
         inout_makefile_lines.append(f"\nCC_GPU := {gpu_compiler}\n")
-        cflags_str = " ".join(cflags)
+
         inout_makefile_lines.append(f"CFLAGS_GPU := {cflags_str} -MMD -MP\n")
 
     # Compile with cuda/hip compiler
