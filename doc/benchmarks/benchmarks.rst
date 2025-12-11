@@ -2,6 +2,10 @@
 Benchmarks
 ==========
 
+.. image:: pw-perf-index.svg
+.. image:: lcao-perf-index.svg
+.. image:: fd-perf-index.svg
+
 See :git:`gpaw/benchmark/performance_index.py`.
 
 .. contents::
