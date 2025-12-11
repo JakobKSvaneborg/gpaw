@@ -23,7 +23,6 @@ class CLICommand:
             '--module', '-m',
             nargs=argparse.REMAINDER,
             help='Run library module as a script (terminates option list).')
-
         parser.add_argument(
             'arguments', metavar='ARG',
             help='Arguments passed to program in '
@@ -35,11 +34,6 @@ class CLICommand:
 
     @staticmethod
     def run(args):
-        from gpaw import __getattr__, all_lazy_imports, broadcast_imports
-        with broadcast_imports:
-            for attr in all_lazy_imports:
-                __getattr__(attr)
-
         if args.cmd:
             sys.argv[:] = ['-c'] + args.cmd[1:]
             d = {}

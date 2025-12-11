@@ -22,7 +22,7 @@ parallel_i = parallel_options()
 # Parameterize over spin polarized and unpolarized calculations
 @pytest.fixture(scope='module', params=[True, False])
 @only_on_master(world)
-def initialize_system(request):
+def initialize_system(request, require_real_mpi):
     comm = serial_comm
 
     atoms = Atoms('LiNaNaNa',

@@ -73,7 +73,7 @@ def test_propagated_wave_function(initialize_system, module_tmp_path):
 @pytest.mark.rttddft
 @pytest.mark.parametrize('parallel', parallel_i)
 def test_propagation(initialize_system, module_tmp_path, parallel,
-                     gpw_files, in_tmp_dir):
+                     gpw_files, in_tmp_dir, scalapack):
     calculate_time_propagation(gpw_files['nacl_nospin'],
                                kick=np.ones(3) * 1e-5,
                                parallel=parallel)
@@ -123,11 +123,10 @@ def ksd_transform_reference(ksd_reference):
 
 
 @pytest.fixture(scope='module', params=parallel_i)
-def build_ksd(initialize_system, request):
+def build_ksd(initialize_system, request, scalapack):
     calc = GPAW('unocc.gpw', parallel=request.param, txt=None)
     if not calc.wfs.ksl.using_blacs and calc.wfs.bd.comm.size > 1:
-        pytest.xfail('Band parallelization without scalapack '
-                     'is not supported')
+        pytest.skip('Band parallelization without scalapack is not supported')
     ksd = KohnShamDecomposition(calc)
     ksd.initialize(calc)
     ksd.write('ksd.ulm')
@@ -234,10 +233,10 @@ def test_ksd_vs_dmat_density(density_reference):
 
 
 @pytest.fixture(scope='module')
-def density(load_ksd):
+def density(load_ksd, scalapack):
     ksd, fdm = load_ksd
     if ksd.ksl.using_blacs:
-        pytest.xfail('Scalapack is not supported')
+        pytest.skip('Scalapack is not supported')
     dmat_rho_wg = get_density_fdm(ksd, fdm, 'dmat')
     ksd_rho_wg = get_density_fdm(ksd, fdm, 'ksd')
     return dict(dmat=dmat_rho_wg, ksd=ksd_rho_wg)
@@ -322,7 +321,7 @@ def test_spinpol_dipole_moment(initialize_system, initialize_system_spinpol,
 @pytest.mark.rttddft
 @pytest.mark.parametrize('parallel', parallel_i)
 def test_spinpol_propagation(initialize_system_spinpol, module_tmp_path,
-                             parallel, in_tmp_dir, gpw_files):
+                             parallel, in_tmp_dir, gpw_files, scalapack):
     ref_path = module_tmp_path / 'spinpol'
     calculate_time_propagation(gpw_files['nacl_spin'],
                                kick=np.ones(3) * 1e-5,

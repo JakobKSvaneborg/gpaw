@@ -17,6 +17,7 @@ from ase.parallel import MPI as ASE_MPI
 from ase.parallel import world as aseworld
 
 import gpaw
+import gpaw.cgpaw as cgpaw
 from gpaw.gpu import cupy, is_hip
 from gpaw.new.c import GPU_AWARE_MPI
 
@@ -709,6 +710,9 @@ class SerialCommunicator:
             warnings.warn('Please use sum_scalar(...)', stacklevel=2)
             return array
 
+    def product(self, array, root=-1):
+        pass
+
     def sum_scalar(self, a, root=-1):
         return a
 
@@ -801,12 +805,13 @@ class SerialCommunicator:
     def get_c_object(self):
         if gpaw.dry_run:
             return None  # won't actually be passed to C
-        return _world.get_c_object()
+        raise RuntimeError('No real C object')
 
 
 _serial_comm = SerialCommunicator()
 
 have_mpi = _world is not None
+compiled_with_mpi = hasattr(cgpaw, 'Communicator')
 
 if not have_mpi:
     _world = _serial_comm  # type: ignore

@@ -1,6 +1,6 @@
 import numpy as np
 
-from gpaw import GPAW_MPI4PY, debug
+from gpaw import GPAW_MPI_BACKEND, debug
 from gpaw.mpi import SerialCommunicator, _Communicator, serial_comm, world
 from gpaw.mpi4pywrapper import MPI4PYWrapper
 
@@ -50,7 +50,7 @@ def test_mpicomm():
         assert isinstance(world, SerialCommunicator)
         assert isinstance(comm, SerialCommunicator)
         assert isinstance(subcomm, SerialCommunicator)
-    elif hasmpi and GPAW_MPI4PY:
+    elif hasmpi and GPAW_MPI_BACKEND == 'mpi4py':
         assert isinstance(world, MPI4PYWrapper)
         assert isinstance(comm, MPI4PYWrapper)
         assert isinstance(subcomm, MPI4PYWrapper)

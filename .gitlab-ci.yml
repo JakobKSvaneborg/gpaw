@@ -817,7 +817,7 @@ nightly-mpi4py-4-group-1-2:
   extends:
     - .nightly-mpi-new
   variables:
-    GPAW_MPI4PY: "1"
+    GPAW_MPI_BACKEND: "mpi4py"
     GPAW_DEBUG: "1"
 
 
@@ -825,7 +825,7 @@ nightly-mpi4py-4-group-2-2:
   extends:
     - .nightly-mpi-new
   variables:
-    GPAW_MPI4PY: "1"
+    GPAW_MPI_BACKEND: "mpi4py"
     GPAW_DEBUG: "1"
 
 
