@@ -491,17 +491,17 @@ def mpi(comm):
     return MPIHelper(comm)
 
 
-@pytest.fixture
-def gpaw_newwwww() -> bool:
-    """Are we testing the new code?"""
-    return GPAW_NEW
-
-
-@pytest.fixture(params=[False, True])
-def gpaw_new(request) -> bool:
-    import gpaw.dft as dft
-    try:
-        dft._USE_OLD_GPAW = not request.param
-        yield request.param
-    finally:
-        dft._USE_OLD_GPAW = None
+if GPAW_NEW == 147:
+    @pytest.fixture(params=[False, True])
+    def gpaw_new(request) -> bool:
+        import gpaw.dft as dft
+        try:
+            dft._USE_OLD_GPAW = not request.param
+            yield request.param
+        finally:
+            dft._USE_OLD_GPAW = None
+else:
+    @pytest.fixture
+    def gpaw_new() -> bool:
+        """Are we testing the new code?"""
+        return GPAW_NEW

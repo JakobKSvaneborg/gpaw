@@ -983,7 +983,7 @@ def GPAW(
                 if not _use_old_gpaw and filename:
                     use_old_if_reading_fails = True
             else:
-                _use_old_gpaw = not GPAW_NEW
+                _use_old_gpaw = GPAW_NEW == 0
         else:
             _use_old_gpaw = _USE_OLD_GPAW
 
