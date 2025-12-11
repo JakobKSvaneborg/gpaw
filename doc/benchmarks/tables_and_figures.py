@@ -113,9 +113,9 @@ def plot(data) -> None:
 
 def badges(data):
     for mode, scores in data.items():
-        last, latest = (score for day, score in scores[-2:])
-        change = (latest - last) / last * 100
-        score = f'{last:.1f} ({change:+.1f})'
+        s1, s2 = (score for day, score in scores[-2:])
+        change = (s2 - s1) / s1 * 100
+        score = f'{s2:.1f} ({change:+.1f}%)'
         print(change, getcolor(80 + change * 10), 80 + change * 10)
         svg = makebadge(
             f'{mode}-perf-index',
