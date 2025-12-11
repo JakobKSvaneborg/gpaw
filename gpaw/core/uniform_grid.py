@@ -892,6 +892,5 @@ class UGArray(XArray[UGDesc]):
 
     def trace_inner_product(self, other: UGArray) -> float:
         assert self.desc.dtype == other.desc.dtype
-        a_xR = self._arrays()
-        b_yR = other._arrays()
-        return np.vdot(a_xR, b_yR).real * self.desc.dv
+        return self.desc.comm.sum_scalar(
+            np.vdot(self.data, other.data).real * self.desc.dv)

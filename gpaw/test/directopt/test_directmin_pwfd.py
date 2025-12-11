@@ -57,9 +57,7 @@ def test_directmin_H2(in_tmp_dir, mode):
 @pytest.mark.new_gpaw_ready
 @pytest.mark.do
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
-def test_directmin_C2H4(in_tmp_dir, mode, gpaw_new):
-    if mode == 'fd' and gpaw_new and world.size == 8:
-        pytest.skip('Fails with 7 > 3+-1 iterations')
+def test_directmin_C2H4(in_tmp_dir, mode):
     atoms = Atoms('CCHHHH',
                   positions=[
                       [-0.66874198, -0.00001714, -0.00001504],
