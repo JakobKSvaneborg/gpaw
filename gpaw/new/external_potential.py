@@ -5,13 +5,11 @@ from ase.units import Bohr, Ha
 
 from gpaw.core import UGArray
 from gpaw.new.density import Density
-from gpaw.typing import Array1D, Array2D, ArrayLike1D
+from gpaw.typing import ArrayLike1D
 from gpaw.new.extensions import Extension
 
 
 def create_external_potential(params: dict) -> Extension:
-    if not params:
-        return ExternalPotential()
     params = params.copy()
     name = params.pop('name')
     if name == 'BField':

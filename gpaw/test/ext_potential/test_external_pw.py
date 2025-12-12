@@ -25,7 +25,7 @@ def test_stark_pw():
     else:
         from gpaw.new.external_potential import ConstantElectricField as CF
         h.calc = h.calc.new(extensions=[CF(field)],
-                            )#poissonsolver={'dipolelayer': 'xy'})
+                            poissonsolver={'dipolelayer': 'xy'})
 
     e = h.get_potential_energy()
     eig = h.calc.get_eigenvalues()[0]

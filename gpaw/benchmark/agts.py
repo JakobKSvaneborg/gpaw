@@ -18,7 +18,7 @@ def workflow():
         os.chdir(dir)
         handles = wf(skip=['ErGe-2M', 'Fe8O8-3M'])
         os.chdir('..')
-        run(function=check, args=[mode], deps=handles)
+        run(function=check, args=[mode], deps=handles, name=f'check-{mode}')
 
 
 def check(mode: str) -> None:
