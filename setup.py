@@ -558,17 +558,23 @@ def build_gpu(gpu_compiler: str,
     info_msg = "Building gpu code" if not configure_only else "Configuring GPU build"
     print(info_msg, flush=True)
 
-    def create_build_dir(path_to_code: Path) -> None:
-        """Creates subdirectory under build_dir with same folder structure as
-        that of the input source file"""
-        path_to_create = build_dir / path_to_code
-        if not path_to_create.exists():
-            print(f'creating {path_to_create}', flush=True)
-            path_to_create.mkdir(parents=True)
+    # Messy: Some .cpp files under kernels/ get #included by other files.
+    # So we glob everything except kernels/, then global kernels/ separately
+    # and remove those that are #included by others.
+    gpu_dpath = Path("c/gpu")
+    kernels_dpath = Path("c/gpu/kernels")
 
-    # Create temp build directory for c/gpu/kernels
-    kernels_dpath = Path('c/gpu/kernels')
-    create_build_dir(kernels_dpath)
+    # .cpp files in these dirs will be ignored
+    skip_paths = [kernels_dpath]
+    if not magma:
+        skip_paths += [Path("c/gpu/cpp/magma")]
+
+
+    cpp_files = [
+        p for p in gpu_dpath.rglob("*.cpp")
+        if not any(skip in p.parents for skip in skip_paths)
+    ]
+
 
     # Glob all kernel files, but remove those #included by other kernels
     kernels = sorted(kernels_dpath.glob('*.cpp'))
@@ -580,20 +586,15 @@ def build_gpu(gpu_compiler: str,
                  'restrict-stencil.cpp']:
         kernels.remove(kernels_dpath / name)
 
-    # Add other code that ends up using CUDA/HIP features
-    cpp_dpath = Path("c/gpu/cpp")
-    create_build_dir(cpp_dpath)
-    cpp_files = sorted(cpp_dpath.glob("*.cpp"))
+    cpp_files = sorted(cpp_files + kernels)
 
-    cpp_files.extend(kernels)
-
-    # Add Magma-specific files if needed
-    if magma:
-        magma_dpath = Path(cpp_dpath / "magma")
-        create_build_dir(magma_dpath)
-
-        files_magma = sorted(magma_dpath.glob("*.cpp"))
-        cpp_files.extend(files_magma)
+    # Create build dirs
+    build_dir_root_absolute = Path(build_dir).resolve()
+    for p in cpp_files:
+        build_path = (build_dir_root_absolute / p).parent
+        if not build_path.exists():
+            print(f'creating {build_path}', flush=True)
+            build_path.mkdir(parents=True)
 
     # Combine flags, and pass the correct language flag.
     # TODO what to do if user has passed their own -x that is not compatible?
@@ -692,7 +693,7 @@ class BuildGPAW(build_ext):
             objects = build_gpu(gpu_compiler, gpu_compile_args,
                                 gpu_include_dirs + self.include_dirs,
                                 define_macros, undef_macros,
-                                self.makefile_build_dir,
+                                self.build_temp if not makefile_build else self.makefile_build_dir,
                                 self.makefile_lines)
 
             self.link_objects += objects
