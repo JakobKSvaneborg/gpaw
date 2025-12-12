@@ -114,12 +114,12 @@ def workflow(skip: list[str] | None = None) -> list:
             tmax = '5h'
 
         handle = run(function=work,
-            args=[name],
-            cores=cores,
-            tmax=tmax,
-            nodename=nodename,
-            name=name,
-            creates=[f'{name}.json'])
+                     args=[name],
+                     cores=cores,
+                     tmax=tmax,
+                     nodename=nodename,
+                     name=name,
+                     creates=[f'{name}.json'])
         handles.append(handle)
     return handles
 

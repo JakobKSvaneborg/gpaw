@@ -170,8 +170,6 @@ class Eigensolver(Parameter):
     def from_param(cls, eigensolver):
         from gpaw.new.do import DirectOptimization
         from gpaw.new.eigensolver import Eigensolver as NewEigensolver
-        from gpaw.old.eigensolvers.eigensolver import (
-            Eigensolver as OldEigensolver)
 
         eigensolvers = {
             'davidson': Davidson,

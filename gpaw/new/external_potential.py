@@ -9,7 +9,7 @@ from gpaw.typing import Array1D, Array2D, ArrayLike1D
 from gpaw.new.extensions import Extension
 
 
-def create_external_potential(params: dict) -> ExternalPotential:
+def create_external_potential(params: dict) -> Extension:
     if not params:
         return ExternalPotential()
     params = params.copy()
@@ -21,17 +21,7 @@ def create_external_potential(params: dict) -> ExternalPotential:
     raise ValueError
 
 
-class ExternalPotential:
-    def update_potential(self,
-                         vt_sR: UGArray,
-                         density) -> float:
-        return 0.0
-
-    def add_paw_correction(self, Delta_p: Array1D, dH_sp: Array2D) -> float:
-        return 0.0
-
-
-class ConstantElectricField(ExternalPotential):
+class ConstantElectricField(Extension):
     def __init__(self, strength, direction=[0, 0, 1], tolerance=1e-7):
         """External constant electric field.
 
