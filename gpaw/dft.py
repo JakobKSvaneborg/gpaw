@@ -197,9 +197,11 @@ class Eigensolver(Parameter):
                 raise ValueError(f'Unknown name of eigensolver: {name}')
             case {**kwargs}:
                 return DefaultEigensolver(kwargs)
-            case OldEigensolver() | NewEigensolver():
+            case NewEigensolver():
                 return eigensolver
             case _:
+                if GPAW_NEW == 147:
+                    raise NotImplementedError
                 raise ValueError(f'Unknown eigensolver input: {eigensolver}')
 
 

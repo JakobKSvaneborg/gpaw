@@ -265,7 +265,8 @@ class DFTCalculation:
         for a, setup in enumerate(self.setups):
             x, y, z = F_av[a]
             self.log(f'  {a:4} {setup.symbol:2} '
-                     f'{x:10.4f} {y:10.4f} {z:10.4f}')
+                     f'{x:10.5f} {y:10.5f} {z:10.5f}')
+        self.log.fd.flush()
 
     def _calculate_forces(self):
         xc = self.pot_calc.xc
