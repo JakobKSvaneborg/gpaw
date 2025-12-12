@@ -29,8 +29,8 @@ def test_pipekmezey_chain(in_tmp_dir):
                           'time_reversal': False},
                 parallel={'domain': mpi.world.size})
 
-    calc.atoms = atoms
-    calc.calculate()
+    atoms.calc = calc
+    atoms.get_potential_energy()
 
     PM = PipekMezey(calc=calc, seed=42)
     PM.localize()

@@ -170,6 +170,7 @@ class Eigensolver(Parameter):
     def from_param(cls, eigensolver):
         from gpaw.new.do import DirectOptimization
         from gpaw.new.eigensolver import Eigensolver as NewEigensolver
+        from gpaw.old.eigensolvers.eigensolver import Eigensolver as OES
 
         eigensolvers = {
             'davidson': Davidson,
@@ -197,6 +198,8 @@ class Eigensolver(Parameter):
                 return DefaultEigensolver(kwargs)
             case NewEigensolver():
                 return eigensolver
+            case OES():
+                return cls.from_param(eigensolver.todict())
             case _:
                 if GPAW_NEW == 147:
                     raise NotImplementedError
