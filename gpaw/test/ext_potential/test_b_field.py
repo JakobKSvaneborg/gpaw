@@ -1,7 +1,7 @@
 import pytest
 from ase import Atoms
 
-from gpaw import GPAW
+from gpaw import GPAW, GPAW_NEW
 from gpaw.bfield import BField as OldBField
 from gpaw.new.external_potential import BField
 
@@ -9,7 +9,6 @@ from gpaw.new.external_potential import BField
 # @pytest.mark.old_gpaw_only  # use extension=[BField(...)]
 @pytest.mark.serial
 def test_b_field():
-    gpaw_new = 1
     """Hydrogen atom in a magnetic field."""
     L = 2.0
     atom = Atoms('H', magmoms=[1], cell=[L, L, L], pbc=True)
@@ -21,7 +20,7 @@ def test_b_field():
     B = 0.1
 
     # Collinear:
-    if gpaw_new:
+    if GPAW_NEW:
         params['extensions'] = [BField((0, 0, B))]
     else:
         params['external'] = OldBField((0, 0, B))
@@ -34,10 +33,10 @@ def test_b_field():
     assert b2 - b1 == pytest.approx(B, abs=1e-6)
 
     # Non-collinear:
-    if gpaw_new:
-        params['magmoms'] = [(0.5, 0.5, 0)]
+    if GPAW_NEW:
+        params['magmoms'] = [(0, 0.5, 0.5)]
     else:
-        params['experimental'] = {'magmoms': [(0.5, 0.5, 0)]}
+        params['experimental'] = {'magmoms': [(0, 0.5, 0.5)]}
     atom.calc = GPAW(symmetry='off',
                      **params)
     E3 = atom.get_potential_energy()
@@ -46,10 +45,10 @@ def test_b_field():
     assert E3 - E1 == pytest.approx(-B, abs=2e-5)
     assert a3 - a1 == pytest.approx(-B, abs=3e-5)
 
-    if gpaw_new:
+    if GPAW_NEW:
         totmom_v, magmom_av = (
             atom.calc.dft.density.calculate_magnetic_moments())
     else:
         totmom_v, magmom_av = atom.calc.density.estimate_magnetic_moments()
-    assert totmom_v == pytest.approx([1, 0, 0], abs=1e-5)
-    assert magmom_av[0] == pytest.approx([0.176, 0, 0], abs=1e-3)
+    assert totmom_v == pytest.approx([0, 0, 1], abs=1e-5)
+    assert magmom_av[0] == pytest.approx([0, 0, 0.176], abs=1e-3)
