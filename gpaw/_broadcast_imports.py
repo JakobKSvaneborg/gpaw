@@ -25,7 +25,9 @@ import sys
 from importlib.machinery import ModuleSpec, PathFinder
 
 import gpaw.cgpaw as cgpaw
-from gpaw import GPAW_INITIALIZE_MPI, GPAW_MPI_BACKEND, GPAW_NO_C_EXTENSION
+from gpaw import (probably_get_mpiexec_implementation, GPAW_INITIALIZE_MPI,
+                  GPAW_MPI_BACKEND, GPAW_NO_C_EXTENSION)
+
 
 cgpaw_version = getattr(cgpaw, 'version', 0)
 if not GPAW_NO_C_EXTENSION and cgpaw_version != 10:
@@ -73,17 +75,19 @@ else:
     world = None  # type: ignore
 
 
-if world is None and 'OMPI_COMM_WORLD_SIZE' in os.environ:
+if world is None:
+    probable_mpiexec = probably_get_mpiexec_implementation()
     # Check whether we might not have the same ideas about parallelism
     # as the caller.
     #
     # This check is not portable to other MPIs.  Maybe we can have this
     # sanity check for a few MPI implementations since it's nasty to get
     # inconsistent MPI communicators.
-    raise RuntimeError(
-        'We appear to be running inside mpiexec, but '
-        'parallelism is disabled.  Please run '
-        'gpaw -P <nprocs> python to ensure that MPI is enabled.')
+    if probable_mpiexec is not None:
+        raise RuntimeError(
+            'We appear to be running inside mpiexec using {probable_mpiexec} '
+            'or a variation thereof, but parallelism is disabled.  Please run '
+            'gpaw -P <nprocs> python to ensure that MPI is enabled.')
 
 
 def marshal_broadcast(obj):

@@ -48,12 +48,29 @@ def _get_gpaw_env_vars(attr: str) -> bool | str:
     raise _module_attr_error(attr)
 
 
+def probably_get_mpiexec_implementation() -> str | None:
+    if 'OMPI_COMM_WORLD_SIZE' in os.environ:
+        return 'openmpi'
+    if 'PMI_SIZE' in os.environ:
+        return 'mpich'
+    if 'I_MPI_MPIRUN' in os.environ:
+        # I have not been able to test this case.  --askhl
+        return 'intelmpi'
+    return None
+
+
 # When type-checking, we want the debug-wrappers enabled:
 debug = TYPE_CHECKING or _get_gpaw_env_vars('GPAW_DEBUG')
 
 # Debug envvar for disabling GPU aware MPI
 ENVVAR_GPAW_NO_GPU_MPI = _get_gpaw_env_vars('GPAW_NO_GPU_MPI')
+
 GPAW_MPI_BACKEND = os.environ.get('GPAW_MPI_BACKEND', 'serial')
+
+if probably_get_mpiexec_implementation():
+    GPAW_INITIALIZE_MPI = True
+    if GPAW_MPI_BACKEND == 'serial':
+        GPAW_MPI_BACKEND = 'cgpaw'
 
 
 @contextlib.contextmanager
