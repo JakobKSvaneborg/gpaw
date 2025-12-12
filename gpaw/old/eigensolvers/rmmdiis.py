@@ -22,7 +22,9 @@ class RMMDIIS(Eigensolver):
     * Orthonormalization"""
 
     def __init__(self, keep_htpsit=True, blocksize=None, niter=3, rtol=1e-16,
-                 limit_lambda=False, use_rayleigh=False, trial_step=0.1):
+                 limit_lambda=False, use_rayleigh=False, trial_step=0.1,
+                 # compatibility with new RMMDIIS:
+                 diis_steps=None, max_buffer_mem=None):
         """Initialize RMM-DIIS eigensolver.
 
         Parameters:

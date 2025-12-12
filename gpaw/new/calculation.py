@@ -260,13 +260,12 @@ class DFTCalculation:
             return
 
         self.forces_have_been_printed = True
-        self.log('\nForces: [  # eV/Ang')
+        self.log('\nForces in eV/Ang')
         F_av = self.results['forces'] * (Ha / Bohr)
         for a, setup in enumerate(self.setups):
             x, y, z = F_av[a]
-            c = ',' if a < len(F_av) - 1 else ']'
-            self.log(f'  [{x:10.4f}, {y:10.4f}, {z:10.4f}]{c}'
-                     f'  # {setup.symbol:2} {a}')
+            self.log(f'  {a:4} {setup.symbol:2} '
+                     f'{x:10.4f} {y:10.4f} {z:10.4f}')
 
     def _calculate_forces(self):
         xc = self.pot_calc.xc

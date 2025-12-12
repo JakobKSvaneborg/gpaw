@@ -783,6 +783,8 @@ class ASECalculator:
                            communicator=self.comm,
                            txt=self.log.fd)
 
+        # Quick hack for now:
+        # write gpw-file and read with old GPAW!
         if self.comm.rank == 0:
             gpw = tempfile.mkstemp(suffix='.gpw')[1]
         else:
