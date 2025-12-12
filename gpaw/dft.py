@@ -184,21 +184,22 @@ class Eigensolver(Parameter):
 
         match eigensolver:
             case str(name):
-                return eigensolvers[name]()
+                return cls.from_param({'name': name})
             case {'name': name, **kwargs}:
                 if name == 'dav':
                     warnings.warn('Please use "davidson" instead of "dav"')
                     return eigensolvers['davidson'](**kwargs)
+                if GPAW_NEW == 147 and name in {'etdm-lcao', 'etdm-fdpw',
+                                                'etdm', 'direct'}:
+                    raise NotImplementedError
                 if name in eigensolvers:
                     return eigensolvers[name](**kwargs)
-                elif name in {'etdm-lcao', 'etdm-fdpw', 'etdm', 'direct'}:
-                    raise NotImplementedError
                 raise ValueError(f'Unknown name of eigensolver: {name}')
             case {**kwargs}:
                 return DefaultEigensolver(kwargs)
             case OldEigensolver() | NewEigensolver():
                 return eigensolver
-            case _:  # Wildcard
+            case _:
                 raise ValueError(f'Unknown eigensolver input: {eigensolver}')
 
 
