@@ -35,6 +35,7 @@ def test_mpa_WS(in_tmp_dir, gpw_files, scalapack, wigner_seitz, comm):
     np.testing.assert_allclose(results['qp'], ref_result[wigner_seitz],
                                rtol=1e-03)
 
+
 @pytest.mark.response
 def test_mpa_too_many_nblocks(in_tmp_dir, gpw_files, scalapack, comm):
     mpa_dict = {'npoles': 2, 'wrange': [0 * Ha, 2 * Ha],
@@ -54,6 +55,12 @@ def test_mpa_too_many_nblocks(in_tmp_dir, gpw_files, scalapack, comm):
                   mpa=mpa_dict)
 
         results = gw.calculate()
+
+        ref_result = np.array([[[11.385574, 21.576536],
+                                [5.437222, 16.122926],
+                                [8.846677, 22.430522]]])
+        np.testing.assert_allclose(results['qp'], ref_result,
+                                   rtol=1e-03)
     except ValueError as e:
         assert 'Too many nblocks' in str(e)
         if comm.size > 2:
