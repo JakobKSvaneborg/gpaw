@@ -11,8 +11,8 @@ gpw_wfs = Path("BaTiO3+wfs.gpw")
 
 # create gpw-file with wave functions for all k-points in the BZ
 calc = GPAW(gpw_gs).fixed_density(symmetry="off",
-                                  kpts={'size': (8, 8, 8),
-                                        'gamma': True})
+                                  )#kpts={'size': (8, 8, 8),
+                                  #      'gamma': True})
 
 calc.write(gpw_wfs, mode="all")
 

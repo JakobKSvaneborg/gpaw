@@ -5,7 +5,7 @@ from ase.filters import FrechetCellFilter
 
 params = {'mode': {'name': 'pw', 'ecut': 800},
           'xc': 'PBE',
-          'kpts': {'size': (3, 3, 3),
+          'kpts': {'size': (8, 8, 8),
                    'gamma': True},
           'convergence': {'forces': 1e-3,
                           'density': 1e-6},
