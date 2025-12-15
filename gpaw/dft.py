@@ -992,11 +992,12 @@ def GPAW(
         else:
             _use_old_gpaw = True
 
+    params = None
     use_old_if_reading_fails = False
     if _use_old_gpaw is None:
         if _USE_OLD_GPAW is None:
             if GPAW_NEW == 147:
-                _use_old_gpaw = not _can_use_new(filename, kwargs)
+                _use_old_gpaw, params = not _can_use_new(filename, kwargs)
                 if not _use_old_gpaw and filename:
                     use_old_if_reading_fails = True
             else:
@@ -1034,7 +1035,7 @@ def GPAW(
         return ASECalculator(params,
                              log=log, dft=dft, atoms=atoms)
 
-    params = Parameters(**kwargs)
+    params = params or Parameters(**kwargs)
     return ASECalculator(params, log=log)
 
 
@@ -1047,22 +1048,22 @@ def _can_use_new(filename, kwargs) -> bool:
             with ulmopen(filename) as reader:
                 version = reader.version
         version = broadcast(version, comm=world)
-        return version >= 4
+        return version >= 4, None
 
     try:
         params = Parameters(**kwargs)
     except NotImplementedError:
-        return False
+        return False, None
     if params.mode.name == 'lcao':
-        return False
+        return False, None
     xcname = params.xc.name
     if xcname.startswith(('GLLB', 'TB09')):
-        return False
+        return False, None
     FD_HYBRIDS = {'EXX', 'PBE0', 'B3LYP',
                   'CAMY-BLYP', 'CAMY-B3LYP',
                   'LCY-BLYP', 'LCY-PBE'}
     if params.mode.name == 'fd' and xcname in FD_HYBRIDS:
-        return False
+        return False, None
     if xcname.startswith('LCY-PBE:'):
-        return False
-    return True
+        return False, None
+    return True, params
