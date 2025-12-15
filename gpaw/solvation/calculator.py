@@ -8,7 +8,7 @@ from gpaw.solvation.hamiltonian import SolvationRealSpaceHamiltonian
 
 
 def SolvationGPAW(*args, **kwargs):
-    if GPAW_NEW:
+    if GPAW_NEW == 1:
         from gpaw.new.ase_interface import GPAW
         solvation = dict(name='solvation',
                          cavity=kwargs.pop('cavity'),

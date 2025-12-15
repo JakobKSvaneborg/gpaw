@@ -170,8 +170,7 @@ class Eigensolver(Parameter):
     def from_param(cls, eigensolver):
         from gpaw.new.do import DirectOptimization
         from gpaw.new.eigensolver import Eigensolver as NewEigensolver
-        from gpaw.old.eigensolvers.eigensolver import (
-            Eigensolver as OldEigensolver)
+        from gpaw.old.eigensolvers.eigensolver import Eigensolver as OES
 
         eigensolvers = {
             'davidson': Davidson,
@@ -184,21 +183,26 @@ class Eigensolver(Parameter):
 
         match eigensolver:
             case str(name):
-                return eigensolvers[name]()
+                return cls.from_param({'name': name})
             case {'name': name, **kwargs}:
                 if name == 'dav':
                     warnings.warn('Please use "davidson" instead of "dav"')
                     return eigensolvers['davidson'](**kwargs)
+                if GPAW_NEW == 147 and name in {'etdm-lcao', 'etdm-fdpw',
+                                                'etdm', 'direct'}:
+                    raise NotImplementedError
                 if name in eigensolvers:
                     return eigensolvers[name](**kwargs)
-                elif name in {'etdm-lcao', 'etdm', 'direct'}:
-                    raise NotImplementedError
                 raise ValueError(f'Unknown name of eigensolver: {name}')
             case {**kwargs}:
                 return DefaultEigensolver(kwargs)
-            case OldEigensolver() | NewEigensolver():
+            case NewEigensolver():
                 return eigensolver
-            case _:  # Wildcard
+            case OES():
+                return cls.from_param(eigensolver.todict())
+            case _:
+                if GPAW_NEW == 147:
+                    raise NotImplementedError
                 raise ValueError(f'Unknown eigensolver input: {eigensolver}')
 
 
@@ -650,7 +654,8 @@ class Parameters:
         soc: bool | None = None,
         spinpol: bool | None = None,
         symmetry: str | dict | Symmetry | None = None,
-        xc: str | dict | XC | None = None):
+        xc: str | dict | XC | None = None,
+        external=None):
         r"""DFT-parameters object.
 
         >>> p = Parameters(mode=PW(400))
@@ -732,6 +737,8 @@ class Parameters:
         xc:
             XC-functional.  Default is PZ-LDA.
         """
+        if external is not None:
+            raise NotImplementedError
         soc, magmoms = _parse_experimental(experimental, soc, magmoms)
         self._non_defaults = [
             key for key, value in locals().items()
@@ -989,13 +996,11 @@ def GPAW(
     if _use_old_gpaw is None:
         if _USE_OLD_GPAW is None:
             if GPAW_NEW == 147:
-                if filename is not None:
-                    _use_old_gpaw = False
+                _use_old_gpaw = not _can_use_new(filename, kwargs)
+                if not _use_old_gpaw and filename:
                     use_old_if_reading_fails = True
-                else:
-                    _use_old_gpaw = not _can_use_new(kwargs)
             else:
-                _use_old_gpaw = not GPAW_NEW
+                _use_old_gpaw = GPAW_NEW == 0
         else:
             _use_old_gpaw = _USE_OLD_GPAW
 
@@ -1033,7 +1038,17 @@ def GPAW(
     return ASECalculator(params, log=log)
 
 
-def _can_use_new(kwargs) -> bool:
+def _can_use_new(filename, kwargs) -> bool:
+    if filename is not None:
+        from ase.io.ulm import ulmopen
+        from gpaw.mpi import world, broadcast
+        version = None
+        if world.rank == 0:
+            with ulmopen(filename) as reader:
+                version = reader.version
+        version = broadcast(version, comm=world)
+        return version >= 4
+
     try:
         params = Parameters(**kwargs)
     except NotImplementedError:

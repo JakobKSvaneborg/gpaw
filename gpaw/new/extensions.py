@@ -77,6 +77,11 @@ class Extension:
         """Calculate environment energy."""
         return 0.0
 
+    def update_potential(self,
+                         vt_sR: UGArray,
+                         density) -> float:
+        return 0.0
+
 
 class D3(ExtensionInput):
     name = 'd3'

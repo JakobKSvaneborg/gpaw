@@ -96,9 +96,10 @@ def score(data: dict[str, float]) -> tuple[float, int]:
     return 100 * RESCALE_FACTOR * s / len(REFERENCES0), n
 
 
-def workflow(skip: list[str] | None = None) -> None:
+def workflow(skip: list[str] | None = None) -> list:
     """MyQueue workflow."""
     from myqueue.workflow import run
+    handles = []
     for name, (_, _, cores, _) in REFERENCES.items():
         if skip and name in skip:
             continue
@@ -112,13 +113,15 @@ def workflow(skip: list[str] | None = None) -> None:
             nodename = 'xeon56'
             tmax = '5h'
 
-        run(function=work,
-            args=[name],
-            cores=cores,
-            tmax=tmax,
-            nodename=nodename,
-            name=name,
-            creates=[f'{name}.json'])
+        handle = run(function=work,
+                     args=[name],
+                     cores=cores,
+                     tmax=tmax,
+                     nodename=nodename,
+                     name=name,
+                     creates=[f'{name}.json'])
+        handles.append(handle)
+    return handles
 
 
 def work(name: str,

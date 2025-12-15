@@ -38,7 +38,7 @@ from gpaw.solvation.poisson import WeightedFDPoissonSolver
 
 def SJM(*args, **kwargs):
     """Backwards compatibility ..."""
-    if GPAW_NEW:
+    if GPAW_NEW == 1:
         from gpaw.new.ase_interface import GPAW
         from gpaw.new.sjm import SJM
         environment = SJM(cavity=kwargs.pop('cavity'),

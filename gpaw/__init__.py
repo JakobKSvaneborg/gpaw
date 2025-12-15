@@ -178,6 +178,9 @@ all_lazy_imports = dict(
 # variables, but GPAW_NEW is used within the same script, so it needs to
 # concretely exist in the namespace)
 GPAW_NEW = int(os.environ.get('GPAW_NEW') or 0)
+# 0: use old GPAW
+# 1: use new GPAW
+# 147: use whatever works ...
 
 if os.uname().machine == 'wasm32':
     GPAW_NO_C_EXTENSION = True
