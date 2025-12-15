@@ -64,9 +64,10 @@ def truncated_coulomb(pw: PWDesc,
         v_G[~ok_G] = pi / omega**2
     else:
         assert (pw.kpt_c == 0.0).all()
-        grid = pw
-        return WSTC(pw.cell_cv, np.ones(3, int)).get_potential_new(
-            pw, grid).data
+        grid = pw.minimal_uniform_grid()
+        wstc = WignerSeitzTruncatedCoulomb(
+            pw.cell_cv, np.ones(3, int))
+        v_G = wstc.get_potential_new(pw, grid).data
 
     return v_G
 
