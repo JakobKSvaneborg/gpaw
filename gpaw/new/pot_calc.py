@@ -110,7 +110,7 @@ class PotentialCalculator:
             self.calculate_pseudo_potential(density, ibzwfs, vHt_x))
 
         for ext in self.extensions:
-            energies['external'] = ext.update_potential(vt_sR, density)
+            energies['external'] += ext.update_potential(vt_sR, density)
 
         e_kinetic = 0.0
         for spin, (vt_R, nt_R) in enumerate(zips(vt_sR, density.nt_sR)):
