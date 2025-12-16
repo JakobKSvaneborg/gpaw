@@ -997,7 +997,8 @@ def GPAW(
     if _use_old_gpaw is None:
         if _USE_OLD_GPAW is None:
             if GPAW_NEW == 147:
-                _use_old_gpaw, params = not _can_use_new(filename, kwargs)
+                can, params = _can_use_new(filename, kwargs)
+                _use_old_gpaw = not can
                 if not _use_old_gpaw and filename:
                     use_old_if_reading_fails = True
             else:
