@@ -227,8 +227,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.nbzk = 0
         self.real = np.issubdtype(pw.dtype, np.floating)
         self.zaxpy = get_blas_funcs('axpy', dtype=complex)
-        if self.real:
-            self.v_G = truncated_coulomb(pw, self.exx_omega)
+        self.v_G: None | np.ndarray = None
 
     def update_wave_functions(self,
                               ibzwfs: PWFDIBZWaveFunctions,
@@ -413,7 +412,8 @@ class PWHybridHamiltonian(PWHamiltonian):
             if psit1.spin == spin:
                 pw = pw2.new(kpt=pw2.kpt_c - psit1.kpt_c)
                 if self.real:
-                    v_G = self.v_G
+                    if self.v_G is None:
+                        self.v_G = v_G = truncated_coulomb(pw, self.exx_omega)
                 else:
                     v_G = truncated_coulomb(pw, self.exx_omega)
                 e += self._apply3(
