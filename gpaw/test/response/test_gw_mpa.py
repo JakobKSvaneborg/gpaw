@@ -67,5 +67,4 @@ def test_mpa_too_many_nblocks(in_tmp_dir, gpw_files, comm):
     ref_result = np.array([[[11.385574, 21.576536],
                             [5.437222, 16.122926],
                             [8.846677, 22.430522]]])
-    np.testing.assert_allclose(results['qp'], ref_result,
-                               rtol=1e-03)
+    assert results['qp'] == pytest.approx(ref_result, rel=1e-3)
