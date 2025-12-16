@@ -15,6 +15,7 @@ except ImportError:  # scipy < 1.8
 from gpaw import GPAW
 from gpaw.mpi import normalize_communicator
 from gpaw.new import zips
+from gpaw.new.brillouin import BZPoints
 from gpaw.new.symmetry import create_symmetries_object, find_lattice_symmetry
 from gpaw.old.kpt_descriptor import to1bz
 from gpaw.symmetry import Symmetry, aglomerate_points
@@ -47,6 +48,7 @@ def predicated_monkhorst_pack_grid(
         kptdensity: float,
         is_even: bool | None,
         contains_gamma: bool | None,
+        minimize_ibz_points: bool,
         contains_ibz_vertices: bool = False,
         is_symmetric_mp_grid: bool = False,
         nmaxperdim: int = 8) -> tuple[np.ndarray, int]:
@@ -130,7 +132,14 @@ def predicated_monkhorst_pack_grid(
     if len(mp_grids) == 1:
         return mp_grids[0]
     else:
-        nibz
+        if minimize_ibz_points:
+            nk_ibz = get_nk_ibz(mp_grids, atoms, contains_gamma)
+            return {'size': mp_grids[np.argmin(nk_ibz)],
+                    'gamma': contains_gamma}
+        else:
+            nk_bz = np.prod(mp_grids, axis=1)
+            return {'size': mp_grids[np.argmin(nk_bz)],
+                    'gamma': contains_gamma}
 
 
 def get_mp_grid_from_min_distance_criteria(atoms, min_distance, even):
@@ -237,7 +246,7 @@ def contains_ibz_vertices_predicate(mp_grids,
                                       time_reversal=False)
 
     # Expand IBZ vertices from lattice group to crystal group.
-    cU_scc = create_symmetries_object(atoms, symmorphic=False).rotation_scc
+    cU_scc = create_symmetries_object(atoms).rotation_scc
     ibzk_kc = expand_ibz(lU_scc, cU_scc, latibz_vert_kc, pbc_c=pbc_c)
 
     bools = np.zeros(len(mp_grids), dtype=bool)
@@ -283,6 +292,29 @@ def is_symmetric_mp_grid_predicate(mp_grids,
             bools[count] = True
 
     return bools
+
+
+def get_nk_ibz(mp_grids,
+               atoms: Atoms,
+               gamma: bool):
+
+    pbc_c = atoms.pbc
+    symmetries = create_symmetries_object(atoms, symmorphic=False)
+
+    nibz = np.zeros(len(mp_grids), dtype=int)
+    for count, size in enumerate(np.array(mp_grids)):
+        if gamma:
+            offsets = np.array([0.5 / s if s % 2 == 0 and pbc else 0.
+                               for s, pbc in zips(size, pbc_c)])
+        else:
+            offsets = np.array([0., 0., 0.])
+
+        bzpoints = BZPoints(monkhorst_pack(size) + offsets)
+        ibzpoints = bzpoints.reduce(symmetries, strict=False,
+                                    use_time_reversal=False)
+        nibz[count] = len(ibzpoints)
+
+    return nibz
 
 
 def unfold_points(points, U_scc, tol=1e-8, mod=None):

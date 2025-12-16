@@ -250,7 +250,7 @@ class Chi0ComponentCalculator:
             # lattice vector, meaning that the relative coordinate difference
             # is allowed to be an integer. Thus, at least one relative k-point
             # difference should vanish, modulo 1
-            mod_diff_kc = np.mod(diff_kc, 1)
+            mod_diff_kc = np.mod(np.mod(diff_kc, 1.), 1.)
             nodiff_k = np.all(mod_diff_kc < 1e-5, axis=1)
             if not np.any(nodiff_k):
                 raise ValueError(
