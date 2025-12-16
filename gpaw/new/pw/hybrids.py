@@ -207,7 +207,6 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.pw = pw
         self.exx_fraction = xc.exx_fraction
         self.exx_omega = xc.exx_omega
-        assert not xc.exx_yukawa
         self.xc = xc
         self.kpt_comm = kpt_comm
         self.band_comm = band_comm
