@@ -22,7 +22,7 @@ We will use ASE and GPAW packages and at the end of this notebook, you will be r
 """
 
 # %%
-"""
+r"""
 As you have already learnd in the previous sesion, when investigating the electronic structure of a material, the first thing to be done is to find the atomic positions by relaxing the forces.
 
 Here is some information to help you to build the ase.Atoms object:

@@ -27,7 +27,7 @@ for i in range(3):
                     h=0.3,
                     kpts=(2, 2, 1),
                     txt=f'neb{j}.txt',
-                    communicator=ranks)
+                    communicator=world.new_communicator(ranks))
 
         image.calc = calc
 
