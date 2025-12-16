@@ -12,27 +12,20 @@ def test_radial_ylexpand(in_tmp_dir):
     fname = 'H2.gpw'
     donot = ''
     donot = 'donot'
-    try:
-        calc = GPAW(fname + donot, txt=None)
-        H2 = calc.get_atoms()
-        calc.converge_wave_functions()
-    except FileNotFoundError:
-        R = 0.7  # approx. experimental bond length
-        a = 2.
-        c = 3.
-        H2 = Atoms('HH',
-                   [(a / 2, a / 2, (c - R) / 2),
-                    (a / 2, a / 2, (c + R) / 2)],
-                   cell=(a, a, c),
-                   pbc=True)
-        calc = GPAW(mode='fd', gpts=(12, 12, 16), nbands=2, kpts=(1, 1, 2),
-                    convergence={'eigenstates': 1.e-6},
-                    txt=None,
-                    )
-        H2.calc = calc
-        H2.get_potential_energy()
-        if not donot:
-            calc.write(fname)
+    R = 0.7  # approx. experimental bond length
+    a = 2.
+    c = 3.
+    H2 = Atoms('HH',
+               [(a / 2, a / 2, (c - R) / 2),
+                (a / 2, a / 2, (c + R) / 2)],
+               cell=(a, a, c),
+               pbc=True)
+    calc = GPAW(mode='fd', gpts=(12, 12, 16), nbands=2, kpts=(1, 1, 2),
+                convergence={'eigenstates': 1.e-6},
+                txt=None,
+                )
+    H2.calc = calc
+    H2.get_potential_energy()
 
     # Check that a / h = 10 is rounded up to 12 as always:
     assert (calc.wfs.gd.N_c == (12, 12, 16)).all()
