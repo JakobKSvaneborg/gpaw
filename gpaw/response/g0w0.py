@@ -313,14 +313,17 @@ gw_logo = """\
 """
 
 
-def get_max_nblocks(world, calc, ecut):
+def get_max_nblocks(world, calc, ecut, max_nblocks):
     nblocks = world.size
+    if max_nblocks:
+        nblocks = min(world.size, max_nblocks)
+
     if not isinstance(calc, (str, Path)):
         raise Exception('Using a calulator is not implemented at '
                         'the moment, load from file!')
         # nblocks_calc = calc
     else:
-        nblocks_calc = GPAW(calc)
+        nblocks_calc = GPAW(calc, communicator=world)
     ngmax = []
     for q_c in nblocks_calc.wfs.kd.bzk_kc:
         qpd = SingleQPWDescriptor.from_q(q_c, np.min(ecut) / Ha,
@@ -1315,7 +1318,10 @@ class G0W0(G0W0Calculator):
 
         # Check if nblocks is compatible, adjust if not
         if nblocksmax:
-            nblocks = get_max_nblocks(context.comm, gpwfile, ecut)
+            max_nblocks = mpa['npoles'] if mpa else None
+            if ppa:
+                max_nblocks = 1
+            nblocks = get_max_nblocks(context.comm, gpwfile, ecut, max_nblocks)
 
         kpts = list(select_kpts(kpts, gs.kd))
 
@@ -1340,6 +1346,8 @@ class G0W0(G0W0Calculator):
                    'eta0': 1e-6, 'eta_rest': Ha, 'alpha': 1}
 
         if mpa:
+            if nblocks > mpa['npoles']:
+                raise ValueError('Too many nblocks')
 
             frequencies = mpa_frequency_sampling(**mpa)
 
