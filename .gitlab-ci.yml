@@ -523,8 +523,8 @@ test-cuda-mpi:
   script:
     - nvidia-smi
     - gpaw info
-    - GPAW_DEBUG=1 mpirun -np 2 pytest -v -x -m gpu
-    - mpirun -np 4 pytest -v -x -m gpu
+    - GPAW_DEBUG=1 gpaw -P 2 python -m pytest -v -x -m gpu
+    - gpaw -P 4 python -m pytest -v -x -m gpu
 
 test-hip-cuda:
   image: $IMAGE_CUDA
@@ -852,7 +852,7 @@ nightly-mpi4py-4-group-1-2:
   extends:
     - .nightly-mpi-new
   variables:
-    GPAW_MPI4PY: "1"
+    GPAW_MPI_BACKEND: "mpi4py"
     GPAW_DEBUG: "1"
 
 
@@ -860,7 +860,7 @@ nightly-mpi4py-4-group-2-2:
   extends:
     - .nightly-mpi-new
   variables:
-    GPAW_MPI4PY: "1"
+    GPAW_MPI_BACKEND: "mpi4py"
     GPAW_DEBUG: "1"
 
 

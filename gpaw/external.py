@@ -385,18 +385,26 @@ def static_polarizability(atoms, strength=0.01):
         Unit (e^2 Ångstrom^2 / eV).
         Multiply with Bohr * Ha to get (Angstrom^3)
     """
+    from gpaw.new.external_potential import (
+        ConstantElectricField as NewConstantElectricField)
     atoms.get_potential_energy()
     calc = atoms.calc
-    assert calc.parameters.external is None
+    if calc.old:
+        assert calc.parameters.external is None
     dipole_gs = calc.get_dipole_moment()
+    atoms = atoms.copy()
 
     alpha = np.zeros((3, 3))
     for c in range(3):
         axes = np.zeros(3)
         axes[c] = 1
-        calc.set(external=ConstantElectricField(strength, axes))
-        calc.get_potential_energy()
-        alpha[c] = (calc.get_dipole_moment() - dipole_gs) / strength
-    calc.set(external=None)
+        if calc.old:
+            atoms.calc = calc.new(
+                external=ConstantElectricField(strength, axes))
+        else:
+            atoms.calc = calc.new(
+                extensions=[NewConstantElectricField(strength, axes)])
+        atoms.get_potential_energy()
+        alpha[c] = (atoms.calc.get_dipole_moment() - dipole_gs) / strength
 
     return alpha.T

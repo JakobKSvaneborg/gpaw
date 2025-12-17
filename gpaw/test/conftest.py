@@ -317,7 +317,6 @@ class GPAWPlugin:
             info()
 
     def pytest_terminal_summary(self, terminalreporter, exitstatus, config):
-        from gpaw.mpi import world
         terminalreporter.section('GPAW-MPI stuff')
         terminalreporter.write(f'size: {world.size}\n')
         terminalreporter.write(f'debug-mode: {debug}\n')
@@ -384,14 +383,22 @@ def pytest_runtest_setup(item):
         pytest.skip('No LibXC.')
 
 
-@pytest.fixture
-def scalapack():
+@pytest.fixture(scope='session')
+def scalapack(require_real_mpi):
     """Skip if not compiled with sl.
 
     This fixture otherwise does not return or do anything."""
     from gpaw.utilities import compiled_with_sl
     if not compiled_with_sl():
         pytest.skip('no scalapack')
+
+
+@pytest.fixture(scope='session')
+def require_real_mpi(_not_world):
+    try:
+        _not_world.get_c_object()
+    except RuntimeError:
+        pytest.skip('This test requires actual MPI to be enabled')
 
 
 @pytest.fixture
@@ -447,8 +454,6 @@ def no_touch_world(monkeypatch, _not_world):
 
 @pytest.fixture(scope='session')
 def _not_world():
-    from gpaw.mpi import world
-
     return world.new_communicator(range(world.size))
 
 
@@ -491,17 +496,17 @@ def mpi(comm):
     return MPIHelper(comm)
 
 
-@pytest.fixture
-def gpaw_new() -> bool:
-    """Are we testing the new code?"""
-    return GPAW_NEW
-
-
-@pytest.fixture(params=[False, True])
-def gpaw_newp(request) -> bool:
-    import gpaw.dft as dft
-    try:
-        dft._USE_OLD_GPAW = not request.param
-        yield request.param
-    finally:
-        dft._USE_OLD_GPAW = None
+if GPAW_NEW == 147:
+    @pytest.fixture(params=[False, True])
+    def gpaw_new(request) -> bool:
+        import gpaw.dft as dft
+        try:
+            dft._USE_OLD_GPAW = not request.param
+            yield request.param
+        finally:
+            dft._USE_OLD_GPAW = None
+else:
+    @pytest.fixture
+    def gpaw_new() -> bool:
+        """Are we testing the new code?"""
+        return GPAW_NEW

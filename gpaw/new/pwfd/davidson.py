@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import partial
 from pprint import pformat
 
 import numpy as np
@@ -62,11 +63,13 @@ class Davidson(PWFDEigensolver):
 
     def iterate1(self,
                  wfs: PWFDWaveFunctions,
-                 Ht, dH, dS_aii, weight_n):
+                 Ht, potential,
+                 dS_aii, weight_n):
         H_NN = self.H_NN
         S_NN = self.S_NN
         M_nn = self.M_nn
         M2_nn = self.M2_nn
+        dH = partial(potential.deltaH, spin=wfs.spin)
 
         xp = M_nn.xp
 

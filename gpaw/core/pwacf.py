@@ -205,7 +205,7 @@ class PWLFC:  # (BaseLFC)
                     self.l_s[s] = l
                     integral = self.integral_a[a]
                     if l == 0 and integral != 0.0:
-                        x = integral / self.f_Gs[0, s] * (4 * pi)**0.5
+                        x = integral / f(0.0) * (4 * pi)**0.5
                         self.f_Gs[:, s] *= x
                     done.add(spline)
                 self.a_J[J] = a

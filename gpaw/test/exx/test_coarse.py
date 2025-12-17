@@ -31,7 +31,8 @@ def test_exx_coarse(in_tmp_dir):
         else:
             tstr = 'Exx on coarse grid'
         timer.start(tstr)
-        loa.calc = GPAW(mode='fd',
+        loa.calc = GPAW(_use_old_gpaw=True,
+                        mode='fd',
                         h=0.3,
                         eigensolver='rmm-diis',
                         xc=dict(name='PBE', stencil=1),

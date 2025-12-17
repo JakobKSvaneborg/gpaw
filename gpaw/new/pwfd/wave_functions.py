@@ -6,7 +6,7 @@ from math import pi
 
 import numpy as np
 
-from gpaw.core.arrays import DistributedArrays as XArray
+from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.core.atom_centered_functions import AtomCenteredFunctions
 from gpaw.core.plane_waves import PWArray

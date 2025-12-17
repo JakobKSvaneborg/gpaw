@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import partial
 
-from gpaw.core.arrays import DistributedArrays as XArray
+from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.new import trace, zips
 from gpaw.new.density import Density
@@ -12,6 +12,7 @@ from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.potential import Potential
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver
 from gpaw.new.etdm.searchdir import LBFGS
+from gpaw.new.pwfd.multixarray import MultiXArray
 
 
 class DirOptPWFD(PWFDEigensolver):
@@ -68,7 +69,7 @@ class DirOptPWFD(PWFDEigensolver):
                 tmp_nX = wfs.psit_nX.new()
                 wfs.orthonormalized = False
                 wfs.orthonormalize(tmp_nX)
-                wfs.subspace_diagonalize(Ht, potential.dH, tmp_nX,
+                wfs.subspace_diagonalize(Ht, potential.deltaH, tmp_nX,
                                          nocc=self.nocc_s[wfs.spin],
                                          eigenvalues_only=True)
 
@@ -111,15 +112,15 @@ class DirOptPWFD(PWFDEigensolver):
             pg_nX.data *= -1.0 / (2 * (3 - len(self.nocc_s)))
             pg_unX.append(pg_nX)
 
-        # initialize LBFGS
         if self.search_dir is None:
-            # Communication object
-            kpt_comm = getattr(ibzwfs, 'kpt_comm', None)
+            self.search_dir = LBFGS()
 
-            # Create LBFGS
-            self.search_dir = LBFGS(array_unX=psit_unX, kpt_comm=kpt_comm)
+        weights = [wfs.weight for wfs in ibzwfs]
 
-        p_unX = self.search_dir.update_distributed(psit_unX, pg_unX)
+        p_unX = self.search_dir.update(
+            MultiXArray(psit_unX, ibzwfs.kpt_comm, weights),
+            MultiXArray(pg_unX, ibzwfs.kpt_comm, weights)).a_unX
+
         for wfs, p_nX in zips(ibzwfs, p_unX):
             # projecting search direction on tangent space at psi
             # is slightly different from project gradient
@@ -127,7 +128,8 @@ class DirOptPWFD(PWFDEigensolver):
             project_gradient(p_nX, wfs)
 
         # total projected search_direction length
-        slength = sum(p_nX.norm2().sum() for p_nX in p_unX)**0.5
+        slength = ibzwfs.kpt_comm.sum_scalar(
+            sum(p_nX.norm2().sum() for p_nX in p_unX))**0.5
         max_step = 0.2
         alpha = max_step / slength if slength > max_step else 1.0
 
@@ -163,6 +165,7 @@ class DirOptPWFD(PWFDEigensolver):
             error += grad_nX.norm2() @ weight_n
             shape = (-1,) + (1,) * (grad_nX.data.ndim - 1)
             grad_nX.data *= weight_n.reshape(shape)
+        error = ibzwfs.kpt_comm.sum_scalar(error)
 
         return 0.0, error, energies
 
@@ -179,7 +182,7 @@ class DirOptPWFD(PWFDEigensolver):
             tmp_nX = wfs.psit_nX.new()
             wfs.orthonormalized = False
             wfs.orthonormalize(tmp_nX)
-            wfs.subspace_diagonalize(Ht, potential.dH, tmp_nX,
+            wfs.subspace_diagonalize(Ht, potential.deltaH, tmp_nX,
                                      nocc=self.nocc_s[wfs.spin],
                                      eigenvalues_only=False)
 

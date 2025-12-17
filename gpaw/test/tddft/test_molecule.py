@@ -125,7 +125,7 @@ def test_dipole_moment_values(time_propagation_reference,
     'SICN', 'ECN'])
 def test_propagation(time_propagation_reference,
                      parallel, propagator,
-                     module_tmp_path, in_tmp_dir):
+                     module_tmp_path, in_tmp_dir, scalapack):
     calculate_time_propagation(module_tmp_path / 'gs.gpw',
                                propagator=propagator,
                                parallel=parallel)
@@ -153,7 +153,7 @@ def test_propagation(time_propagation_reference,
 @pytest.mark.parametrize('propagator', [
     'ETRSCN', 'SIKE'])
 def test_propagation2(time_propagation_reference,
-                      parallel, propagator,
+                      parallel, propagator, scalapack,
                       module_tmp_path, in_tmp_dir):
     calculate_time_propagation(module_tmp_path / 'gs.gpw',
                                propagator=propagator,
@@ -180,7 +180,7 @@ def test_propagation2(time_propagation_reference,
 @pytest.mark.old_gpaw_only_mpi
 @pytest.mark.parametrize('parallel', parallel_i)
 def test_restart(time_propagation_reference,
-                 parallel,
+                 parallel, scalapack,
                  module_tmp_path, in_tmp_dir):
     calculate_time_propagation(module_tmp_path / 'td.gpw',
                                kick=None,

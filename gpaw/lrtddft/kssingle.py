@@ -51,7 +51,7 @@ class KSSingles(ExcitationList):
         self.restrict.update(restrict)
 
     def calculate(self, atoms, nspins=None):
-        calculator = atoms.calc
+        calculator = atoms.calc._to_old()
         self.calculator = calculator
 
         # LCAO calculation requires special actions
