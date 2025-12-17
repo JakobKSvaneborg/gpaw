@@ -7,7 +7,7 @@ from ase.parallel import paropen
 
 # This calculation is too heavy to run as an exercise!!
 
-myresults = paropen('si.atom.pbe_and_exx_energies.txt', 'a')
+myresults = paropen('si_atom_pbe_and_exx_energies.txt', 'a')
 
 # Plane wave cutoff
 pwcutoff = 400.0
@@ -34,10 +34,10 @@ for L in [6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]:
     isolated_silicon.calc = isolated_calc
 
     e0_isolated_pbe = isolated_silicon.get_potential_energy()
-    isolated_calc.write('si.pbe+exx.isolated.gpw', mode='all')
+    isolated_calc.write('si_pbe_exx_isolated.gpw', mode='all')
 
     # Now the exact exchange
-    si_isolated_exx = nsc_energy('si.pbe+exx.isolated.gpw',
+    si_isolated_exx = nsc_energy('si_pbe_exx_isolated.gpw',
                                  'EXX').sum()
 
     s = str(L)
