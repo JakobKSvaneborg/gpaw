@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from gpaw import GPAW
-from gpaw.bztools import find_high_symmetry_monkhorst_pack
+from gpaw.bztools import predicated_monkhorst_pack_grid
 from gpaw.mpi import world
 from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.test import findpeak
@@ -17,7 +17,10 @@ def test_response_Na_EELS_RPA_tetra_point_comparison(in_tmp_dir, gpw_files):
     calc = GPAW(gpwname)
 
     # Generate grid compatible with tetrahedron integration
-    kpts = find_high_symmetry_monkhorst_pack(calc.atoms, 6.0)
+    kpts = predicated_monkhorst_pack_grid(
+        calc.atoms, 6.0, is_even=True, minimize_ibz_points=True,
+        contains_gamma=True, contains_ibz_vertices=True,
+        nmaxperdim=2)
 
     # Calculate the wave functions on the new kpts grid
     calc = calc.fixed_density(kpts=kpts, update_fermi_level=True)

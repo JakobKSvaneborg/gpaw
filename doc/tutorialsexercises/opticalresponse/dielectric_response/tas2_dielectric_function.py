@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from gpaw import GPAW, PW, FermiDirac
 from gpaw.response.df import DielectricFunction
 from gpaw.mpi import world
-from gpaw.bztools import find_high_symmetry_monkhorst_pack
+from gpaw.bztools import predicated_monkhorst_pack_grid
 
 # 1) Ground-state.
 
@@ -33,7 +33,8 @@ calc.write('TaS2-gs.gpw')
 
 # 2) Unoccupied bands
 
-kpts = find_high_symmetry_monkhorst_pack(atoms, density=5.0)
+kpts = predicated_monkhorst_pack_grid(atoms, 5.,
+                                      contains_ibz_vertices=True)
 
 responseGS = GPAW('TaS2-gs.gpw').fixed_density(
     kpts=kpts,
