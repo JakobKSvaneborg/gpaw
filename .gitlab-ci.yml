@@ -425,8 +425,6 @@ gpwfiles:
 
 .test:
   stage: test
-  # Parallelize here, then add correct dependency in each extending job
-  <<: *build_matrix
   needs:
     - job: precalculate
   before_script:
@@ -439,7 +437,6 @@ test-oldest:
     - .test
   needs:
     - job: build
-      <<: *needs_corresponding_build
   script:
     - gpaw info
     - >
@@ -473,6 +470,7 @@ test-latest-new:
   image: $IMAGE_MAIN_LATEST
   extends:
     - .test
+  <<: *build_matrix
   needs:
     - job: build-latest
       <<: *needs_corresponding_build
@@ -487,7 +485,6 @@ test-minimal:
     - .test
   needs:
     - job: build-minimal
-      <<: *needs_corresponding_build
   script:
     - gpaw info
     - >
@@ -500,7 +497,6 @@ test-cuda:
     - .gpu-job
   needs:
     - job: build-cuda
-      <<: *needs_corresponding_build
   tags:
     - cuda
   script:
@@ -515,6 +511,7 @@ test-cuda-mpi:
   extends:
     - .test
     - .gpu-job
+  <<: *build_matrix
   needs:
     - job: build-cuda
       <<: *needs_corresponding_build
@@ -533,7 +530,6 @@ test-hip-cuda:
     - .gpu-job
   needs:
     - job: build-hip-cuda
-      <<: *needs_corresponding_build
   tags:
     - cuda
   script:
