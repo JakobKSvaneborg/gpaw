@@ -1,4 +1,5 @@
 from itertools import product
+from typing import Any
 
 import numpy as np
 from ase import Atoms
@@ -51,7 +52,7 @@ def predicated_monkhorst_pack_grid(
         contains_gamma: bool | None = None,
         contains_ibz_vertices: bool = False,
         is_symmetric_mp_grid: bool = False,
-        nmaxperdim: int = 8) -> tuple[np.ndarray, int]:
+        nmaxperdim: int = 8) -> dict[str, Any]:
     """
 
     Parameters
