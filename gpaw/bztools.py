@@ -130,7 +130,7 @@ def predicated_monkhorst_pack_grid(
                                f'{predicate_function.__name__}')
 
     if len(mp_grids) == 1:
-        return mp_grids[0]
+        return {'size': mp_grids[0], 'gamma': contains_gamma}
     else:
         if minimize_ibz_points:
             nk_ibz = get_nk_ibz(mp_grids, atoms, contains_gamma)
@@ -210,8 +210,7 @@ def get_mp_grid_from_min_distance_criteria(atoms, min_distance, even):
 
 def contains_ibz_vertices_predicate(mp_grids,
                                     atoms: Atoms,
-                                    gamma: bool,
-                                    world=None):
+                                    gamma: bool):
     """For a list of Monkhorst-Pack grid sizes, this function checks whether
     each k-point sampling contains the vertices of the irreducible
     Brillouin zone.
@@ -227,8 +226,6 @@ def contains_ibz_vertices_predicate(mp_grids,
         Array with a boolean for each grid size representing the predicate.
 
     """
-
-    world = normalize_communicator(world)
 
     pbc_c = atoms.pbc
     cell_cv = atoms.cell
