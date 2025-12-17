@@ -40,8 +40,8 @@ def test_response_aluminum_EELS_RPA(in_tmp_dir):
 
     # Generate grid compatible with tetrahedron integration
     kpts = predicated_monkhorst_pack_grid(
-        atoms, 2.0, is_even=True, minimize_ibz_points=False,
-        contains_gamma=True, contains_ibz_vertices=True,
+        atoms, 2.0,
+        contains_ibz_vertices=True,
         nmaxperdim=2)
 
     # Calculate the wave functions on the new kpts grid

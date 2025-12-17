@@ -46,9 +46,9 @@ def get_lattice_symmetry(cell_cv, tolerance=1e-7):
 def predicated_monkhorst_pack_grid(
         atoms: Atoms,
         kptdensity: float,
-        is_even: bool | None,
-        contains_gamma: bool | None,
-        minimize_ibz_points: bool,
+        minimize_ibz_points: bool = False,
+        is_even: bool | None = None,
+        contains_gamma: bool | None = None,
         contains_ibz_vertices: bool = False,
         is_symmetric_mp_grid: bool = False,
         nmaxperdim: int = 8) -> tuple[np.ndarray, int]:
@@ -115,6 +115,10 @@ def predicated_monkhorst_pack_grid(
     predicate_functions = []
     if contains_ibz_vertices:
         predicate_functions.append(contains_ibz_vertices_predicate)
+        if contains_gamma is None:
+            contains_gamma = True
+        if is_even is None:
+            is_even = True
     if is_symmetric_mp_grid:
         predicate_functions.append(is_symmetric_mp_grid_predicate)
 
@@ -125,8 +129,7 @@ def predicated_monkhorst_pack_grid(
         mp_grids = mp_grids[predicate_function(mp_grids, atoms,
                                                gamma=contains_gamma)]
         if len(mp_grids) == 0:
-            # XXX
-            raise RuntimeError('Could not find grid which satisfies '
+            raise RuntimeError('Could not find grid which satisfies the'
                                f'{predicate_function.__name__}')
 
     if len(mp_grids) == 1:
