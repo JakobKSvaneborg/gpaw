@@ -61,14 +61,14 @@ stages:
     - !reference [default, before_script]
     - pip install --user --no-deps git+https://gitlab.com/ase/ase.git
     - | # Set different siteconfig vars for C and C++
-      if [[ "$LANG" == "c" ]]; then
-        compiler="mpicc"
-        std="-std=c99"
-        cpp_specific=""
-      else
+      if [[ "$LANG" == "c++" ]]; then
         compiler="mpic++"
         std="-std=c++17"
         cpp_specific="use_cpp = True"
+      else
+        compiler="mpicc"
+        std="-std=c99"
+        cpp_specific=""
       fi
     - |
       cat << EOF > siteconfig.py
@@ -275,12 +275,12 @@ build-minimal:
     - .build
   script:
     - |
-      if [ "$LANG" = "c" ]; then
-        compiler="gcc"
-        cpp_specific=""
-      else
+      if [ "$LANG" == "c++" ]; then
         compiler="g++"
         cpp_specific="use_cpp = True"
+      else
+        compiler="gcc"
+        cpp_specific=""
       fi
       cat << EOF > siteconfig.py
       ${cpp_specific}
@@ -677,7 +677,6 @@ nightly-all:
   stage: test
   needs:
     - job: build-latest
-      <<: *needs_corresponding_build
     - gpwfiles
   tags:
     - xeon40
