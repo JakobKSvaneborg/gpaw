@@ -167,27 +167,16 @@ class Davidson(PWFDEigensolver):
                 P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
                 copy(S_NN.data[B:, :B], M_nn)
 
-            with tracectx('Diagonalize'):
-                with broadcast_exception(domain_comm):
-                    with broadcast_exception(band_comm):
-                        if is_domain_band_master:
-                            H_NN.data[:B, :B] = xp.diag(eig_N[:B])
-                            S_NN.data[:B, :B] = xp.eye(B)
-                            # print(H_NN.data)
-                            # print(S_NN.data)
-                            eig_N[:] = H_NN.eigh(S_NN)
-                            # print(eig_N, self.niter)
-                            wfs.eig_n = as_np(eig_N[:B])
-                if domain_comm.rank == 0:
-                    band_comm.broadcast(wfs.eig_n, 0)
-                domain_comm.broadcast(wfs.eig_n, 0)
-
-                if domain_comm.rank == 0:
-                    if band_comm.rank == 0:
-                        M0_nn.data[:] = H_NN.data[:B, :B]
-                        M0_nn.complex_conjugate()
-                    M0_nn.redist(M_nn)
-                domain_comm.broadcast(M_nn.data, 0)
+            if is_domain_band_master:
+                H_NN.data[:B, :B] = xp.diag(eig_N[:B])
+                S_NN.data[:B, :B] = xp.eye(B)
+            eig_N[:] = H_NN.eigh(S_NN, limit=B, scalapack=self.scalapack)
+            wfs.eig_n = as_np(eig_N[:B])
+            if is_domain_band_master:
+                M0_nn.data[:] = H_NN.data[:B, :B]
+                M0_nn.complex_conjugate()
+            M0_nn.redist(M_nn)
+            domain_comm.broadcast(M_nn.data, 0)
 
             with tracectx('Rotate Psi'):
                 M_nn.multiply(psit_nX, out=psit_nX,

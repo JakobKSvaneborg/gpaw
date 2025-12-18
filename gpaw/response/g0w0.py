@@ -1443,6 +1443,7 @@ class EXXVXCCalculator:
         # establishes that.
         # TODO: Now we call this for all files, not just LCAO
         ResponseGroundStateAdapter(calc, lazy=False)
+
         _, vxc_skn, exx_skn = non_self_consistent_eigenvalues(
             calc,
             'EXX',
