@@ -612,7 +612,8 @@ class ASECalculator:
                              dft.ibzwfs,
                              dft.scf_loop.occ_calc,
                              nbands,
-                             dft.density.nvalence + dft.density.charge)
+                             dft.density.nvalence + dft.density.charge,
+                             self.log)
         dft.ibzwfs = ibzwfs
         self.params.nbands = ibzwfs.nbands
         if 'nbands' not in self.params._non_defaults:

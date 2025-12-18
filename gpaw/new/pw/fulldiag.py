@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from gpaw.core.atom_arrays import AtomArrays
-from gpaw.core.matrix import Matrix, create_distribution
+from gpaw.core.matrix import Matrix, create_distribution, suggest_blocking
 from gpaw.core.plane_waves import PWArray, PWAtomCenteredFunctions, PWDesc
 from gpaw.core.uniform_grid import UGArray
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
@@ -105,7 +105,8 @@ def diagonalize(potential: Potential,
                 ibzwfs: PWFDIBZWaveFunctions,
                 occ_calc: OccupationNumberCalculator,
                 nbands: int,
-                nelectrons: float) -> PWFDIBZWaveFunctions:
+                nelectrons: float,
+                log) -> PWFDIBZWaveFunctions:
     """Diagonalize hamiltonian in plane-wave basis."""
     vt_sR = potential.vt_sR
     dH_asii = potential.dH_asii
@@ -114,6 +115,14 @@ def diagonalize(potential: Potential,
         dedtaut_sR = potential.dedtaut_sR
 
     band_comm = ibzwfs.band_comm
+
+    if band_comm.size > 1:
+        (npw,) = ibzwfs.get_max_shape()
+        r, c, b = suggest_blocking(npw, band_comm.size)
+        scalapack = (band_comm, r, c, b)
+        log(f'Using scalapack: {r}x{c} blocks of size {b}')
+    else:
+        scalapack = (None, 1, 1, None)
 
     wfs_u: list[WaveFunctions] = []
     for wfs in ibzwfs:
@@ -128,8 +137,7 @@ def diagonalize(potential: Potential,
                                vt_sR[wfs.spin],
                                dedtaut_sR[wfs.spin],
                                band_comm)
-
-        eig_n = H_GG.eigh(S_GG, limit=nbands)
+        eig_n = H_GG.eigh(S_GG, limit=nbands, scalapack=scalapack)
         H_GG.complex_conjugate()
         assert eig_n[0] > -1000, 'See issue #241'
         psit_nG = pw.empty(nbands, comm=band_comm)
