@@ -571,6 +571,8 @@ class Matrix(XP):
                         array, H.dist.desc, 'U', H.data, eps0)
                 else:
                     sarray = S.data
+                    if not cc and np.issubdtype(H.dtype, np.complexfloating):
+                        np.negative(sarray.imag, sarray.imag)
                     info = cgpaw.scalapack_general_diagonalize_dc(
                         array, H.dist.desc, 'U', sarray, H.data, eps0)
                 if limit:
