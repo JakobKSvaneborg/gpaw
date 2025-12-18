@@ -116,11 +116,12 @@ def diagonalize(potential: Potential,
 
     band_comm = ibzwfs.band_comm
 
+    (npw,) = ibzwfs.get_max_shape()
+    log(f'Matrix size: {npw}x{npw}')
     if band_comm.size > 1:
-        (npw,) = ibzwfs.get_max_shape()
         r, c, b = suggest_blocking(npw, band_comm.size)
         scalapack = (band_comm, r, c, b)
-        log(f'Using scalapack: {r}x{c} blocks of size {b}')
+        log(f'Using scalapack: {r}x{c} blocks of size {b}x{b}')
     else:
         scalapack = (None, 1, 1, None)
 

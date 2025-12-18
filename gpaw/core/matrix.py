@@ -565,16 +565,16 @@ class Matrix(XP):
                 array = H.data.copy()
                 if not cc and np.issubdtype(H.dtype, np.complexfloating):
                     np.negative(array.imag, array.imag)
+                eps0 = np.empty(H.shape[0]) if limit else eps
                 if S is None:
                     info = cgpaw.scalapack_diagonalize_dc(
-                        array, H.dist.desc, 'U', H.data, eps)
+                        array, H.dist.desc, 'U', H.data, eps0)
                 else:
                     sarray = S.data
-                    if not cc and np.issubdtype(S.dtype, np.complexfloating):
-                        sarray = sarray.copy()
-                        np.negative(sarray.imag, sarray.imag)
                     info = cgpaw.scalapack_general_diagonalize_dc(
-                        array, H.dist.desc, 'U', sarray, H.data, eps)
+                        array, H.dist.desc, 'U', sarray, H.data, eps0)
+                if limit:
+                    eps[:] = eps0[:limit]
                 assert info == 0, info
 
             # necessary to broadcast eps when some ranks are not used
