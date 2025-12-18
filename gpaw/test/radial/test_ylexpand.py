@@ -10,8 +10,6 @@ from gpaw.analyse.expandyl import AngularIntegral, ExpandYl
 
 def test_radial_ylexpand(in_tmp_dir):
     fname = 'H2.gpw'
-    donot = ''
-    donot = 'donot'
     R = 0.7  # approx. experimental bond length
     a = 2.
     c = 3.
