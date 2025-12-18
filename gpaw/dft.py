@@ -1040,7 +1040,7 @@ def GPAW(
     return ASECalculator(params, log=log)
 
 
-def _can_use_new(filename, kwargs) -> bool:
+def _can_use_new(filename, kwargs) -> tuple[bool, Parameters | None]:
     if filename is not None:
         from ase.io.ulm import ulmopen
         from gpaw.mpi import world, broadcast
