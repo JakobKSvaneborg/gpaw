@@ -39,13 +39,13 @@ def truncated_coulomb(pw: PWDesc,
                       yukawa: bool = False) -> np.ndarray:
     """Fourier transform of truncated Coulomb.
 
-    Real space:::
+    For the yukawa=False case, we have in real space:::
 
         erfc(ωr)
         --------.
            r
 
-    Reciprocal space:::
+    In reciprocal space:::
 
         4π             _ _ 2     2
       ------(1 - exp(-(G+k) /(4 ω )))
@@ -63,6 +63,7 @@ def truncated_coulomb(pw: PWDesc,
         v_G[ok_G] /= G2_G[ok_G]
         v_G[~ok_G] = pi / omega**2
     else:
+        # Let's just do gamma-point only for now:
         assert (pw.kpt_c == 0.0).all()
         grid = pw.minimal_uniform_grid()
         wstc = WignerSeitzTruncatedCoulomb(
@@ -215,6 +216,9 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.delta_aiiL = [setup.Delta_iiL for setup in setups]
         self.relpos_ac = relpos_ac
         self.setups = setups
+        self.nbzk = 0
+        self.real = np.issubdtype(pw.dtype, np.floating)
+        self.zaxpy = get_blas_funcs('axpy', dtype=complex)
 
         # Stuff for PAW core-core, core-valence and valence-valence correctios:
         self.exx_cc = sum(setup.ExxC for setup in setups) * self.exx_fraction
@@ -223,10 +227,10 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.delta_aiiL = [setup.Delta_iiL for setup in setups]
         self.VV_app = [setup.M_pp * self.exx_fraction for setup in setups]
 
+        # Globally distributed wave functions:
         self.mypsits: list[Psit] = []
-        self.nbzk = 0
-        self.real = np.issubdtype(pw.dtype, np.floating)
-        self.zaxpy = get_blas_funcs('axpy', dtype=complex)
+
+        # Cached potential for gamma-point calculation:
         self.v_G: None | np.ndarray = None
 
     def update_wave_functions(self,
@@ -411,11 +415,11 @@ class PWHybridHamiltonian(PWHamiltonian):
         for psit1 in self.mypsits:
             if psit1.spin == spin:
                 pw = pw2.new(kpt=pw2.kpt_c - psit1.kpt_c)
-                if self.real:
-                    if self.v_G is None:
-                        self.v_G = v_G = truncated_coulomb(pw, self.exx_omega)
-                else:
+                v_G = self.v_G
+                if v_G is None:
                     v_G = truncated_coulomb(pw, self.exx_omega)
+                if self.real:  # v_G is always the same, so cache it:
+                    self.v_G = v_G
                 e += self._apply3(
                     pw, v_G, psit1, ut2_nR, P2_ani, Htpsit2_nG, V2_ani, f2_n,
                     calculate_energy, F1_av)
