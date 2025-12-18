@@ -44,6 +44,7 @@ def pw_matrix(pw: PWDesc,
                     ---  i         ij  j
                     aij
     """
+    assert pw.comm.size == 1
     assert pw.dtype == complex
     npw = pw.shape[0]
     dist = create_distribution(npw, npw, comm, -1, 1)
