@@ -25,7 +25,7 @@ isolated_calc = GPAW(
     mode=PW(pwcutoff, force_complex_dtype=True),
     parallel={'domain': 1},
     xc='PBE',
-    txt='si_isolated_rpa.init_pbe.txt',
+    txt='si_isolated_rpa_init_pbe.txt',
     occupations=FermiDirac(0.01),  # fixmagmom=True),
     spinpol=True,
     hund=True,
@@ -36,4 +36,4 @@ isolated_silicon.calc = isolated_calc
 
 isolated_silicon.get_potential_energy()
 isolated_calc.diagonalize_full_hamiltonian()  # ouch
-isolated_calc.write('si.rpa.isolated.gpw', mode='all')
+isolated_calc.write('si_rpa_isolated.gpw', mode='all')

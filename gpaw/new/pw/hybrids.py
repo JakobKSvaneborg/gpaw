@@ -20,6 +20,7 @@ from gpaw.setup import Setups
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.blas import mmm
 from scipy.linalg.blas import get_blas_funcs
+from gpaw.hybrids.wstc import WignerSeitzTruncatedCoulomb
 
 
 @dataclass
@@ -38,13 +39,13 @@ def truncated_coulomb(pw: PWDesc,
                       yukawa: bool = False) -> np.ndarray:
     """Fourier transform of truncated Coulomb.
 
-    Real space:::
+    For the yukawa=False case, we have in real space:::
 
         erfc(ωr)
         --------.
            r
 
-    Reciprocal space:::
+    In reciprocal space:::
 
         4π             _ _ 2     2
       ------(1 - exp(-(G+k) /(4 ω )))
@@ -56,11 +57,19 @@ def truncated_coulomb(pw: PWDesc,
     G2_G = pw.ekin_G * 2
     if yukawa:
         v_G = 4 * pi / (G2_G + omega**2)
-    else:
+    elif omega != 0.0:
         v_G = 4 * pi * (1 - np.exp(-G2_G / (4 * omega**2)))
         ok_G = G2_G > 1e-10
         v_G[ok_G] /= G2_G[ok_G]
         v_G[~ok_G] = pi / omega**2
+    else:
+        # Let's just do gamma-point only for now:
+        assert (pw.kpt_c == 0.0).all()
+        grid = pw.minimal_uniform_grid()
+        wstc = WignerSeitzTruncatedCoulomb(
+            pw.cell_cv, np.ones(3, int))
+        v_G = wstc.get_potential_new(pw, grid).data
+
     return v_G
 
 
@@ -207,6 +216,9 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.delta_aiiL = [setup.Delta_iiL for setup in setups]
         self.relpos_ac = relpos_ac
         self.setups = setups
+        self.nbzk = 0
+        self.real = np.issubdtype(pw.dtype, np.floating)
+        self.zaxpy = get_blas_funcs('axpy', dtype=complex)
 
         # Stuff for PAW core-core, core-valence and valence-valence correctios:
         self.exx_cc = sum(setup.ExxC for setup in setups) * self.exx_fraction
@@ -215,10 +227,11 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.delta_aiiL = [setup.Delta_iiL for setup in setups]
         self.VV_app = [setup.M_pp * self.exx_fraction for setup in setups]
 
+        # Globally distributed wave functions:
         self.mypsits: list[Psit] = []
-        self.nbzk = 0
-        self.real = np.issubdtype(pw.dtype, np.floating)
-        self.zaxpy = get_blas_funcs('axpy', dtype=complex)
+
+        # Cached potential for gamma-point calculation:
+        self.v_G: None | np.ndarray = None
 
     def update_wave_functions(self,
                               ibzwfs: PWFDIBZWaveFunctions,
@@ -402,7 +415,11 @@ class PWHybridHamiltonian(PWHamiltonian):
         for psit1 in self.mypsits:
             if psit1.spin == spin:
                 pw = pw2.new(kpt=pw2.kpt_c - psit1.kpt_c)
-                v_G = truncated_coulomb(pw, self.exx_omega)
+                v_G = self.v_G
+                if v_G is None:
+                    v_G = truncated_coulomb(pw, self.exx_omega)
+                if self.real:  # v_G is always the same, so cache it:
+                    self.v_G = v_G
                 e += self._apply3(
                     pw, v_G, psit1, ut2_nR, P2_ani, Htpsit2_nG, V2_ani, f2_n,
                     calculate_energy, F1_av)

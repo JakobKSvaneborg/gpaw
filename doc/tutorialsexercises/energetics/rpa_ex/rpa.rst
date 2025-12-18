@@ -46,7 +46,7 @@ PBE functional:
 
    E_\text{XC} = E_\text{PBE}
 
-The script :download:`si.pbe.py` calculates the total
+The script :download:`si_pbe.py` calculates the total
 energy of bulk silicon. The only parameters we need to choose are the
 plane-wave cutoff (i.e. number of plane waves in our basis set to describe
 the electron wavefunctions), the k-point sampling of the Brillouin zone,
@@ -152,18 +152,18 @@ to that of the previous section.  Second, the exchange
 part.  This part is much slower, and it is a good idea to run on a few
 processors - it takes about 5 minutes on 4 CPUs.
 
-The output file ``si.pbe+exx.exx_output.txt`` gives the details of the exchange
+The output file ``si_pbe_exx_exx_output.txt`` gives the details of the exchange
 calculation and a breakdown of the exchange energy in terms of the
 contributions from the core and valence electrons.  However for the purpose
 of calculating the cohesive energy the quantity returned by the
-``get_total_energy`` method and printed in ``si.pbe+exx.results.txt`` is more useful.
+``get_total_energy`` method and printed in ``si_pbe_exx_results.txt`` is more useful.
 
 
 EXX\@PBE cohesive energy - atom
 ===============================
 
 As before, we also need the energy of the isolated atom.  Look at (but don't
-run!) the script :download:`atom/si.atom.pbe+exx.py`, which returns the
+run!) the script :download:`si_atom_pbe_exx.py`, which returns the
 following output in ``pbe_and_exx_energies.txt``::
 
   #Box_side_length(A) PBE_total_energy(eV) EXX@PBE_total_energy(eV)
@@ -176,7 +176,7 @@ following output in ``pbe_and_exx_energies.txt``::
   12.0 -0.852243293624 9.75141580104
   13.0 -0.852570610869 9.75125973558
 
-Note that :download:`atom/si.atom.pbe+exx.py` also contains
+Note that :download:`si_atom_pbe_exx.py` also contains
 some additional tweaking not required for the bulk calculation,
 most importantly spin-polarization; by Hund's
 rules, we expect a spin-polarized atom to be more stable than the
@@ -218,14 +218,14 @@ states which turns out to work rather well (more details below).
 Like for exact exchange, the first part of our RPA calculation is performed
 at the PBE level to obtain the ground state density.  We then use this density
 to obtain the wavefunctions both of the occupied and some of the unoccupied
-states.  The script :download:`si.rpa_init_pbe.py` performs
+states.  The script :download:`si_rpa_init_pbe.py` performs
 this step; note it is essentially identical to
-:download:`si.pbe.py` apart from the all-important
+:download:`si_pbe.py` apart from the all-important
 ``diagonalize_full_hamiltonian`` line.  However note that we have reduced
 the k-point grid to a 4x4x4 sampling.
 
 Having performed this step (which should take ~1 minute on 4 CPUs) we now
-calculate the correlation energy using :download:`si.rpa.py`,
+calculate the correlation energy using :download:`si_rpa.py`,
 which imports the ``RPACorrelation`` class from ``rpa.py``.  All the
 computational details are read from the ``bulk.gpw`` file; the only input
 we need specify is the number of plane waves used to describe `\chi_0`.
@@ -235,9 +235,9 @@ this procedure is described below.  Note that in principle we also need
 to specify the number of unoccupied bands used in the construction of
 `\chi_0` - however here this choice is made by the code,
 and sets the number of bands to equal the number of plane waves describing `\chi_0`.
-Now, run :download:`si.rpa.py` (4 minutes, 4 CPUs).
+Now, run :download:`si_rpa.py` (4 minutes, 4 CPUs).
 
-Studying the output file ``si.rpa.rpa_output.txt``, we see that the code calculates
+Studying the output file ``si_rpa_rpa_output.txt``, we see that the code calculates
 the contribution from each q point sequentially.
 Once the contributions from all the q points have been calculated, they are
 summed together with the appropriate q-point weights to construct the
@@ -272,11 +272,11 @@ straight lines between pairs of points, and outputs the result under
 =====================================
 
 The corresponding scripts for the isolated atom are
-:download:`atom/si.atom.rpa_init_pbe.py` and
-:download:`atom/si.atom.rpa.py`. Note how, thanks to the large simulation
+:download:`si_atom_rpa_init_pbe.py` and
+:download:`si_atom_rpa.py`. Note how, thanks to the large simulation
 cell, we end up requiring almost  10000 bands for the calculation; that's a
 lot of effort for a single atom!   The reference output file is
-:download:`atom/si.atom.rpa_output.txt`.  Use the  data in this output file
+:download:`si_atom_rpa_output.txt`.  Use the  data in this output file
 to obtain the extrapolated correlation energy  for the single atom.
 
 Combining the correlation energies with the EXX\@PBE calculations of the
