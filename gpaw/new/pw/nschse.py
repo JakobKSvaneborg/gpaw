@@ -51,7 +51,7 @@ class NonSelfConsistentHSE06:
                  relpos_ac: np.ndarray,
                  xc: str,
                  log: str | Path | IO[str] | None = '-'):
-        semilocal_xc_name, self.exx_fraction, self.exx_omega, self.yukawa = \
+        semilocal_xc_name, self.exx_fraction, exx_omega, yukawa = \
             parse_name(xc)
         self.comm = ibzwfs.comm
         self.log = Logger(log, self.comm)
@@ -83,6 +83,9 @@ class NonSelfConsistentHSE06:
                 dE_ii = dVxc_ii - VC_ii - VV_ii
                 dE_sii.append(dE_ii)
             self.dE_asii[a][:] = dE_sii
+
+        self.coulomb = truncated_coulomb(
+            self.grid.cell_cv, ibzwfs.ibz.bz.size_c, exx_omega, yukawa)
 
     def calculate(self,
                   ibzwfs: PWFDIBZWaveFunctions,
@@ -174,7 +177,7 @@ class NonSelfConsistentHSE06:
         for psit1 in self.mypsits:
             if psit1.spin == spin:
                 pw = pw2.new(kpt=pw2.kpt_c - psit1.kpt_c)
-                v_G = truncated_coulomb(pw, self.exx_omega)
+                v_G = self.coulomb(pw)
                 eig_n += self._exx_part(pw, v_G, psit1, ut2_nR, P2_ani)
         eig_n *= -self.exx_fraction / self.nbzk
         self.comm.sum(eig_n)
