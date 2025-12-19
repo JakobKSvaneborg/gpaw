@@ -106,6 +106,7 @@ def diagonalize(potential: Potential,
                 occ_calc: OccupationNumberCalculator,
                 nbands: int,
                 nelectrons: float,
+                scalapack: tuple[int, int, int | None] | None,
                 log) -> PWFDIBZWaveFunctions:
     """Diagonalize hamiltonian in plane-wave basis."""
     vt_sR = potential.vt_sR
@@ -118,12 +119,16 @@ def diagonalize(potential: Potential,
 
     (npw,) = ibzwfs.get_max_shape()
     log(f'Matrix size: {npw}x{npw}')
-    if band_comm.size > 1:
+    if scalapack is not None:
+        r, c, b = scalapack
+    elif band_comm.size > 1:
         r, c, b = suggest_blocking(npw, band_comm.size)
-        scalapack = (band_comm, r, c, b)
-        log(f'Using scalapack: {r}x{c} blocks of size {b}x{b}')
     else:
-        scalapack = (None, 1, 1, None)
+        r, c, b = 1, 1, -1
+    sl = (band_comm, r, c, b)
+
+    if r * c > 1:
+        log(f'Using scalapack: {r}x{c} blocks of size {b}x{b}')
 
     wfs_u: list[WaveFunctions] = []
     for wfs in ibzwfs:
@@ -138,7 +143,7 @@ def diagonalize(potential: Potential,
                                vt_sR[wfs.spin],
                                dedtaut_sR[wfs.spin],
                                band_comm)
-        eig_n = H_GG.eigh(S_GG, limit=nbands, scalapack=scalapack)
+        eig_n = H_GG.eigh(S_GG, limit=nbands, scalapack=sl)
         H_GG.complex_conjugate()
         assert eig_n[0] > -1000, 'See issue #241'
         psit_nG = pw.empty(nbands, comm=band_comm)

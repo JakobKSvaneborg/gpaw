@@ -613,6 +613,7 @@ class ASECalculator:
                              dft.scf_loop.occ_calc,
                              nbands,
                              dft.density.nvalence + dft.density.charge,
+                             scalapack,
                              self.log)
         dft.ibzwfs = ibzwfs
         self.params.nbands = ibzwfs.nbands
