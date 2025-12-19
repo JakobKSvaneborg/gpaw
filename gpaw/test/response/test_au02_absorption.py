@@ -21,7 +21,7 @@ def gpwfile(in_tmp_dir):
 
     cluster.calc = calc
     cluster.get_potential_energy()
-    calc.diagonalize_full_hamiltonian(nbands=24, scalapack=True)
+    calc.diagonalize_full_hamiltonian(nbands=24)
     gpwname = 'Au2.gpw'
     calc.write(gpwname, 'all')
     return gpwname
