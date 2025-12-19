@@ -120,7 +120,8 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
             psit2_nG = psit1_nG.transform(U_cc, complex_conjugate)
             if wfs.spin == 0:
                 kpt_Kc[K] = psit2_nG.desc.kpt_c
-            assert abs(psit2_nG.desc.kpt_c - ibz.bz.kpt_Kc[K]).max() < 1e-8
+            dk_c = psit2_nG.desc.kpt_c - ibz.bz.kpt_Kc[K]
+            assert abs(dk_c - dk_c.round()).max() < 1e-8
             psit_KsnG[(K, wfs.spin)] = psit2_nG
     comm.sum(rank_Ks)
     comm.sum(kpt_Kc)

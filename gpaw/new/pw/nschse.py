@@ -23,15 +23,14 @@ from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.utilities import pack_density, unpack_hermitian
+from gpaw.hybrids import parse_name
 
 
 class NonSelfConsistentHSE06:
-    exx_fraction = 0.25
-    hse06_omega = 0.11
-
     @classmethod
     def from_dft_calculation(cls,
                              dft: DFTCalculation,
+                             xc: str = 'HSE06',
                              log: str | Path | IO[str] | None = '-',
                              ) -> NonSelfConsistentHSE06:
         """Create HSE06-eigenvalue calculator from DFT calculation."""
@@ -41,6 +40,7 @@ class NonSelfConsistentHSE06:
                    dft.pot_calc,
                    dft.setups,
                    dft.relpos_ac,
+                   xc,
                    log)
 
     def __init__(self,
@@ -49,7 +49,10 @@ class NonSelfConsistentHSE06:
                  pot_calc: PlaneWavePotentialCalculator,
                  setups: Setups,
                  relpos_ac: np.ndarray,
+                 xc: str,
                  log: str | Path | IO[str] | None = '-'):
+        semilocal_xc_name, self.exx_fraction, self.exx_omega, self.yukawa = \
+            parse_name(xc)
         self.comm = ibzwfs.comm
         self.log = Logger(log, self.comm)
         self.grid = density.nt_sR.desc.new(dtype=complex, comm=None)
@@ -66,7 +69,8 @@ class NonSelfConsistentHSE06:
         self.relpos_ac = relpos_ac
         self.setups = setups
 
-        self.dvxct_sR, dVxc_asii = nsc_corrections(density, pot_calc)
+        self.dvxct_sR, dVxc_asii = nsc_corrections(
+            density, pot_calc, semilocal_xc_name)
 
         self.dE_asii = dVxc_asii.new()
         for a, D_sii in density.D_asii.items():
@@ -170,7 +174,7 @@ class NonSelfConsistentHSE06:
         for psit1 in self.mypsits:
             if psit1.spin == spin:
                 pw = pw2.new(kpt=pw2.kpt_c - psit1.kpt_c)
-                v_G = truncated_coulomb(pw, self.hse06_omega)
+                v_G = truncated_coulomb(pw, self.exx_omega)
                 eig_n += self._exx_part(pw, v_G, psit1, ut2_nR, P2_ani)
         eig_n *= -self.exx_fraction / self.nbzk
         self.comm.sum(eig_n)
@@ -226,8 +230,8 @@ class NonSelfConsistentHSE06:
 
 
 def nsc_corrections(density: Density,
-                    pot_calc: PlaneWavePotentialCalculator
-                    ) -> tuple[UGArray, AtomArrays]:
+                    pot_calc: PlaneWavePotentialCalculator,
+                    semilocal_xc_name: str) -> tuple[UGArray, AtomArrays]:
     """Semi-local XC-potential corrections.
 
     Pseudo-part (calculated from ``density.nt_sR``):::
@@ -248,10 +252,10 @@ def nsc_corrections(density: Density,
        Δv (r) = v     (r) - v    (r).
          σ       σ,HSE       σ,xc
     """
-    xc = pot_calc.xc
-    hse = create_functional('HSE06', pot_calc.fine_grid)
     nt_sr = density.nt_sR.interpolate(grid=pot_calc.fine_grid)
-    _, dvt_sr, _ = hse.calculate(nt_sr)
+    hyb = create_functional(semilocal_xc_name, pot_calc.fine_grid)
+    _, dvt_sr, _ = hyb.calculate(nt_sr)
+    xc = pot_calc.xc
     _, vxct_sr, _ = xc.calculate(nt_sr)
     dvt_sr.data -= vxct_sr.data
     dvt_sr = dvt_sr.gather()
@@ -266,7 +270,7 @@ def nsc_corrections(density: Density,
         dV_sp = np.zeros_like(D_sp)
         xc.calculate_paw_correction(setup, D_sp, dV_sp)
         dV_sp *= -1
-        hse.calculate_paw_correction(setup, D_sp, dV_sp)
+        hyb.calculate_paw_correction(setup, D_sp, dV_sp)
         dV_asii[a][:] = unpack_hermitian(dV_sp)
 
     return dvt_sR, dV_asii
