@@ -17,7 +17,8 @@ def test_apply3(a=5.0, N=10, dtype=float, calculate_energy=True):
     relpos_ac = np.empty((N, 3))
     relpos_ac[:] = np.linspace(0, 1.0, N, False)[:, np.newaxis]
     xc = type('XC', (), {'exx_fraction': 0.25,
-                         'exx_omega': 0.2})()
+                         'exx_omega': 0.2,
+                         'exx_yukawa': False})()
     if dtype == float:
         pw2 = pw
         pw12 = pw

@@ -66,10 +66,11 @@ def truncated_coulomb(cell_cv,
             ok_G = G2_G > 1e-10
             v_G[ok_G] /= G2_G[ok_G]
             v_G[~ok_G] = pi / omega**2
+            return v_G
         return f
 
     wstc = WignerSeitzTruncatedCoulomb(cell_cv, nkpt_c)
-    return lambda pw: wstc.get_potential_new(pw).data
+    return lambda pw: wstc.get_potential_new(pw)
 
 
 def number_of_non_empty_bands(ibzwfs: PWFDIBZWaveFunctions,

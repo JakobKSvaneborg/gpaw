@@ -66,25 +66,23 @@ class WignerSeitzTruncatedCoulomb:
 
         return '\n'.join(descriptors)
 
-    def get_potential_new(self, pw: PWDesc) -> PWArray:
-        K_G = pw.empty()
+    def get_potential_new(self, pw: PWDesc) -> np.ndarray:
         ekin_G = pw.ekin_G
         a = self.a
         with np.errstate(invalid='ignore'):
-            K_G.data += 2 * pi * (1 - np.exp(-ekin_G / (2 * a**2))) / ekin_G
+            K_G = 2 * pi * (1 - np.exp(-ekin_G / (2 * a**2))) / ekin_G
         G0 = ekin_G.argmin()
         if ekin_G[G0] < 1e-11:
-            K_G.data[G0] = pi / a**2
+            K_G[G0] = pi / a**2
 
         s_c = pw.kpt_c * self.nk_c
         shift_c = (s_c).round().astype(int)
         assert abs(shift_c - s_c).max() < 1e-8
         max_c = self.gd.N_c // 2
-        assert pw.dtype == complex
         for G, i_c in enumerate(pw.indices_cG.T):
             Q_c = i_c * self.nk_c + shift_c
             if (abs(Q_c) < max_c).all():
-                K_G.data[G] += self.K_Q[tuple(Q_c)]
+                K_G[G] += self.K_Q[tuple(Q_c)]
 
         return K_G
 
