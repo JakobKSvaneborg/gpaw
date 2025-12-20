@@ -145,7 +145,8 @@ class QEHChiCalc(ChiCalc):
         else:
             chi0_dyson_eqs = self.df.get_chi0_dyson_eqs(qpoint.q_c,
                                                         truncation='2D')
-            qpd, chi_wGG, wblocks = chi0_dyson_eqs.rpa_density_response()
+            qpd, chi_wGG, wblocks = chi0_dyson_eqs.rpa_density_response(
+                direction=qpoint.q_v)
 
         G_Gv = qpd.get_reciprocal_vectors(add_q=False)
 
