@@ -138,16 +138,14 @@ class Chi0DysonEquations:
         """
         # Extract χ₀(q,ω)
         qpd = self.chi0.qpd
+        if qpd.optical_limit:
+            # In optical limit, direction must match qinf_v, so use qinf_v directly
+            assert qinf_v is not None and np.linalg.norm(qinf_v) > 0.
+            direction = qinf_v
         chi0_wGG = self.get_chi0_wGG(direction=direction)
         if qpd.optical_limit:
             # Restore the q-dependence of the head and wings in the q→0 limit
-            assert qinf_v is not None and np.linalg.norm(qinf_v) > 0.
             d_v = self._normalize(direction)
-            same_direction = np.allclose(d_v, self._normalize(qinf_v))
-            if not same_direction:
-                raise ValueError(
-                    '`qinf_v` must be in the same direction as `direction`. '
-                    f'Obtained {qinf_v = } and {direction = }')
             chi0_wGG[:, 1:, 0] *= np.dot(qinf_v, d_v)
             chi0_wGG[:, 0, 1:] *= np.dot(qinf_v, d_v)
             chi0_wGG[:, 0, 0] *= np.dot(qinf_v, d_v)**2
