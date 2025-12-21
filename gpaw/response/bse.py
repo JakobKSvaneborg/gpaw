@@ -47,6 +47,9 @@ class BSEMatrix:
         H_sS = self.H_sS
         if deps_max is None:
             deps_max = self.deps_max
+        else:
+            # Convert from eV to Hartree for comparison with deps_S
+            deps_max = deps_max / Hartree
         excludef_S = np.where(np.abs(df_S) < 0.001)[0]
         excludedeps_S = np.where(np.abs(self.deps_S) > deps_max)[0]
         exclude_S = np.unique(np.concatenate((excludef_S, excludedeps_S)))
@@ -69,6 +72,9 @@ class BSEMatrix:
     def diagonalize_tammdancoff(self, bse, deps_max=None, elpa=False):
         if deps_max is None:
             deps_max = self.deps_max
+        else:
+            # Convert from eV to Hartree for comparison with deps_S
+            deps_max = deps_max / Hartree
         exclude_S = np.where(np.abs(self.deps_S) > deps_max)[0]
         H_rr, new_grid_desc = self.exclude_states(bse, exclude_S)
         comm = bse.context.comm
