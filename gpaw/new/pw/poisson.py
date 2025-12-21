@@ -286,6 +286,11 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
 
         self.eps0_R = None
 
+        # Cache LinearOperator objects to avoid recreation every solve
+        self._cached_operator = None
+        self._cached_preconditioner = None
+        self._cached_N = None
+
         self.drho_g = None
         self.zero_vacuum = zero_vacuum
         if zero_vacuum:
@@ -344,14 +349,18 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
             vHt0_g.data[0] = 0.0
 
             N = len(vHt0_g.data)
-            op = LinearOperator((N, N),
-                                matvec=self.operator,
-                                dtype=complex)
-            M = LinearOperator((N, N),
-                               matvec=lambda x: 0.5 * x / self.ekin_g,
-                               dtype=complex)
+            # Use cached operators if size matches, otherwise create new ones
+            if self._cached_N != N:
+                self._cached_N = N
+                self._cached_operator = LinearOperator(
+                    (N, N), matvec=self.operator, dtype=complex)
+                self._cached_preconditioner = LinearOperator(
+                    (N, N), matvec=lambda x: 0.5 * x / self.ekin_g,
+                    dtype=complex)
             vHt0_g.data[:], info = cg(
-                op, vHt0_g.data, maxiter=self.maxiter, M=M, **{RTOL: self.eps})
+                self._cached_operator, vHt0_g.data,
+                maxiter=self.maxiter, M=self._cached_preconditioner,
+                **{RTOL: self.eps})
             if info != 0:
                 warnings.warn(
                     f'Conjugate gradient did not converge (info={info})')
