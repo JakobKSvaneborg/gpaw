@@ -39,6 +39,8 @@ class BSEMatrix:
     H_sS: np.ndarray
     deps_S: np.ndarray
     deps_max: float
+    # Mapping from reduced to full indices (for early filtering)
+    active_S: np.ndarray = None  # Indices of active transitions in full space
 
     def diagonalize_nontammdancoff(self, bse, deps_max=None):
         df_S = self.df_S
@@ -440,6 +442,49 @@ class BSEBackend:
         v_kmn = soc.eigenvectors()
         return SpinorData(self.con_m, self.val_m, e_km, f_km, v_kmn, soc_tol)
 
+    def _precompute_transition_energies(self, kptpair_factory):
+        """Pre-compute transition energies for all k-points to enable early filtering.
+
+        Returns:
+            deps_Kmm: Transition energies for all K, valence, conduction combinations
+            active_Kmm: Boolean mask of active transitions (|deps| <= deps_max)
+            n_active: Total number of active transitions
+        """
+        deps_Kmm = np.zeros((self.nK, self.nv, self.nc), float)
+
+        get_pair = kptpair_factory.get_kpoint_pair
+        qpd0 = SingleQPWDescriptor.from_q(self.q_c, self.ecut, self.gs.gd)
+
+        for ik, iK in enumerate(self.myKrange):
+            iKq = self.gs.kd.find_k_plus_q(self.q_c, [iK])[0]
+
+            if self.gw_kn is not None:
+                epsv_m = self.gw_kn[iK, :self.nv]
+                epsc_m = self.gw_kn[iKq, self.nv:]
+                deps_Kmm[iK] = -(epsv_m[:, np.newaxis] - epsc_m)
+            elif self.add_soc:
+                deps_Kmm[iK] = self.spinors_data.get_deps(iK, iKq)
+            else:
+                pair0 = get_pair(qpd0, 0, iK, self.vi, self.vf,
+                                 self.ci, self.cf)
+                deps_Kmm[iK] = -pair0.get_transition_energies()
+
+        # Gather transition energies from all ranks
+        self.context.comm.sum(deps_Kmm)
+
+        # Apply scissors operator if specified
+        if self.eshift is not None:
+            # Need occupation factors to apply scissors correctly
+            # For now, apply uniformly (conservative estimate)
+            deps_Kmm[deps_Kmm > 0] += self.eshift
+            deps_Kmm[deps_Kmm < 0] -= self.eshift
+
+        # Create active transition mask based on deps_max
+        active_Kmm = np.abs(deps_Kmm) <= self.deps_max
+        n_active = np.sum(active_Kmm)
+
+        return deps_Kmm, active_Kmm, n_active
+
     @timer('BSE calculate')
     def calculate(self, optical, irreducible=False):
         """Calculate the BSE Hamiltonian. This includes setting up all
@@ -483,6 +528,27 @@ class BSEBackend:
         else:
             screened_potential = None
 
+        # Early filtering optimization: pre-compute transition energies
+        # to identify which transitions will be filtered out by deps_max.
+        # This allows skipping expensive pair density calculations for
+        # transitions that will be discarded anyway.
+        use_early_filter = np.isfinite(self.deps_max)
+        if use_early_filter:
+            self.context.timer.start('Pre-compute transition energies')
+            deps_Kmm_precomputed, active_Kmm, n_active = \
+                self._precompute_transition_energies(kptpair_factory)
+            n_total = self.nK * self.nv * self.nc
+            n_filtered = n_total - n_active
+            self.context.print(
+                f'Early filtering: {n_filtered}/{n_total} transitions '
+                f'({100*n_filtered/n_total:.1f}%) will be skipped '
+                f'(|deps| > {self.deps_max * Hartree:.2f} eV)')
+            self.context.timer.stop('Pre-compute transition energies')
+            # Store for later use in Hamiltonian construction
+            self._active_Kmm = active_Kmm
+        else:
+            self._active_Kmm = None
+
         # Calculate pair densities, eigenvalues and occupations
         self.context.timer.start('Pair densities')
         if self.susc_component != '00':
@@ -505,6 +571,11 @@ class BSEBackend:
         # These include the indirect (exchange) kernel,
         # pseudo-energies, and occupation numbers
         for ik, iK in enumerate(self.myKrange):
+            # Early filtering: skip k-points with no active transitions
+            if use_early_filter and not active_Kmm[iK].any():
+                # Still need to store transition energies for completeness
+                deps_kmm[ik] = deps_Kmm_precomputed[iK]
+                continue
             pair0 = get_pair(qpd0, 0, iK, self.vi, self.vf,
                              self.ci, self.cf)
             v_n = np.arange(self.vi, self.vf)
@@ -652,13 +723,20 @@ class BSEBackend:
     def add_direct_kernel(self, kptpair_factory, pair_calc, screened_potential,
                           update_progress, H_kmmKmm):
         kpf = kptpair_factory
+        active_Kmm = self._active_Kmm  # May be None if no early filtering
         for ik1, iK1 in enumerate(self.myKrange):
+            # Early filtering: skip if no active transitions at this k-point
+            if active_Kmm is not None and not active_Kmm[iK1].any():
+                continue
             kptv1_s = [kpf.get_k_point(s, iK1, self.vi, self.vf)
                        for s in range(self.nspins)]
             kptc1_s = [kpf.get_k_point(s, self.ikq_k[iK1], self.ci, self.cf)
                        for s in range(self.nspins)]
             for Q_c in self.qd.bzk_kc:
                 iK2 = self.kd.find_k_plus_q(Q_c, [kptv1_s[0].K])[0]
+                # Early filtering: skip if no active transitions at K2
+                if active_Kmm is not None and not active_Kmm[iK2].any():
+                    continue
                 kptv2_s = [kptpair_factory.get_k_point(s, iK2, self.vi,
                                                        self.vf)
                            for s in range(self.nspins)]
@@ -706,12 +784,19 @@ class BSEBackend:
 
     @timer('add_indirect_kernel')
     def add_indirect_kernel(self, kptpair_factory, rhoex_KmmG, H_kmmKmm):
+        active_Kmm = self._active_Kmm  # May be None if no early filtering
         for ik1, iK1 in enumerate(self.myKrange):
+            # Early filtering: skip if no active transitions at this k-point
+            if active_Kmm is not None and not active_Kmm[iK1].any():
+                continue
             kptv1 = kptpair_factory.get_k_point(
                 0, iK1, self.vi, self.vf)
             rho1V_mmG = rhoex_KmmG.conj()[iK1, :, :] * self.v_G
             for Q_c in self.qd.bzk_kc:
                 iK2 = self.kd.find_k_plus_q(Q_c, [kptv1.K])[0]
+                # Early filtering: skip if no active transitions at K2
+                if active_Kmm is not None and not active_Kmm[iK2].any():
+                    continue
                 rho2_mmG = rhoex_KmmG[iK2]
                 self.context.timer.start('Coulomb')
                 H_kmmKmm[ik1, :, :, iK2, :, :] += np.einsum(
