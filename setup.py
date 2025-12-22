@@ -684,6 +684,8 @@ class BuildGPAW(build_ext):
         This must be called in self.build_extensions, AFTER overriding
         setuptools compiler."""
         makefile_lines: list[str] = []
+        global extra_objects
+        assert len(extra_objects) == 0, "extra_objects is not supported with GPAW makefile build"
 
         # _gpaw.cpython-3XX-ARCH-PLATFORM.so
         module_names = [self.get_ext_filename(ext.name) for ext in self.extensions]
