@@ -45,6 +45,26 @@ class BSEMatrix:
     def diagonalize_nontammdancoff(self, bse, deps_max=None):
         df_S = self.df_S
         H_sS = self.H_sS
+        comm = bse.context.comm
+
+        # Check if matrix is already reduced (from reduced basis calculation)
+        if self.active_S is not None:
+            # Matrix is already reduced - no filtering needed
+            bse.context.print('  Using numpy.linalg.eig (pre-reduced matrix)...')
+            nR = len(self.deps_S)
+            exclude_S = np.array([], dtype=int)  # Nothing to exclude
+            bse.context.print('  Matrix size: %s (pre-filtered)' % nR)
+
+            # Collect and diagonalize
+            H_RR = bse.collect_A_SS(H_sS)
+            w_T = np.zeros(nR, complex)
+            v_RT = None
+            if comm.rank == 0:
+                w_T, v_RT = np.linalg.eig(H_RR)
+            comm.broadcast(w_T, 0)
+            return w_T, v_RT, exclude_S
+
+        # Standard path: filter and diagonalize
         if deps_max is None:
             deps_max = self.deps_max
         else:
@@ -59,7 +79,6 @@ class BSEMatrix:
         H_SS = bse.collect_A_SS(H_sS)
         w_T = np.zeros(bse.nS - len(exclude_S), complex)
         v_ST = None
-        comm = bse.context.comm
         if comm.rank == 0:
             H_SS = np.delete(H_SS, exclude_S, axis=0)
             H_SS = np.delete(H_SS, exclude_S, axis=1)
@@ -70,6 +89,54 @@ class BSEMatrix:
         return w_T, v_ST, exclude_S
 
     def diagonalize_tammdancoff(self, bse, deps_max=None, elpa=False):
+        comm = bse.context.comm
+
+        # Check if matrix is already reduced (from reduced basis calculation)
+        if self.active_S is not None:
+            # Matrix is already reduced - no filtering needed
+            nR = len(self.deps_S)
+            exclude_S = np.array([], dtype=int)  # Nothing to exclude
+            bse.context.print('  Matrix size: %s (pre-filtered)' % nR)
+
+            if comm.size == 1:
+                bse.context.print('  Using lapack (pre-reduced matrix)...')
+                w_T, v_Rt = eigh(self.H_sS)
+                return w_T, v_Rt, exclude_S
+
+            # Parallel case: use existing parallel infrastructure
+            # The matrix H_sS is already in reduced form (nR x nR)
+            grid = BlacsGrid(comm, comm.size, 1)
+            nr = -((-nR) // comm.size)
+            desc = grid.new_descriptor(nR, nR, nr, nR)
+
+            # Redistribute to proper BLACS layout
+            from gpaw.old.matrix import suggest_blocking
+            nrows, ncols, blocksize = suggest_blocking(nR, comm.size)
+            new_grid = BlacsGrid(comm, nrows, ncols)
+            new_desc = new_grid.new_descriptor(nR, nR, blocksize, blocksize)
+            H_rr = new_desc.zeros(dtype=complex)
+            Redistributor(comm, desc, new_desc).redistribute(self.H_sS, H_rr)
+
+            w_T = np.empty(nR)
+            v_rt = new_desc.empty(dtype=complex)
+            if elpa:
+                bse.context.print('Using elpa (pre-reduced matrix)...')
+                elpa_obj = LibElpa(new_desc)
+                elpa_obj.diagonalize(H_rr, v_rt, w_T)
+            else:
+                bse.context.print('Using scalapack (pre-reduced matrix)...')
+                new_desc.diagonalize_dc(H_rr, v_rt, w_T)
+
+            # Redistribute eigenvectors
+            grid_tR = BlacsGrid(comm, comm.size, 1)
+            nt = -((-nR) // comm.size)
+            desc_tR = grid_tR.new_descriptor(nR, nR, nt, nR)
+            v_tR = desc_tR.zeros(dtype=complex)
+            Redistributor(comm, new_desc, desc_tR).redistribute(v_rt, v_tR)
+            v_Rt = v_tR.conj().T
+            return w_T, v_Rt, exclude_S
+
+        # Standard path: filter and diagonalize
         if deps_max is None:
             deps_max = self.deps_max
         else:
@@ -77,7 +144,6 @@ class BSEMatrix:
             deps_max = deps_max / Hartree
         exclude_S = np.where(np.abs(self.deps_S) > deps_max)[0]
         H_rr, new_grid_desc = self.exclude_states(bse, exclude_S)
-        comm = bse.context.comm
         if comm.size == 1:
             bse.context.print('  Using lapack...')
             w_T, v_Rt = eigh(H_rr)
@@ -491,6 +557,58 @@ class BSEBackend:
 
         return deps_Kmm, active_Kmm, n_active
 
+    def _compute_reduced_index_mappings(self, active_Kmm):
+        """Compute mappings between full (K,v,c) indices and reduced indices.
+
+        Returns:
+            S_to_R: array of shape (nS,) mapping full index S to reduced R,
+                    or -1 if transition S is not active
+            R_to_S: array of shape (nR,) mapping reduced index R to full S
+            R_to_Kvc: array of shape (nR, 3) mapping reduced R to (K, v, c)
+            my_r_to_R: array mapping local reduced indices to global R
+            my_R_range: tuple (R_start, R_end) for this rank's reduced indices
+        """
+        nK, nv, nc = self.nK, self.nv, self.nc
+        nS = nK * nv * nc
+
+        # Flatten active_Kmm to active_S
+        active_S = active_Kmm.ravel()
+        nR = np.sum(active_S)
+
+        # Create S -> R mapping
+        S_to_R = np.full(nS, -1, dtype=int)
+        S_to_R[active_S] = np.arange(nR)
+
+        # Create R -> S mapping
+        R_to_S = np.where(active_S)[0]
+
+        # Create R -> (K, v, c) mapping
+        R_to_Kvc = np.zeros((nR, 3), dtype=int)
+        for R, S in enumerate(R_to_S):
+            K = S // (nv * nc)
+            vc = S % (nv * nc)
+            v = vc // nc
+            c = vc % nc
+            R_to_Kvc[R] = [K, v, c]
+
+        # Compute local reduced indices for this rank
+        # Each rank owns transitions for k-points in myKrange
+        my_active_count = 0
+        my_R_start = 0
+        for iK in range(self.nK):
+            count_at_K = np.sum(active_Kmm[iK])
+            if iK < self.myKrange[0] if len(self.myKrange) > 0 else 0:
+                my_R_start += count_at_K
+            if iK in self.myKrange:
+                my_active_count += count_at_K
+
+        my_R_range = (my_R_start, my_R_start + my_active_count)
+
+        # Create mapping from local r index to global R
+        my_r_to_R = np.arange(my_R_start, my_R_start + my_active_count)
+
+        return S_to_R, R_to_S, R_to_Kvc, my_r_to_R, my_R_range, nR
+
     @timer('BSE calculate')
     def calculate(self, optical, irreducible=False):
         """Calculate the BSE Hamiltonian. This includes setting up all
@@ -690,40 +808,112 @@ class BSEBackend:
         self.context.print('Calculating {} matrix elements at q_c = {}'.format(
             self.mode, self.q_c))
 
-        # Hamiltonian buffer array
-        H_kmmKmm = np.zeros((self.myKsize, self.nv, self.nc,
-                             self.nK, self.nv, self.nc),
-                            complex)
-
-        # Add kernels to buffer array
-        self.add_indirect_kernel(kptpair_factory, rhoex_KmmG, H_kmmKmm)
-        if self.mode != 'RPA':
-            self.add_direct_kernel(kptpair_factory, pair_calc,
-                                   screened_potential, update_progress,
-                                   H_kmmKmm)
-        H_kmmKmm /= self.gs.volume
-        self.context.timer.stop('Calculate Hamiltonian')
-
-        if self.myKsize > 0:
-            iS0 = self.myKrange[0] * self.nv * self.nc
-
         # multiply by 2 when spin-paired and no SOC
         df_Kmm *= 2.0 / self.nK / (self.add_soc + 1)
-        df_S = np.reshape(df_Kmm, -1)
-        self.df_S = df_S
 
-        deps_S = np.reshape(deps_Kmm, -1)
-        deps_s = np.reshape(deps_kmm, -1)
+        # Use reduced basis approach when early filtering is active
+        if use_early_filter:
+            # Also filter by occupation factor
+            df_active = np.abs(df_Kmm) >= 0.001
+            active_Kmm = active_Kmm & df_active
 
-        mySsize = self.myKsize * self.nv * self.nc
-        H_sS = np.reshape(H_kmmKmm, (mySsize, self.nS))
-        for iS in range(mySsize):
-            # Multiply by occupations
-            H_sS[iS] *= df_S[iS0 + iS]
-            # add bare transition energies
-            H_sS[iS, iS0 + iS] += deps_s[iS]
+            # Recompute filtering statistics
+            n_active = np.sum(active_Kmm)
+            n_total = self.nK * self.nv * self.nc
+            n_filtered = n_total - n_active
 
-        return BSEMatrix(df_S, H_sS, deps_S, self.deps_max)
+            # Compute reduced index mappings
+            S_to_R, R_to_S, R_to_Kvc, my_r_to_R, my_R_range, nR = \
+                self._compute_reduced_index_mappings(active_Kmm)
+            self._my_R_range = my_R_range
+            my_nR = my_R_range[1] - my_R_range[0]
+
+            self.context.print(
+                f'Reduced basis: {n_active}/{n_total} transitions '
+                f'({100*n_active/n_total:.1f}%) kept after deps_max and df filtering')
+            self.context.print(
+                f'Memory savings: {100*(1 - n_active**2/n_total**2):.1f}% '
+                f'(reduced matrix size: {nR}x{nR} vs {n_total}x{n_total})')
+
+            # Build reduced pair density array
+            nG = rhoex_KmmG.shape[-1]
+            rhoex_RG = np.zeros((nR, nG), complex)
+            for R in range(nR):
+                K, v, c = R_to_Kvc[R]
+                rhoex_RG[R] = rhoex_KmmG[K, v, c]
+
+            # Store reduced versions for spectral weights
+            self.rhoG0_R = rhoex_RG[:, 0]
+            self.rho_RG = rhoex_RG
+            self._R_to_S = R_to_S  # For mapping back to full space
+
+            # Allocate reduced Hamiltonian
+            H_rR = np.zeros((my_nR, nR), complex)
+
+            # Add kernels in reduced basis
+            self.add_indirect_kernel_reduced(rhoex_RG, H_rR)
+            if self.mode != 'RPA':
+                self.add_direct_kernel_reduced(
+                    kptpair_factory, pair_calc, screened_potential,
+                    update_progress, H_rR, active_Kmm, S_to_R)
+
+            H_rR /= self.gs.volume
+            self.context.timer.stop('Calculate Hamiltonian')
+
+            # Build reduced occupation factors and transition energies
+            df_R = df_Kmm.ravel()[R_to_S]
+            deps_R = deps_Kmm.ravel()[R_to_S]
+
+            # Apply occupation factors and add diagonal energies
+            my_R_start = my_R_range[0]
+            for r in range(my_nR):
+                R = my_R_start + r
+                H_rR[r] *= df_R[R]
+                H_rR[r, R] += deps_R[R]
+
+            # Store for BSE methods that need full arrays
+            df_S = np.reshape(df_Kmm, -1)
+            deps_S = np.reshape(deps_Kmm, -1)
+            self.df_S = df_S
+
+            # Return BSEMatrix with reduced Hamiltonian
+            # Set deps_max=inf to signal no further filtering needed
+            return BSEMatrix(df_R, H_rR, deps_R, np.inf, active_S=R_to_S)
+
+        else:
+            # Original full-basis approach
+            # Hamiltonian buffer array
+            H_kmmKmm = np.zeros((self.myKsize, self.nv, self.nc,
+                                 self.nK, self.nv, self.nc),
+                                complex)
+
+            # Add kernels to buffer array
+            self.add_indirect_kernel(kptpair_factory, rhoex_KmmG, H_kmmKmm)
+            if self.mode != 'RPA':
+                self.add_direct_kernel(kptpair_factory, pair_calc,
+                                       screened_potential, update_progress,
+                                       H_kmmKmm)
+            H_kmmKmm /= self.gs.volume
+            self.context.timer.stop('Calculate Hamiltonian')
+
+            if self.myKsize > 0:
+                iS0 = self.myKrange[0] * self.nv * self.nc
+
+            df_S = np.reshape(df_Kmm, -1)
+            self.df_S = df_S
+
+            deps_S = np.reshape(deps_Kmm, -1)
+            deps_s = np.reshape(deps_kmm, -1)
+
+            mySsize = self.myKsize * self.nv * self.nc
+            H_sS = np.reshape(H_kmmKmm, (mySsize, self.nS))
+            for iS in range(mySsize):
+                # Multiply by occupations
+                H_sS[iS] *= df_S[iS0 + iS]
+                # add bare transition energies
+                H_sS[iS, iS0 + iS] += deps_s[iS]
+
+            return BSEMatrix(df_S, H_sS, deps_S, self.deps_max)
 
     @timer('add_direct_kernel')
     def add_direct_kernel(self, kptpair_factory, pair_calc, screened_potential,
@@ -809,6 +999,117 @@ class BSEBackend:
                     'ijG,mnG->ijmn', rho1V_mmG, rho2_mmG,
                     optimize='optimal')
                 self.context.timer.stop('Coulomb')
+
+    @timer('add_indirect_kernel_reduced')
+    def add_indirect_kernel_reduced(self, rhoex_RG, H_rR):
+        """Compute indirect (exchange) kernel directly in reduced basis.
+
+        This is more memory-efficient than the full basis when many
+        transitions are filtered by deps_max.
+
+        Args:
+            rhoex_RG: Pair densities for active transitions only, shape (nR, nG)
+            H_rR: Reduced Hamiltonian to add kernel to, shape (my_nR, nR)
+        """
+        self.context.timer.start('Coulomb reduced')
+        # H[r, R] = sum_G rho*[r,G] * v[G] * rho[R,G]
+        # For local rows only
+        my_R_start, my_R_end = self._my_R_range
+        rhoV_rG = rhoex_RG[my_R_start:my_R_end].conj() * self.v_G
+        H_rR += np.dot(rhoV_rG, rhoex_RG.T)
+        self.context.timer.stop('Coulomb reduced')
+
+    @timer('add_direct_kernel_reduced')
+    def add_direct_kernel_reduced(self, kptpair_factory, pair_calc,
+                                   screened_potential, update_progress,
+                                   H_rR, active_Kmm, S_to_R):
+        """Compute direct (screened exchange) kernel with reduced output.
+
+        Computes full blocks for each k-point pair, then extracts only
+        the elements corresponding to active transitions.
+
+        Args:
+            H_rR: Reduced Hamiltonian to add kernel to, shape (my_nR, nR)
+            active_Kmm: Boolean mask of active transitions, shape (nK, nv, nc)
+            S_to_R: Mapping from full S index to reduced R index
+        """
+        kpf = kptpair_factory
+        nv, nc = self.nv, self.nc
+        my_R_start, my_R_end = self._my_R_range
+
+        # Pre-compute active (v,c) indices for each k-point
+        active_vc_K = []
+        for iK in range(self.nK):
+            active_vc = np.array(np.where(active_Kmm[iK])).T  # shape (n_active, 2)
+            active_vc_K.append(active_vc)
+
+        for ik1, iK1 in enumerate(self.myKrange):
+            active_vc1 = active_vc_K[iK1]
+            if len(active_vc1) == 0:
+                continue
+
+            kptv1_s = [kpf.get_k_point(s, iK1, self.vi, self.vf)
+                       for s in range(self.nspins)]
+            kptc1_s = [kpf.get_k_point(s, self.ikq_k[iK1], self.ci, self.cf)
+                       for s in range(self.nspins)]
+
+            for Q_c in self.qd.bzk_kc:
+                iK2 = self.kd.find_k_plus_q(Q_c, [kptv1_s[0].K])[0]
+                active_vc2 = active_vc_K[iK2]
+                if len(active_vc2) == 0:
+                    continue
+
+                kptv2_s = [kptpair_factory.get_k_point(s, iK2, self.vi,
+                                                       self.vf)
+                           for s in range(self.nspins)]
+                kptc2_s = [kptpair_factory.get_k_point(s, self.ikq_k[iK2],
+                                                       self.ci, self.cf)
+                           for s in range(self.nspins)]
+
+                rho3_nnG, iq = self.get_density_matrix(
+                    pair_calc, screened_potential, kptv1_s[0], kptv2_s[0])
+
+                rho4_nnG, iq = self.get_density_matrix(
+                    pair_calc, screened_potential, kptc1_s[0], kptc2_s[0])
+
+                if self.nspins == 2:
+                    rho3s1_nnG, iq = self.get_density_matrix(
+                        pair_calc, screened_potential, kptv1_s[1], kptv2_s[1])
+                    rho4s1_nnG, iq = self.get_density_matrix(
+                        pair_calc, screened_potential, kptc1_s[1], kptc2_s[1])
+                else:
+                    rho3s1_nnG = None
+                    rho4s1_nnG = None
+
+                if self.add_soc:
+                    rho3_nnG = self.spinors_data.rho_valence_valence(
+                        kptv1_s[0].K, kptv2_s[0].K, rho3_nnG, rho3s1_nnG)
+                    rho4_nnG = self.spinors_data.rho_conduction_conduction(
+                        kptc1_s[0].K, kptc2_s[0].K, rho4_nnG, rho4s1_nnG)
+
+                self.context.timer.start('Screened exchange')
+                W_mmmm = np.einsum(
+                    'ijk,km,pqm->ipjq',
+                    rho3_nnG.conj(),
+                    screened_potential.W_qGG[iq],
+                    rho4_nnG,
+                    optimize='optimal')
+
+                # Extract active elements and add to reduced Hamiltonian
+                factor = -(self.add_soc + 1) / 2
+                for v1, c1 in active_vc1:
+                    S1 = iK1 * nv * nc + v1 * nc + c1
+                    R1 = S_to_R[S1]
+                    r1 = R1 - my_R_start  # local index
+                    for v2, c2 in active_vc2:
+                        S2 = iK2 * nv * nc + v2 * nc + c2
+                        R2 = S_to_R[S2]
+                        H_rR[r1, R2] += W_mmmm[v1, c1, v2, c2] * factor
+
+                self.context.timer.stop('Screened exchange')
+
+            if iK1 % (self.myKsize // 5 + 1) == 0:
+                update_progress(iK1=iK1)
 
     @timer('get_density_matrix')
     def get_density_matrix(self, pair_calc, screened_potential, kpt1, kpt2):
