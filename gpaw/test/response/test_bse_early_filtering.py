@@ -80,13 +80,15 @@ def test_bse_early_filtering(in_tmp_dir):
     w_late, exclude_late, _ = run_bse_without_early_filtering(
         gpw_file, deps_max)
 
-    # Verify same number of excluded states
-    assert len(exclude_early) == len(exclude_late), \
-        f"Different exclusion counts: {len(exclude_early)} vs {len(exclude_late)}"
+    # With reduced basis, exclude_early is empty (filtering already done)
+    # With late filtering, exclude_late contains filtered indices
+    # The key check is that eigenvalue counts match
+    n_kept_early = len(w_early)
+    n_kept_late = len(w_late)
 
-    # Verify same eigenvalues (within numerical tolerance)
-    assert len(w_early) == len(w_late), \
-        f"Different number of eigenvalues: {len(w_early)} vs {len(w_late)}"
+    # Verify same number of eigenvalues (same number of kept states)
+    assert n_kept_early == n_kept_late, \
+        f"Different number of eigenvalues: {n_kept_early} vs {n_kept_late}"
 
     # Sort eigenvalues for comparison (order may differ slightly)
     w_early_sorted = np.sort(w_early.real)
@@ -97,13 +99,12 @@ def test_bse_early_filtering(in_tmp_dir):
         err_msg="Eigenvalues differ between early and late filtering")
 
     # Print summary
-    n_excluded = len(exclude_early)
-    n_kept = len(w_early)
+    n_filtered = nS - n_kept_early
     if world.rank == 0:
         print(f"\nBSE Early Filtering Test Results:")
         print(f"  Total pair orbitals: {nS}")
-        print(f"  Excluded by deps_max: {n_excluded}")
-        print(f"  Kept for diagonalization: {n_kept}")
+        print(f"  Filtered transitions: {n_filtered}")
+        print(f"  Kept for diagonalization: {n_kept_early}")
         print(f"  Lowest eigenvalue: {w_early_sorted[0]:.6f} Ha")
         print(f"  Highest eigenvalue: {w_early_sorted[-1]:.6f} Ha")
 
@@ -171,11 +172,18 @@ def main():
         w_early_sorted = np.sort(w_early.real)
         w_late_sorted = np.sort(w_late.real)
 
+        # Check eigenvalue counts match first
+        if len(w_early) != len(w_late):
+            print(f"   ERROR: Different eigenvalue counts: {len(w_early)} vs {len(w_late)}")
+            return 1
+
         max_diff = np.max(np.abs(w_early_sorted - w_late_sorted))
         match = np.allclose(w_early_sorted, w_late_sorted, rtol=1e-10, atol=1e-12)
 
-        print(f"   Number of excluded transitions: {len(exclude_early)}")
-        print(f"   Number of eigenvalues: {len(w_early)}")
+        n_filtered = nS - len(w_early)
+        print(f"   Total pair orbitals: {nS}")
+        print(f"   Filtered transitions: {n_filtered}")
+        print(f"   Eigenvalues computed: {len(w_early)}")
         print(f"   Maximum eigenvalue difference: {max_diff:.2e}")
         print(f"   Results match: {match}")
 
