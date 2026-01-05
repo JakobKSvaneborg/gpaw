@@ -24,6 +24,7 @@ from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.utilities import pack_density, unpack_hermitian
 from gpaw.hybrids import parse_name
+from gpaw.new.brillouin import MonkhorstPackKPoints
 
 
 class NonSelfConsistentHSE06:
@@ -84,8 +85,10 @@ class NonSelfConsistentHSE06:
                 dE_sii.append(dE_ii)
             self.dE_asii[a][:] = dE_sii
 
+        mp = ibzwfs.ibz.bz
+        assert isinstance(mp, MonkhorstPackKPoints)
         self.coulomb = truncated_coulomb(
-            self.grid.cell_cv, ibzwfs.ibz.bz.size_c, exx_omega, yukawa)
+            self.grid.cell_cv, mp.size_c, exx_omega, yukawa)
 
     def calculate(self,
                   ibzwfs: PWFDIBZWaveFunctions,

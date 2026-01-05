@@ -17,7 +17,7 @@ from ase.utils import seterr
 from scipy.special import erf
 
 import gpaw.mpi as mpi
-from gpaw.core import PWArray, PWDesc
+from gpaw.core import PWDesc
 from gpaw.fftw import get_efficient_fft_size
 from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.typing import Array1D
