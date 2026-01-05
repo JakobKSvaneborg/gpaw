@@ -244,7 +244,7 @@ def nsc_corrections(density: Density,
 
     using (calculated from ``density.D_asii``):::
 
-        a  _     a     _     a   _
+        a  _     a     _     a    _
        Δv (r) = v     (r) - v    (r).
          σ       σ,HSE       σ,xc
     """

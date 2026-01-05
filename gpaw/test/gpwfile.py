@@ -9,7 +9,6 @@ from ase.build.supercells import make_supercell
 from ase.lattice.compounds import L1_2
 from ase.lattice.hexagonal import Graphene
 from ase.units import Bohr
-
 from gpaw import FD, GPAW, LCAO, PW, Davidson, FermiDirac, Mixer
 from gpaw.directmin.derivatives import Davidson as SICDavidson
 from gpaw.directmin.etdm_fdpw import FDPWETDM
@@ -1045,7 +1044,7 @@ class GPWFiles(CachedFilesHandler):
                        txt=self.folder / 'n2_pw.txt')
 
         N2.get_potential_energy()
-        N2.calc.diagonalize_full_hamiltonian(nbands=104, scalapack=True)
+        N2.calc.diagonalize_full_hamiltonian(nbands=104)
         return N2.calc
 
     @gpwfile
@@ -1063,7 +1062,7 @@ class GPWFiles(CachedFilesHandler):
                       eigensolver='rmm-diis',
                       txt=self.folder / 'n_pw.txt')
         N.get_potential_energy()
-        N.calc.diagonalize_full_hamiltonian(nbands=104, scalapack=True)
+        N.calc.diagonalize_full_hamiltonian(nbands=104)
         return N.calc
 
     @gpwfile
@@ -1471,8 +1470,7 @@ class GPWFiles(CachedFilesHandler):
                           parallel={'domain': 1},
                           txt=self.folder / name)
         atoms.get_potential_energy()
-        scalapack = atoms.calc.wfs.bd.comm.size
-        atoms.calc.diagonalize_full_hamiltonian(nbands=8, scalapack=scalapack)
+        atoms.calc.diagonalize_full_hamiltonian(nbands=8)
         return atoms.calc
 
     @gpwfile
