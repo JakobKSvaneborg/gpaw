@@ -1,4 +1,4 @@
-﻿.. _ehrenfest_theory:
+.. _ehrenfest_theory:
 
 ======================================
 Ehrenfest dynamics (TDDFT/MD) - Theory
@@ -39,7 +39,7 @@ The starting point of time-propagation TDDFT is the all-electron time-dependent 
    i \frac{\partial \psi_n ({\bf r}, t)}{\partial t} = \hat {H} (t) \psi_n ({\bf r},t),
    \end{equation}
 
-where $\psi_n$ is the Kohn-Sham wavefunction of electronic state $n$, and $\hat{H}$ is the electronic
+where `\psi_n` is the Kohn-Sham wavefunction of electronic state `n`, and `\hat{H}` is the electronic
 Hamiltonian. Using the PAW approximation `\psi_n ({\bf r}, t) = \hat{\cal T} \tilde{\psi}_n ({\bf r}, t)`
 and operating from the left with the adjoint of the PAW operator `\hat{\cal T}^{\dagger}`, we obtain the following equation:
 
