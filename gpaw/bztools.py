@@ -153,7 +153,7 @@ def predicated_monkhorst_pack_grid(
                                                gamma=contains_gamma)]
         if len(mp_grids) == 0:
             raise RuntimeError('Could not find grid which satisfies the'
-                               f'{predicate_function.__name__}')
+                               f' {predicate_function.__name__}')
 
     if len(mp_grids) == 1:
         return {'size': mp_grids[0], 'gamma': contains_gamma}
