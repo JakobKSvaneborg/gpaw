@@ -54,31 +54,47 @@ def predicated_monkhorst_pack_grid(
         is_symmetric_mp_grid: bool = False,
         nmaxperdim: int = 8) -> dict[str, Any]:
     """
+    This function returns a dictionary yielding a Monkhorst-Pack k-point
+    sampling which is compliant with all desired conditions.
 
     Parameters
     ----------
     atoms:
         Atoms object to generate the Monkhorst-Pack grid for.
     kptdensity:
-        Required minimum density of the k-points (kpts/Å^-1).
-        Related to the minimum real-space distance between equivalent points in
-        the Born-von Kármán supercell by min_distance = 2 * np.pi * kptdensity.
-    :param symmetry: Consider symmetry (irreducible) or not (reducible)
-        when determining the k-point grid.
-    :param comm: Communicator used to parallelize the symmetry reduction.
-    :return: np.array([nx, ny, nz]), number of points in the brillouin
-        zone
+        The required minimum density of the k-points (kpts/Å^-1). This
+        density is related to the minimum real-space distance between
+        equivalent points in the Born-von Kármán supercell by
+        min_distance = 2𝜋 * kptdensity.
+    minimize_ibz_points:
+        Should this function return the compliant MP grid which contains the
+        smallest number of IBZ points (True) or the MP grid which contains the
+        smallest number of BZ points (False).
+    is_even:
+        Should the Monkhorst-Pack grids contain an even number of k-points
+        along the crystal axes?
+        (True | False | None) -> (Yes | No | Does not matter)
+    contains_gamma:
+        Should the k-point sampling be forced to contain the Gamma point
+        through offsets?
+        (True | False | None) -> (Yes | No | Does not matter)
+    contains_ibz_vertices:
+        Should the function only accept k-point samplings which contain all
+        vertices of the IBZ?
+        (True | False) -> (Yes | No)
+    is_symmetric_mp_grid:
+        Should the function only accept k-point samplings which are as
+        symmetric as the crystal?
+        (True | False) -> (Yes | No)
+    nmaxperdim:
+        When searching for compliant k-point samplings, how large should the
+        maximum sampling size be (along each crystal axes) compared to the
+        minimum size.
 
-    If symmetry==False (default), find a Monkhorst-Pack grid
-    (nx, ny, nz) with lowest number of k-points in the *reducible*
-    Brillouin zone, which still satisfying a given minimum distance
-    (`min_distance`) condition in real space (nx, ny, nz)-supercell.
-    Returns kpt_c.
-
-    If symmetry==True (requires gpaw), returns the lowest number
-    of k-points in the *irreducible* Brillouin zone, with same
-    minimum distance condition.
-    Returns a tuple (kpt_c, nibz).
+    Returns
+    -------
+        Dictionary yielding a Monkhorst-Pack k-point sampling compliant with
+        all desired predicates.
 
     """
 
@@ -86,7 +102,7 @@ def predicated_monkhorst_pack_grid(
            'compliant with the following predicates:')
 
     msg += ('\n\nThe grid should effectively yield a Born-von Kármán supercell'
-            f'that does not repeat for at least 2pi * {kptdensity} Å.')
+            f'that does not repeat for at least 2𝜋 * {kptdensity} Å.')
 
     predicate_functions = []
     if contains_ibz_vertices:
@@ -127,8 +143,6 @@ def predicated_monkhorst_pack_grid(
                 range(minsize[1], maxsize[1] + 1, step),
                 range(minsize[2], maxsize[2] + 1, step)):
             yield size
-
-    # List comprehension instead?
     mp_grids = np.array(list(mp_gridsize_generator(minsize, maxsize, step)))
 
     if contains_gamma is None:
@@ -157,17 +171,17 @@ def predicated_monkhorst_pack_grid(
 def get_mp_grid_from_min_distance_criteria(atoms, min_distance, even):
     """
     Get a Monkhorst-Pack grid with the lowest number of k-points in the
-    reducible/irreducible Brillouin zone that still satisfies a given
-    minimum distance condition in the real-space Born-von Kármán supercell.
+    Brillouin zone that still satisfies a given minimum distance condition in
+    the real-space Born-von Kármán supercell.
 
-    Compared to the ase.calculators.calculator kptdensity2monkhorstpack
-    method, this metric is based on a physical quantity (real-space
-    distance), and it does not depend on non-physical quantities such as
-    the choice of cell vectors which can be always be transformed by
+    Compared to the method kptdensity2monkhorstpack from
+    ase.calculators.calculator, this metric is based on a physical quantity
+    (real-space distance), and it does not depend on non-physical quantities
+    such as the choice of cell vectors which can be always be transformed by
     determinant=±1 matrices (isometries). In other words, this method is
     invariant to the choice of cell representation.
 
-    For orthogonal cells, min_distance = 2 * np.pi * kptdensity.
+    For orthogonal cells, min_distance = 2𝜋 * kptdensity.
     """
 
     minsize_naive = kptdensity2monkhorstpack(
@@ -229,13 +243,19 @@ def contains_ibz_vertices_predicate(mp_grids,
 
     Parameters
     ----------
-    atoms
+    mp_grids:
+        List of Monkhorst-Pack grid sizes.
+    atoms:
         Atoms object which is used to generate a list of symmetries.
+    gamma:
+        Boolean for whether the k-point sampling should be forced to contain
+        the Gamma point through offsets. This should always be True for this
+        function and is here as a safety check.
 
     Returns
     -------
-    ndarray
-        Array with a boolean for each grid size representing the predicate.
+        An array with a boolean for each grid size representing whether the
+        predicate is satisfied by the k-point sampling.
 
     """
 
@@ -281,8 +301,26 @@ def contains_ibz_vertices_predicate(mp_grids,
 def is_symmetric_mp_grid_predicate(mp_grids,
                                    atoms: Atoms,
                                    gamma: bool):
+    """For a list of Monkhorst-Pack grid sizes, this function checks whether
+    each k-point sampling is as symmetric as the crystal.
 
-    from gpaw.new.brillouin import BZPoints
+    Parameters
+    ----------
+    mp_grids
+        List of Monkhorst-Pack grid sizes.
+    atoms
+        Atoms object which is used to generate a list of symmetries.
+    gamma
+        Boolean for whether the k-point sampling should be forced to contain
+        the Gamma point through offsets.
+
+    Returns
+    -------
+        An array with a boolean for each grid size representing whether the
+        predicate is satisfied by the k-point sampling.
+
+    """
+
     pbc_c = atoms.pbc
     symmetries = create_symmetries_object(atoms, symmorphic=False)
 
