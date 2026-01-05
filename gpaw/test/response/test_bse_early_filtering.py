@@ -38,8 +38,8 @@ def run_bse_with_early_filtering(gpw_file, deps_max, eshift=0.8):
     """Run BSE with early filtering (deps_max at construction time)."""
     bse = BSE(gpw_file,
               ecut=50.,
-              valence_bands=range(2, 4),
-              conduction_bands=range(4, 6),
+              valence_bands=range(1, 4),
+              conduction_bands=range(4, 8),
               deps_max=deps_max,
               eshift=eshift,
               nbands=8,
@@ -53,8 +53,8 @@ def run_bse_without_early_filtering(gpw_file, deps_max, eshift=0.8):
     """Run BSE without early filtering (deps_max only at diagonalization)."""
     bse = BSE(gpw_file,
               ecut=50.,
-              valence_bands=range(2, 4),
-              conduction_bands=range(4, 6),
+              valence_bands=range(1, 4),
+              conduction_bands=range(4, 8),
               deps_max=None,  # No early filtering
               eshift=eshift,
               nbands=8,
