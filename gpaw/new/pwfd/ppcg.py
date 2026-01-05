@@ -7,12 +7,14 @@ import numpy as np
 from ase.units import Ha
 
 from gpaw import debug
+
 # from gpaw.typing import Array2D
 from gpaw.core import PWDesc  # , PWArray
 from gpaw.core.matrix import Matrix
 from gpaw.gpu import as_np
 from gpaw.new import tracectx  # , trace
 from gpaw.new.pwfd.davidson import sliced_preconditioner
+
 # from gpaw.mpi import broadcast_exception
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
@@ -348,11 +350,11 @@ class PPCG(PWFDEigensolver):
                     domain_comm.sum(S_bb)
 
                     # Scale the diagonal elements, to improve numerical
-                    # stability. Here, we use the expontent -0.5, which
+                    # stability. Here, we use the expontent -0.25, which
                     # makes the diagonal elements closer to 1, by the a
                     # factor of sqrt(X), with X being the previous diagonal.
                     # This value performed best of the ones attempted.
-                    diag_scale_b = xp.diag(S_bb)[block:]**(-0.5)
+                    diag_scale_b = xp.diag(S_bb)[block:]**(-0.25)
                     S_bb[block:, :] *= diag_scale_b[:, None]
                     S_bb[:, block:] *= diag_scale_b[None, :]
                     buff_bX.matrix.data[block:nblocks, :] \
@@ -379,6 +381,11 @@ class PPCG(PWFDEigensolver):
                     if self.promote_inner_dtype:
                         H_bb[:] += buffer_bb[:]
                     domain_comm.sum(H_bb)
+
+                    # Use eigs
+                    if False:
+                        H_bb[:block, :block] = xp.diag(wfs.myeig_n[block_slice])
+                        S_bb[:block, :block] = xp.eye(block)
 
                     if nblocks > 2 * block:
                         # Eigh approach
