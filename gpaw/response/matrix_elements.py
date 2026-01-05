@@ -177,7 +177,7 @@ class MatrixElementCalculator(ABC):
     def get_periodic_pseudo_waves(self, K, ikpt):
         """FFT the Kohn-Sham orbitals to real space and map them from the
         irreducible k-point to the k-point in question."""
-        ut_hR = self.gs.gd.empty(ikpt.nh, self.gs.dtype)
+        ut_hR = self.gs.global_pd.gd.empty(ikpt.nh, self.gs.dtype)
         for h, psit_G in enumerate(ikpt.psit_hG):
             ut_hR[h] = self.gs.ibz2bz[K].map_pseudo_wave(
                 self.gs.global_pd.ifft(psit_G, ikpt.ik))

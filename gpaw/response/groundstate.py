@@ -169,7 +169,14 @@ class ResponseGroundStateAdapter:
 
         assert self.gd.comm.size == 1
         kd = self.kd.copy()  # global KPointDescriptor without a comm
-        return PWDescriptor(self.pd.ecut, self.gd,
+
+        # For non-periodic systems (e.g., 2D materials), we need a periodic
+        # grid descriptor for PW operations
+        gd = self.gd
+        if not gd.pbc_c.all():
+            gd = gd.new_descriptor(pbc_c=True)
+
+        return PWDescriptor(self.pd.ecut, gd,
                             dtype=self.pd.dtype,
                             kd=kd, fftwflags=self.pd.fftwflags,
                             gammacentered=self.pd.gammacentered)
