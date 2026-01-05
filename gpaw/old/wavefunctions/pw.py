@@ -818,6 +818,10 @@ See issue #241 in GPAW. Creashing to prevent corrupted results."""
         block_size = min(max(nlcao, 1), block_size)
         psit_nR = self.gd.empty(block_size, self.dtype)
 
+        # Check if we need to handle non-periodic boundaries (e.g., 2D systems)
+        # In this case, self.gd may be non-periodic while self.pd.gd is periodic
+        needs_zero_pad = not self.gd.pbc_c.all()
+
         def create_psit(kpt):
             if self.kd.gamma:
                 emikr_R = 1.0
@@ -840,7 +844,17 @@ See issue #241 in GPAW. Creashing to prevent corrupted results."""
                                              kpt.q,
                                              block_size)
                 for psit_R, psit_G in zip(psit_nR, psit_nG[n1:n2]):
-                    psit_G[:] = self.pd.fft(psit_R * emikr_R, kpt.q)
+                    if needs_zero_pad:
+                        # For non-periodic systems: collect from original gd,
+                        # zero-pad to full periodic size, then FFT
+                        f_R = psit_R * emikr_R
+                        f_R_global = self.gd.collect(f_R, broadcast=True)
+                        f_R_padded = self.gd.zero_pad(f_R_global,
+                                                      global_array=True)
+                        f_G = self.pd.fft(f_R_padded, kpt.q, local=True)
+                        psit_G[:] = self.pd.scatter(f_G, kpt.q)
+                    else:
+                        psit_G[:] = self.pd.fft(psit_R * emikr_R, kpt.q)
             if reset_C_nM:
                 kpt.C_nM = None
             return psit

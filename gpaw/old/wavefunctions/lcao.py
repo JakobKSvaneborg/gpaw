@@ -262,7 +262,16 @@ class LCAOWaveFunctions(WaveFunctions):
         import gpaw.fftw as fftw
         from gpaw.old.pw.descriptor import PWDescriptor
         from gpaw.old.wavefunctions.pw import PWWaveFunctions
-        self.pd = PWDescriptor(ecut, self.gd, self.dtype, self.kd,
+
+        # For non-periodic systems (e.g., 2D materials), we need a periodic
+        # grid descriptor for PW operations. The original gd is kept for
+        # LCAO operations.
+        if not self.gd.pbc_c.all():
+            gd_pbc = self.gd.new_descriptor(pbc_c=True)
+        else:
+            gd_pbc = self.gd
+
+        self.pd = PWDescriptor(ecut, gd_pbc, self.dtype, self.kd,
                                fftw.MEASURE)
         PWWaveFunctions.initialize_from_lcao_coefficients(self,
                                                           self.basis_functions,
