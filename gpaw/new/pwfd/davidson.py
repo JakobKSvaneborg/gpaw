@@ -29,6 +29,7 @@ class Davidson(PWFDEigensolver):
             converge_bands,
             max_buffer_mem=max_buffer_mem)
         self.niter = niter
+        self.scalapack_parameters = scalapack_parameters
         self.H_NN: Matrix
         self.S_NN: Matrix
         self.M_nn: Matrix
@@ -169,7 +170,9 @@ class Davidson(PWFDEigensolver):
             if is_domain_band_master:
                 H_NN.data[:B, :B] = xp.diag(eig_N[:B])
                 S_NN.data[:B, :B] = xp.eye(B)
-            eig_N[:] = H_NN.eigh(S_NN, limit=B, scalapack=self.scalapack)
+            eig_N[:] = H_NN.eigh(S_NN,
+                                 limit=B,
+                                 scalapack=self.scalapack_parameters)
             wfs.eig_n = as_np(eig_N[:B])
             if is_domain_band_master:
                 M0_nn.data[:] = H_NN.data[:B, :B]
