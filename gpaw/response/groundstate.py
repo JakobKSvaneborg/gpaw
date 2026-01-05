@@ -153,6 +153,21 @@ class ResponseGroundStateAdapter:
         # code, and that includes places that are also compatible with FD.
         return self._wfs.pd
 
+    @cached_property
+    def gd_pbc(self):
+        """Periodic grid descriptor for PW/FFT operations.
+
+        For 2D materials (and other non-fully-periodic systems), the physical
+        grid descriptor (self.gd) has fewer points in non-periodic directions
+        due to Dirichlet boundary conditions. However, FFT operations require
+        a fully periodic grid. This property provides that periodic grid.
+
+        For fully periodic systems, this is the same as self.gd.
+        """
+        if self.gd.pbc_c.all():
+            return self.gd
+        return self.gd.new_descriptor(pbc_c=True)
+
     def is_parallelized(self):
         """Are we dealing with a parallel calculator?"""
         return self.world.size > 1
@@ -170,13 +185,7 @@ class ResponseGroundStateAdapter:
         assert self.gd.comm.size == 1
         kd = self.kd.copy()  # global KPointDescriptor without a comm
 
-        # For non-periodic systems (e.g., 2D materials), we need a periodic
-        # grid descriptor for PW operations
-        gd = self.gd
-        if not gd.pbc_c.all():
-            gd = gd.new_descriptor(pbc_c=True)
-
-        return PWDescriptor(self.pd.ecut, gd,
+        return PWDescriptor(self.pd.ecut, self.gd_pbc,
                             dtype=self.pd.dtype,
                             kd=kd, fftwflags=self.pd.fftwflags,
                             gammacentered=self.pd.gammacentered)

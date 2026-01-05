@@ -95,7 +95,7 @@ class KPointPairFactory:
 
         with self.context.timer('load wfs'):
             psit_nG = kpt.psit_nG
-            ut_nR = gs.pd.gd.empty(nb - na, gs.dtype)
+            ut_nR = gs.gd_pbc.empty(nb - na, gs.dtype)
             for n in range(na, nb):
                 ut_nR[n - na] = self.gs.ibz2bz[K].map_pseudo_wave(
                     gs.pd.ifft(psit_nG[n], ik))
@@ -273,7 +273,7 @@ class ActualPairDensityCalculator:
         if self.ut_sKnvR is None or kpt1.K not in self.ut_sKnvR[kpt1.s]:
             self.ut_sKnvR = self.calculate_derivatives(kpt1)
 
-        gd = self.gs.pd.gd  # Use PW grid for arrays from pd.ifft
+        gd = self.gs.gd_pbc  # Use periodic grid for arrays from pd.ifft
         k_v = 2 * np.pi * np.dot(kpt1.k_c, np.linalg.inv(gd.cell_cv).T)
 
         ut_vR = self.ut_sKnvR[kpt1.s][kpt1.K][n - kpt1.n1]
@@ -356,9 +356,10 @@ class ActualPairDensityCalculator:
                 degchunks_cn.append(inds_n)
 
         # Calculate matrix elements by diagonalizing each block
+        gd = self.gs.gd_pbc  # Use periodic grid for arrays from pd.ifft
         for ind_n in degchunks_cn:
             deg = len(ind_n)
-            ut_nvR = self.gs.pd.gd.zeros((deg, 3), complex)
+            ut_nvR = gd.zeros((deg, 3), complex)
             vel_nnv = np.zeros((deg, deg, 3), dtype=complex)
             # States are included starting from kpt.na
             ut_nR = kpt.ut_nR[ind_n - na]
@@ -369,7 +370,6 @@ class ActualPairDensityCalculator:
                                                 ind, ind + 1)[0]
 
             # Treat the whole degenerate chunk
-            gd = self.gs.pd.gd  # Use PW grid for arrays from pd.ifft
             for n in range(deg):
                 ut_vR = ut_nvR[n]
                 C_avi = [np.dot(atomdata.nabla_iiv.T, P_ni[ind_n[n] - na])
@@ -409,7 +409,7 @@ class ActualPairDensityCalculator:
         kpt = gs.kpt_ks[ik][s]
         psit_nG = kpt.psit_nG
         iG_Gv = 1j * gs.pd.get_reciprocal_vectors(q=ik, add_q=False)
-        ut_nvR = gs.pd.gd.zeros((n2 - n1, 3), complex)
+        ut_nvR = gs.gd_pbc.zeros((n2 - n1, 3), complex)
         for n in range(n1, n2):
             for v in range(3):
                 ut_R = gs.ibz2bz[K].map_pseudo_wave(
