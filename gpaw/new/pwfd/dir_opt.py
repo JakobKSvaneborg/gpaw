@@ -20,15 +20,13 @@ class DirOptPWFD(PWFDEigensolver):
                  *,
                  hamiltonian,
                  excited_state: bool = False,
-                 converge_unocc: bool = False,
-                 scalapack_params=(None, 1, 1, None)):
+                 converge_unocc: bool = False):
         # Lazy initialization of search_dir, done later in iterate()
         self.search_dir: LBFGS | None = None
         self.grad_unX: list[XArray] = []
         self.converge_unocc = converge_unocc
         self.dS_aii: AtomArrays
         self.nocc_s: list[int] = []
-        self.scalapack = scalapack_params
         super().__init__(hamiltonian)
 
     def new(self, **params) -> DirOptPWFD:

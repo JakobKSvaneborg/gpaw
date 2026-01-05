@@ -29,6 +29,7 @@ class Davidson(PWFDEigensolver):
             converge_bands,
             max_buffer_mem=max_buffer_mem)
         self.niter = niter
+
         self.scalapack_parameters = scalapack_parameters
         self.H_NN: Matrix
         self.S_NN: Matrix
