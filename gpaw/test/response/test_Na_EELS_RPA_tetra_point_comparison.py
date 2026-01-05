@@ -18,8 +18,8 @@ def test_response_Na_EELS_RPA_tetra_point_comparison(in_tmp_dir, gpw_files):
 
     # Generate grid compatible with tetrahedron integration
     kpts = predicated_monkhorst_pack_grid(
-        calc.atoms, 6.0, is_even=True, minimize_ibz_points=True,
-        contains_gamma=True, contains_ibz_vertices=True,
+        calc.atoms, 6.0,
+        contains_ibz_vertices=True,
         nmaxperdim=2)
 
     # Calculate the wave functions on the new kpts grid

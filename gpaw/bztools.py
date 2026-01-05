@@ -82,8 +82,26 @@ def predicated_monkhorst_pack_grid(
 
     """
 
-    print('Brute force search for Monkhorst-Pack grid compliant with the '
-          'following predicates:')  # etc.
+    msg = ('Searching for a Monkhorst-Pack grid which is '
+           'compliant with the following predicates:')
+
+    msg += ('\n\nThe grid should effectively yield a Born-von Kármán supercell'
+            f'that does not repeat for at least 2pi * {kptdensity} Å.')
+
+    predicate_functions = []
+    if contains_ibz_vertices:
+        predicate_functions.append(contains_ibz_vertices_predicate)
+        if contains_gamma is None:
+            contains_gamma = True
+        if is_even is None:
+            is_even = True
+        msg += ('\n\nThe k-point sampling must contain every vertex point '
+                'of the irreducible Brillouin zone.')
+    if is_symmetric_mp_grid:
+        predicate_functions.append(is_symmetric_mp_grid_predicate)
+        msg += '\n\nThe k-point sampling must be as symmetric as the crystal.'
+
+    print(msg)
 
     minsize = get_mp_grid_from_min_distance_criteria(
         atoms, 2. * np.pi * kptdensity, even=is_even)
@@ -112,16 +130,6 @@ def predicated_monkhorst_pack_grid(
 
     # List comprehension instead?
     mp_grids = np.array(list(mp_gridsize_generator(minsize, maxsize, step)))
-
-    predicate_functions = []
-    if contains_ibz_vertices:
-        predicate_functions.append(contains_ibz_vertices_predicate)
-        if contains_gamma is None:
-            contains_gamma = True
-        if is_even is None:
-            is_even = True
-    if is_symmetric_mp_grid:
-        predicate_functions.append(is_symmetric_mp_grid_predicate)
 
     if contains_gamma is None:
         contains_gamma = False

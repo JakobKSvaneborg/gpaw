@@ -38,8 +38,8 @@ def test_point_tetra_match(in_tmp_dir):
     calc.write(gs_file)
 
     kpts = predicated_monkhorst_pack_grid(
-        atoms, 18., is_even=True, minimize_ibz_points=False,
-        contains_gamma=True, contains_ibz_vertices=True,
+        atoms, 18.,
+        contains_ibz_vertices=True,
         nmaxperdim=2)
 
     responseGS = GPAW(gs_file).fixed_density(
