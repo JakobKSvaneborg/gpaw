@@ -290,8 +290,8 @@ def set_compiler_executables(cc: CCompiler) -> None:
     lang = 'c'
     args: list[str] = getattr(cc, 'compiler_so')
     if not any(item.startswith('-x') for item in args):
-        print(f"Adding compiler flag: -x{lang}")
-        args += [f'-x{lang}']
+        print(f"Adding compiler flag: -x {lang}")
+        args += ['-x'] + [f'{lang}']
         cc.set_executable('compiler_so', args)
 
 
