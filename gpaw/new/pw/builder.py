@@ -178,6 +178,7 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             return PWHybridHamiltonian(
                 self.grid, self.wf_desc, self.xc, self.setups,
                 self.relpos_ac, self.atomdist, self.log,
+                self.ibz.bz.size_c,
                 self.communicators['k'],
                 self.communicators['b'],
                 self.communicators['w'])
