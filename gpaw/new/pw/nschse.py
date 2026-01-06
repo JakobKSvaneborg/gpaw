@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from time import time
-from typing import IO
+from typing import IO, Sequence
 
 import numpy as np
 from ase.units import Ha
@@ -93,7 +93,9 @@ class NonSelfConsistentHSE06:
     def calculate(self,
                   ibzwfs: PWFDIBZWaveFunctions,
                   na: int = 0,
-                  nb: int = 0) -> tuple[np.ndarray, np.ndarray]:
+                  nb: int = 0,
+                  ibz_indices: Sequence[int] | None = None
+                  ) -> tuple[np.ndarray, np.ndarray]:
         """Calculate eigenvalues at several k-points.
 
         Returns DFT and HSE06 eigenvalues in eV.
@@ -104,10 +106,13 @@ class NonSelfConsistentHSE06:
         domain_comm = ibzwfs.domain_comm
         band_comm = ibzwfs.band_comm
         kpt_comm = ibzwfs.kpt_comm
-        nibzkpts = len(ibzwfs.ibz)
+
+        if ibz_indices is None:
+            ibz_indices = range(len(ibzwfs.ibz))
+        nibzkpts = len(ibz_indices)
 
         comm_rank_ks = np.zeros((nibzkpts, ibzwfs.nspins), int)
-        for k in range(nibzkpts):
+        for k in ibz_indices:
             for spin in range(ibzwfs.nspins):
                 if ibzwfs.rank_ks[k, spin] == kpt_comm.rank:
                     if band_comm.rank == 0 and domain_comm.rank == 0:
@@ -122,7 +127,7 @@ class NonSelfConsistentHSE06:
         t1 = time()
         eig_ksn = []  # self-consistent DFT eigenvalues
         deig_ksn = []  # HSE06 eigenvalue changes
-        for k in range(nibzkpts):
+        for k in ibz_indices:
             eig_sn = []
             deig_sn = []
             for spin in range(ibzwfs.nspins):

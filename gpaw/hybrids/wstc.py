@@ -25,8 +25,8 @@ from gpaw.typing import Array1D
 
 class WignerSeitzTruncatedCoulomb:
     def __init__(self, cell_cv, nk_c):
-        self.nk_c = nk_c
-        bigcell_cv = cell_cv * nk_c[:, np.newaxis]
+        self.nk_c = np.array(nk_c)
+        bigcell_cv = cell_cv * self.nk_c[:, np.newaxis]
         L_c = (np.linalg.inv(bigcell_cv)**2).sum(0)**-0.5
 
         self.rc = 0.5 * L_c.min()
