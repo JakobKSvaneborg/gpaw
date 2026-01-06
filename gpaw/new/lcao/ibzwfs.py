@@ -46,3 +46,28 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
                                           for ccc_L in ccc_aL.values())
         comp_charge = ccc_aL.layout.atomdist.comm.sum_scalar(comp_charge)
         density.nt_sR.data *= -comp_charge / pseudo_charge
+
+    def pwify(self, relpos_ac, setups):
+        from gpaw.core.plane_waves import PWDesc
+        from gpaw.core.pwacf import PWAtomCenteredFunctions
+
+        pw0 = PWDesc(ecut=self.grid.ekin_max(),
+                     cell=self.grid.cell,
+                     comm=self.grid.comm,
+                     dtype=self.dtype)
+        for wfs in self:
+            pw = pw0.new(kpt=wfs.kpt_c)
+            phit_aJG = PWAtomCenteredFunctions(
+                [setup.basis_functions_J for setup in setups],
+                relpos_ac,
+                pw,
+                atomdist=wfs.atomdist,
+                xp=self.xp)
+            psit_nG = pw.empty(self.nbands,
+                               comm=self.band_comm,
+                               xp=self.xp)
+            mynbands, M = wfs.C_nM.dist.shape
+            phit_aJG.multiply(wfs.C_nM.to_dtype(pw.dtype),
+                              out_nG=psit_nG[:mynbands])
+            wfs.psit_nX = psit_nG
+            print(psit_nG)

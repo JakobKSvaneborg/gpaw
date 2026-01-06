@@ -1439,6 +1439,7 @@ class EXXVXCCalculator:
 
         if 1:
             dft = NewGPAW(self._gpwfile, communicator=self.world).dft
+            dft.pwify()
             exx = NonSelfConsistentHSE06.from_dft_calculation(dft, 'EXX')
             dft_skn, exx_skn = exx.calculate(
                 dft.ibzwfs, n1, n2, kpt_indices)
