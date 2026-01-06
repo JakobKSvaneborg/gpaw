@@ -1434,6 +1434,16 @@ class EXXVXCCalculator:
         self.world = world
 
     def calculate(self, n1, n2, kpt_indices):
+        from gpaw.new.pw.nschse import NonSelfConsistentHSE06
+        from gpaw.dft import GPAW as NewGPAW
+
+        if 1:
+            dft = NewGPAW(self._gpwfile, communicator=self.world).dft
+            exx = NonSelfConsistentHSE06.from_dft_calculation(dft, 'EXX')
+            dft_skn, exx_skn = exx.calculate(
+                dft.ibzwfs, n1, n2, kpt_indices)
+            return np.zeros_like(dft_skn), (exx_skn - dft_skn) / Ha
+
         calc = GPAW(self._gpwfile, parallel={'kpt': 1, 'band': 1},
                     communicator=self.world)
 
