@@ -256,7 +256,7 @@ class Chi0ComponentCalculator:
                 raise ValueError(
                     'The ground state k-point grid does not include all '
                     'vertices of the IBZ. Please use '
-                    'predicated_monkhorst_pack_grid(..., '
+                    'optimal_monkhorst_pack_grid(..., '
                     'contains_ibz_vertices=True) from gpaw.bztools '
                     'to generate your k-point grid.')
 

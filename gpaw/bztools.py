@@ -46,7 +46,7 @@ def get_lattice_symmetry(cell_cv, tolerance=1e-7):
 
 def optimal_monkhorst_pack_grid(
         atoms: Atoms,
-        *
+        *,
         kptdensity: float,
         minimize_ibz_points: bool = False,
         force_even: bool = False,
@@ -243,7 +243,8 @@ def contains_ibz_vertices_predicate(mp_grids,
 
     if not gamma:
         raise ValueError('You cannot get an MP grid that contains all '
-                         'IBZ vertices while excluding the Gamma-point.')
+                         'IBZ vertices without first forcing the '
+                         'inclusion of the Gamma-point.')
     if not (mp_grids[:, pbc_c] % 2 == 0).all():
         raise ValueError('You cannot get an MP grid that contains all '
                          'IBZ vertices without an even k-point sampling.')
