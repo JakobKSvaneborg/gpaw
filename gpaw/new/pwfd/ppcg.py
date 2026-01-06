@@ -391,7 +391,6 @@ class PPCG(PWFDEigensolver):
                     H_bb[:block, :block] = xp.diag(wfs.myeig_n[block_slice])
                     S_bb[:block, :block] = xp.eye(block)
                     MS_bb.tril2full()
-                    MH_bb.tril2full()
 
                     if nblocks > 2 * block:
                         # Eigh approach
