@@ -228,6 +228,8 @@ class PWFDEigensolverParameter(Eigensolver):
               nbands,
               wf_desc,
               band_comm,
+              domain_band_comm,
+              scalapack_parameters,
               hamiltonian,
               converge_bands,
               setups,
@@ -236,9 +238,11 @@ class PWFDEigensolverParameter(Eigensolver):
             nbands,
             wf_desc,
             band_comm,
+            domain_band_comm,
             hamiltonian,
             converge_bands,
             niter=self.niter,
+            scalapack_parameters=scalapack_parameters,
             max_buffer_mem=self.max_buffer_mem)
 
 
@@ -283,6 +287,8 @@ class PPCG(PWFDEigensolverParameter):
               nbands,
               wf_desc,
               band_comm,
+              domain_band_comm,
+              scalapack_parameters,
               hamiltonian,
               converge_bands,
               setups,
@@ -327,6 +333,8 @@ class RMMDIIS(PWFDEigensolverParameter):
               nbands,
               wf_desc,
               band_comm,
+              domain_band_comm,
+              scalapack_parameters,
               create_preconditioner,
               converge_bands,
               setups,

@@ -6,12 +6,19 @@ from pprint import pformat
 import numpy as np
 
 from gpaw import debug
-from gpaw.core.matrix import Matrix
+from gpaw.core.matrix import Matrix, suggest_blocking
 from gpaw.gpu import as_np
-from gpaw.new import trace, tracectx
+from gpaw.new import tracectx
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D
+from gpaw.mpi import serial_comm
+
+
+def slparams(nbands, comm):
+    if nbands / comm.size**0.5 < 1000:
+        return serial_comm, 1, 1, None
+    return (comm, *suggest_blocking(nbands, comm.size))
 
 
 class Davidson(PWFDEigensolver):
@@ -19,18 +26,26 @@ class Davidson(PWFDEigensolver):
                  nbands: int,
                  wf_grid,
                  band_comm,
+                 domain_band_comm,
                  hamiltonian,
                  converge_bands='occupied',
                  niter=2,
-                 scalapack_parameters=None,
-                 max_buffer_mem: int = 200 * 1024 ** 2):
+                 scalapack_parameters: tuple[int,
+                                             int,
+                                             int | None] | None = None,
+                 max_buffer_mem: int = 200 * 1024**2):
         super().__init__(
             hamiltonian,
             converge_bands,
             max_buffer_mem=max_buffer_mem)
         self.niter = niter
-
-        self.scalapack_parameters = scalapack_parameters
+        if scalapack_parameters is None:
+            self.scalapack_parameters = slparams(nbands, domain_band_comm)
+        else:
+            r, c, _ = scalapack_parameters
+            assert r * c == domain_band_comm.size
+            self.scalapack_parameters = (
+                domain_band_comm, *scalapack_parameters)
         self.H_NN: Matrix
         self.S_NN: Matrix
         self.M_nn: Matrix
@@ -81,9 +96,11 @@ class Davidson(PWFDEigensolver):
 
         psit2_nX = psit_nX.new(data=self.work_arrays[0, :b])
         data_buffer = self.data_buffers[0]
-        wfs.subspace_diagonalize(Ht, dH,
-                                 psit2_nX=psit2_nX,
-                                 data_buffer=data_buffer)
+        wfs.subspace_diagonalize(
+            Ht, dH,
+            psit2_nX=psit2_nX,
+            data_buffer=data_buffer,
+            scalapack_parameters=self.scalapack_parameters)
 
         P_ani = wfs.P_ani
         P2_ani = P_ani.new()
@@ -100,7 +117,6 @@ class Davidson(PWFDEigensolver):
 
         me_buffer_mX = psit_nX.create_work_buffer(data_buffer)
 
-        @trace
         def me(a, b, function=None):
             """Matrix elements"""
             return a.matrix_elements(b,
@@ -137,36 +153,36 @@ class Davidson(PWFDEigensolver):
 
             # Calculate projections
             wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
-            with tracectx('Matrix elements'):
-                # Sliced matrix elements with hamiltonian. See
-                # sliced_matrix_elements docstring.
-                sliced_matrix_elements(psit_nX, psit2_nX,
-                                       buffer_mX=me_buffer_mX,
-                                       Ht=Ht,
-                                       M1_nn=M_nn,
-                                       M2_nn=M2_nn)
 
-                # <psi2 | H | psi2>
-                dH(P2_ani, out_ani=P3_ani)
-                P2_ani.matrix.multiply(P3_ani, opb='C', symmetric=True, beta=1,
-                                       out=M2_nn)
-                copy(H_NN.data[B:, B:], M2_nn)
+            # Sliced matrix elements with hamiltonian. See
+            # sliced_matrix_elements docstring.
+            sliced_matrix_elements(psit_nX, psit2_nX,
+                                   buffer_mX=me_buffer_mX,
+                                   Ht=Ht,
+                                   M1_nn=M_nn,
+                                   M2_nn=M2_nn)
 
-                # <psi2 | H | psi>
-                P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
-                copy(H_NN.data[B:, :B], M_nn)
+            # <psi2 | H | psi2>
+            dH(P2_ani, out_ani=P3_ani)
+            P2_ani.matrix.multiply(P3_ani, opb='C', symmetric=True, beta=1,
+                                   out=M2_nn)
+            copy(H_NN.data[B:, B:], M2_nn)
 
-                # <psi2 | S | psi2>
-                me(psit2_nX, psit2_nX)
-                P2_ani.block_diag_multiply(dS_aii, out_ani=P3_ani)
-                P2_ani.matrix.multiply(P3_ani, opb='C', symmetric=True, beta=1,
-                                       out=M_nn)
-                copy(S_NN.data[B:, B:], M_nn)
+            # <psi2 | H | psi>
+            P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
+            copy(H_NN.data[B:, :B], M_nn)
 
-                # <psi2 | S | psi>
-                me(psit2_nX, psit_nX)
-                P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
-                copy(S_NN.data[B:, :B], M_nn)
+            # <psi2 | S | psi2>
+            me(psit2_nX, psit2_nX)
+            P2_ani.block_diag_multiply(dS_aii, out_ani=P3_ani)
+            P2_ani.matrix.multiply(P3_ani, opb='C', symmetric=True, beta=1,
+                                   out=M_nn)
+            copy(S_NN.data[B:, B:], M_nn)
+
+            # <psi2 | S | psi>
+            me(psit2_nX, psit_nX)
+            P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
+            copy(S_NN.data[B:, :B], M_nn)
 
             if is_domain_band_master:
                 H_NN.data[:B, :B] = xp.diag(eig_N[:B])
