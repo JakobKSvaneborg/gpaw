@@ -44,12 +44,13 @@ def get_lattice_symmetry(cell_cv, tolerance=1e-7):
     return latsym
 
 
-def predicated_monkhorst_pack_grid(
+def optimal_monkhorst_pack_grid(
         atoms: Atoms,
+        *
         kptdensity: float,
         minimize_ibz_points: bool = False,
-        is_even: bool | None = None,
-        contains_gamma: bool | None = None,
+        force_even: bool = False,
+        force_gamma: bool = False,
         contains_ibz_vertices: bool = False,
         is_symmetric_mp_grid: bool = False,
         nmaxperdim: int = 8) -> dict[str, Any]:
@@ -70,22 +71,18 @@ def predicated_monkhorst_pack_grid(
         Should this function return the compliant MP grid which contains the
         smallest number of IBZ points (True) or the MP grid which contains the
         smallest number of BZ points (False).
-    is_even:
-        Should the Monkhorst-Pack grids contain an even number of k-points
-        along the crystal axes?
-        (True | False | None) -> (Yes | No | Does not matter)
-    contains_gamma:
+    force_even:
+        Should the Monkhorst-Pack grids be forced to contain an even number of
+        k-points along the crystal axes?
+    force_gamma:
         Should the k-point sampling be forced to contain the Gamma point
         through offsets?
-        (True | False | None) -> (Yes | No | Does not matter)
     contains_ibz_vertices:
         Should the function only accept k-point samplings which contain all
         vertices of the IBZ?
-        (True | False) -> (Yes | No)
     is_symmetric_mp_grid:
         Should the function only accept k-point samplings which are as
         symmetric as the crystal?
-        (True | False) -> (Yes | No)
     nmaxperdim:
         When searching for compliant k-point samplings, how large should the
         maximum sampling size be (along each crystal axes) compared to the
@@ -107,10 +104,6 @@ def predicated_monkhorst_pack_grid(
     predicate_functions = []
     if contains_ibz_vertices:
         predicate_functions.append(contains_ibz_vertices_predicate)
-        if contains_gamma is None:
-            contains_gamma = True
-        if is_even is None:
-            is_even = True
         msg += ('\n\nThe k-point sampling must contain every vertex point '
                 'of the irreducible Brillouin zone.')
     if is_symmetric_mp_grid:
@@ -120,17 +113,13 @@ def predicated_monkhorst_pack_grid(
     print(msg)
 
     minsize = get_mp_grid_from_min_distance_criteria(
-        atoms, 2. * np.pi * kptdensity, even=is_even)
+        atoms, 2. * np.pi * kptdensity, even=force_even)
 
-    match is_even:
-        case True:
-            minsize += minsize % 2
-            step = 2
-        case False:
-            minsize += (minsize + 1) % 2
-            step = 2
-        case None:
-            step = 1
+    if force_even:
+        minsize += minsize % 2
+        step = 2
+    else:
+        step = 1
     maxsize = minsize + nmaxperdim
 
     pbc = atoms.pbc
@@ -145,27 +134,24 @@ def predicated_monkhorst_pack_grid(
             yield size
     mp_grids = np.array(list(mp_gridsize_generator(minsize, maxsize, step)))
 
-    if contains_gamma is None:
-        contains_gamma = False
-
     for predicate_function in predicate_functions:
         mp_grids = mp_grids[predicate_function(mp_grids, atoms,
-                                               gamma=contains_gamma)]
+                                               gamma=force_gamma)]
         if len(mp_grids) == 0:
             raise RuntimeError('Could not find grid which satisfies the'
                                f' {predicate_function.__name__}')
 
     if len(mp_grids) == 1:
-        return {'size': mp_grids[0], 'gamma': contains_gamma}
+        return {'size': mp_grids[0], 'gamma': force_gamma}
     else:
         if minimize_ibz_points:
-            nk_ibz = get_nk_ibz(mp_grids, atoms, contains_gamma)
+            nk_ibz = get_nk_ibz(mp_grids, atoms, force_gamma)
             return {'size': mp_grids[np.argmin(nk_ibz)],
-                    'gamma': contains_gamma}
+                    'gamma': force_gamma}
         else:
             nk_bz = np.prod(mp_grids, axis=1)
             return {'size': mp_grids[np.argmin(nk_bz)],
-                    'gamma': contains_gamma}
+                    'gamma': force_gamma}
 
 
 def get_mp_grid_from_min_distance_criteria(atoms, min_distance, even):
@@ -188,19 +174,12 @@ def get_mp_grid_from_min_distance_criteria(atoms, min_distance, even):
         atoms, kptdensity=min_distance / (2. * np.pi), even=even)
     minsize = -(minsize_naive // -2)  # ceiling division :)
 
-    match even:
-        case True:
-            minsize_naive += minsize_naive % 2
-            minsize += minsize % 2
-            # Should step be an array of len = 3 for
-            # when pbc is false along some directions?
-            step = 2
-        case False:
-            minsize_naive += (minsize_naive + 1) % 2
-            minsize += (minsize + 1) % 2
-            step = 2
-        case None:
-            step = 1
+    if even:
+        minsize_naive += minsize_naive % 2
+        minsize += minsize % 2
+        step = 2
+    else:
+        step = 1
 
     pbc_c = atoms.pbc
     cell_cv = atoms.cell
