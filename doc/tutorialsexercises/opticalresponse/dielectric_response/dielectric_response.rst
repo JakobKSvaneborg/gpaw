@@ -319,11 +319,13 @@ vertices of the irreducible Brillouin zone, i.e. the high-symmetry points.
 Luckily, :git:`~gpaw/bztools.py` provides the tool to generate such a
 k-point sampling automatically::
 
-    from gpaw.bztools import predicated_monkhorst_pack_grid
-    kpts = predicated_monkhorst_pack_grid(
+    from gpaw.bztools import optimal_monkhorst_pack_grid
+    kpts = optimal_monkhorst_pack_grid(
         atoms,  # Atoms object
-        density=20.0,  # Predicated minimum density of the k-point sampling
-        contains_ibz_vertices=True)  # Additional predicate for
+        kptdensity=20.0,  # Required minimum density of the k-point sampling
+        force_gamma=True,
+        force_even=True,
+        contains_ibz_vertices=True)  # Additional predicates for
                                      # accepting the k-point grid
 
 
