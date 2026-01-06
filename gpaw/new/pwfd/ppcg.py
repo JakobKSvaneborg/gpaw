@@ -222,9 +222,10 @@ class PPCG(PWFDEigensolver):
             P3_ani = P_ani.new()
             Ptemp_ani = P_ani.new()
             P_ani.block_diag_multiply(dS_aii, out_ani=Ptemp_ani)
-            Pbuf_abi = P_ani.layout.empty((self.nblocksizes, )
-                                          + psit_nX.dims[1:])
-            HPbuf_abi = Pbuf_abi.new()
+            Pbuf_abi = P_ani.layout.empty(
+                (self.nblocksizes, ) + psit_nX.dims[1:])
+            HPbuf_abi = P_ani.layout.empty(
+                (self.nblocksizes - self.blocksize, ) + psit_nX.dims[1:])
 
             domain_comm = psit_nX.desc.comm
             band_comm = psit_nX.comm
@@ -235,10 +236,12 @@ class PPCG(PWFDEigensolver):
 
             buffer_array_nX = psit_nX.create_work_buffer(self.data_buffers[0])
 
-            buff_bX = psit_nX.desc.empty((self.nblocksizes, ) +
-                                         psit_nX.dims[1:], xp=psit_nX.xp)
-            Hbuff_bX = psit_nX.desc.empty((self.nblocksizes, ) +
-                                          psit_nX.dims[1:], xp=psit_nX.xp)
+            buff_bX = psit_nX.desc.empty(
+                (self.nblocksizes, ) +
+                psit_nX.dims[1:], xp=psit_nX.xp)
+            Hbuff_bX = psit_nX.desc.empty(
+                (self.nblocksizes - self.blocksize, ) +
+                psit_nX.dims[1:], xp=psit_nX.xp)
 
         with tracectx('Residual'):
             calculate_residuals(wfs.psit_nX,
@@ -329,22 +332,25 @@ class PPCG(PWFDEigensolver):
                         buffer_bb = \
                             self.buffer_bb.ravel()[:nblocks**2].reshape(
                                 (nblocks, nblocks))
-                        MBuf_bb = Matrix(M=nblocks, N=nblocks,
-                                         data=buffer_bb,
-                                         xp=xp)
                     else:
-                        MBuf_bb = MS_bb
+                        buffer_bb = \
+                            S_bb
 
-                    Pbuf_abi.block_diag_multiply(dS_aii, out_ani=HPbuf_abi)
-                    buff_bX[:nblocks].matrix_elements(
+                    MBuf_bb = Matrix(M=nblocks - block, N=nblocks,
+                                     data=buffer_bb[block:nblocks],
+                                     xp=xp)
+
+                    Pbuf_abi[:, block:nblocks].block_diag_multiply(
+                        dS_aii, out_ani=HPbuf_abi[:, :nblocks - block])
+                    buff_bX[block:nblocks].matrix_elements(
                         buff_bX[:nblocks], cc=True, out=MBuf_bb,
-                        domain_sum=False, symmetric=True)
+                        domain_sum=False, symmetric=False)
                     if self.promote_inner_dtype:
                         S_bb[:] = buffer_bb
                         buffer_bb[:] = 0
-                    HPbuf_abi[:, :nblocks].matrix.multiply(
+                    HPbuf_abi[:, :nblocks - block].matrix.multiply(
                         Pbuf_abi[:, :nblocks], out=MBuf_bb,
-                        symmetric=True, beta=1, opb='C')
+                        symmetric=False, beta=1, opb='C')
                     if self.promote_inner_dtype:
                         S_bb += buffer_bb
                     domain_comm.sum(S_bb)
@@ -363,29 +369,29 @@ class PPCG(PWFDEigensolver):
                         *= diag_scale_b[:, None]
 
                     if not self.promote_inner_dtype:
-                        MBuf_bb = MH_bb
+                        MBuf_bb.data = H_bb[block:nblocks]
 
-                    Ht_H = partial(Ht, out=Hbuff_bX[:nblocks])
-                    dH(Pbuf_abi[:, :nblocks],
-                       out_ani=HPbuf_abi[:, :nblocks])
-                    buff_bX[:nblocks].matrix_elements(
-                        buff_bX[:nblocks], function=Ht_H,
+                    Ht(buff_bX[block:nblocks], out=Hbuff_bX[:nblocks - block])
+                    dH(Pbuf_abi[:, block:nblocks],
+                       out_ani=HPbuf_abi[:, :nblocks - block])
+                    Hbuff_bX[:nblocks - block].matrix_elements(
+                        buff_bX[:nblocks],
                         cc=True, out=MBuf_bb,
-                        domain_sum=False, symmetric=True)
+                        domain_sum=False, symmetric=False)
                     if self.promote_inner_dtype:
                         H_bb[:] = buffer_bb
                         buffer_bb[:] = 0
-                    HPbuf_abi[:, :nblocks].matrix.multiply(
+                    HPbuf_abi[:, :nblocks - block].matrix.multiply(
                         Pbuf_abi[:, :nblocks], out=MBuf_bb,
-                        symmetric=True, beta=1, opb='C')
+                        symmetric=False, beta=1, opb='C')
                     if self.promote_inner_dtype:
                         H_bb[:] += buffer_bb[:]
                     domain_comm.sum(H_bb)
 
-                    # Use eigs
-                    if False:
-                        H_bb[:block, :block] = xp.diag(wfs.myeig_n[block_slice])
-                        S_bb[:block, :block] = xp.eye(block)
+                    H_bb[:block, :block] = xp.diag(wfs.myeig_n[block_slice])
+                    S_bb[:block, :block] = xp.eye(block)
+                    MS_bb.tril2full()
+                    MH_bb.tril2full()
 
                     if nblocks > 2 * block:
                         # Eigh approach
