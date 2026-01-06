@@ -109,25 +109,25 @@ class NonSelfConsistentHSE06:
 
         if ibz_indices is None:
             ibz_indices = range(len(ibzwfs.ibz))
-        nibzkpts = len(ibz_indices)
+        nkpts = len(ibz_indices)
 
-        comm_rank_ks = np.zeros((nibzkpts, ibzwfs.nspins), int)
-        for k in ibz_indices:
+        comm_rank_is = np.zeros((nkpts, ibzwfs.nspins), int)
+        for i, k in enumerate(ibz_indices):
             for spin in range(ibzwfs.nspins):
                 if ibzwfs.rank_ks[k, spin] == kpt_comm.rank:
                     if band_comm.rank == 0 and domain_comm.rank == 0:
-                        comm_rank_ks[k, spin] = comm.rank
-        comm.sum(comm_rank_ks)
+                        comm_rank_is[i, spin] = comm.rank
+        comm.sum(comm_rank_is)
 
         self.log('Calculating eigenvalues:')
-        self.log('  k-points:', nibzkpts)
+        self.log('  k-points:', nkpts)
         self.log(f'  Bands: {na}-{nb - 1} (inclusive)')
 
         tb = 0.0
         t1 = time()
-        eig_ksn = []  # self-consistent DFT eigenvalues
-        deig_ksn = []  # HSE06 eigenvalue changes
-        for k in ibz_indices:
+        eig_isn = []  # self-consistent DFT eigenvalues
+        deig_isn = []  # HSE06 eigenvalue changes
+        for i, k in enumerate(ibz_indices):
             eig_sn = []
             deig_sn = []
             for spin in range(ibzwfs.nspins):
@@ -138,26 +138,26 @@ class NonSelfConsistentHSE06:
                     if wfs is not None:
                         data = (wfs.psit_nX, wfs.P_ani, wfs.eig_n * Ha, spin)
                 psit_nG, P_ani, eig_n, spin = broadcast(
-                    data, comm_rank_ks[k, spin], comm=comm)
+                    data, comm_rank_is[i, spin], comm=comm)
                 tb += time()
                 eig_sn.append(eig_n)
                 deig_n = self.calculate_one_kpt(psit_nG, P_ani, spin)
                 deig_sn.append(deig_n)
-            eig_ksn.append(eig_sn)
-            deig_ksn.append(deig_sn)
+            eig_isn.append(eig_sn)
+            deig_isn.append(deig_sn)
         t2 = time()
         self.log(f'  Seconds: {t2 - t1:.3f} '
                  f'(wave-function broadcasting: {tb:.3f} seconds)')
 
-        eig_skn = np.array(eig_ksn).transpose((1, 0, 2))
-        deig_skn = np.array(deig_ksn).transpose((1, 0, 2))
+        eig_sin = np.array(eig_isn).transpose((1, 0, 2))
+        deig_sin = np.array(deig_isn).transpose((1, 0, 2))
 
         self.log('HSE06-eigenvalue shifts:')
-        self.log(f'  min: {deig_skn.min():.3f} eV')
-        self.log(f'  ave: {deig_skn.mean():.3f} eV')
-        self.log(f'  max: {deig_skn.max():.3f} eV')
+        self.log(f'  min: {deig_sin.min():.3f} eV')
+        self.log(f'  ave: {deig_sin.mean():.3f} eV')
+        self.log(f'  max: {deig_sin.max():.3f} eV')
 
-        return eig_skn, eig_skn + deig_skn
+        return eig_sin, eig_sin + deig_sin
 
     def calculate_one_kpt(self,
                           psit2_nG: PWArray,
