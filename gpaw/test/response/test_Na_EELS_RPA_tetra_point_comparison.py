@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from gpaw import GPAW
-from gpaw.bztools import predicated_monkhorst_pack_grid
+from gpaw.bztools import optimal_monkhorst_pack_grid
 from gpaw.mpi import world
 from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.test import findpeak
@@ -17,8 +17,11 @@ def test_response_Na_EELS_RPA_tetra_point_comparison(in_tmp_dir, gpw_files):
     calc = GPAW(gpwname)
 
     # Generate grid compatible with tetrahedron integration
-    kpts = predicated_monkhorst_pack_grid(
-        calc.atoms, 6.0,
+    kpts = optimal_monkhorst_pack_grid(
+        calc.atoms,
+        kptdensity=6.0,
+        force_gamma=True,
+        force_even=True,
         contains_ibz_vertices=True,
         nmaxperdim=2)
 

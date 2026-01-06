@@ -6,7 +6,7 @@ from ase.build import bulk
 from ase.parallel import parprint
 
 from gpaw import GPAW, PW
-from gpaw.bztools import predicated_monkhorst_pack_grid
+from gpaw.bztools import optimal_monkhorst_pack_grid
 from gpaw.mpi import world
 from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.test import findpeak
@@ -39,8 +39,11 @@ def test_response_aluminum_EELS_RPA(in_tmp_dir):
     calc.write('Al_gs.gpw')
 
     # Generate grid compatible with tetrahedron integration
-    kpts = predicated_monkhorst_pack_grid(
-        atoms, 2.0,
+    kpts = optimal_monkhorst_pack_grid(
+        atoms,
+        kptdensity=2.0,
+        force_gamma=True,
+        force_even=True,
         contains_ibz_vertices=True,
         nmaxperdim=2)
 
