@@ -253,7 +253,8 @@ def set_device(log, world):
             bus_id = runtime.deviceGetPCIBusId(runtime.getDevice())
             device_id = f'{nodename}:{bus_id}'
 
-    log(f'mpi rank {world.rank} has GPU device {device_id}', parallel=True)
+        log(f'mpi rank {world.rank} has GPU device {device_id}', parallel=True)
+
     if ENVVAR_GPAW_NO_GPU_MPI:
         log('Running without GPU aware MPI because \'GPAW_NO_GPU_MPI\' is'
             ' set in the environment. Comms will be staged through host.')
