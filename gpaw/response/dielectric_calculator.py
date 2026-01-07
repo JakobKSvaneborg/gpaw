@@ -50,7 +50,6 @@ class DielectricFunctionCalculator:
             epsinv_GG[:] = self.single_frequency_epsinv_GG(w)
             if only_correlation:
                 epsinv_GG -= self.I_GG
-            epsinv_wGG.append(epsinv_GG)
         return epsinv_wGG
 
     def single_frequency_epsinv_GG(self, w):
