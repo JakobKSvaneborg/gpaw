@@ -44,7 +44,8 @@ class DielectricFunctionCalculator:
         """
         Calculates inverse dielectric matrix for all frequencies.
         """
-        epsinv_wGG = np.zeros((self.wblocks.nlocal, *self.I_GG.shape), dtype=complex)
+        epsinv_wGG = np.zeros((self.wblocks.nlocal, *self.I_GG.shape),
+                              dtype=complex)
         for w, epsinv_GG in enumerate(epsinv_wGG):
             epsinv_GG[:] = self.single_frequency_epsinv_GG(w)
             if only_correlation:
