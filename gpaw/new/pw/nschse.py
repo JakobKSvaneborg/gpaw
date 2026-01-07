@@ -76,7 +76,8 @@ class NonSelfConsistentHSE06:
         self.dE_asii = dVxc_asii.new()
         for a, D_sii in density.D_asii.items():
             setup = setups[a]
-            VC_ii = unpack_hermitian(setup.X_p * self.exx_fraction)
+            VC_ii = (unpack_hermitian(setup.X_p * self.exx_fraction)
+                     if setup.X_p is not None else 0.0)
             dE_sii = []
             for D_ii, dVxc_ii in zip(D_sii, dVxc_asii[a]):
                 VV_ii = self.exx_fraction * (
