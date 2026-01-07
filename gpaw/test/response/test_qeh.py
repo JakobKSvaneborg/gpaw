@@ -103,3 +103,43 @@ def test_qeh_parallel(in_tmp_dir, gpw_files):
         G2 = np.argmin(np.linalg.norm(G_Gv[None, 2] - G2_Gv, axis=1))
         assert chi2_wGG[3, G2, G1] == pytest.approx(chi_wGG[3, 2, 1], rel=1e-2)
         assert chi2_wGG.shape[1] == len(G2_Gv)
+
+
+@pytest.mark.response
+def test_sanitize_for_npz(in_tmp_dir):
+    """Test that _sanitize_for_npz and _desanitize_from_npz handle None values."""
+    from gpaw.response.qeh import _sanitize_for_npz, _desanitize_from_npz
+
+    # Test basic None handling
+    assert _sanitize_for_npz(None) == '__none__'
+
+    # Test 0-d object array with None
+    arr_none = np.array(None, dtype=object)
+    assert _sanitize_for_npz(arr_none) == '__none__'
+
+    # Test dict with various types including None
+    info = {
+        'eshift': None,
+        'eta': 0.1,
+        'nbands': 10,
+        'data': np.array([1.0, 2.0, 3.0]),
+    }
+    sanitized = _sanitize_for_npz(info)
+
+    assert sanitized['eshift'] == '__none__'
+    assert sanitized['eta'] == 0.1
+    assert sanitized['nbands'] == 10
+    assert np.array_equal(sanitized['data'], info['data'])
+
+    # Test round-trip through npz file
+    np.savez_compressed('test_sanitize.npz', **sanitized)
+    loaded = np.load('test_sanitize.npz', allow_pickle=False)
+
+    # Desanitize individual numpy string array (as returned by npz)
+    assert _desanitize_from_npz(loaded['eshift']) is None
+
+    # Desanitize full dict
+    desanitized = _desanitize_from_npz(dict(loaded))
+    assert desanitized['eshift'] is None
+    assert desanitized['eta'] == pytest.approx(0.1)
+    assert desanitized['nbands'] == 10
