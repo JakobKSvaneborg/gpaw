@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 import numpy as np
 from ase.units import pi
 from typing import Any, Dict, Union
@@ -13,7 +14,7 @@ def _sanitize_for_npz(value: Any) -> Any:
     - None -> "__none__" (numpy converts None to object arrays)
     - 0-d object arrays (e.g., np.array(None, dtype=object)) -> extracted scalar
     - Object arrays with a single element -> the element itself
-    - Recursively sanitizes dicts
+    - Recursively sanitizes dicts and dict-like objects (including NpzFile)
 
     Parameters
     ----------
@@ -45,7 +46,8 @@ def _sanitize_for_npz(value: Any) -> Any:
                 return value
         # Non-object arrays are fine for npz
         return value
-    elif isinstance(value, dict):
+    elif isinstance(value, Mapping):
+        # Handles dict, NpzFile, and other dict-like objects
         return {k: _sanitize_for_npz(v) for k, v in value.items()}
     elif isinstance(value, (list, tuple)):
         sanitized = [_sanitize_for_npz(item) for item in value]
