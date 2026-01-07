@@ -80,12 +80,4 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
                 mynbands, M = wfs.C_nM.dist.shape
                 phit_aJG.multiply(wfs.C_nM.to_dtype(pw.dtype),
                                   out_nG=psit_nG[:mynbands])
-            print(wfs.kpt_c)
             wfs.psit_nX = psit_nG
-            pt_aiG = psit_nG.desc.atom_centered_functions(
-                [setup.pt_j for setup in setups],
-                relpos_ac)
-            P_ani = pt_aiG.integrate(psit_nG)
-            print('P', P_ani[0])
-            print('P', wfs.P_ani[0])
-
