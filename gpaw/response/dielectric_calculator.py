@@ -36,28 +36,29 @@ class DielectricFunctionCalculator:
         else:
             return self.xckernel.calculate(self.qpd)
 
-    @cached_property
-    def chi0_wGG(self):
-        return self.chi0.body.copy_array_with_distribution('wGG')
-
     def get_epsinv_wGG(self, only_correlation=True):
         """
         Calculates inverse dielectric matrix for all frequencies.
         """
-        epsinv_wGG = []
-        for w in range(self.wblocks.nlocal):
-            epsinv_GG = self.single_frequency_epsinv_GG(w)
+        epsinv_wGG = np.zeros((self.wblocks.nlocal, *self.I_GG.shape),
+                              dtype=complex)
+
+        # chi0_wGG cannot be a cached property since some cores do not have
+        # any frequency points. Therefore we get it here.
+        chi0_wGG = self.chi0.body.array_with_distribution('wGG')
+
+        for w, epsinv_GG in enumerate(epsinv_wGG):
+            epsinv_GG[:] = self.single_frequency_epsinv_GG(w, chi0_wGG)
             if only_correlation:
                 epsinv_GG -= self.I_GG
-            epsinv_wGG.append(epsinv_GG)
-        return np.asarray(epsinv_wGG)
+        return epsinv_wGG
 
-    def single_frequency_epsinv_GG(self, w):
+    def single_frequency_epsinv_GG(self, w, chi0_wGG):
         """
         Calculates inverse dielectric matrix for single frequency
         """
         _dfc = _DielectricFunctionCalculator(self.sqrtV_G,
-                                             self.chi0_wGG[w],
+                                             chi0_wGG[w],
                                              self.mode,
                                              self.fxc_GG)
         if self.optical_limit:

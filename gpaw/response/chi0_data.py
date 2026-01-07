@@ -68,6 +68,17 @@ class Chi0BodyData(Chi0RelatedData):
         """Get Blocks1D for the global frequency distribution."""
         return Blocks1D(self.blockdist.world, len(self.wd))
 
+    def array_with_distribution(self, distribution):
+        """Return the data in a desired distribution.
+
+        Parameters
+        ----------
+        distribution: str
+            Array distribution. Choices: 'wGG' and 'WgG'
+        """
+        return self.blockdist.distribute_as(self.data_WgG, self.nw,
+                                            distribution)
+
     def copy_array_with_distribution(self, distribution):
         """Copy data to a new array of a desired distribution.
 
