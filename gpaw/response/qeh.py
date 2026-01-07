@@ -10,6 +10,7 @@ def _sanitize_for_npz(value: Any) -> Any:
     """Sanitize a value to avoid requiring pickle when saving to npz.
 
     Converts problematic types that would require allow_pickle=True:
+    - None -> "__none__" (numpy converts None to object arrays)
     - 0-d object arrays (e.g., np.array(None, dtype=object)) -> extracted scalar
     - Object arrays with a single element -> the element itself
     - Recursively sanitizes dicts
@@ -24,6 +25,9 @@ def _sanitize_for_npz(value: Any) -> Any:
     Any
         The sanitized value that can be saved without pickling.
     """
+    if value is None:
+        # numpy converts None to np.array(None, dtype=object) which needs pickle
+        return "__none__"
     if isinstance(value, np.ndarray):
         # Object arrays require pickling - try to convert them
         if value.dtype == object:
@@ -52,7 +56,7 @@ def _sanitize_for_npz(value: Any) -> Any:
     elif isinstance(value, np.bool_):
         return bool(value)
     else:
-        # Basic Python types (int, float, str, None, bool) are fine
+        # Basic Python types (int, float, str, bool) are fine
         return value
 
 try:
