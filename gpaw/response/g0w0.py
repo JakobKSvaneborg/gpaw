@@ -1437,7 +1437,7 @@ class EXXVXCCalculator:
         from gpaw.new.pw.nschse import NonSelfConsistentHSE06
         from gpaw.dft import GPAW as NewGPAW
 
-        if 1:
+        if 0:
             dft = NewGPAW(self._gpwfile, communicator=self.world).dft
             dft.pwify()
             exx = NonSelfConsistentHSE06.from_dft_calculation(dft, 'EXX')

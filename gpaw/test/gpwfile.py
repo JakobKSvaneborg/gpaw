@@ -954,7 +954,7 @@ class GPWFiles(CachedFilesHandler):
         from gpaw.new.ase_interface import GPAW
         a = 2.5
         k = 4
-        """Compare 2*H AFM cell with 1*H q=1/2 spin-spiral cell."""
+        # Compare 2*H AFM cell with 1*H q=1/2 spin-spiral cell.
         h = Atoms('H',
                   magmoms=[1],
                   cell=[a, 0, 0],
@@ -2060,7 +2060,7 @@ class GPWFiles(CachedFilesHandler):
     def _fe(self, *, band_cutoff, symmetry=None):
         if symmetry is None:
             symmetry = {}
-        """See also the fe_fixture_test.py test."""
+        # See also the fe_fixture_test.py test.
         xc = 'LDA'
         kpts = 4
         pw = 300
@@ -2487,6 +2487,20 @@ class GPWFiles(CachedFilesHandler):
     @gpwfile
     def intraband_spinpolarized_fulldiag(self):
         return self._intraband(True)
+
+    @gpwfile
+    def diamond_lcao(self):
+        atoms = bulk('C')
+        atoms.calc = GPAW(
+            mode='lcao',
+            basis='dzp',
+            nbands='nao',
+            convergence={'density': 1e-6},
+            kpts={'gamma': True,
+                  'size': (2, 2, 2)},
+            txt=self.folder / 'diamond_lcao.txt')
+        atoms.get_potential_energy()
+        return atoms.calc
 
 
 # We add Si fixtures with various symmetries to the GPWFiles namespace
