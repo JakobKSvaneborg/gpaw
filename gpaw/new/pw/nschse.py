@@ -286,5 +286,8 @@ def nsc_corrections(density: Density,
         dV_sp *= -1
         hyb.calculate_paw_correction(setup, D_sp, dV_sp)
         dV_asii[a][:] = unpack_hermitian(dV_sp)
+        if setup.hubbard_u is not None:
+            _, dHU_sii = setup.hubbard_u.calculate(setup, D_sii)
+            dV_asii[a][:] -= dHU_sii
 
     return dvt_sR, dV_asii
