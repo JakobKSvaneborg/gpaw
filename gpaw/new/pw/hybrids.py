@@ -171,8 +171,10 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
                 [setup.pt_j for setup in setups],
                 relpos_ac)
             P_ani = pt_aiG.integrate(psit_nG)
-
+            print(psit_nG.desc.kpt)
+            print(P_ani[0])
             psit_nR = psit_nG.ifft(grid=grid, plan=plan, periodic=False)
+            print(psit_nR.data[0, 10, 10])
             Q_aniL = {a: np.einsum('ijL, nj -> niL',
                                    setup.Delta_iiL, P_ani[a].conj())
                       for a, setup in enumerate(setups)}

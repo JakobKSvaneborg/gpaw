@@ -482,7 +482,8 @@ class DFTCalculation:
     def pwify(self):
         if self.ibzwfs.mode == 'pw':
             return
-        self.ibzwfs.pwify(self.relpos_ac, self.setups)
+        self.ibzwfs.pwify(self.relpos_ac, self.setups,
+                          self.scf_loop.hamiltonian.basis)
 
     def get_state(self):
         return DFTState(self.ibzwfs, self.density, self.potential)

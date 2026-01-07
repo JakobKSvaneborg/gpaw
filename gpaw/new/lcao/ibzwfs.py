@@ -47,7 +47,7 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
         comp_charge = ccc_aL.layout.atomdist.comm.sum_scalar(comp_charge)
         density.nt_sR.data *= -comp_charge / pseudo_charge
 
-    def pwify(self, relpos_ac, setups):
+    def pwify(self, relpos_ac, setups, basis_set):
         from gpaw.core.plane_waves import PWDesc
         from gpaw.core.pwacf import PWAtomCenteredFunctions
 
@@ -57,17 +57,35 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
                      dtype=self.dtype)
         for wfs in self:
             pw = pw0.new(kpt=wfs.kpt_c)
-            phit_aJG = PWAtomCenteredFunctions(
-                [setup.basis_functions_J for setup in setups],
-                relpos_ac,
-                pw,
-                atomdist=wfs.atomdist,
-                xp=self.xp)
-            psit_nG = pw.empty(self.nbands,
-                               comm=self.band_comm,
-                               xp=self.xp)
-            mynbands, M = wfs.C_nM.dist.shape
-            phit_aJG.multiply(wfs.C_nM.to_dtype(pw.dtype),
-                              out_nG=psit_nG[:mynbands])
+            if 1:
+                grid = self.grid.new(kpt=wfs.kpt_c, dtype=self.dtype)
+                emikr_R = grid.eikr(-wfs.kpt_c)
+                psit_nG = pw.empty(self.nbands, self.band_comm)
+                psit_nR = grid.zeros(self.nbands)
+                basis_set.lcao_to_grid(wfs.C_nM.data, psit_nR.data, wfs.q)
+
+                for psit_R, psit_G in zip(psit_nR, psit_nG):
+                    psit_R.data *= emikr_R
+                    psit_R.fft(out=psit_G)
+            else:
+                phit_aJG = PWAtomCenteredFunctions(
+                    [setup.basis_functions_J for setup in setups],
+                    relpos_ac,
+                    pw,
+                    atomdist=wfs.atomdist,
+                    xp=self.xp)
+                psit_nG = pw.empty(self.nbands,
+                                   comm=self.band_comm,
+                                   xp=self.xp)
+                mynbands, M = wfs.C_nM.dist.shape
+                phit_aJG.multiply(wfs.C_nM.to_dtype(pw.dtype),
+                                  out_nG=psit_nG[:mynbands])
+            print(wfs.kpt_c)
             wfs.psit_nX = psit_nG
-            print(psit_nG)
+            pt_aiG = psit_nG.desc.atom_centered_functions(
+                [setup.pt_j for setup in setups],
+                relpos_ac)
+            P_ani = pt_aiG.integrate(psit_nG)
+            print('P', P_ani[0])
+            print('P', wfs.P_ani[0])
+
