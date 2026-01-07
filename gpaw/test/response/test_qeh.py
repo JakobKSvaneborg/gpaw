@@ -143,3 +143,17 @@ def test_sanitize_for_npz(in_tmp_dir):
     assert desanitized['eshift'] is None
     assert desanitized['eta'] == pytest.approx(0.1)
     assert desanitized['nbands'] == 10
+
+    # Test nested dict desanitization (simulating loaded info dict)
+    nested_info = {
+        'ecut': {
+            'class': np.array('cylindrical'),
+            'ecut_xy': np.array(7.35),
+        },
+        'eshift': np.array('__none__'),
+        'eta': np.array(0.001),
+    }
+    desanitized_nested = _desanitize_from_npz(nested_info)
+    assert desanitized_nested['eshift'] is None
+    assert desanitized_nested['ecut']['class'] is not None  # unchanged
+    assert desanitized_nested['eta'] is not None  # unchanged
