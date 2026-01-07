@@ -5,6 +5,56 @@ from ase.units import pi
 from typing import Any, Dict, Union
 from gpaw.response.df import DielectricFunction
 
+
+def _sanitize_for_npz(value: Any) -> Any:
+    """Sanitize a value to avoid requiring pickle when saving to npz.
+
+    Converts problematic types that would require allow_pickle=True:
+    - 0-d object arrays (e.g., np.array(None, dtype=object)) -> extracted scalar
+    - Object arrays with a single element -> the element itself
+    - Recursively sanitizes dicts
+
+    Parameters
+    ----------
+    value : Any
+        The value to sanitize.
+
+    Returns
+    -------
+    Any
+        The sanitized value that can be saved without pickling.
+    """
+    if isinstance(value, np.ndarray):
+        # Object arrays require pickling - try to convert them
+        if value.dtype == object:
+            # 0-d array with single value (e.g., np.array(None, dtype=object))
+            if value.ndim == 0:
+                return _sanitize_for_npz(value.item())
+            # 1-d array with single element
+            if value.ndim == 1 and value.size == 1:
+                return _sanitize_for_npz(value[0])
+            # Multi-element object array - convert to list if possible
+            try:
+                return [_sanitize_for_npz(item) for item in value]
+            except (TypeError, ValueError):
+                # Can't convert, return as-is (will require pickling)
+                return value
+        # Non-object arrays are fine for npz
+        return value
+    elif isinstance(value, dict):
+        return {k: _sanitize_for_npz(v) for k, v in value.items()}
+    elif isinstance(value, (list, tuple)):
+        sanitized = [_sanitize_for_npz(item) for item in value]
+        return type(value)(sanitized)
+    elif isinstance(value, (np.integer, np.floating)):
+        # Convert numpy scalar types to Python types
+        return value.item()
+    elif isinstance(value, np.bool_):
+        return bool(value)
+    else:
+        # Basic Python types (int, float, str, None, bool) are fine
+        return value
+
 try:
     from qeh.bb_calculator.chicalc import ChiCalc, QPoint
 except ImportError:
@@ -177,4 +227,5 @@ class QEHChiCalc(ChiCalc):
         if extra_info is not None:
             info.update(extra_info)
 
-        return info
+        # Sanitize all values to avoid requiring pickle when saving to npz
+        return _sanitize_for_npz(info)
