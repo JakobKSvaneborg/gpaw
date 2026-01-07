@@ -63,12 +63,10 @@ def _sanitize_for_npz(value: Any) -> Any:
 
 
 def _desanitize_from_npz(value: Any) -> Any:
-    """Convert "__none__" back to None."""
-    if isinstance(value, np.ndarray) and value.dtype.kind in ('U', 'S') and value.ndim == 0:
-        value = value.item()
-        if isinstance(value, bytes):
-            value = value.decode()
-    if value == "__none__":
+    """Convert "__none__" back to None, recursively for dicts."""
+    if isinstance(value, dict):
+        return {k: _desanitize_from_npz(v) for k, v in value.items()}
+    elif isinstance(value, str) and value == '__none__':
         return None
     return value
 
