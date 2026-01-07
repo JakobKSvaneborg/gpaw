@@ -63,44 +63,14 @@ def _sanitize_for_npz(value: Any) -> Any:
 
 
 def _desanitize_from_npz(value: Any) -> Any:
-    """Restore sanitized values back to their original types.
-
-    Reverses the conversions done by _sanitize_for_npz:
-    - "__none__" -> None
-    - Recursively desanitizes dicts and dict-like objects (including NpzFile)
-
-    Parameters
-    ----------
-    value : Any
-        The value to desanitize.
-
-    Returns
-    -------
-    Any
-        The desanitized value with original types restored.
-    """
-    if isinstance(value, np.ndarray):
-        # Handle 0-d string arrays containing "__none__"
-        if value.dtype.kind in ('U', 'S') and value.ndim == 0:
-            s = str(value) if value.dtype.kind == 'U' else value.item().decode()
-            if s == "__none__":
-                return None
-        return value
-    elif isinstance(value, str):
-        if value == "__none__":
-            return None
-        return value
-    elif isinstance(value, bytes):
-        if value == b"__none__":
-            return None
-        return value
-    elif isinstance(value, Mapping):
-        return {k: _desanitize_from_npz(v) for k, v in value.items()}
-    elif isinstance(value, (list, tuple)):
-        desanitized = [_desanitize_from_npz(item) for item in value]
-        return type(value)(desanitized)
-    else:
-        return value
+    """Convert "__none__" back to None."""
+    if isinstance(value, np.ndarray) and value.dtype.kind in ('U', 'S') and value.ndim == 0:
+        value = value.item()
+        if isinstance(value, bytes):
+            value = value.decode()
+    if value == "__none__":
+        return None
+    return value
 
 
 try:
