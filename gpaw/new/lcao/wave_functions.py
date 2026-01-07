@@ -243,7 +243,7 @@ class LCAOWaveFunctions(WaveFunctions, XP):
             ncomponents=self.ncomponents)
         wfs._eig_n = self._eig_n
         if hasattr(self, 'psit_nX'):
-            wfs.psit_nX = self.psit_nX[n1:n2]
+            wfs.psit_nX = self.psit_nX[n1:n2]  # type: ignore [attr-defined]
         return wfs
 
     def force_contribution(self, potential: Potential, F_av: Array2D):
