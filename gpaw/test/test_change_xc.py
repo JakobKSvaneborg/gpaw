@@ -31,14 +31,14 @@ def test_xc():
     dft.converge()
 
     dft.change_xc(xc_hse)
-    ase_calc = dft.ase_calculator()
 
     # fixed_density
     if 0:
         dft.scf_loop.update_density_and_potential = False
-        dft.converge(steps=3)
+        dft.converge(steps=1)
         dft.scf_loop.update_density_and_potential = True
 
+    ase_calc = dft.ase_calculator()
     etot_xc = ase_calc.get_potential_energy(atoms)
 
     if 0:
