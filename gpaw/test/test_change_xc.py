@@ -1,5 +1,6 @@
 from ase.build import molecule
 from gpaw.new.ase_interface import GPAW
+from ase.units import Hartree
 
 def test_xc():
 
@@ -36,11 +37,18 @@ def test_xc():
     atoms.calc = calc
     etot_pbe = atoms.get_potential_energy()
 
-    params = calc.params
-    calc.dft.change_xc(atoms, params, xc_lda)
-    etot_xc = atoms.get_potential_energy()
+    calc.dft.change_xc(atoms, calc.params, xc_hse)
+    ase_calc = calc.dft.ase_calculator()
+    etot_xc = ase_calc.get_potential_energy(atoms)
+
+    params['xc'] = xc_hse
+    calc = GPAW(**params)
+    atoms.calc = calc
+    etot_hse = atoms.get_potential_energy()
+
     print('etot_pbe=', etot_pbe)
     print('etot_xc=', etot_xc)
+    print('etot_hse=', etot_hse)
 
 if __name__ == "__main__":
     test_xc()

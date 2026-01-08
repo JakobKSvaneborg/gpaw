@@ -407,8 +407,9 @@ class DFTCalculation:
         from gpaw.dft import XC
         params.xc = XC.from_param(xc)
         builder = params.dft_component_builder(atoms, log=log)
-        scf_loop = builder.create_scf_loop()
-        pot_calc = builder.create_potential_calculator()
+        self.scf_loop = builder.create_scf_loop()
+        self.pot_calc = builder.create_potential_calculator()
+        self.results = {}
 
     def new(self,
             atoms: Atoms,
