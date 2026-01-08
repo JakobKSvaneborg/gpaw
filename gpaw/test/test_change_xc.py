@@ -1,8 +1,11 @@
+import pytest
 from ase.build import molecule
-from gpaw.new.ase_interface import GPAW
-from ase.units import Hartree
+from gpaw.dft import DFT
+
 
 def test_xc():
+
+    etot_hse = -7.085318
 
     atoms = molecule('H2', cell=[7, 7, 7])
     atoms.center()
@@ -17,7 +20,6 @@ def test_xc():
               'kpts': {'size': [1, 1, 1],
                        'gamma': True},
               'eigensolver': ppcg,
-              'spinpol': True,
               'nbands': 4,
               'mixer': {'method': 'fullspin',
                         'backend': 'fft',
@@ -30,25 +32,24 @@ def test_xc():
               'omega': 0.11,
               'backend': 'pw'}
 
-    xc_pbe = {'name': 'PBE'}
-    xc_lda = {'name': 'LDA'}
+    # preconverge with PBE
+    dft = DFT(atoms, **params)
+    dft.converge()
 
-    calc = GPAW(**params)
-    atoms.calc = calc
-    etot_pbe = atoms.get_potential_energy()
-
-    calc.dft.change_xc(atoms, calc.params, xc_hse)
-    ase_calc = calc.dft.ase_calculator()
+    dft.change_xc(xc_hse)
+    ase_calc = dft.ase_calculator()
     etot_xc = ase_calc.get_potential_energy(atoms)
 
-    params['xc'] = xc_hse
-    calc = GPAW(**params)
-    atoms.calc = calc
-    etot_hse = atoms.get_potential_energy()
+    if 0:
+        # check against HSE
+        from gpaw.new.ase_interface import GPAW
+        params['xc'] = xc_hse
+        calc = GPAW(**params)
+        atoms.calc = calc
+        etot_hse = atoms.get_potential_energy()
 
-    print('etot_pbe=', etot_pbe)
-    print('etot_xc=', etot_xc)
-    print('etot_hse=', etot_hse)
+    assert etot_xc == pytest.approx(etot_hse)
+
 
 if __name__ == "__main__":
     test_xc()
