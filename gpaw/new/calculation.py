@@ -407,8 +407,23 @@ class DFTCalculation:
         from gpaw.dft import XC
         atoms = self.atoms
         params = self.params
+        is_collinear = self.ibzwfs.collinear
+
+        # old xc functional
+        xcfunc_o = params.xc.functional(collinear=is_collinear,
+                                        atoms=atoms)
+
+        # actually change the functional
         params.xc = XC.from_param(xc)
         builder = params.dft_component_builder(atoms, log=None)
+
+        # old xc functional
+        xcfunc_n = params.xc.functional(collinear=is_collinear,
+                                        atoms=atoms)
+
+        # check that 'base' functional is the same
+        assert xcfunc_n.get_setup_name() == xcfunc_o.get_setup_name()
+
         self.scf_loop = builder.create_scf_loop()
         self.pot_calc = builder.create_potential_calculator()
         self.results = {}
