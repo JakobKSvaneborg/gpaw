@@ -403,6 +403,13 @@ class DFTCalculation:
             psit_nR = bcast(psit_nR, 0, comm=self.comm)
         return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
 
+    def change_xc(self, atoms, params, xc, log=None):
+        from gpaw.dft import XC
+        params.xc = XC.from_param(xc)
+        builder = params.dft_component_builder(atoms, log=log)
+        scf_loop = builder.create_scf_loop()
+        pot_calc = builder.create_potential_calculator()
+
     def new(self,
             atoms: Atoms,
             params: Parameters,
