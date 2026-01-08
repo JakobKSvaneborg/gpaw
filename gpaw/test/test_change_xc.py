@@ -5,9 +5,9 @@ from gpaw.dft import DFT
 
 def test_xc():
 
-    etot_hse = -7.085318
+    etot_hse = -10.014548
 
-    atoms = molecule('H2', cell=[7, 7, 7])
+    atoms = molecule('H2', cell=[4, 4, 4])
     atoms.center()
     atoms.set_pbc(True)
 
@@ -17,15 +17,9 @@ def test_xc():
 
     params = {'xc': 'PBE',
               'mode': {'name': 'pw', 'ecut': 400},
-              'kpts': {'size': [1, 1, 1],
-                       'gamma': True},
+              'nbands': 3,
               'eigensolver': ppcg,
-              'nbands': 4,
-              'mixer': {'method': 'fullspin',
-                        'backend': 'fft',
-                        'beta': 0.05,
-                        'nmaxold': 7,
-                        'weight': 50.0}}
+              'convergence': {'eigenstates': 1e-4, 'density': 1e-2}}
 
     xc_hse = {'name': 'HYB_GGA_XC_HSE06',
               'fraction': 0.26,
@@ -38,6 +32,13 @@ def test_xc():
 
     dft.change_xc(xc_hse)
     ase_calc = dft.ase_calculator()
+
+    # fixed_density
+    if 0:
+        dft.scf_loop.update_density_and_potential = False
+        dft.converge(steps=3)
+        dft.scf_loop.update_density_and_potential = True
+
     etot_xc = ase_calc.get_potential_energy(atoms)
 
     if 0:
