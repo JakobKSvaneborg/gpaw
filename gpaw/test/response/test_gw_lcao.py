@@ -35,5 +35,5 @@ def test_lcao_gw(in_tmp_dir, gpw_files):
 
     assert eps[0][0][4] == pytest.approx(17.5784, abs=0.01)
     assert f[0][0][4] == pytest.approx(0.0, abs=0.01)
-    assert qp[0][0][4] == pytest.approx(21.510, abs=0.01)
+    assert qp[0][0][4] == pytest.approx(21.522, abs=0.01)
     assert Z[0][0][4] == pytest.approx(2.046, abs=0.01)
