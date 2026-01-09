@@ -323,7 +323,7 @@ class LCAOWaveFunctions(WaveFunctions, XP):
         C_nsM = self.C_nM.data.reshape((mynbands, 2, M // 2))
         for psit_sG, C_sM in zip(psit_nsG, C_nsM, strict=False):
             psit_sR.data[:] = 0.0
-            self.basis.lcao_to_grid(C_sM, psit_sR.data, q)
+            self.basis.lcao_to_grid(C_sM, psit_sR.data, self.q)
             if np.issubdtype(self.dtype, np.complexfloating):
                 psit_sR.data *= emikr_R
             psit_sR.fft(out=psit_sG)
