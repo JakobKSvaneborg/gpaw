@@ -33,7 +33,7 @@ def test_xc():
 
     # preconverge with PBE
     dft = DFT(atoms, **params)
-    dft.converge(calculate_forces=dft._calculate_forces)
+    dft.converge()
 
     dft.change_xc(xc_hse)
 
@@ -48,8 +48,8 @@ def test_xc():
     forces_xc = ase_calc.get_forces(atoms)
 
     if 0:
-        # check against HSE
         from gpaw.new.ase_interface import GPAW
+        # check against HSE
         params['xc'] = xc_hse
         calc = GPAW(**params)
         atoms.calc = calc
