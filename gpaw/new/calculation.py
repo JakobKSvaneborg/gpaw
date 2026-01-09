@@ -420,7 +420,8 @@ class DFTCalculation:
 
         # actually change the functional
         params.xc = XC.from_param(xc)
-        builder = params.dft_component_builder(atoms, log=None)
+        builder = params.dft_component_builder(atoms, log=None,
+                                               comm=self.comm)
 
         # old xc functional
         xcfunc_n = params.xc.functional(collinear=is_collinear,
