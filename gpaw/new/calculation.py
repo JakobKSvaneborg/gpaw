@@ -313,6 +313,8 @@ class DFTCalculation:
         self.comm.broadcast(F_av, 0)
         self.results['forces'] = F_av
 
+        return F_av
+
     def stress(self) -> None:
         if 'stress' in self.results:
             return

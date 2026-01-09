@@ -1,4 +1,5 @@
 import pytest
+import numpy as np
 from ase.build import molecule
 from gpaw.dft import DFT
 
@@ -6,6 +7,8 @@ from gpaw.dft import DFT
 def test_xc():
 
     etot_hse = -10.014548
+    fz = 1.38885
+    forces_hse = np.array([[0, 0, fz], [0, 0, -fz]])
 
     atoms = molecule('H2', cell=[4, 4, 4])
     atoms.center()
@@ -19,7 +22,9 @@ def test_xc():
               'mode': {'name': 'pw', 'ecut': 400},
               'nbands': 3,
               'eigensolver': ppcg,
-              'convergence': {'eigenstates': 1e-4, 'density': 1e-2}}
+              'convergence': {'eigenstates': 1e-4,
+                              'density': 1e-2,
+                              'forces': 1e-1}}
 
     xc_hse = {'name': 'HYB_GGA_XC_HSE06',
               'fraction': 0.26,
@@ -28,7 +33,7 @@ def test_xc():
 
     # preconverge with PBE
     dft = DFT(atoms, **params)
-    dft.converge()
+    dft.converge(calculate_forces=dft._calculate_forces)
 
     dft.change_xc(xc_hse)
 
@@ -40,6 +45,7 @@ def test_xc():
 
     ase_calc = dft.ase_calculator()
     etot_xc = ase_calc.get_potential_energy(atoms)
+    forces_xc = ase_calc.get_forces(atoms)
 
     if 0:
         # check against HSE
@@ -48,8 +54,10 @@ def test_xc():
         calc = GPAW(**params)
         atoms.calc = calc
         etot_hse = atoms.get_potential_energy()
+        forces_hse = atoms.get_forces()
 
-    assert etot_xc == pytest.approx(etot_hse)
+    assert etot_xc == pytest.approx(etot_hse, abs=1e-4)
+    assert forces_xc == pytest.approx(forces_hse, abs=5e-2)
 
 
 if __name__ == "__main__":
