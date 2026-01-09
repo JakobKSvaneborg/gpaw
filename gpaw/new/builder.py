@@ -124,7 +124,7 @@ class DFTComponentsBuilder:
             comm=comm,
             use_time_reversal=use_time_reversal)
 
-        d = parallel.get('domain', 1 if xcfunc.type == 'HYB' else None)
+        d = parallel.get('domain', None)
         k = parallel.get('kpt', None)
         b = parallel.get('band', None)
         self.communicators = create_communicators(
