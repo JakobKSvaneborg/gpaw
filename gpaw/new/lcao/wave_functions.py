@@ -5,7 +5,7 @@ import numpy as np
 from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
                                    AtomDistribution)
 from gpaw.core.matrix import Matrix
-from gpaw.gpu import XP
+from gpaw.gpu import XP, as_np
 from gpaw.mpi import MPIComm, receive, send, serial_comm
 from gpaw.new.potential import Potential
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
@@ -312,7 +312,7 @@ class LCAOWaveFunctions(WaveFunctions, XP):
             psit_R = grid.empty()
             for C_M, psit_G in zip(self.C_nM.data, psit_nG, strict=False):
                 psit_R.data[:] = 0.0
-                self.basis.lcao_to_grid(C_M, psit_R.data, self.q)
+                self.basis.lcao_to_grid(as_np(C_M), psit_R.data, self.q)
                 if np.issubdtype(self.dtype, np.complexfloating):
                     psit_R.data *= emikr_R
                 psit_R.fft(out=psit_G)
