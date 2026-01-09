@@ -139,3 +139,13 @@ def test_morph(comm):
     b = a.morph(pw2)
     c = b.morph(pw1)
     assert (a.data == c.data).all()
+
+
+def test_transform(comm):
+    pw1 = PWDesc(ecut=20, cell=[1, 1, 1], comm=comm)
+    a = pw1.empty()
+    a.randomize()
+    pw2 = PWDesc(ecut=20, cell=[1, 1, 1.1], comm=comm)
+    b = a.morph(pw2)
+    c = b.morph(pw1)
+    assert (a.data == c.data).all()
