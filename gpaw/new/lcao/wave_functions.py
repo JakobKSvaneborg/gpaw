@@ -298,3 +298,41 @@ class LCAOWaveFunctions(WaveFunctions, XP):
                                  k=k,
                                  weight=weight,
                                  ncomponents=ncomponents)
+
+    def to_pw_expansion(self, nbands, grid, pw):
+        grid = grid.new(kpt=self.kpt_c, dtype=self.dtype)
+        pw = pw.new(kpt=self.kpt_c)
+
+        if np.issubdtype(self.dtype, np.complexfloating):
+            emikr_R = grid.eikr(-self.kpt_c)
+
+        mynbands, M = self.C_nM.dist.shape
+        if self.ncomponents < 4:
+            psit_nG = pw.empty(nbands, self.band_comm)
+            psit_R = grid.empty()
+            for C_M, psit_G in zip(self.C_nM.data, psit_nG, strict=False):
+                psit_R.data[:] = 0.0
+                self.basis.lcao_to_grid(C_M, psit_R.data, self.q)
+                if np.issubdtype(self.dtype, np.complexfloating):
+                    psit_R.data *= emikr_R
+                psit_R.fft(out=psit_G)
+            return psit_nG.to_xp(self.xp)
+
+        psit_nsG = pw.empty((nbands, 2), self.band_comm)
+        psit_sR = grid.empty(2)
+        C_nsM = self.C_nM.data.reshape((mynbands, 2, M // 2))
+        for psit_sG, C_sM in zip(psit_nsG, C_nsM, strict=False):
+            psit_sR.data[:] = 0.0
+            self.basis.lcao_to_grid(C_sM, psit_sR.data, q)
+            if np.issubdtype(self.dtype, np.complexfloating):
+                psit_sR.data *= emikr_R
+            psit_sR.fft(out=psit_sG)
+        return psit_nsG
+
+    def to_uniform_grid(self, nbands, grid):
+        grid = grid.new(kpt=self.kpt_c, dtype=self.dtype)
+        psit_nR = grid.zeros(nbands, self.band_comm)
+        mynbands = len(self.C_nM.data)
+        self.basis.lcao_to_grid(self.C_nM.to_xp(np).data,
+                                psit_nR.data[:mynbands], self.q)
+        return psit_nR.to_xp(self.xp)

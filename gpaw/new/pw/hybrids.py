@@ -152,8 +152,9 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
                     comm.send(psit_nG.data[na:nb], rank,
                               block=False, tag=K * nspins + spin))
 
-    pw = ibzwfs._wfs_u[0].psit_nX.desc.new(comm=None)
     _, occ_skn = ibzwfs.get_all_eigs_and_occs(broadcast=True)
+
+    pw = ibzwfs._wfs_u[0].psit_nX.desc.new(comm=None)
 
     mypsits = []
     for rank, K, (na, nb) in blocks:

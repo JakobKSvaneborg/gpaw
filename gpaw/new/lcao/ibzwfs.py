@@ -1,7 +1,10 @@
 from math import pi
 
+import numpy as np
 from gpaw.new.density import Density
 from gpaw.new.ibzwfs import IBZWaveFunctions
+from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
+from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 
 
 class LCAOIBZWaveFunctions(IBZWaveFunctions):
@@ -47,37 +50,48 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
         comp_charge = ccc_aL.layout.atomdist.comm.sum_scalar(comp_charge)
         density.nt_sR.data *= -comp_charge / pseudo_charge
 
-    def pwify(self, relpos_ac, setups, basis_set):
-        from gpaw.core.plane_waves import PWDesc
-        from gpaw.core.pwacf import PWAtomCenteredFunctions
+    def convert_to(self,
+                   mode: str,
+                   grid,
+                   pw=None,
+                   nbands: int | None = None) -> PWFDIBZWaveFunctions:
+        nbands = nbands or self.nbands
 
-        pw0 = PWDesc(ecut=self.grid.ekin_max(),
-                     cell=self.grid.cell,
-                     comm=self.grid.comm,
-                     dtype=self.dtype)
-        for wfs in self:
-            pw = pw0.new(kpt=wfs.kpt_c)
-            if 1:
-                grid = self.grid.new(kpt=wfs.kpt_c, dtype=self.dtype)
-                emikr_R = grid.eikr(-wfs.kpt_c)
-                psit_nG = pw.empty(self.nbands, self.band_comm)
-                psit_nR = grid.zeros(self.nbands)
-                basis_set.lcao_to_grid(wfs.C_nM.data, psit_nR.data, wfs.q)
+        def create_wfs(spin, q, k, kpt_c, weight):
+            lcaowfs = self._get_wfs(k, spin)
+            assert lcaowfs.spin == spin
 
-                for psit_R, psit_G in zip(psit_nR, psit_nG):
-                    psit_R.data *= emikr_R
-                    psit_R.fft(out=psit_G)
+            if mode == 'pw':
+                psit_nX = lcaowfs.to_pw_expansion(nbands, grid, pw)
             else:
-                phit_aJG = PWAtomCenteredFunctions(
-                    [setup.basis_functions_J for setup in setups],
-                    relpos_ac,
-                    pw,
-                    atomdist=wfs.atomdist,
-                    xp=self.xp)
-                psit_nG = pw.empty(self.nbands,
-                                   comm=self.band_comm,
-                                   xp=self.xp)
-                mynbands, M = wfs.C_nM.dist.shape
-                phit_aJG.multiply(wfs.C_nM.to_dtype(pw.dtype),
-                                  out_nG=psit_nG[:mynbands])
-            wfs.psit_nX = psit_nG
+                psit_nX = lcaowfs.to_uniform_grid(nbands, grid)
+
+            mylcaonbands, nao = lcaowfs.C_nM.dist.shape
+            mynbands = len(psit_nX.data)
+            eig_n = np.empty(nbands)
+            eig_n[:self.nbands] = lcaowfs.eig_n
+            eig_n[self.nbands:] = 100.0  # set high value for random wfs.
+            if mylcaonbands < mynbands:
+                psit_nX[mylcaonbands:].randomize(
+                    seed=self.comm.rank)
+            wfs = PWFDWaveFunctions(
+                psit_nX=psit_nX,
+                spin=spin,
+                q=q,
+                k=k,
+                weight=weight,
+                setups=lcaowfs.setups,
+                relpos_ac=lcaowfs.relpos_ac,
+                atomdist=lcaowfs.atomdist,
+                ncomponents=self.ncomponents,
+                qspiral_v=lcaowfs.qspiral_v)
+            wfs.eig_n = eig_n
+            return wfs
+
+        return PWFDIBZWaveFunctions.create(
+            ibz=self.ibz,
+            ncomponents=self.ncomponents,
+            create_wfs_func=create_wfs,
+            kpt_comm=self.kpt_comm,
+            kpt_band_comm=self.kpt_band_comm,
+            comm=self.comm)

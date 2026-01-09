@@ -27,6 +27,7 @@ from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.response.screened_interaction import (GammaIntegrationMode,
                                                 initialize_w_calculator)
 from gpaw.utilities.progressbar import ProgressBar
+from gpaw.core import PWDesc
 
 
 def compare_inputs(inp1, inp2, rel_tol=1e-14, abs_tol=1e-14):
@@ -1439,8 +1440,17 @@ class EXXVXCCalculator:
 
         if 1:
             dft = NewGPAW(self._gpwfile, communicator=self.world).dft
-            dft.pwify()
-            exx = NonSelfConsistentHSE06.from_dft_calculation(dft, 'EXX')
+            ibzwfs = dft.ibzwfs
+            if dft.params.mode.name == 'lcao':
+                grid = dft.density.nt_sR.desc
+                pw = PWDesc(ecut=0.5 * grid.ekin_max(),
+                            cell=grid.cell,
+                            comm=grid.comm,
+                            dtype=ibzwfs.dtype)
+                ibzwfs = ibzwfs.convert_to('pw', grid, pw)
+            exx = NonSelfConsistentHSE06(
+                ibzwfs, dft.density, dft.pot_calc, dft.setups, dft.relpos_ac,
+                'EXX')
             dft_skn, exx_skn = exx.calculate(
                 dft.ibzwfs, n1, n2, kpt_indices)
             return np.zeros_like(dft_skn), (exx_skn - dft_skn) / Ha

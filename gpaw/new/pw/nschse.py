@@ -35,7 +35,6 @@ class NonSelfConsistentHSE06:
                              log: str | Path | IO[str] | None = '-',
                              ) -> NonSelfConsistentHSE06:
         """Create HSE06-eigenvalue calculator from DFT calculation."""
-        # assert isinstance(dft.ibzwfs, PWFDIBZWaveFunctions)
         return cls(dft.ibzwfs,  # type: ignore [arg-type]
                    dft.density,
                    dft.pot_calc,
@@ -52,6 +51,7 @@ class NonSelfConsistentHSE06:
                  relpos_ac: np.ndarray,
                  xc: str,
                  log: str | Path | IO[str] | None = '-'):
+        assert isinstance(ibzwfs, PWFDIBZWaveFunctions)
         semilocal_xc_name, self.exx_fraction, exx_omega, yukawa = \
             parse_name(xc)
         self.comm = ibzwfs.comm
