@@ -423,7 +423,7 @@ class DFTCalculation:
         self.pot_calc = builder.create_potential_calculator()
         self.results = {}
 
-        log('Changed occupation calculator.' +
+        log('Changed occupation calculator. ' +
             # f'from {old_name} to {new_name}. ' +
             'Reusing wavefunctions.')
 
