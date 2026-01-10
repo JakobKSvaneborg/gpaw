@@ -41,6 +41,7 @@ def test_occ():
     dft.change_occupations(occ_fixed)
     dft.change_mixer(mixer)
     dft.change_eigensolver(ppcg)
+    dft.change_convergence({'energy': 1e-1})
 
     ase_calc = dft.ase_calculator()
     etot_occ = ase_calc.get_potential_energy(atoms)
