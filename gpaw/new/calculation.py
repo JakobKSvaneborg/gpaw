@@ -412,7 +412,9 @@ class DFTCalculation:
         from gpaw.dft import XC
         atoms = self.atoms
         params = self.params
-        is_collinear = self.ibzwfs.collinear
+        ibzwfs = self.ibzwfs
+        is_collinear = ibzwfs.collinear
+        log = self.log
 
         # old xc functional
         xcfunc_o = params.xc.functional(collinear=is_collinear,
@@ -420,7 +422,7 @@ class DFTCalculation:
 
         # actually change the functional
         params.xc = XC.from_param(xc)
-        builder = params.dft_component_builder(atoms, log=None,
+        builder = params.dft_component_builder(atoms, log=log,
                                                comm=self.comm)
 
         # old xc functional
@@ -433,6 +435,11 @@ class DFTCalculation:
         self.scf_loop = builder.create_scf_loop()
         self.pot_calc = builder.create_potential_calculator()
         self.results = {}
+
+        log('Changed xc-functional ' +
+            f'from {xcfunc_o.name} to {xcfunc_n.name}. ' +
+            'Reusing wavefunctions.')
+
 
     def new(self,
             atoms: Atoms,
