@@ -444,6 +444,24 @@ class DFTCalculation:
         log('Changed mixer. Reusing wavefunctions.')
         log(f'{self.scf_loop.mixer}')
 
+    def change_eigensolver(self, eigensolver):
+        from gpaw.dft import Eigensolver
+
+        atoms = self.atoms
+        params = self.params
+        log = self.log
+
+        params.eigensolver = Eigensolver.from_param(eigensolver)
+        builder = params.dft_component_builder(atoms, log=log,
+                                               comm=self.comm)
+
+        self.scf_loop = builder.create_scf_loop()
+        self.pot_calc = builder.create_potential_calculator()
+        self.results = {}
+
+        log('Changed eigensolver. Reusing wavefunctions.')
+        log(f'{indent(self.scf_loop.eigensolver)}')
+
     def change_xc(self, xc):
         from gpaw.dft import XC
 

@@ -21,7 +21,7 @@ def test_occ():
     params = {'xc': 'PBE',
               'mode': {'name': 'pw', 'ecut': 400},
               'nbands': 3,
-              'eigensolver': ppcg,
+              'eigensolver': 'davidson',
               'convergence': {'eigenstates': 1e-4,
                               'density': 1e-2,
                               'forces': 1e-1}}
@@ -40,6 +40,7 @@ def test_occ():
 
     dft.change_occupations(occ_fixed)
     dft.change_mixer(mixer)
+    dft.change_eigensolver(ppcg)
 
     ase_calc = dft.ase_calculator()
     etot_occ = ase_calc.get_potential_energy(atoms)
