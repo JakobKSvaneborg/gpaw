@@ -427,6 +427,27 @@ class DFTCalculation:
             # f'from {old_name} to {new_name}. ' +
             'Reusing wavefunctions.')
 
+    def change_mixer(self, mixer):
+        from gpaw.dft import Mixer
+        # from gpaw.mixer import get_mixer_from_keywords
+
+        atoms = self.atoms
+        params = self.params
+        log = self.log
+
+        params.mixer = Mixer.from_param(mixer)
+        # params.mixer = get_mixer_from_keywords(atoms.pbc.any(), 2, **mixer)
+        builder = params.dft_component_builder(atoms, log=log,
+                                               comm=self.comm)
+
+        self.scf_loop = builder.create_scf_loop()
+        self.pot_calc = builder.create_potential_calculator()
+        self.results = {}
+
+        log('Changed mixer. ' +
+            # f'from {old_name} to {new_name}. ' +
+            'Reusing wavefunctions.')
+
     def change_xc(self, xc):
         from gpaw.dft import XC
 
