@@ -18,7 +18,7 @@ from gpaw.new import trace, zips
 from gpaw.new.density import Density
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.ibzwfs import IBZWaveFunctions
-from gpaw.new.logger import Logger
+from gpaw.new.logger import Logger, indent
 from gpaw.new.potential import Potential
 from gpaw.new.scf import SCFLoop
 from gpaw.setup import Setups
@@ -423,20 +423,17 @@ class DFTCalculation:
         self.pot_calc = builder.create_potential_calculator()
         self.results = {}
 
-        log('Changed occupation calculator. ' +
-            # f'from {old_name} to {new_name}. ' +
-            'Reusing wavefunctions.')
+        log('Changed occupation calculator. Reusing wavefunctions.')
+        log(f'{indent(self.scf_loop.occ_calc)}')
 
     def change_mixer(self, mixer):
         from gpaw.dft import Mixer
-        # from gpaw.mixer import get_mixer_from_keywords
 
         atoms = self.atoms
         params = self.params
         log = self.log
 
         params.mixer = Mixer.from_param(mixer)
-        # params.mixer = get_mixer_from_keywords(atoms.pbc.any(), 2, **mixer)
         builder = params.dft_component_builder(atoms, log=log,
                                                comm=self.comm)
 
@@ -444,9 +441,8 @@ class DFTCalculation:
         self.pot_calc = builder.create_potential_calculator()
         self.results = {}
 
-        log('Changed mixer. ' +
-            # f'from {old_name} to {new_name}. ' +
-            'Reusing wavefunctions.')
+        log('Changed mixer. Reusing wavefunctions.')
+        log(f'{self.scf_loop.mixer}')
 
     def change_xc(self, xc):
         from gpaw.dft import XC

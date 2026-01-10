@@ -28,11 +28,18 @@ def test_occ():
 
     occ_fixed = {'name': 'fixed', 'numbers': [[0, 1, 0], [0, 1, 0]]}
 
+    mixer = {'method': 'fullspin',
+             'backend': 'fft',
+             'beta': 0.05,
+             'nmaxold': 7,
+             'weight': 50.0}
+
     # preconverge with PBE
     dft = DFT(atoms, **params)
     dft.converge()
 
     dft.change_occupations(occ_fixed)
+    dft.change_mixer(mixer)
 
     ase_calc = dft.ase_calculator()
     etot_occ = ase_calc.get_potential_energy(atoms)
