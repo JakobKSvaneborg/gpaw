@@ -440,7 +440,6 @@ class DFTCalculation:
             f'from {xcfunc_o.name} to {xcfunc_n.name}. ' +
             'Reusing wavefunctions.')
 
-
     def new(self,
             atoms: Atoms,
             params: Parameters,
