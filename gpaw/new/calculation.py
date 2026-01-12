@@ -429,6 +429,7 @@ class DFTCalculation:
         atoms = self.atoms
         params = self.params
         log = self.log
+        density = self.density
 
         params.occupations = Occupations.from_param(occupations)
         builder = params.dft_component_builder(atoms, log=log,
@@ -436,6 +437,11 @@ class DFTCalculation:
 
         self.scf_loop = builder.create_scf_loop()
         self.pot_calc = builder.create_potential_calculator()
+
+        # update occupations numbers
+        nelectrons = density.nvalence - density.charge + self.pot_calc.charge
+        self.ibzwfs.calculate_occs(self.scf_loop.occ_calc, nelectrons,
+                                   fix_fermi_level=self.scf_loop.fix_fermi_level)
         self.results = {}
 
         log('Changed occupation calculator. Reusing wavefunctions.')
