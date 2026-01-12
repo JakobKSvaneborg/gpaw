@@ -58,7 +58,10 @@ class DFTComponentsBuilder:
             log = Logger(log, comm)
 
         self.log = log
-        comm = log.comm
+        if comm is None:
+            comm = log.comm
+        else:
+            assert comm.size == log.comm.size
 
         parallel = params.parallel
         if self.gpu:

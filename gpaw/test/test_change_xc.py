@@ -6,42 +6,26 @@ from gpaw.dft import DFT
 
 def test_xc():
 
-    etot_hse = -10.014548
-    fz = 1.38885
+    etot_hse = -9.773301
+    fz = 1.44491
     forces_hse = np.array([[0, 0, fz], [0, 0, -fz]])
 
     atoms = molecule('H2', cell=[4, 4, 4])
     atoms.center()
     atoms.set_pbc(True)
 
-    ppcg = {'name': 'ppcg',
-            'niter': 30,
-            'min_niter': 2}
-
     params = {'xc': 'PBE',
               'mode': {'name': 'pw', 'ecut': 400},
               'nbands': 3,
-              'eigensolver': ppcg,
               'convergence': {'eigenstates': 1e-4,
                               'density': 1e-2,
-                              'forces': 1e-1}}
-
-    xc_hse = {'name': 'HYB_GGA_XC_HSE06',
-              'fraction': 0.26,
-              'omega': 0.11,
-              'backend': 'pw'}
+                              'forces': 1e-2}}
 
     # preconverge with PBE
     dft = DFT(atoms, **params)
     dft.converge()
 
-    dft.change_xc(xc_hse)
-
-    # fixed_density
-    if 0:
-        dft.scf_loop.update_density_and_potential = False
-        dft.converge(steps=1)
-        dft.scf_loop.update_density_and_potential = True
+    dft.change_xc('HSE06')
 
     ase_calc = dft.ase_calculator()
     etot_xc = ase_calc.get_potential_energy(atoms)
@@ -50,7 +34,7 @@ def test_xc():
     if 0:
         from gpaw.new.ase_interface import GPAW
         # check against HSE
-        params['xc'] = xc_hse
+        params['xc'] = 'HSE06'
         calc = GPAW(**params)
         atoms.calc = calc
         etot_hse = atoms.get_potential_energy()
