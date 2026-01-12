@@ -13,7 +13,7 @@ def test_stark_pw():
     field = 0.2
     params = dict(mode=PW(300),
                   convergence={'energy': 1e-6,
-                      'density': 1e-5})
+                               'density': 1e-5})
 
     h.calc = GPAW(**params)
 

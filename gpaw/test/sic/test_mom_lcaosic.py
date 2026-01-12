@@ -8,7 +8,8 @@ from gpaw import GPAW
 from gpaw.mpi import world
 from gpaw.old.logger import GPAWLogger
 from gpaw.old.wavefunctions.base import eigenvalue_string
-from gpaw.test.sic._utils import MockWorld, extract_lagrange_section, mk_arr_from_str
+from gpaw.test.sic._utils import (MockWorld, extract_lagrange_section,
+                                  mk_arr_from_str)
 
 
 @pytest.mark.old_gpaw_only
