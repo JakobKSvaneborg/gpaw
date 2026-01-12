@@ -673,14 +673,13 @@ def get_mixer_from_keywords(pbc, nspins, **mixerkwargs):
     if nspins == 1:
         mixerkwargs['method'] = SeparateSpinMixerDriver
 
+    kwargs = {'backend': BaseMixer}
     # The plan is to first establish a kwargs dictionary with all the
     # defaults, then we update it with values from the user.
 
     if np.any(pbc):  # Works on array or boolean
-        kwargs = {'backend': FFTBaseMixer}
         kwargs.update(beta=0.08, history=16, weight=70.0)
     else:
-        kwargs = {'backend': BaseMixer}
         kwargs.update(beta=0.25, history=16, weight=1.0)
 
     if nspins == 1:
