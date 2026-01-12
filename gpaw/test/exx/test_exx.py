@@ -41,7 +41,7 @@ def test_exx_exx(in_tmp_dir):
                     eigensolver='rmm-diis',
                     nbands=3,
                     convergence={'eigenstates': 1e-6},
-        )#txt='exx.txt')
+                    txt='exx.txt')
         be2.calc = calc
         E = be2.get_potential_energy()
         if xc.name != 'PBE':
