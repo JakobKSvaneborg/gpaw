@@ -31,6 +31,7 @@ def test_solvation_forces_symmetry():
         mode='fd',
         xc='PBE',
         h=h,
+        convergence={'density': 1e-5},
         setups={'Na': '1'},
         cavity=EffectivePotentialCavity(
             effective_potential=Power12Potential(u0=u0),

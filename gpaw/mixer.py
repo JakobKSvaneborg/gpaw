@@ -681,7 +681,7 @@ def get_mixer_from_keywords(pbc, nspins, **mixerkwargs):
     kwargs = {'backend': BaseMixer}
 
     if np.any(pbc):  # Works on array or boolean
-        kwargs.update(beta=0.06, history=16, weight=70.0)
+        kwargs.update(beta=0.07, history=16, weight=70.0)
     else:
         kwargs.update(beta=0.25, history=16, weight=1.0)
 
