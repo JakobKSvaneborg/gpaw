@@ -19,7 +19,7 @@ bulk_calc = GPAW(mode=PW(pwcutoff),
                  kpts={'size': (k, k, k), 'gamma': True},  # gamma-centred grid
                  xc='PBE',
                  occupations=FermiDirac(0.01),
-                 txt='si.rpa.pbe_output.txt')
+                 txt='si_rpa_pbe_output.txt')
 
 bulk_crystal.calc = bulk_calc
 e0_bulk_pbe = bulk_crystal.get_potential_energy()
@@ -30,4 +30,4 @@ e0_bulk_pbe = bulk_crystal.get_potential_energy()
 bulk_calc.diagonalize_full_hamiltonian(nbands=200)
 
 # the 'all' ensures we write wavefunctions too
-bulk_calc.write('bulk.all.gpw', mode='all')
+bulk_calc.write('bulk_all.gpw', mode='all')

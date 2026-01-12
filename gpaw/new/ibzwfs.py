@@ -575,7 +575,7 @@ def bytes_for_projectors(ibzwfs: IBZWaveFunctions) -> int:
     lmax = 0
     for setup in setups.setups.values():
         nunique += len(setup.pt_j)
-        lmax = max(max(pt.l for pt in setup.pt_j), lmax)
+        lmax = max(max((pt.l for pt in setup.pt_j), default=0), lmax)
     return len(ibzwfs.ibz) * wfs.bytes_per_band * (
         (lmax + 1)**2 +  # Y_LG
         nunique +  # f_sG
