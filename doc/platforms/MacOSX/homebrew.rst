@@ -30,7 +30,7 @@ Modern MacOS installations no longer permits pip installation with
 Python.  You therefore have to create a virtual environment, and
 install GPAW in it.
 
-Create and activate the virtual environment:
+Create and activate the virtual environment::
 
     $ python3 -m venv venv_gpaw
     $ source venv_gpaw/bin/activate
