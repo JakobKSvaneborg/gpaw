@@ -425,7 +425,7 @@ class DFTCalculation:
         builder = params.dft_component_builder(atoms, log=log,
                                                comm=self.comm)
 
-        # old xc functional
+        # new xc functional
         xcfunc_n = params.xc.functional(collinear=is_collinear,
                                         atoms=atoms)
 
