@@ -9,7 +9,7 @@ from ase.units import Bohr, Hartree
 from scipy.linalg import eigh
 
 from gpaw.blacs import BlacsDescriptor, BlacsGrid, Redistributor
-from gpaw.mpi import serial_comm, world
+from gpaw.mpi import normalize_communicator, serial_comm
 from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.response import ResponseContext
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
@@ -1123,7 +1123,7 @@ class BSEBackend:
 
 
 class BSE(BSEBackend):
-    def __init__(self, calc=None, timer=None, txt='-', comm=world, **kwargs):
+    def __init__(self, calc=None, timer=None, txt='-', comm=None, **kwargs):
         """Creates the BSE object
 
         calc: str or calculator object
@@ -1176,6 +1176,7 @@ class BSE(BSEBackend):
         mode: str
             Theory level used. can be RPA TDHF or BSE. Only BSE is screened.
         """
+        comm = normalize_communicator(comm)
         gs, context = get_gs_and_context(
             calc, txt, world=comm, timer=timer)
 
@@ -1378,7 +1379,7 @@ class BSEPlus:
                  direction=0,
                  truncation=None,
                  ecut=10,
-                 comm=world):
+                 comm=None):
 
         """ BSE+ calculation of chi. BSE+ offers a way to improve
         the convergence of the BSE by including transitions outside
@@ -1419,6 +1420,7 @@ class BSEPlus:
         ecut: float
             Plane wave cutoff energy (eV)
          """
+        comm = normalize_communicator(comm)
 
         self.bse_gpw = bse_gpw
         self.bse_valence_bands = bse_valence_bands

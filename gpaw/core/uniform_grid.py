@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Literal
 import numpy as np
 
 import gpaw.fftw as fftw
-from gpaw.core.arrays import DistributedArrays
+from gpaw.core.arrays import XArray
 from gpaw.core.atom_centered_functions import UGAtomCenteredFunctions
 from gpaw.core.domain import Domain
 from gpaw.fd_operators import Gradient
@@ -301,7 +301,7 @@ class UGDesc(Domain['UGArray']):
                         scale=scale, n=n, dtype=self.dtype, xp=xp)
 
 
-class UGArray(DistributedArrays[UGDesc]):
+class UGArray(XArray[UGDesc]):
     def __init__(self,
                  grid: UGDesc,
                  dims: int | tuple[int, ...] = (),
@@ -321,9 +321,9 @@ class UGArray(DistributedArrays[UGDesc]):
         data:
             Data array for storage.
         """
-        DistributedArrays. __init__(self, dims, grid.myshape,
-                                    comm, grid.comm, data, grid.dv,
-                                    grid.dtype, xp)
+        XArray. __init__(self, dims, grid.myshape,
+                         comm, grid.comm, data, grid.dv,
+                         grid.dtype, xp)
         self.desc = grid
 
     def __repr__(self):
@@ -523,7 +523,7 @@ class UGArray(DistributedArrays[UGDesc]):
 
         return out
 
-    def norm2(self):
+    def norm2(self, kind: str = 'normal', skip_sum=False):
         """Calculate integral over cell of absolute value squared.
 
         :::
@@ -532,6 +532,9 @@ class UGArray(DistributedArrays[UGDesc]):
          ||a(r)| dr
          /
         """
+        if not kind == 'normal' or skip_sum:
+            raise NotImplementedError
+
         norm_x = []
         arrays_xR = self._arrays()
         for a_R in arrays_xR:
@@ -886,3 +889,8 @@ class UGArray(DistributedArrays[UGDesc]):
         if show:
             go.Figure(data=[surf]).show()
         return surf
+
+    def trace_inner_product(self, other: UGArray) -> float:
+        assert self.desc.dtype == other.desc.dtype
+        return self.desc.comm.sum_scalar(
+            np.vdot(self.data, other.data).real * self.desc.dv)

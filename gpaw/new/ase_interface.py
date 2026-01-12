@@ -198,7 +198,11 @@ class ASECalculator:
         * magmoms
         * dipole
         """
-        for _ in self.iconverge(atoms, need_wfs=prop in {'forces', 'stress'}):
+        if self._dft is None:
+            need_wfs = True
+        else:
+            need_wfs = prop not in self.dft.results
+        for _ in self.iconverge(atoms, need_wfs=need_wfs):
             pass
 
         if prop == 'forces':
@@ -263,7 +267,6 @@ class ASECalculator:
         return self.dft.results['forces']
 
     def __del__(self):
-        self.log('---')
         self.timer.write(self.log)
         try:
             mib = maxrss() / 1024**2
@@ -603,6 +606,8 @@ class ASECalculator:
             assert isinstance(nbands, int)
 
         dft.scf_loop.occ_calc._set_nbands(nbands)
+        from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
+        assert isinstance(dft.ibzwfs, PWFDIBZWaveFunctions)
         ibzwfs = diagonalize(dft.potential,
                              dft.ibzwfs,
                              dft.scf_loop.occ_calc,
@@ -766,3 +771,23 @@ class ASECalculator:
     def get_bz_to_ibz_map(self):
         """Return indices from BZ to IBZ."""
         return self.dft.ibzwfs.ibz.bz2ibz_K.copy()
+
+    def _to_old(self):
+        import tempfile
+        from gpaw.old.calculator import GPAW as OldGPAW
+        from gpaw.mpi import broadcast_string
+
+        if self._dft is None:
+            return OldGPAW(**self.params.todict(),
+                           communicator=self.comm,
+                           txt=self.log.fd)
+
+        # Quick hack for now:
+        # write gpw-file and read with old GPAW!
+        if self.comm.rank == 0:
+            gpw = tempfile.mkstemp(suffix='.gpw')[1]
+        else:
+            gpw = None
+        gpw = broadcast_string(gpw, comm=self.comm)
+        self.write(gpw, mode='all')
+        return OldGPAW(gpw, communicator=self.comm)

@@ -307,20 +307,26 @@ Example 3: Tetrahedron integration (experimental)
 The k-point integral needed for the calculation of the density response
 function, is typically performed using a simple summation of individual
 k-points. By setting the integration mode to 'tetrahedron integration' the
-kpoint integral is calculated by interpolating density matrix elements and
+k-point integral is calculated by interpolating density matrix elements and
 eigenvalues. This typically means that fewer k-points are needed for
 convergence.
 
-The combination of using the tetrahedron method and reducing the kpoint
+The combination of using the tetrahedron method and reducing the k-point
 integral using crystal symmetries means that it is necessary to be careful
-with the kpoint sampling which should span the whole irreducible zone.
-Luckily, :git:`~gpaw/bztools.py` provides the tool to generate such an
+with the k-point sampling which should span the whole irreducible zone.
+Specifically, this is achieved when the k-point sampling contains all of the
+vertices of the irreducible Brillouin zone, i.e. the high-symmetry points.
+Luckily, :git:`~gpaw/bztools.py` provides the tool to generate such a
 k-point sampling automatically::
 
-    from gpaw.bztools import find_high_symmetry_monkhorst_pack
-    kpts = find_high_symmetry_monkhorst_pack(
-        'gs.gpw',  # Path to ground state .gpw file
-        density=20.0)  # The required minimum density
+    from gpaw.bztools import optimal_monkhorst_pack_grid
+    kpts = optimal_monkhorst_pack_grid(
+        atoms,  # Atoms object
+        kptdensity=20.0,  # Required minimum density of the k-point sampling
+        force_gamma=True,
+        force_even=True,
+        contains_ibz_vertices=True)  # Additional predicates for
+                                     # accepting the k-point grid
 
 
 Bulk TaS\ :sub:`2`

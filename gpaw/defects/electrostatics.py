@@ -10,25 +10,69 @@ from ase.geometry import find_mic
 _avg_methods_ = ['atoms', 'sparse-planar', 'full-planar']
 
 
+def charged_defect_corrections(calc_pristine, calc_defect, defect_index=0,
+                               ecut=500, charge=None, epsilon=None,
+                               rc=2.0 * Bohr, ravg=2.5, method='full-planar'):
+    """
+    Makes ElectrostaticCorrections instance for charged defects.
+
+    calc_pristine: ``GPAW`` calculator for neutral pristine reference
+
+    calc_defect: ``GPAW`` calculator for charged defect
+
+    defect_index: index of defect site in the pristine reference
+
+    charge: charge state of the defect calculation
+
+    epsilon: macroscopic electrostatic constant of the host system
+
+    ecut: energy cutoff for ``calculate_model_potential`` [eV]
+
+    rc: spread of the model charge distribution [Angstrom]
+
+    ravg: average radius for bulk-atom average [Angstrom]
+
+    method: method selection string
+
+    """
+    # init ElectrostaticCorrections
+    phiR_prs = gather_electrostatic_potential(calc_pristine)
+    phiR_def = gather_electrostatic_potential(calc_defect)
+    atoms_prs = calc_pristine.get_atoms()
+
+    if isinstance(defect_index, int):
+        r0 = atoms_prs.positions[defect_index, :]
+    else:
+        # average over defect_index list
+        r0 = np.average(atoms_prs.positions[defect_index, :], axis=0)
+
+    sigma = rc / (2. * np.sqrt(2. * np.log(2.)))
+    return ElectrostaticCorrections(phi_pristine=phiR_prs,
+                                    phi_defect=phiR_def,
+                                    r0=r0,
+                                    charge=charge,
+                                    sigma=sigma,
+                                    epsilon=epsilon,
+                                    method=method,
+                                    atoms_pristine=atoms_prs)
+
+
 def build_ugarray(atoms, data):
     grid = UGDesc(cell=atoms.cell, size=data.shape, pbc=atoms.pbc)
     return UGArray(grid, data=data)
 
 
 def gather_electrostatic_potential(calc):
-    if calc.old:
-        # create UGArray from old GPAW data
-        phi_r = calc.get_electrostatic_potential()
-        atoms = calc.get_atoms()
-        phi_R = build_ugarray(atoms, phi_r)
-    else:
-        phi_R = calc.dft.electrostatic_potential().pseudo_potential()
-
-    # XXX should get rid of broadcast
-    return phi_R.gather(broadcast=True)
+    # create UGArray from GPAW data
+    phi_r = calc.get_electrostatic_potential()
+    atoms = calc.get_atoms()
+    phi_R = build_ugarray(atoms, phi_r)
+    phi_R = phi_R.gather(broadcast=True)
+    return phi_R
 
 
-def plot_potentials(profile, png=None):
+def plot_potentials(profile, png=None,
+                    def_pot_label=r'$V^{v_\mathrm{Ga}^{-3}}_\mathrm{el}(z)$'):
     from matplotlib import pyplot as plt
 
     z = profile['z']
@@ -38,10 +82,10 @@ def plot_potentials(profile, png=None):
     dphi_avg = profile['dphi']
 
     plt.plot(z, dV, '-', label=r'$\Delta V(z)$')
-    plt.plot(z, V_m, '-', label='$V(z)$')
+    plt.plot(z, V_m, '-', label=r'$V_\mathrm{model}(z)$')
     plt.plot(z, dV_defprs, '-',
-             label=(r'$[V^{V_\mathrm{Ga}^{-3}}_\mathrm{el}(z) -'
-                    r'V^{0}_\mathrm{el}(z) ]$'))
+             label=(def_pot_label
+                    + r' - $V^{0}_\mathrm{el}(z) ]$'))
 
     plt.axhline(dphi_avg, ls='dashed')
     plt.axhline(0.0, ls='-', color='grey')
@@ -58,7 +102,7 @@ def plot_potentials(profile, png=None):
 
 class ElectrostaticCorrections():
     """
-    Calculate the electrostatic corrections for charged defects.
+    Calculate the electrostatic corrections for electrostatic potentials.
 
     phi_pristine: ``UGArray`` pristine electrostatic_potential [eV]
 

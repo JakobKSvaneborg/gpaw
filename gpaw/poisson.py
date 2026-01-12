@@ -51,9 +51,6 @@ def create_poisson_solver(name='fast', **kwargs):
         return create_poisson_solver(**kwargs)
     elif name == 'fft':
         return FFTPoissonSolver(**kwargs)
-    elif name == 'fdtd':
-        from gpaw.fdtd.poisson_fdtd import FDTDPoissonSolver
-        return FDTDPoissonSolver(**kwargs)
     elif name == 'fd':
         return FDPoissonSolverWrapper(**kwargs)
     elif name == 'fast':

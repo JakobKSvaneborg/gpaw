@@ -393,7 +393,7 @@ Core
 .. autoclass:: gpaw.core.UGArray
     :members:
     :undoc-members:
-.. autoclass:: gpaw.core.arrays.DistributedArrays
+.. autoclass:: gpaw.core.arrays.XArray
     :members:
     :undoc-members:
 .. autoclass:: gpaw.core.atom_arrays.AtomArrays

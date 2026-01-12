@@ -8,7 +8,7 @@ from ase.data import atomic_numbers, covalent_radii
 from ase.neighborlist import neighbor_list
 from ase.units import Bohr, Ha
 
-from gpaw.core.arrays import DistributedArrays
+from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArraysLayout, AtomDistribution
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
@@ -76,14 +76,14 @@ class NoGrid(Domain):
             len(relpos_ac), self.comm).rank_a
 
 
-class DummyFunctions(DistributedArrays[NoGrid]):
+class DummyFunctions(XArray[NoGrid]):
     def __init__(self,
                  grid: NoGrid,
                  dims: int | tuple[int, ...] = (),
                  comm: MPIComm = serial_comm):
-        DistributedArrays. __init__(self, dims, (),
-                                    comm, grid.comm, None, np.nan,
-                                    grid.dtype)
+        XArray. __init__(self, dims, (),
+                         comm, grid.comm, None, np.nan,
+                         grid.dtype)
         self.desc = grid
 
     def integrate(self, other=None):

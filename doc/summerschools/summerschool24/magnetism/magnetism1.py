@@ -11,7 +11,7 @@ In 2017, ferromagnetic order was observed in a monolayer of CrI$_3$ below 45 K (
 """
 
 # %%
-"""
+r"""
 ## DFT calculation - finding the atomic structure of CrI$_3$
 
 We start by setting up the atomic structure of a CrI$_3$ monolayer and optimizing the atomic positions and unit cell. There are two formula units in the minimal unit cell and only the Cr atoms bear significant magnetic moments. A spin-polarized calculation is initiated by specifying the initial magnetic moments of the all the atoms in units of $\mu_B$.
@@ -70,7 +70,7 @@ opt.run(fmax=0.2)
 calc.write('CrI3_relaxed.gpw')
 
 # %%
-"""
+r"""
 ## A bit of theory
 
 ### The Heisenberg model
@@ -96,7 +96,7 @@ where $k_B$ is Boltzmann's constant, $N$ is the number of nearest neighbors, and
 """
 
 # %%
-"""
+r"""
 ## DFT calculation of $J$
 
 We now want to make a first principles calculation of the nearest neighbor exchange coupling constant $J$. Since the exchange coupling parametrizes the energy difference between aligned and anti-aligned spin configurations, we can obtain $J$ by considering the energy difference between a ferromagnetic and an antiferromagnetic calculation. Note that both can be obtained as collinear DFT ground states subject to different spin constraints. For the CrI$_3$ system, $J$ can calculated as
@@ -141,7 +141,7 @@ a.get_potential_energy()
 calc.write('CrI3_afm.gpw')
 
 # %%
-"""
+r"""
 Finally, we can calculate $J$ and $T_c^{\mathrm{MF}}$ by extracting the *ab initio* energy difference from the `.gpw` files. Fill in the formulas for `J` and `T_c` below and evaluate the cell.
 """
 
@@ -162,7 +162,7 @@ T_c = N * J * S * (S + 1) / 3 / kB  # student: T_c = ???
 print(f'T_c(MF) = {T_c:1.1f} K')
 
 # %%
-"""
+r"""
 ## More theory
 
 ### The Mermin-Wagner theorem
@@ -249,7 +249,7 @@ plt.ylabel('E [meV]', size=18)
 
 
 # %%
-"""
+r"""
 Now that we have calculated the anisotropy constant $A$, we are finally in a position to improve our estimate of the Curie temperature of CrI$_3$. But how do we get the critical temperature if we cannot apply mean-field theory? One way is to perform Monte-Carlo simulations of the classical Heisenberg model as a function of temperature and find the point where the total magnetization vanishes. The results of such simulations are well approximated by the expression [[2D Mater. 6 (2019) 015028]](https://iopscience.iop.org/article/10.1088/2053-1583/aaf06d)
 
 $$T_c=T_c^{\mathrm{Ising}}\tanh^{1/4}\Big[\frac{6}{N}\log\Big(1-0.033\frac{A}{J}\Big)\Big],$$

@@ -13,7 +13,7 @@ from gpaw.densities import Densities
 from gpaw.electrostatic_potential import ElectrostaticPotential
 from gpaw.gpu import as_np
 from gpaw.mpi import broadcast as bcast
-from gpaw.mpi import broadcast_float, world
+from gpaw.mpi import broadcast_float, MPIComm
 from gpaw.new import trace, zips
 from gpaw.new.density import Density
 from gpaw.new.energies import DFTEnergies
@@ -100,16 +100,16 @@ class DFTCalculation:
     def from_parameters(cls,
                         atoms: Atoms,
                         params: Parameters,
-                        comm=None,
+                        comm: MPIComm,
                         log=None) -> DFTCalculation:
         """Create DFTCalculation object from parameters and atoms."""
         check_atoms_too_close(atoms)
         check_atoms_too_close_to_boundary(atoms)
 
         if not isinstance(log, Logger):
-            log = Logger(log, comm or world)
+            log = Logger(log, comm)
 
-        builder = params.dft_component_builder(atoms, log=log)
+        builder = params.dft_component_builder(atoms, log=log, comm=comm)
 
         basis_set = builder.create_basis_set()
 
@@ -260,13 +260,13 @@ class DFTCalculation:
             return
 
         self.forces_have_been_printed = True
-        self.log('\nForces: [  # eV/Ang')
+        self.log('\nForces in eV/Ang:')
         F_av = self.results['forces'] * (Ha / Bohr)
         for a, setup in enumerate(self.setups):
             x, y, z = F_av[a]
-            c = ',' if a < len(F_av) - 1 else ']'
-            self.log(f'  [{x:10.4f}, {y:10.4f}, {z:10.4f}]{c}'
-                     f'  # {setup.symbol:2} {a}')
+            self.log(f'  {a:4} {setup.symbol:2} '
+                     f'{x:10.5f} {y:10.5f} {z:10.5f}')
+        self.log.fd.flush()
 
     def _calculate_forces(self):
         xc = self.pot_calc.xc
@@ -400,7 +400,7 @@ class DFTCalculation:
         else:
             psit_nR = None
         if broadcast:
-            psit_nR = bcast(psit_nR, 0, self.comm)
+            psit_nR = bcast(psit_nR, 0, comm=self.comm)
         return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
 
     def new(self,

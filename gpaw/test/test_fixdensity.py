@@ -3,9 +3,7 @@ import pytest
 from ase import Atoms
 
 from gpaw import GPAW
-from gpaw.dft import DeprecatedParameterWarning as NewDPW
 from gpaw.mpi import ibarrier, world
-from gpaw.old.calculator import DeprecatedParameterWarning as OldDPW
 
 
 @pytest.mark.ci
@@ -45,23 +43,7 @@ def test_fixdensity(in_tmp_dir, gpaw_new):
     assert e2 == pytest.approx(e1, abs=3e-5)
     assert e3 == pytest.approx(e1, abs=3e-5)
     o3 = calc.get_occupation_numbers(kpt=0, raw=True)[0]
-
-    if gpaw_new:
-        assert o3 == pytest.approx(1.0)
-        return
-
-    calc = GPAW('li.gpw',
-                txt='li-4.txt',
-                fixdensity=True,
-                nbands=5,
-                kpts=kpts,
-                symmetry='off')
-
-    with pytest.warns((OldDPW, NewDPW)):
-        calc.get_potential_energy()
-    e4 = calc.get_eigenvalues(kpt=0)[0]
-
-    assert e4 == pytest.approx(e1, abs=3e-5)
+    assert o3 == pytest.approx(1.0)
 
 
 @pytest.mark.ci

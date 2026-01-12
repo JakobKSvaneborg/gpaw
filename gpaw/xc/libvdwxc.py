@@ -2,7 +2,7 @@ import numpy as np
 
 import gpaw
 import gpaw.cgpaw as cgpaw
-from gpaw.mpi import have_mpi
+from gpaw.mpi import have_mpi, normalize_communicator
 from gpaw.utilities import compiled_with_libvdwxc
 from gpaw.utilities.grid_redistribute import Domains, general_redistribute
 from gpaw.utilities.timing import nulltimer
@@ -790,11 +790,12 @@ def test_derivatives():
     print('dedsigma', dedsigma_err)
 
 
-def test_selfconsistent():
+def test_selfconsistent(world):
     from ase.build import molecule
 
     from gpaw import GPAW
     from gpaw.xc.gga import GGA
+    world = normalize_communicator(world)
 
     system = molecule('H2O')
     system.center(vacuum=3.)
@@ -827,8 +828,6 @@ def test_selfconsistent():
         vdw_coef0_results[vdw.__class__.__name__] = test(vdw)
         vdw.vdwcoef = 1.0  # Leave nicest text file by running real calc last
         vdw_results[vdw.__class__.__name__] = test(vdw)
-
-    from gpaw.mpi import world
 
     # These tests basically verify that the LDA/GGA parts of vdwdf
     # work correctly.

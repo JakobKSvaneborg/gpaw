@@ -143,7 +143,7 @@ class FDNumpyPropagator(WaveFunctionPropagator):
         if isinstance(hamiltonian, FDKickHamiltonian):
             self.dH = hamiltonian.dH
         else:
-            self.dH = state.potential.dH
+            self.dH = state.potential.deltaH
 
         wfs = state.ibzwfs._wfs_u[0]
         self.dS = partial(wfs.setups.get_overlap_corrections,
@@ -360,7 +360,8 @@ class CSCGAdapter:
               time_step: float):
         self._time_step = time_step
         out_nR.data[:] = init_guess_nR.data
-        self.solver.solve(self, out_nR.data, rhs_nR.data)
+        # XXX Where do we get world from?
+        self.solver.solve(self, out_nR.data, rhs_nR.data, world=None)
         self._time_step = None
 
     def dot(self, psit_nR: np.ndarray, out_nR: np.ndarray):

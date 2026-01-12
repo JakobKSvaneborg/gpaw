@@ -5,7 +5,7 @@ from ase import Atoms
 from ase.parallel import parprint
 
 from gpaw import GPAW, PW, setup_paths
-from gpaw.mpi import world
+from gpaw.mpi import normalize_communicator
 
 from .info import info
 
@@ -23,7 +23,8 @@ class CLICommand:
         test()
 
 
-def test():
+def test(comm=None):
+    comm = normalize_communicator(comm)
     for path in setup_paths:
         if Path(path).is_dir():
             break
@@ -36,8 +37,8 @@ https://gpaw.readthedocs.io/setups/setups.html#installation-of-paw-datasets
 for details.""", file=sys.stderr)
         return
 
-    parprint(f'Doing a test calculation (cores: {world.size}): ... ',
-             end='', flush=True)
+    parprint(f'Doing a test calculation (cores: {comm.size}): ... ',
+             end='', flush=True, comm=comm)
     a = 2.5
     d = 0.9
     chain = Atoms('H', cell=[a, a, d], pbc=(False, False, True))
@@ -47,7 +48,7 @@ for details.""", file=sys.stderr)
                       txt='test.txt')
     chain.get_forces()
     chain.get_stress()
-    parprint('Done')
-    if world.size == 1:
+    parprint('Done', comm=comm)
+    if comm.size == 1:
         print()
         print('Test parallel calculation with "gpaw -P 4 test".')

@@ -7,8 +7,8 @@ from ase.units import Hartree
 from gpaw.directmin.tools import (get_indices, get_n_occ, random_a,
                                   sort_orbitals_according_to_energies,
                                   sort_orbitals_according_to_occ)
-from gpaw.mpi import world
 from gpaw.old.logger import GPAWLogger
+from gpaw.mpi import normalize_communicator
 from gpaw.typing import RNG
 
 
@@ -322,7 +322,7 @@ class Davidson:
     def __init__(self, etdm, logfile=None, fd_mode=None, m=None, h=None,
                  eps=None, cap_krylov=None, gmf=False,
                  accurate_first_pdiag=True, remember_sp_order=None,
-                 sp_order=None, seed=None):
+                 sp_order=None, seed=None, *, comm=None):
         """
         :param etdm: ETDM object for which the partial eigendecomposition
                      should be performed.
@@ -362,6 +362,8 @@ class Davidson:
                          Hessian approximation in ETDM.
         :param seed: Seed for random perturbation of initial Krylov space.
         """
+        # MPI: Does e.g. etdm contain communicator?
+        comm = normalize_communicator(comm)
 
         self.name = 'Davidson'
         self.gmf = gmf
@@ -402,13 +404,14 @@ class Davidson:
         self.nbands = 0
         self.c_ref = []
         self.logfile = logfile
-        self.logger = GPAWLogger(world)
+        self.logger = GPAWLogger(comm)
         self.logger.fd = logfile
         self.first_run = accurate_first_pdiag
         self.lambda_w = []  # All eigenvalues
         self.y_w = []       # All eigenvectors in subspace representation
         self.x_w = []       # All eigenvectors
         self.check_inputs()
+        self.comm = comm
 
     def check_inputs(self):
         defaults = self.set_defaults()
@@ -629,13 +632,13 @@ class Davidson:
             for k in range(self.dimtot):
                 for l in range(dimz):
                     rand = np.zeros(shape=2)
-                    if world.rank == 0:
+                    if self.comm.rank == 0:
                         rand[0] = rng.random()
                         rand[1] = 1 if rng.random() > 0.5 else -1
                     else:
                         rand[0] = 0.0
                         rand[1] = 0.0
-                    world.broadcast(rand, 0)
+                    self.comm.broadcast(rand, 0)
                     self.V_w[i][l * self.dimtot + k] \
                         += rand[1] * reps * rand[0]
 
@@ -666,13 +669,13 @@ class Davidson:
                     if l == imin:
                         continue
                     rand = np.zeros(shape=2)
-                    if world.rank == 0:
+                    if self.comm.rank == 0:
                         rand[0] = rng.random()
                         rand[1] = 1 if rng.random() > 0.5 else -1
                     else:
                         rand[0] = 0.0
                         rand[1] = 0.0
-                    world.broadcast(rand, 0)
+                    self.comm.broadcast(rand, 0)
                     v[m * self.dimtot + l] = rand[1] * reps * rand[0]
             self.V_w.append(v / np.linalg.norm(v))
         self.V_w = np.asarray(self.V_w)

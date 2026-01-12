@@ -6,7 +6,7 @@ from functools import cached_property
 import numpy as np
 import pytest
 
-from gpaw import GPAW_NEW, debug, setup_paths
+from gpaw import debug, setup_paths, GPAW_NEW
 from gpaw.cli.info import info
 from gpaw.mpi import broadcast, world
 from gpaw.test.gpwfile import GPWFiles, _all_gpw_methodnames
@@ -24,7 +24,7 @@ def execute_in_tmp_path(request, tmp_path_factory):
         path = tmp_path_factory.mktemp(basename)
     else:
         path = None
-    path = broadcast(path)
+    path = broadcast(path, comm=world)
     cwd = os.getcwd()
     os.chdir(path)
     try:
@@ -40,7 +40,7 @@ def set_device():
     def log(*args, **kwargs):
         kwargs.pop('parallel', None)
         print(*args, **kwargs)
-    set_device(log)
+    set_device(log, world)
 
 
 @pytest.fixture(scope='module')
@@ -294,16 +294,6 @@ def all_gpw_files(request, gpw_files, pytestconfig):
     # it is populated, i.e., further down in the file than
     # the @gpwfile decorator.
 
-    # TODO This xfail-information should probably live closer to the
-    # gpwfile definitions and not here in the fixture.
-    skip_if_new = {'Cu3Au_qna',
-                   'nicl2_pw', 'nicl2_pw_evac',
-                   'v2br4_pw', 'v2br4_pw_nosym',
-                   'sih4_xc_gllbsc_fd', 'sih4_xc_gllbsc_lcao',
-                   'na2_isolated', 'h2o_xas'}
-    if GPAW_NEW and request.param in skip_if_new:
-        pytest.xfail(f'{request.param} gpwfile not yet working with GPAW_NEW')
-
     if request.param == 'Tl_box_pw' and world.size > 1:
         pytest.skip(f'{request.param} gpwfile only works in serial')
 
@@ -327,7 +317,6 @@ class GPAWPlugin:
             info()
 
     def pytest_terminal_summary(self, terminalreporter, exitstatus, config):
-        from gpaw.mpi import world
         terminalreporter.section('GPAW-MPI stuff')
         terminalreporter.write(f'size: {world.size}\n')
         terminalreporter.write(f'debug-mode: {debug}\n')
@@ -394,14 +383,22 @@ def pytest_runtest_setup(item):
         pytest.skip('No LibXC.')
 
 
-@pytest.fixture
-def scalapack():
+@pytest.fixture(scope='session')
+def scalapack(require_real_mpi):
     """Skip if not compiled with sl.
 
     This fixture otherwise does not return or do anything."""
     from gpaw.utilities import compiled_with_sl
     if not compiled_with_sl():
         pytest.skip('no scalapack')
+
+
+@pytest.fixture(scope='session')
+def require_real_mpi(_not_world):
+    try:
+        _not_world.get_c_object()
+    except RuntimeError:
+        pytest.skip('This test requires actual MPI to be enabled')
 
 
 @pytest.fixture
@@ -429,6 +426,12 @@ def pytest_report_header(config, start_path):
 def no_touch_world(monkeypatch, _not_world):
     # We might also need module-scoped/session-scoped
     import gpaw.mpi as mpi
+    import ase.parallel
+
+    # ase communicator is lazy-initialized.  Make sure it is initialized
+    # by accessing rank.
+    aserank = ase.parallel.world.rank
+    assert aserank == mpi.world.rank
 
     monkeypatch.setattr(mpi, '_NO_TOUCH_WORLD', True)
 
@@ -437,14 +440,20 @@ def no_touch_world(monkeypatch, _not_world):
     # to intercept any calls and raise an error.
     #
     # With GPAW_DEBUG it will be wrapped, so in that case we can:
+
     if debug:
-        monkeypatch.setattr(mpi.world, 'comm', None)
+        # for obj in [mpi.world, ase.parallel.world]:
+        for attr in 'comm', 'rank', 'size':
+            monkeypatch.delattr(mpi.world, attr)
+
+        # XXX This is pretty brittle wrt. ASE internals
+        # (also requires new ASE master 2025-11-28)
+        import ase.parallel
+        monkeypatch.setattr(ase.parallel.world, 'comm', None)
 
 
 @pytest.fixture(scope='session')
 def _not_world():
-    from gpaw.mpi import world
-
     return world.new_communicator(range(world.size))
 
 
@@ -462,7 +471,42 @@ def rng():
     return np.random.default_rng(42)
 
 
+class MPIHelper:
+    def __init__(self, comm):
+        self.comm = comm
+
+    def GPAW(self, *args, **kwargs):
+        from gpaw import GPAW
+
+        return GPAW(*args, communicator=self.comm, **kwargs)
+
+    def NewGPAW(self, *args, **kwargs):
+        from gpaw.new.ase_interface import GPAW
+
+        return GPAW(*args, communicator=self.comm, **kwargs)
+
+    def OldGPAW(self, *args, **kwargs):
+        from gpaw.dft import GPAW as AnyGPAW
+        return AnyGPAW(*args, communicator=self.comm,
+                       _use_old_gpaw=True, **kwargs)
+
+
 @pytest.fixture
-def gpaw_new() -> bool:
-    """Are we testing the new code?"""
-    return GPAW_NEW
+def mpi(comm):
+    return MPIHelper(comm)
+
+
+if GPAW_NEW == 147:
+    @pytest.fixture(params=[False, True])
+    def gpaw_new(request) -> bool:
+        import gpaw.dft as dft
+        try:
+            dft._USE_OLD_GPAW = not request.param
+            yield request.param
+        finally:
+            dft._USE_OLD_GPAW = None
+else:
+    @pytest.fixture
+    def gpaw_new() -> bool:
+        """Are we testing the new code?"""
+        return GPAW_NEW

@@ -2,7 +2,6 @@ import pytest
 from ase import Atoms
 
 from gpaw import GPAW
-from gpaw.old.calculator import DeprecatedParameterWarning
 
 
 @pytest.mark.ci
@@ -54,21 +53,6 @@ def test_fixdensity(in_tmp_dir, gpaw_new, eigensolver):
     assert f3 == pytest.approx(f1, abs=1e-10)
     assert e2 == pytest.approx(e1, abs=3e-5)
     assert e3 == pytest.approx(e1, abs=3e-5)
-
-    if not gpaw_new:
-        calc = GPAW('li.gpw',
-                    txt='li-4.txt',
-                    fixdensity=True,
-                    nbands=5,
-                    kpts=kpts,
-                    symmetry='off')
-        try:
-            with pytest.warns(DeprecatedParameterWarning):
-                calc.get_potential_energy()
-        except ValueError:
-            pass
-        else:
-            assert False
 
     calc = GPAW('li_nowf.gpw')
     if not gpaw_new:

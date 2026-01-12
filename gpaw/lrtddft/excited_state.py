@@ -47,7 +47,7 @@ class ExcitedState(GPAW):
             try:
                 communicator = lrtddft.calculator.wfs.world
             except AttributeError:
-                communicator = mpi.world
+                communicator = mpi.normalize_communicator(None)
         self.world = communicator
 
         self.lrtddft = lrtddft
@@ -67,7 +67,7 @@ class ExcitedState(GPAW):
         if log:
             self.log = log
         else:
-            self.log = ExcitationLogger(mpi.world)
+            self.log = ExcitationLogger(self.world)
             self.log.fd = txt
 
         self.log('#', self.__class__.__name__, __version__)

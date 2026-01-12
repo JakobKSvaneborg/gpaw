@@ -20,11 +20,15 @@ from gpaw.xc.gga import add_gradient_correction
 from gpaw.xc.libvdwxc import VDWXC
 from gpaw.xc.mgga import MGGA
 from gpaw.xc.vdw import VDWFunctionalBase
+from gpaw.xc.hybrid import HybridXC as OldHybridXC
 
 
 def create_functional(xc: OldXCFunctional | str | dict,
                       grid: UGDesc,
                       xp=np) -> Functional:
+    if isinstance(xc, OldHybridXC):
+        raise NotImplementedError
+
     exx_fraction = 0.0
     exx_omega = 0.0
     exx_yukawa = False
@@ -44,6 +48,8 @@ def create_functional(xc: OldXCFunctional | str | dict,
         functional = GGAFunctional(xc, grid, xp)
     elif xc.type == 'MGGA':
         functional = MGGAFunctional(xc, grid)
+    elif xc.type == 'GLLB':
+        raise NotImplementedError
     else:
         raise ValueError(f'{xc.type} not supported')
 

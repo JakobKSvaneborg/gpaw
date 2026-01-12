@@ -93,7 +93,7 @@ data['H'] = {
     'dHf_0_A': 51.63 / (mol / kcal)}  # (from 10.1063/1.473182) (eV)
 
 
-def calculate(element, vacuum, xc, magmom):
+def calculate(element, vacuum, xc, magmom, comm):
 
     atom = Atoms([Atom(element, (0, 0, 0))])
     if magmom > 0.0:
@@ -115,6 +115,7 @@ def calculate(element, vacuum, xc, magmom):
                      mixer=mixer,
                      parallel=dict(augment_grids=True),
                      nbands=-2,
+                     communicator=comm,
                      txt=f'{element}.{xc}.txt')
     atom.calc = calc_atom
 
@@ -131,6 +132,7 @@ def calculate(element, vacuum, xc, magmom):
                 eigensolver='rmm-diis',
                 mixer=mixer,
                 parallel=dict(augment_grids=True),
+                communicator=comm,
                 txt=f'{element}2.{xc}.txt')
     compound.set_distance(0, 1, data[element]['R_AA_B3LYP'])
     compound.center(vacuum=vacuum)
@@ -176,11 +178,11 @@ E_ref = {'H': {'B3LYP': -0.11369634560501423,
 @pytest.mark.old_gpaw_only
 @pytest.mark.slow
 @pytest.mark.parametrize('xc', ['PBE0', 'B3LYP'])
-def test_exx_AA_enthalpy(in_tmp_dir, add_cwd_to_setup_paths, xc):
+def test_exx_AA_enthalpy(in_tmp_dir, add_cwd_to_setup_paths, xc, comm):
     element = 'H'
     vacuum = 4.5
 
     setup = data[element][xc][2]
     enable_exx = data[element][xc][3] == 'hyb_gga'  # only for hybrids
-    gen(element, exx=enable_exx, xcname=setup, write_xml=True)
-    calculate(element, vacuum, xc, data[element]['magmom'])
+    gen(element, exx=enable_exx, xcname=setup, write_xml=True, world=comm)
+    calculate(element, vacuum, xc, data[element]['magmom'], comm=comm)

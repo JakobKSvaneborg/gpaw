@@ -218,9 +218,8 @@ if not TYPE_CHECKING:
             cupy.fft.ifftshift = ifftshift_patch
 
 
-def set_device(log):
+def set_device(log, world):
     global device_id
-    from gpaw.mpi import world
     if cupy_is_fake:
         device_id = 'CPU emulation of GPU'
         log(f'mpi rank {world.rank} has no GPU device!', parallel=True)
