@@ -248,6 +248,7 @@ def test_NiO_withU(in_tmp_dir):
                 setups={'Ni': ':d,4.0'},
                 kpts={'size': (2, 2, 2), 'gamma': True},
                 occupations=FermiDirac(0.001),
+                convergence={'density': 1e-5},
                 mixer={'method': 'difference',
                        'beta': 0.05,
                        'weight': 50},

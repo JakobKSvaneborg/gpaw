@@ -54,6 +54,7 @@ def test_new_cell_1d(gpu):
     atoms.calc = GPAW(
         xc='PBE',
         mode={'name': 'pw'},
+        convergence={'density': 1e-5},
         kpts=(1, 1, 4),
         parallel={'gpu': gpu, 'band': 2 if world.size == 8 else 1},
         txt=output)
