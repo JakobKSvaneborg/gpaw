@@ -502,7 +502,7 @@ class DFTCalculation:
         builder = params.dft_component_builder(atoms, log=log,
                                                comm=self.comm)
 
-        # old xc functional
+        # new xc functional
         xcfunc_n = params.xc.functional(collinear=is_collinear,
                                         atoms=atoms)
 
@@ -533,7 +533,8 @@ class DFTCalculation:
         check_atoms_too_close(atoms)
         check_atoms_too_close_to_boundary(atoms)
 
-        builder = params.dft_component_builder(atoms, log=log)
+        builder = params.dft_component_builder(atoms, log=log,
+                                               comm=self.comm)
 
         kpt_kc = builder.ibz.kpt_kc
         old_kpt_kc = ibzwfs.ibz.kpt_kc
