@@ -908,9 +908,10 @@ class PWArray(XArray[PWDesc]):
         G1_G2 = G_Q[Q2_G]
         if pw1.dtype == float:
             outside_G2 = G1_G2 == -1
-            Q2_G = np.ravel_multi_index(-pw2.indices_cG[:, outside_G2],
-                                        size_c,
-                                        mode='wrap')
+            Q2_G = np.ravel_multi_index(
+                -pw2.indices_cG[:, outside_G2],  # type: ignore
+                size_c,
+                mode='wrap')
             G1_G2[outside_G2] = G_Q[Q2_G]
         assert -1 not in G1_G2
         data = np.ascontiguousarray(self.data[..., G1_G2])
