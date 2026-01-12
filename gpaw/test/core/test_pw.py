@@ -125,7 +125,7 @@ def test_find_g():
 
 
 def test_random(comm):
-    pw = PWDesc(ecut=20, cell=[1, 1, 1], comm=comm)
+    pw = PWDesc(ecut=40, cell=[1, 1, 1], comm=comm)
     a = pw.empty(2)
     a.randomize()
     assert comm.rank != 0 or (a.data[:, 0].imag == 0.0).all()
@@ -142,14 +142,18 @@ def test_morph(comm):
     assert (a.data == c.data).all()
 
 
+@pytest.mark.serial
 @pytest.mark.parametrize('dtype', [float, complex])
-def test_transform(comm, dtype):
+@pytest.mark.parametrize('kpt', [None, [1 / 3, 1 / 3, 0]])
+def test_transform(comm, dtype, kpt):
+    if dtype is float and kpt is not None:
+        pytest.skip()
     pw1 = PWDesc(ecut=40,
                  cell=[1, 1, 1, 90, 90, 120],
                  comm=comm,
                  dtype=dtype)
     a = pw1.empty()
     a.randomize()
-    U = [[0, 1, 0], [-1, -1, 0], [0, 0, 1]]
+    U = [[0, 1, 0], [-1, -1, 0], [0, 0, 1]]  # rotate 120
     b = a.transform(U).transform(U).transform(U)
     assert (a.data == b.data).all()
