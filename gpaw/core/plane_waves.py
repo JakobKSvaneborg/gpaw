@@ -885,7 +885,7 @@ class PWArray(XArray[PWDesc]):
         pw1 = self.desc
         pw2 = pw
         if complex_conjugate:
-            U_cc = -U_cc
+            U_cc = -np.asarray(U_cc)
         kpt2_c = U_cc @ pw1.kpt_c
         if pw2 is None:
             pw2 = pw1.new(kpt=kpt2_c)

@@ -132,20 +132,24 @@ def test_random(comm):
 
 
 def test_morph(comm):
-    pw1 = PWDesc(ecut=20, cell=[1, 1, 1], comm=comm)
+    pw1 = PWDesc(ecut=40, cell=[1, 1, 1], comm=comm)
     a = pw1.empty()
     a.randomize()
-    pw2 = PWDesc(ecut=20, cell=[1, 1, 1.1], comm=comm)
+    print(a.data)
+    pw2 = PWDesc(ecut=40, cell=[1, 1, 1.1], comm=comm)
     b = a.morph(pw2)
     c = b.morph(pw1)
     assert (a.data == c.data).all()
 
 
-def test_transform(comm):
-    pw1 = PWDesc(ecut=20, cell=[1, 1, 1], comm=comm)
+@pytest.mark.parametrize('dtype', [float, complex])
+def test_transform(comm, dtype):
+    pw1 = PWDesc(ecut=40,
+                 cell=[1, 1, 1, 90, 90, 120],
+                 comm=comm,
+                 dtype=dtype)
     a = pw1.empty()
     a.randomize()
-    pw2 = PWDesc(ecut=20, cell=[1, 1, 1.1], comm=comm)
-    b = a.morph(pw2)
-    c = b.morph(pw1)
-    assert (a.data == c.data).all()
+    U = [[0, 1, 0], [-1, -1, 0], [0, 0, 1]]
+    b = a.transform(U).transform(U).transform(U)
+    assert (a.data == b.data).all()
