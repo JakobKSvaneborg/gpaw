@@ -242,7 +242,7 @@ class LCAOWaveFunctions(WaveFunctions, XP):
             weight=self.weight,
             ncomponents=self.ncomponents)
         wfs._eig_n = self.eig_n[n1:n2]
-        wfs._occ_n = self._occ_n[n1:n2]
+        wfs._occ_n = self.occ_n[n1:n2]
         if hasattr(self, 'psit_nX'):
             wfs.psit_nX = self.psit_nX[n1:n2]  # type: ignore [attr-defined]
         return wfs
