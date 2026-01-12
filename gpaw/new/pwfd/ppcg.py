@@ -108,6 +108,9 @@ class PPCG(PWFDEigensolver):
         self.include_cg = include_cg
         self.promote_inner_dtype = promote_inner_dtype
 
+        # We disable dynamic breakout for hybrids, to avoid deadlocks
+        self.allow_dynamic_breakout = hamiltonian.band_local
+
     def __str__(self):
         return pformat(dict(name='PPCG',
                             niter=self.niter,
@@ -460,7 +463,8 @@ class PPCG(PWFDEigensolver):
             wfs.myeig_n[:] = new_eigs_n
             band_comm.sum(wfs._eig_n)
             wfs.orthonormalized = False
-            if break_after_update or i >= self.niter - 1:
+            if (self.allow_dynamic_breakout and break_after_update) or \
+                    i >= self.niter - 1:
                 break
 
             with tracectx('Residual'):
