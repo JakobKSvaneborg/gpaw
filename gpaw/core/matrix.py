@@ -422,7 +422,7 @@ class Matrix(XP):
         ...                        [0.1, 1.0]])
         >>> S.invcholesky()
         >>> S.data
-        array([[ 1.        , -0.        ],
+        array([[ 1.        ,  0.        ],
                [-0.10050378,  1.00503782]])
         """
         S = self.gather()
