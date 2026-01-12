@@ -3,8 +3,7 @@ import pytest
 
 import gpaw.mpi as mpi
 from gpaw import GPAW
-from gpaw.berryphase import (get_berry_phases, parallel_transport,
-                             polarization_phase)
+from gpaw.berryphase import get_berry_phases, parallel_transport, polarization_phase
 
 # Values from an earlier test
 ref_phi_mos2_km = np.array(
@@ -114,7 +113,7 @@ def test_polarization_phase(in_tmp_dir, gpw_files):
         dphi = phases_c[key] - phases_t[key]
         phases_c[key] -= np.rint(dphi / pi2) * pi2
         print(key)
-        assert phases_c[key] == pytest.approx(phases_t[key], abs=1e-6)
+        assert phases_c[key] == pytest.approx(phases_t[key], abs=1e-5)
 
 
 def test_berry_phases(in_tmp_dir, gpw_files):

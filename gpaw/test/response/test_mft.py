@@ -3,30 +3,41 @@ Test with unrealisticly loose parameters to catch if the numerics change.
 """
 
 import numpy as np
+
 # General modules
 import pytest
+
 # Script modules
 from ase.build import bulk
 
 from gpaw import GPAW, PW, FermiDirac
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator
-from gpaw.response.heisenberg import (calculate_fm_magnon_energies,
-                                      calculate_single_site_magnon_energies)
+from gpaw.response.heisenberg import (
+    calculate_fm_magnon_energies,
+    calculate_single_site_magnon_energies,
+)
 from gpaw.response.localft import LocalFTCalculator, LocalPAWFTCalculator
-from gpaw.response.mft import (HeisenbergExchangeCalculator,
-                               IsotropicExchangeCalculator,
-                               calculate_exchange_parameters,
-                               calculate_pair_site_magnetization,
-                               calculate_pair_site_zeeman_energy,
-                               calculate_single_particle_site_magnetization,
-                               calculate_single_particle_site_zeeman_energy)
-from gpaw.response.site_data import (AtomicSites, calculate_site_magnetization,
-                                     calculate_site_zeeman_energy,
-                                     get_site_radii_range)
-from gpaw.response.site_kernels import (CylindricalSiteKernels,
-                                        ParallelepipedicSiteKernels,
-                                        SphericalSiteKernels)
+from gpaw.response.mft import (
+    HeisenbergExchangeCalculator,
+    IsotropicExchangeCalculator,
+    calculate_exchange_parameters,
+    calculate_pair_site_magnetization,
+    calculate_pair_site_zeeman_energy,
+    calculate_single_particle_site_magnetization,
+    calculate_single_particle_site_zeeman_energy,
+)
+from gpaw.response.site_data import (
+    AtomicSites,
+    calculate_site_magnetization,
+    calculate_site_zeeman_energy,
+    get_site_radii_range,
+)
+from gpaw.response.site_kernels import (
+    CylindricalSiteKernels,
+    ParallelepipedicSiteKernels,
+    SphericalSiteKernels,
+)
 from gpaw.test.gpwfile import response_band_cutoff
 from gpaw.test.response.test_chiks import generate_qrel_q, get_q_c
 
@@ -245,6 +256,9 @@ def test_NiO_withU(in_tmp_dir):
                 setups={'Ni': ':d,4.0'},
                 kpts={'size': (2, 2, 2), 'gamma': True},
                 occupations=FermiDirac(0.001),
+                mixer={'method': 'difference',
+                       'beta': 0.05,
+                       'weight': 50},
                 parallel=dict(domain=1))
 
     a.calc = calc
