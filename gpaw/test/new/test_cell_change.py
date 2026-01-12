@@ -19,6 +19,7 @@ def test_new_cell(gpu):
         mode={'name': 'pw'},
         kpts=(2, 2, 1),
         parallel={'gpu': gpu, 'domain': 1},
+        convergence={'density': 1e-5},
         txt=output)
     e0 = atoms.get_potential_energy()
     s0 = atoms.get_stress()

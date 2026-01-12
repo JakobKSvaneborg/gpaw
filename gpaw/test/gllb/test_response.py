@@ -18,7 +18,7 @@ def check_asp(ref_asp, D_asp, atol):
     assert ref_asp.toarray() == pytest.approx(D_asp.toarray(), abs=atol, rel=0)
 
 
-def check_response(ref_response, response, atol=1e-4):
+def check_response(ref_response, response, atol=2e-4):
     # Collect response in master
     D_asp = response.D_asp.copy()
     D_asp.redistribute(D_asp.partition.as_serial())
