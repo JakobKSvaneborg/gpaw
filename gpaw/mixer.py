@@ -306,7 +306,10 @@ class BroydenBaseMixer:
         self.u_G = []
         self.u_D = []
 
-    def mix_density(self, nt_sG, D_asp):
+    def mix_density(self, nt_sG, D_asp, g_ss=None):
+        if g_ss is not None:
+            raise NotImplementedError()
+
         nt_G = nt_sG[0]
         D_ap = [D_sp[0] for D_sp in D_asp]
         dNt = np.inf
@@ -434,7 +437,7 @@ class NotMixingMixer:
     def calculate_charge_sloshing(self, R_sG):
         return self.gd.integrate(np.fabs(R_sG)).sum()
 
-    def mix_density(self, nt_sG, D_asp):
+    def mix_density(self, nt_sG, D_asp, g_ss=None):
         iold = len(self.nt_isG)
 
         dNt = np.inf
@@ -673,9 +676,9 @@ def get_mixer_from_keywords(pbc, nspins, **mixerkwargs):
     if nspins == 1:
         mixerkwargs['method'] = SeparateSpinMixerDriver
 
-    kwargs = {'backend': BaseMixer}
     # The plan is to first establish a kwargs dictionary with all the
     # defaults, then we update it with values from the user.
+    kwargs = {'backend': BaseMixer}
 
     if np.any(pbc):  # Works on array or boolean
         kwargs.update(beta=0.08, history=16, weight=70.0)
