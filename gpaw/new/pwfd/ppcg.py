@@ -35,7 +35,7 @@ class PPCG(PWFDEigensolver):
                  rr_modulo=5,
                  include_cg=True,
                  promote_inner_dtype=False,
-                 tolerances: tuple[float, ...] | None = (0, 0, 4e-8),
+                 tolerances: tuple[float, ...] = (0, 0, 4e-8),
                  scalapack_parameters=None,
                  max_buffer_mem: int = 200 * 1024 ** 2):
         """
@@ -118,7 +118,7 @@ class PPCG(PWFDEigensolver):
 
         if self.blocksize is None:
             if xp == np:
-                self.blocksize = 24
+                self.blocksize = 32
             else:
                 self.blocksize = 512
 
@@ -144,7 +144,6 @@ class PPCG(PWFDEigensolver):
         self.nblocksizes = 3 * self.blocksize \
             if self.include_cg else 2 * self.blocksize
         dtype = wfs.psit_nX.desc.dtype
-        # G_max = np.prod(ibzwfs.get_max_shape())
 
         assert len(self.tolerances) == 3
         # --------------- Convergence parameters ---------------

@@ -678,7 +678,7 @@ def get_mixer_from_keywords(pbc, nspins, **mixerkwargs):
 
     if np.any(pbc):  # Works on array or boolean
         kwargs = {'backend': FFTBaseMixer}
-        kwargs.update(beta=0.05, history=16, weight=70.0)
+        kwargs.update(beta=0.08, history=16, weight=70.0)
     else:
         kwargs = {'backend': BaseMixer}
         kwargs.update(beta=0.25, history=16, weight=1.0)
