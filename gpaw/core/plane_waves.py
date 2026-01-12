@@ -883,9 +883,10 @@ class PWArray(XArray[PWDesc]):
                   pw: PWDesc | None = None) -> PWArray:
         """Symmetry-transform data."""
         pw1 = self.desc
+        assert pw1.comm.size == 1
         pw2 = pw
         if complex_conjugate:
-            U_cc = -U_cc
+            U_cc = -np.asarray(U_cc)
         kpt2_c = U_cc @ pw1.kpt_c
         if pw2 is None:
             pw2 = pw1.new(kpt=kpt2_c)
@@ -893,6 +894,8 @@ class PWArray(XArray[PWDesc]):
             assert np.allclose(pw2.kpt_c, kpt2_c)
 
         size_c = np.ptp(pw1.indices_cG, axis=1) + 1
+        if pw1.dtype == float:
+            size_c[1:] *= 2
         Q1_G = np.ravel_multi_index(U_cc @ pw1.indices_cG,
                                     size_c,
                                     mode='wrap')
@@ -903,8 +906,17 @@ class PWArray(XArray[PWDesc]):
         G_Q[:] = -1
         G_Q[Q1_G] = np.arange(len(Q1_G), dtype=int)
         G1_G2 = G_Q[Q2_G]
+        if pw1.dtype == float:
+            outside_G2 = G1_G2 == -1
+            Q2_G = np.ravel_multi_index(
+                -pw2.indices_cG[:, outside_G2],  # type: ignore
+                size_c,
+                mode='wrap')
+            G1_G2[outside_G2] = G_Q[Q2_G]
         assert -1 not in G1_G2
         data = np.ascontiguousarray(self.data[..., G1_G2])
+        if pw1.dtype == float:
+            data.imag[..., outside_G2] = -data.imag[..., outside_G2]
         if complex_conjugate:
             np.negative(data.imag, data.imag)
         return PWArray(pw2, self.dims, self.comm, data)
