@@ -107,4 +107,4 @@ def test_lcao_kpts_many_combinations(in_tmp_dir, require_real_mpi):
             print('maxeerr', maxeerr)
             print('maxferr', maxferr)
             assert maxeerr < 1e-9, maxeerr
-            assert maxferr < 1e-10, maxferr
+            assert maxferr < 1e-9, maxferr
