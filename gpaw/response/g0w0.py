@@ -1451,9 +1451,9 @@ class EXXVXCCalculator:
             exx = NonSelfConsistentHSE06(
                 ibzwfs, dft.density, dft.pot_calc, dft.setups, dft.relpos_ac,
                 'EXX')
-            dft_skn, exx_skn = exx.calculate(
+            dft_skn, vxc_skn, exx_skn = exx._calculate(
                 ibzwfs, n1, n2, kpt_indices)
-            return np.zeros_like(dft_skn), (exx_skn - dft_skn) / Ha
+            return vxc_skn / Ha, exx_skn / Ha
 
         calc = GPAW(self._gpwfile, parallel={'kpt': 1, 'band': 1},
                     communicator=self.world)
