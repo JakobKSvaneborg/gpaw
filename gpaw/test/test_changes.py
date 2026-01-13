@@ -3,7 +3,6 @@ import numpy as np
 from ase.build import molecule
 from gpaw.dft import DFT
 
-
 def test_changes():
 
     etot_hse = 23.546547
@@ -32,6 +31,9 @@ def test_changes():
     # preconverge with PBE
     dft = DFT(atoms, **params)
     dft.converge()
+
+    with pytest.raises(AssertionError):
+        dft.change(xc='LDA')
 
     dft.change(xc='HSE06', eigensolver='ppcg', mixer=mixer,
                occupations=occ_fixed, convergence={'energy': 1e-2})
