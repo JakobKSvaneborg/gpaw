@@ -32,9 +32,9 @@ def create_functional(xc: OldXCFunctional | str | dict,
     exx_fraction = 0.0
     exx_omega = 0.0
     exx_yukawa = False
-    setup_name = xc.get_setup_name()
     if isinstance(xc, (str, dict)):
         xc = XC(xc)
+    setup_name = xc.get_setup_name()
 
     if xc.type == 'HYB':
         assert isinstance(xc, HybridXC)
