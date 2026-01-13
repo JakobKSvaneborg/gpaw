@@ -103,8 +103,8 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
         self.log('Converting LCAO to {self.mode} mode', flush=True)
         return lcao_ibzwfs.convert_to(mode=self.mode,
                                       grid=self.grid,
-                                      qspiral_v=self.qspiral_v,
                                       pw=self.wf_desc,
+                                      qspiral_v=self.qspiral_v,
                                       nbands=self.nbands)
 
     def create_random_ibz_wave_functions(self):

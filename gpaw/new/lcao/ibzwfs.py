@@ -53,8 +53,8 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
     def convert_to(self,
                    mode: str,
                    grid,
-                   qspiral_v=None,
                    pw=None,
+                   qspiral_v=None,
                    nbands: int | None = None) -> PWFDIBZWaveFunctions:
         nbands = nbands or self.nbands
 
