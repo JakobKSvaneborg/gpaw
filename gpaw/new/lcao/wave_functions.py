@@ -311,12 +311,18 @@ class LCAOWaveFunctions(WaveFunctions, XP):
         if self.ncomponents < 4:
             psit_nG = pw.empty(nbands, self.band_comm)
             psit_R = grid.empty()
+            if grid.dtype != pw.dtype:
+                psit0_R = grid.new(dtype=pw.dtype).empty()
             for C_M, psit_G in zip(self.C_nM.data, psit_nG, strict=False):
                 psit_R.data[:] = 0.0
                 self.basis.lcao_to_grid(as_np(C_M), psit_R.data, self.q)
                 if np.issubdtype(self.dtype, np.complexfloating):
                     psit_R.data *= emikr_R
-                psit_R.fft(out=psit_G)
+                if grid.dtype != pw.dtype:
+                    psit0_R.data[:] = psit_R.data
+                    psit0_R.fft(out=psit_G)
+                else:
+                    psit_R.fft(out=psit_G)
             return psit_nG.to_xp(self.xp)
 
         psit_nsG = pw.empty((nbands, 2), self.band_comm)
