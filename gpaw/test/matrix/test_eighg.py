@@ -51,6 +51,8 @@ def test_eighl(dtype, algo):
     print(H0.data)
     with broadcast_exception(world):
         if world.rank == 0:
+            if algo == 's':
+                H0.data[:] = H0.data.T
             assert abs(eigs - eigs0).max() < 1e-14
             error = H00.data @ H0.data - S0.data @ H0.data @ np.diag(eigs)
             assert abs(error).max() < 1e-14
