@@ -513,25 +513,6 @@ def parse_cflags(define_macros:list[tuple[str, str]] | None,
     return cflags
 
 
-def parse_ldflags(libraries: list[str] | None,
-                  library_dirs: list[str] | None,
-                  runtime_library_dirs: list[str] | None) -> list[str]:
-    """Converts setuptools-style linker args to a form that corresponds to
-    LDFLAGS in Makefiles. Example output:
-        ['-lsomelib', '-L/some/lib/path/', '-Wl,-rpath,/some/rpath/']
-    """
-    ldflags = []
-
-    if library_dirs:
-        ldflags += [f"-L{d}" for d in library_dirs]
-    if runtime_library_dirs:
-        ldflags += [f"-Wl,-rpath,{rp}" for rp in runtime_library_dirs]
-    if libraries:
-        ldflags += [f"-l{lib}" for lib in libraries]
-
-    return ldflags
-
-
 class BuildGPU:
     """Build helper for the GPU part. Does not use setuptools!"""
     def __init__(
@@ -679,6 +660,48 @@ class BuildGPAW(build_ext):
         """
         return "_build"
 
+    def parse_ldflags(self,
+                      libraries: list[str] | None,
+                      library_dirs: list[str] | None,
+                      runtime_library_dirs: list[str] | None) -> list[str]:
+        """Converts setuptools-style linker args to a form that corresponds to
+        LDFLAGS in Makefiles. Example output:
+            ['-lsomelib', '-L/some/lib/path/', '-Wl,-rpath,/some/rpath/']
+        This depends on setuptools compiler configuration for figuring out
+        what to do with runtime_library_dirs (ie. RPATH or RUNPATH).
+        """
+        ldflags = []
+
+        if library_dirs:
+            ldflags += [f"-L{d}" for d in library_dirs]
+
+        if runtime_library_dirs:
+            # Use same runtime linker flags as setuptools on Unix systems.
+            # It defines function `runtime_library_dir_option` which fills in
+            # the appropriate flags; however it's not clear what the concrete
+            # type of self.compiler is. So here we manually check if this
+            # helper function exists on the object; if not, fallback to
+            # ld-style RUNPATH flagging.
+            # Naturally this step won't work on non-unix systems, but that is
+            # true for this entire makefile generator.
+
+            can_use_setuptools = callable(getattr(self.compiler, "runtime_library_dir_option", None))
+            if can_use_setuptools:
+                for dir in runtime_library_dirs:
+                    flag = self.compiler.runtime_library_dir_option(dir)
+                    if isinstance(flag, list):
+                        flag = " ".join(flag)
+                    ldflags.append(self.compiler.runtime_library_dir_option(dir))
+            else:
+                print("Failed to get runtime_library_dir options from setuptools (non-Unix system?)")
+                print(r"Defaulting to '-Wl,--enable-new-dtags,-Wl,-rpath, \{dir\}'")
+                ldflags += [f"-Wl,--enable-new-dtags,-rpath,{rp}" for rp in runtime_library_dirs]
+
+        if libraries:
+            ldflags += [f"-l{lib}" for lib in libraries]
+
+        return ldflags
+
     def generate_makefile(self) -> None:
         """Produces a makefile for incremental developer builds.
         This must be called in self.build_extensions, AFTER overriding
@@ -751,11 +774,9 @@ class BuildGPAW(build_ext):
             if ext.extra_link_args:
                 ldflags += ext.extra_link_args
 
-            ldflags += parse_ldflags(ext.libraries + self.libraries,
-                                     ext.library_dirs + self.library_dirs,
-                                     ext.runtime_library_dirs)
-            # setuptools adds this too:
-            ldflags.insert(0, '-Wl,--enable-new-dtags')
+            ldflags += self.parse_ldflags(ext.libraries + self.libraries,
+                                          ext.library_dirs + self.library_dirs,
+                                          ext.runtime_library_dirs)
 
             cflags_base_str = " ".join(cflags_base)
             cflags_extra_str = " ".join(cflags_extra)
