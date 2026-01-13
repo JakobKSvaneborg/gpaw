@@ -631,7 +631,7 @@ class ASECalculator:
         allowed = {'nbands', 'occupations', 'poissonsolver',
                    'kpts', 'eigensolver', 'random', 'maxiter',
                    'basis', 'symmetry', 'convergence', 'verbose',
-                   'parallel', 'mode', 'mixer'}
+                   'parallel', 'mode'}
         illegal = kwargs.keys() - allowed
         if illegal:
             raise TypeError(f'Illegal keyword(s): {illegal}.  '
