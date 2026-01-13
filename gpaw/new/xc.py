@@ -32,6 +32,7 @@ def create_functional(xc: OldXCFunctional | str | dict,
     exx_fraction = 0.0
     exx_omega = 0.0
     exx_yukawa = False
+    setup_name = xc.get_setup_name()
     if isinstance(xc, (str, dict)):
         xc = XC(xc)
 
@@ -56,6 +57,7 @@ def create_functional(xc: OldXCFunctional | str | dict,
     functional.exx_fraction = exx_fraction
     functional.exx_omega = exx_omega
     functional.exx_yukawa = exx_yukawa
+    functional.setup_name = setup_name
 
     return functional
 
@@ -93,7 +95,7 @@ class Functional:
         return self.xc.calculate_paw_correction(setup, d, h, a=a)
 
     def get_setup_name(self) -> str:
-        return self.name
+        return self.setup_name
 
     def stress_contribution(self,
                             ibzwfs, density,
