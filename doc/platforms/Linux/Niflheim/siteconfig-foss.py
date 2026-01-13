@@ -70,3 +70,6 @@ if cupy:
         raise RuntimeError(f'CuPy loaded but unknown $CPU_ARCH={cpuarch}')
 else:
     gpu = False
+
+compiler = "mpic++"
+use_cpp = True

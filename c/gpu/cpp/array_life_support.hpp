@@ -1,7 +1,8 @@
 #pragma once
 
-#include "../gpu-runtime.h"
+#include "../../python_utils.h"
 #include "pyarray_utils.hpp"
+#include "../gpu-runtime.h"
 
 #include <vector>
 

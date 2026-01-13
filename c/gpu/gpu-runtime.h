@@ -3,14 +3,14 @@
 
 #include "../gpaw_utils.h"
 
-#include <stdio.h>
-
 #ifdef GPAW_CUDA
 #include "cuda.h"
 #endif
 #ifdef GPAW_HIP
 #include "hip.h"
 #endif
+
+#include <stdio.h>
 
 #define gpuSafeCall(err)          __gpuSafeCall(err, __FILE__, __LINE__)
 #define gpublasSafeCall(err)      __gpublasSafeCall(err, __FILE__, __LINE__)

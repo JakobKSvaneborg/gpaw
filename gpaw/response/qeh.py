@@ -128,6 +128,24 @@ class QEHChiCalc(ChiCalc):
         r = self.gd.get_grid_point_coordinates()
         return r[2, 0, 0, :].copy()
 
+    def get_largest_qmax(self, ecut: float):
+        """
+        Determine largest available qmax from a user-specified ecut
+
+        Parameters:
+            ecut: float [eV]
+
+        Returns:
+            qmax: float [1 / Bohr]
+        """
+        from ase.units import Hartree
+        # distance between neighboring q-points
+        dqc = 1 / self.Nk
+        dq_v = dqc * self.gd.icell_cv[self.qdir] * 2 * pi
+        dq = np.linalg.norm(dq_v)
+        qmax = np.sqrt(2 * ecut / Hartree) - dq
+        return qmax
+
     def get_chi_wGG(self, qpoint: QPoint):
         if np.linalg.norm(qpoint.q_c) <= (2 * self.qinf_rel / self.Nk):
             chi0_dyson_eqs = self.df.get_chi0_dyson_eqs([0, 0, 0],

@@ -2,18 +2,18 @@
  *  Please see the accompanying LICENSE file for further information. */
 
 #include "../extensions.h"
+#include "../gpaw_utils.h"
 #include "bmgs.h"
 
 #ifdef K
 
-void
-IP1D(const T* a, const int n, const int m, T* restrict b, int skip[2])
+void IP1D(const TGPAW* a, const int n, const int m, TGPAW* GPAW_RESTRICT b, int skip[2])
 {
     a += K / 2 - 1;
 
     for (int j = 0; j < m; j++) {
-        const T* aa = a + j * (K - 1 - skip[1] + n);
-        T* restrict bb = b + j;
+        const TGPAW* aa = a + j * (K - 1 - skip[1] + n);
+        TGPAW* GPAW_RESTRICT bb = b + j;
 
         for (int i = 0; i < n; i++) {
             if (i == 0 && skip[0])
@@ -67,11 +67,10 @@ IP1D(const T* a, const int n, const int m, T* restrict b, int skip[2])
 #  undef IP1D
 #  undef K
 
-void
-Z(bmgs_interpolate)(int k, int skip[3][2],
-        const T* a, const int size[3], T* restrict b, T* restrict w)
+void Z(bmgs_interpolate)(int k, int skip[3][2],
+        const TGPAW* a, const int size[3], TGPAW* GPAW_RESTRICT b, TGPAW* GPAW_RESTRICT w)
 {
-    void (*ip)(const T*, int, int, T*, int[2]);
+    void (*ip)(const TGPAW*, int, int, TGPAW*, int[2]);
     int e;
 
     if (k == 2)

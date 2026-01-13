@@ -1,5 +1,7 @@
 #pragma once
 
+// Build system must define GPAW_CPP if compiling all of GPAW as C++
+
 #ifdef __cplusplus
     #define CLINKAGE extern "C"
     // Starts an extern "C" block
@@ -11,6 +13,30 @@
     #define CLINKAGE_BEGIN
     #define CLINKAGE_END
 #endif
+
+/* Handle `restrict` keyword not existing in C++. Use compiler extension if
+supported, otherwise simply leave GPAW_RESTRICT undefined */
+
+#if GPAW_CPP
+    #if defined(__clang__) || defined(__GNUC__)
+        #define GPAW_RESTRICT __restrict__
+    #elif defined(_MSC_VER)
+        #define GPAW_RESTRICT __restrict
+    #elif defined(_CRAYC)
+        #define GPAW_RESTRICT __restrict
+    #elif defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
+        #define GPAW_RESTRICT __restrict
+    #else
+        // Unsupported compiler? Leave empty
+        #define GPAW_RESTRICT
+    #endif
+
+#else
+    // C99 mode
+    #define GPAW_RESTRICT restrict
+#endif
+
+// FIXME: remove CLINKAGE from these when removing the C-compilation path
 
 /* Sets a runtime error to the Python interpreter. Caller should check with PyErr_Occured()
 and proceed accordingly. */

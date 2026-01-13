@@ -1,18 +1,18 @@
 /*  Copyright (C) 2003-2007  CAMP
  *  Please see the accompanying LICENSE file for further information. */
 
-#include <string.h>
 #include "bmgs.h"
+#include <string.h>
 
-void Z(bmgs_cut)(const T* a, const int n[3], const int c[3],
-                 T* b, const int m[3])
+void Z(bmgs_cut)(const TGPAW* a, const int n[3], const int c[3],
+                 TGPAW* b, const int m[3])
 {
   a += c[2] + (c[1] + c[0] * n[1]) * n[2];
   for (int i0 = 0; i0 < m[0]; i0++)
     {
       for (int i1 = 0; i1 < m[1]; i1++)
         {
-          memcpy(b, a, m[2] * sizeof(T));
+          memcpy(b, a, m[2] * sizeof(TGPAW));
           a += n[2];
           b += m[2];
         }

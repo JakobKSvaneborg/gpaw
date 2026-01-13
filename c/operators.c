@@ -7,7 +7,6 @@
 //*** Mads R. B. Kristensen - madsbk@diku.dk                      ***//
 
 #include "python_utils.h"
-#include <stdlib.h>
 #include "extensions.h"
 #include "bc.h"
 #include "mympi.h"
@@ -31,6 +30,8 @@
 PyObject* Operator_relax_gpu(OperatorObject *self, PyObject *args);
 PyObject* Operator_apply_gpu(OperatorObject *self, PyObject *args);
 #endif
+
+#include <stdlib.h>
 
 static void Operator_dealloc(OperatorObject *self)
 {

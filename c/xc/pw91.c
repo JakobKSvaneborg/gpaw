@@ -1,8 +1,8 @@
 /*  Copyright (C) 2003-2007  CAMP
  *  Please see the accompanying LICENSE file for further information. */
 
-#include <math.h>
 #include "xc_gpaw.h"
+#include <math.h>
 
 double G(double rtrs, double A, double alpha1,
 	 double beta1, double beta2, double beta3, double beta4,
