@@ -562,12 +562,21 @@ class Matrix(XP):
             self.dist.comm.broadcast(eps, 0)
         else:
             if slcomm.rank < rows * columns:
-                assert S is None
                 array = H.data.copy()
                 if not cc and np.issubdtype(H.dtype, np.complexfloating):
                     np.negative(array.imag, array.imag)
-                info = cgpaw.scalapack_diagonalize_dc(array, H.dist.desc, 'U',
-                                                      H.data, eps)
+                eps0 = np.empty(H.shape[0]) if limit else eps
+                if S is None:
+                    info = cgpaw.scalapack_diagonalize_dc(
+                        array, H.dist.desc, 'U', H.data, eps0)
+                else:
+                    sarray = S.data
+                    if not cc and np.issubdtype(H.dtype, np.complexfloating):
+                        np.negative(sarray.imag, sarray.imag)
+                    info = cgpaw.scalapack_general_diagonalize_dc(
+                        array, H.dist.desc, 'U', sarray, H.data, eps0)
+                if limit:
+                    eps[:] = eps0[:limit]
                 assert info == 0, info
 
             # necessary to broadcast eps when some ranks are not used
