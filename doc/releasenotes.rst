@@ -10,6 +10,8 @@ Git master branch
 
 :git:`master <>`.
 
+* Minimum version requirements: Python 3.10, ASE 3.25.0.
+
 * Ongoing work with optimizng the defaults of GPAW, so far the following
   changes have been made:
 
@@ -34,8 +36,6 @@ Git master branch
     * weight: 1 -> 1
 
   * eigensolver (:ref:`newgpaw` only): 'davidson' -> 'ppcg'
-
-* Minimum version requirements: Python 3.10, ASE 3.25.0.
 
 * :ref:`newgpaw`: Calculations can now be parallelized over
   spins.
