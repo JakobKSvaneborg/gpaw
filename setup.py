@@ -721,7 +721,7 @@ class BuildGPAW(build_ext):
 
             # Python and Numpy includes are added to self, NOT to the
             # extension. So take them, plus any user-specified includes.
-            includes = self.include_dirs + ext.include_dirs
+            includes = ext.include_dirs + self.include_dirs
 
             """
             Compiler flags. We replicate what Setuptools does:
