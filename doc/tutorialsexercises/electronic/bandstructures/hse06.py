@@ -32,7 +32,7 @@ def bandstructure(gs_calc, bp):
         txt='gmkg.txt')
     lda_skn = bs_calc.eigenvalues()
     hse = NonSelfConsistentHSE06.from_dft_calculation(
-        gs_calc.dft, 'hse06.txt')
+        gs_calc.dft, log='hse06.txt')
     hse_skn = hse.calculate(bs_calc.dft.ibzwfs, na=0, nb=N)
     # Return energies relative to vacuum level:
     return (lda_skn[0, :, :N] - vacuum_level,
