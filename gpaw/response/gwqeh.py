@@ -6,19 +6,17 @@ import pickle
 
 import numpy as np
 
-#from ase.utils.timing import timer
 from ase.units import Hartree, Bohr
 from ase.dft.kpoints import monkhorst_pack
 
 import gpaw.mpi as mpi
-from gpaw.kpt_descriptor import KPointDescriptor
-from gpaw.response.chi0 import HilbertTransform
+from gpaw.old.kpt_descriptor import KPointDescriptor
+from gpaw.response.hilbert import HilbertTransform
 from gpaw.response.g0w0 import select_kpts
 from gpaw.response.groundstate import ResponseGroundStateAdapter
 from gpaw.response.context import ResponseContext
 from gpaw.response.pair import (KPointPairFactory, ActualPairDensityCalculator,
                                 phase_shifted_fft_indices)
-from gpaw.response.paw import get_pair_density_paw_corrections
 from gpaw.response.qpd import SingleQPWDescriptor
 
 
@@ -285,14 +283,12 @@ class GWQEHCorrection:
             Wpm_w[:nw] = dW_w
             Wpm_w[nw:] = Wpm_w[0:nw]
 
-            #with self.timer('Hilbert transform'):
-            #    self.htp(Wpm_w[:nw])
-            #    self.htm(Wpm_w[nw:])
             self.htp(Wpm_w[:nw])
             self.htm(Wpm_w[nw:])
 
             # Setup q-point descriptor
-            pd0 = SingleQPWDescriptor.from_q(q_c, self.ecut, self.gs.gd, gammacentered=True)
+            pd0 = SingleQPWDescriptor.from_q(
+                q_c, self.ecut, self.gs.gd, gammacentered=True)
             G_Gv = pd0.get_reciprocal_vectors()
             assert len(G_Gv) == 1
             assert np.allclose(pd0.get_reciprocal_vectors(add_q=False), 0)
@@ -319,7 +315,7 @@ class GWQEHCorrection:
 
                 for u1, kpt1 in enumerate(mykpts):
                     K2 = kd.find_k_plus_q(Q_c, [kpt1.K])[0]
-                    # Get kpt2 using factory, blockcomm for parallel distribution
+                    # Get kpt2 using factory, blockcomm for parallellization
                     kpt2 = self.kptpair_factory.get_k_point(
                         kpt1.s, K2, 0, self.nbands, blockcomm=self.blockcomm)
                     k1 = kd.bz2ibz_k[kpt1.K]
@@ -421,7 +417,6 @@ class GWQEHCorrection:
         self.save_state_file()
         return self.Qp_sin * Hartree
 
-    #@timer('Sigma')
     def calculate_sigma(self, n_mG, deps_m, f_m, W_wGG):
         """Calculates a contribution to the self-energy and its derivative for
         a given (k, k-q)-pair from its corresponding pair-density and
@@ -445,10 +440,7 @@ class GWQEHCorrection:
         x = 1.0 / (self.qd.nbzkpts * 2 * pi * self.vol)
         sigma = 0.0
         dsigma = 0.0
-        printstring = f'in gwqeh.calculate_sigma: {W_wGG.shape = }\n'
-        printstring += f'{n_mG = }, {n_mG[:, Ga:Gb] = }\n'
-        printstring += f'{self.world.rank = }\n'
-        print(printstring, flush=True)
+
         # Performing frequency integration
         for o, o1, o2, sgn, s, w, n_G in zip(o_m, o1_m, o2_m,
                                              sgn_m, s_m, w_m, n_mG):
@@ -575,10 +567,6 @@ class GWQEHCorrection:
         # Single layer
         if len(d) == len(structure) - 1:
             d = interlayer_to_thickness(d)
-        print(f'{d = }')
-        print(f'{structure[layer] = }')
-        print(f'{structure = }')
-        print(f'{d[layer] = }')
         HS0 = QEH.heterostructure(
             BBfiles=[structure[layer]],
             layerwidth_l=[d[layer] / Bohr],
@@ -596,7 +584,6 @@ class GWQEHCorrection:
                                  )
         basis_idx = 2 * layer
         W_qw = HS.get_screened_potential()[..., basis_idx, basis_idx]
-
 
         # Difference in screened potential:
         dW_qw = W_qw - W0_qw
@@ -625,9 +612,6 @@ class GWQEHCorrection:
               file=self.fd)
 
         return self.epsmax - self.epsmin
-
-    #def timer(self, name):
-        #return self.context.timer(name)
 
 
 def interlayer_to_thickness(d):
