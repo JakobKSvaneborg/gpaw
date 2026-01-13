@@ -259,7 +259,7 @@ class PPCG(PWFDEigensolver):
                                np.max(error_n, initial=0) * self.tol_factor))
                 active_indicies = np.where(active_indicies)[0]
             else:
-                active_indicies = np.ones(error_n.shape, dtype=bool)
+                active_indicies = np.arange(b)
             error = weight_n @ error_n
             b_error = band_comm.sum_scalar(error) / \
                 max(band_comm.sum_scalar(weight_n.sum()), 0.5)
@@ -288,14 +288,16 @@ class PPCG(PWFDEigensolver):
                 M_nn.multiply(psit_nX, out=residual_nX, beta=1.0, alpha=-1.0)
                 M_nn.multiply(P_ani, out=P2_ani, beta=1.0, alpha=-1.0)
 
-            active_bs = len(active_indicies) if self.allow_dynamic_breakout \
+            loop_limit = len(active_indicies) if self.allow_dynamic_breakout \
                 else (psit_nX.dims[0] + band_comm.size - 1) // band_comm.size
+            active_bands = len(active_indicies)
 
             with tracectx('Block-diagonal Update'):
                 new_eigs_n = np.zeros_like(wfs.myeig_n)  # New eigenvalues
-                for j in range(0, active_bs, self.blocksize):
+                for j in range(0, loop_limit, self.blocksize):
                     block_slice_base = \
-                        slice(j, min(j + self.blocksize, len(active_indicies)))
+                        slice(min(j, active_bands),
+                              min(j + self.blocksize, active_bands))
                     block = \
                         block_slice_base.stop - block_slice_base.start
                     block_slice = active_indicies[block_slice_base]
