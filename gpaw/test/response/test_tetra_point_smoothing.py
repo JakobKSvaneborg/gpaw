@@ -4,7 +4,7 @@ from ase import Atoms
 from scipy.ndimage import gaussian_filter1d
 
 from gpaw import GPAW, PW, FermiDirac
-from gpaw.bztools import find_high_symmetry_monkhorst_pack
+from gpaw.bztools import optimal_monkhorst_pack_grid
 from gpaw.response.df import DielectricFunction
 from gpaw.test import findpeak
 
@@ -37,8 +37,14 @@ def test_point_tetra_match(in_tmp_dir):
     atoms.get_potential_energy()
     calc.write(gs_file)
 
-    density = 15
-    kpts = find_high_symmetry_monkhorst_pack(atoms, density=density)
+    kpts = optimal_monkhorst_pack_grid(
+        atoms,
+        kptdensity=18.,
+        force_gamma=True,
+        force_even=True,
+        contains_ibz_vertices=True,
+        nmaxperdim=2)
+
     responseGS = GPAW(gs_file).fixed_density(
         kpts=kpts,
         parallel={'band': 1},
