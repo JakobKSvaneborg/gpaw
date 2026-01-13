@@ -16,7 +16,7 @@ import warnings
 from pathlib import Path
 import subprocess
 from sysconfig import get_config_var, get_platform
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 from distutils.ccompiler import new_compiler, CCompiler
 from distutils.errors import CCompilerError
@@ -488,9 +488,9 @@ write_configuration(define_macros, include_dirs, libraries, library_dirs,
                     runtime_library_dirs, extra_objects, compiler)
 
 
-def parse_cflags(define_macros: Optional[list[tuple[str, str]]],
-                 undef_macros: Optional[list[str]],
-                 include_dirs: Optional[list[str]]
+def parse_cflags(define_macros:list[tuple[str, str]] | None,
+                 undef_macros: list[str] | None,
+                 include_dirs: list[str] | None
                  ) -> list[str]:
     """Converts setuptools-style compiler args to a form that corresponds to
     CFLAGS in Makefiles. Example output:
@@ -516,9 +516,9 @@ def parse_cflags(define_macros: Optional[list[tuple[str, str]]],
     return cflags
 
 
-def parse_ldflags(libraries: Optional[list[str]],
-                  library_dirs: Optional[list[str]],
-                  runtime_library_dirs: Optional[list[str]]) -> list[str]:
+def parse_ldflags(libraries: list[str] | None,
+                  library_dirs: list[str] | None,
+                  runtime_library_dirs: list[str] | None) -> list[str]:
     """Converts setuptools-style linker args to a form that corresponds to
     LDFLAGS in Makefiles. Example output:
         ['-lsomelib', '-L/some/lib/path/', '-Wl,-rpath,/some/rpath/']
