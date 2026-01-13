@@ -18,8 +18,7 @@ pytestmark = pytest.mark.usefixtures('module_tmp_path')
 
 parallel_i = parallel_options()
 
-# XXX: We should really reasonable relative tolerances, instead of this
-# madness.
+# XXX: We should really use reasonable relative tolerances, instead of this
 
 
 # Parameterize over spin polarized and unpolarized calculations

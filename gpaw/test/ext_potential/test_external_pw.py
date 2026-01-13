@@ -65,7 +65,7 @@ def test_ext_potential_external_pw():
 
     convergence = {'eigenstates': 1.e-6 * 40 * 1.5**3,
                    'density': 1.e-3,
-                   'energy': 0.1}  # Insanity...
+                   'energy': 0.1}
 
     # without potential
     if True:
