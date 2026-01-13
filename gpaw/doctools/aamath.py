@@ -240,9 +240,9 @@ def test_examples():
 
 
 def main():
-    import sys
     import argparse
     import importlib
+    import sys
     parser = argparse.ArgumentParser(
         description='Parse docstring with ascii-art math.')
     parser.add_argument(

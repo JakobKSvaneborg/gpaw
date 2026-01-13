@@ -1,7 +1,8 @@
-from ase import Atoms
-from gpaw.test import calculate_numerical_forces
-from gpaw import GPAW, FermiDirac, PoissonSolver
 import pytest
+from ase import Atoms
+
+from gpaw import GPAW, FermiDirac, PoissonSolver
+from gpaw.test import calculate_numerical_forces
 from gpaw.xc.tools import vxc
 
 

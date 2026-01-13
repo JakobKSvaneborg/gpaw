@@ -1,10 +1,12 @@
-import pytest
-from gpaw.mpi import world
-from math import sin, cos, pi
+from math import cos, pi, sin
+
 import numpy as np
-from gpaw.fd_operators import GUCLaplace as Laplace
+import pytest
+
 from gpaw.fd_operators import Gradient
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.fd_operators import GUCLaplace as Laplace
+from gpaw.mpi import world
+from gpaw.old.grid_descriptor import GridDescriptor
 
 pytestmark = pytest.mark.skipif(world.size > 1,
                                 reason='world.size > 1')

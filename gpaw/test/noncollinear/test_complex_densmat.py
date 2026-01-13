@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
 
+from gpaw.core import UGDesc
 from gpaw.new.pot_calc import calculate_non_local_potential1
 from gpaw.new.xc import create_functional
 from gpaw.setup import create_setup
-from gpaw.core import UGDesc
 from gpaw.xc import XC
 
 

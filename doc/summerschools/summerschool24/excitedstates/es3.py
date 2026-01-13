@@ -27,7 +27,7 @@ from gpaw.occupations import FermiDirac
 calc_old = GPAW('Si_gs_LDA.gpw', txt=None) # student: calc_old = GPAW('.gpw', txt=None)
 
 #Extract number of valence bands:
-nval = calc_old.wfs.nvalence
+nval = int(calc_old.wfs.nvalence)
 
 # Do new ground state calculations with more k-points.
 # This is because in general RPA calculations requires more k-poins to be converged.
@@ -64,7 +64,7 @@ from gpaw.response.df import DielectricFunction
 #Insert the name of your structure and the k-point grid you are using instead of "???".
 
 calc_old = GPAW('Si_gs_LDA.gpw', txt=None) # student: calc_old = GPAW('.gpw', txt=None)
-nval = calc_old.wfs.nvalence
+nval = int(calc_old.wfs.nvalence)
 
 #Note: For a 2D material (here BN) we use an additional keyword in the parameters below: 'truncation': '2D'
 #This truncates the Coulomb interaction in the lateral direction to avoid non-physical periodic interactions.

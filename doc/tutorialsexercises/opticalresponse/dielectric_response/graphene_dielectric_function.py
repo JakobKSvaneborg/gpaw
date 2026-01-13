@@ -9,7 +9,7 @@ from gpaw import GPAW, FermiDirac
 from gpaw import PW
 from gpaw.response.df import DielectricFunction
 from gpaw.mpi import world
-from gpaw.bztools import find_high_symmetry_monkhorst_pack
+from gpaw.bztools import optimal_monkhorst_pack_grid
 from scipy.ndimage import gaussian_filter1d
 
 
@@ -37,7 +37,12 @@ atoms.calc = calc
 atoms.get_potential_energy()
 calc.write('gs.gpw')
 
-kpts = find_high_symmetry_monkhorst_pack('gs.gpw', density=30)
+kpts = optimal_monkhorst_pack_grid(atoms,
+                                   kptdensity=30.,
+                                   force_gamma=True,
+                                   force_even=True,
+                                   contains_ibz_vertices=True)
+
 responseGS = GPAW('gs.gpw').fixed_density(
     kpts=kpts,
     parallel={'band': 1},

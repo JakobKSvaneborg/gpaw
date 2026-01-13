@@ -24,6 +24,12 @@ read the guide :ref:`Using a pre-installed GPAW on Niflheim <load on niflheim>`.
 Creating the venv
 =================
 
+**IMPORTANT:** Starting October 2025, this procedure will install GPAW
+with the new 2025b series of compilers and libraries.  If you want to
+install using the older 2023a series, please use the script
+:download:`gpaw_venv_2023a.py` instead.
+
+
 Download the :download:`gpaw_venv.py` script (use ``wget <url>``)
 and run it like this::
 
@@ -32,7 +38,7 @@ and run it like this::
 
 .. tip::
 
-    You will need Python 3.9 or later.  You can install that with::
+    You will need Python 3.10 or later.  You can install that with::
 
         $ module load Python
 
@@ -49,7 +55,7 @@ The ``gpaw_venv.py`` script does the following:
 * install some other Python packages from PyPI: sklearn, graphviz,
   matplotlib, pytest-xdist, myqueue, ase-ext, spglib
 * enable tab-completion for command-line tools:
-  `ase <https://wiki.fysik.dtu.dk/ase/cmdline.html>`__,
+  `ase <https://ase-lib.org/cmdline.html>`__,
   `gpaw <https://gpaw.readthedocs.io/documentation/cmdline.html>`__,
   `mq <https://myqueue.readthedocs.io/cli.html>`__
 
@@ -107,7 +113,7 @@ to install ASR-Lib_::
 
     Pip may need to compile some code.
     It is therefore safest to use the ``thul`` login node to pip install
-    software as it is the oldest CPU architcture and the other login nodes
+    software as it is the oldest CPU architecture and the other login nodes
     will understand its code.
 
 .. _ASR-Lib: https://asr-lib.fysik.dtu.dk/

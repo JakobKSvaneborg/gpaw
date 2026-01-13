@@ -1,5 +1,5 @@
 from gpaw import GPAW
-from gpaw.spherical_harmonics import names
+from gpaw.sphere.spherical_harmonics import names
 from ase.units import Ha
 
 calc = GPAW('pt-atom.gpw')

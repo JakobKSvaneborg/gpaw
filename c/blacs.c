@@ -4,16 +4,16 @@
  *  Please see the accompanying LICENSE file for further information. */
 
 #ifdef PARALLEL
-#include <Python.h>
+#include "python_utils.h"
 #ifdef GPAW_WITH_SL
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
 #include <stdlib.h>
 #include <mpi.h>
 #include <structmember.h>
 #include "extensions.h"
 #include "mympi.h"
+#ifdef GPAW_WITH_INTEL_MKL
+#include <mkl_scalapack.h>
+#endif
 
 // BLACS
 #define BLOCK_CYCLIC_2D 1
@@ -98,6 +98,9 @@ int Csys2blacs_handle_(MPI_Comm SysCtxt);
 #endif
 
 // tools
+#ifndef GPAW_WITH_INTEL_MKL
+// These should almost certainly not be defined here, even with a non-Intel scalapack.
+// Instead, the proper header file should be included
 int numroc_(int* n, int* nb, int* iproc, int* isrcproc, int* nprocs);
 
 void Cpdgemr2d_(int m, int n,
@@ -221,6 +224,7 @@ void pzhengst_(int* ibtype, char* uplo, int* n,
                void* a, int* ia, int* ja, int* desca,
                void* b, int* ib, int* jb, int* descb,
                double* scale, void* work, int* lwork, int* info);
+#endif // GPAW_WITH_INTEL_MKL
 
 #ifdef GPAW_MR3
 void pdsyevr_(char* jobz, char* range,
@@ -606,7 +610,7 @@ PyObject* new_blacs_context(PyObject *self, PyObject *args)
   }
 
   // Create blacs grid on this communicator
-  MPI_Comm comm = ((MPIObject*)comm_obj)->comm;
+  MPI_Comm comm = *((MPI_Comm*) PyLong_AsVoidPtr(comm_obj));
 
   // Get my id and nprocs. This is for debugging purposes only
   Cblacs_pinfo_(&iam, &nprocs);

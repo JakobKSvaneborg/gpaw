@@ -4,12 +4,14 @@ among occupied states only
 
 """
 
-from gpaw.directmin.tools import get_n_occ, get_indices, expm_ed
-from gpaw.directmin.sd_etdm import LBFGS_P
-from gpaw.directmin.ls_etdm import StrongWolfeConditions as SWC
-from ase.units import Hartree
-import numpy as np
 import time
+
+import numpy as np
+from ase.units import Hartree
+
+from gpaw.directmin.ls_etdm import StrongWolfeConditions as SWC
+from gpaw.directmin.sd_etdm import LBFGS_P
+from gpaw.directmin.tools import expm_ed, get_indices, get_n_occ
 
 
 class PZLocalization:

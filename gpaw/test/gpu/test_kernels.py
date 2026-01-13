@@ -1,8 +1,10 @@
-import pytest
 import numpy as np
+import pytest
 
+from gpaw import GPAW_NO_C_EXTENSION
+from gpaw.gpu import cupy as cp
+from gpaw.gpu import cupy_is_fake
 from gpaw.utilities import as_real_dtype
-from gpaw.gpu import cupy as cp, cupy_is_fake
 
 seed = 42
 
@@ -12,7 +14,10 @@ seed = 42
 @pytest.mark.parametrize("dtype", [np.float32, np.float64,
                                    np.complex64, np.complex128])
 def test_dH_aii_times_P_ani(dtype):
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import dH_aii_times_P_ani_gpu as kernel_call
+
     from gpaw.purepython import dH_aii_times_P_ani_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -31,7 +36,7 @@ def test_dH_aii_times_P_ani(dtype):
     out_cupy_nI = cp.zeros((nN, IN), dtype=dtype)
     ni_a = cp.ones(aN, dtype=np.int32) * iN
 
-    kernel_call(dH_aii, ni_a, P_nI, out_kernel_nI)
+    kernel_call(dH_aii, ni_a, P_nI, out_kernel_nI, 0)
     cupy_call(dH_aii, ni_a, P_nI, out_cupy_nI)
     assert out_kernel_nI.get() == \
         pytest.approx(out_cupy_nI.get(), abs=1e-5)
@@ -43,7 +48,10 @@ def test_dH_aii_times_P_ani(dtype):
                                    np.complex64, np.complex128])
 @pytest.mark.parametrize("cc", [True, False])
 def test_pwlfc_expand(dtype, cc):
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import pwlfc_expand_gpu as kernel_call
+
     from gpaw.purepython import pwlfc_expand_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -85,20 +93,28 @@ def test_pwlfc_expand(dtype, cc):
     kernel_call(f_Gs, Gk_Gv, pos_av,
                 eikR_a, Y_GL,
                 l_s, a_J, s_J,
-                cc, f_kernel_GI, I_J)
+                cc, f_kernel_GI, I_J, 0)
     cupy_call(f_Gs, Gk_Gv, pos_av,
               eikR_a, Y_GL,
               l_s, a_J, s_J,
               cc, f_cupy_GI, I_J)
 
-    assert f_kernel_GI.get() == pytest.approx(f_cupy_GI.get(), abs=1e-6)
+    if dtype in {np.float32, np.complex64}:
+        tol = 1e-6
+    else:
+        tol = 1e-12
+    assert f_kernel_GI.get() == pytest.approx(f_cupy_GI.get(),
+                                              rel=tol, abs=tol)
 
 
 @pytest.mark.gpu
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
 def test_pw_amend_insert_realwf(dtype):
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import pw_amend_insert_realwf_gpu as kernel_call
+
     from gpaw.purepython import pw_amend_insert_realwf_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -114,7 +130,7 @@ def test_pw_amend_insert_realwf(dtype):
     array_kernel_nQ = array_nQ.copy()
     array_cupy_nQ = array_nQ.copy()
 
-    kernel_call(array_kernel_nQ, n, m)
+    kernel_call(array_kernel_nQ, n, m, 0)
     cupy_call(array_cupy_nQ, n, m)
 
     assert array_kernel_nQ.get() != pytest.approx(array_nQ.get())
@@ -126,7 +142,10 @@ def test_pw_amend_insert_realwf(dtype):
 @pytest.mark.parametrize("dtype", [np.float32, np.float64,
                                    np.complex64, np.complex128])
 def test_calculate_residuals(dtype):
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import calculate_residuals_gpu as kernel_call
+
     from gpaw.purepython import calculate_residuals_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -142,7 +161,7 @@ def test_calculate_residuals(dtype):
     residual_kernel_nG = cp.zeros((nN, GN), dtype=dtype)
     residual_cupy_nG = cp.zeros((nN, GN), dtype=dtype)
 
-    kernel_call(residual_kernel_nG, eps_n, wfs_nG)
+    kernel_call(residual_kernel_nG, eps_n, wfs_nG, 0)
     cupy_call(residual_cupy_nG, eps_n, wfs_nG)
 
     assert residual_kernel_nG.get() == pytest.approx(residual_cupy_nG.get())
@@ -153,7 +172,10 @@ def test_calculate_residuals(dtype):
 @pytest.mark.parametrize("dtype", [np.float32, np.float64,
                                    np.complex64, np.complex128])
 def test_add_to_density(dtype):
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import add_to_density_gpu as kernel_call
+
     from gpaw.purepython import add_to_density_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -170,7 +192,7 @@ def test_add_to_density(dtype):
     nt_kernel_R = cp.zeros(RN, dtype=np.float64)
     nt_cupy_R = cp.zeros(RN, dtype=np.float64)
 
-    kernel_call(weight_n, psit_nR, nt_kernel_R)
+    kernel_call(weight_n, psit_nR, nt_kernel_R, 0)
     cupy_call(weight_n, psit_nR, nt_cupy_R)
 
     assert nt_kernel_R.get() == \
@@ -181,7 +203,10 @@ def test_add_to_density(dtype):
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.parametrize("dtype", [np.complex64, np.complex128])
 def test_pw_norm(dtype):
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import pw_norm_gpu as kernel_call
+
     from gpaw.purepython import pw_norm_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -197,7 +222,7 @@ def test_pw_norm(dtype):
     result_kernel_x = cp.empty(xN, dtype=rdtype)
     result_cupy_x = cp.empty(xN, dtype=rdtype)
 
-    kernel_call(result_kernel_x, C_xG)
+    kernel_call(result_kernel_x, C_xG, 0)
     cupy_call(result_cupy_x, C_xG)
 
     assert result_kernel_x.get() == pytest.approx(result_cupy_x.get())
@@ -207,7 +232,10 @@ def test_pw_norm(dtype):
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.parametrize("dtype", [np.complex64, np.complex128])
 def test_pw_norm_kinetic(dtype):
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import pw_norm_kinetic_gpu as kernel_call
+
     from gpaw.purepython import pw_norm_kinetic_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -224,7 +252,7 @@ def test_pw_norm_kinetic(dtype):
     result_kernel_x = cp.zeros(xN, dtype=rdtype)
     result_cupy_x = cp.zeros(xN, dtype=rdtype)
 
-    kernel_call(result_kernel_x, C_xG, kin_G)
+    kernel_call(result_kernel_x, C_xG, kin_G, 0)
     cupy_call(result_cupy_x, C_xG, kin_G)
 
     assert result_kernel_x.get() == \
@@ -235,7 +263,10 @@ def test_pw_norm_kinetic(dtype):
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.parametrize("dtype", [np.complex64, np.complex128])
 def test_pw_insert(dtype):
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import pw_insert_gpu as kernel_call
+
     from gpaw.purepython import pw_insert_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -259,7 +290,7 @@ def test_pw_insert(dtype):
     psit_kernel_bQ = cp.zeros((bN, QN), dtype=dtype)
     psit_cupy_bQ = cp.zeros((bN, QN), dtype=dtype)
 
-    kernel_call(psit_nG, Q_G, scale, psit_kernel_bQ, nx, ny, nz)
+    kernel_call(psit_nG, Q_G, scale, psit_kernel_bQ, nx, ny, nz, 0)
     cupy_call(psit_nG, Q_G, scale, psit_cupy_bQ, nx, ny, nz)
 
     assert psit_kernel_bQ.get() == pytest.approx(psit_cupy_bQ.get())

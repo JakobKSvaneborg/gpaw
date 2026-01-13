@@ -1,5 +1,6 @@
 *.pyc
 build/
+niflheim_build/
 /dist
 MANIFEST
 _gpaw*.so
@@ -10,7 +11,7 @@ gpaw.egg-info/
 /siteconfig.py
 /siteconfig-*.py
 /venv*/
-.coverage*
+.coverage
 htmlcov/
 .pytest_cache/
 .idea
@@ -48,6 +49,7 @@ doc/setups/[A-Z]*.rst
 !*.master.ipynb
 !doc/devel/gpaw-logo.svg
 !doc/templates/breadcrumbs.html
+!doc/tutorialsexercises/opticalresponse/bseplus_tutorial/*.csv
 
 # If you run the tests, these may write out files
 *.gpw
@@ -69,7 +71,6 @@ doc/setups/[A-Z]*.rst
 .\#*
 
 # Files produced by AGTS (myqueue)
-*.py.state
 *.py.*.err
 
 # These are OK:

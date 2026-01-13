@@ -1,19 +1,20 @@
-import pytest
 import numpy as np
+import pytest
 
+from gpaw.mpi import world
 from gpaw import GPAW
 from gpaw.test import gen
 from gpaw.xas import XAS, RecursionMethod
-import gpaw.mpi as mpi
 
 
 @pytest.mark.old_gpaw_only
+@pytest.mark.hmm
 def test_corehole_si(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
     # restart from file
     calc = GPAW(gpw_files['si_corehole_pw'])
     si = calc.atoms
 
-    if mpi.size == 1:
+    if world.size == 1:
         xas = XAS(calc)
         x, y = xas.get_spectra()
     else:
@@ -27,7 +28,7 @@ def test_corehole_si(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
 
     r = RecursionMethod(calc)
     r.run(40)
-    if mpi.size == 1:
+    if world.size == 1:
         z = r.get_spectra(x)
 
     if 0:
@@ -57,7 +58,7 @@ def test_si_nonortho(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
     # si_corehole_nosym_pw, si_corehole_sym_pw
     calc1 = GPAW(gpw_files['si_corehole_sym_pw'])
     calc2 = GPAW(gpw_files['si_corehole_nosym_pw'])
-    if mpi.size == 1:
+    if world.size == 1:
         xas1 = XAS(calc1)
         x, y1 = xas1.get_spectra()
         xas2 = XAS(calc2)

@@ -23,8 +23,6 @@ displacements. The implementation supports calculations of the el-ph coupling
 in both finite and periodic systems, i.e. expressed in a basis of molecular
 orbitals or Bloch states.
 """
-from typing import Optional
-
 import ase.units as units
 import numpy as np
 from ase import Atoms
@@ -32,8 +30,8 @@ from ase.phonons import Phonons
 from ase.utils.filecache import MultiFileJSONCache
 from ase.utils.timing import Timer, timer
 
-from gpaw.calculator import GPAW
-from gpaw.mpi import world
+from gpaw.mpi import normalize_communicator
+from gpaw.old.calculator import GPAW
 from gpaw.typing import ArrayND
 
 from .supercell import Supercell
@@ -45,7 +43,8 @@ class ElectronPhononMatrix:
     """Class for containing the electron-phonon matrix"""
 
     def __init__(self, atoms: Atoms, supercell_cache: str, phonon,
-                 load_sc_as_needed: bool = True, indices=None) -> None:
+                 load_sc_as_needed: bool = True, indices=None,
+                 world=None) -> None:
         """Initialize with base class args and kwargs.
 
         Parameters
@@ -56,7 +55,7 @@ class ElectronPhononMatrix:
             Name of JSON cache containing supercell matrix
         phonon: str, dict, :class:`~ase.phonons.Phonons`
             Can be either name of phonon cache generated with
-            electron-phonon DisplacementRunner or dictonary
+            electron-phonon DisplacementRunner or dictionary
             of arguments used in Phonons run or Phonons object.
         load_sc_as_needed: bool
             Load supercell matrix elements only as needed.
@@ -65,6 +64,9 @@ class ElectronPhononMatrix:
         indices: list
             List of atoms (indices) to use. Default: Use all.
         """
+        world = normalize_communicator(world)
+
+        self.world = world
         if not load_sc_as_needed:
             assert indices is None, "Use 'load_sc_as_needed' with 'indices'"
 
@@ -150,7 +152,7 @@ class ElectronPhononMatrix:
     @timer("Bloch matrix q k")
     def _bloch_matrix(self, var1: ArrayND, C2_nM: ArrayND,
                       k_c: ArrayND, q_c: ArrayND,
-                      prefactor: bool, s: Optional[int] = None) -> ArrayND:
+                      prefactor: bool, s: int | None = None) -> ArrayND:
         """Calculates elph matrix entry for a given k and q.
 
         The first argument must either be
@@ -261,7 +263,7 @@ class ElectronPhononMatrix:
                           ql
 
         In case the ``prefactor=False`` is given, the bare matrix
-        element (in units of eV / Ang) without the sqrt prefactor is returned.
+        element (in units of eV / Å) without the sqrt prefactor is returned.
 
         Parameters
         ----------
@@ -269,7 +271,7 @@ class ElectronPhononMatrix:
             Converged calculator object containing the LCAO wavefuntions
             (don't use point group symmetry)
         k_qc: np.ndarray
-            q-vectors of the phonons. Must only contain values comenserate
+            q-vectors of the phonons. Must only contain values commensurate
             with k-point sampling of calculator. Default: all kpoints used.
         savetofile: bool
             If true (default), saves matrix to gsqklnn.npy
@@ -321,13 +323,13 @@ class ElectronPhononMatrix:
                         g_lnn[0:3] = 0.0
                     g_sqklnn[s, q, k] += g_lnn
 
-        if world.rank == 0 and savetofile:
+        if self.world.rank == 0 and savetofile:
             np.save("gsqklnn.npy", g_sqklnn)
 
         return g_sqklnn
 
     def __del__(self):
-        if world.rank == 0:
+        if self.world.rank == 0:
             try:
                 self.timer.write()
             except ValueError:

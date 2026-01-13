@@ -1,9 +1,10 @@
 import pytest
-from gpaw.utilities import compiled_with_libvdwxc
 from ase.build import molecule
-from gpaw import GPAW, Mixer, Davidson, PW
-from gpaw.xc.libvdwxc import vdw_df
+
+from gpaw import GPAW, PW, Davidson, Mixer
 from gpaw.mpi import world
+from gpaw.utilities import compiled_with_libvdwxc
+from gpaw.xc.libvdwxc import vdw_df
 
 pytestmark = pytest.mark.skipif(not compiled_with_libvdwxc(),
                                 reason='not compiled_with_libvdwxc()')

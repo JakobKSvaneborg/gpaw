@@ -75,6 +75,11 @@ that create figures or table data for this web-page.  For an example, look at
 the source code :git:`here <doc/tutorialsexercises/electronic/stm>` which will
 produce this: :ref:`stm tutorial`.
 
+**Spell check**
+
+To run a spell check install ``sphinxcontrib.spelling`` by running ``pip install sphinxcontrib-spelling``,
+navigate to gpaw/doc and run: ``make spelling``.
+If a correctly spelled word gets flagged, add it to gpaw/doc/words.txt.
 
 .. automodule:: gpaw.doctools.aamath
 

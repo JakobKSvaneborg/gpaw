@@ -1,5 +1,6 @@
 from ase.build import molecule
 from ase.optimize import QuasiNewton
+
 from gpaw import GPAW
 
 H2 = molecule('H2', cell=(10, 10, 10))

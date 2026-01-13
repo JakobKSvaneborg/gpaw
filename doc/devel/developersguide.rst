@@ -145,7 +145,7 @@ constructed (see :xkcd:`here <849>`):
 
 Here, `\hat{S}_s` is one of the `N_s` symmetry operators of the system
 (see :class:`gpaw.symmetry.Symmetry`), `f_{n\mathbf{k}\sigma}` are
-the occupation numbers (adding up to the number of valence elctrons),
+the occupation numbers (adding up to the number of valence electrons),
 and `\tilde{n}_c^a(r)` is the pseudo core density for atom number `a`.
 
 The all-electron spin-densities are given as:

@@ -1,5 +1,6 @@
-from gpaw import GPAW, PW, MethfesselPaxton
 from ase.spacegroup import crystal
+
+from gpaw import GPAW, PW, MethfesselPaxton
 
 
 def test_negative_eigerror():

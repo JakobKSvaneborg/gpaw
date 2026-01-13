@@ -1,9 +1,8 @@
 import numpy as np
 
 from gpaw.cgpaw import GG_shuffle
-
-from gpaw.response.symmetry import QSymmetries
 from gpaw.response.qpd import SingleQPWDescriptor
+from gpaw.response.symmetry import QSymmetries
 
 
 class HeadSymmetryOperators:

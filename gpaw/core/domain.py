@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence, Literal, Generic, TypeVar
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Generic, Literal, TypeVar
 
 import numpy as np
 from ase.geometry.cell import cellpar_to_cell
@@ -8,11 +9,11 @@ from ase.geometry.cell import cellpar_to_cell
 from gpaw.fftw import get_efficient_fft_size
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.typing import (Array2D, ArrayLike, ArrayLike1D, ArrayLike2D,
-                         DTypeLike, Vector, Self)
+                         DTypeLike, Self, Vector)
 
 if TYPE_CHECKING:
     from gpaw.core import UGDesc
-    from gpaw.core.arrays import DistributedArrays
+    from gpaw.core.arrays import XArray
 
 
 def normalize_cell(cell: ArrayLike) -> Array2D:
@@ -31,10 +32,10 @@ def normalize_cell(cell: ArrayLike) -> Array2D:
     return cellpar_to_cell(cell)
 
 
-XArray = TypeVar('XArray', bound='DistributedArrays')
+X = TypeVar('X', bound='XArray')
 
 
-class Domain(Generic[XArray]):
+class Domain(Generic[X]):
     itemsize: int
 
     def __init__(self,
@@ -119,12 +120,12 @@ class Domain(Generic[XArray]):
 
     def empty(self,
               shape: int | tuple[int, ...] = (),
-              comm: MPIComm = serial_comm, xp=None) -> XArray:
+              comm: MPIComm = serial_comm, xp=None) -> X:
         raise NotImplementedError
 
     def zeros(self,
               shape: int | tuple[int, ...] = (),
-              comm: MPIComm = serial_comm, xp=None) -> XArray:
+              comm: MPIComm = serial_comm, xp=None) -> X:
         array = self.empty(shape, comm, xp=xp)
         array.data[:] = 0.0
         return array

@@ -1,15 +1,15 @@
-from math import sqrt, pi
+from math import pi, sqrt
 
 import numpy as np
 from scipy.special import eval_legendre
 
-from gpaw.xc.gga import (add_gradient_correction, gga_vars,
-                         GGARadialExpansion, GGARadialCalculator,
-                         get_gradient_ops, stress_gga_term)
+from gpaw.sphere.lebedev import weight_n
+from gpaw.xc.functional import XCFunctional
+from gpaw.xc.gga import (GGARadialCalculator, GGARadialExpansion,
+                         add_gradient_correction, get_gradient_ops, gga_vars,
+                         stress_gga_term)
 from gpaw.xc.lda import (calculate_paw_correction, stress_integral,
                          stress_lda_term)
-from gpaw.xc.functional import XCFunctional
-from gpaw.sphere.lebedev import weight_n
 
 
 class MGGA(XCFunctional):
@@ -17,14 +17,14 @@ class MGGA(XCFunctional):
 
     def __init__(self, kernel, stencil=2):
         """Meta GGA functional."""
-        XCFunctional.__init__(self, kernel.name, kernel.type)
+        super().__init__(kernel.name, kernel.type)
         self.kernel = kernel
         self.stencil_range = stencil
         self.fixed_ke = False
 
     def set_grid_descriptor(self, gd):
         self.grad_v = get_gradient_ops(gd, self.stencil_range, np)
-        XCFunctional.set_grid_descriptor(self, gd)
+        super().set_grid_descriptor(gd)
 
     def get_setup_name(self):
         return 'PBE'

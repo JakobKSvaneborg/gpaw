@@ -1,7 +1,8 @@
 import pytest
 from ase import Atoms
+
 from gpaw import GPAW
-from gpaw.pipekmezey.pipek_mezey_wannier import PipekMezey
+from gpaw.wannier.pipekmezey.pipek_mezey_wannier import PipekMezey
 
 
 @pytest.mark.pipekmezey
@@ -12,7 +13,8 @@ def test_pipekmezey_spin(in_tmp_dir):
                              [0, 0, 1.207]])
     atoms.center(vacuum=5)
 
-    calc = GPAW(mode='fd',
+    calc = GPAW(_use_old_gpaw=True,
+                mode='fd',
                 h=0.24,
                 convergence={'density': 1e-4,
                              'eigenstates': 1e-4},

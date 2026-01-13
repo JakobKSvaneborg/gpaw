@@ -1,8 +1,8 @@
 .. module:: gpaw.hyperfine
 .. _hyperfine:
 
-Isotropic and anisotropic hyperfine coupling paramters
-======================================================
+Isotropic and anisotropic hyperfine coupling parameters
+=======================================================
 
 .. contents::
 
@@ -19,7 +19,7 @@ Use the :func:`hyperfine_parameters` function or the CLI tool::
 For details, see :doi:`Peter E. Blöchl <10.1103/PhysRevB.62.6158>` and
 :doi:`Oleg V. Yazyev et al. <10.1103/PhysRevB.71.115110>`.
 
-The results should be divided by the net mangetic moments averaged over an entire supercell.
+The results should be divided by the net magnetic moments averaged over an entire supercell.
 If one wants to calculate the localized HF effects on an atom or group of atoms in an anti-ferromagnetic material, one needs to divide the HF constants with the average magnetic moment of that atom or group of atoms.
 As, an anti-ferromagnetic system, overall should have a net magnetic moment of zero.
 

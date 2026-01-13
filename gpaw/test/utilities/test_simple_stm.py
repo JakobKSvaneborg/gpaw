@@ -3,7 +3,7 @@ from ase import Atoms
 
 from gpaw import GPAW, FermiDirac
 from gpaw.analyse.simple_stm import SimpleStm
-from gpaw.mpi import rank, size
+from gpaw.mpi import world
 
 
 def test_utilities_simple_stm(in_tmp_dir):
@@ -12,8 +12,8 @@ def test_utilities_simple_stm(in_tmp_dir):
     txt = '-'
 
     me = ''
-    if size > 1:
-        me += 'rank ' + str(rank) + ': '
+    if world.size > 1:
+        me += 'rank ' + str(world.rank) + ': '
 
     BH = Atoms('BH', [[.0, .0, .41], [.0, .0, -1.23]],
                cell=[5, 6, 6.5])
@@ -26,7 +26,7 @@ def test_utilities_simple_stm(in_tmp_dir):
         stm.write_3D([1, 0, 0], f3dname)  # single wf
         wf = stm.gd.integrate(stm.ldos)
 
-        if size == 1:  # XXXX might have trouble reading in parallel
+        if world.size == 1:  # XXXX might have trouble reading in parallel
             stm2 = SimpleStm(f3dname)
             wf2 = stm2.gd.integrate(stm2.ldos)
             print('Integrals: written, read=', wf, wf2)

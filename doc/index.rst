@@ -39,13 +39,15 @@ Force: -0.639 eV/Å
     :target: https://pypi.org/project/gpaw/
 
 .. _Python: https://www.python.org
-.. _ASE: https://wiki.fysik.dtu.dk/ase
+.. _ASE: https://ase-lib.org
 
 
 .. _news:
 
 News
 ====
+
+* :ref:`GPAW version 25.7.0 <releasenotes>` released (Jul 29, 2025).
 
 * :ref:`GPAW version 25.1.0 <releasenotes>` released (Jan 6, 2025).
 
@@ -67,7 +69,7 @@ News
 * .. warning::
 
     **IMPORTANT**: A bug was found in PW-mode `\Gamma`-point only calculations.
-    Please check :ref:`here <bug0>` if you have been afected by this.
+    Please check :ref:`here <bug0>` if you have been affected by this.
 
 * :ref:`GPAW version 23.9.1 <releasenotes>` released (Sep 15, 2023).
 
@@ -238,6 +240,7 @@ News
    setups/setups
    releasenotes
    gallery/gallery
+   ecosystem
    contact
    faq
    devel/devel
@@ -245,3 +248,4 @@ News
    summerschools/summerschools
    workshops/workshops
    bugs
+   roadmap

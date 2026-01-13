@@ -6,9 +6,9 @@ from ase import Atoms
 from ase.build import add_adsorbate, fcc100, fcc111, molecule
 from ase.io import read
 from ase.lattice.cubic import FaceCenteredCubic
+
 from gpaw import FermiDirac
 from gpaw.utilities import h2gpts
-
 
 _functions = {}
 
@@ -444,7 +444,7 @@ def water():
                   pbc=True)
     atoms = atoms.repeat([1, 1, 2])
     n = 56
-    es = dict(name='rmm-diis', keep_htpsit=False)
+    es = dict(name='rmm-diis')  # , keep_htpsit=False)
     return atoms, dict(
         nbands=132 * 2,
         gpts=(n, n, 2 * n),

@@ -12,14 +12,14 @@ See:
 from math import pi
 
 import numpy as np
-from scipy.special import erf
 from ase.units import Bohr
 from ase.utils import seterr
+from scipy.special import erf
 
 import gpaw.mpi as mpi
+from gpaw.core import PWDesc
 from gpaw.fftw import get_efficient_fft_size
-from gpaw.grid_descriptor import GridDescriptor
-from gpaw.core import PWDesc, UGDesc, PWArray
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.typing import Array1D
 
 
@@ -53,7 +53,7 @@ class WignerSeitzTruncatedCoulomb:
         # Fix 0/0 corner value:
         v_ijk[0, 0, 0] = 2 * self.a / pi**0.5
 
-        self.K_Q = np.fft.fftn(v_ijk) * self.gd.dv
+        self.K_Q = np.fft.fftn(v_ijk).real * self.gd.dv
 
     def get_description(self):
         descriptors = []
@@ -66,18 +66,24 @@ class WignerSeitzTruncatedCoulomb:
 
         return '\n'.join(descriptors)
 
-    def get_potential_new(self, pw: PWDesc, grid: UGDesc) -> PWArray:
-        K_G = pw.zeros()
-        assert isinstance(K_G, PWArray)  # !!!
-        size = tuple(grid.size)
-        if pw.dtype == float:
-            size = (size[0], size[1], size[2] // 2 + 1)
-        self._get_potential(pw.indices(size)[pw.ng1:pw.ng2],
-                            pw.kpt_c,
-                            grid.size_c,
-                            pw.dtype,
-                            pw.reciprocal_vectors(),
-                            K_G.data)
+    def get_potential_new(self, pw: PWDesc) -> np.ndarray:
+        ekin_G = pw.ekin_G
+        a = self.a
+        with np.errstate(invalid='ignore'):
+            K_G = 2 * pi * (1 - np.exp(-ekin_G / (2 * a**2))) / ekin_G
+        G0 = ekin_G.argmin()
+        if ekin_G[G0] < 1e-11:
+            K_G[G0] = pi / a**2
+
+        s_c = pw.kpt_c * self.nk_c
+        shift_c = (s_c).round().astype(int)
+        assert abs(shift_c - s_c).max() < 1e-8
+        max_c = self.gd.N_c // 2
+        for G, i_c in enumerate(pw.indices_cG.T):
+            Q_c = i_c * self.nk_c + shift_c
+            if (abs(Q_c) < max_c).all():
+                K_G[G] += self.K_Q[tuple(Q_c)]
+
         return K_G
 
     def get_potential(self, pd) -> Array1D:
@@ -91,7 +97,9 @@ class WignerSeitzTruncatedCoulomb:
         return K_G
 
     def _get_potential(self, Q_G, q_c, N_c, dtype, qG_Gv, K_G) -> None:
-        shift_c = (q_c * self.nk_c).round().astype(int)
+        s_c = q_c * self.nk_c
+        shift_c = (s_c).round().astype(int)
+        assert abs(shift_c - s_c).max() < 1e-8
         max_c = self.gd.N_c // 2
         if dtype == complex:
             for G, Q in enumerate(Q_G):

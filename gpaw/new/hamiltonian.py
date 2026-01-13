@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import numpy as np
+
 from gpaw.core import UGArray
-from gpaw.core.arrays import DistributedArrays as XArray
+from gpaw.core.arrays import XArray
 
 
 class Hamiltonian:
@@ -17,11 +18,13 @@ class Hamiltonian:
               D_asii,
               psit_nG: XArray,
               out: XArray,
-              spin: int) -> XArray:
+              spin: int,
+              calculate_energy: bool = False) -> XArray:
         self.apply_local_potential(vt_sR[spin], psit_nG, out)
         if dedtaut_sR is not None:
             self.apply_mgga(dedtaut_sR[spin], psit_nG, out)
-        self.apply_orbital_dependent(ibzwfs, D_asii, psit_nG, spin, out)
+        self.apply_orbital_dependent(ibzwfs, D_asii, psit_nG, spin, out,
+                                     calculate_energy)
         return out
 
     def apply_local_potential(self,
@@ -41,8 +44,16 @@ class Hamiltonian:
                                 D_asii,
                                 psit_nG: XArray,
                                 spin: int,
-                                out: XArray) -> None:
+                                out: XArray | None = None,
+                                calculate_energy: bool = False,
+                                F_av: np.ndarray | None = None) -> None:
         pass
 
     def create_preconditioner(self, blocksize, xp=np):
         raise NotImplementedError
+
+    def update_wave_functions(self, ibzwfs, forces=False):
+        return
+
+    def move(self, relpos_av: np.ndarray) -> None:
+        pass

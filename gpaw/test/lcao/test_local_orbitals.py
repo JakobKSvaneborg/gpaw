@@ -1,5 +1,6 @@
 import pytest
 from ase.build import graphene_nanoribbon, molecule
+
 from gpaw import GPAW
 from gpaw.lcao.local_orbitals import LocalOrbitals
 from gpaw.mpi import world

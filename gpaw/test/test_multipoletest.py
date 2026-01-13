@@ -1,11 +1,11 @@
-from math import sqrt, pi
+from math import pi, sqrt
 
 import numpy as np
 import pytest
 
-from gpaw.setup import create_setup
-from gpaw.grid_descriptor import GridDescriptor
 from gpaw.lfc import LFC
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.setup import create_setup
 from gpaw.xc import XC
 
 n = 60  # 40 /8 * 10

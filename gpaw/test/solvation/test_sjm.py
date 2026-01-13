@@ -1,7 +1,8 @@
 import pytest
 from ase.build import fcc111
+
 from gpaw import FermiDirac
-from gpaw.mpi import size
+from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW
 from gpaw.new.sjm import SJM
 from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
@@ -14,7 +15,7 @@ from gpaw.solvation.sjm import SJMPower12Potential
 def test_sjm(gpaw_new, in_tmp_dir, mode):
     if mode == 'pw':
         pytest.skip('Not working at the moment!')
-    if not gpaw_new and size > 1:
+    if not gpaw_new and world.size > 1:
         pytest.skip('https://gitlab.com/gpaw/gpaw/-/issues/1381')
     if not gpaw_new and mode == 'pw':
         pytest.skip('Not implemented')
@@ -66,7 +67,7 @@ def test_sjm(gpaw_new, in_tmp_dir, mode):
     else:
         atoms.calc = GPAW(
             **params,
-            environment=SJM(**sj, **solvation))
+            extensions=[SJM(**sj, **solvation)])
         atoms.get_potential_energy()
         pot = -atoms.calc.get_fermi_level()
 
@@ -77,8 +78,8 @@ def test_sjm(gpaw_new, in_tmp_dir, mode):
     atoms.calc.write(f'Au-{gpaw_new}-{mode}.gpw')
     if gpaw_new:
         calc = GPAW(f'Au-{gpaw_new}-{mode}.gpw')
-        print(atoms.calc.environment)
-        print(calc.environment)
+        print(atoms.calc.dft.sjm)
+        print(calc.dft.sjm)
 
     if 0:  # gpaw_new:
         import matplotlib.pyplot as plt

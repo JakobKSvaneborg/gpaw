@@ -1,22 +1,22 @@
 import numpy as np
 import pytest
-
-from ase.parallel import world, parprint
+from ase.parallel import parprint, world
 from ase.units import Bohr
+
 from gpaw import GPAW
 from gpaw.lcao.dipoletransition import get_dipole_transitions
 from gpaw.lrtddft.kssingle import KSSingles
 
 
 @pytest.mark.old_gpaw_only
-def test_dipole_transition(gpw_files, tmp_path_factory):
+def test_dipole_transition(gpw_files, tmp_path_factory, require_real_mpi):
     """Check dipole matrix-elements for Li."""
     calc = GPAW(gpw_files['bcc_li_lcao'], parallel=dict(sl_auto=True))
     # Initialize calculator if necessary
     if not hasattr(calc.wfs, 'C_nM'):
         calc.wfs.set_positions
         calc.initialize_positions(calc.atoms)
-    from gpaw.kohnsham_layouts import BlacsOrbitalLayouts
+    from gpaw.old.kohnsham_layouts import BlacsOrbitalLayouts
     isblacs = isinstance(calc.wfs.ksl, BlacsOrbitalLayouts)  # XXX
     print(calc.wfs.ksl.using_blacs, isblacs)
     dip_skvnm = get_dipole_transitions(calc.wfs)

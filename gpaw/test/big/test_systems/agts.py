@@ -1,8 +1,8 @@
-from myqueue.workflow import run
-from gpaw.test.big.test_systems.create import create_test_systems
-from gpaw import GPAW, PW, MixerFull
 from ase.optimize import BFGS
+from myqueue.workflow import run
 
+from gpaw import GPAW, PW, MixerFull
+from gpaw.test.big.test_systems.create import create_test_systems
 
 CORES = [1, 4, 8, 16, 14, 40, 48, 56, 72, 96, 120, 168]
 

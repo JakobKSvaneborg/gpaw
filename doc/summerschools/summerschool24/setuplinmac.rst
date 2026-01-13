@@ -48,14 +48,14 @@ Linux
    menus named "System tools" or similar.
 
 Once you have opened a window you can typically get a new one by
-pressing Cmd-N (Mac) or Crtl-Shift-N (Linux).
+pressing Cmd-N (Mac) or Ctrl-Shift-N (Linux).
 
 
 Configuring your secret key
 ===========================
 
 For security reasons, all access to DTU computers require two-factor
-authentification.  In the case of the HPC installation, the two
+authentication.  In the case of the HPC installation, the two
 factors are your password and an encryption key (*SSH key*).  You get
 your secret SSH key by connecting to
 https://www.student.dtu.dk/~dccidmgr/CAMD24 then add your user name to
@@ -128,7 +128,7 @@ The output should look something like::
   -rw-r--r--  1 myname  staff    401 Sep  8  2010 id_rsa.pub
   -rw-------  1 myname  staff  80395 Jul  1 15:55 known_hosts
 
-Check that the line for the sectet key file file starts with ``-rw-------``
+Check that the line for the secret key file file starts with ``-rw-------``
 (there may be a @ or another character at the end, that is OK).
 
 Your key file should now automatically be used when logging into the

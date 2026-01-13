@@ -35,7 +35,7 @@ your script::
 
     if you want to run in parallel.
 
-To analyse the results, you do this::
+To analyze the results, you do this::
 
  >>> import pstats
  >>> pstats.Stats('prof').strip_dirs().sort_stats('time').print_stats(20)
@@ -63,7 +63,7 @@ the :mod:`pstats` documentation if you want to do more fancy things.
 .. tip::
 
    Since the :mod:`cProfile` module does not time calls to C-code, it
-   is a good idea to run the code in debug mode - this will wrap
+   is a good idea to run the code in :ref:`debug mode` - this will wrap
    calls to C-code in Python functions::
 
      $ python3 -d script.py
@@ -127,7 +127,7 @@ To profile a particular function one needs to decorate it as follows::
     ...
 
 
-For GPU tracing, when utilizing the GPU profiler, it is often advatageous to track when GPU is working at
+For GPU tracing, when utilizing the GPU profiler, it is often advantageous to track when GPU is working at
 particular function, instead of the CPU. To that end, the trace may be given an extra argument ``gpu=True``.
 When utilized together with the GPUProfiler, this will emit GPU events to the GPU stream, and therefore
 tracking the time of the beginning and end of GPU kernel launches (in the default stream). In ideal case,

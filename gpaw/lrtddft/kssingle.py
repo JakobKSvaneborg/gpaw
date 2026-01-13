@@ -1,19 +1,20 @@
 """Kohn-Sham single particle excitations realated objects.
 
 """
-import sys
 import json
-import numpy as np
+import sys
 from copy import copy
 
+import numpy as np
 from ase.units import Bohr, Hartree, alpha
 
 import gpaw.mpi as mpi
-from gpaw.utilities import packed_index
+from gpaw.fd_operators import Gradient
 from gpaw.lrtddft.excitation import Excitation, ExcitationList, get_filehandle
 from gpaw.pair_density import PairDensity
-from gpaw.fd_operators import Gradient
+from gpaw.utilities import packed_index
 from gpaw.utilities.tools import coordinates
+
 from .kssrestrictor import KSSRestrictor
 
 
@@ -42,15 +43,15 @@ class KSSingles(ExcitationList):
     def __init__(self,
                  restrict={},
                  log=None,
-                 txt=None):
-        ExcitationList.__init__(self, log=log, txt=txt)
-        self.world = mpi.world
+                 txt=None,
+                 world=None):
+        super().__init__(log=log, txt=txt, world=world)
 
         self.restrict = KSSRestrictor()
         self.restrict.update(restrict)
 
     def calculate(self, atoms, nspins=None):
-        calculator = atoms.calc
+        calculator = atoms.calc._to_old()
         self.calculator = calculator
 
         # LCAO calculation requires special actions
@@ -144,10 +145,11 @@ class KSSingles(ExcitationList):
         u = 0
         for ispin in ispins:
             for k in range(wfs.kd.nibzkpts):
-                q = k - wfs.kd.k0
+                # q = k - wfs.kd.k0
                 for s in range(wfs.nspins):
-                    if q >= 0 and q < wfs.kd.mynk:
-                        kpt = wfs.kpt_qs[q][s]
+                    rank, u = wfs.kd.who_has(k, s)
+                    if rank == kpt_comm.rank:  # q >= 0 and q < wfs.kd.mynk:
+                        kpt = wfs.kpt_u[u]
                         for i in range(nbands):
                             for j in range(i + 1, nbands):
                                 fij = (kpt.f_n[i] - kpt.f_n[j]) / kpt.weight
@@ -167,13 +169,15 @@ class KSSingles(ExcitationList):
         u = 0
         for ispin in ispins:
             for k in range(wfs.kd.nibzkpts):
-                q = k - wfs.kd.k0
+                # q = k - wfs.kd.k0
                 for s in range(wfs.kd.nspins):
+                    rank, u = wfs.kd.who_has(k, s)
                     for i in range(nbands):
                         for j in range(i + 1, nbands):
                             if take[u, i, j]:
-                                if q >= 0 and q < wfs.kd.mynk:
-                                    kpt = wfs.kpt_qs[q][s]
+                                # if q >= 0 and q < wfs.kd.mynk:
+                                if rank == kpt_comm.rank:
+                                    kpt = wfs.kpt_u[u]
                                     pspin = max(kpt.s, ispin)
                                     self.append(
                                         KSSingle(i, j, pspin, kpt, paw,
@@ -190,9 +194,10 @@ class KSSingles(ExcitationList):
             kss.distribute()
 
     @classmethod
-    def read(cls, filename=None, fh=None, restrict={}, log=None):
+    def read(cls, filename=None, fh=None, restrict={}, log=None, world=None):
         """Read myself from a file"""
         assert (filename is not None) or (fh is not None)
+        world = mpi.normalize_communicator(world)
 
         def fail(f):
             raise RuntimeError(f.name + ' does not contain ' +
@@ -216,7 +221,7 @@ class KSSingles(ExcitationList):
 
         words = f.readline().split()
         n = int(words[0])
-        kssl = cls(log=log)
+        kssl = cls(log=log, world=world)
         if len(words) == 1:
             # very old output style for real wave functions (finite systems)
             kssl.dtype = float
@@ -380,7 +385,7 @@ class KSSingle(Excitation, PairDensity):
         # normal entry
 
         PairDensity.__init__(self, paw)
-        PairDensity.initialize(self, kpt, iidx, jidx)
+        super().initialize(kpt, iidx, jidx)
 
         self.pspin = pspin
 

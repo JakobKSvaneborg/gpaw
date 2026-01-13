@@ -1,15 +1,14 @@
 import numpy as np
 import pytest
-
 from ase.build import fcc111
 
 from gpaw import GPAW
-from gpaw.mpi import world, serial_comm
 from gpaw.lcaotddft.wfwriter import WaveFunctionReader
-
+from gpaw.mpi import serial_comm, world
 from gpaw.test import only_on_master
-from . import (parallel_options, calculate_error, calculate_time_propagation,
-               check_wfs)
+
+from . import (calculate_error, calculate_time_propagation, check_wfs,
+               parallel_options)
 
 pytestmark = pytest.mark.usefixtures('module_tmp_path')
 
@@ -43,6 +42,7 @@ def initialize_system():
                                communicator=comm)
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_propagated_wave_function(initialize_system, module_tmp_path):
     wfr = WaveFunctionReader(module_tmp_path / 'wf.ulm')
@@ -66,9 +66,11 @@ def test_propagated_wave_function(initialize_system, module_tmp_path):
     assert err < 7e-9
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 @pytest.mark.parametrize('parallel', parallel_i)
-def test_propagation(initialize_system, module_tmp_path, parallel, in_tmp_dir):
+def test_propagation(initialize_system, module_tmp_path, parallel, in_tmp_dir,
+                     scalapack):
     calculate_time_propagation(module_tmp_path / 'gs.gpw',
                                kick=[0, 0, 1e-5],
                                parallel=parallel)

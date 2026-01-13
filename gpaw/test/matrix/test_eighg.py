@@ -1,12 +1,13 @@
 import numpy as np
 import pytest
+import scipy.linalg as linalg
+
 from gpaw.core.matrix import Matrix
 from gpaw.mpi import broadcast_exception, world
-import scipy.linalg as linalg
 
 
 @pytest.mark.parametrize('dtype', [float, complex])
-def test_eighg(dtype):
+def test_eighl(dtype):
     n = 5
     S0 = Matrix(n, n, dist=(world, 1, 1), dtype=dtype)
     S = S0.new(dist=(world, world.size, 1))
@@ -38,7 +39,7 @@ def test_eighg(dtype):
 
     L0 = S0.new()
     L.redist(L0)
-    eigs = H.eighg(L0)
+    eigs = H.eighl(L)
     H.redist(H0)
     print(eigs)
     print(H0.data)

@@ -1,7 +1,8 @@
 import numpy as np
 from ase.build import bulk
-from gpaw import GPAW
 from ase.dft.kpoints import monkhorst_pack
+
+from gpaw import GPAW
 
 
 def test_ibzqpt():

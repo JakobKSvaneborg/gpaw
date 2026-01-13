@@ -2,12 +2,12 @@ import numpy as np
 from ase.units import Bohr, Hartree
 
 import gpaw.mpi as mpi
-from gpaw.tddft.units import eV_to_aufrequency
-from gpaw.poisson import PoissonSolver
 from gpaw.fd_operators import Gradient
-from gpaw.grid_descriptor import GridDescriptor
-from gpaw.utilities.extend_grid import extended_grid_descriptor, \
-    extend_array, deextend_array, move_atoms
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.poisson import PoissonSolver
+from gpaw.tddft.units import eV_to_aufrequency
+from gpaw.utilities.extend_grid import (deextend_array, extend_array,
+                                        extended_grid_descriptor, move_atoms)
 
 
 def sendreceive_dict(comm, a_i, dest, b_i, src_i, iitems):
@@ -277,7 +277,8 @@ class BaseInducedField:
         reader.close()
         self.world.barrier()
 
-    def _read(self, reader, reads):
+    @mpi.parallel(name='world')
+    def _read(self, reader, reads, world):
         r = reader
 
         # Test data type
@@ -312,7 +313,7 @@ class BaseInducedField:
             from ase.io.trajectory import read_atoms
             self.atoms = read_atoms(r.atoms)
 
-            self.world = mpi.world
+            self.world = world
             self.gd = GridDescriptor(ng + 1, self.atoms.get_cell() / Bohr,
                                      pbc_c=False, comm=self.world)
             self.domain_comm = self.gd.comm

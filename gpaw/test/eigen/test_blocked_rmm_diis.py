@@ -1,10 +1,13 @@
+import pytest
 from ase import Atom, Atoms
 
-from gpaw import GPAW, Mixer, RMMDIIS
-import pytest
+from gpaw import GPAW, Mixer
 
 
-def test_eigen_blocked_rmm_diis(in_tmp_dir):
+@pytest.mark.parametrize('mode', ['pw', 'fd'])
+@pytest.mark.parametrize('force_complex_dtype', [True, False])
+def test_eigen_blocked_rmm_diis(in_tmp_dir, gpaw_new,
+                                mode, force_complex_dtype):
     a = 4.0
     n = 20
     d = 1.0
@@ -15,20 +18,39 @@ def test_eigen_blocked_rmm_diis(in_tmp_dir):
                    Atom('H', (x, -x, -x)),
                    Atom('H', (-x, x, -x))],
                   cell=(a, a, a), pbc=True)
+    atoms.set_initial_magnetic_moments([0, 0, 0, 0, 0])
     base_params = dict(
-        mode='fd',
+        mode={'name': mode,
+              'force_complex_dtype': force_complex_dtype},
         gpts=(n, n, n),
         nbands=4,
         mixer=Mixer(0.25, 3, 1))
-    calc = GPAW(**base_params, txt='a.txt', eigensolver='rmm-diis')
+    if gpaw_new:
+        es = {'name': 'rmm-diis',
+              'niter': 1,
+              'diis_steps': 2,
+              'trial_step': 0.1}
+    else:
+        es = {'name': 'rmm-diis',
+              'blocksize': 3,
+              'niter': 3}
+    calc = GPAW(**base_params,
+                txt='a.txt',
+                eigensolver=es)
     atoms.calc = calc
     e0 = atoms.get_potential_energy()
     niter0 = calc.get_number_of_iterations()
 
-    es = RMMDIIS(blocksize=3)
-    calc = GPAW(**base_params, txt='b.txt', eigensolver=es)
+    if gpaw_new:
+        # set max_buffer_mem to 0 to ensure blocksize of 1
+        es['max_buffer_mem'] = 0
+    else:
+        es['blocksize'] = 3
+    calc = GPAW(**base_params,
+                txt='b.txt',
+                eigensolver=es)
     atoms.calc = calc
     e1 = atoms.get_potential_energy()
     niter1 = calc.get_number_of_iterations()
     assert e0 == pytest.approx(e1, abs=0.000001)
-    assert niter0 == pytest.approx(niter1, abs=0)
+    assert niter0 == pytest.approx(niter1, abs=0) == 19 if mode == 'fd' else 14

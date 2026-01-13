@@ -1,7 +1,12 @@
-try:
-    from mpi4py.MPI import Request, SUM, MAX, IN_PLACE
-except ImportError:
-    pass
+from functools import cached_property
+
+import numpy as np
+
+
+def maybe_sync(arr):
+    from gpaw.gpu import cupy, cupy_is_fake
+    if not cupy_is_fake and isinstance(arr, cupy.ndarray):
+        cupy.cuda.deviceSynchronize()
 
 
 class MPI4PYWrapper:
@@ -10,6 +15,12 @@ class MPI4PYWrapper:
         self.size = comm.size
         self.rank = comm.rank
         self.parent = parent  # XXX check C-object against comm.parent?
+
+    @cached_property
+    def _MPI(self):
+        import mpi4py.MPI
+
+        return mpi4py.MPI
 
     def new_communicator(self, ranks):
         comm = self.comm.Create(self.comm.group.Incl(ranks))
@@ -20,55 +31,80 @@ class MPI4PYWrapper:
             return None
 
     def max_scalar(self, a, root=-1):
-        return self.sum_scalar(a, root=-1, _op=MAX)
+        return self.sum_scalar(a, root=-1, _op=self._MPI.MAX)
+
+    def min_scalar(self, a, root=-1):
+        return self.sum_scalar(a, root=-1, _op=self._MPI.MIN)
 
     def sum_scalar(self, a, root=-1, _op=None):
         if _op is None:
-            _op = SUM
+            _op = self._MPI.SUM
         assert isinstance(a, (int, float, complex))
         if root == -1:
             return self.comm.allreduce(a, op=_op)
         else:
             return self.comm.reduce(a, root=root, op=_op)
 
-    def sum(self, a, root=-1):
+    def sum(self, a, root=-1, _op=None):
+        if _op is None:
+            _op = self._MPI.SUM
+
+        maybe_sync(a)
         if root == -1:
-            self.comm.Allreduce(IN_PLACE, a, op=SUM)
+            self.comm.Allreduce(self._MPI.IN_PLACE, a, op=_op)
         else:
             if root == self.rank:
-                self.comm.Reduce(IN_PLACE, a, root=root, op=SUM)
+                self.comm.Reduce(self._MPI.IN_PLACE, a, root=root, op=_op)
             else:
-                self.comm.Reduce(a, None, root=root, op=SUM)
+                self.comm.Reduce(a, None, root=root, op=_op)
+
+    def max(self, a, root=-1):
+        self.sum(a, root=-1, _op=self._MPI.MAX)
+
+    def min(self, a, root=-1):
+        self.min(a, root=-1, _op=self._MPI.MIN)
+
+    def product(self, a, root=-1):
+        self.sum(a, root=-1, _op=self._MPI.PROD)
 
     def scatter(self, a, b, root):
+        maybe_sync(a)
         self.comm.Scatter(a, b, root)
 
     def alltoallv(self, sbuffer, scounts, sdispls, rbuffer, rcounts, rdispls):
+        maybe_sync(sbuffer)
         self.comm.Alltoallv((sbuffer, (scounts, sdispls), sbuffer.dtype.char),
                             (rbuffer, (rcounts, rdispls), rbuffer.dtype.char))
 
     def all_gather(self, a, b):
+        maybe_sync(a)
         self.comm.Allgather(a, b)
 
     def gather(self, a, root, b=None):
+        maybe_sync(a)
         self.comm.Gather(a, b, root)
 
     def broadcast(self, a, root):
+        maybe_sync(a)
         self.comm.Bcast(a, root)
 
     def sendreceive(self, a, dest, b, src, sendtag=123, recvtag=123):
+        maybe_sync(a)
         return self.comm.Sendrecv(a, dest, sendtag, b, src, recvtag)
 
     def send(self, a, dest, tag=123, block=True):
+        maybe_sync(a)
         if block:
             self.comm.Send(a, dest, tag)
         else:
             return self.comm.Isend(a, dest, tag)
 
     def ssend(self, a, dest, tag=123):
+        maybe_sync(a)
         return self.comm.Ssend(a, dest, tag)
 
     def receive(self, a, src, tag=123, block=True):
+        maybe_sync(a)
         if block:
             self.comm.Recv(a, src, tag)
         else:
@@ -78,13 +114,13 @@ class MPI4PYWrapper:
         return request.test()
 
     def testall(self, requests):
-        return Request.testall(requests)
+        return self._MPI.Request.testall(requests)
 
     def wait(self, request):
         request.wait()
 
     def waitall(self, requests):
-        Request.waitall(requests)
+        self._MPI.Request.waitall(requests)
 
     def name(self):
         return self.comm.Get_name()
@@ -92,5 +128,29 @@ class MPI4PYWrapper:
     def barrier(self):
         self.comm.barrier()
 
+    def abort(self, errcode):
+        self.comm.Abort(errcode)
+
+    def compare(self, othercomm):
+        code = self.comm.Compare(othercomm.comm)
+        if code == self._MPI.IDENT:
+            return 'ident'
+        elif code == self._MPI.CONGRUENT:
+            return 'congruent'
+        elif code == self._MPI.SIMILAR:
+            return 'similar'
+        elif code == self._MPI.UNEQUAL:
+            return 'unequal'
+        else:
+            raise ValueError(f'Unknown compare code {code}')
+
+    def translate_ranks(self, other, ranks):
+        return np.array(
+            self.comm.Get_group().Translate_ranks(ranks,
+                                                  other.comm.Get_group()))
+
+    def get_members(self):
+        return self.translate_ranks(self.parent, np.arange(self.size))
+
     def get_c_object(self):
-        return self.comm
+        return self._MPI._addressof(self.comm)

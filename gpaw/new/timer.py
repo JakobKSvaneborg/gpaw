@@ -1,9 +1,11 @@
+import inspect
+from collections.abc import Callable
 from contextlib import contextmanager
 from functools import wraps
 from io import StringIO
-from typing import Callable, TypeVar, Union, overload, Optional
+from typing import TypeVar, overload
+
 from gpaw import GPAW_TRACE
-import inspect
 
 
 class GlobalTimer:
@@ -63,8 +65,8 @@ def _trace(meth: None = None, **timer_params) -> Callable[[F], F]:
     ...
 
 
-def _trace(meth: Optional[F] = None,
-           **timer_params) -> Union[F, Callable[[F], F]]:
+def _trace(meth: F | None = None,
+           **timer_params) -> F | Callable[[F], F]:
     """Decorator for telling global timer to trace a function or method."""
 
     def get_wrapper(method: Callable[..., T]) -> Callable[..., T]:
@@ -88,7 +90,7 @@ def _trace(meth: Optional[F] = None,
     return get_wrapper
 
 
-def dummy_trace(meth: Union[Callable[..., T], None] = None,
+def dummy_trace(meth: Callable[..., T] | None = None,
                 **timer_params) -> Callable[..., T]:
     if meth:
         return meth

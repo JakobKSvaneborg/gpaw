@@ -1,16 +1,20 @@
 from __future__ import annotations
+
 from types import SimpleNamespace
 
 import numpy as np
 
 import gpaw.gpu.cpupy.cublas as cublas
+import gpaw.gpu.cpupy.cuda as cuda  # noqa: F401
 import gpaw.gpu.cpupy.fft as fft
 import gpaw.gpu.cpupy.linalg as linalg
 import gpaw.gpu.cpupy.random as random
+import gpaw.gpu.cpupy.testing as testing
 
 __version__ = 'fake'
 
-__all__ = ['linalg', 'cublas', 'fft', 'random', '__version__']
+__all__ = ['linalg', 'cublas', 'fft', 'random',
+           'testing', 'cuda', '__version__']
 
 FAKE_CUPY_WARNING = """
  ----------------------------------------------------------
@@ -47,6 +51,10 @@ def zeros(*args, **kwargs):
 
 def ones(*args, **kwargs):
     return ndarray(np.ones(*args, **kwargs))
+
+
+def copy(a: ndarray, order: str = 'K') -> ndarray:
+    return ndarray(data=np.copy(a._data, order))  # type: ignore
 
 
 def asnumpy(a, out=None):
@@ -97,18 +105,19 @@ def negative(a, b):
     np.negative(a._data, b._data)
 
 
-def einsum(indices, *args, **kwargs):
+def einsum(indices, *args, optimize=False, **kwargs):
     for k in kwargs:
         kwargs[k] = kwargs[k]._data
     return ndarray(
         np.einsum(
             indices,
             *(arg._data for arg in args),
-            **kwargs))
+            **kwargs,
+            optimize=optimize))
 
 
 def diag(a):
-    return ndarray(np.diag(a._data))
+    return ndarray(np.diag(asarray(a)._data))
 
 
 def abs(a):
@@ -136,12 +145,24 @@ def triu_indices(n, k=0, m=None):
     return ndarray(i), ndarray(j)
 
 
+def triu(m: ndarray, k=0) -> ndarray:
+    return ndarray(np.triu(m._data, k=k))
+
+
+def tril(m: ndarray, k=0) -> ndarray:
+    return ndarray(np.tril(m._data, k=k))
+
+
 def tri(n, k=0, dtype=float):
     return ndarray(np.tri(n, k=k, dtype=dtype))
 
 
+def fill_diagonal(a, val, wrap=False):
+    np.fill_diagonal(a._data, val, wrap=wrap)
+
+
 def allclose(a, b, **kwargs):
-    return np.allclose(a._data, b._data, **kwargs)
+    return np.allclose(asarray(a)._data, asarray(b)._data, **kwargs)
 
 
 def moveaxis(a, source, destination):
@@ -164,7 +185,12 @@ def isnan(a):
     return ndarray(np.isnan(a._data))
 
 
+def real(a: ndarray) -> ndarray:
+    return ndarray(np.real(a._data))
+
+
 class ndarray:
+
     def __init__(self, data):
         if isinstance(data, (float, complex, int, np.int32, np.int64,
                              np.bool_, np.float64, np.float32,

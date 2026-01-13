@@ -1,4 +1,5 @@
 from ase.units import Bohr
+
 from gpaw.new.ase_interface import GPAW
 from gpaw.utilities.dipole import dipole_matrix_elements_from_calc
 

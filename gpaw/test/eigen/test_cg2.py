@@ -1,4 +1,5 @@
 import numpy as np
+
 from gpaw.utilities.cg import CG
 
 

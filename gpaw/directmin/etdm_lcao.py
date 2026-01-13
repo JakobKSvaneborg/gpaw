@@ -31,19 +31,22 @@ calculations LCAO mode:
 """
 
 
-import numpy as np
 import warnings
+from copy import deepcopy
+
+import numpy as np
 from ase.utils import basestring
-from gpaw.directmin.tools import expm_ed, expm_ed_unit_inv, random_a, \
-    sort_orbitals_according_to_occ, sort_orbitals_according_to_energies
+from scipy.linalg import expm
+
+from gpaw import BadParallelization
+from gpaw.directmin import line_search_algorithm, search_direction
+from gpaw.directmin.derivatives import get_approx_analytical_hessian
 from gpaw.directmin.lcao.etdm_helper_lcao import ETDMHelperLCAO
 from gpaw.directmin.locfunc.localize_orbitals import localize_orbitals
-from scipy.linalg import expm
-from gpaw.directmin import search_direction, line_search_algorithm
-from gpaw.directmin.tools import get_n_occ
-from gpaw.directmin.derivatives import get_approx_analytical_hessian
-from gpaw import BadParallelization
-from copy import deepcopy
+from gpaw.directmin.tools import (expm_ed, expm_ed_unit_inv, get_n_occ,
+                                  random_a,
+                                  sort_orbitals_according_to_energies,
+                                  sort_orbitals_according_to_occ)
 
 
 class LCAOETDM:
@@ -413,10 +416,10 @@ class LCAOETDM:
                 self.randomize_orbitals_kpt(wfs, kpt)
             self.randomizeorbitals = None
 
-        wfs.calculate_occupation_numbers(dens.fixed)
+        if not wfs.coefficients_read_from_file:
+            wfs.calculate_occupation_numbers(dens.fixed)
 
-        # MOM
-        self.initial_sort_orbitals_mom(wfs)
+        self.initial_sort_orbitals(wfs)
 
         # initialize matrices
         self.set_variable_matrices(wfs.kpt_u)
@@ -555,17 +558,9 @@ class LCAOETDM:
 
     def localize(self, wfs, dens, ham, log):
         if self.need_localization:
-            localizationtype = \
-                self.localizationtype.replace('-', '').lower().split('_')
-            do_oo_subspace = 'pz' in localizationtype
             localize_orbitals(
                 wfs, dens, ham, log, self.localizationtype,
                 seed=self.localizationseed)
-            if do_oo_subspace:
-                assert self.dm_helper.func.name == 'PZ-SIC', \
-                    'PZ-SIC localization requested, but functional ' \
-                    'settings do not use PZ-SIC.'
-                self.lock_subspace('oo')
             self.need_localization = False
 
     def lock_subspace(self, subspace='oo'):
@@ -674,21 +669,16 @@ class LCAOETDM:
                 a_vec_u[k] += alpha * p_vec_u[k]
             self.alpha = alpha
             self.g_vec_u = g_vec_u
-            self.iters += 1
+            if self.subspace_optimization:
+                self.subspace_iters += 1
+            else:
+                self.iters += 1
 
             # and 'shift' phi, der_phi for the next iteration
             phi_2i[1], der_phi_2i[1] = phi_2i[0], der_phi_2i[0]
             phi_2i[0], der_phi_2i[0] = phi_alpha, der_phi_alpha,
 
             if self.subspace_optimization:
-                if self.get_grad_norm() < self.subspace_convergence:
-                    self.release_subspace()
-                    self.dm_helper.set_reference_orbitals(wfs, self.n_dim)
-                    self.searchdir_algo.reset()
-                    for k, kpt in enumerate(wfs.kpt_u):
-                        self.hess[k] = get_approx_analytical_hessian(
-                            kpt, self.dtype, ind_up=self.ind_up[k])
-                        wfs.atomic_correction.calculate_projections(wfs, kpt)
                 self.error = np.inf  # Do not consider this converged!
 
     def get_grad_norm(self):
@@ -871,7 +861,7 @@ class LCAOETDM:
         within equally occupied subspaces.
         """
 
-        with ((wfs.timer('Get canonical representation'))):
+        with (wfs.timer('Get canonical representation')):
             for kpt in wfs.kpt_u:
                 self.dm_helper.update_to_canonical_orbitals(
                     wfs, ham, kpt, self.update_ref_orbs_canonical,
@@ -884,7 +874,7 @@ class LCAOETDM:
 
             if sort_eigenvalues:
                 sort_orbitals_according_to_energies(
-                    ham, wfs, self.constraints, use_eps=True)
+                    ham, wfs, self.constraints)
 
             self.set_ref_orbitals_and_a_vec(wfs)
 
@@ -1020,12 +1010,16 @@ class LCAOETDM:
             wfs.occupations.initialize_reference_orbitals()
             wfs.calculate_occupation_numbers(dens.fixed)
 
-    def initial_sort_orbitals_mom(self, wfs):
+    def initial_sort_orbitals(self, wfs):
         occ_name = getattr(wfs.occupations, "name", None)
         if occ_name == 'mom':
+            update_mom = True
             self.initial_occupation_numbers = wfs.occupations.numbers.copy()
-            sort_orbitals_according_to_occ(
-                wfs, self.constraints, update_mom=True)
+        else:
+            update_mom = False
+        sort_orbitals_according_to_occ(wfs,
+                                       self.constraints,
+                                       update_mom=update_mom)
 
     def check_mom(self, wfs, dens):
         occ_name = getattr(wfs.occupations, "name", None)

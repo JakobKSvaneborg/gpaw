@@ -1,10 +1,10 @@
 import numpy as np
-from ase.units import kB, Hartree, Bohr
 from ase.data.vdw import vdw_radii
+from ase.units import Bohr, Hartree, kB
 
-from gpaw.solvation.gridmem import NeedsGD
 from gpaw.fd_operators import Gradient
-from gpaw.io.logger import indent
+from gpaw.old.logger import indent
+from gpaw.solvation.gridmem import NeedsGD
 
 BAD_RADIUS_MESSAGE = 'All atomic radii have to be finite and >= zero.'
 
@@ -170,7 +170,7 @@ class Cavity(NeedsGD):
             self.volume_calculator.allocate()
 
     def set_grid_descriptor(self, gd):
-        NeedsGD.set_grid_descriptor(self, gd)
+        super().set_grid_descriptor(gd)
         if self.surface_calculator is not None:
             self.surface_calculator.set_grid_descriptor(gd)
         if self.volume_calculator is not None:
@@ -234,7 +234,7 @@ class EffectivePotentialCavity(Cavity):
         temperature         -- Temperature for the Boltzmann distribution
                                in Kelvin.
         """
-        Cavity.__init__(self, surface_calculator, volume_calculator)
+        super().__init__(surface_calculator, volume_calculator)
         self.effective_potential = Potential.from_dict(effective_potential)
         self.temperature = float(temperature)
         self.minus_beta = -1. / (kB * temperature / Hartree)
@@ -262,13 +262,13 @@ class EffectivePotentialCavity(Cavity):
         self.volume_calculator = c.volume_calculator
 
     def estimate_memory(self, mem):
-        Cavity.estimate_memory(self, mem)
+        super().estimate_memory(mem)
         self.effective_potential.estimate_memory(
             mem.subnode('Effective Potential')
         )
 
     def set_grid_descriptor(self, gd):
-        Cavity.set_grid_descriptor(self, gd)
+        super().set_grid_descriptor(gd)
         self.effective_potential.set_grid_descriptor(gd)
 
     def allocate(self):
@@ -391,6 +391,17 @@ class Potential(NeedsGD):
         """
         raise NotImplementedError()
 
+    # The following check prevents that new GPAW redefines the cavity at
+    # each scf iteration, which is an unnecessary overhead.
+    def check_for_position_changes(self, atoms, r_cutoff):
+        new_pos_aav = get_pbc_positions(atoms, r_cutoff)
+        if self.pos_aav is not None:
+            if self.pos_aav.keys() == new_pos_aav.keys():
+                if np.array_equal(np.array(list(self.pos_aav.values())),
+                                  np.array(list(new_pos_aav.values()))):
+                    return True
+        self.pos_aav = new_pos_aav
+
     def get_del_r_vg(self, atom_index, density):
         """Return spatial derivatives with respect to atomic position."""
         raise NotImplementedError()
@@ -454,7 +465,7 @@ class Power12Potential(Potential):
             'tiny': self.tiny}
 
     def estimate_memory(self, mem):
-        Potential.estimate_memory(self, mem)
+        super().estimate_memory(mem)
         nbytes = self.gd.bytecount()
         mem.subnode('Coordinates', 3 * nbytes)
         mem.subnode('Atomic Position Derivative', 3 * nbytes)
@@ -469,7 +480,11 @@ class Power12Potential(Potential):
             return False
         self.r12_a = (self.atomic_radii_output / Bohr) ** 12
         r_cutoff = (self.r12_a.max() * self.u0 / self.pbc_cutoff) ** (1. / 12.)
-        self.pos_aav = get_pbc_positions(atoms, r_cutoff)
+
+        # self.pos_aav is updated inside the check function
+        if self.check_for_position_changes(atoms, r_cutoff):
+            return False
+
         self.u_g.fill(.0)
         self.grad_u_vg.fill(.0)
         na = np.newaxis
@@ -544,7 +559,7 @@ class SmoothStepCavity(Cavity):
         Additional arguments not present in the base Cavity class:
         density -- A Density instance
         """
-        Cavity.__init__(self, surface_calculator, volume_calculator)
+        super().__init__(surface_calculator, volume_calculator)
         self.del_g_del_rho_g = None
         self.density = density
 
@@ -557,11 +572,11 @@ class SmoothStepCavity(Cavity):
         return self.density.depends_on_atomic_positions
 
     def set_grid_descriptor(self, gd):
-        Cavity.set_grid_descriptor(self, gd)
+        super().set_grid_descriptor(gd)
         self.density.set_grid_descriptor(gd)
 
     def estimate_memory(self, mem):
-        Cavity.estimate_memory(self, mem)
+        super().estimate_memory(mem)
         mem.subnode('Cavity Derivative', self.gd.bytecount())
         self.density.estimate_memory(mem.subnode('Density'))
 
@@ -718,7 +733,7 @@ class ElDensity(FDGradientDensity):
         Arguments:
         nn -- Stencil size for the finite difference gradient.
         """
-        FDGradientDensity.__init__(self, boundary_value=.0, nn=nn)
+        super().__init__(boundary_value=.0, nn=nn)
 
     def allocate(self):
         FDGradientDensity.allocate(self)
@@ -751,7 +766,7 @@ class SSS09Density(FDGradientDensity):
                         a calculation with periodic boundary conditions.
         nn           -- Stencil size for the finite difference gradient.
         """
-        FDGradientDensity.__init__(self, boundary_value=.0, nn=nn)
+        super().__init__(boundary_value=.0, nn=nn)
         self.atomic_radii = atomic_radii
         self.atomic_radii_output = None
         self.symbols = None
@@ -762,7 +777,7 @@ class SSS09Density(FDGradientDensity):
         self.del_rho_del_r_vg = None
 
     def estimate_memory(self, mem):
-        FDGradientDensity.estimate_memory(self, mem)
+        super().estimate_memory(mem)
         nbytes = self.gd.bytecount()
         mem.subnode('Coordinates', 3 * nbytes)
         mem.subnode('Atomic Position Derivative', 3 * nbytes)
@@ -833,8 +848,8 @@ class ADM12SmoothStepCavity(SmoothStepCavity):
         rhomax -- Upper density isovalue in 1 / Angstrom ** 3.
         epsinf -- Static dielectric constant of the solvent.
         """
-        SmoothStepCavity.__init__(
-            self, density, surface_calculator, volume_calculator
+        super().__init__(
+            density, surface_calculator, volume_calculator
         )
         self.rhomin = float(rhomin)
         self.rhomax = float(rhomax)
@@ -900,8 +915,8 @@ class FG02SmoothStepCavity(SmoothStepCavity):
         rho0 -- Density isovalue in 1 / Angstrom ** 3.
         beta -- Parameter controlling the steepness of the transition.
         """
-        SmoothStepCavity.__init__(
-            self, density, surface_calculator, volume_calculator
+        super().__init__(
+            density, surface_calculator, volume_calculator
         )
         self.rho0 = float(rho0)
         self.beta = float(beta)
@@ -991,7 +1006,7 @@ class GradientSurface(SurfaceCalculator):
         self.nn = reader.parameters.cavity.nn
 
     def estimate_memory(self, mem):
-        SurfaceCalculator.estimate_memory(self, mem)
+        super().estimate_memory(mem)
         nbytes = self.gd.bytecount()
         mem.subnode('Gradient', 4 * nbytes)
         mem.subnode('Divergence', nbytes)

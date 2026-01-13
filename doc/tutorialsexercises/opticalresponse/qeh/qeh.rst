@@ -8,7 +8,7 @@ The Quantum Electrostatic Heterostructure (QEH) model
 Brief overview
 ==============
 
-In this tuturial we show how to calculate the linear response of a general van
+In this tutorial we show how to calculate the linear response of a general van
 der Waals Heterostructure (vdWH) by means of the quantum electrostatic
 heterostructure (QEH) model. This method allows to overcome the computational
 limitation of the standard ab-initio approaches by combining quantum accuracy
@@ -20,7 +20,7 @@ the dielectric building blocks are coupled together through a macroscopic Dyson
 equation. The validity of such an approach strongly relies on the absence of
 hybridization among the layers, condition which is usually satisfied by vdWHs.
 
-A thourough description of the QEH model can be found in [#qeh_theory]_
+A thorough description of the QEH model can be found in [#qeh_theory]_
 and [#qeh_theory2]_:
 
 .. [#qeh_theory] K. Andersen, S. Latini and K.S. Thygesen

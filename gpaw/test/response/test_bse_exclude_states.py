@@ -1,10 +1,11 @@
 import pytest
+
 from gpaw import GPAW
 from gpaw.response.bse import BSE
 
 
 @pytest.mark.response
-def test_bse_exclude_states(in_tmp_dir, gpw_files):
+def test_bse_exclude_states(in_tmp_dir, gpw_files, scalapack):
     eshift = 0.8
     bse = BSE(gpw_files['si_gw_a0_all'],
               ecut=50.,

@@ -1,6 +1,7 @@
-from ase import Atom, Atoms
-from gpaw import GPAW
 import pytest
+from ase import Atom, Atoms
+
+from gpaw import GPAW
 
 
 def test_generic_2Al():
