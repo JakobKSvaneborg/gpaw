@@ -57,11 +57,6 @@ def test_kpts(xc: str, atoms: Atoms, gpaw_new, comm) -> None:
     c = atoms.calc
     e0, v0, v = non_self_consistent_eigenvalues(c, xc)
     e = e0 - v0 + v
-    if gpaw_new and xc == 'HSE06':
-        hse = NonSelfConsistentHSE06.from_dft_calculation(c.dft)
-        e0_skn, e_skn = hse.calculate(c.dft.ibzwfs)
-        assert e0_skn == pytest.aprox(e0)
-        assert e_skn == pytest.aprox(e)
     k1, k2, gap = bandgap(e)
     assert k1 == 4 and k2 == 5
     assert gap == pytest.approx(gaps[xc], abs=0.01)

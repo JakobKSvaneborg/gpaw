@@ -117,7 +117,7 @@ def einsum(indices, *args, optimize=False, **kwargs):
 
 
 def diag(a):
-    return ndarray(np.diag(a._data))
+    return ndarray(np.diag(asarray(a)._data))
 
 
 def abs(a):

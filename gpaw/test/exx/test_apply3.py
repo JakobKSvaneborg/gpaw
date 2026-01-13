@@ -17,25 +17,30 @@ def test_apply3(a=5.0, N=10, dtype=float, calculate_energy=True):
     relpos_ac = np.empty((N, 3))
     relpos_ac[:] = np.linspace(0, 1.0, N, False)[:, np.newaxis]
     xc = type('XC', (), {'exx_fraction': 0.25,
-                         'exx_omega': 0.2})()
+                         'exx_omega': 0.2,
+                         'exx_yukawa': False})()
+    if dtype == float:
+        pw2 = pw
+        pw12 = pw
+        kpt1_c = np.zeros(3)
+        nkpt_c = np.ones(3, int)
+    else:
+        kpt1_c = np.array([0.5, 0.5, 0.0])
+        kpt2_c = np.array([0.25, 0.25, 0.0])
+        pw2 = pw.new(kpt=[0.25, 0.25, 0.0], dtype=dtype)
+        pw12 = pw.new(kpt=kpt2_c - kpt1_c, dtype=dtype)
+        nkpt_c = np.array([4, 4, 1])
+
     ham = PWHybridHamiltonian(
         grid, pw, xc,
         Setups([6] * N, 'paw', {}, 'LDA'),
         relpos_ac,
         atomdist=AtomDistribution.from_number_of_atoms(N),
         log=print,
+        nkpt_c=nkpt_c,
         kpt_comm=world,
         band_comm=world,
         comm=world)
-    if dtype == float:
-        pw2 = pw
-        pw12 = pw
-        kpt1_c = np.zeros(3)
-    else:
-        kpt1_c = np.array([0.5, 0.5, 0.0])
-        kpt2_c = np.array([0.25, 0.25, 0.0])
-        pw2 = pw.new(kpt=[0.25, 0.25, 0.0], dtype=dtype)
-        pw12 = pw.new(kpt=kpt2_c - kpt1_c, dtype=dtype)
     n1 = 35
     n2 = 153
     layout = AtomArraysLayout([13] * N, dtype=dtype)
