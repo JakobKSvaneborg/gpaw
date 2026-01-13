@@ -546,7 +546,7 @@ class BuildGPU:
             undef_macros_: list[str],
             build_dir: str):
         """"""
-        # underscores because we have horrible global args with same names...
+        # underscores because we have global vars with same names...
         self.compiler = gpu_compiler_
         self.include_dirs = gpu_include_dirs_
         self.define_macros = define_macros_
@@ -612,9 +612,7 @@ class BuildGPU:
                 print(f'creating {build_path}', flush=True)
                 build_path.mkdir(parents=True)
 
-        cflags = self.compile_args + parse_cflags(self.define_macros,
-                                                  self.undef_macros,
-                                                  self.include_dirs)
+        cflags = self._make_full_cflags()
 
         # Compile with cuda/hip compiler
         objects = []
@@ -644,9 +642,7 @@ class BuildGPU:
         print("Configuring GPU build", flush=True)
 
         sources_str = " ".join([str(src) for src in self.sources])
-        cflags = self.compile_args + parse_cflags(self.define_macros,
-                                                  self.undef_macros,
-                                                  self.include_dirs)
+        cflags = self._make_full_cflags()
         cflags_str = " ".join(cflags)
 
         inout_makefile.append("# BEGIN GPU SECTION\n")
@@ -668,6 +664,13 @@ class BuildGPU:
 
         inout_makefile.append("-include $(GPU_DEPS)")
         inout_makefile.append("# END GPU SECTION\n")
+
+    def _make_full_cflags(self) -> list[str]:
+        """"""
+        return self.compile_args + parse_cflags(self.define_macros,
+                                                self.undef_macros,
+                                                self.include_dirs)
+
 
 class BuildGPAW(build_ext):
     """"""
@@ -809,18 +812,18 @@ class BuildGPAW(build_ext):
 
         set_compiler_executables(self.compiler)
 
-        print("Build temp:", self.build_temp)
-        print("Build lib: ", self.build_lib)
-
         if not makefile_build:
             # Build normally with setuptools
+            print("Build temp:", self.build_temp)
+            print("Build lib: ", self.build_lib)
             super().build_extensions()
             return
 
+        print(f"Makefile build: using build dir {self.build_temp}")
         self.generate_makefile()
         if not configure_only:
             # run make
-            print("Makefile build: running `make`", flush=True)
+            print("Running `make`", flush=True)
             p = subprocess.run(["make"], check=False, shell=False)
 
             if p.returncode != 0:
