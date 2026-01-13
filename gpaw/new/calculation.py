@@ -445,11 +445,11 @@ class DFTCalculation:
 
         scf_loop = builder.create_scf_loop()
         pot_calc = builder.create_potential_calculator()
+        xcfunc_n = pot_calc.xc
 
         # checks compatibility
         if 'xc' in kwargs:
             # check that 'base' functional is the same
-            xcfunc_n = pot_calc.xc
             xcfunc_o = self.pot_calc.xc
             assert xcfunc_n.get_setup_name() == xcfunc_o.get_setup_name()
 
