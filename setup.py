@@ -105,9 +105,6 @@ If enabled, the following changes apply:
 as what setuptools would use (see caveat below).
 - Build directory for .o files is forcibly changed to _build instead of some
 temporary location.
-- Compiler flags are slightly reorganized, so that extra_compile_args get
-passed BEFORE the input .cpp file instead of AFTER. The latter is what
-setuptools likes to do for whatever reason.
 - The _gpaw.*.so extension will be built with make. Setuptools does no
 compilation.
 - `extra_objects` is not supported.
@@ -726,20 +723,28 @@ class BuildGPAW(build_ext):
             # extension. So take them, plus any user-specified includes.
             includes = self.include_dirs + ext.include_dirs
 
-            # Compile flags. Combine "base" flags from setuptools and those
-            # from extra_compile_args. NOTE! Ordering is slightly different
-            # from setuptools method: Setuptools puts extra_compile_args
-            # at the very end, after the input file. Here we add extras
-            # immediately after "base" flags.
+            """
+            Compiler flags. We replicate what Setuptools does:
+            the compilation command will look like
+                $(CC) $(CFLAGS_BASE) -c src.c -o src.o $(CFLAGS_EXTRA)
+            where CFLAGS_BASE contains "base" args originating from `compiler_args`,
+            `define_macros`, `undef_macros` and `include_dirs`.
+            CFLAGS_EXTRA contains flags from `extra_compile_args`.
+            Unclear why setuptools does this instead of grouping everything
+            under one CFLAGS and apply it before the input, but it is what it
+            is.
+            """
 
             # "base"
-            cflags = list(self.compiler.compiler_so[1:])
-            if ext.extra_compile_args:
-                cflags += ext.extra_compile_args
+            cflags_base = list(self.compiler.compiler_so[1:])
             # Build -D, -U, -I flags
-            cflags += parse_cflags(ext.define_macros,
-                                   ext.undef_macros,
-                                   includes)
+            cflags_base += parse_cflags(ext.define_macros,
+                                        ext.undef_macros,
+                                        includes)
+            # "extra"
+            cflags_extra = []
+            if ext.extra_compile_args:
+                cflags_extra += ext.extra_compile_args
 
             # Linker flags
             ldflags = list(self.compiler.linker_so[1:])
@@ -752,11 +757,13 @@ class BuildGPAW(build_ext):
             # setuptools adds this too:
             ldflags.insert(0, '-Wl,--enable-new-dtags')
 
-            cflags_str = " ".join(cflags)
+            cflags_base_str = " ".join(cflags_base)
+            cflags_extra_str = " ".join(cflags_extra)
             ldflags_str = " ".join(ldflags)
 
             # Add CFLAGS and LDFLAGS, with extra flags for dependency generation
-            makefile_lines.append(f"\nCFLAGS := {cflags_str} -MMD -MP\n")
+            makefile_lines.append(f"\nCFLAGS_BASE := {cflags_base_str}\n")
+            makefile_lines.append(f"\nCFLAGS_EXTRA := {cflags_extra_str} -MMD -MP\n")
             makefile_lines.append(f"LDFLAGS := {ldflags_str}\n")
 
             # Define build target. Need to include .o files from GPU part
@@ -770,7 +777,7 @@ class BuildGPAW(build_ext):
 
             # Compile rules
             for src, obj in zip(ext.sources, objs):
-                makefile_lines.append(f"{obj}: {src}\n\t$(CC) $(CFLAGS) -c {src} -o {obj}\n")
+                makefile_lines.append(f"{obj}: {src}\n\t$(CC) $(CFLAGS_BASE) -c {src} -o {obj} $(CFLAGS_EXTRA)\n")
 
         makefile_lines.append("\n-include $(DEPS)")
         with open("Makefile", "w") as mf:
