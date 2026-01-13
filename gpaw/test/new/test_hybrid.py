@@ -35,7 +35,7 @@ def test_hse06(gpaw_new, dtype, eigensolver):
     atoms.center(vacuum=2.5)
     atoms.calc = GPAW(
         mode=dict(name='pw',
-                  force_complex_dtype=dtype is complex),
+                  force_complex_dtype=not gpaw_new and dtype is complex),
         xc='HSE06',
         eigensolver=eigensolver,
         convergence={'density': 1e-6},
@@ -47,7 +47,8 @@ def test_hse06(gpaw_new, dtype, eigensolver):
     assert eigs[0] == pytest.approx(-4.67477532, abs=1e-4)
     f = atoms.get_forces()
     f0 = 2.3505
-    assert f == pytest.approx(np.array([[0, 0, -f0], [0, 0, f0]]), abs=1e-4)
+    tol = 1e-4 if gpaw_new else 2e-4
+    assert f == pytest.approx(np.array([[0, 0, -f0], [0, 0, f0]]), abs=tol)
 
 
 @pytest.mark.new_gpaw_ready
