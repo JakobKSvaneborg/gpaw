@@ -33,7 +33,7 @@ def test_changes():
     dft = DFT(atoms, **params)
     dft.converge()
 
-    dft.change_xc('HSE06')
+    dft.change(xc='HSE06')
     dft.change_occupations(occ_fixed)
     dft.change_mixer(mixer)
     dft.change_eigensolver('ppcg')

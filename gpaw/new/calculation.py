@@ -517,6 +517,60 @@ class DFTCalculation:
             f'from {xcfunc_o.name} to {xcfunc_n.name}. ' +
             'Reusing wavefunctions.')
 
+    def change(self, *, xc=None):
+
+        # build kwargs
+        kwargs = {'xc': xc}
+        for key, val in kwargs.items():
+            if val is None:
+                kwargs.pop(key)
+
+        from gpaw.dft import XC
+
+        atoms = self.atoms
+        params = self.params
+        ibzwfs = self.ibzwfs
+        is_collinear = ibzwfs.collinear
+        log = self.log
+
+        prop_update = {'xc': XC.from_param}
+
+        if 'xc' in kwargs:
+            # old xc functional
+            xcfunc_o = params.xc.functional(collinear=is_collinear,
+                                            atoms=atoms)
+
+        # update params
+        for prop in kwargs:
+            val = kwargs[prop]
+            update_func = prop_update[prop]
+            # actually change property
+            setattr(params, prop, update_func(val))
+
+        # rebuild
+        builder = params.dft_component_builder(atoms, log=log,
+                                               comm=self.comm)
+
+        # checks compatibility
+        if 'xc' in kwargs:
+            # new xc functional
+            xcfunc_n = params.xc.functional(collinear=is_collinear,
+                                            atoms=atoms)
+
+            # check that 'base' functional is the same
+            assert xcfunc_n.get_setup_name() == xcfunc_o.get_setup_name()
+
+        self.scf_loop = builder.create_scf_loop()
+        self.pot_calc = builder.create_potential_calculator()
+
+        # XXX rebuild occupations
+
+        self.results = {}
+
+        log('Changed xc-functional ' +
+            f'from {xcfunc_o.name} to {xcfunc_n.name}. ' +
+            'Reusing wavefunctions.')
+
     def new(self,
             atoms: Atoms,
             params: Parameters,
