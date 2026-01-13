@@ -173,12 +173,12 @@ class NonSelfConsistentHSE06:
         self.log(f'  ave: {deig_sin.mean():.3f} eV')
         self.log(f'  max: {deig_sin.max():.3f} eV')
 
-        return eig_sin, dxc_isn, dhyb_isn
+        return eig_sin, dxc_sin, dhyb_sin
 
     def calculate_one_kpt(self,
                           psit2_nG: PWArray,
                           P2_ani: AtomArrays,
-                          spin: int) -> np.ndarray:
+                          spin: int) -> tuple[np.ndarray, np.ndarray]:
         """Calculate eigenvalues at one k-point.
 
         Returned eigenvalues are in eV.
@@ -189,7 +189,7 @@ class NonSelfConsistentHSE06:
         dxc_n, dhyb_n = self._semi_local_xc_part(ut2_nR, spin)
 
         # PAW corrections:
-        for a, dxc_sii in self.dE_asii.items():
+        for a, dxc_sii in self.dxc_asii.items():
             P2_ni = P2_ani[a]
             dxc_n += np.einsum('ni, ij, nj -> n',
                                P2_ni.conj(), dxc_sii[spin], P2_ni).real
@@ -250,10 +250,10 @@ class NonSelfConsistentHSE06:
 
     def _semi_local_xc_part(self,
                             ut2_nR: UGArray,
-                            spin: int) -> np.ndarray:
+                            spin: int) -> tuple[np.ndarray, np.ndarray]:
         dxc_n = np.zeros(len(ut2_nR))
         dhyb_n = np.zeros(len(ut2_nR))
-        if self.dxct_sR is not None:
+        if self.dxc_sR is not None:
             dxc_R = self.dxc_sR[spin]
             dhyb_R = self.dhyb_sR[spin]
             nt_R = ut2_nR.desc.new(dtype=float).empty()
@@ -267,26 +267,27 @@ class NonSelfConsistentHSE06:
 
 def nsc_corrections(density: Density,
                     pot_calc: PlaneWavePotentialCalculator,
-                    semilocal_xc_name: str) -> tuple[UGArray, AtomArrays]:
+                    semilocal_xc_name: str
+                    ) -> tuple[UGArray, UGArray, AtomArrays, AtomArrays]:
     """Semi-local XC-potential corrections.
 
     Pseudo-part (calculated from ``density.nt_sR``):::
 
-        ~  _    ~      _    ~     _
-       Δv (r) = v     (r) - v    (r),
-         σ       σ,HSE       σ,xc
+       ~     _
+       v    (r)
+        σ,XC
 
     and PAW corrections:::
 
-         a     / a  a a _   /~a  a ~a _
-       Δv    = |φ Δv φ dr - |φ Δv  φ dr,
-         σij   / i  σ j     / i  σ  j
+        a     / a a a _   /~a a ~a _
+       v    = |φ v φ dr - |φ v  φ dr,
+        σij   / i σ j     / i σ  j
 
     using (calculated from ``density.D_asii``):::
 
-        a  _     a     _     a    _
-       Δv (r) = v     (r) - v    (r).
-         σ       σ,HSE       σ,xc
+        a    _
+       v    (r)
+        σ,XC
     """
     nt_sr = density.nt_sR.interpolate(grid=pot_calc.fine_grid)
     xc = pot_calc.xc
