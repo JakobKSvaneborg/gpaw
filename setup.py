@@ -813,8 +813,7 @@ class BuildGPAW(build_ext):
         if makefile_build:
             # Set a persistent build directory. We get a more readable
             # Makefile by using relative build paths instead
-            self.build_temp = os.path.join(os.path.dirname(__file__),
-                                           self.makefile_build_dir)
+            self.build_temp = str(Path(__file__).parent / self.makefile_build_dir)
 
         if self.link_objects is None:
             self.link_objects = []
