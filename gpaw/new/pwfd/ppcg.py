@@ -251,11 +251,15 @@ class PPCG(PWFDEigensolver):
             error_n = as_np(residual_nX.norm2())
             if len(error_n.shape) > 1:
                 error_n = error_n.sum(axis=1)
-            active_indicies = np.logical_or(
-                np.greater(error_n, self.tolerance),
-                np.greater(error_n,
-                           np.max(error_n, initial=0) * self.tol_factor))
-            active_indicies = np.where(active_indicies)[0]
+            if self.allow_dynamic_breakout and \
+                    (self.tol_factor or self.tolerance):
+                active_indicies = np.logical_or(
+                    np.greater(error_n, self.tolerance),
+                    np.greater(error_n,
+                               np.max(error_n, initial=0) * self.tol_factor))
+                active_indicies = np.where(active_indicies)[0]
+            else:
+                active_indicies = np.ones(error_n.shape, dtype=bool)
             error = weight_n @ error_n
             b_error = band_comm.sum_scalar(error) / \
                 max(band_comm.sum_scalar(weight_n.sum()), 0.5)
@@ -284,13 +288,14 @@ class PPCG(PWFDEigensolver):
                 M_nn.multiply(psit_nX, out=residual_nX, beta=1.0, alpha=-1.0)
                 M_nn.multiply(P_ani, out=P2_ani, beta=1.0, alpha=-1.0)
 
-            active_bs = len(active_indicies)
+            active_bs = len(active_indicies) if self.allow_dynamic_breakout \
+                else (psit_nX.dims[0] + band_comm.size - 1) // band_comm.size
 
             with tracectx('Block-diagonal Update'):
                 new_eigs_n = np.zeros_like(wfs.myeig_n)  # New eigenvalues
                 for j in range(0, active_bs, self.blocksize):
                     block_slice_base = \
-                        slice(j, min(j + self.blocksize, active_bs))
+                        slice(j, min(j + self.blocksize, len(active_indicies)))
                     block = \
                         block_slice_base.stop - block_slice_base.start
                     block_slice = active_indicies[block_slice_base]
@@ -488,11 +493,13 @@ class PPCG(PWFDEigensolver):
                 if len(error_n.shape) > 1:
                     error_n = error_n.sum(axis=1)
 
-                active_indicies = np.logical_or(
-                    np.greater(error_n, self.tolerance),
-                    np.greater(error_n, np.max(error_n, initial=0) *
-                               self.tol_factor))
-                active_indicies = np.where(active_indicies)[0]
+                if self.allow_dynamic_breakout and \
+                        (self.tol_factor or self.tolerance):
+                    active_indicies = np.logical_or(
+                        np.greater(error_n, self.tolerance),
+                        np.greater(error_n, np.max(error_n, initial=0) *
+                                   self.tol_factor))
+                    active_indicies = np.where(active_indicies)[0]
                 error = weight_n @ error_n
                 b_error = band_comm.sum_scalar(error) / \
                     max(band_comm.sum_scalar(weight_n.sum()), 0.5)
