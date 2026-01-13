@@ -33,7 +33,8 @@ def test_changes():
     dft = DFT(atoms, **params)
     dft.converge()
 
-    dft.change(xc='HSE06', eigensolver='ppcg', mixer=mixer, occupations=occ_fixed, convergence={'energy': 1e-2})
+    dft.change(xc='HSE06', eigensolver='ppcg', mixer=mixer,
+               occupations=occ_fixed, convergence={'energy': 1e-2})
 
     ase_calc = dft.ase_calculator()
     etot_xc = ase_calc.get_potential_energy(atoms)
