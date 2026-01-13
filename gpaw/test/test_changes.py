@@ -3,6 +3,7 @@ import numpy as np
 from ase.build import molecule
 from gpaw.dft import DFT
 
+
 def test_changes():
 
     etot_hse = 23.546547
