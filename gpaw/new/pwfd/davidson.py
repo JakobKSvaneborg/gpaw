@@ -16,8 +16,9 @@ from gpaw.mpi import serial_comm
 
 
 def slparams(nbands, comm):
-    if nbands / comm.size**0.5 < 1000:
+    if nbands < 1000:
         return serial_comm, 1, 1, None
+    # How much of comm should we use?
     return (comm, *suggest_blocking(nbands, comm.size))
 
 
