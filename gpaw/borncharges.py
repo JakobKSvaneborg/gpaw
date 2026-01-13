@@ -1,16 +1,19 @@
-import numpy as np
-from gpaw.mpi import world
-from gpaw.berryphase import polarization_phase, ionic_phase
-from ase.parallel import paropen, parprint
-from ase.io.jsonio import write_json, read_json
 from pathlib import Path
+
+import numpy as np
+from ase.io.jsonio import read_json, write_json
+from ase.parallel import paropen, parprint
+
+from gpaw.berryphase import ionic_phase, polarization_phase
+from gpaw.mpi import normalize_communicator
 
 
 def born_charges_wf(atoms, calc, delta=0.01, cleanup=False,
-                    ionic_only=False, out='born_charges.json'):
+                    ionic_only=False, out='born_charges.json', world=None):
+    world = normalize_communicator(world)
 
     # generate displacement dictionary
-    disps_av = _all_disp(atoms, delta)
+    disps_av = get_cartesian_displacements(atoms, delta)
 
     # carry out polarization phase calculation
     # for each displacement
@@ -41,12 +44,12 @@ def born_charges_wf(atoms, calc, delta=0.01, cleanup=False,
                 phase_c = polarization_phase(gpw_wfs, comm=world)
 
                 # only master rank should write
-                with paropen(berryname, 'w') as fd:
+                with paropen(berryname, 'w', comm=world) as fd:
                     write_json(fd, phase_c)
 
             else:
                 # all ranks can read
-                with open(berryname, 'r') as fd:
+                with open(berryname) as fd:
                     phase_c = read_json(fd)
 
             if cleanup:
@@ -61,8 +64,9 @@ def born_charges_wf(atoms, calc, delta=0.01, cleanup=False,
 
         phases_c[dlabel] = phase_c['phase_c']
 
-    results = born_charges(atoms, disps_av, phases_c, check=(not ionic_only))
-    with paropen(out, 'w') as fd:
+    results = born_charges(atoms, disps_av, phases_c, check=(not ionic_only),
+                           comm=world)
+    with paropen(out, 'w', comm=world) as fd:
         write_json(fd, results)
 
     return results
@@ -81,15 +85,15 @@ def is_symmetry_off(calc):
                 not params.symmetry.time_reversal)
 
 
-def born_charges(atoms, disps_av, phases_c, check=True):
-
+def born_charges(atoms, disps_av, phases_c, check=True, comm=None):
+    comm = normalize_communicator(comm)
     natoms = len(atoms)
     cell_cv = atoms.get_cell()
     vol = abs(np.linalg.det(cell_cv))
     sym_a = atoms.get_chemical_symbols()
 
     ndisp = len(disps_av)
-    parprint('Not using symmetry: ndisp:', ndisp)
+    parprint('Not using symmetry: ndisp:', ndisp, comm=comm)
 
     # obtain phi(dr) map
     phi_ascv = np.zeros((natoms, 2, 3, 3), float)
@@ -146,7 +150,7 @@ def _all_avs(atoms):
                 yield (ia, iv, sign)
 
 
-def _all_disp(atoms, delta):
+def get_cartesian_displacements(atoms, delta):
     all_disp = {}
     for dd, avs in enumerate(_all_avs(atoms)):
         dd = int(dd)

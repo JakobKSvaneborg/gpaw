@@ -1,9 +1,10 @@
-import pytest
 import numpy as np
-from gpaw.spline import Spline
-from gpaw.poisson import FDPoissonSolver, FFTPoissonSolver, PoissonSolver
-from gpaw.grid_descriptor import GridDescriptor
+import pytest
+
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.poisson import FDPoissonSolver, FFTPoissonSolver, PoissonSolver
+from gpaw.spline import Spline
 
 
 @pytest.mark.ci

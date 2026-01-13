@@ -11,8 +11,8 @@ from ase.units import Hartree, Bohr
 from ase.dft.kpoints import monkhorst_pack
 
 import gpaw.mpi as mpi
-from gpaw.kpt_descriptor import KPointDescriptor
-from gpaw.response.chi0 import HilbertTransform
+from gpaw.old.kpt_descriptor import KPointDescriptor
+from gpaw.response.hilbert import HilbertTransform
 from gpaw.response.g0w0 import select_kpts
 from gpaw.response.groundstate import ResponseGroundStateAdapter
 from gpaw.response.context import ResponseContext

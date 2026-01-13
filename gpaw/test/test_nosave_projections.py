@@ -1,7 +1,8 @@
 import pytest
 from ase.build import bulk
-from gpaw.new.ase_interface import GPAW
+
 from gpaw.mpi import world
+from gpaw.new.ase_interface import GPAW
 
 # Prevent grid-dependent crash:
 parallel = dict(band=1 if world.size < 8 else 4)
@@ -16,7 +17,7 @@ def noprojs_gpw(module_tmp_path, request):
     else:
         kwargs = dict(mode={'name': 'pw', 'ecut': 200.0})
     atoms.calc = GPAW(kpts=[2, 2, 2], txt=None, parallel=parallel,
-                      convergence={'density': 1e6, 'eigenstates': 1e6},
+                      convergence={'density': 1e-3, 'eigenstates': 1e-3},
                       **kwargs)
     atoms.get_potential_energy()
     gpw_path = module_tmp_path / f'gs_noprojs_{mode}.gpw'

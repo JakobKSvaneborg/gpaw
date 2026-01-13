@@ -1,15 +1,16 @@
-import pytest
-import numpy as np
 import ase.io.ulm as ulm
+import numpy as np
+import pytest
 
 from gpaw.lcaotddft import LCAOTDDFT
-from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.lcaotddft.densitymatrix import DensityMatrix
+from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.lcaotddft.frequencydensitymatrix import FrequencyDensityMatrix
 from gpaw.mpi import world
 from gpaw.tddft.folding import frequencies
 
 
+@pytest.mark.old_gpaw_only
 @pytest.mark.gllb
 @pytest.mark.libxc
 @pytest.mark.rttddft

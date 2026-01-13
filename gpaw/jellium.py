@@ -3,7 +3,6 @@ from math import pi
 
 import numpy as np
 from ase.units import Bohr
-from gpaw.new.environment import Jellium as JelliumEnv
 
 
 def create_background_charge(**kwargs):
@@ -58,16 +57,6 @@ class Jellium():
         self.add_charge_to(rhot_g)
         rhot_q += pd.fft(rhot_g)
 
-    def build(self,
-              setups,
-              grid,
-              relpos_ac,
-              log,
-              comm,
-              **kwargs) -> JelliumEnv:
-        self.set_grid_descriptor(grid._gd)
-        return JelliumEnv(self, len(relpos_ac), grid)
-
 
 class JelliumSlab(Jellium):
     """ The Jellium slab object """
@@ -78,7 +67,7 @@ class JelliumSlab(Jellium):
             Position of lower surface in Angstrom units.
         z2: float
             Position of upper surface in Angstrom units."""
-        Jellium.__init__(self, charge)
+        super().__init__(charge)
         self.z1 = (z1 - 0.0001) / Bohr
         self.z2 = (z2 - 0.0001) / Bohr
 

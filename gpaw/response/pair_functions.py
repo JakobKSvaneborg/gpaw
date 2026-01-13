@@ -1,14 +1,13 @@
 from pathlib import Path
+
 import numpy as np
-
 from ase.units import Hartree
-
-from gpaw.response.qpd import SingleQPWDescriptor
 
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.pair_integrator import DynamicPairFunction
 from gpaw.response.pw_parallelization import (Blocks1D,
                                               PlaneWaveBlockDistributor)
+from gpaw.response.qpd import SingleQPWDescriptor
 
 
 class LatticePeriodicPairFunction(DynamicPairFunction):
@@ -176,7 +175,7 @@ def map_ZgG_array_to_reduced_pd(qpdi, qpd, blockdist, in_ZgG):
 
 def map_zGG_array_to_reduced_pd(qpdi, qpd, in_zGG):
     """Map the array in_zGG from the qpdi to the qpd plane-wave basis."""
-    from gpaw.pw.descriptor import PWMapping
+    from gpaw.old.pw.descriptor import PWMapping
 
     # Initialize the basis mapping
     pwmapping = PWMapping(qpdi, qpd)

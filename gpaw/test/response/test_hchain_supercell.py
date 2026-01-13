@@ -1,10 +1,11 @@
 # Test of the handling of degenerate bands in response code
+import numpy as np
 import pytest
 from ase import Atoms
+
 from gpaw import GPAW, PW
 from gpaw.response.df import DielectricFunction
 from gpaw.test import findpeak
-import numpy as np
 
 
 def get_hydrogen_chain_dielectric_function(NH, NK):
@@ -30,6 +31,7 @@ def get_hydrogen_chain_dielectric_function(NH, NK):
     return omega_w, eps_LF
 
 
+@pytest.mark.filterwarnings('ignore:unclosed file')
 @pytest.mark.dielectricfunction
 @pytest.mark.serial
 @pytest.mark.response

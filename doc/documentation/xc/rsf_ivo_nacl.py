@@ -26,7 +26,8 @@ def calc_me(atoms, nbands):
     molecule_name = atoms.get_chemical_formula()
     atoms.set_initial_magnetic_moments([-1.0, 1.0])
     fname = '.'.join([molecule_name, 'PBE-SIN'])
-    calc = GPAW(mode='fd',
+    calc = GPAW(_use_old_gpaw=True,
+                mode='fd',
                 h=0.25,
                 xc='PBE',
                 eigensolver=CG(niter=5),

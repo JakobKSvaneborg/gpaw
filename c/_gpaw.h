@@ -3,9 +3,7 @@
  *  Copyright (C) 2007-2010  CSC - IT Center for Science Ltd.
  *  Please see the accompanying LICENSE file for further information. */
 
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#include <numpy/arrayobject.h>
+#include "python_utils.h"
 
 #ifdef PARALLEL
 #include <mpi.h>
@@ -14,17 +12,8 @@
 #include <xc.h> // If this file is not found, install libxc https://gpaw.readthedocs.io/install.html#libxc-installation
 #endif
 
-#ifdef GPAW_HPM
-PyObject* ibm_hpm_start(PyObject *self, PyObject *args);
-PyObject* ibm_hpm_stop(PyObject *self, PyObject *args);
-PyObject* ibm_mpi_start(PyObject *self);
-PyObject* ibm_mpi_stop(PyObject *self);
-#endif
-
-#ifdef CRAYPAT
-#include <pat_api.h>
-PyObject* craypat_region_begin(PyObject *self, PyObject *args);
-PyObject* craypat_region_end(PyObject *self, PyObject *args);
+#if defined(GPAW_WITH_MAGMA) && !defined(GPAW_GPU)
+#error "Must define GPAW_GPU in order to use GPAW_WITH_MAGMA"
 #endif
 
 PyObject* evaluate_mpa_poly(PyObject *self, PyObject *args);
@@ -131,10 +120,6 @@ PyObject * FFTWDestroy(PyObject *self, PyObject *args);
 // Threading
 PyObject* get_num_threads(PyObject *self, PyObject *args);
 
-#ifdef GPAW_PAPI
-PyObject* papi_mem_info(PyObject *self, PyObject *args);
-#endif
-
 #ifdef GPAW_WITH_LIBVDWXC
 PyObject* libvdwxc_create(PyObject *self, PyObject *args);
 PyObject* libvdwxc_has(PyObject* self, PyObject *args);
@@ -167,53 +152,12 @@ PyObject* calculate_forces_H2O(PyObject *self, PyObject *args);
 
 
 #ifdef GPAW_GPU
-PyObject* gpaw_gpu_init(PyObject *self, PyObject *args);
-PyObject* gpaw_gpu_delete(PyObject *self, PyObject *args);
-PyObject* csign_gpu(PyObject *self, PyObject *args);
-PyObject* scal_gpu(PyObject *self, PyObject *args);
-PyObject* multi_scal_gpu(PyObject *self, PyObject *args);
-PyObject* mmm_gpu(PyObject *self, PyObject *args);
-PyObject* gemm_gpu(PyObject *self, PyObject *args);
-PyObject* gemv_gpu(PyObject *self, PyObject *args);
-PyObject* rk_gpu(PyObject *self, PyObject *args);
-PyObject* axpy_gpu(PyObject *self, PyObject *args);
-PyObject* multi_axpy_gpu(PyObject *self, PyObject *args);
-PyObject* r2k_gpu(PyObject *self, PyObject *args);
-PyObject* dotc_gpu(PyObject *self, PyObject *args);
-PyObject* dotu_gpu(PyObject *self, PyObject *args);
-PyObject* multi_dotu_gpu(PyObject *self, PyObject *args);
-PyObject* multi_dotc_gpu(PyObject *self, PyObject *args);
-PyObject* add_linear_field_gpu(PyObject *self, PyObject *args);
-PyObject* elementwise_multiply_add_gpu(PyObject *self, PyObject *args);
-PyObject* multi_elementwise_multiply_add_gpu(PyObject *self, PyObject *args);
-PyObject* ax2py_gpu(PyObject *self, PyObject *args);
-PyObject* multi_ax2py_gpu(PyObject *self, PyObject *args);
-PyObject* axpbyz_gpu(PyObject *self, PyObject *args);
-PyObject* axpbz_gpu(PyObject *self, PyObject *args);
-PyObject* fill_gpu(PyObject *self, PyObject *args);
-PyObject* pwlfc_expand_gpu(PyObject *self, PyObject *args);
-PyObject* pw_insert_gpu(PyObject *self, PyObject *args);
-PyObject* pw_norm_kinetic_gpu(PyObject *self, PyObject *args);
-PyObject* pw_norm_gpu(PyObject *self, PyObject *args);
-
-PyObject* pw_amend_insert_realwf_gpu(PyObject *self, PyObject *args);
-PyObject* add_to_density_gpu(PyObject* self, PyObject* args);
-PyObject* dH_aii_times_P_ani_gpu(PyObject* self, PyObject* args);
-PyObject* evaluate_lda_gpu(PyObject* self, PyObject* args);
-PyObject* evaluate_pbe_gpu(PyObject* self, PyObject* args);
-PyObject* calculate_residual_gpu(PyObject* self, PyObject* args);
-
+#include "gpu/gpu_interface.h"
+    #ifdef GPAW_WITH_MAGMA
+        #include "gpu/cpp/magma/magma_python_interface.h"
+    #endif // GPAW_WITH_MAGMA
 #endif // GPAW_GPU
 
-#ifdef GPAW_WITH_MAGMA
-#include "magma_gpaw.h"
-PyObject* eigh_magma_dsyevd(PyObject* self, PyObject* args);
-PyObject* eigh_magma_zheevd(PyObject* self, PyObject* args);
-#ifdef GPAW_GPU
-PyObject* eigh_magma_dsyevd_gpu(PyObject* self, PyObject* args);
-PyObject* eigh_magma_zheevd_gpu(PyObject* self, PyObject* args);
-#endif
-#endif // GPAW_WITH_MAGMA
 
 static PyMethodDef functions[] = {
     {"pawexxvv", pawexxvv, METH_VARARGS, 0},
@@ -319,19 +263,6 @@ static PyMethodDef functions[] = {
     {"FFTWExecute", FFTWExecute, METH_VARARGS, 0},
     {"FFTWDestroy", FFTWDestroy, METH_VARARGS, 0},
 #endif
-#ifdef GPAW_HPM
-    {"hpm_start", ibm_hpm_start, METH_VARARGS, 0},
-    {"hpm_stop", ibm_hpm_stop, METH_VARARGS, 0},
-    {"mpi_start", (PyCFunction) ibm_mpi_start, METH_NOARGS, 0},
-    {"mpi_stop", (PyCFunction) ibm_mpi_stop, METH_NOARGS, 0},
-#endif // GPAW_HPM
-#ifdef CRAYPAT
-    {"craypat_region_begin", craypat_region_begin, METH_VARARGS, 0},
-    {"craypat_region_end", craypat_region_end, METH_VARARGS, 0},
-#endif // CRAYPAT
-#ifdef GPAW_PAPI
-    {"papi_mem_info", papi_mem_info, METH_VARARGS, 0},
-#endif // GPAW_PAPI
 #ifdef GPAW_WITH_LIBVDWXC
     {"libvdwxc_create", libvdwxc_create, METH_VARARGS, 0},
     {"libvdwxc_has", libvdwxc_has, METH_VARARGS, 0},
@@ -386,17 +317,14 @@ static PyMethodDef functions[] = {
     {"evaluate_pbe_gpu", evaluate_pbe_gpu, METH_VARARGS, 0},
     {"calculate_residuals_gpu", calculate_residual_gpu, METH_VARARGS, 0},
 
+    #ifdef GPAW_WITH_MAGMA
+    {"_eigh_magma_numpy", eigh_magma_numpy, METH_VARARGS, 0},
+    {"_eigh_magma_cupy", eigh_magma_cupy, METH_VARARGS, 0},
+    #endif // GPAW_WITH_MAGMA
+
+    {"_flush_pending_decrefs", flush_pending_decrefs, METH_NOARGS, 0},
+
 #endif // GPAW_GPU
-
-#ifdef GPAW_WITH_MAGMA
-{"eigh_magma_dsyevd", eigh_magma_dsyevd, METH_VARARGS, 0},
-{"eigh_magma_zheevd", eigh_magma_zheevd, METH_VARARGS, 0},
-#ifdef GPAW_GPU
-{"eigh_magma_dsyevd_gpu", eigh_magma_dsyevd_gpu, METH_VARARGS, 0},
-{"eigh_magma_zheevd_gpu", eigh_magma_zheevd_gpu, METH_VARARGS, 0},
-#endif
-#endif // GPAW_WITH_MAGMA
-
 
     {0, 0, 0, 0}
 };
@@ -419,10 +347,7 @@ extern PyTypeObject lxcXCFunctionalType;
 
 static void gpaw_module_cleanup(void *m)
 {
-#ifdef GPAW_WITH_MAGMA
-    // Assuming GPAW calls magma_init() during module startup
-    magma_finalize();
-#endif
+    // Relic from the distant past
 }
 
 static struct PyModuleDef moduledef = {
@@ -503,17 +428,6 @@ static PyObject* moduleinit(void)
 
 #ifdef GPAW_WITH_MAGMA
     PyObject_SetAttrString(m, "have_magma", Py_True);
-
-    // MAGMA needs to be globally initialized, but keeps track of accumulated
-    // magma_init() calls. So it's safe to call it inside GPAW, even if other
-    // libs are also doing it.
-
-    // FIXME: Where should GPAW call magma_init()?
-    // Should not be in GPU-specific init because magma can work without GPU too.
-    // However it needs to come AFTER cudaSetValidDevices and cudaSetDeviceFlags.
-    // Calling it here could become a problem if Python-side GPU init does more than setDevice(...)
-    magma_init();
-
 #else
     PyObject_SetAttrString(m, "have_magma", Py_False);
 #endif

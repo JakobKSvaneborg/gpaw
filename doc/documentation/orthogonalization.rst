@@ -64,7 +64,7 @@ This can be Cholesky factored into `\mathbf{S} = \mathbf{L}^T
 Parallelization
 ===============
 
-The orthogonalization can be paralleized over **k**-points, spins,
+The orthogonalization can be parallelized over **k**-points, spins,
 domains, and bands.
 
 

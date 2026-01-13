@@ -4,11 +4,12 @@ from math import pi
 
 import numpy as np
 from ase.units import Bohr, Ha
-from gpaw.core import PWArray, PWDesc, UGDesc
-from gpaw.new.poisson import PoissonSolver
 from scipy.sparse.linalg import LinearOperator, cg
 from scipy.special import erf
+
 from gpaw import get_scipy_version
+from gpaw.core import PWArray, PWDesc, UGDesc
+from gpaw.new.poisson import PoissonSolver
 
 if get_scipy_version() >= [1, 14]:
     RTOL = 'rtol'
@@ -19,7 +20,6 @@ else:
 def make_poisson_solver(pw: PWDesc,
                         grid: UGDesc,
                         charge: float,
-                        environment=None,
                         strength: float = 1.0,
                         dipolelayer: bool = False,
                         **kwargs) -> PoissonSolver:
@@ -32,13 +32,6 @@ def make_poisson_solver(pw: PWDesc,
         return DipoleLayerPWPoissonSolver(ps, grid, **kwargs)
 
     assert not kwargs
-
-    if hasattr(environment, 'dielectric'):
-        if 1:
-            return ConjugateGradientPoissonSolver(
-                pw, grid, environment.dielectric, zero_vacuum=True)
-        from gpaw.new.sjm import SJMPWPoissonSolver
-        return SJMPWPoissonSolver(pw, environment.dielectric, grid)
 
     return ps
 
@@ -282,6 +275,7 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
         self.dielectric = dielectric
         self.grid = grid
         self.pw0 = pw.new(comm=None)
+        self.pwg0 = self.pw0
         self.grid0 = grid.new(comm=None)
         if pw.comm.rank == 0:
             self.ekin_g = self.pw0.ekin_G.copy()
@@ -330,10 +324,10 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
 
         ophi_G = np.zeros_like(phi_G)
         for G_G in G_vG:
-            grad_G = pw.from_data(G_G * phi_G)
+            grad_G = pw.from_data(G_G * phi_G * 1j)
             grad_R = grad_G.ifft(grid=grid)
             grad_R.data *= self.eps0_R.data
-            ophi_G += grad_R.fft(pw=pw).data * G_G
+            ophi_G -= grad_R.fft(pw=pw).data * G_G * 1j
 
         return ophi_G
 

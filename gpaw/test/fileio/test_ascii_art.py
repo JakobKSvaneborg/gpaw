@@ -1,5 +1,6 @@
 from ase import Atoms
-from gpaw.output import plot
+
+from gpaw.old.output import plot
 
 
 def test_ascii_art():

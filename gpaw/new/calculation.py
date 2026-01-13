@@ -1,19 +1,19 @@
 from __future__ import annotations
 
 import warnings
-from functools import cached_property
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr, Ha
+
 from gpaw.core import UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.densities import Densities
 from gpaw.electrostatic_potential import ElectrostaticPotential
 from gpaw.gpu import as_np
 from gpaw.mpi import broadcast as bcast
-from gpaw.mpi import broadcast_float, world
+from gpaw.mpi import broadcast_float, MPIComm
 from gpaw.new import trace, zips
 from gpaw.new.density import Density
 from gpaw.new.energies import DFTEnergies
@@ -25,7 +25,7 @@ from gpaw.setup import Setups
 from gpaw.typing import Array1D, Array2D
 from gpaw.utilities import (check_atoms_too_close,
                             check_atoms_too_close_to_boundary)
-from gpaw.utilities.partition import AtomPartition
+
 if TYPE_CHECKING:
     from gpaw.dft import Parameters
 
@@ -100,16 +100,16 @@ class DFTCalculation:
     def from_parameters(cls,
                         atoms: Atoms,
                         params: Parameters,
-                        comm=None,
+                        comm: MPIComm,
                         log=None) -> DFTCalculation:
         """Create DFTCalculation object from parameters and atoms."""
         check_atoms_too_close(atoms)
         check_atoms_too_close_to_boundary(atoms)
 
         if not isinstance(log, Logger):
-            log = Logger(log, comm or world)
+            log = Logger(log, comm)
 
-        builder = params.dft_component_builder(atoms, log=log)
+        builder = params.dft_component_builder(atoms, log=log, comm=comm)
 
         basis_set = builder.create_basis_set()
 
@@ -123,16 +123,15 @@ class DFTCalculation:
         density = builder.density_from_superposition(basis_set)
         if len(atoms) == 0:
             density.nt_sR.data[:] = 1.0
-        density.normalize(pot_calc.environment.charge)
+        density.normalize(pot_calc.charge)
 
         potential, energies, _ = pot_calc.calculate_without_orbitals(
             density, kpt_band_comm=builder.communicators['D'])
         ibzwfs = builder.create_ibz_wave_functions(
             basis_set, potential)
 
-        if ibzwfs.wfs_qs[0][0]._eig_n is not None:
-            nelectrons = (density.nvalence - density.charge +
-                          pot_calc.environment.charge)
+        if ibzwfs._wfs_u[0].has_eigs:
+            nelectrons = density.nvalence - density.charge + pot_calc.charge
             ibzwfs.calculate_occs(scf_loop.occ_calc, nelectrons)
 
         write_atoms(atoms, builder.initial_magmom_av, builder.grid, log)
@@ -174,6 +173,7 @@ class DFTCalculation:
         if self.ibzwfs.has_wave_functions():
             self.density.update(self.ibzwfs)
         self.potential.move(atomdist)
+        self.scf_loop.hamiltonian.move(self.relpos_ac)
 
         self.potential, self.energies, _ = self.pot_calc.calculate(
             self.density, self.ibzwfs, self.potential.vHt_x)
@@ -187,6 +187,10 @@ class DFTCalculation:
         return self
 
     def iconverge(self, maxiter=None, calculate_forces=None):
+
+        if calculate_forces is None:
+            calculate_forces = self._calculate_forces
+
         self.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
         for ctx in self.scf_loop.iterate(self.ibzwfs,
                                          self.density,
@@ -203,11 +207,10 @@ class DFTCalculation:
     @trace
     def converge(self,
                  maxiter=None,
-                 steps=99999999999999999,
-                 calculate_forces=None):
+                 steps=99999999999999999):
         """Converge to self-consistent solution of Kohn-Sham equation."""
-        for step, _ in enumerate(self.iconverge(maxiter,
-                                                calculate_forces),
+
+        for step, _ in enumerate(self.iconverge(maxiter),
                                  start=1):
             if step == steps:
                 break
@@ -260,20 +263,23 @@ class DFTCalculation:
             return
 
         self.forces_have_been_printed = True
-        self.log('\nForces: [  # eV/Ang')
+        self.log('\nForces in eV/Ang:')
         F_av = self.results['forces'] * (Ha / Bohr)
         for a, setup in enumerate(self.setups):
             x, y, z = F_av[a]
-            c = ',' if a < len(F_av) - 1 else ']'
-            self.log(f'  [{x:10.4f}, {y:10.4f}, {z:10.4f}]{c}'
-                     f'  # {setup.symbol:2} {a}')
+            self.log(f'  {a:4} {setup.symbol:2} '
+                     f'{x:10.5f} {y:10.5f} {z:10.5f}')
+        self.log.fd.flush()
 
     def _calculate_forces(self):
         xc = self.pot_calc.xc
         assert not hasattr(xc.xc, 'setup_force_corrections')
 
-        # Force from projector functions (and basis set):
-        F_av = self.ibzwfs.forces(self.potential)
+        # Force from projector functions (and basis set, hybrids):
+        F_av = self.ibzwfs.forces(self.potential, self.scf_loop.hamiltonian,
+                                  self.density.D_asii)
+
+        getattr(xc.xc, 'add_forces', lambda F_av: None)(F_av)  # QNA
 
         pot_calc = self.pot_calc
         Q_aL = self.density.calculate_compensation_charge_coefficients()
@@ -309,6 +315,8 @@ class DFTCalculation:
         F_av = self.ibzwfs.ibz.symmetries.symmetrize_forces(F_av)
         self.comm.broadcast(F_av, 0)
         self.results['forces'] = F_av
+
+        return F_av
 
     def stress(self) -> None:
         if 'stress' in self.results:
@@ -397,14 +405,40 @@ class DFTCalculation:
         else:
             psit_nR = None
         if broadcast:
-            psit_nR = bcast(psit_nR, 0, self.comm)
+            psit_nR = bcast(psit_nR, 0, comm=self.comm)
         return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
 
-    @cached_property
-    def _atom_partition(self):
-        # Backwards compatibility helper
-        atomdist = self.density.D_asii.layout.atomdist
-        return AtomPartition(atomdist.comm, atomdist.rank_a)
+    def change_xc(self, xc):
+        from gpaw.dft import XC
+        atoms = self.atoms
+        params = self.params
+        ibzwfs = self.ibzwfs
+        is_collinear = ibzwfs.collinear
+        log = self.log
+
+        # old xc functional
+        xcfunc_o = params.xc.functional(collinear=is_collinear,
+                                        atoms=atoms)
+
+        # actually change the functional
+        params.xc = XC.from_param(xc)
+        builder = params.dft_component_builder(atoms, log=log,
+                                               comm=self.comm)
+
+        # new xc functional
+        xcfunc_n = params.xc.functional(collinear=is_collinear,
+                                        atoms=atoms)
+
+        # check that 'base' functional is the same
+        assert xcfunc_n.get_setup_name() == xcfunc_o.get_setup_name()
+
+        self.scf_loop = builder.create_scf_loop()
+        self.pot_calc = builder.create_potential_calculator()
+        self.results = {}
+
+        log('Changed xc-functional ' +
+            f'from {xcfunc_o.name} to {xcfunc_n.name}. ' +
+            'Reusing wavefunctions.')
 
     def new(self,
             atoms: Atoms,
@@ -422,7 +456,8 @@ class DFTCalculation:
         check_atoms_too_close(atoms)
         check_atoms_too_close_to_boundary(atoms)
 
-        builder = params.dft_component_builder(atoms, log=log)
+        builder = params.dft_component_builder(atoms, log=log,
+                                               comm=self.comm)
 
         kpt_kc = builder.ibz.kpt_kc
         old_kpt_kc = ibzwfs.ibz.kpt_kc
@@ -440,21 +475,22 @@ class DFTCalculation:
                                    builder.interpolation_desc,
                                    builder.relpos_ac,
                                    builder.atomdist)
-        density.normalize(pot_calc.environment.charge)
+        density.normalize(pot_calc.charge)
 
         # Make sure all have exactly the same density.
         # Not quite sure it is needed???
         # At the moment we skip it on GPU's because it doesn't
         # work!
         if density.nt_sR.xp is np:
-            self.comm.broadcast(density.nt_sR.data, 0)
+            ibzwfs.kpt_band_comm.broadcast(density.nt_sR.data, 0)
 
         potential, energies, _ = pot_calc.calculate(density)
 
+        ibzwfs.make_sure_wfs_are_read_from_gpw_file()
         old_ibzwfs = ibzwfs
 
         def create_wfs(spin, q, k, kpt_c, weight):
-            wfs = old_ibzwfs.wfs_qs[q][spin]
+            wfs = old_ibzwfs._get_wfs(k, spin)
             return wfs.morph(
                 builder.wf_desc,
                 builder.relpos_ac,
@@ -495,7 +531,7 @@ def write_atoms(atoms: Atoms,
                 magmom_av: Array2D,
                 grid: UGDesc,
                 log) -> None:
-    from gpaw.output import print_cell, print_positions
+    from gpaw.old.output import print_cell, print_positions
     print_positions(atoms, log, magmom_av)
     print_cell(grid._gd, grid.pbc, log)
 

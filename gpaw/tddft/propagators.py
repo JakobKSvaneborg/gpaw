@@ -5,13 +5,11 @@ from abc import ABC, abstractmethod
 from collections import namedtuple
 
 import numpy as np
-
 from ase.utils.timing import timer
 
-from gpaw.utilities.blas import axpy
-
-from gpaw.tddft.utils import MultiBlas
 from gpaw.tddft.tdopers import DummyDensity
+from gpaw.tddft.utils import MultiBlas
+from gpaw.utilities.blas import axpy
 
 
 def create_propagator(name, **kwargs):
@@ -165,7 +163,6 @@ class BasePropagator(ABC):
             the time step
 
         """
-        raise NotImplementedError()
 
 
 class ExplicitCrankNicolson(BasePropagator):
@@ -179,7 +176,7 @@ class ExplicitCrankNicolson(BasePropagator):
     """
     def __init__(self):
         """Create ExplicitCrankNicolson-object."""
-        BasePropagator.__init__(self)
+        super().__init__()
         self.tmp_kpt_u = None
         self.hpsit = None
         self.spsit = None
@@ -189,7 +186,7 @@ class ExplicitCrankNicolson(BasePropagator):
         return {'name': 'ECN'}
 
     def initialize(self, *args, **kwargs):
-        BasePropagator.initialize(self, *args, **kwargs)
+        super().initialize(*args, **kwargs)
 
         # Allocate temporary wavefunctions
         self.tmp_kpt_u = allocate_wavefunction_arrays(self.wfs)
@@ -278,7 +275,8 @@ class ExplicitCrankNicolson(BasePropagator):
         self.time_step = time_step
 
         # Solve A x = b where A is (S + i H dt/2) and b = rhs_kpt.psit_nG
-        self.niter += self.solver.solve(self, kpt.psit_nG, rhs_kpt.psit_nG)
+        self.niter += self.solver.solve(self, kpt.psit_nG, rhs_kpt.psit_nG,
+                                        world=self.wfs.world)
 
     # ( S + i H dt/2 ) psi
     def dot(self, psi, psin):
@@ -333,7 +331,7 @@ class SemiImplicitCrankNicolson(ExplicitCrankNicolson):
         return {'name': 'SICN'}
 
     def initialize(self, *args, **kwargs):
-        ExplicitCrankNicolson.initialize(self, *args, **kwargs)
+        super().initialize(*args, **kwargs)
 
         # Allocate old wavefunctions
         self.old_kpt_u = allocate_wavefunction_arrays(self.wfs)
@@ -579,7 +577,8 @@ class EhrenfestPAWSICN(SemiImplicitCrankNicolson):
         self.time_step = time_step
 
         # Solve A x = b where A is (S + i H dt/2) and b = rhs_kpt.psit_nG
-        self.niter += self.solver.solve(self, kpt.psit_nG, rhs_kpt.psit_nG)
+        self.niter += self.solver.solve(self, kpt.psit_nG, rhs_kpt.psit_nG,
+                                        world=self.wfs.world)
 
     # ( S + i H dt/2 ) psi
     def dot(self, psi, psin):
@@ -710,7 +709,8 @@ class EhrenfestHGHSICN(SemiImplicitCrankNicolson):
         self.time_step = time_step
 
         # Solve A x = b where A is (S + i H dt/2) and b = rhs_kpt.psit_nG
-        self.niter += self.solver.solve(self, kpt.psit_nG, rhs_kpt.psit_nG)
+        self.niter += self.solver.solve(self, kpt.psit_nG, rhs_kpt.psit_nG,
+                                        world=self.wfs.world)
 
 
 class EnforcedTimeReversalSymmetryCrankNicolson(SemiImplicitCrankNicolson):
@@ -810,7 +810,8 @@ class EnforcedTimeReversalSymmetryCrankNicolson(SemiImplicitCrankNicolson):
         self.time_step = time_step
 
         # Solve A x = b where A is (S + i H dt/2) and b = rhs_kpt.psit_nG
-        self.niter += self.solver.solve(self, kpt.psit_nG, rhs_kpt.psit_nG)
+        self.niter += self.solver.solve(self, kpt.psit_nG, rhs_kpt.psit_nG,
+                                        world=self.wfs.world)
 
 
 class AbsorptionKick:
@@ -873,7 +874,7 @@ class SemiImplicitTaylorExponential(BasePropagator):
 
         """
         raise RuntimeError('SITE propagator is unstable')
-        BasePropagator.__init__(self)
+        super().__init__()
         self.degree = degree
         self.tmp_kpt_u = None
         self.psin = None
@@ -884,7 +885,7 @@ class SemiImplicitTaylorExponential(BasePropagator):
                 'degree': self.degree}
 
     def initialize(self, *args, **kwargs):
-        BasePropagator.initialize(self, *args, **kwargs)
+        super().initialize(*args, **kwargs)
 
         # Allocate temporary wavefunctions
         self.tmp_kpt_u = allocate_wavefunction_arrays(self.wfs)
@@ -946,7 +947,8 @@ class SemiImplicitTaylorExponential(BasePropagator):
             self.td_hamiltonian.apply(kpt, self.psin, self.hpsit)
             # S psin = H psin
             self.psin[:] = self.hpsit
-            self.niter += self.solver.solve(self, self.psin, self.hpsit)
+            self.niter += self.solver.solve(self, self.psin, self.hpsit,
+                                            world=self.wfs.world)
             # psin = psi(0) + (-it/k) S^-1 H psin
             self.mblas.multi_scale(-1.0j * time_step / k, self.psin, nvec)
             self.mblas.multi_zaxpy(1.0, kpt.psit_nG, self.psin, nvec)
@@ -970,7 +972,7 @@ class SemiImplicitKrylovExponential(BasePropagator):
         degree: integer
             Degree of the Krylov subspace (default is 4)
         """
-        BasePropagator.__init__(self)
+        super().__init__()
         self.degree = degree
         self.kdim = degree + 1
         self.tmp_kpt_u = None
@@ -989,7 +991,7 @@ class SemiImplicitKrylovExponential(BasePropagator):
                 'degree': self.degree}
 
     def initialize(self, *args, **kwargs):
-        BasePropagator.initialize(self, *args, **kwargs)
+        super().initialize(*args, **kwargs)
 
         # Allocate temporary wavefunctions
         self.tmp_kpt_u = allocate_wavefunction_arrays(self.wfs)
@@ -1133,7 +1135,7 @@ class SemiImplicitKrylovExponential(BasePropagator):
             # S r = H q_i, (if stuff, to save one inversion)
             if i + 1 < self.kdim:
                 rqm[:] = Hqm[i]
-                self.solver.solve(self, rqm, Hqm[i])
+                self.solver.solve(self, rqm, Hqm[i], world=self.wfs.world)
 
         return scale
 
@@ -1157,7 +1159,8 @@ class SemiImplicitKrylovExponential(BasePropagator):
         self.tmp = self.gd.zeros(n=nvec, dtype=complex)
 
         for i in range(10):
-            self.solver.solve(self, self.kpt.psit_nG, self.kpt.psit_nG)
+            self.solver.solve(self, self.kpt.psit_nG, self.kpt.psit_nG,
+                              world=self.wfs.world)
             self.mblas.multi_zdotc(nrm2, self.kpt.psit_nG, self.kpt.psit_nG,
                                    nvec)
             nrm2 *= self.gd.dv
@@ -1195,7 +1198,8 @@ class SemiImplicitKrylovExponential(BasePropagator):
         self.tmp = self.gd.zeros(n=nvec, dtype=complex)
 
         for i in range(10):
-            self.solver.solve(self, self.kpt.psit_nG, self.kpt.psit_nG)
+            self.solver.solve(self, self.kpt.psit_nG, self.kpt.psit_nG,
+                              world=self.wfs.world)
             self.mblas.multi_zdotc(nrm2, self.kpt.psit_nG, self.kpt.psit_nG,
                                    nvec)
             nrm2 *= self.gd.dv

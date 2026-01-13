@@ -1,10 +1,10 @@
-from ase.units import Ha
 import numpy as np
-from gpaw.xc.fxc import KernelWave, XCFlags, FXCCache
-from gpaw.xc.rpa import GCut
+from ase.units import Ha
 
+from gpaw.old.pw.descriptor import PWMapping
 from gpaw.response.qpd import SingleQPWDescriptor
-from gpaw.pw.descriptor import PWMapping
+from gpaw.xc.fxc import FXCCache, KernelWave, XCFlags
+from gpaw.xc.rpa import GCut
 
 
 class G0W0Kernel:

@@ -3,12 +3,11 @@ import pytest
 from ase.build import bulk
 from ase.calculators.fd import calculate_numerical_stress
 
-from gpaw.utilities import compiled_with_libvdwxc
 from gpaw import GPAW, PW, Mixer
 from gpaw.mpi import world
 from gpaw.test import gen
-from gpaw.xc.libvdwxc import vdw_df, libvdwxc_has_spin, libvdwxc_has_stress
-
+from gpaw.utilities import compiled_with_libvdwxc
+from gpaw.xc.libvdwxc import libvdwxc_has_spin, libvdwxc_has_stress, vdw_df
 
 skip_reason = "libvdwxc version does not implement stress"
 if compiled_with_libvdwxc():

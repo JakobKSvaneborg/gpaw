@@ -1,6 +1,5 @@
 import argparse
 
-
 description = """\
 GPAW benchmark suite. Provides a list of unchanging benchmarks which allow \
 to track speed and memory usage of GPAW calculations over time.\
@@ -37,11 +36,8 @@ benchmarks_output_help = 'Output JSON with all the gathered information.'
 version = "May 2025"
 
 if __name__ == '__main__':
-    from gpaw.benchmark import (benchmark_main,
-                                list_benchmarks,
-                                view_benchmark,
-                                parse_name,
-                                gather_benchmarks)
+    from gpaw.benchmark import (benchmark_main, gather_benchmarks,
+                                list_benchmarks, parse_name, view_benchmark)
     parser = argparse.ArgumentParser(prog='gpaw.benchmark',
                                      description=description)
     subparsers = parser.add_subparsers(help='subcommand help', dest='command')
@@ -67,7 +63,7 @@ if __name__ == '__main__':
     elif args.command == 'gather':
         gather_benchmarks(args.benchmarks, args.output)
     elif args.command == 'test':
-        from gpaw.benchmark import benchmarks, benchmark_atoms_and_calc
+        from gpaw.benchmark import benchmark_atoms_and_calc, benchmarks
         for benchmark in benchmarks:
             print(benchmark)
             _, long_name, calc_info = parse_name(benchmark)

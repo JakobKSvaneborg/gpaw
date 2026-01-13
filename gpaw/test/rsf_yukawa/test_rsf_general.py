@@ -1,21 +1,21 @@
 """Check for tunability of gamma for yukawa potential."""
 import pytest
 from ase import Atoms
+
+import gpaw.cgpaw as cgpaw
 from gpaw import GPAW
-from gpaw.utilities.adjust_cell import adjust_cell
 from gpaw.eigensolvers import RMMDIIS
-from gpaw.xc.hybrid import HybridXC
 from gpaw.occupations import FermiDirac
 from gpaw.test import gen
-import gpaw.cgpaw as cgpaw
+from gpaw.utilities.adjust_cell import adjust_cell
+from gpaw.xc.hybrid import HybridXC
 
 
 @pytest.mark.hybrids
 def test_rsf_yukawa_rsf_general(in_tmp_dir, add_cwd_to_setup_paths):
     libxc_version = getattr(cgpaw, 'libxc_version', '2.x.y')
     if int(libxc_version.split('.')[0]) < 3:
-        from unittest import SkipTest
-        raise SkipTest
+        pytest.skip('libxc too old')
 
     for atom in ['Be']:
         gen(atom, xcname='PBE', scalarrel=True, exx=True,

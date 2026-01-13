@@ -1,6 +1,6 @@
 """Test hyperfine parameter CLI."""
-import pytest
 import numpy as np
+import pytest
 
 from gpaw.hyperfine import main
 

@@ -1,13 +1,17 @@
+import numpy as np
 import pytest
 from ase import Atoms
+
 from gpaw import GPAW
-from gpaw.mpi import size
-import numpy as np
+from gpaw.mpi import world
 
 
+@pytest.mark.new_gpaw_ready
+@pytest.mark.hybrids
 def test_pawexxvv():
-    from gpaw.hybrids.paw import python_pawexxvv
     from _gpaw import pawexxvv
+
+    from gpaw.hybrids.paw import python_pawexxvv
     for i in range(20):
         D_ii = np.random.rand(i, i)
         p = i * (i + 1) // 2
@@ -17,49 +21,58 @@ def test_pawexxvv():
         assert np.allclose(V_ii, V2_ii)
 
 
-@pytest.mark.parametrize('ccirs', [False, True])
-def test_hse06(gpaw_new, ccirs):
-    if gpaw_new and size > 4:
-        pytest.skip('Only band-parallelization!')
-    if gpaw_new:
-        experimental = {'ccirs': ccirs}
-        # Low max_buffer_mem to test that this value is overwritten due to
-        # the non band-local hybrid-xc hamiltonian.
-        eigensolver = {'name': 'dav',
-                       'max_buffer_mem': 1024 * 4}
-    else:
-        eigensolver = 'dav'
-        experimental = {}
-        if ccirs:
-            pytest.skip('CCIRS only for new GPAW')
+@pytest.mark.new_gpaw_ready
+@pytest.mark.hybrids
+# @pytest.mark.parametrize('ccirs', [False, True])
+@pytest.mark.parametrize('dtype', [float, complex])
+@pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg'])
+def test_hse06(gpaw_new, dtype, eigensolver):
+
+    if not gpaw_new and eigensolver == 'ppcg':
+        pytest.skip('PPCG only for GPAW new.')
+
     atoms = Atoms('Li2', [[0, 0, 0], [0, 0, 2.0]])
     atoms.center(vacuum=2.5)
-    atoms.calc = GPAW(mode=dict(name='pw', force_complex_dtype=not True),
-                      xc='HSE06',
-                      experimental=experimental,
-                      eigensolver=eigensolver,
-                      nbands=4)
+    atoms.calc = GPAW(
+        mode=dict(name='pw',
+                  force_complex_dtype=dtype is complex),
+        xc='HSE06',
+        eigensolver=eigensolver,
+        convergence={'density': 1e-6},
+        parallel={'domain': world.size},
+        nbands=4)
     e = atoms.get_potential_energy()
+    assert e == pytest.approx(-5.633278, abs=1e-4)
     eigs = atoms.calc.get_eigenvalues(spin=0)
-    assert e == pytest.approx(-5.633278, abs=1e-3)
-    assert eigs[0] == pytest.approx(-4.67477532, abs=1e-3)
+    assert eigs[0] == pytest.approx(-4.67477532, abs=1e-4)
+    f = atoms.get_forces()
+    f0 = 2.3505
+    assert f == pytest.approx(np.array([[0, 0, -f0], [0, 0, f0]]), abs=1e-4)
 
 
-def test_h(gpaw_new):
-    if gpaw_new and size > 2:
-        pytest.skip('Only band-parallelization!')
+@pytest.mark.new_gpaw_ready
+@pytest.mark.hybrids
+@pytest.mark.parametrize('dtype', [float, complex])
+@pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg'])
+def test_h(gpaw_new, dtype, eigensolver):
+
+    if not gpaw_new and eigensolver == 'ppcg':
+        pytest.skip('PPCG only for GPAW new.')
+
     atoms = Atoms('H', magmoms=[1])
     atoms.center(vacuum=2.5)
-    atoms.calc = GPAW(mode='pw',
+    atoms.calc = GPAW(mode=dict(name='pw',
+                                force_complex_dtype=dtype is complex),
                       xc='HSE06',
-                      eigensolver='dav',
+                      eigensolver=eigensolver,
                       nbands=2,
+                      parallel={'kpt': 1, 'band': 1, 'domain': world.size},
                       convergence={'energy': 1e-4})
     e = atoms.get_potential_energy()
     eigs = atoms.calc.get_eigenvalues(spin=0)
-    assert e == pytest.approx(-1.703969, abs=4e-3)
-    assert eigs[0] == pytest.approx(-9.71440, abs=1e-3)
+    assert e == pytest.approx(-1.7041, abs=4e-4)
+    assert eigs[0] == pytest.approx(-9.7143, abs=4e-4)
 
 
 if __name__ == '__main__':
-    test_hse06(1, True)
+    test_hse06(1, complex, 'ppcg')

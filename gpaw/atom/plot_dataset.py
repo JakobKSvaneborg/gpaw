@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import functools
-import textwrap
 import os
+import textwrap
 from ast import literal_eval
 from collections.abc import Callable, Iterable
 from types import SimpleNamespace
-from typing import Any, TYPE_CHECKING
-from xml.dom import minidom
+from typing import TYPE_CHECKING, Any
 from warnings import warn
+from xml.dom import minidom
 
 import numpy as np
 
@@ -16,8 +16,8 @@ from .. import typing
 from ..basis_data import Basis, BasisPlotter
 from ..setup_data import SetupData, read_maybe_unzipping, search_for_file
 from .aeatom import AllElectronAtom, colors
-from .generator2 import (PAWSetupGenerator, parameters,
-                         generate, plot_log_derivs)
+from .generator2 import (PAWSetupGenerator, generate, parameters,
+                         plot_log_derivs)
 from .radialgd import AERadialGridDescriptor
 
 if TYPE_CHECKING:
@@ -37,7 +37,7 @@ _ProjectorItem = tuple[int,  # l
                        typing.Array1D]  # pt_g
 
 
-def plot_partial_waves(ax: 'Axes',
+def plot_partial_waves(ax: Axes,
                        symbol: str,
                        name: str,
                        rgd: AERadialGridDescriptor,
@@ -69,7 +69,7 @@ def plot_partial_waves(ax: 'Axes',
     ax.legend()
 
 
-def plot_projectors(ax: 'Axes',
+def plot_projectors(ax: Axes,
                     symbol: str,
                     name: str,
                     rgd: AERadialGridDescriptor,
@@ -99,7 +99,7 @@ def plot_projectors(ax: 'Axes',
     ax.legend()
 
 
-def plot_potential_components(ax: 'Axes',
+def plot_potential_components(ax: Axes,
                               symbol: str,
                               name: str,
                               rgd: AERadialGridDescriptor,
@@ -169,7 +169,7 @@ def _get_blend_weights(n: int, attenuation: float = .5) -> typing.Array1D:
     return (1 - attenuation) ** np.arange(n)
 
 
-def _get_patch_color(ax: 'Axes') -> tuple[float, float, float]:
+def _get_patch_color(ax: Axes) -> tuple[float, float, float]:
     from matplotlib.colors import to_rgb
     try:
         color = ax.patch.get_facecolor()
@@ -351,7 +351,7 @@ def parse_generator_data(data: str) -> dict[str, Any]:
 
 def _get_figures_and_axes(
         ngraphs: int,
-        separate_figures: bool = False) -> tuple[list['Figure'], list['Axes']]:
+        separate_figures: bool = False) -> tuple[list[Figure], list[Axes]]:
     from matplotlib import pyplot as plt
 
     if separate_figures:
@@ -394,7 +394,7 @@ def plot_dataset(
     plot_logarithmic_derivatives: str | None = None,
     separate_figures: bool = False,
     savefig: str | None = None,
-) -> tuple[list['Axes'], str | None]:
+) -> tuple[list[Axes], str | None]:
     """
     Return
     ------
@@ -479,7 +479,7 @@ def plot_dataset(
     return ax_objs, savefig
 
 
-def main(args: SimpleNamespace) -> list['Axes']:
+def main(args: SimpleNamespace) -> list[Axes]:
     from matplotlib import pyplot as plt
 
     if args.search:

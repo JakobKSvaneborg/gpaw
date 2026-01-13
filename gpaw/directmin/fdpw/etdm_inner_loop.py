@@ -7,14 +7,16 @@ in order to calculate and excited state
 arXiv:2102.06542 [physics.comp-ph]
 """
 
-from gpaw.directmin.tools import get_n_occ, get_indices, expm_ed, \
-    sort_orbitals_according_to_occ
-from gpaw.directmin.sd_etdm import LSR1P
-from gpaw.directmin.ls_etdm import MaxStep
-from gpaw.directmin.derivatives import get_approx_analytical_hessian
-from ase.units import Hartree
-import numpy as np
 import time
+
+import numpy as np
+from ase.units import Hartree
+
+from gpaw.directmin.derivatives import get_approx_analytical_hessian
+from gpaw.directmin.ls_etdm import MaxStep
+from gpaw.directmin.sd_etdm import LSR1P
+from gpaw.directmin.tools import (expm_ed, get_indices, get_n_occ,
+                                  sort_orbitals_according_to_occ)
 
 
 class ETDMInnerLoop:

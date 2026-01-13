@@ -1,8 +1,8 @@
-from gpaw.atom.atompaw import AtomPAW
-from gpaw.upf import UPFSetupData
 import gpaw.test.pseudopotential.H_pz_hgh as H_hgh
 import gpaw.test.pseudopotential.O_pz_hgh as O_hgh
+from gpaw.atom.atompaw import AtomPAW
 from gpaw.mpi import world
+from gpaw.upf import UPFSetupData
 
 
 def test_pseudopotential_atompaw(in_tmp_dir):

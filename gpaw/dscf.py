@@ -12,13 +12,13 @@ Kohn-Sham orbitals.
 """
 
 import sys
-import numpy as np
 
+import numpy as np
 from ase.parallel import paropen
-from gpaw.utilities import devnull
 from ase.units import Ha
 
 from gpaw.occupations import FermiDiracCalculator
+from gpaw.utilities import devnull
 
 
 def dscf_calculation(paw, orbitals, atoms):
@@ -91,6 +91,7 @@ class OccupationsDSCF:
                   nelectrons,
                   eigenvalues,
                   weights,
+                  spins,
                   fermi_levels_guess,
                   fix_fermi_level=False):
         assert not fix_fermi_level
@@ -283,7 +284,7 @@ class AEOrbital:
         elif txt == '-':
             self.txt = sys.stdout
         elif isinstance(txt, str):
-            self.txt = paropen(txt, 'w')
+            self.txt = paropen(txt, 'w', comm=paw.wfs.world)
         else:
             self.txt = txt
 

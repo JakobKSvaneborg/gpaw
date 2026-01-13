@@ -1,11 +1,16 @@
-import numpy as np
 import time
+
+import numpy as np
 import pytest
 
 from gpaw.mpi import world
 
 
 def test_sliced_multiply(N=10, max_mem=5e3):
+    _test_sliced_multiply(N, max_mem)
+
+
+def _test_sliced_multiply(N=10, max_mem=5e3) -> float:
     from gpaw.core.matrix import Matrix
     N = int(N * np.sqrt(world.size))
 
@@ -40,5 +45,5 @@ def test_sliced_multiply(N=10, max_mem=5e3):
 
 if __name__ == '__main__':
     max_mem_l = [2e5, 2e6, 2e7, 2e10]
-    times = [test_sliced_multiply(N=500, max_mem=mem) for mem in max_mem_l]
+    times = [_test_sliced_multiply(N=500, max_mem=mem) for mem in max_mem_l]
     print(max_mem_l, times)

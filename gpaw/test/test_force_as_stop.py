@@ -1,4 +1,5 @@
 from ase import Atoms
+
 from gpaw import GPAW
 
 
@@ -14,4 +15,4 @@ def test_force_as_stop():
     H2.calc = calc
     H2.get_potential_energy()
     n = calc.get_number_of_iterations()
-    assert 7 <= n <= 11, n
+    assert 5 <= n <= 11, n

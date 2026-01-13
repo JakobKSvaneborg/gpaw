@@ -4,6 +4,7 @@ from math import pi, sqrt
 
 import numpy as np
 from ase.units import Bohr, Ha
+
 from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.core.atom_centered_functions import (AtomArraysLayout,
                                                AtomCenteredFunctions)
@@ -12,11 +13,11 @@ from gpaw.core.uniform_grid import UGArray, UGDesc
 from gpaw.gpu import as_np
 from gpaw.mpi import MPIComm
 from gpaw.new import trace, zips
-from gpaw.typing import Array3D, Vector
-from gpaw.utilities import unpack_hermitian, unpack_density
-from gpaw.new.symmetry import SymmetrizationPlan, GPUSymmetrizationPlan
 from gpaw.new.ibzwfs import IBZWaveFunctions
+from gpaw.new.symmetry import GPUSymmetrizationPlan, SymmetrizationPlan
 from gpaw.setup import Setups
+from gpaw.typing import Array3D, Vector
+from gpaw.utilities import unpack_density, unpack_hermitian
 
 
 class Density:
@@ -57,7 +58,8 @@ class Density:
                            charge=0.0,
                            hund=False,
                            mgga=False):
-        nt_sR = grid.zeros(ncomponents)
+        xp = nct_aX.xp
+        nt_sR = grid.zeros(ncomponents, xp=xp)
         atom_array_layout = AtomArraysLayout(
             [(setup.ni, setup.ni) for setup in setups],
             atomdist=atomdist, dtype=float if ncomponents < 4 else complex)
@@ -74,8 +76,6 @@ class Density:
             D_sii[:] = unpack_density(
                 setups[a].initialize_density_matrix(f_asi[a]))
 
-        xp = nct_aX.xp
-        nt_sR = nt_sR.to_xp(xp)
         density = cls.from_data_and_setups(nt_sR,
                                            None,
                                            D_asii.to_xp(xp),

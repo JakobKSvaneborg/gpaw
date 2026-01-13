@@ -1,20 +1,17 @@
-import pytest
-
 import numpy as np
-
+import pytest
 from ase.spacegroup import crystal
 from ase.units import Bohr
 
 from gpaw import GPAW
-from gpaw.sphere.integrate import integrate_lebedev
-
 from gpaw.response import ResponseGroundStateAdapter
-from gpaw.response.site_data import (AtomicSites, AtomicSiteData,
+from gpaw.response.localft import add_spin_polarization
+from gpaw.response.site_data import (AtomicSiteData, AtomicSites,
                                      calculate_site_magnetization,
                                      calculate_site_zeeman_energy,
                                      get_site_radii_range,
                                      maximize_site_magnetization)
-from gpaw.response.localft import add_spin_polarization
+from gpaw.sphere.integrate import integrate_lebedev
 
 
 @pytest.mark.response
@@ -34,11 +31,11 @@ def test_Fe_site_magnetization(gpw_files):
     rmax_expected = np.sqrt(3) * 2.867 / 2. - augr * Bohr
     assert abs(rmax - rmax_expected) < 1e-6
     # Test that an error is raised outside the valid range
-    with pytest.raises(AssertionError):
+    with pytest.warns(UserWarning, match='Some radii'):
         AtomicSiteData(
             gs, AtomicSites(indices=[0],  # Too small radii
                             radii=[np.linspace(rmin * 0.8, rmin, 5)]))
-    with pytest.raises(AssertionError):
+    with pytest.warns(UserWarning, match='Some radii'):
         AtomicSiteData(
             gs, AtomicSites(indices=[0],  # Too large radii
                             radii=[np.linspace(rmax, rmax * 1.2, 5)]))

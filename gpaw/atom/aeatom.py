@@ -3,20 +3,19 @@ import sys
 from itertools import cycle
 from math import pi
 
+import ase.units as units
 import numpy as np
+from ase.data import atomic_names, atomic_numbers, chemical_symbols
+from ase.utils import seterr
 from numpy.linalg import eigh
 from scipy.special import gamma
-import ase.units as units
-from ase.data import atomic_numbers, atomic_names, chemical_symbols
-from ase.utils import seterr
 
 import gpaw.cgpaw as cgpaw
-from gpaw.xc import XC
-from gpaw.gaunt import gaunt
 from gpaw.atom.configurations import configurations
-from gpaw.atom.radialgd import (AERadialGridDescriptor,
-                                AbinitRadialGridDescriptor)
-
+from gpaw.atom.radialgd import (AbinitRadialGridDescriptor,
+                                AERadialGridDescriptor)
+from gpaw.sphere.gaunt import gaunt
+from gpaw.xc import XC
 
 # Velocity of light in atomic units:
 c = 2 * units._hplanck / (units._mu0 * units._c * units._e**2)
@@ -653,7 +652,8 @@ class AllElectronAtom:
 
         if self.dirac:
             equation = 'Dirac'
-        elif self.scalar_relativistic:
+        elif self.scalar_relativistic and self.method != 'Gaussian basis-set':
+
             equation = 'scalar-relativistic Schrödinger'
         else:
             equation = 'non-relativistic Schrödinger'
@@ -871,12 +871,9 @@ class CLICommand:
         add('-n', '--ngrid', help='Specify number of grid points.')
         add('-R', '--rcut', help='Radial cutoff.')
         add('-r', '--refine', action='store_true')
-        add('-s', '--scalar-relativistic',
-            action='store_const', const=True,
-            help='Use scalar-relativistic setups (default).')
-        add('-S', '--non-relativistic',
-            action='store_const', const=False, dest='scalar_relativistic',
-            help='Don\'t use non-relativistic setups.')
+        add('--non-relativistic', action='store_true',
+            help='Do a non-relativistic calculation.  '
+            'Default is scalar-relativistic')
         add('--no-ee-interaction', action='store_true',
             help='Turn off electron-electron interaction.')
 
@@ -922,9 +919,8 @@ def main(args):
     aea_kwargs = dict(xc=args.xc_functional,
                       spinpol=args.spin_polarized,
                       dirac=args.dirac,
-                      ee_interaction=not args.no_ee_interaction)
-    if args.scalar_relativistic is not None:
-        aea_kwargs['scalar_relativistic'] = args.scalar_relativistic
+                      ee_interaction=not args.no_ee_interaction,
+                      scalar_relativistic=not args.non_relativistic)
     aea = AllElectronAtom(symbol, **aea_kwargs)
 
     kwargs = {}
@@ -947,7 +943,7 @@ def main(args):
     aea.initialize(**kwargs)
     aea.run()
 
-    if args.refine or args.scalar_relativistic:
+    if args.refine or not args.non_relativistic:
         aea.refine()
 
     if args.logarithmic_derivatives:

@@ -1,9 +1,9 @@
-import pytest
 import numpy as np
-
-from gpaw.response.df import DielectricFunction
+import pytest
 from ase.parallel import world
 from ase.units import Hartree
+
+from gpaw.response.df import DielectricFunction
 
 
 def dielectric(calc, domega, omega2, rate=0.0,

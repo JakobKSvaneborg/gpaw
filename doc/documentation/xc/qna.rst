@@ -1,9 +1,9 @@
 .. module:: gpaw.xc.qna
 .. _qna:
 
-=================================================
-Quasi-non-local exchange correlation approxmation
-=================================================
+==================================================
+Quasi-non-local exchange correlation approximation
+==================================================
 
 Rationale
 

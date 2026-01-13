@@ -6,7 +6,7 @@
 # This is done by invoking GPAW once for each type of calculation.
 
 import pytest
-from ase.build import molecule, bulk
+from ase.build import bulk, molecule
 
 from gpaw import GPAW, LCAO
 from gpaw.mpi import world
@@ -71,7 +71,7 @@ def test_lcao_atomic_corrections(atoms, in_tmp_dir, scalapack, kpts, eref,
         err = abs(energy - e0)
         errs.append(err)
         if master:
-            print('err=%e :: name=%s' % (err, correction))
+            print(f'err={err:e} :: name={correction}')
 
     maxerr = max(errs)
     assert maxerr < 1e-11, maxerr

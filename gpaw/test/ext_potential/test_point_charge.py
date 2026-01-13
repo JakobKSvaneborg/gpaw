@@ -1,11 +1,11 @@
 import numpy as np
 import pytest
 from ase import Atoms
-from gpaw.test import calculate_numerical_forces
 
 import gpaw.cgpaw as cgpaw
 from gpaw import GPAW, Mixer, PoissonSolver
 from gpaw.external import PointChargePotential
+from gpaw.test import calculate_numerical_forces
 
 
 @pytest.mark.old_gpaw_only

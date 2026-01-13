@@ -1,17 +1,24 @@
 from itertools import product
+from typing import Any
 
 import numpy as np
+from ase import Atoms
 from ase.dft.kpoints import monkhorst_pack
+from ase.calculators.calculator import kptdensity2monkhorstpack
+from ase.neighborlist import NeighborList
 from scipy.spatial import ConvexHull, Delaunay, Voronoi
+
 try:
     from scipy.spatial import QhullError
 except ImportError:  # scipy < 1.8
     from scipy.spatial.qhull import QhullError
 
-import gpaw.mpi as mpi
-from gpaw import GPAW, restart
-from gpaw.kpt_descriptor import kpts2sizeandoffsets, to1bz
-from gpaw.mpi import world
+from gpaw import GPAW
+from gpaw.mpi import normalize_communicator
+from gpaw.new import zips
+from gpaw.new.brillouin import BZPoints
+from gpaw.new.symmetry import create_symmetries_object, find_lattice_symmetry
+from gpaw.old.kpt_descriptor import to1bz
 from gpaw.symmetry import Symmetry, aglomerate_points
 
 
@@ -37,74 +44,304 @@ def get_lattice_symmetry(cell_cv, tolerance=1e-7):
     return latsym
 
 
-def find_high_symmetry_monkhorst_pack(calc, density):
-    """Make high symmetry Monkhorst Pack k-point grid.
-
-    Searches for and returns a Monkhorst Pack grid which
-    contains the corners of the irreducible BZ so that when the
-    number of kpoints are reduced the full irreducible brillouion
-    zone is spanned.
+def optimal_monkhorst_pack_grid(
+        atoms: Atoms,
+        *,
+        kptdensity: float,
+        minimize_ibz_points: bool = False,
+        force_even: bool = False,
+        force_gamma: bool = False,
+        contains_ibz_vertices: bool = False,
+        is_symmetric_mp_grid: bool = False,
+        nmaxperdim: int = 8) -> dict[str, Any]:
+    """
+    This function returns a dictionary yielding a Monkhorst-Pack k-point
+    sampling which is compliant with all desired conditions.
 
     Parameters
     ----------
-    calc : str
-        The path to a calculator object.
-    density : float
-        The required minimum density of the Monkhorst Pack grid.
+    atoms:
+        Atoms object to generate the Monkhorst-Pack grid for.
+    kptdensity:
+        The required minimum density of the k-points (kpts/Å^-1). This
+        density is related to the minimum real-space distance between
+        equivalent points in the Born-von Kármán supercell by
+        min_distance = 2𝜋 * kptdensity.
+    minimize_ibz_points:
+        Should this function return the compliant MP grid which contains the
+        smallest number of IBZ points (True) or the MP grid which contains the
+        smallest number of BZ points (False).
+    force_even:
+        Should the Monkhorst-Pack grids be forced to contain an even number of
+        k-points along the crystal axes?
+    force_gamma:
+        Should the k-point sampling be forced to contain the Gamma point
+        through offsets?
+    contains_ibz_vertices:
+        Should the function only accept k-point samplings which contain all
+        vertices of the IBZ?
+    is_symmetric_mp_grid:
+        Should the function only accept k-point samplings which are as
+        symmetric as the crystal?
+    nmaxperdim:
+        When searching for compliant k-point samplings, how large should the
+        maximum sampling size be (along each crystal axes) compared to the
+        minimum size.
 
     Returns
     -------
-    ndarray
-        Array of shape (nk, 3) containing the kpoints.
+        Dictionary yielding a Monkhorst-Pack k-point sampling compliant with
+        all desired predicates.
 
     """
 
-    atoms, calc = restart(calc, txt=None)
+    msg = ('Searching for a Monkhorst-Pack grid which is '
+           'compliant with the following predicates:')
+
+    msg += ('\n\nThe grid should effectively yield a Born-von Kármán supercell'
+            f'that does not repeat for at least 2𝜋 * {kptdensity} Å.')
+
+    predicate_functions = []
+    if contains_ibz_vertices:
+        predicate_functions.append(contains_ibz_vertices_predicate)
+        msg += ('\n\nThe k-point sampling must contain every vertex point '
+                'of the irreducible Brillouin zone.')
+    if is_symmetric_mp_grid:
+        predicate_functions.append(is_symmetric_mp_grid_predicate)
+        msg += '\n\nThe k-point sampling must be as symmetric as the crystal.'
+
+    print(msg)
+
+    minsize = get_mp_grid_from_min_distance_criteria(
+        atoms, 2. * np.pi * kptdensity, even=force_even)
+
+    if force_even:
+        minsize += minsize % 2
+        step = 2
+    else:
+        step = 1
+    maxsize = minsize + nmaxperdim
+
     pbc = atoms.pbc
-    minsize, offset = kpts2sizeandoffsets(density=density, even=True,
-                                          gamma=True, atoms=atoms)
-
-    # NB: get_bz() wants a pbc_c, but never gets it. This means that the
-    # pbc always will fall back to True along all dimensions. XXX
-    # NB: Why return latibzk_kc, if we never use it? XXX
-    bzk_kc, ibzk_kc, latibzk_kc = get_bz(calc)
-
-    maxsize = minsize + 10
     minsize[~pbc] = 1
-    maxsize[~pbc] = 2
+    maxsize[~pbc] = 1
 
-    if mpi.rank == 0:
-        print('Brute force search for symmetry ' +
-              'complying MP-grid... please wait.')
+    def mp_gridsize_generator(minsize, maxsize, step):
+        for size in product(
+                range(minsize[0], maxsize[0] + 1, step),
+                range(minsize[1], maxsize[1] + 1, step),
+                range(minsize[2], maxsize[2] + 1, step)):
+            yield size
+    mp_grids = np.array(list(mp_gridsize_generator(minsize, maxsize, step)))
 
-    for n1 in range(minsize[0], maxsize[0]):
-        for n2 in range(minsize[1], maxsize[1]):
-            for n3 in range(minsize[2], maxsize[2]):
-                size = [n1, n2, n3]
-                size, offset = kpts2sizeandoffsets(size=size, gamma=True,
-                                                   atoms=atoms)
+    for predicate_function in predicate_functions:
+        mp_grids = mp_grids[predicate_function(mp_grids, atoms,
+                                               gamma=force_gamma)]
+        if len(mp_grids) == 0:
+            raise RuntimeError('Could not find grid which satisfies the'
+                               f' {predicate_function.__name__}')
 
-                ints = ((ibzk_kc + 0.5 - offset) * size - 0.5)[:, pbc]
+    if len(mp_grids) == 1:
+        return {'size': mp_grids[0], 'gamma': force_gamma}
+    else:
+        if minimize_ibz_points:
+            nk_ibz = get_nk_ibz(mp_grids, atoms, force_gamma)
+            return {'size': mp_grids[np.argmin(nk_ibz)],
+                    'gamma': force_gamma}
+        else:
+            nk_bz = np.prod(mp_grids, axis=1)
+            return {'size': mp_grids[np.argmin(nk_bz)],
+                    'gamma': force_gamma}
 
-                if (np.abs(ints - np.round(ints)) < 1e-5).all():
-                    kpts_kc = monkhorst_pack(size) + offset
-                    kpts_kc = to1bz(kpts_kc, calc.wfs.gd.cell_cv)
 
-                    for ibzk_c in ibzk_kc:
-                        diff_kc = np.abs(kpts_kc - ibzk_c)[:, pbc].round(6)
-                        # NB: The second np.mod() statement seems redundant XXX
-                        if not (np.mod(np.mod(diff_kc, 1), 1) <
-                                1e-5).all(axis=1).any():
-                            raise AssertionError('Did not find ' + str(ibzk_c))
-                    if mpi.rank == 0:
-                        print('Done. Monkhorst-Pack grid:', size, offset)
-                    return kpts_kc
+def get_mp_grid_from_min_distance_criteria(atoms, min_distance, even):
+    """
+    Get a Monkhorst-Pack grid with the lowest number of k-points in the
+    Brillouin zone that still satisfies a given minimum distance condition in
+    the real-space Born-von Kármán supercell.
 
-    if mpi.rank == 0:
-        print('Did not find matching kpoints for the IBZ')
-        print(ibzk_kc.round(5))
+    Compared to the method kptdensity2monkhorstpack from
+    ase.calculators.calculator, this metric is based on a physical quantity
+    (real-space distance), and it does not depend on non-physical quantities
+    such as the choice of cell vectors which can be always be transformed by
+    determinant=±1 matrices (isometries). In other words, this method is
+    invariant to the choice of cell representation.
 
-    raise RuntimeError
+    For orthogonal cells, min_distance = 2𝜋 * kptdensity.
+    """
+
+    minsize_naive = kptdensity2monkhorstpack(
+        atoms, kptdensity=min_distance / (2. * np.pi), even=even)
+    minsize = -(minsize_naive // -2)  # ceiling division :)
+
+    if even:
+        minsize_naive += minsize_naive % 2
+        minsize += minsize % 2
+        step = 2
+    else:
+        step = 1
+
+    pbc_c = atoms.pbc
+    cell_cv = atoms.cell
+    minsize[~pbc_c] = 1
+    minsize_naive[~pbc_c] = 1
+
+    compliant_mp_grids = []
+    nk = []
+    for size in product(
+            range(minsize[0], minsize_naive[0] + 1, step),
+            range(minsize[1], minsize_naive[1] + 1, step),
+            range(minsize[2], minsize_naive[2] + 1, step)):
+
+        neighborlist = NeighborList([min_distance / 2], skin=0.0,
+                                    self_interaction=False, bothways=False)
+        neighborlist.update(
+            Atoms('H', cell=np.diag(size) @ cell_cv, pbc=pbc_c))
+
+        if len(neighborlist.get_neighbors(0)[1]) == 0:
+            compliant_mp_grids.append(size)
+            nk.append(np.prod(size))
+
+    if len(compliant_mp_grids) == 0:
+        # This should never happen since at least
+        # minsize_naive should comply with the min_distance criteria.
+        # Remove this check?
+        raise RuntimeError('Did not find compliant k-points grid'
+                           'with minimum real-space distance criteria.')
+
+    best_grid = compliant_mp_grids[np.argmin(nk)]
+    return np.array(best_grid)
+
+
+def contains_ibz_vertices_predicate(mp_grids,
+                                    atoms: Atoms,
+                                    gamma: bool):
+    """For a list of Monkhorst-Pack grid sizes, this function checks whether
+    each k-point sampling contains the vertices of the irreducible
+    Brillouin zone.
+
+    Parameters
+    ----------
+    mp_grids:
+        List of Monkhorst-Pack grid sizes.
+    atoms:
+        Atoms object which is used to generate a list of symmetries.
+    gamma:
+        Boolean for whether the k-point sampling should be forced to contain
+        the Gamma point through offsets. This should always be True for this
+        function and is here as a safety check.
+
+    Returns
+    -------
+        An array with a boolean for each grid size representing whether the
+        predicate is satisfied by the k-point sampling.
+
+    """
+
+    pbc_c = atoms.pbc
+    cell_cv = atoms.cell
+
+    if not gamma:
+        raise ValueError('You cannot get an MP grid that contains all '
+                         'IBZ vertices without first forcing the '
+                         'inclusion of the Gamma-point.')
+    if not (mp_grids[:, pbc_c] % 2 == 0).all():
+        raise ValueError('You cannot get an MP grid that contains all '
+                         'IBZ vertices without an even k-point sampling.')
+
+    # Get IBZ vertices in lattice group.
+    lU_scc = find_lattice_symmetry(cell_cv, pbc_c, tol=1e-5)
+    latibz_vert_kc = get_ibz_vertices(cell_cv, U_scc=lU_scc,
+                                      time_reversal=False)
+
+    # Expand IBZ vertices from lattice group to crystal group.
+    cU_scc = create_symmetries_object(atoms).rotation_scc
+    ibzk_kc = expand_ibz(lU_scc, cU_scc, latibz_vert_kc, pbc_c=pbc_c)
+
+    bools = np.zeros(len(mp_grids), dtype=bool)
+    for count, size in enumerate(np.array(mp_grids)):
+        offsets = 0.5 / size
+        offsets[~pbc_c] = 0
+
+        ints = ((ibzk_kc + 0.5 - offsets) * size - 0.5)[:, pbc_c]
+
+        if (np.abs(ints - np.round(ints)) < 1e-5).all():
+            kpts_kc = monkhorst_pack(size) + offsets
+            kpts_kc = to1bz(kpts_kc, cell_cv)
+
+            for ibzk_c in ibzk_kc:
+                diff_kc = np.abs(kpts_kc - ibzk_c)[:, pbc_c].round(6)
+                if not ((diff_kc % 1) % 1 < 1e-5).all(axis=1).any():
+                    raise AssertionError('Did not find vertex ' + str(ibzk_c))
+            bools[count] = True
+
+    return bools
+
+
+def is_symmetric_mp_grid_predicate(mp_grids,
+                                   atoms: Atoms,
+                                   gamma: bool):
+    """For a list of Monkhorst-Pack grid sizes, this function checks whether
+    each k-point sampling is as symmetric as the crystal.
+
+    Parameters
+    ----------
+    mp_grids
+        List of Monkhorst-Pack grid sizes.
+    atoms
+        Atoms object which is used to generate a list of symmetries.
+    gamma
+        Boolean for whether the k-point sampling should be forced to contain
+        the Gamma point through offsets.
+
+    Returns
+    -------
+        An array with a boolean for each grid size representing whether the
+        predicate is satisfied by the k-point sampling.
+
+    """
+
+    pbc_c = atoms.pbc
+    symmetries = create_symmetries_object(atoms, symmorphic=False)
+
+    bools = np.zeros(len(mp_grids), dtype=bool)
+    for count, size in enumerate(np.array(mp_grids)):
+        if gamma:
+            offsets = np.array([0.5 / s if s % 2 == 0 and pbc else 0.
+                               for s, pbc in zips(size, pbc_c)])
+        else:
+            offsets = np.array([0., 0., 0.])
+
+        bzpoints = BZPoints(monkhorst_pack(size) + offsets)
+        ibzpoints = bzpoints.reduce(symmetries, strict=False,
+                                    use_time_reversal=False)
+        if -1 not in ibzpoints.bz2bz_Ks:
+            bools[count] = True
+
+    return bools
+
+
+def get_nk_ibz(mp_grids,
+               atoms: Atoms,
+               gamma: bool):
+
+    pbc_c = atoms.pbc
+    symmetries = create_symmetries_object(atoms, symmorphic=False)
+
+    nibz = np.zeros(len(mp_grids), dtype=int)
+    for count, size in enumerate(np.array(mp_grids)):
+        if gamma:
+            offsets = np.array([0.5 / s if s % 2 == 0 and pbc else 0.
+                               for s, pbc in zips(size, pbc_c)])
+        else:
+            offsets = np.array([0., 0., 0.])
+
+        bzpoints = BZPoints(monkhorst_pack(size) + offsets)
+        ibzpoints = bzpoints.reduce(symmetries, strict=False,
+                                    use_time_reversal=False)
+        nibz[count] = len(ibzpoints)
+
+    return nibz
 
 
 def unfold_points(points, U_scc, tol=1e-8, mod=None):
@@ -115,16 +352,16 @@ def unfold_points(points, U_scc, tol=1e-8, mod=None):
     points: ndarray
     U_scc: ndarray
     tol: float
-        Tolerance indicating when kpoints are considered to be
+        Tolerance indicating when k-points are considered to be
         identical.
     mod: integer 1 or None
-        Consider kpoints spaced by a full reciprocal lattice vector
+        Consider k-points spaced by a full reciprocal lattice vector
         to be identical.
 
     Returns
     -------
     ndarray
-        Array of shape (nk, 3) containing the unfolded kpoints.
+        Array of shape (nk, 3) containing the unfolded k-points.
     """
 
     points = np.concatenate(np.dot(points, U_scc.transpose(0, 2, 1)))
@@ -138,10 +375,10 @@ def unique_rows(ain, tol=1e-10, mod=None, aglomerate=True):
     ----------
     ain : 2D ndarray
     tol : float
-        Tolerance indicating when kpoints are considered to be
+        Tolerance indicating when k-points are considered to be
         identical.
     mod : integer 1 or None
-        Consider kpoints spaced by a full reciprocal lattice vector
+        Consider k-points spaced by a full reciprocal lattice vector
         to be identical.
     aglomerate : bool
         Aglomerate clusters of points before comparing.
@@ -320,6 +557,19 @@ def get_bz(calc, pbc_c=np.ones(3, bool)):
     return get_reduced_bz(cell_cv, cU_scc, False, pbc_c=pbc_c)
 
 
+def get_bz_from_atoms(atoms):
+    pbc_c = atoms.pbc
+    cell_cv = atoms.cell
+    from gpaw.symmetry import Symmetry
+    id_a = atoms.get_chemical_symbols()
+    symmetry = Symmetry(id_a, atoms.cell, atoms.pbc)
+    symmetry.analyze(atoms.get_scaled_positions())
+    cU_scc = get_symmetry_operations(symmetry.op_scc,
+                                     symmetry.time_reversal)
+
+    return get_reduced_bz(cell_cv, cU_scc, False, pbc_c=pbc_c)
+
+
 def get_reduced_bz(cell_cv, cU_scc, time_reversal,
                    pbc_c=np.ones(3, bool), tolerance=1e-7):
 
@@ -364,8 +614,8 @@ def get_reduced_bz(cell_cv, cU_scc, time_reversal,
     return bzk_kc, ibzk_kc, latibzk_kc
 
 
-def expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=np.ones(3, bool)):
-    """Expand IBZ from lattice group to crystal group.
+def expand_ibz(lU_scc, cU_scc, latibzk_kc, pbc_c=np.ones(3, bool), world=None):
+    """Expand IBZ vertices from lattice group to crystal group.
 
     Parameters
     ----------
@@ -373,7 +623,7 @@ def expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=np.ones(3, bool)):
         Lattice symmetry operators.
     cU_scc : ndarray
         Crystal symmetry operators.
-    ibzk_kc : ndarray
+    latibzk_kc : ndarray
         Vertices of lattice IBZ.
 
     Returns
@@ -386,6 +636,8 @@ def expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=np.ones(3, bool)):
     # Find right cosets. The lattice group is partioned into right cosets of
     # the crystal group. This can in practice be done by testing whether
     # U1 U2^{-1} is in the crystal group as done below.
+    world = normalize_communicator(world)
+
     cosets = []
     Utmp_scc = lU_scc.copy()
     while len(Utmp_scc):
@@ -404,13 +656,13 @@ def expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=np.ones(3, bool)):
         cosets.append(new_coset)
 
     volume = np.inf
-    nibzk_kc = ibzk_kc
+    nibzk_kc = latibzk_kc
     U0_cc = cosets[0][0]  # Origin
 
     if np.any(~pbc_c):
         nonpbcind = np.argwhere(~pbc_c)
 
-    # Once the coests are known the irreducible zone is given by picking one
+    # Once the cosets are known the irreducible zone is given by picking one
     # operation from each coset. To make sure that the IBZ produced is simply
     # connected we compute the volume of the convex hull of the produced IBZ
     # and pick (one of) the ones that have the smallest volume. This is done by
@@ -421,7 +673,7 @@ def expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=np.ones(3, bool)):
         if not len(U_scc):
             continue
         U_scc = np.concatenate([np.array(U_scc), [U0_cc]])
-        tmpk_kc = unfold_points(ibzk_kc, U_scc)
+        tmpk_kc = unfold_points(latibzk_kc, U_scc)
         volumenew = convex_hull_volume(tmpk_kc)
 
         if np.any(~pbc_c):

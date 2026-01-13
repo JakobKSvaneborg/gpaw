@@ -1,7 +1,8 @@
-import pytest
 import numpy as np
-from gpaw.response.g0w0 import G0W0
+import pytest
 from ase.units import Hartree as Ha
+
+from gpaw.response.g0w0 import G0W0
 
 
 @pytest.mark.response
@@ -46,7 +47,7 @@ def test_ff(in_tmp_dir, gpw_files, scalapack):
               bands=(3, 5),
               nbands=9,
               nblocks=1,
-              evaluate_sigma=np.linspace(-1, 1, 10),
+              evaluate_sigma=np.linspace(-1, 1, 10) * Ha,
               ecut=40)
 
     results = gw.calculate()

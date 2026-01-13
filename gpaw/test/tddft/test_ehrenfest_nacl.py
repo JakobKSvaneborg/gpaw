@@ -1,8 +1,10 @@
-from gpaw.tddft import TDDFT
-from gpaw.tddft.ehrenfest import EhrenfestVelocityVerlet
 import pytest
 
+from gpaw.tddft import TDDFT
+from gpaw.tddft.ehrenfest import EhrenfestVelocityVerlet
 
+
+@pytest.mark.old_gpaw_only
 def test_tddft_ehrenfest_nacl(in_tmp_dir, gpw_files):
 
     td_calc = TDDFT(gpw_files['nacl_fd'], propagator='EFSICN')

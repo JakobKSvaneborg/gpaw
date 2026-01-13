@@ -1,14 +1,15 @@
 """PAW-DFT energy-contributions."""
 
+import numpy as np
 from ase.units import Ha
 
 # Contributions to free energy:
 NAMES = ['kinetic', 'coulomb', 'zero', 'external', 'xc', 'entropy',
-         'spinorbit']
+         'spinorbit', 'hybrid_xc']
 
 # Other allowed names:
 OTHERS = {'band', 'kinetic_correction', 'extrapolation',
-          'hybrid_kinetic_correction', 'hybrid_xc'}
+          'hybrid_kinetic_correction'}
 
 
 class DFTEnergies:
@@ -38,8 +39,6 @@ class DFTEnergies:
         if self._total_free is None:
             energies = self._energies.copy()
             energies['kinetic'] = self.kinetic
-            if 'hybrid_xc' in energies:
-                energies['xc'] += energies['hybrid_xc']
             self._total_free = sum(energies.get(name, 0.0) for name in energies
                                    if name not in OTHERS)
         return self._total_free
@@ -58,6 +57,10 @@ class DFTEnergies:
                 for name in self._energies
                 if name not in OTHERS and name not in NAMES]
 
+    def sanity_check(self):
+        if np.isnan(list(self._energies.values())).any():
+            raise ValueError('Some energy terms are NaN!')
+
     def summary(self, log) -> None:
         for name in NAMES:
             if name in OTHERS:
@@ -70,12 +73,14 @@ class DFTEnergies:
             log(f'{name + ":":10}   {e * Ha:14.6f}')
         extensions = self.extensions_energies
         if extensions:
-            log('--------extensions:---------')
+            log('--------extensions----------')
             for name, e in extensions:
                 log(f'{name + ":":12} {e * Ha:14.6f}')
         log('----------------------------')
-        log(f'Free energy: {self.total_free * Ha:14.6f}')
-        log(f'Extrapolated:{self.total_extrapolated * Ha:14.6f}\n')
+        log('Free energy: '
+            f'{self.total_free * Ha:14.6f}')
+        log('Extrapolated:'
+            f'{log.green}{self.total_extrapolated * Ha:14.6f}{log.reset}\n')
 
     def write_to_gpw(self, writer):
         writer.write(**{name: e * Ha for name, e in self._energies.items()})

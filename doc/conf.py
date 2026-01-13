@@ -47,7 +47,7 @@ autoclass_content = 'both'
 modindex_common_prefix = ['gpaw.']
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3.13', None),
-    'ase': ('https://wiki.fysik.dtu.dk/ase', None),
+    'ase': ('https://ase-lib.org', None),
     'numpy': ('https://numpy.org/doc/stable', None),
     'cupy': ('https://docs.cupy.dev/en/stable', None),
     'scipy': ('https://docs.scipy.org/doc/scipy', None),
@@ -56,6 +56,7 @@ intersphinx_mapping = {
 nitpick_ignore = [('py:class', 'gpaw.calculator.GPAW'),
                   ('py:class', 'gpaw.spinorbit.BZWaveFunctions'),
                   ('py:class', 'GPAW'),
+                  ('py:class', 'OldGPAW'),
                   ('py:class', 'Atoms'),
                   ('py:class', 'np.ndarray'),
                   ('py:class', 'ase.spectrum.dosdata.GridDOSData'),

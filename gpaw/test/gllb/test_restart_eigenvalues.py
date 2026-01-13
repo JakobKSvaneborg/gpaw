@@ -1,8 +1,8 @@
-import pytest
 import numpy as np
+import pytest
 from ase.build import bulk
-from gpaw import GPAW
 
+from gpaw import GPAW
 
 refs = {'GLLBSC':
         [[-6.96783989, 5.3992398, 5.40304598, 5.40304598, 8.50339453,
@@ -65,7 +65,7 @@ def test_restart_eigenvalues(xc, in_tmp_dir):
     # Check calculation against reference
     ref_eig_in = refs[xc]
     assert np.allclose(eig_in, ref_eig_in, rtol=0, atol=1e-6), \
-        "{} error = {}".format(xc, np.max(np.abs(eig_in - ref_eig_in)))
+        f"{xc} error = {np.max(np.abs(eig_in - ref_eig_in))}"
 
     # Restart
     calc = GPAW('gs.gpw')
@@ -79,7 +79,7 @@ def test_restart_eigenvalues(xc, in_tmp_dir):
 
     # Check restarted eigenvalues
     assert np.allclose(eig_in, eig2_in, rtol=0, atol=1e-8), \
-        "{} restart error = {}".format(xc, np.max(np.abs(eig_in - eig2_in)))
+        f"{xc} restart error = {np.max(np.abs(eig_in - eig2_in))}"
 
     # Check that reference energy source information is restored
     assert eref_s == calc.hamiltonian.xc.response.eref_s

@@ -1,7 +1,8 @@
 # Copyright (C) 2006  CAMP
 # Please see the accompanying LICENSE file for further information.
 
-from math import pi, log, sqrt, factorial as fac
+from math import factorial as fac
+from math import log, pi, sqrt
 
 import numpy as np
 

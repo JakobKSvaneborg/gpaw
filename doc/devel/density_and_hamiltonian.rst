@@ -1,8 +1,8 @@
 Density and hamiltonian objects
 ===============================
 
-.. autoclass:: gpaw.density.Density
+.. autoclass:: gpaw.old.density.Density
    :members:
 
-.. autoclass:: gpaw.hamiltonian.Hamiltonian
+.. autoclass:: gpaw.old.hamiltonian.Hamiltonian
    :members:

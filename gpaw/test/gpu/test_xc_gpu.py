@@ -1,13 +1,16 @@
 import pytest
+
+from gpaw import GPAW_NO_C_EXTENSION
+from gpaw.gpu import cupy as cp
+from gpaw.gpu import cupy_is_fake
 from gpaw.xc import XC
-from gpaw.gpu import cupy as cp, cupy_is_fake
 
 
 @pytest.mark.gpu
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.parametrize('nspins', [1, 2])
 def test_gpu_pbe(nspins):
-    from gpaw.cgpaw import evaluate_pbe_gpu
+    from gpaw.new.c import evaluate_pbe_gpu
     ng = 10000
     n_sg = cp.exp(cp.log(10) * 5 * (cp.random.rand(nspins, ng) - 0.5))
     sigma_xg = cp.exp(cp.log(10) * 5 * (
@@ -22,7 +25,11 @@ def test_gpu_pbe(nspins):
     cpue_g = cp.asnumpy(e_g)
     cpusigma_xg = cp.asnumpy(sigma_xg)
     cpudedsigma_xg = cp.asnumpy(dedsigma_xg)
-    xc = XC('PBE')
+
+    # The implementation are different and give different numbers!
+    # Therefore one needs to use the exact functional
+    xc = XC('pyPBE') if GPAW_NO_C_EXTENSION else XC('PBE')
+
     import time
     start = time.time()
     xc.kernel.calculate(cpue_g, cpun_sg, cpuv_sg, cpusigma_xg, cpudedsigma_xg)
@@ -51,7 +58,7 @@ def test_gpu_pbe(nspins):
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.parametrize('nspins', [1, 2])
 def test_gpu_lda(nspins):
-    from gpaw.cgpaw import evaluate_lda_gpu
+    from gpaw.new.c import evaluate_lda_gpu
     ng = 10000
     n_sg = cp.exp(cp.log(10) * 5 * (cp.random.rand(nspins, ng) - 0.5))
     cp.cuda.runtime.deviceSynchronize()
@@ -61,7 +68,7 @@ def test_gpu_lda(nspins):
     cpun_sg = cp.asnumpy(n_sg)
     cpuv_sg = cp.asnumpy(v_sg)
     cpue_g = cp.asnumpy(e_g)
-    xc = XC('LDA')
+    xc = XC('PPLDA') if GPAW_NO_C_EXTENSION else XC('LDA')
     import time
     start = time.time()
     xc.calculate_impl(None, cpun_sg, cpuv_sg, cpue_g)

@@ -5,7 +5,7 @@ from ase import Atoms
 from ase.units import Bohr
 
 from gpaw import GPAW
-from gpaw.spherical_harmonics import Y
+from gpaw.sphere.spherical_harmonics import Y
 
 L = 6.0
 d = 1.13

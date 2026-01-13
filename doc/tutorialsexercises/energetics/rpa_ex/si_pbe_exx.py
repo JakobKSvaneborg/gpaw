@@ -5,7 +5,7 @@ from gpaw.hybrids.energy import non_self_consistent_energy as nsc_energy
 
 from ase.parallel import paropen
 
-resultfile = paropen('si.pbe+exx.results.txt', 'a')
+resultfile = paropen('si_pbe_exx_results.txt', 'a')
 
 # Plane wave cutoff
 pwcutoff = 400.0
@@ -23,7 +23,7 @@ bulk_calc = GPAW(mode=PW(pwcutoff),
                  kpts={'size': (k, k, k), 'gamma': True},
                  xc='PBE',
                  occupations=FermiDirac(0.01),
-                 txt='si.pbe+exx.pbe_output.txt',
+                 txt='si_pbe_exx_pbe_output.txt',
                  parallel={'band': 1}
                  )
 

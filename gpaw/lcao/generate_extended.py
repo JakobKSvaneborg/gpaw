@@ -3,8 +3,8 @@ from optparse import OptionParser
 
 from gpaw.atom.basis import BasisMaker
 from gpaw.atom.configurations import parameters, parameters_extra
+from gpaw.mpi import normalize_communicator
 from gpaw.setup_data import SetupData
-from gpaw.mpi import world
 
 # Module for generating basis sets more suitable for excited states.
 #
@@ -33,7 +33,8 @@ If SYMBOLs are omitted, generate basis sets for all elements with
 unoccupied p states and default setup."""
 
 
-def main():
+def main(world=None):
+    world = normalize_communicator(world)
     parser = OptionParser(usage='%prog [OPTION...] [SYMBOL...]',
                           description=description)
     parser.add_option('--xc', metavar='FUNCTIONAL',
