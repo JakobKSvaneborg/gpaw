@@ -53,6 +53,7 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
     def convert_to(self,
                    mode: str,
                    grid,
+                   qspiral_v=None,
                    pw=None,
                    nbands: int | None = None) -> PWFDIBZWaveFunctions:
         nbands = nbands or self.nbands
@@ -84,7 +85,7 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
                 relpos_ac=lcaowfs.relpos_ac,
                 atomdist=lcaowfs.atomdist,
                 ncomponents=self.ncomponents,
-                qspiral_v=lcaowfs.qspiral_v)
+                qspiral_v=qspiral_v)
             wfs.eig_n = eig_n
             if lcaowfs._occ_n is not None:
                 wfs._occ_n = lcaowfs._occ_n.copy()

@@ -103,6 +103,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
         self.log('Converting LCAO to {self.mode} mode', flush=True)
         return lcao_ibzwfs.convert_to(mode=self.mode,
                                       grid=self.grid,
+                                      qspiral_v=self.qspiral_v,
                                       pw=self.wf_desc,
                                       nbands=self.nbands)
 
