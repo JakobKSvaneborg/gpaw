@@ -5,12 +5,11 @@ from ase.units import Bohr, Ha
 
 from gpaw.core import UGArray
 from gpaw.new.density import Density
-from gpaw.typing import Array1D, Array2D, ArrayLike1D
+from gpaw.typing import ArrayLike1D
+from gpaw.new.extensions import Extension
 
 
-def create_external_potential(params: dict) -> ExternalPotential:
-    if not params:
-        return ExternalPotential()
+def create_external_potential(params: dict) -> Extension:
     params = params.copy()
     name = params.pop('name')
     if name == 'BField':
@@ -20,17 +19,7 @@ def create_external_potential(params: dict) -> ExternalPotential:
     raise ValueError
 
 
-class ExternalPotential:
-    def update_potential(self,
-                         vt_sR: UGArray,
-                         density) -> float:
-        return 0.0
-
-    def add_paw_correction(self, Delta_p: Array1D, dH_sp: Array2D) -> float:
-        return 0.0
-
-
-class ConstantElectricField(ExternalPotential):
+class ConstantElectricField(Extension):
     def __init__(self, strength, direction=[0, 0, 1], tolerance=1e-7):
         """External constant electric field.
 
@@ -70,7 +59,7 @@ class ConstantElectricField(ExternalPotential):
         return 0.0
 
 
-class BField(ExternalPotential):
+class BField(Extension):
     def __init__(self, field: ArrayLike1D):
         """Constant magnetic field.
 
@@ -91,17 +80,22 @@ class BField(ExternalPotential):
             vt_sR.data[0] -= self.field_v[2]
             vt_sR.data[1] += self.field_v[2]
         elif ncomponents == 4:
-            vt_sR.data[1:] = -self.field_v.reshape((3, 1, 1, 1))
+            vt_sR.data[1:] -= self.field_v.reshape((3, 1, 1, 1))
         else:
             1 / 0
         return eext
 
-    def add_paw_correction(self, Delta_p: Array1D, dH_sp: Array2D) -> float:
-        if len(dH_sp) == 2:
+    def update_non_local_hamiltonian(self,
+                                     D_sii,
+                                     setup,
+                                     atom_index,
+                                     dH_sii) -> float:
+        dS_ii = setup.Delta_iiL[:, :, 0]
+        if len(dH_sii) == 2:
             c = (4 * np.pi)**0.5 * self.field_v[2]
-            dH_sp[0] -= c * Delta_p
-            dH_sp[1] += c * Delta_p
+            dH_sii[0] -= c * dS_ii
+            dH_sii[1] += c * dS_ii
         else:
-            c_vp = (4 * np.pi)**0.5 * self.field_v[:, np.newaxis]
-            dH_sp[1:] -= c_vp * Delta_p
+            c_vii = (4 * np.pi)**0.5 * self.field_v[:, np.newaxis, np.newaxis]
+            dH_sii[1:] -= c_vii * dS_ii
         return 0.0

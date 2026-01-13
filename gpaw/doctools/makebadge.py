@@ -52,7 +52,7 @@ def makebadge(text1: str, text2: str, color='purple') -> str:
       <rect width="{w1 + w2}" height="20" fill="url(#s)"/>
      </g>
      <g fill="#fff" text-anchor="middle"
-      font-family="Verdana,Geneva,DejaVu Sans,sans-serif"
+      font-family="Calibri"
       text-rendering="geometricPrecision"
       font-size="110">
       <text aria-hidden="true"

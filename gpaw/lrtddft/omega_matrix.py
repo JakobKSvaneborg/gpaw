@@ -59,6 +59,7 @@ class OmegaMatrix:
         if calculator is None:
             return
 
+        calculator = calculator._to_old()
         self.paw = calculator
         wfs = self.paw.wfs
 

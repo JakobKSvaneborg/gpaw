@@ -163,7 +163,7 @@ Note that the NEB class now needs to be initialized by using ```NEB(images,paral
 
 # %%
 # This code is just for illustration
-from ase.parallel import world
+from gpaw.mpi import world
 n_im = 4              # Number of images
 n = world.size // n_im      # number of cpu's per image
 j = 1 + world.rank // n     # image number on this cpu
@@ -188,7 +188,7 @@ for i in range(n_im):
                     nbands='130%',
                     xc='PBE',  # student: ...,
                     txt=f'{i}.txt',
-                    communicator=ranks)
+                    communicator=world.new_communicator(ranks))
         image.calc = calc
     images.append(image)
 images.append(final)
@@ -219,7 +219,7 @@ Some suitable parameters for the NEB are given below:
 from gpaw import GPAW, PW
 from ase.visualize import view
 from ase.optimize import BFGS
-from ase.parallel import world
+from gpaw.mpi import world
 
 initial = read('N2Ru.traj')
 final = read('2Nads.traj')
@@ -241,7 +241,7 @@ for i in range(N):
         calc = GPAW(xc='PBE',
                     mode=PW(350),
                     nbands='130%',
-                    communicator=ranks,
+                    communicator=world.new_communicator(ranks),
                     txt=f'{i}.txt',
                     kpts={'size': (4, 4, 1), 'gamma': True},
                     convergence={'eigenstates': 1e-7})

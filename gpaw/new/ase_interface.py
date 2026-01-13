@@ -267,7 +267,6 @@ class ASECalculator:
         return self.dft.results['forces']
 
     def __del__(self):
-        self.log('---')
         self.timer.write(self.log)
         try:
             mib = maxrss() / 1024**2
@@ -779,12 +778,16 @@ class ASECalculator:
         from gpaw.mpi import broadcast_string
 
         if self._dft is None:
-            return OldGPAW(**self.params.todict(), txt=self.log.fd)
+            return OldGPAW(**self.params.todict(),
+                           communicator=self.comm,
+                           txt=self.log.fd)
 
+        # Quick hack for now:
+        # write gpw-file and read with old GPAW!
         if self.comm.rank == 0:
             gpw = tempfile.mkstemp(suffix='.gpw')[1]
         else:
             gpw = None
         gpw = broadcast_string(gpw, comm=self.comm)
         self.write(gpw, mode='all')
-        return OldGPAW(gpw)
+        return OldGPAW(gpw, communicator=self.comm)

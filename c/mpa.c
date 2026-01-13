@@ -9,6 +9,7 @@
 // W_nGG: The residue of poles for each GG
 // eta: extra broadening
 // factor: total prefactor to multiply the result
+__attribute__((optimize("fast-math")))
 PyObject* evaluate_mpa_poly(PyObject *self, PyObject *args)
 {
     PyArrayObject* x_GG_obj;

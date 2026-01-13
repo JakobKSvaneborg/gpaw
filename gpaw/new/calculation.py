@@ -187,6 +187,10 @@ class DFTCalculation:
         return self
 
     def iconverge(self, maxiter=None, calculate_forces=None):
+
+        if calculate_forces is None:
+            calculate_forces = self._calculate_forces
+
         self.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
         for ctx in self.scf_loop.iterate(self.ibzwfs,
                                          self.density,
@@ -203,11 +207,10 @@ class DFTCalculation:
     @trace
     def converge(self,
                  maxiter=None,
-                 steps=99999999999999999,
-                 calculate_forces=None):
+                 steps=99999999999999999):
         """Converge to self-consistent solution of Kohn-Sham equation."""
-        for step, _ in enumerate(self.iconverge(maxiter,
-                                                calculate_forces),
+
+        for step, _ in enumerate(self.iconverge(maxiter),
                                  start=1):
             if step == steps:
                 break
@@ -260,13 +263,13 @@ class DFTCalculation:
             return
 
         self.forces_have_been_printed = True
-        self.log('\nForces: [  # eV/Ang')
+        self.log('\nForces in eV/Ang:')
         F_av = self.results['forces'] * (Ha / Bohr)
         for a, setup in enumerate(self.setups):
             x, y, z = F_av[a]
-            c = ',' if a < len(F_av) - 1 else ']'
-            self.log(f'  [{x:10.4f}, {y:10.4f}, {z:10.4f}]{c}'
-                     f'  # {setup.symbol:2} {a}')
+            self.log(f'  {a:4} {setup.symbol:2} '
+                     f'{x:10.5f} {y:10.5f} {z:10.5f}')
+        self.log.fd.flush()
 
     def _calculate_forces(self):
         xc = self.pot_calc.xc
@@ -312,6 +315,8 @@ class DFTCalculation:
         F_av = self.ibzwfs.ibz.symmetries.symmetrize_forces(F_av)
         self.comm.broadcast(F_av, 0)
         self.results['forces'] = F_av
+
+        return F_av
 
     def stress(self) -> None:
         if 'stress' in self.results:
@@ -403,6 +408,38 @@ class DFTCalculation:
             psit_nR = bcast(psit_nR, 0, comm=self.comm)
         return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
 
+    def change_xc(self, xc):
+        from gpaw.dft import XC
+        atoms = self.atoms
+        params = self.params
+        ibzwfs = self.ibzwfs
+        is_collinear = ibzwfs.collinear
+        log = self.log
+
+        # old xc functional
+        xcfunc_o = params.xc.functional(collinear=is_collinear,
+                                        atoms=atoms)
+
+        # actually change the functional
+        params.xc = XC.from_param(xc)
+        builder = params.dft_component_builder(atoms, log=log,
+                                               comm=self.comm)
+
+        # new xc functional
+        xcfunc_n = params.xc.functional(collinear=is_collinear,
+                                        atoms=atoms)
+
+        # check that 'base' functional is the same
+        assert xcfunc_n.get_setup_name() == xcfunc_o.get_setup_name()
+
+        self.scf_loop = builder.create_scf_loop()
+        self.pot_calc = builder.create_potential_calculator()
+        self.results = {}
+
+        log('Changed xc-functional ' +
+            f'from {xcfunc_o.name} to {xcfunc_n.name}. ' +
+            'Reusing wavefunctions.')
+
     def new(self,
             atoms: Atoms,
             params: Parameters,
@@ -419,7 +456,8 @@ class DFTCalculation:
         check_atoms_too_close(atoms)
         check_atoms_too_close_to_boundary(atoms)
 
-        builder = params.dft_component_builder(atoms, log=log)
+        builder = params.dft_component_builder(atoms, log=log,
+                                               comm=self.comm)
 
         kpt_kc = builder.ibz.kpt_kc
         old_kpt_kc = ibzwfs.ibz.kpt_kc

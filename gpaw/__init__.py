@@ -48,12 +48,29 @@ def _get_gpaw_env_vars(attr: str) -> bool | str:
     raise _module_attr_error(attr)
 
 
+def probably_get_mpiexec_implementation() -> str | None:
+    if 'OMPI_COMM_WORLD_SIZE' in os.environ:
+        return 'openmpi'
+    if 'PMI_SIZE' in os.environ:
+        return 'mpich'
+    if 'I_MPI_MPIRUN' in os.environ:
+        # I have not been able to test this case.  --askhl
+        return 'intelmpi'
+    return None
+
+
 # When type-checking, we want the debug-wrappers enabled:
 debug = TYPE_CHECKING or _get_gpaw_env_vars('GPAW_DEBUG')
 
 # Debug envvar for disabling GPU aware MPI
 ENVVAR_GPAW_NO_GPU_MPI = _get_gpaw_env_vars('GPAW_NO_GPU_MPI')
+
 GPAW_MPI_BACKEND = os.environ.get('GPAW_MPI_BACKEND', 'serial')
+
+if probably_get_mpiexec_implementation():
+    GPAW_INITIALIZE_MPI = True
+    if GPAW_MPI_BACKEND == 'serial':
+        GPAW_MPI_BACKEND = 'cgpaw'
 
 
 @contextlib.contextmanager
@@ -178,6 +195,9 @@ all_lazy_imports = dict(
 # variables, but GPAW_NEW is used within the same script, so it needs to
 # concretely exist in the namespace)
 GPAW_NEW = int(os.environ.get('GPAW_NEW') or 0)
+# 0: use old GPAW
+# 1: use new GPAW
+# 147: use whatever works ...
 
 if os.uname().machine == 'wasm32':
     GPAW_NO_C_EXTENSION = True
