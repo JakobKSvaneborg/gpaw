@@ -2066,7 +2066,7 @@ class GPWFiles(CachedFilesHandler):
         pw = 300
         occw = 0.01
         conv = {'bands': band_cutoff + 1,
-                'density': 1.e-8}
+                'density': 1.e-9}
         a = 2.867
         mm = 2.21
         atoms = bulk('Fe', 'bcc', a=a)

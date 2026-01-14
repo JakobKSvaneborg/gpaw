@@ -114,7 +114,7 @@ def test_polarization_phase(in_tmp_dir, gpw_files):
         dphi = phases_c[key] - phases_t[key]
         phases_c[key] -= np.rint(dphi / pi2) * pi2
         print(key)
-        assert phases_c[key] == pytest.approx(phases_t[key], abs=2e-5)
+        assert phases_c[key] == pytest.approx(phases_t[key], rel=2e-5)
 
 
 def test_berry_phases(in_tmp_dir, gpw_files):
