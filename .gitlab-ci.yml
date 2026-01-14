@@ -558,7 +558,7 @@ test-cuda-mpi-makefile-build:
     - job: build-cuda-makefile
       <<: *needs_corresponding_build
   tags:
-    - cuda-mpi-makefile
+    - cuda-mpi
   script:
     - nvidia-smi
     # just a very lightweight test as we mainly want to ensure that
