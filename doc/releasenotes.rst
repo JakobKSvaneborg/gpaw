@@ -19,7 +19,7 @@ Git master branch
 
     * spin-driver: 'difference' -> 'fullspin'
 
-    * beta: 0.05 -> 0.07
+    * beta: 0.05 -> 0.08
 
     * nmaxold: 5 -> 16
 
