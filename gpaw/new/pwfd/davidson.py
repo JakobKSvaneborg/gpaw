@@ -188,7 +188,7 @@ class Davidson(PWFDEigensolver):
             if is_domain_band_master:
                 H_NN.data[:B, :B] = xp.diag(eig_N)
                 S_NN.data[:B, :B] = xp.eye(B)
-            wfs.eig_n = as_np(
+            wfs._eig_n[:] = as_np(  # (this may convert from single to double)
                 H_NN.eigh(S_NN,
                           limit=B,
                           scalapack=self.scalapack_parameters))
