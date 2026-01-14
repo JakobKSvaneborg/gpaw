@@ -1280,7 +1280,7 @@ class GPWFiles(CachedFilesHandler):
                     nbands=10,
                     symmetry='off',
                     convergence={'bands': -4, 'density': 1e-7,
-                                 'eigenstates': 1e-10})
+                                 'eigenstates': 1e-12})
 
         atoms = bulk('Si', 'diamond', a=5.431)
         atoms.calc = calc
