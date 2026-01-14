@@ -12,7 +12,10 @@ def test_b_field():
     """Hydrogen atom in a magnetic field."""
     L = 2.0
     atom = Atoms('H', magmoms=[1], cell=[L, L, L], pbc=True)
-    params = dict(mode='pw')
+    params = dict(mode='pw',
+                  convergence={'density': 1e-7},
+                  eigensolver={'name': 'ppcg' if GPAW_NEW else 'davidson',
+                               'niter': 4})
     atom.calc = GPAW(**params)
     E1 = atom.get_potential_energy()
     a1, b1 = (atom.calc.get_eigenvalues(spin=s)[0] for s in [0, 1])

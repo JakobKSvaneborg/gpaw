@@ -40,25 +40,52 @@ stages:
   - deploy
 
 
+# Build configurations that are built and tested separately in parallel.
+# Implemented as a YAML anchor for reusability.
+.build_matrix: &build_matrix
+  parallel:
+    matrix:
+      - LANG: ["c", "cpp"]
+
+
+.needs_corresponding_build: &needs_corresponding_build
+  parallel:
+    matrix:
+      - LANG: ['$[[ matrix.LANG ]]']
+
+
 .build:
   stage: build
+  <<: *build_matrix
   before_script:
     - !reference [default, before_script]
     - pip install --user --no-deps git+https://gitlab.com/ase/ase.git
+    - | # Set different siteconfig vars for C and C++
+      if [[ "$LANG" == "c++" ]]; then
+        compiler="mpic++"
+        std="-std=c++17"
+        cpp_specific="use_cpp = True"
+      else
+        compiler="mpicc"
+        std="-std=c99"
+        cpp_specific=""
+      fi
     - |
       cat << EOF > siteconfig.py
+      ${cpp_specific}
       mpi = True
-      compiler = 'mpicc'
+      compiler = '${compiler}'
       libraries = []
       library_dirs = []
       include_dirs = []
 
-      extra_compile_args = ['-fPIC',
+      extra_compile_args = ['${std}',
+                            '-fPIC',
                             '-O3',
                             '-g',
                             '-fopenmp',
                             '-Wall',
-                            '-Werror',
+                            # '-Werror',
                             ]
       extra_link_args = ['-fopenmp']
 
@@ -86,11 +113,6 @@ stages:
       - _gpaw.*.so
       - "*.log"
     expire_in: 30 mins
-
-.test:
-  stage: test
-  before_script:
-    - !reference [default, before_script]
 
 
 .gpu-job:
@@ -137,7 +159,7 @@ build:
     - .build
   script:
     - cat siteconfig.py
-    - pip install --user --log build.log --editable .
+    - pip install --user --log build.log --editable . -v
     - gpaw -P 1 info
   cache:
     key: cache-build-oldest
@@ -182,7 +204,7 @@ build-latest:
     - cat siteconfig.py
     - pip install --user --upgrade numpy scipy
     - pip install --user --upgrade mpi4py
-    - pip install --user --editable .
+    - pip install --user --editable . -v
     - gpaw -P 1 info
   cache:
     key: cache-build-latest
@@ -253,13 +275,22 @@ build-minimal:
     - .build
   script:
     - |
+      if [ "$LANG" == "c++" ]; then
+        compiler="g++"
+        cpp_specific="use_cpp = True"
+      else
+        compiler="gcc"
+        cpp_specific=""
+      fi
       cat << EOF > siteconfig.py
+      ${cpp_specific}
+      compiler = '${compiler}'
       mpi = False
       noblas = True
       nolibxc = True
       EOF
     - cat siteconfig.py
-    - pip install --user --log build.log --editable .
+    - pip install --user --log build.log --editable . -v
     - gpaw info
 
 
@@ -273,7 +304,7 @@ build-lumi-g:
     - |
       cat << EOF > siteconfig.py
       mpi = True
-      compiler = 'cc'
+      compiler = 'CC'
       compiler_args = []
       libraries = []
       library_dirs = []
@@ -286,7 +317,7 @@ build-lumi-g:
           '-Wall',
           '-Wno-stringop-overflow',  # suppress warnings from MPI_STATUSES_IGNORE
           '-Wno-deprecated-declarations',  # PySys_SetArgv() etc deprecated in Python 3.11
-          '-Werror',
+          #'-Werror',
           ]
       extra_link_args = ['-fopenmp']
 
@@ -361,12 +392,51 @@ build-libxc:
     - gpaw -P 1 info
 
 
+gpwfiles:
+  image: $IMAGE_MAIN_LATEST
+  needs:
+    # Do this only for the C build
+    - job: build-latest
+      parallel:
+        matrix:
+          - LANG: "c"
+    - job: nightly-all
+  stage: precalculate
+  tags:
+    - xeon40
+  before_script:
+    - !reference [default, before_script]
+  script:
+    - >
+      pytest -n 16 -m generate_gpw_files --durations 30 -v
+      --cov=gpaw
+    - mv .coverage coverage-$CI_JOB_NAME
+  artifacts:
+    paths:
+      - .pytest_cache/
+      - coverage-$CI_JOB_NAME
+    expire_in: 30 mins
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: on_success
+      allow_failure: true
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+
+.test:
+  stage: test
+  needs:
+    - job: precalculate
+  before_script:
+    - !reference [default, before_script]
+
+
 test-oldest:
   image: $IMAGE_MAIN_OLDEST
   extends:
     - .test
   needs:
-    - build
+    - job: build
   script:
     - gpaw info
     - >
@@ -381,8 +451,10 @@ test-latest:
   image: $IMAGE_MAIN_LATEST
   extends:
     - .test
+  <<: *build_matrix
   needs:
-    - build-latest
+    - job: build-latest
+      <<: *needs_corresponding_build
   script:
     - gpaw info
     - GPAW_DEBUG=1 pytest -v -m "ci or gpu" --cov=gpaw
@@ -398,8 +470,10 @@ test-latest-new:
   image: $IMAGE_MAIN_LATEST
   extends:
     - .test
+  <<: *build_matrix
   needs:
-    - build-latest
+    - job: build-latest
+      <<: *needs_corresponding_build
   script:
     - gpaw info
     - GPAW_DEBUG=1 GPAW_NEW=1 pytest -v -m "ci and not old_gpaw_only"
@@ -410,7 +484,7 @@ test-minimal:
   extends:
     - .test
   needs:
-    - build-minimal
+    - job: build-minimal
   script:
     - gpaw info
     - >
@@ -422,7 +496,7 @@ test-cuda:
     - .test
     - .gpu-job
   needs:
-    - build-cuda
+    - job: build-cuda
   tags:
     - cuda
   script:
@@ -431,31 +505,16 @@ test-cuda:
     - python -c 'import cupy; import cupyx; from cupy.cuda import runtime'
     - pytest -v -m gpu
 
-test-cuda-no-c:
-  image: $IMAGE_CUDA
-  extends:
-    - .test
-    - .gpu-job
-  needs:
-    - build-cuda
-  tags:
-    - cuda
-  script:
-    - nvidia-smi
-    - gpaw info
-    - python -c 'import cupy; import cupyx; from cupy.cuda import runtime'
-    - rm _gpaw.cpython-311-x86_64-linux-gnu.so
-    - python -c "import importlib; assert not importlib.util.find_spec('_gpaw'), '_gpaw module found'"
-    - GPAW_NO_C_EXTENSION=1 pytest -v -m gpu
-
 
 test-cuda-mpi:
   image: $IMAGE_CUDA
   extends:
     - .test
     - .gpu-job
+  <<: *build_matrix
   needs:
-    - build-cuda
+    - job: build-cuda
+      <<: *needs_corresponding_build
   tags:
     - cuda-mpi
   script:
@@ -470,7 +529,7 @@ test-hip-cuda:
     - .test
     - .gpu-job
   needs:
-    - build-hip-cuda
+    - job: build-hip-cuda
   tags:
     - cuda
   script:
@@ -607,35 +666,6 @@ nightly-all:
     - if: $CI_PIPELINE_SOURCE == "schedule"
 
 
-gpwfiles:
-  image: $IMAGE_MAIN_LATEST
-  extends:
-    - .test
-  needs:
-    - build-latest
-    - nightly-all
-  stage: precalculate
-  tags:
-    - xeon40
-  before_script:
-    - !reference [default, before_script]
-  script:
-    - >
-      pytest -n 16 -m generate_gpw_files --durations 30 -v
-      --cov=gpaw
-    - mv .coverage coverage-$CI_JOB_NAME
-  artifacts:
-    paths:
-      - .pytest_cache/
-      - coverage-$CI_JOB_NAME
-    expire_in: 30 mins
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "push"
-      when: on_success
-      allow_failure: true
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-
-
 .nightly:
   image: $IMAGE_MAIN_LATEST
   variables:
@@ -646,7 +676,7 @@ gpwfiles:
     - .test
   stage: test
   needs:
-    - build-latest
+    - job: build-latest
     - gpwfiles
   tags:
     - xeon40

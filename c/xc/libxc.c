@@ -3,7 +3,6 @@
  *  Please see the accompanying LICENSE file for further information. */
 
 #include "../python_utils.h"
-#include <assert.h>
 #include <xc.h>
 #if XC_MAJOR_VERSION >= 7
   #include <xc_funcs.h>
@@ -11,6 +10,7 @@
 #endif
 #include "xc_gpaw.h"
 #include "../extensions.h"
+#include <assert.h>
 
 typedef struct
 {
@@ -597,14 +597,16 @@ lxcXCFunctional_tb09(lxcXCFunctionalObject *self, PyObject *args)
     xc_mgga_x_tb09_set_params(self->functional[0], c);
 #endif
     xc_mgga_vxc(self->functional[0], PyArray_DIM(n_g, 0),
-		PyArray_DATA(n_g),
-		PyArray_DATA(sigma_g),
-		PyArray_DATA(lapl_g),
-		PyArray_DATA(tau_g),
-		PyArray_DATA(v_g),
-		PyArray_DATA(vx_g),
-		PyArray_DATA(vx_g),
-		PyArray_DATA(vx_g));
+      (const double*) PyArray_DATA(n_g),
+      (const double*) PyArray_DATA(sigma_g),
+      (const double*) PyArray_DATA(lapl_g),
+      (const double*) PyArray_DATA(tau_g),
+      (double*) PyArray_DATA(v_g),
+      (double*) PyArray_DATA(vx_g),
+      (double*) PyArray_DATA(vx_g),
+      (double*) PyArray_DATA(vx_g)
+    );
+    
     Py_RETURN_NONE;
 }
 

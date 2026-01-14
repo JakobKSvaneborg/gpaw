@@ -12,7 +12,8 @@ def test_stark_pw():
     h.center(vacuum=3.0)
     field = 0.2
     params = dict(mode=PW(300),
-                  convergence={'energy': 1e-6})
+                  convergence={'energy': 1e-6,
+                               'density': 1e-5})
 
     h.calc = GPAW(**params)
 
@@ -63,7 +64,7 @@ def test_ext_potential_external_pw():
     txt = None
 
     convergence = {'eigenstates': 1.e-6 * 40 * 1.5**3,
-                   'density': 1.e-2,
+                   'density': 1.e-3,
                    'energy': 0.1}
 
     # without potential

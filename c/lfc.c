@@ -4,6 +4,7 @@
  *  Please see the accompanying LICENSE file for further information. */
 
 #include "python_utils.h"
+#include "gpaw_utils.h"
 #include "spline.h"
 #include "lfc.h"
 #include "bmgs/spherical_harmonics.h"
@@ -17,24 +18,25 @@
 #include <omp.h>
 #endif
 
+// FIXME: just include a BLAS header instead of doing whatever this is
 #ifdef GPAW_NO_UNDERSCORE_BLAS
 #  define zgemm_  zgemm
 #endif
 #ifndef GPAW_WITHOUT_BLAS
-void zgemm_(char *transa, char *transb, int *m, int * n,
+CLINKAGE void zgemm_(const char *transa, const char *transb, int *m, int * n,
             int *k, void *alpha, void *a, int *lda,
             const void *b, int *ldb, void *beta,
             void *c, int *ldc);
 #define myzgemm zgemm_
 #else
-void myzgemm(char *transa, char *transb, int *m, int * n,
+void myzgemm(const char *transa, const char *transb, int *m, int * n,
              int *k, void *alpha, void *a, int *lda,
              const void *b, int *ldb, void *beta,
              void *c, int *ldc)
 {
-    const double_complex *a_GM = a;
-    const double_complex *b_xM = b;
-    double_complex *c_xG = c;
+    const double_complex *a_GM = (double_complex*)a;
+    const double_complex *b_xM = (double_complex*)b;
+    double_complex *c_xG = (double_complex*)c;
     for (int x = 0; x < *n; x++)
         for (int G = 0; G < *m; G++)
             for (int M = 0; M < *k; M++)

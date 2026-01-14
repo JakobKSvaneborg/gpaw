@@ -1,7 +1,8 @@
 /*  Copyright (C) 2010-2011 CAMd
  *  Please see the accompanying LICENSE file for further information. */
-#include "extensions.h"
 
+#include "python_utils.h"
+#include "extensions.h"
 
 
 PyObject* GG_shuffle(PyObject *self, PyObject *args)

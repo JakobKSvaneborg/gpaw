@@ -200,7 +200,8 @@ def test_log(in_tmp_dir):
 @pytest.mark.lrtddft
 def test_forces():
     """Test whether force calculation works"""
-    calc = GPAW(mode='fd', xc='PBE', h=0.25, nbands=3, txt=None)
+    calc = GPAW(mode='fd', xc='PBE', h=0.25, nbands=3, txt=None,
+                convergence={'forces': 1e-5, 'density': 1e-7})
     exlst = LrTDDFT(calc)
     exst = ExcitedState(exlst, 0)
     H2 = get_H2(exst)

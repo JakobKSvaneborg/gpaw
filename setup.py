@@ -53,11 +53,15 @@ for i, arg in enumerate(sys.argv):
 
 # Globals that can be replaced by values in user siteconfig.py
 
+# temp flag for choosing different options for C/C++ builds.
+# Currently this must be set to true in siteconfig.py if compiling as C++
+use_cpp = False
+
 libraries = ['xc']
 library_dirs = []
 include_dirs = []
 extra_link_args = []
-extra_compile_args = ['-Wall', '-Wno-unknown-pragmas', '-std=c99']
+extra_compile_args = ['-Wall', '-Wno-unknown-pragmas']
 runtime_library_dirs = []
 extra_objects = []
 define_macros = [('NPY_NO_DEPRECATED_API', '7'),
@@ -127,6 +131,26 @@ configure_only: bool = False
 to quickly re-generate the Makefile after changing siteconfig.py."""
 
 
+def ensure_cpp_standard(compile_args: list):
+    """GPAW C++ code requires -std=c++17. This adds it to the input compile
+    args list if it's missing. Don't override existing flags, but warn if the
+    user-specified standard is too low.
+    """
+    old_std = None
+    for arg in compile_args:
+        m = re.match(r'-std=(c\+\+(\d+))', arg)
+        if m:
+            old_std = m.group(1)
+            version = int(m.group(2))
+            if version < 17:
+                warnings.warn(f"C++ standard {old_std} is too low, "
+                              "GPAW requires -std=c++17 or newer")
+            break
+
+    if old_std is None:
+        compile_args.append('-std=c++17')
+
+
 # Search and store current git hash if possible
 try:
     from ase.utils import search_current_git_hash
@@ -155,6 +179,10 @@ else:  # no break
     if not noblas:
         libraries.append('blas')
 
+if use_cpp:
+    print("EXPERIMENTAL: Compiling entire GPAW as C++.")
+    ensure_cpp_standard(extra_compile_args)
+
 # Deprecation check
 if 'mpicompiler' in locals():
     mpicompiler = locals()['mpicompiler']
@@ -173,16 +201,17 @@ if 'mpicompiler' in locals():
 
 # If `mpi` was not set in siteconfig,
 # it is enabled by default if `mpicc` is found
+default_mpi_compiler = 'mpic++' if use_cpp else 'mpicc'
 if mpi is None:
     if compiler is None:
         if (os.name != 'nt'
-                and subprocess.run(['which', 'mpicc'],
+                and subprocess.run(['which', default_mpi_compiler],
                                    capture_output=True).returncode == 0):
             mpi = True
-            compiler = 'mpicc'
+            compiler = default_mpi_compiler
         else:
             mpi = False
-    elif compiler == 'mpicc':
+    elif compiler in ['mpicc', 'mpic++', 'mpiCC', 'mpicxx']:
         warn_deprecated(
             'Define in siteconfig explicitly'
             '\n\nmpi = True')
@@ -194,6 +223,7 @@ if mpi:
     if compiler is None:
         raise_error('Define compiler for MPI in siteconfig:'
                     "\ncompiler = ...  # MPI compiler, e.g., 'mpicc'")
+
 
 # Deprecation check
 if 'mpilinker' in locals():
@@ -229,6 +259,7 @@ if parallel_python_interpreter is not PLACEHOLDER:
 if mpi:
     print('Building GPAW with MPI support.')
 
+
 if gpu:
     valid_gpu_targets = ['cuda', 'hip-amd', 'hip-cuda']
     if gpu_target not in valid_gpu_targets:
@@ -246,19 +277,12 @@ if gpu:
             gpu_compile_args += ['-Xcompiler']
         gpu_compile_args += ['-fPIC']
 
-    # Some C++ code (eg. magma wrappers) requires C++17 standard.
-    # Add the flag here, but don't override any user-specified option.
-    # GPAW C++ files that require C++17 are encouraged to #error
-    # with a sensible message if the standard is too low.
-    has_std_flag = (
-        any(re.match(r'-std=.+', arg) for arg in gpu_compile_args)
-    )
-    if not has_std_flag:
-        print("Adding gpu compile argument: '-std=c++17'")
-        gpu_compile_args += ['-std=c++17']
+    ensure_cpp_standard(gpu_compile_args)
 
-    # GPU code needs to link to c++ stdlib
-    libraries += ['stdc++']
+    # GPU code needs to link to c++ stdlib. This is automatic if the linking
+    # is done using a C++ compiler, if not we have to add it manually
+    if not use_cpp:
+        libraries += ['stdc++']
 
 
 def set_compiler_executables(cc: CCompiler) -> None:
@@ -267,10 +291,15 @@ def set_compiler_executables(cc: CCompiler) -> None:
     # https://shwina.github.io/custom-compiler-linker-extensions/
     for (name, my_args) in [('compiler', compiler_args),
                             ('compiler_so', compiler_args),
+                            ('compiler_cxx', compiler_args),
+                            ('compiler_so_cxx', compiler_args),
                             ('linker_so', linker_so_args),
-                            ('linker_exe', linker_exe_args)]:
+                            ('linker_exe', linker_exe_args),
+                            ('linker_so_cxx', linker_so_args),
+                            ('linker_exe_cxx', linker_exe_args)]:
         new_args = []
         old_args = getattr(cc, name)
+
         # Set executable
         if compiler is not None:
             new_args += [compiler]
@@ -283,8 +312,8 @@ def set_compiler_executables(cc: CCompiler) -> None:
             new_args += old_args[1:]
         cc.set_executable(name, new_args)
 
-    # add language flag if not already added (preparation for C++ compilation)
-    lang = 'c'
+    # add language flag if not already added
+    lang = 'c++' if use_cpp else 'c'
     args: list[str] = getattr(cc, 'compiler_so')
     if not any(item.startswith('-x') for item in args):
         print(f"Adding compiler flag: -x {lang}")
@@ -363,15 +392,21 @@ def test_libxc() -> bool:
 @try_compiling
 def test_blas() -> bool:
     """
-    // For some reasons GPAW doesn't seem to use any of the BLAS header
-    // files (e.g. 'cblas.h' and 'f77blas.h'), but instead declares
-    // them explicitly (e.g. 'c/blas.c');
-    // do as the Romans do
-    #ifdef GPAW_NO_UNDERSCORE_BLAS
+    // GPAW calls Fortran BLAS functions directly instead of using cblas.h,
+    // so must forward declare the function here and prevent name mangling.
+
+    # ifdef GPAW_NO_UNDERSCORE_BLAS
     #  define dnrm2_  dnrm2
+    # endif
+
+    #ifdef __cplusplus
+    extern "C" {
     #endif
 
     double dnrm2_(int n, double *vec, int stride);
+    #ifdef __cplusplus
+    }
+    #endif
 
     void no_op(double _) { return; }  // Suppress -Wunused-variable
 
@@ -422,6 +457,7 @@ for flag, name in [(noblas, 'GPAW_WITHOUT_BLAS'),
                        '__HIP_PLATFORM_AMD__'),
                    (gpu and gpu_target == 'hip-cuda',
                        '__HIP_PLATFORM_NVIDIA__'),
+                   (use_cpp, 'GPAW_CPP'),
                    ]:
     if flag and name not in [n for (n, _) in define_macros]:
         define_macros.append((name, None))
@@ -477,7 +513,7 @@ extensions = [Extension('_gpaw',
                         extra_compile_args=extra_compile_args,
                         runtime_library_dirs=runtime_library_dirs,
                         extra_objects=extra_objects,
-                        language='c')]
+                        language='c++' if use_cpp else 'c')]
 
 
 write_configuration(define_macros, include_dirs, libraries, library_dirs,
@@ -838,7 +874,6 @@ class BuildGPAW(build_ext):
         """Called from super().run()"""
 
         set_compiler_executables(self.compiler)
-
         if not makefile_build:
             # Build normally with setuptools
             print("Build temp:", self.build_temp)
