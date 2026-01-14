@@ -1848,7 +1848,9 @@ class GPWFiles(CachedFilesHandler):
                     nbands='nao',
                     setups={'Mo': '6'},
                     occupations=FermiDirac(0.001),
-                    convergence={'bands': -5},
+                    convergence={'bands': -5,
+                                 'eigenstates': 1e-9,
+                                 'density': 1e-5},
                     kpts=(5, 5, 1))
 
         from ase.build import mx2
