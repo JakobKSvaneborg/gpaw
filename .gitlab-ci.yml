@@ -45,7 +45,7 @@ stages:
 .build_matrix: &build_matrix
   parallel:
     matrix:
-      - LANG: ["c", "cpp"]
+      - LANG: ["c", "c++"]
 
 
 .needs_corresponding_build: &needs_corresponding_build
