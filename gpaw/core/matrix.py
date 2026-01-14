@@ -489,6 +489,9 @@ class Matrix(XP):
             assert self.dist.comm.size == slcomm.size
             H = self
 
+        if limit == H.shape[0]:
+            limit = None
+
         # ---- GPU case
         if self.xp is not np:
             assert isinstance(H.data, cp.ndarray)
@@ -509,7 +512,7 @@ class Matrix(XP):
                 self.tril2full()
                 eigs = self.dist.eighl(self, S)
                 self.data[:] = self.data.T.copy()
-                return eigs
+                return eigs if limit is None else eigs[:limit]
 
             # TODO some way for the caller to specify options/backend
             diagonalizer, options = suggest_diagonalizer(H)
@@ -525,9 +528,6 @@ class Matrix(XP):
             return eigvals
 
         # ---- CPU case
-        if limit == H.shape[0]:
-            limit = None
-
         if limit:
             eps = self.xp.empty(limit)
         else:
