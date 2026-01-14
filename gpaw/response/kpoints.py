@@ -8,7 +8,7 @@ from gpaw.bztools import get_reduced_bz, unique_rows
 
 class KPointFinder:
     def __init__(self, bzk_kc):
-        self.kdtree = cKDTree(np.mod(bzk_kc, 1.0), boxsize=1)
+        self.kdtree = cKDTree(self._wrap_to_box(bzk_kc), boxsize=1)
 
     def find(self, kpt_c):
         distance, k = self.kdtree.query(kpt_c)
@@ -18,6 +18,16 @@ class KPointFinder:
                              'are commensurate with the k-point grid.')
 
         return k
+
+    @staticmethod
+    def _wrap_to_box(k_kc):
+        """
+        Wrap k-points to [0, 1) as required by cKDTree.
+        """
+        k_kc = np.mod(k_kc, 1.0)
+        # maps 1.0 -> 0 using periodic backwards
+        k_kc = np.where(k_kc == 1.0, 0.0, k_kc)
+        return k_kc
 
 
 class ResponseKPointGrid:
