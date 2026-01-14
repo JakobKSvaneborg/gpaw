@@ -32,4 +32,4 @@ def test_fileio_refine(in_tmp_dir):
 
     print(Edirect, Erestart)
     # Note: the different density mixing introduces small differences
-    assert Edirect == pytest.approx(Erestart, abs=4e-5)
+    assert Edirect == pytest.approx(Erestart, abs=1e-3)

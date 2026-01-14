@@ -1279,7 +1279,7 @@ class GPWFiles(CachedFilesHandler):
                     nbands=10,
                     symmetry='off',
                     convergence={'bands': -4, 'density': 1e-7,
-                                 'eigenstates': 1e-10})
+                                 'eigenstates': 1e-12})
 
         atoms = bulk('Si', 'diamond', a=5.431)
         atoms.calc = calc
@@ -1846,7 +1846,9 @@ class GPWFiles(CachedFilesHandler):
                     nbands='nao',
                     setups={'Mo': '6'},
                     occupations=FermiDirac(0.001),
-                    convergence={'bands': -5},
+                    convergence={'bands': -5,
+                                 'eigenstates': 1e-9,
+                                 'density': 1e-5},
                     kpts=(5, 5, 1))
 
         from ase.build import mx2
@@ -2064,7 +2066,7 @@ class GPWFiles(CachedFilesHandler):
         pw = 300
         occw = 0.01
         conv = {'bands': band_cutoff + 1,
-                'density': 1.e-8}
+                'density': 1.e-9}
         a = 2.867
         mm = 2.21
         atoms = bulk('Fe', 'bcc', a=a)

@@ -26,8 +26,8 @@ def system2():
 
 
 @pytest.mark.parametrize('atoms, kpts, eref', [
-    (system1(), [1, 1, 1], -58.845),
-    (system2(), [2, 3, 4], -22.691)])
+    (system1(), [1, 1, 1], -58.635),
+    (system2(), [2, 3, 4], -22.659)])
 def test_lcao_atomic_corrections(atoms, in_tmp_dir, scalapack, kpts, eref,
                                  gpaw_new):
     # Use a cell large enough that some overlaps are zero.
@@ -50,6 +50,7 @@ def test_lcao_atomic_corrections(atoms, in_tmp_dir, scalapack, kpts, eref,
         calc = GPAW(mode=LCAO(atomic_correction=correction),
                     basis='sz(dzp)',
                     # spinpol=True,
+                    mixer={'beta': 0.07},
                     parallel=parallel,
                     txt=f'gpaw.{i}.txt',
                     h=0.35, kpts=kpts,

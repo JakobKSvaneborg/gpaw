@@ -33,7 +33,7 @@ def test_Hubbard_U(in_tmp_dir, comm):
             occupations=FermiDirac(width=0.05),
             setups={'Ni': setup},
             convergence={'eigenstates': 8e-4,
-                         'density': 1.0e-2,
+                         'density': 1e-3,
                          'energy': 0.1},
             txt=name + '.txt',
             kpts=(k, k, k),
