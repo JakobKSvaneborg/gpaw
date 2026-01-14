@@ -380,7 +380,7 @@ static void _r2k_gpu(int n, int k,
                     &beta_gpu,
                     (float*) c_gpu, ldc));
     } else if (dtypenum == NP_FLOAT_COMPLEX) {
-        gpublasComplex alpha_gpu = {alpha.real, alpha.imag};
+        gpublasComplex alpha_gpu = { (float) alpha.real, (float) alpha.imag};
         float beta_gpu = beta;
         gpublasSafeCall(
                 gpublasCher2k(_gpaw_gpublas_handle,

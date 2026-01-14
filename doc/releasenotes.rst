@@ -10,6 +10,10 @@ Git master branch
 
 :git:`master <>`.
 
+* GPAW C-extension can now be built as C++ code. You can enable this
+  experimental feature in ``siteconfig.py`` by setting ``use_cpp = True`` and
+  choosing a valid C++ compiler.
+
 * Minimum version requirements: Python 3.10, ASE 3.25.0.
 
 * Ongoing work with optimizng the defaults of GPAW, so far the following

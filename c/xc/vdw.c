@@ -1,15 +1,23 @@
 /*  Copyright (C) 2003-2007  CAMP
  *  Copyright (C) 2007-2009  CAMd
  *  Please see the accompanying LICENSE file for further information. */
-
+#include "../python_utils.h"
 #include "../extensions.h"
+
+/* Old code used a VLA 'phi' array defined as `double (*phi)[nD]` and which was passed to vdwkernel as such.
+This doesn't work in C++, so we had to change it to a flat 1D array.
+This function is a bandaid helper for accessing it as phi[i][j] when the leading dimension is nD. */
+static inline double get_phi(const double* phi, int i, int j, int nD)
+{
+  return phi[i * nD + j];
+}
 
 double vdwkernel(double D, double d1, double d2, int nD, int ndelta,
                  double dD, double ddelta,
-                 const double (*phi)[nD])
+                 const double* phi)
 {
   if (D < 1e-10)
-    return phi[0][0];
+    return phi[0];
 
   double y = D / dD;
   int j = (int)y;
@@ -33,10 +41,11 @@ double vdwkernel(double D, double d1, double d2, int nD, int ndelta,
       else
         x -= i;
       y -= j;
-      e12 = ((x         * y         * phi[i + 1][j + 1] +
-              x         * (1.0 - y) * phi[i + 1][j    ] +
-              (1.0 - x) * y         * phi[i    ][j + 1] +
-              (1.0 - x) * (1.0 - y) * phi[i    ][j    ]));
+      e12 = ((x         * y         * get_phi(phi, i + 1, j + 1, nD) +
+              x         * (1.0 - y) * get_phi(phi, i + 1, j    , nD) +
+              (1.0 - x) * y         * get_phi(phi, i    , j + 1, nD) +
+              (1.0 - x) * (1.0 - y) * get_phi(phi, i    , j    , nD)
+            ));
     }
   return e12;
 }
@@ -74,7 +83,7 @@ PyObject * vdw(PyObject* self, PyObject *args)
   const double* cell = (const double*)DOUBLEP(cell_obj);
   const char* pbc = (const char*)(PyArray_DATA(pbc_obj));
   const long* repeat = (const long*)(PyArray_DATA(repeat_obj));
-  const double (*phi)[nD] = (const double (*)[nD])DOUBLEP(phi_obj);
+  const double* phi = DOUBLEP(phi_obj);
   double* rhistogram = (double*)DOUBLEP(rhistogram_obj);
   double* Dhistogram = (double*)DOUBLEP(Dhistogram_obj);
 
@@ -107,10 +116,10 @@ PyObject * vdw(PyObject* self, PyObject *args)
               e12 /= 2.0;
             int bin = (int)(r / drhist);
             if (bin < nbinsr)
-              rhistogram[bin] += e12; 
+              rhistogram[bin] += e12;
             bin = (int)(D / dDhist);
             if (bin < nbinsD)
-              Dhistogram[bin] += e12; 
+              Dhistogram[bin] += e12;
             energy += e12;
           }
       }
@@ -150,10 +159,10 @@ PyObject * vdw(PyObject* self, PyObject *args)
                                   n[i1] * n[i2] * x);
                     int bin = (int)(r / drhist);
                     if (bin < nbinsr)
-                      rhistogram[bin] += e12; 
+                      rhistogram[bin] += e12;
                     bin = (int)(D / dDhist);
                     if (bin < nbinsD)
-                      Dhistogram[bin] += e12; 
+                      Dhistogram[bin] += e12;
                     energy += e12;
                   }
               }
