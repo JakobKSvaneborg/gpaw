@@ -35,7 +35,7 @@ class PPCG(PWFDEigensolver):
                  rr_modulo=5,
                  include_cg=True,
                  promote_inner_dtype=False,
-                 tolerances: tuple[float, ...] = (0, 0, 4e-8),
+                 tolerances: tuple[float, float, float] = (0, 0, 4e-8),
                  scalapack_parameters=None,
                  max_buffer_mem: int = 200 * 1024 ** 2):
         """
