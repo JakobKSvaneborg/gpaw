@@ -45,7 +45,7 @@ stages:
 .build_matrix: &build_matrix
   parallel:
     matrix:
-      - LANG: ["c", "cpp"]
+      - LANG: ["c", "c++"]
 
 
 .needs_corresponding_build: &needs_corresponding_build
@@ -278,6 +278,16 @@ build-cuda-makefile:
     - |
       cat << EOF >> siteconfig.py
       makefile_build = True
+      gpu = True
+      gpu_target = 'cuda'
+      gpu_compiler = 'nvcc'
+      gpu_compile_args = ['-O3',
+                          '-g']
+      libraries += ['cudart', 'cublas']
+
+      # MAGMA
+      magma = True
+      libraries += ['magma']
       EOF
     - cat siteconfig.py
     - pip install -v --user --log build.log --editable .
