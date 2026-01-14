@@ -25,7 +25,7 @@ class KPointFinder:
         Wrap k-points to [0, 1) as required by cKDTree.
         """
         k_kc = np.mod(k_kc, 1.0)
-        # maps 1.0 -> 0 using periodic backwards
+        # maps 1.0 -> 0 using periodic BCs
         k_kc = np.where(k_kc == 1.0, 0.0, k_kc)
         return k_kc
 
