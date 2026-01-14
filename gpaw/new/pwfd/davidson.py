@@ -92,7 +92,7 @@ class Davidson(PWFDEigensolver):
 
         psit_nX = wfs.psit_nX
         B = psit_nX.dims[0]  # number of bands
-        eig_N = xp.empty(B)
+        eig_n = xp.empty(B)
         b = psit_nX.mydims[0]
 
         psit2_nX = psit_nX.new(data=self.work_arrays[0, :b])
@@ -114,7 +114,7 @@ class Davidson(PWFDEigensolver):
         M0_nn = M_nn.new(dist=(band_comm, 1, 1))
 
         if domain_comm.rank == 0:
-            eig_N[:] = xp.asarray(wfs.eig_n)
+            eig_n[:] = xp.asarray(wfs.eig_n)
 
         me_buffer_mX = psit_nX.create_work_buffer(data_buffer)
 
@@ -186,12 +186,13 @@ class Davidson(PWFDEigensolver):
             copy(S_NN.data[B:, :B], M_nn)
 
             if is_domain_band_master:
-                H_NN.data[:B, :B] = xp.diag(eig_N)
+                H_NN.data[:B, :B] = xp.diag(eig_n)
                 S_NN.data[:B, :B] = xp.eye(B)
-            wfs._eig_n[:] = as_np(  # (this may convert from single to double)
-                H_NN.eigh(S_NN,
-                          limit=B,
-                          scalapack=self.scalapack_parameters))
+            # This may convert eigenvalues from single to double:
+            eig_n[:] = H_NN.eigh(S_NN,
+                                 limit=B,
+                                 scalapack=self.scalapack_parameters)
+            wfs._eig_n[:] = as_np(eig_n)
             if is_domain_band_master:
                 M0_nn.data[:] = H_NN.data[:B, :B]
                 M0_nn.complex_conjugate()
