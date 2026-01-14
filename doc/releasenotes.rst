@@ -10,6 +10,10 @@ Git master branch
 
 :git:`master <>`.
 
+* Added option for generating a Makefile for building GPAW with ``make`` on
+  Unix-like systems. Convenient for developers who frequently need to modify
+  the C/C++ backend. See :ref:`workflow_c_extension` for details.
+
 * GPAW C-extension can now be built as C++ code. You can enable this
   experimental feature in ``siteconfig.py`` by setting ``use_cpp = True`` and
   choosing a valid C++ compiler.

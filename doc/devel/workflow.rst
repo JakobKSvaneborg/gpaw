@@ -76,6 +76,8 @@ And with MPI (2, 4 and 8 cores)::
    relevant.
 
 
+.. _workflow_c_extension:
+
 Working with the C-extension
 ============================
 
