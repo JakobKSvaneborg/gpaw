@@ -291,8 +291,6 @@ build-cuda-makefile:
       EOF
     - cat siteconfig.py
     - pip install -v --user --log build.log --editable .
-    # Try startup here already to ensure runtime linking is OK
-    - gpaw -P 2 test
 
 
 build-minimal:
@@ -548,6 +546,25 @@ test-cuda-mpi:
     - gpaw info
     - GPAW_DEBUG=1 gpaw -P 2 python -m pytest -v -x -m gpu
     - gpaw -P 4 python -m pytest -v -x -m gpu
+
+
+test-cuda-mpi-makefile-build:
+  image: $IMAGE_CUDA
+  extends:
+    - .test
+    - .gpu-job
+  <<: *build_matrix
+  needs:
+    - job: build-cuda-makefile
+      <<: *needs_corresponding_build
+  tags:
+    - cuda-mpi-makefile
+  script:
+    - nvidia-smi
+    # just a very lightweight test as we mainly want to ensure that
+    # runtime linking is OK
+    - gpaw -P 2 test
+
 
 test-hip-cuda:
   image: $IMAGE_CUDA
