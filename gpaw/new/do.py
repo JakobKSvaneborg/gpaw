@@ -19,6 +19,8 @@ class DirectOptimization(Eigensolver):
               nbands,
               wf_desc,
               band_comm,
+              domain_band_comm,
+              scalapack_parameters,
               hamiltonian,
               converge_bands,
               setups,
