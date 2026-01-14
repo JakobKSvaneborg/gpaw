@@ -269,6 +269,22 @@ build-hip-cuda:
     - pip install -v --user --log build.log --editable .
 
 
+# Like build-cuda but uses the makefile compilation path.
+build-cuda-makefile:
+  image: $IMAGE_CUDA
+  extends:
+    - build-cuda
+  script:
+    - |
+      cat << EOF >> siteconfig.py
+      makefile_build = True
+      EOF
+    - cat siteconfig.py
+    - pip install -v --user --log build.log --editable .
+    # Try startup here already to ensure runtime linking is OK
+    - gpaw -P 2 test
+
+
 build-minimal:
   image: $IMAGE_MAIN_OLDEST
   extends:
