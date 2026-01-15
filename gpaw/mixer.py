@@ -33,7 +33,7 @@ In the end, what the user provides is probably a dictionary anyway, and the
 relevant objects are instantiated automatically."""
 
 
-class BaseMixer:
+class BaseMixerOld:
     name = 'pulay'
 
     """Pulay density mixer."""
@@ -209,7 +209,7 @@ class BaseMixer:
         return string
 
 
-class NewMixer(BaseMixer):
+class BaseMixer(BaseMixerOld):
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         # XXX Normalize dnesity
         # nt_sG /= np.sqrt(np.sqrt(self.gd.comm.sum_scalar(
@@ -289,9 +289,10 @@ class NewMixer(BaseMixer):
             C_ii = psi_i[None, :] * A_ii * psi_i[:, None] + alpha * np.eye(iold - 1)
             D_ii = psi_i[None, :] * np.linalg.inv(C_ii) * psi_i[:, None]
             B_isG = (D_ii @ y_isG.reshape((iold - 1, -1))).reshape(y_isG.shape)
-            for B_sG in B_isG:
-                for B_G in B_sG:
-                    self.metric(B_G, B_G)
+            if self.metric is not None:
+                for B_sG in B_isG:
+                    for B_G in B_sG:
+                        self.metric(B_G, B_G)
 
             res_fact_n0 = self.gd.comm.sum_scalar(
                 self.dotprod(R_isG[-2], R_isG[-2], None, None, metric)
@@ -377,7 +378,7 @@ class ReciprocalMetric:
         mR_Q[:] = R_Q * (1.0 + self.q1 / self.k2_Q)
 
 
-class FFTBaseMixer(NewMixer):
+class FFTBaseMixer(BaseMixer):
     name = 'fft'
 
     """Mix the density in Fourier space"""
