@@ -17,27 +17,21 @@ encountering convergence problems:
    number of electrons. Before performing calculations of isolated atoms
    see :ref:`atomization_energy`.
 
-2) Use less aggressive density mixing.
+2) Try tuning the mixer settings, while the defaults are designed
+to work great in many cases, tuning the mixer can improve convergence for
+certain systems.
 
-   Try something like ``mixer=Mixer(0.02, 5, 100)`` or
-   ``mixer=MixerSum(0.02, 5, 100)``, ``mixer=MixerDif(0.02, 5, 100)``
-   for spin-polarized calculations and remember to import the mixer classes::
+   Example::
 
-       from gpaw import Mixer, MixerSum, MixerDif
+       mixer={'beta': 0.04,  # Reducing or increasing beta
+              'mixer': 'difference',  # Changing the spin-driver
+              'nmaxold': 8,  # Reducing or increasing the history
+              'weight': 100,  # Changing the damping term
+       }
 
-   For some systems (for example transition metal atoms) it is helpful to
-   reduce the number of history steps in the mixer to ``1`` (instead of ``5``).
-
-3) Solve the eigenvalue problem more accurately at each scf-step.
-
-   Import the Davidson eigensolver::
-
-       from gpaw import Davidson
-
-   and increase the number iterations per scf-step ``eigensolver=Davidson(3)``.
-
-   CG eigensolver tends converge fastest the unoccupied bands
-   ``eigensolver='cg'``.
+3) Solve the eigenvalue problem more accurately at each scf-step (PW- and
+FD-mode specific). This can be easily achieved by allowing the eigensolver
+more iterations per step ``eigensolver={'niter': 5}``.
 
 4) Use a smoother distribution function for the occupation numbers.
 
