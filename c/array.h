@@ -1,3 +1,4 @@
+#include "python_utils.h"
 #include <stdbool.h>
 
 // In the code, one utilizes calls equvalent to PyArray API,

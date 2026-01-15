@@ -1,14 +1,17 @@
 from __future__ import annotations
+
+import warnings
 from functools import cached_property
 from types import ModuleType, SimpleNamespace
-from typing import Any, TYPE_CHECKING
-import warnings
+from typing import TYPE_CHECKING, Any
+
 import numpy as np
-from gpaw import GPAW_USE_GPUS, GPAW_CPUPY
 from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
 from ase.geometry.cell import cell_to_cellpar
 from ase.units import Bohr
+
+from gpaw import GPAW_CPUPY, GPAW_USE_GPUS
 from gpaw.core import UGDesc
 from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
                                    AtomDistribution)
@@ -17,8 +20,8 @@ from gpaw.gpu import cpupy as fake_cupy
 from gpaw.gpu.mpi import CuPyMPI
 from gpaw.lfc import BasisFunctions
 from gpaw.mixer import MixerWrapper, get_mixer_from_keywords
-from gpaw.mpi import (MPIComm, Parallelization, broadcast, serial_comm,
-                      synchronize_atoms, world)
+from gpaw.mpi import (MPIComm, Parallelization, broadcast,
+                      normalize_communicator, serial_comm, synchronize_atoms)
 from gpaw.new import prod
 from gpaw.new.basis import create_basis
 from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints
@@ -33,6 +36,7 @@ from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.typing import Array2D, ArrayLike1D, ArrayLike2D, DTypeLike
 from gpaw.utilities.gpts import get_number_of_grid_points
+
 if TYPE_CHECKING:
     from gpaw.dft import Parameters
 
@@ -43,7 +47,8 @@ class DFTComponentsBuilder:
                  params: Parameters,
                  *,
                  log=None,
-                 comm=None):
+                 comm=None,
+                 world=None):
         from gpaw.gpu import set_device
 
         self.atoms = atoms.copy()
@@ -53,11 +58,17 @@ class DFTComponentsBuilder:
             log = Logger(log, comm)
 
         self.log = log
-        comm = log.comm
+        if comm is None:
+            comm = log.comm
+        else:
+            assert comm.size == log.comm.size
 
         parallel = params.parallel
         if self.gpu:
-            set_device(log)
+            # XXX We should not be setting globals inside library code.
+            # It should probably be set by main().
+            world = normalize_communicator(world)
+            set_device(log, world)
 
         synchronize_atoms(atoms, comm)
         self.check_cell(atoms.cell)
@@ -116,7 +127,7 @@ class DFTComponentsBuilder:
             comm=comm,
             use_time_reversal=use_time_reversal)
 
-        d = parallel.get('domain', 1 if xcfunc.type == 'HYB' else None)
+        d = parallel.get('domain', None)
         k = parallel.get('kpt', None)
         b = parallel.get('band', None)
         self.communicators = create_communicators(
@@ -136,7 +147,7 @@ class DFTComponentsBuilder:
             self.nbands *= 2
 
         self.dtype: DTypeLike
-        if params.mode.dtype is None:
+        if params.mode.dtype == 'double':
             if self.params.mode.force_complex_dtype:
                 self.dtype = complex
             else:
@@ -144,8 +155,16 @@ class DFTComponentsBuilder:
                     self.dtype = float
                 else:
                     self.dtype = complex
+        elif params.mode.dtype == 'single':
+            if self.params.mode.force_complex_dtype:
+                self.dtype = np.complex64
+            else:
+                if self.ibz.bz.gamma_only and self.ncomponents < 4:
+                    self.dtype = np.float32
+                else:
+                    self.dtype = np.complex64
         else:
-            self.dtype = params.mode.dtype
+            raise ValueError(f'Unknown dtype {params.mode.dtype}')
 
         self.grid, self.fine_grid = self.create_uniform_grids()
 
@@ -397,13 +416,13 @@ class DFTComponentsBuilder:
                 [reader.occupations.fermilevel / ha])
 
 
-def create_communicators(comm: MPIComm = None,
+def create_communicators(comm: MPIComm,
                          nibzkpts: int = 1,
                          domain: int | tuple[int, int, int] | None = None,
                          kpt: int = None,
                          band: int = None,
                          xp: ModuleType = np) -> dict[str, MPIComm]:
-    parallelization = Parallelization(comm or world, nibzkpts)
+    parallelization = Parallelization(comm, nibzkpts)
     if domain is not None and not isinstance(domain, int):
         domain = prod(domain)
     parallelization.set(kpt=kpt,

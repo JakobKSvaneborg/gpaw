@@ -36,8 +36,9 @@ for molecule in ['Adenine-thymine_complex_stack']:
         s.calc = c
         adjust_cell(s, box, h=h)
         Energy['PBE'].append(s.get_potential_energy())
-        cc = vdWTkatchenko09prl(HirshfeldPartitioning(c),
-                                vdWradii(s.get_chemical_symbols(), 'PBE'))
+        cc = vdWTkatchenko09prl(
+            HirshfeldPartitioning(c),
+            vdWradii(s.get_chemical_symbols(), 'PBE', world=c.world))
         s.calc = cc
         Energy['TS09'].append(s.get_potential_energy())
 

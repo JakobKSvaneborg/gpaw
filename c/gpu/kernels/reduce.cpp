@@ -1,4 +1,5 @@
 #ifndef REDUCE
+#include "../lfc_gpu.h"
 #include "../gpu.h"
 
 #define REDUCE_MAX_THREADS  (256)
@@ -9,13 +10,11 @@
 
 static void *reduce_buffer = NULL;
 
-extern "C"
 void reduce_init_buffers_gpu()
 {
     reduce_buffer = NULL;
 }
 
-extern "C"
 void reduce_dealloc_gpu()
 {
     gpuFree(reduce_buffer);

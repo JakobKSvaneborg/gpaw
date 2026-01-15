@@ -2,15 +2,16 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Callable
 from math import inf, nan, pi
-from typing import Any, Callable, Dict, List, NamedTuple, Tuple, cast
+from typing import Any, NamedTuple, cast
 
 import numpy as np
 from ase.units import Ha
 from scipy.special import erf
 
-from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.mpi import MPIComm, broadcast_float, serial_comm
+from gpaw.old.band_descriptor import BandDescriptor
 from gpaw.typing import Array1D, Array2D, ArrayLike2D
 
 
@@ -23,7 +24,7 @@ class ParallelLayout(NamedTuple):
 
 def fermi_dirac(eig: np.ndarray,
                 fermi_level: float,
-                width: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+                width: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Fermi-Dirac distribution function.
 
     >>> f, _, _ = fermi_dirac(np.array([-1.0, 0.0, 1.0]), 0.0, 0.01)
@@ -46,7 +47,7 @@ def fermi_dirac(eig: np.ndarray,
 
 def marzari_vanderbilt(eig: np.ndarray,
                        fermi_level: float,
-                       width: float) -> Tuple[np.ndarray,
+                       width: float) -> tuple[np.ndarray,
                                               np.ndarray,
                                               np.ndarray]:
     """Marzari-Vanderbilt distribution (cold smearing).
@@ -65,7 +66,7 @@ def marzari_vanderbilt(eig: np.ndarray,
 def methfessel_paxton(eig: np.ndarray,
                       fermi_level: float,
                       width: float,
-                      order: int = 0) -> Tuple[np.ndarray,
+                      order: int = 0) -> tuple[np.ndarray,
                                                np.ndarray,
                                                np.ndarray]:
     """Methfessel-Paxton distribution."""
@@ -129,7 +130,7 @@ class OccupationNumberCalculator:
 
     def copy(self,
              parallel_layout: ParallelLayout = None,
-             bz2ibzmap: List[int] = None) -> 'OccupationNumberCalculator':
+             bz2ibzmap: list[int] = None) -> OccupationNumberCalculator:
         return create_occ_calc(
             self.todict(),
             parallel_layout=parallel_layout or self.parallel_layout)
@@ -227,12 +228,12 @@ class FixMagneticMomentOccupationNumberCalculator(OccupationNumberCalculator):
 
     def calculate(self,
                   nelectrons: float,
-                  eigenvalues: List[List[float]],
-                  weights: List[float],
+                  eigenvalues: list[list[float]],
+                  weights: list[float],
                   spins=None,
-                  fermi_levels_guess: List[float] = None,
+                  fermi_levels_guess: list[float] = None,
                   fix_fermi_level: bool = False) -> tuple[Array2D,
-                                                          List[float],
+                                                          list[float],
                                                           float]:
 
         magmom = self.fixed_magmom_value
@@ -279,7 +280,7 @@ class SmoothDistribution(OccupationNumberCalculator):
         """
 
         self._width = width
-        OccupationNumberCalculator.__init__(self, parallel_layout)
+        super().__init__(parallel_layout)
 
     def todict(self):
         return {'name': self.name, 'width': self._width}
@@ -334,7 +335,7 @@ class FermiDiracCalculator(SmoothDistribution):
 
     def distribution(self,
                      eig_n: np.ndarray,
-                     fermi_level: float) -> Tuple[np.ndarray,
+                     fermi_level: float) -> tuple[np.ndarray,
                                                   np.ndarray,
                                                   np.ndarray]:
         return fermi_dirac(eig_n, fermi_level, self._width)
@@ -360,12 +361,12 @@ class MethfesselPaxtonCalculator(SmoothDistribution):
     name = 'methfessel_paxton'
 
     def __init__(self, width, order=0, parallel_layout: ParallelLayout = None):
-        SmoothDistribution.__init__(self, width, parallel_layout)
+        super().__init__(width, parallel_layout)
         self.order = order
         self.extrapolate_factor = -1.0 / (self.order + 2)
 
     def todict(self):
-        dct = SmoothDistribution.todict(self)
+        dct = super().todict()
         dct['order'] = self.order
         return dct
 
@@ -378,9 +379,9 @@ class MethfesselPaxtonCalculator(SmoothDistribution):
         return methfessel_paxton(eig_n, fermi_level, self._width, self.order)
 
 
-def findroot(func: Callable[[float], Tuple[float, float]],
+def findroot(func: Callable[[float], tuple[float, float]],
              x: float,
-             tol: float = 1e-10) -> Tuple[float, int]:
+             tol: float = 1e-10) -> tuple[float, int]:
     """Function used for locating Fermi level.
 
     The function should return a (value, derivative) tuple:
@@ -446,7 +447,7 @@ def findroot(func: Callable[[float], Tuple[float, float]],
 def collect_eigelvalues(eig_un: np.ndarray,
                         weight_u: np.ndarray,
                         bd: BandDescriptor,
-                        kpt_comm: MPIComm) -> Tuple[np.ndarray,
+                        kpt_comm: MPIComm) -> tuple[np.ndarray,
                                                     np.ndarray,
                                                     np.ndarray]:
     """Collect eigenvalues from bd.comm and kpt_comm.
@@ -614,7 +615,7 @@ class FixedOccupationNumbers(OccupationNumberCalculator):
             occ = FixedOccupationNumbers([[1, 0, 1, 0], [1, 1, 0, 0]])
 
         """
-        OccupationNumberCalculator.__init__(self, parallel_layout)
+        super().__init__(parallel_layout)
         self.f_sn = np.array(numbers)
 
     def _calculate(self,
@@ -646,7 +647,7 @@ class FixedOccupationNumbersUniform(OccupationNumberCalculator):
         k-point per spin has the same number of occupied states
         Magnetic moment defines difference between two spins occ. numb.
         """
-        OccupationNumberCalculator.__init__(self, parallel_layout)
+        super().__init__(parallel_layout)
 
         def get_f(nelectrons, magmom, nkpts, nbands, spin):
             """
@@ -769,7 +770,7 @@ class ThomasFermiOccupations(OccupationNumberCalculator):
         return inf, 0.0
 
 
-def create_occ_calc(dct: Dict[str, Any],
+def create_occ_calc(dct: dict[str, Any],
                     *,
                     parallel_layout: ParallelLayout = None,
                     fixed_magmom_value=None,

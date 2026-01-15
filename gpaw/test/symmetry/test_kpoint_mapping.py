@@ -1,9 +1,11 @@
-from gpaw.symmetry import map_k_points_fast, map_k_points
-from ase.dft.kpoints import monkhorst_pack
-from gpaw import GPAW
-from ase.build import bulk
-import numpy as np
 from itertools import product
+
+import numpy as np
+from ase.build import bulk
+from ase.dft.kpoints import monkhorst_pack
+
+from gpaw import GPAW
+from gpaw.symmetry import map_k_points, map_k_points_fast
 
 
 def test_symmetry_kpoint_mapping():

@@ -7,7 +7,7 @@ import numpy as np
 from ase.units import Bohr, Ha
 
 from gpaw.atom.shapefunc import shape_functions
-from gpaw.core.arrays import DistributedArrays
+from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.uniform_grid import UGArray
 from gpaw.setup import Setups
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 class ElectrostaticPotential:
     def __init__(self,
-                 vHt_x: DistributedArrays,
+                 vHt_x: XArray,
                  W_aL: AtomArrays,
                  Q_aL: AtomArrays,
                  D_asii: AtomArrays,

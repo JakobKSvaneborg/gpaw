@@ -4,10 +4,11 @@ from typing import Any
 
 import ase
 import numpy as np
+
 from gpaw.core.atom_arrays import AtomArraysLayout
+from gpaw.dft import Parameters
 from gpaw.new.ase_interface import GPAW
 from gpaw.new.brillouin import BZPoints
-from gpaw.dft import Parameters
 
 
 def create_nodes(obj, *objects, include):
@@ -226,7 +227,7 @@ def code():
         include=lambda obj:
             getattr(obj, '__module__', '').startswith('gpaw.core') and
             obj.__class__.__name__ != '_lru_cache_wrapper')
-    plot_graph('da', nodes, {'DistributedArrays': '#eeeeee',
+    plot_graph('da', nodes, {'XArray': '#eeeeee',
                              'Domain': '#dddddd'})
 
 
@@ -251,7 +252,7 @@ def aa():
     for node in nodes:
         print(node)
         print(node.has)
-        if node.name == 'DistributedArrays':
+        if node.name == 'XArray':
             node.name = 'AtomArrays'
             node.attrs.remove('dv')
             break

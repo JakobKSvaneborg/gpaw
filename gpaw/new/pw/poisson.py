@@ -4,11 +4,12 @@ from math import pi
 
 import numpy as np
 from ase.units import Bohr, Ha
-from gpaw.core import PWArray, PWDesc, UGDesc
-from gpaw.new.poisson import PoissonSolver
 from scipy.sparse.linalg import LinearOperator, cg
 from scipy.special import erf
+
 from gpaw import get_scipy_version
+from gpaw.core import PWArray, PWDesc, UGDesc
+from gpaw.new.poisson import PoissonSolver
 
 if get_scipy_version() >= [1, 14]:
     RTOL = 'rtol'
@@ -163,13 +164,19 @@ class ChargedPWPoissonSolver(PWPoissonSolver):
     def _solve(self,
                vHt_g,
                rhot_g) -> float:
+        xp = vHt_g.xp
+        if self.potential_g.xp is not xp:
+            self.ekin_g = xp.array(self.ekin_g)
+            self.charge_g = xp.array(self.charge_g)
+            self.potential_g = self.potential_g.to_xp(xp)
+
         neutral_g = rhot_g.copy()
         neutral_g.data += self.charge_g
 
         if neutral_g.desc.comm.rank == 0:
             error = neutral_g.data[0]  # * self.pd.gd.dv
             assert error.imag == 0.0, error
-            assert abs(error.real) < 0.00001, error
+            assert abs(float(error.real)) < 0.00001, error
             neutral_g.data[0] = 0.0
 
         vHt_g.data[:] = 2 * pi * neutral_g.data
@@ -323,10 +330,10 @@ class ConjugateGradientPoissonSolver(PWPoissonSolver):
 
         ophi_G = np.zeros_like(phi_G)
         for G_G in G_vG:
-            grad_G = pw.from_data(G_G * phi_G)
+            grad_G = pw.from_data(G_G * phi_G * 1j)
             grad_R = grad_G.ifft(grid=grid)
             grad_R.data *= self.eps0_R.data
-            ophi_G += grad_R.fft(pw=pw).data * G_G
+            ophi_G -= grad_R.fft(pw=pw).data * G_G * 1j
 
         return ophi_G
 

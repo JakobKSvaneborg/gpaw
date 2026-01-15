@@ -1,5 +1,6 @@
 """Test gpaw symmetry command."""
 import pytest
+
 from gpaw.cli.main import main
 
 result = """\

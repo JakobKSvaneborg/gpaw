@@ -1,16 +1,18 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, TypeVar, Callable, Literal
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Generic, Literal, TypeVar
 
-import gpaw.fftw as fftw
 import numpy as np
 from ase.io.ulm import NDArrayReader
+
+import gpaw.fftw as fftw
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
-from gpaw.mpi import MPIComm
-from gpaw.typing import Array1D, Self, ArrayND
 from gpaw.gpu import XP
+from gpaw.mpi import MPIComm
 from gpaw.new import trace
+from gpaw.typing import Array1D, ArrayND, Self
 
 if TYPE_CHECKING:
     from gpaw.core.uniform_grid import UGArray, UGDesc
@@ -37,7 +39,7 @@ class XArrayWithNoData:
         raise ReuseWaveFunctionsError
 
 
-class DistributedArrays(Generic[DomainType], XP):
+class XArray(Generic[DomainType], XP):
     desc: DomainType
 
     def __init__(self,
@@ -87,10 +89,10 @@ class DistributedArrays(Generic[DomainType], XP):
         else:
             from gpaw.gpu import cupy as cp
             xp = cp
-        XP.__init__(self, xp)
+        super().__init__(xp)
         self._matrix: Matrix | None = None
 
-    def new(self, data=None, dims=None) -> DistributedArrays:
+    def new(self, data=None, dims=None) -> XArray:
         raise NotImplementedError
 
     def create_work_buffer(self, data_buffer: np.ndarray):
@@ -212,15 +214,16 @@ class DistributedArrays(Generic[DomainType], XP):
             # numerical stability. This is especially important
             # for single precision.
             if self.data.dtype in (np.float32, np.complex64):
-                blocksize = 16384
-                # 16384 = 2**14. Large enough that the extra
-                # overhead is negligible, yet still comparable
-                # to the square root of the mantisa of float32
-                # (2**24)**0.5.
+                blocksize = 4096
+                # 4096 = 2**12. Largest blocksize, that yields
+                # good numerical stability. This results in some
+                # overhead, however, numericaly stability is
+                # more important. In the future, we might want
+                # to find improvements.
             elif self.data.dtype in (np.float64, np.complex128):
-                blocksize = 268435456
+                blocksize = 16777216
                 # Double is simply just the blocksize of
-                # single precision squared 2**28. Most likely,
+                # single precision squared 2**24. Most likely,
                 # we will never end up slicing the matrix into
                 # blocks for double precision.
 
@@ -295,7 +298,7 @@ class DistributedArrays(Generic[DomainType], XP):
 
     def redist(self,
                domain,
-               comm1: MPIComm, comm2: MPIComm) -> DistributedArrays:
+               comm1: MPIComm, comm2: MPIComm) -> XArray:
         """Redistribute to new domain.
 
         The "world" is spanned by::
@@ -329,9 +332,12 @@ class DistributedArrays(Generic[DomainType], XP):
     def norm2(self, kind: str = 'normal', skip_sum=False) -> np.ndarray:
         raise NotImplementedError
 
+    def trace_inner_product(self, other: Self) -> float:
+        raise NotImplementedError
 
-def _parallel_me(psit1_nX: DistributedArrays,
-                 psit2_nX: DistributedArrays,
+
+def _parallel_me(psit1_nX: XArray,
+                 psit2_nX: XArray,
                  M_nn: Matrix) -> None:
 
     comm = psit2_nX.comm
@@ -380,10 +386,10 @@ def _parallel_me(psit1_nX: DistributedArrays,
         buf1_nX, buf2_nX = buf2_nX, buf1_nX
 
 
-def _parallel_me_sym(psit1_nX: DistributedArrays,
+def _parallel_me_sym(psit1_nX: XArray,
                      M_nn: Matrix,
-                     operator: None | Callable[[DistributedArrays],
-                                               DistributedArrays]
+                     operator: None | Callable[[XArray],
+                                               XArray]
                      ) -> None:
     """..."""
     comm = psit1_nX.comm

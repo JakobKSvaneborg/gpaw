@@ -11,19 +11,18 @@ See::
 
 """
 from math import pi
-from typing import List, Tuple, Dict
 
 import numpy as np
 from ase.units import Bohr, Ha, _c, _e, _hplanck
 
+from gpaw.hyperfine import alpha  # fine-structure constant: ~ 1 / 137
+from gpaw.mpi import serial_comm
 from gpaw.old.calculator import GPAW
 from gpaw.old.grid_descriptor import GridDescriptor
-from gpaw.typing import Array1D, Array2D, Array4D
-from gpaw.hyperfine import alpha  # fine-structure constant: ~ 1 / 137
-from gpaw.setup import Setup
-from gpaw.old.pw.lfc import PWLFC
 from gpaw.old.pw.descriptor import PWDescriptor
-from gpaw.mpi import serial_comm
+from gpaw.old.pw.lfc import PWLFC
+from gpaw.setup import Setup
+from gpaw.typing import Array1D, Array2D, Array4D
 
 
 def zfs(calc: GPAW,
@@ -68,9 +67,9 @@ def zfs(calc: GPAW,
 class WaveFunctions:
     def __init__(self,
                  psit_nR: Array4D,
-                 P_ani: Dict[int, Array2D],
+                 P_ani: dict[int, Array2D],
                  spin: int,
-                 setups: List[Setup],
+                 setups: list[Setup],
                  gd: GridDescriptor = None,
                  pd: PWDescriptor = None):
         """Container for wave function in real-space and projections."""
@@ -106,7 +105,7 @@ class WaveFunctions:
         return len(self.psit_nR)
 
 
-def create_compensation_charge(setups: List[Setup],
+def create_compensation_charge(setups: list[Setup],
                                pd: PWDescriptor,
                                spos_ac: Array2D) -> PWLFC:
     compensation_charge = PWLFC([data.ghat_l for data in setups], pd)
@@ -178,7 +177,7 @@ def zfs2(pd: PWDescriptor,
 
 
 def convert_tensor(D_vv: Array2D,
-                   unit: str = 'eV') -> Tuple[float, float, Array1D, Array2D]:
+                   unit: str = 'eV') -> tuple[float, float, Array1D, Array2D]:
     """Convert 3x3 tensor to D, E and easy axis.
 
     Input tensor must be in eV and the result can be returned in
@@ -219,7 +218,7 @@ def convert_tensor(D_vv: Array2D,
     return float(D), float(E), axis, D_vv * scale
 
 
-def main(argv: List[str] = None) -> Array2D:
+def main(argv: list[str] = None) -> Array2D:
     """CLI interface."""
     import argparse
 

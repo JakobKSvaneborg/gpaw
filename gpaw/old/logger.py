@@ -2,10 +2,10 @@ import os
 import sys
 import time
 
-import numpy as np
 import ase
+import numpy as np
 from ase import __version__ as ase_version
-from ase.utils import search_current_git_hash, IOContext
+from ase.utils import IOContext, search_current_git_hash
 
 import gpaw
 import gpaw.cgpaw as cgpaw
@@ -162,7 +162,7 @@ def write_header(log, world):
     log('units:  Angstrom and eV')
     log('cores:', world.size)
     log('OpenMP:', cgpaw.have_openmp)
-    log('OMP_NUM_THREADS:', os.environ['OMP_NUM_THREADS'])
+    log('OMP_NUM_THREADS:', os.environ.get('OMP_NUM_THREADS', ''))
 
     if gpaw.debug:
         log('DEBUG-MODE: true')

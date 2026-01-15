@@ -21,27 +21,29 @@ Versions:
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Any, Union, Callable
+from typing import IO, Any
 
 import ase.io.ulm as ulm
-import gpaw
-import gpaw.mpi as mpi
 import numpy as np
 from ase import Atoms
 from ase.io.trajectory import read_atoms, write_atoms
 from ase.units import Bohr, Ha
+
+import gpaw
+import gpaw.mpi as mpi
 from gpaw.core.atom_arrays import AtomArraysLayout
+from gpaw.dft import Parameters
 from gpaw.new.builder import DFTComponentsBuilder
 from gpaw.new.calculation import DFTCalculation, units
 from gpaw.new.density import Density
+from gpaw.new.energies import DFTEnergies
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
-from gpaw.utilities import unpack_hermitian, unpack_density, as_dtype_precision
-from gpaw.new.energies import DFTEnergies
-from gpaw.dft import Parameters
+from gpaw.utilities import as_dtype_precision, unpack_density, unpack_hermitian
 
 
 def as_single_precision(array):
@@ -185,9 +187,9 @@ def write_wave_function_indices(writer, ibzwfs, grid):
             writer.fill(index_G)
 
 
-def read_gpw(filename: Union[str, Path, IO[str]],
+def read_gpw(filename: str | Path | IO[str],
              *,
-             log: Union[Logger, str, Path, IO[str]] = None,
+             log: Logger | str | Path | IO[str] | None = None,
              comm=None,
              parallel: dict[str, Any] = None,
              dtype=None,
@@ -207,7 +209,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     parallel = parallel or {}
 
     if not isinstance(log, Logger):
-        log = Logger(log, comm or mpi.world)
+        log = Logger(log, mpi.normalize_communicator(comm))
 
     comm = log.comm
 
@@ -427,7 +429,6 @@ def read_dft_state(reader: ulm.Reader,
     energies = DFTEnergies(**ec)
 
     potential = Potential(vt_sR, dH_asp.to_full(), dedtaut_sR, vHt_x, e_stress)
-
     ibzwfs = builder.read_ibz_wave_functions(reader)
 
     return builder, params, (ibzwfs, density, potential, energies)

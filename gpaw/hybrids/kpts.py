@@ -2,9 +2,9 @@ import numpy as np
 
 from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.old.projections import Projections
-from gpaw.utilities.partition import AtomPartition
-from gpaw.old.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
 from gpaw.old.pw.descriptor import PWDescriptor
+from gpaw.old.wavefunctions.arrays import PlaneWaveExpansionWaveFunctions
+from gpaw.utilities.partition import AtomPartition
 
 
 class KPoint:
@@ -24,13 +24,13 @@ class KPoint:
 class PWKPoint(KPoint):
     def __init__(self, psit, *args):  # plane-wave expansion of wfs
         self.psit = psit
-        KPoint.__init__(self, *args)
+        super().__init__(*args)
 
 
 class RSKPoint(KPoint):
     def __init__(self, u_nR, *args):
         self.u_nR = u_nR
-        KPoint.__init__(self, *args)
+        super().__init__(*args)
 
 
 def to_real_space(psit, na=0, nb=None):

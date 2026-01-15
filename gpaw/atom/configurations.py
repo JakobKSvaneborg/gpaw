@@ -1,12 +1,12 @@
 # Copyright (C) 2003  CAMP
 # Please see the accompanying LICENSE file for further information.
 
+import copy
 # flake8: noqa
 # Computer generated code:
 # format: (energy in Hartrees)
 #    'element': (atomic number, [(n, l, occ, energy), ...])
-from typing import Dict, Any
-import copy
+from typing import Any
 
 configurations = {
  'Ac': (89,
@@ -1044,7 +1044,7 @@ configurations['No'][1][15] = (5, 3, 14, -0.36654300000000001)
 configurations['No'][1][16] = (6, 2, 0, -0.14319000000000001)
 
 
-parameters: Dict[str, Dict[str, Any]] = {
+parameters: dict[str, dict[str, Any]] = {
  'H' : {'rcut': 0.9},
  'He': {'rcut': 1.5},
  'Li': {'core': '[He]',       'rcut': 2.0},
@@ -1305,7 +1305,8 @@ def core_states(symbol):
 
 if __name__ == '__main__':
     import pprint
-    # https://www.physics.nist.gov/PhysRefData/DFTdata/
+
+    # https://dx.doi.org/10.18434/T4ZP4F
     path = '/scratch/jensj/dftdata/'
     Ztable = {}
     confs = [['X', '']]

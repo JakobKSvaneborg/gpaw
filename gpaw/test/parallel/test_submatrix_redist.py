@@ -1,19 +1,18 @@
-from gpaw.mpi import world
 from gpaw.blacs import BlacsGrid, Redistributor
 
 
-def test_parallel_submatrix_redist(scalapack):
-    if world.size > 1:
-        shape = (2, world.size // 2)
+def test_parallel_submatrix_redist(scalapack, comm):
+    if comm.size > 1:
+        shape = (2, comm.size // 2)
     else:
         shape = (1, 1)
 
-    grid = BlacsGrid(world, *shape)
+    grid = BlacsGrid(comm, *shape)
 
     desc = grid.new_descriptor(12, 8, 2, 3)
 
     a = desc.zeros()
-    a[:] = world.rank
+    a[:] = comm.rank
 
     subdesc = grid.new_descriptor(7, 7, 2, 2)
     b = subdesc.zeros()
@@ -31,7 +30,7 @@ def test_parallel_submatrix_redist(scalapack):
 
     a0 = desc.collect_on_master(a)
     b0 = subdesc.collect_on_master(b)
-    if world.rank == 0:
+    if comm.rank == 0:
         print(a0)
         print(b0)
         xa = a0[ia:ia + M, ja:ja + N]

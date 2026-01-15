@@ -2,6 +2,7 @@ import numpy as np
 from ase.build import molecule
 from ase.constraints import FixedPlane
 from ase.optimize import QuasiNewton
+
 from gpaw import GPAW, FermiDirac
 
 # Initialization

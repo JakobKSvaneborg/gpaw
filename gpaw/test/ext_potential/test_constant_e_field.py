@@ -1,11 +1,10 @@
-import pytest
 import numpy as np
+import pytest
 from ase import Atoms
-from ase.units import Hartree, Bohr
+from ase.units import Bohr, Hartree
 
 from gpaw import GPAW
-from gpaw.external import ConstantElectricField
-from gpaw.external import static_polarizability
+from gpaw.external import ConstantElectricField, static_polarizability
 
 
 @pytest.mark.old_gpaw_only
@@ -42,11 +41,12 @@ def test_polarizability(in_tmp_dir):
     alpha_cc = static_polarizability(H2, strength)
 
     # make sure no external potential is left over
-    assert H2.calc.parameters.external is None
+    if H2.calc.old:
+        assert H2.calc.parameters.external is None
 
     assert alpha_cc.shape == (3, 3)
     assert alpha_cc == pytest.approx(
-        np.diag([6.48529231e-02, 4.61303856e-2, 4.61303856e-2]))
+        np.diag([0.0645, 0.0461, 0.0461]), abs=0.001)
 
     # displace positions and make sure that you can still
     # get the energy

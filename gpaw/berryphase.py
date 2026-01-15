@@ -1,21 +1,19 @@
 from __future__ import annotations
+
 import warnings
 from pathlib import Path
 
 import numpy as np
+from ase import Atoms
 from ase.dft.bandgap import bandgap
 from ase.dft.kpoints import get_monkhorst_pack_size_and_offset
 
 from gpaw import GPAW
-from gpaw.ibz2bz import get_overlap
-from gpaw.ibz2bz import (get_overlap_coefficients,
+from gpaw.ibz2bz import (get_overlap, get_overlap_coefficients,
                          get_phase_shifted_overlap_coefficients)
-from gpaw.mpi import rank, serial_comm, world
+from gpaw.mpi import normalize_communicator, serial_comm
 from gpaw.spinorbit import soc_eigenstates
 from gpaw.utilities.blas import gemmdot
-
-from ase import Atoms
-from ase.parallel import parprint
 
 
 class ZeroBandgap(Exception):
@@ -215,11 +213,11 @@ def polarization_phase(gpw_wfs: Path, comm, cleanup: bool = False):
 
 
 def _get_phases(gpw_wfs: Path, cleanup: bool = False):
-    parprint(f'Reading wfs from {gpw_wfs}')
+    print(f'Reading wfs from {gpw_wfs}')
     calc = GPAW(gpw_wfs, communicator=serial_comm, txt=None)
     atoms = calc.get_atoms()
 
-    parprint('Calculating polarization')
+    print('Calculating polarization')
     electronic_phase_c = get_electronic_polarization_phase(calc)
     # valence electron number for each atom
     Nv_a = [setup.Nv for setup in calc.setups]
@@ -310,7 +308,7 @@ def parallel_transport(calc, direction=0, name=None, scale=1.0, bands=None,
     Output:
     phi_km, S_km (see above)
     """
-    comm = comm or world
+    comm = normalize_communicator(comm)
 
     if isinstance(calc, str):
         calc = GPAW(calc, txt=None, communicator=serial_comm)
@@ -337,7 +335,8 @@ def parallel_transport(calc, direction=0, name=None, scale=1.0, bands=None,
 
     # Parallelization stuff
     myKsize = -(-Npar // (comm.size))
-    myKrange = range(rank * myKsize, min((rank + 1) * myKsize, Npar))
+    myKrange = range(comm.rank * myKsize,
+                     min((comm.rank + 1) * myKsize, Npar))
     myKsize = len(myKrange)
 
     # Get array of k-point indices of the path. q index is loc direction

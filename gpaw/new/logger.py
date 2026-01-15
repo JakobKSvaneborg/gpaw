@@ -6,9 +6,9 @@ import os
 import sys
 from functools import cache
 from pathlib import Path
-from typing import IO, Any, Sequence
+from typing import IO, Any
 
-from gpaw.mpi import MPIComm, world
+from gpaw.mpi import MPIComm, normalize_communicator
 
 GREEN = '\x1b[32m'
 RESET = '\x1b[0m'
@@ -27,14 +27,11 @@ def indent(text: Any, indentation='  ') -> str:
 
 class Logger:
     def __init__(self,
-                 filename: str | Path | IO[str] | None = '-',
-                 comm: MPIComm | Sequence[int] | None = None):
-        if comm is None:
-            comm = world
-        elif not hasattr(comm, 'rank'):
-            comm = world.new_communicator(list(comm))
+                 filename: str | Path | IO[str] | None,
+                 comm: MPIComm | None):
 
-        self.comm: MPIComm = comm  # type: ignore
+        self.close_fd = False  # To be set later
+        self.comm = normalize_communicator(comm)
 
         self.fd: IO[str]
 
@@ -84,7 +81,7 @@ class Logger:
             text = (i + text.replace('\n', '\n' + i)).rstrip(' ')
         print(text, file=self.fd, end=end, flush=flush)
         if parallel:
-            from gpaw.mpi import send_string, receive_string
+            from gpaw.mpi import receive_string, send_string
             if self.comm.rank:
                 send_string(text, 0, comm=self.comm)
             else:

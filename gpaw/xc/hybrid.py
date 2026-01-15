@@ -5,14 +5,16 @@
 evaluation of exact exchange.
 """
 
-from math import exp, ceil
+from math import ceil, exp
+
 import numpy as np
 
 from gpaw.atom.configurations import core_states
-from gpaw.sphere.gaunt import gaunt
+from gpaw.helmholtz import HelmholtzSolver
 from gpaw.lfc import LFC
 from gpaw.poisson import PoissonSolver
-from gpaw.helmholtz import HelmholtzSolver
+from gpaw.setup import CachedYukawaInteractions
+from gpaw.sphere.gaunt import gaunt
 from gpaw.transformers import Transformer
 from gpaw.utilities import (hartree, pack_density, pack_hermitian,
                             packed_index, unpack_density, unpack_hermitian)
@@ -21,7 +23,6 @@ from gpaw.utilities.tools import symmetrize
 from gpaw.xc import XC
 from gpaw.xc.functional import XCFunctional
 from gpaw.xc.kernel import XCNull
-from gpaw.setup import CachedYukawaInteractions
 
 
 class HybridXCBase(XCFunctional):
@@ -111,7 +112,7 @@ class HybridXCBase(XCFunctional):
                 self.xc.kernel.set_omega(omega)
                 # Needed to tune omega for RSF
             self.omega = omega
-        XCFunctional.__init__(self, name, xc.type)
+        super().__init__(name, xc.type)
 
     def todict(self):
         return {'name': self.name,
@@ -161,8 +162,8 @@ class HybridXC(HybridXCBase):
         self.unocc = unocc
         self.excitation = excitation
         self.excited = excited
-        HybridXCBase.__init__(self, name, hybrid=hybrid, xc=xc, omega=omega,
-                              stencil=stencil)
+        super().__init__(name, hybrid=hybrid, xc=xc, omega=omega,
+                         stencil=stencil)
 
         # Note: self.omega may not be identical to omega!
         self.yukawa_interactions = CachedYukawaInteractions(self.omega)

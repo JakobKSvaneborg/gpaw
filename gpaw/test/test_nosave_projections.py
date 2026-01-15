@@ -1,7 +1,8 @@
 import pytest
 from ase.build import bulk
-from gpaw.new.ase_interface import GPAW
+
 from gpaw.mpi import world
+from gpaw.new.ase_interface import GPAW
 
 # Prevent grid-dependent crash:
 parallel = dict(band=1 if world.size < 8 else 4)

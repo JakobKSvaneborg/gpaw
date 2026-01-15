@@ -1,12 +1,12 @@
-import pytest
-import numpy as np
 import subprocess
 import sys
 
+import numpy as np
+import pytest
 from ase.build import molecule
 
-from gpaw.new.ase_interface import GPAW
 from gpaw.gpu import cupy_is_fake
+from gpaw.new.ase_interface import GPAW
 
 
 @pytest.mark.serial
@@ -168,7 +168,7 @@ def run_restart_fixed_density(dtype, gpu):
     assert calc_read.wfs.dtype == expected_dtype
 
     fixed_dens_calc = calc_read.fixed_density(
-        mode={'name': 'pw', 'ecut': 200.0, 'dtype': restart_dtype},
+        mode={'dtype': restart_dtype},
         parallel={'gpu': gpu}, txt=None)
     e_pot_fixed = fixed_dens_calc.get_potential_energy()
     expected_e = 9.595593472328737

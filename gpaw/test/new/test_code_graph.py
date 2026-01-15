@@ -1,4 +1,5 @@
 import pytest
+
 from gpaw.doctools.codegraph import main
 
 

@@ -9,10 +9,10 @@ import numpy as np
 from numpy.fft import fftn, ifftn
 
 import gpaw.mpi as mpi
-from gpaw.utilities.blas import axpy
 from gpaw.fd_operators import FDOperator
-from gpaw.utilities.tools import construct_reciprocal
 from gpaw.new import trace
+from gpaw.utilities.blas import axpy
+from gpaw.utilities.tools import construct_reciprocal
 
 """About mixing-related classes.
 
@@ -84,7 +84,6 @@ class BaseMixer:
                                       (-1, 1, 1), (1, -1, -1), (-1, -1, 1),
                                       (-1, 1, -1), (-1, -1, -1)],
                                      gd, float).apply
-            self.mR_sG = gd.empty(4)
 
     def reset(self):
         """Reset Density-history.
@@ -138,7 +137,7 @@ class BaseMixer:
             if self.metric is None:
                 mR_sG = R_sG
             else:
-                mR_sG = self.mR_sG[:spin]
+                mR_sG = np.empty_like(R_sG)
                 for s in range(spin):
                     self.metric(R_sG[s], mR_sG[s])
 
@@ -393,10 +392,8 @@ class FFTBaseMixer(NewMixer):
             self.gd1 = gd.new_descriptor(comm=mpi.serial_comm)
             k2_Q, _ = construct_reciprocal(self.gd1)
             self.metric = ReciprocalMetric(self.weight, k2_Q)
-            self.mR_sG = self.gd1.empty(2, dtype=complex)
         else:
             self.metric = lambda R_Q, mR_Q: None
-            self.mR_sG = np.empty((2, 0, 0, 0), dtype=complex)
 
     def calculate_charge_sloshing(self, R_sQ):
         if self.gd.comm.rank == 0:
@@ -455,7 +452,10 @@ class BroydenBaseMixer:
         self.u_G = []
         self.u_D = []
 
-    def mix_density(self, nt_sG, D_asp):
+    def mix_density(self, nt_sG, D_asp, g_ss=None):
+        if g_ss is not None:
+            raise NotImplementedError()
+
         nt_G = nt_sG[0]
         D_ap = [D_sp[0] for D_sp in D_asp]
         dNt = np.inf
@@ -583,7 +583,7 @@ class NotMixingMixer:
     def calculate_charge_sloshing(self, R_sG):
         return self.gd.integrate(np.fabs(R_sG)).sum()
 
-    def mix_density(self, nt_sG, D_asp):
+    def mix_density(self, nt_sG, D_asp, g_ss=None):
         iold = len(self.nt_isG)
 
         dNt = np.inf
@@ -827,14 +827,14 @@ def get_mixer_from_keywords(pbc, nspins, **mixerkwargs):
     kwargs = {'backend': BaseMixer}
 
     if np.any(pbc):  # Works on array or boolean
-        kwargs.update(beta=0.05, history=5, weight=50.0)
+        kwargs.update(beta=0.08, history=16, weight=70.0)
     else:
-        kwargs.update(beta=0.25, history=3, weight=1.0)
+        kwargs.update(beta=0.25, history=16, weight=1.0)
 
     if nspins == 1:
         kwargs['method'] = SeparateSpinMixerDriver
     else:
-        kwargs['method'] = SpinDifferenceMixerDriver
+        kwargs['method'] = FullSpinMixerDriver
 
     # Clean up mixerkwargs (compatibility)
     if 'nmaxold' in mixerkwargs:

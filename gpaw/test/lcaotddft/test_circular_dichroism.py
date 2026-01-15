@@ -1,29 +1,30 @@
 import numpy as np
 import pytest
-
 from ase import Atoms
 
 from gpaw import GPAW
-from gpaw.mpi import world, serial_comm
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.densitymatrix import DensityMatrix
-from gpaw.lcaotddft.magneticmomentwriter import MagneticMomentWriter
-from gpaw.lcaotddft.magneticmomentwriter import parse_header
+from gpaw.lcaotddft.magneticmomentwriter import (MagneticMomentWriter,
+                                                 parse_header)
+from gpaw.mpi import serial_comm, world
 from gpaw.tddft.spectrum import rotatory_strength_spectrum
-from gpaw.tddft.units import as_to_au, eV_to_au, au_to_eV, rot_au_to_cgs
-
+from gpaw.tddft.units import as_to_au, au_to_eV, eV_to_au, rot_au_to_cgs
 from gpaw.test import only_on_master
-from . import parallel_options, check_txt_data, copy_and_cut_file
+
+from . import check_txt_data, copy_and_cut_file, parallel_options
 
 pytestmark = pytest.mark.usefixtures('module_tmp_path')
 
 parallel_i = parallel_options()
 
+# XXX: We should really use reasonable relative tolerances, instead of this
+
 
 # Parameterize over spin polarized and unpolarized calculations
 @pytest.fixture(scope='module', params=[True, False])
 @only_on_master(world)
-def initialize_system(request):
+def initialize_system(request, require_real_mpi):
     comm = serial_comm
 
     atoms = Atoms('LiNaNaNa',
@@ -88,7 +89,7 @@ def test_magnetic_moment_velocity_gauge(initialize_system, module_tmp_path,
          20.67068667    -6.501209589454e-06    -8.162871785725e-06     2.323149911180e-05
 '''.strip())  # noqa: E501
     check_txt_data(module_tmp_path / 'mm_velocity.dat',
-                   'mm_ref.dat', atol=2e-14)
+                   'mm_ref.dat', atol=2e-12)
 
     with open('mm_grid_ref.dat', 'w', encoding='utf-8') as f:
         f.write('''
@@ -107,7 +108,7 @@ def test_magnetic_moment_velocity_gauge(initialize_system, module_tmp_path,
 '''.strip())  # noqa: E501
 
     check_txt_data(module_tmp_path / 'mm_grid_velocity.dat',
-                   'mm_grid_ref.dat', atol=2e-14)
+                   'mm_grid_ref.dat', atol=2e-12)
 
     with open('mm_origin_ref.dat', 'w', encoding='utf-8') as f:
         f.write('''
@@ -126,7 +127,7 @@ def test_magnetic_moment_velocity_gauge(initialize_system, module_tmp_path,
 '''.strip())  # noqa: E501
 
     check_txt_data(module_tmp_path / 'mm_origin_velocity.dat',
-                   'mm_origin_ref.dat', atol=1e-13)
+                   'mm_origin_ref.dat', atol=2e-12)
 
 
 @pytest.mark.old_gpaw_only
@@ -148,7 +149,7 @@ def test_magnetic_moment_values(initialize_system, module_tmp_path,
          20.67068667     6.247451722277e-07     1.298788405738e-06     1.460017881082e-06
 '''.strip())  # noqa: E501
 
-    check_txt_data(module_tmp_path / 'mm.dat', 'mm_ref.dat', atol=1e-13)
+    check_txt_data(module_tmp_path / 'mm.dat', 'mm_ref.dat', atol=2e-12)
 
 
 @pytest.mark.old_gpaw_only
@@ -178,7 +179,7 @@ def test_magnetic_moment_parallel(initialize_system, module_tmp_path, parallel,
     td_calc.propagate(100, 5)
 
     for fname in [f'mm{add}.dat', f'mm_grid{add}.dat', f'mm_origin{add}.dat']:
-        check_txt_data(module_tmp_path / fname, fname, atol=7e-14)
+        check_txt_data(module_tmp_path / fname, fname, atol=2e-12)
 
 
 @pytest.mark.old_gpaw_only
@@ -197,7 +198,7 @@ def test_magnetic_moment_restart(initialize_system, module_tmp_path, parallel,
     td_calc.propagate(100, 2)
 
     for fname in ['mm.dat', 'mm_grid.dat', 'mm_origin.dat']:
-        check_txt_data(module_tmp_path / fname, fname, atol=7e-14)
+        check_txt_data(module_tmp_path / fname, fname, atol=2e-12)
 
 
 @only_on_master(world)

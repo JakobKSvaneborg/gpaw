@@ -1,17 +1,12 @@
-from ase import Atoms
-import pytest
-from ase.units import Pascal, m
-from gpaw.solvation import (
-    SolvationGPAW,
-    EffectivePotentialCavity,
-    Power12Potential,
-    LinearDielectric,
-    KB51Volume,
-    GradientSurface,
-    VolumeInteraction,
-    SurfaceInteraction,
-    LeakedDensityInteraction)
 import numpy as np
+import pytest
+from ase import Atoms
+from ase.units import Pascal, m
+
+from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
+                            KB51Volume, LeakedDensityInteraction,
+                            LinearDielectric, Power12Potential, SolvationGPAW,
+                            SurfaceInteraction, VolumeInteraction)
 
 h = 0.2
 d = 2.5
@@ -36,6 +31,7 @@ def test_solvation_forces_symmetry():
         mode='fd',
         xc='PBE',
         h=h,
+        convergence={'density': 1e-5},
         setups={'Na': '1'},
         cavity=EffectivePotentialCavity(
             effective_potential=Power12Potential(u0=u0),

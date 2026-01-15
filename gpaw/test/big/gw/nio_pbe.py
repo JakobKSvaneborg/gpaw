@@ -6,6 +6,7 @@ See:
     10.1103/PhysRevB.71.193102
 """
 from ase import Atoms
+
 from gpaw import GPAW
 
 a = 4.1767  # lattice constants

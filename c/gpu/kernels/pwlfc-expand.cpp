@@ -1,10 +1,13 @@
+#include "../gpu_interface.h"
 #include "../gpu.h"
 #include "../gpu-complex.h"
-#include "numpy/arrayobject.h"
-#include <cassert>
 
 #include "../cpp/gpu_core.hpp"
 #include "../../gpaw_utils.h"
+#include "../cpp/pwlfc_expand.hpp"
+
+#include <cassert>
+
 
 #define BETA   0.066725
 #define GAMMA  0.031091
@@ -26,6 +29,11 @@ typedef int64_t gpaw_index_t;
 #else
 typedef int gpaw_index_t;
 #endif
+
+void gpaw_device_synchronize()
+{
+    gpuDeviceSynchronize();
+}
 
 template <typename Tcomplex, typename Treal, typename Tindex>
 __global__ void calculate_residual_kernel(Tindex nG, Tindex nn,
@@ -82,7 +90,7 @@ __global__ void pw_amend_insert_realwf(Tindex nb,
 }
 
 
-CLINKAGE void calculate_residual_launch_kernel(
+void calculate_residual_launch_kernel(
 				      int dtypenum,
 					  int nG,
 				      int nn,
@@ -190,7 +198,7 @@ template <bool gga> __device__ double pbe_exchange(double n, double rs, double a
 }
 
 
-__device__ double G(double rtrs, double A, double alpha1,
+__device__ double compute_G(double rtrs, double A, double alpha1,
 		    double beta1, double beta2, double beta3, double beta4,
 		    double* dGdrs)
 {
@@ -213,7 +221,7 @@ template <bool gga, int nspin> __device__ double pbe_correlation(double n, doubl
   bool spinpol = nspin == 2;
   double rtrs = sqrt(rs);
   double de0drs;
-  double e0 = G(rtrs, GAMMA, 0.21370, 7.5957, 3.5876, 1.6382, 0.49294,
+  double e0 = compute_G(rtrs, GAMMA, 0.21370, 7.5957, 3.5876, 1.6382, 0.49294,
 		&de0drs);
   double e;
   double xp = 117.0;
@@ -221,10 +229,10 @@ template <bool gga, int nspin> __device__ double pbe_correlation(double n, doubl
   if (spinpol)
     {
       double de1drs;
-      double e1 = G(rtrs, 0.015545, 0.20548, 14.1189, 6.1977, 3.3662,
+      double e1 = compute_G(rtrs, 0.015545, 0.20548, 14.1189, 6.1977, 3.3662,
 		    0.62517, &de1drs);
       double dalphadrs;
-      double alpha = -G(rtrs, 0.016887, 0.11125, 10.357, 3.6231, 0.88026,
+      double alpha = -compute_G(rtrs, 0.016887, 0.11125, 10.357, 3.6231, 0.88026,
 			0.49671, &dalphadrs);
       dalphadrs = -dalphadrs;
       double zp = 1.0 + zeta;
@@ -424,7 +432,7 @@ template <int nspin, bool gga> __global__ void evaluate_ldaorgga_kernel(int ng,
     }
 }
 
-CLINKAGE void evaluate_pbe_launch_kernel(int nspin, int ng,
+void evaluate_pbe_launch_kernel(int nspin, int ng,
 				double* n,
 				double* v,
 				double* e,
@@ -470,7 +478,7 @@ CLINKAGE void evaluate_pbe_launch_kernel(int nspin, int ng,
     }
 }
 
-CLINKAGE void evaluate_lda_launch_kernel(int nspin, int ng,
+void evaluate_lda_launch_kernel(int nspin, int ng,
 				double* n,
 				double* v,
 				double* e,
@@ -580,13 +588,8 @@ __global__ void pw_insert(int nG,
 	tmp_Q[Q_G[G]] = c_G[G] * scale;
 }
 
-CLINKAGE void gpawDeviceSynchronize()
-{
-    gpuDeviceSynchronize();
-}
 
-
-CLINKAGE void add_to_density_gpu_launch_kernel(int nb,
+void add_to_density_gpu_launch_kernel(int nb,
 					int nR,
 					double* f_n,
 					void* psit_nR,
@@ -626,7 +629,7 @@ CLINKAGE void add_to_density_gpu_launch_kernel(int nb,
     }
 }
 
-CLINKAGE void pw_amend_insert_realwf_gpu_launch_kernel(int dtypenum,
+void pw_amend_insert_realwf_gpu_launch_kernel(int dtypenum,
 											  int nb,
                                               int nx,
                                               int ny,
@@ -682,7 +685,7 @@ CLINKAGE void pw_amend_insert_realwf_gpu_launch_kernel(int dtypenum,
 	}
 }
 
-CLINKAGE void pw_insert_gpu_launch_kernel(
+void pw_insert_gpu_launch_kernel(
 			     int dtypenum,
 			     int nb,
 			     int nG,
@@ -1001,7 +1004,7 @@ __global__ void pw_norm_kernel(Tindex nx, Tindex nG,
     if (tid == 0) result_x[x] = sdata[0];
 }
 
-CLINKAGE void dH_aii_times_P_ani_launch_kernel(int dtypenum,
+void dH_aii_times_P_ani_launch_kernel(int dtypenum,
 					int nA, int nn,
 					int nI, npy_int32* ni_a,
 					void* dH_aii_dev,
@@ -1074,7 +1077,7 @@ CLINKAGE void dH_aii_times_P_ani_launch_kernel(int dtypenum,
 	else assert(false);
 }
 
-CLINKAGE void pw_norm_gpu_launch_kernel(int dtypenum,
+void pw_norm_gpu_launch_kernel(int dtypenum,
 										int nx, int nG,
 										void* result_x,
 										void* C_xG,
@@ -1116,7 +1119,7 @@ CLINKAGE void pw_norm_gpu_launch_kernel(int dtypenum,
 	} else assert(false);
 }
 
-CLINKAGE void pw_norm_kinetic_gpu_launch_kernel(int dtypenum,
+void pw_norm_kinetic_gpu_launch_kernel(int dtypenum,
 												int nx, int nG,
 												void* result_x,
 												void* C_xG,
@@ -1163,7 +1166,7 @@ CLINKAGE void pw_norm_kinetic_gpu_launch_kernel(int dtypenum,
 }
 
 
-CLINKAGE void pwlfc_expand_gpu_launch_kernel(int dtypenum,
+void pwlfc_expand_gpu_launch_kernel(int dtypenum,
 				    void* f_Gs,
 					void* Gk_Gv,
 					void* pos_av,

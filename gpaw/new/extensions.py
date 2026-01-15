@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import os
 import uuid
 from pathlib import Path
@@ -6,6 +7,7 @@ from pathlib import Path
 import numpy as np
 from ase.calculators.calculator import PropertyNotImplementedError
 from ase.units import Bohr, Ha
+
 from gpaw.core import PWArray, PWDesc, UGArray
 from gpaw.core.domain import Domain
 from gpaw.dft import ExtensionInput
@@ -73,6 +75,11 @@ class Extension:
 
     def update2(self, nt_r, vHt_r, vt_sr) -> float:
         """Calculate environment energy."""
+        return 0.0
+
+    def update_potential(self,
+                         vt_sR: UGArray,
+                         density) -> float:
         return 0.0
 
 

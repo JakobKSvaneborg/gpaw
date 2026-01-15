@@ -1,10 +1,9 @@
 #ifndef GPU_GPU_H
 #define GPU_GPU_H
 
+#include "gpu-runtime.h"
 #include <stdio.h>
 #include <float.h>
-#include <Python.h>
-#include "gpu-runtime.h"
 
 // Numpy datatype defines
 #define NP_FLOAT                  (11)

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Callable, Generator
 from pathlib import Path
-from typing import Any, Callable, Generator
+from typing import Any
 
 import numpy as np
 from ase import Atoms
 from ase.units import Ha
+
 from gpaw import __version__
 from gpaw.core import UGArray
 from gpaw.dft import GPAW, Parameters
@@ -109,7 +111,7 @@ class ASECalculator:
 
     def iconverge(self, atoms: Atoms | None,
                   *,
-                  need_wfs: bool = False) -> Generator[SCFContext, None, None]:
+                  need_wfs: bool = False) -> Generator[SCFContext]:
         """Iterate to self-consistent solution.
 
         Will also calculate "cheap" properties: energy, magnetic moments
@@ -196,7 +198,11 @@ class ASECalculator:
         * magmoms
         * dipole
         """
-        for _ in self.iconverge(atoms, need_wfs=prop in {'forces', 'stress'}):
+        if self._dft is None:
+            need_wfs = True
+        else:
+            need_wfs = prop not in self.dft.results
+        for _ in self.iconverge(atoms, need_wfs=need_wfs):
             pass
 
         if prop == 'forces':
@@ -261,7 +267,6 @@ class ASECalculator:
         return self.dft.results['forces']
 
     def __del__(self):
-        self.log('---')
         self.timer.write(self.log)
         try:
             mib = maxrss() / 1024**2
@@ -601,11 +606,15 @@ class ASECalculator:
             assert isinstance(nbands, int)
 
         dft.scf_loop.occ_calc._set_nbands(nbands)
+        from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
+        assert isinstance(dft.ibzwfs, PWFDIBZWaveFunctions)
         ibzwfs = diagonalize(dft.potential,
                              dft.ibzwfs,
                              dft.scf_loop.occ_calc,
                              nbands,
-                             dft.density.nvalence + dft.density.charge)
+                             dft.density.nvalence + dft.density.charge,
+                             scalapack,
+                             self.log)
         dft.ibzwfs = ibzwfs
         self.params.nbands = ibzwfs.nbands
         if 'nbands' not in self.params._non_defaults:
@@ -621,7 +630,23 @@ class ASECalculator:
                       update_fermi_level: bool = False,
                       **kwargs) -> ASECalculator:
         kwargs.pop('communicator', None)  # Ignore silently
-        kwargs = {**self.params.todict(), **kwargs}
+        allowed = {'nbands', 'occupations', 'poissonsolver',
+                   'kpts', 'eigensolver', 'random', 'maxiter',
+                   'basis', 'symmetry', 'convergence', 'verbose',
+                   'parallel', 'mode'}
+        illegal = kwargs.keys() - allowed
+        if illegal:
+            raise TypeError(f'Illegal keyword(s): {illegal}.  '
+                            f'Only {allowed} allowed.')
+
+        mode = kwargs.get('mode', {})
+        if mode.keys() - {'dtype'}:
+            raise TypeError('Only mode={"dtype": dtype} is allowed.')
+
+        old_params = self.params.todict()
+        kwargs = {**old_params, **kwargs,
+                  'mode': {**old_params['mode'], **mode}}
+
         params = Parameters(**kwargs)
         log = Logger(txt, self.comm)
         builder = params.dft_component_builder(self.atoms, log=log)
@@ -748,3 +773,23 @@ class ASECalculator:
     def get_bz_to_ibz_map(self):
         """Return indices from BZ to IBZ."""
         return self.dft.ibzwfs.ibz.bz2ibz_K.copy()
+
+    def _to_old(self):
+        import tempfile
+        from gpaw.old.calculator import GPAW as OldGPAW
+        from gpaw.mpi import broadcast_string
+
+        if self._dft is None:
+            return OldGPAW(**self.params.todict(),
+                           communicator=self.comm,
+                           txt=self.log.fd)
+
+        # Quick hack for now:
+        # write gpw-file and read with old GPAW!
+        if self.comm.rank == 0:
+            gpw = tempfile.mkstemp(suffix='.gpw')[1]
+        else:
+            gpw = None
+        gpw = broadcast_string(gpw, comm=self.comm)
+        self.write(gpw, mode='all')
+        return OldGPAW(gpw, communicator=self.comm)

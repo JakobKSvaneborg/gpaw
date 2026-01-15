@@ -1,11 +1,12 @@
-#include "gpaw_utils.h"
 
-#include <Python.h>
-#include <stdio.h>
+#include "python_utils.h"
+#include "gpaw_utils.h"
 
 #ifdef PARALLEL
 #include <mpi.h>
 #endif
+
+#include <stdio.h>
 
 
 void gpaw_set_runtime_error(const char* err_msg)

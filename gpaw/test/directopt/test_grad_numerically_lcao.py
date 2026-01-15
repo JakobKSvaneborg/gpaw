@@ -1,5 +1,5 @@
-import pytest
 import numpy as np
+import pytest
 
 from gpaw import GPAW
 from gpaw.directmin.derivatives import Derivatives

@@ -1,10 +1,11 @@
+#include "../gpu.h"
+#include "../gpu-complex.h"
+#include "../bmgs.h"
+
 #include <stdio.h>
 #include <time.h>
 #include <sys/types.h>
 #include <sys/time.h>
-
-#include "../gpu.h"
-#include "../gpu-complex.h"
 
 #ifndef GPU_USE_COMPLEX
 #define BLOCK_MAX 32
@@ -47,7 +48,6 @@ __global__ void Zgpu(bmgs_translate_kernel)(
     }
 }
 
-extern "C"
 void Zgpu(bmgs_translate_gpu)(
         Tgpu* a, const int sizea[3], const int size[3],
         const int start1[3], const int start2[3],

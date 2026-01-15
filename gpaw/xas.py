@@ -1,16 +1,13 @@
 import pickle
-from math import log, pi, sqrt, ceil
-from typing import List, Tuple, Union
+from math import ceil, log, pi, sqrt
 
 import numpy as np
-
 from ase.units import Hartree
 
 from gpaw.overlap import Overlap
-from gpaw.utilities.cg import CG
 from gpaw.sphere.gaunt import gaunt
 from gpaw.typing import Array1D, Array2D, Array3D, ArrayND
-import gpaw.mpi as mpi
+from gpaw.utilities.cg import CG
 
 
 def dipole_matrix_elements(setup):
@@ -83,7 +80,7 @@ class XAS:
             nocc_cor (int, optional): correction for number of occupied states
             used in e.g. XCH XAS simulations. Defaults to 0.
         """
-
+        paw = paw._to_old()
         self.log = paw.log
         wfs = paw.wfs
         self.world = paw.world
@@ -267,10 +264,10 @@ class XAS:
         return proj_3
 
     def get_oscillator_strength(
-            self, dks: Union[float, List], kpoint=None,
+            self, dks: float | list, kpoint=None,
             proj=None, proj_xyz: bool = True,
             w: Array1D = None,
-            raw: bool = False) -> Tuple[Array1D, ArrayND]:
+            raw: bool = False) -> tuple[Array1D, ArrayND]:
         """Calculate stick spectra.
 
         Parameters:
@@ -340,7 +337,7 @@ class XAS:
             energy_n = energy_kn[kpoint, :]
             f_cmn = f_cmkn[:, :, kpoint, :]
         else:
-            energy_n = np.zeros((k_pts * n * len(dks)))
+            energy_n = np.zeros(k_pts * n * len(dks))
             f_cmn = np.zeros((sigma2_cmkn.shape[0],
                               sigma2_cmkn.shape[1],
                               k_pts * n * len(dks)))
@@ -357,7 +354,7 @@ class XAS:
 
     def get_spectra(self, fwhm=0.5, E_in=None, linbroad=None,
                     N=1000, kpoint=None, proj=None, proj_xyz=True,
-                    stick=False, dks: Union[float, List] = [0],
+                    stick=False, dks: float | list = [0],
                     w: Array1D = None):
         """Calculate spectra.
 
@@ -420,9 +417,9 @@ class XAS:
                     fwhm, linbroad, energy_n, f_cmn, energy_i)
 
     def variable_broadening(
-            self, fwhm: float, linbroad: List[float],
+            self, fwhm: float, linbroad: list[float],
             eps_n: Array1D, f_cmn: Array3D,
-            e: Array1D) -> Tuple[Array1D, Array2D]:
+            e: Array1D) -> tuple[Array1D, Array2D]:
         """mpirun -n 6 python3 -m pytest  test_xas_parallel.py
         fwhm:
           the full width half maximum in eV for gaussian broadening
@@ -463,7 +460,7 @@ class XAS:
 
     def constant_broadening(
             self, fwhm: float, eps_n: Array1D, f_cmn,
-            energy_i: Array1D) -> Tuple[Array1D, Array2D]:
+            energy_i: Array1D) -> tuple[Array1D, Array2D]:
         """
         fwhm:
           the full width half maximum in eV for gaussian broadening
@@ -493,6 +490,7 @@ class RecursionMethod:
                  proj_xyz=True):
 
         if paw is not None:
+            paw = paw._to_old()
             wfs = paw.wfs
             assert wfs.gd.orthogonal
 
@@ -757,7 +755,7 @@ class RecursionMethod:
 
     def get_spectra(self, eps_s, delta=0.1, imax=None, kpoint=None, fwhm=None,
                     linbroad=None, spin=0):
-        assert not mpi.parallel
+        assert self.wfs.world.size == 1
 
         # the following lines are to stop the user to make mistakes
         # if spin == 1:

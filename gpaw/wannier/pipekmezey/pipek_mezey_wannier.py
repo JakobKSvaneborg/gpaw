@@ -52,7 +52,6 @@ from math import pi
 import numpy as np
 from ase.dft.kpoints import get_monkhorst_pack_size_and_offset
 from ase.dft.wannier import calculate_weights
-from ase.parallel import world
 from ase.transport.tools import dagger
 from scipy.linalg import inv, sqrtm
 
@@ -246,8 +245,8 @@ class PipekMezey:
         for k in range(self.Nk):
             self.W_k[k] = random_orthogonal(self.rng, self.nocc,
                                             dtype=self.dtype)
-        if world is not None:
-            world.broadcast(self.W_k, 0)
+
+        self.wfs.world.broadcast(self.W_k, 0)
 
         # Given all matrices, update
         self.update()

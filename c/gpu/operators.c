@@ -1,16 +1,10 @@
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
-#include <stdlib.h>
-#include <pthread.h>
-
+#include "../python_utils.h"
 #include "../extensions.h"
-#define __OPERATORS_C
 #include "../operators.h"
-#undef __OPERATORS_C
 #include "bmgs.h"
 #include "gpu.h"
+#include <stdlib.h>
+#include <pthread.h>
 
 #define OPERATOR_NSTREAMS (2)
 

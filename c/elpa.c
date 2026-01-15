@@ -1,17 +1,18 @@
 #if defined(GPAW_WITH_SL) && defined(PARALLEL) && defined(GPAW_WITH_ELPA)
 
+#include "python_utils.h"
 #include "extensions.h"
-#include <elpa/elpa.h>
+#include "gpaw_elpa.h"
 #include <mpi.h>
 #include "mympi.h"
 
-elpa_t* unpack_handleptr(PyObject* handle_obj)
+static elpa_t* unpack_handleptr(PyObject* handle_obj)
 {
     elpa_t* elpa = (elpa_t *)PyArray_DATA((PyArrayObject *)handle_obj);
     return elpa;
 }
 
-elpa_t unpack_handle(PyObject* handle_obj)
+static elpa_t unpack_handle(PyObject* handle_obj)
 {
     elpa_t* elpa = unpack_handleptr(handle_obj);
     return *elpa;
@@ -166,9 +167,9 @@ PyObject* pyelpa_diagonalize(PyObject *self, PyObject *args)
 
     int err;
     if (PyObject_IsTrue(is_complex_obj)) {
-        elpa_eigenvectors_double_complex(handle, a, ev, q, &err);
+        elpa_eigenvectors_double_complex(handle, (double_complex*)a, ev, (double_complex*)q, &err);
     } else {
-        elpa_eigenvectors_double(handle, a, ev, q, &err);
+        elpa_eigenvectors_double(handle, (double*)a, ev, (double*)q, &err);
     }
     return checkerr(err);
 }
@@ -201,18 +202,18 @@ PyObject* pyelpa_general_diagonalize(PyObject *self, PyObject *args)
 
     if (PyObject_IsTrue(is_complex_obj)) {
 #if ELPA_API_VERSION > 20250000
-        elpa_generalized_eigenvectors_double_complex(handle, a, b, ev, q,
+        elpa_generalized_eigenvectors_double_complex(handle, (double_complex*)a, (double_complex*)b, ev, (double_complex*)q,
                                                      is_already_decomposed, &err);
 #else
-        elpa_generalized_eigenvectors_dc(handle, a, b, ev, q,
+        elpa_generalized_eigenvectors_dc(handle, (double_complex*)a, (double_complex*)b, ev, (double_complex*)q,
                                          is_already_decomposed, &err);
 #endif
     } else {
 #if ELPA_API_VERSION > 20250000
-        elpa_generalized_eigenvectors_double(handle, a, b, ev, q,
+        elpa_generalized_eigenvectors_double(handle, (double*)a, (double*)b, ev, (double*)q,
                                              is_already_decomposed, &err);
 #else
-        elpa_generalized_eigenvectors_d(handle, a, b, ev, q,
+        elpa_generalized_eigenvectors_d(handle, (double*)a, (double*)b, ev, (double*)q,
                                         is_already_decomposed, &err);
 #endif
     }

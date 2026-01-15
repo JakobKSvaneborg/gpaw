@@ -1,23 +1,25 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Generator
 from functools import cached_property
-from typing import TYPE_CHECKING, Callable, Generator, Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 import numpy as np
 from ase.io.ulm import Writer
 from ase.units import Bohr, Ha
+
 from gpaw.gpu import as_np
 from gpaw.gpu.mpi import CuPyMPI
 from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import zips
-from gpaw.new.timer import trace
 from gpaw.new.brillouin import IBZ
 from gpaw.new.c import GPU_AWARE_MPI
 from gpaw.new.potential import Potential
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
+from gpaw.new.timer import trace
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.typing import Array1D, Array2D, Self
-from gpaw.utilities import pack_density, as_complex_dtype
+from gpaw.utilities import as_complex_dtype, pack_density
 
 if TYPE_CHECKING:
     from gpaw.new.density import Density
@@ -137,25 +139,36 @@ class IBZWaveFunctions(Generic[WFT]):
         ncores = (self.kpt_comm.size *
                   self.domain_comm.size *
                   self.band_comm.size)
+        nproj = sum(len(setup.pt_j) for setup in wfs.setups)
+        nbytesproj = bytes_for_projectors(self)
+        if nbytesproj != -1:
+            projectors_text = (
+                f'    projectors: {nbytesproj:_} bytes '
+                f'({nbytesproj * self.band_comm.size // ncores:_} per core)\n')
+        else:
+            projectors_text = ''
+
         return (f'{self.ibz.symmetries}\n'
                 f'{self.ibz}\n'
                 f'{wfs._short_string(shape)}\n'
                 f'spin-components: {self.ncomponents}'
-                '  # (' +
+                ' (' +
                 ('' if self.collinear else 'non-') + 'collinear spins)\n'
                 f'bands: {self.nbands}\n'
+                f'projectors: {nproj}\n'
                 f'spin-degeneracy: {self.spin_degeneracy}\n'
                 f'dtype: {self.dtype}\n\n'
                 'memory:\n'
                 f'    storage: {"CPU" if self.xp is np else "GPU"}\n'
-                f'    wave functions: {nbytes:_}  # bytes '
-                f' ({nbytes // ncores:_} per core)\n\n'
-                'parallelization:\n'
+                f'    wave functions: {nbytes:_} bytes '
+                f'({nbytes // ncores:_} per core)\n' +
+                projectors_text +
+                '\nparallelization:\n'
                 f'    kpt:    {self.kpt_comm.size}\n'
                 f'    domain: {self.domain_comm.size}\n'
                 f'    band:   {self.band_comm.size}\n')
 
-    def __iter__(self) -> Generator[WFT, None, None]:
+    def __iter__(self) -> Generator[WFT]:
         yield from self._wfs_u
 
     def move(self, relpos_ac, atomdist):
@@ -376,10 +389,11 @@ class IBZWaveFunctions(Generic[WFT]):
                         self.kpt_comm.receive(data, rank)
                         writer.fill(data.astype(proj_dtype))
 
-        if flags.include_wfs:
+        if flags.include_wfs and self.has_wave_functions():
             self._write_wave_functions(writer, spin_k_shape, flags)
 
     def _write_wave_functions(self, writer, spin_k_shape, flags):
+        self.make_sure_wfs_are_read_from_gpw_file()
         # We collect all bands to master.  This may have to be changed
         # to only one band at a time XXX
         xshape = self.get_max_shape(global_shape=True)
@@ -545,3 +559,24 @@ class IBZWaveFunctions(Generic[WFT]):
         e_kin_paw = density.grid.comm.sum_scalar(e_kin_paw)
 
         return e_kin + e_kin_paw
+
+
+def bytes_for_projectors(ibzwfs: IBZWaveFunctions) -> int:
+    """Calculate number of bytest used for PAW projectors.
+
+    Without creating them!
+    """
+    if ibzwfs.mode != 'pw':
+        # TODO ...
+        return -1
+    wfs = ibzwfs._wfs_u[0]
+    setups = wfs.setups
+    nunique = 0
+    lmax = 0
+    for setup in setups.setups.values():
+        nunique += len(setup.pt_j)
+        lmax = max(max((pt.l for pt in setup.pt_j), default=0), lmax)
+    return len(ibzwfs.ibz) * wfs.bytes_per_band * (
+        (lmax + 1)**2 +  # Y_LG
+        nunique +  # f_sG
+        len(setups))  # emiGR_Ga

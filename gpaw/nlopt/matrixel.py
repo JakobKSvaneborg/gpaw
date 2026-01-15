@@ -1,10 +1,11 @@
 from __future__ import annotations
+
+from pathlib import Path
 from typing import TYPE_CHECKING
 
+import numpy as np
 from ase.parallel import parprint
 from ase.utils.timing import Timer
-from pathlib import Path
-import numpy as np
 
 from gpaw.new.ase_interface import ASECalculator
 from gpaw.nlopt.basic import NLOData
@@ -42,7 +43,6 @@ def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
     # Start the timer
     if timer is None:
         timer = Timer()
-    parprint(f'Calculating momentum matrix elements for spin channel {spin}.')
 
     # Spin input
     assert spin < gs.ns, 'Wrong spin input'
@@ -52,6 +52,9 @@ def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
     master = (ibzwfs.kpt_comm.rank == 0)
     p_qvnn = []
     nq = len(ibzwfs.u_q)
+
+    parprint(f'Calculating momentum matrix elements for spin channel {spin}.',
+             comm=ibzwfs.comm)
 
     # Initial call to print 0 % progress
     if master:
@@ -182,7 +185,8 @@ def make_nlodata(calc: ASECalculator | str | Path,
     # Memory estimate
     nk = len(ibzwfs.rank_ks)  # Total number of k-points
     est_mem = 2 * 3 * nk * (nf - ni)**2 * 16 / 2**30
-    parprint(f'At least {est_mem:.2f} GB of memory is required on master.')
+    parprint(f'At least {est_mem:.2f} GB of memory is required on master.',
+             comm=ibzwfs.comm)
 
     # Get the energy and Fermi-Dirac occupations (data is only in master)
     with timer('Get energies and fermi levels'):

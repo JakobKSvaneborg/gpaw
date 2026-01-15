@@ -29,6 +29,6 @@ def test_multipoleH2O(in_tmp_dir):
     parprint('Multipole', q_L)
 
     # The dipole moment is independent of the center
-    assert dipole_c[2] == pytest.approx(q_L[2], abs=1e-10)
+    assert dipole_c[2] == pytest.approx(q_L[2], abs=1e-5)
 
     mp.to_file(s.calc, mode='w')

@@ -1,7 +1,8 @@
-from ase import Atoms
-from gpaw.test import calculate_numerical_forces
-from gpaw import GPAW, Mixer, FermiDirac, Davidson
 import pytest
+from ase import Atoms
+
+from gpaw import GPAW, Davidson, FermiDirac, Mixer
+from gpaw.test import calculate_numerical_forces
 
 
 def test_generic_H_force():

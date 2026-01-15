@@ -1,26 +1,25 @@
 from __future__ import annotations
+
+import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-import sys
+from typing import TYPE_CHECKING
 
 import numpy as np
 from ase.units import Hartree
 
-import gpaw.mpi as mpi
-
-from gpaw.response.pw_parallelization import Blocks1D
-from gpaw.response.coulomb_kernels import CoulombKernel
-from gpaw.response.dyson import DysonEquation
-from gpaw.response.density_kernels import DensityXCKernel
+from gpaw.mpi import normalize_communicator
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
 from gpaw.response.chi0_data import Chi0Data
+from gpaw.response.coulomb_kernels import CoulombKernel
+from gpaw.response.density_kernels import DensityXCKernel
+from gpaw.response.dyson import DysonEquation
 from gpaw.response.pair import get_gs_and_context
-
-from typing import TYPE_CHECKING
+from gpaw.response.pw_parallelization import Blocks1D
 
 if TYPE_CHECKING:
-    from gpaw.response.groundstate import CellDescriptor
     from gpaw.response.frequencies import FrequencyDescriptor
+    from gpaw.response.groundstate import CellDescriptor
     from gpaw.response.qpd import SingleQPWDescriptor
 
 
@@ -144,6 +143,11 @@ class Chi0DysonEquations:
             # Restore the q-dependence of the head and wings in the q→0 limit
             assert qinf_v is not None and np.linalg.norm(qinf_v) > 0.
             d_v = self._normalize(direction)
+            same_direction = np.allclose(d_v, self._normalize(qinf_v))
+            if not same_direction:
+                raise ValueError(
+                    '`qinf_v` must be in the same direction as `direction`. '
+                    f'Obtained {qinf_v=} and {direction=}')
             chi0_wGG[:, 1:, 0] *= np.dot(qinf_v, d_v)
             chi0_wGG[:, 0, 1:] *= np.dot(qinf_v, d_v)
             chi0_wGG[:, 0, 0] *= np.dot(qinf_v, d_v)**2
@@ -659,7 +663,7 @@ class DielectricFunction(DielectricFunctionCalculator):
                  ecut=50,
                  hilbert=True,
                  nbands=None, eta=0.2,
-                 intraband=True, nblocks=1, world=mpi.world, txt=sys.stdout,
+                 intraband=True, nblocks=1, world=None, txt=sys.stdout,
                  truncation=None,
                  qsymmetry=True,
                  integrationmode='point integration', rate=0.0,
@@ -675,10 +679,10 @@ class DielectricFunction(DielectricFunctionCalculator):
             or dictionary of parameters for build-in nonlinear grid
             (see :ref:`frequency grid`).
         ecut: float | dict
-            Plane-wave cut-off or dictionary for anoptional planewave
+            Plane-wave cut-off or dictionary for an optional planewave
             descriptor. See response/qpd.py for details.
         hilbert: bool
-            Use hilbert transform.
+            Use Hilbert transform.
         nbands: int
             Number of bands from calculation.
         eta: float
@@ -703,6 +707,7 @@ class DielectricFunction(DielectricFunctionCalculator):
         eshift: float
             Shift unoccupied bands
         """
+        world = normalize_communicator(world)
         gs, context = get_gs_and_context(calc, txt, world, timer=None)
         wd = get_frequency_descriptor(frequencies, gs=gs, nbands=nbands)
 
@@ -839,8 +844,9 @@ class ScalarResponseFunctionSet:
         # ... to be deprecated ...
         return self.rf0_w, self.rf_w
 
-    def write(self, filename):
-        if mpi.rank == 0:
+    def write(self, filename, *, comm=None):
+        comm = normalize_communicator(comm)
+        if comm.rank == 0:
             write_response_function(filename, *self.arrays)
 
     @property

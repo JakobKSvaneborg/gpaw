@@ -1,6 +1,7 @@
 import numpy as np
-from gpaw import GPAW
 from ase.build import molecule
+
+from gpaw import GPAW
 from gpaw.mpi import world
 
 

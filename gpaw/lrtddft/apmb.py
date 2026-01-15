@@ -3,18 +3,18 @@
 """
 from math import sqrt
 
-from ase.units import Hartree
-from ase.utils.timing import Timer
-from ase.utils import IOContext
 import numpy as np
+from ase.units import Hartree
+from ase.utils import IOContext
+from ase.utils.timing import Timer
 from numpy.linalg import inv
 from scipy.linalg import eigh
 
 from gpaw import debug
-import gpaw.mpi as mpi
-from gpaw.lrtddft.omega_matrix import OmegaMatrix
-from gpaw.pair_density import PairDensity
 from gpaw.helmholtz import HelmholtzSolver
+from gpaw.lrtddft.omega_matrix import OmegaMatrix
+from gpaw.mpi import normalize_communicator
+from gpaw.pair_density import PairDensity
 from gpaw.utilities.blas import mmm
 
 
@@ -275,10 +275,10 @@ class ApmB(OmegaMatrix):
         st += '%d' % ti + 's'
         return st
 
-    def mapAB(self, restrict={}):
+    def mapAB(self, restrict={}, *, comm):
         """Map A+B, A-B matrices according to constraints."""
 
-        map, self.kss = self.get_map(restrict)
+        map, self.kss = self.get_map(restrict, comm=comm)
         if map is None:
             ApB = self.ApB.copy()
             AmB = self.AmB.copy()
@@ -293,10 +293,10 @@ class ApmB(OmegaMatrix):
 
         return ApB, AmB
 
-    def diagonalize(self, restrict={}, TDA=False):
+    def diagonalize(self, restrict={}, TDA=False, comm=None):
         """Evaluate Eigenvectors and Eigenvalues"""
 
-        ApB, AmB = self.mapAB(restrict)
+        ApB, AmB = self.mapAB(restrict, comm=comm)
         nij = len(self.kss)
 
         if TDA:
@@ -321,12 +321,13 @@ class ApmB(OmegaMatrix):
 
             self.eigenvalues, self.eigenvectors.T[:] = eigh(self.eigenvectors)
 
-    def read(self, filename=None, fh=None):
+    def read(self, filename=None, fh=None, *, world):
         """Read myself from a file"""
-        if mpi.rank == 0:
+        world = normalize_communicator(world)
+        if world.rank == 0:
             with IOContext() as io:
                 if fh is None:
-                    fd = io.openfile(filename, 'r', comm=self.paw.world)
+                    fd = io.openfile(filename, 'r', comm=world)
                 else:
                     fd = fh
                 fd.readline()
@@ -353,12 +354,14 @@ class ApmB(OmegaMatrix):
         """weight for the coupling matrix terms"""
         return 2.
 
-    def write(self, filename=None, fh=None):
+    def write(self, filename=None, fh=None, *, world):
         """Write current state to a file."""
-        if mpi.rank == 0:
+        world = normalize_communicator(world)
+
+        if world.rank == 0:
             with IOContext() as io:
                 if fh is None:
-                    fd = io.openfile(filename, 'r', comm=self.paw.world)
+                    fd = io.openfile(filename, 'r', comm=world)
                 else:
                     fd = fh
                 fd.write('# A+B\n')

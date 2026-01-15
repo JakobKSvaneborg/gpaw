@@ -1,8 +1,10 @@
 import numpy as np
-from gpaw.core import PWDesc
-from gpaw.gpu import cupy as cp, T
-from gpaw.new.pw.hamiltonian import precondition
 import pytest
+
+from gpaw.core import PWDesc
+from gpaw.gpu import T
+from gpaw.gpu import cupy as cp
+from gpaw.new.pw.hamiltonian import precondition
 
 
 @pytest.mark.gpu

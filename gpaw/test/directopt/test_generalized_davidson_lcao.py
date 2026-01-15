@@ -1,8 +1,8 @@
+import numpy as np
 import pytest
 
 from gpaw import GPAW
 from gpaw.directmin.derivatives import Davidson
-import numpy as np
 
 
 @pytest.mark.do

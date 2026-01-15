@@ -1,6 +1,7 @@
 from ase import Atoms
+
 from gpaw import GPAW, PW
-from gpaw.mpi import world, serial_comm
+from gpaw.mpi import serial_comm, world
 
 
 def test_pw_fulldiag(in_tmp_dir, scalapack):
@@ -12,6 +13,7 @@ def test_pw_fulldiag(in_tmp_dir, scalapack):
     a.calc = GPAW(mode=PW(force_complex_dtype=True),
                   eigensolver='rmm-diis',
                   nbands=8,
+                  convergence={'eigenstates': 1e-10},
                   parallel={'domain': 1},
                   basis='dzp',
                   txt='H2.txt')

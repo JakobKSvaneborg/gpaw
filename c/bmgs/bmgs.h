@@ -3,19 +3,18 @@
  *  Copyright (C) 2005       CSC - IT Center for Science Ltd.
  *  Please see the accompanying LICENSE file for further information. */
 
-#ifndef DOUBLECOMPLEXDEFINED
-#  define DOUBLECOMPLEXDEFINED 1
-#  include <complex.h>
-   typedef double complex double_complex;
-#endif
+#include "../gpaw_complex.h"
 
-#undef T
+// !!!!!!!!!!!  FIXME: defines like these are very prone to break stuff when including other headers (esp. C++).
+// For now, renamed T -> TGPAW to avoid breaking pretty much all C++ template code.
+// Should be removed ASAP if we transition fully to C++.
+#undef TGPAW
 #undef Z
 #ifndef BMGSCOMPLEX
-#  define T double
+#  define TGPAW double
 #  define Z(f) f
 #else
-#  define T double_complex
+#  define TGPAW double_complex
 #  define Z(f) f ## z
 #endif
 

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import partial
-from typing import Callable
 
 import numpy as np
 
-from gpaw.core.arrays import DistributedArrays as XArray
+from gpaw.core.arrays import XArray
 from gpaw.core.atom_centered_functions import AtomArrays
 from gpaw.mpi import broadcast_exception
 from gpaw.new import trace, zips
@@ -13,9 +13,9 @@ from gpaw.new.c import calculate_residuals_gpu
 from gpaw.new.eigensolver import Eigensolver, calculate_weights
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.hamiltonian import Hamiltonian
-from gpaw.utilities.blas import axpy
-from gpaw.utilities import as_real_dtype
 from gpaw.new.ibzwfs import IBZWaveFunctions
+from gpaw.utilities import as_real_dtype
+from gpaw.utilities.blas import axpy
 
 
 class PWFDEigensolver(Eigensolver):
@@ -99,6 +99,7 @@ class PWFDEigensolver(Eigensolver):
                                                     wfs.xp)
 
         ibzwfs.orthonormalize()
+        # ibzwfs = kpad(ibzwfs)
         hamiltonian.update_wave_functions(ibzwfs)
 
         apply = partial(hamiltonian.apply,
@@ -113,11 +114,11 @@ class PWFDEigensolver(Eigensolver):
         # Loop over k-points:
         with broadcast_exception(ibzwfs.kpt_comm):
             for wfs, weight_n in zips(ibzwfs, weight_un):
-                dH = partial(potential.dH, spin=wfs.spin)
                 Ht = partial(apply, spin=wfs.spin)
                 temp_wfs_error, temp_eig_error = \
                     self.iterate_kpt(wfs, weight_n, self.iterate1,
-                                     Ht=Ht, dH=dH, dS_aii=dS_aii)
+                                     Ht=Ht, potential=potential,
+                                     dS_aii=dS_aii)
                 wfs_error += wfs.weight * temp_wfs_error
                 if eig_error < temp_eig_error:
                     eig_error = temp_eig_error

@@ -2,14 +2,14 @@ import numbers
 from abc import ABC, abstractmethod
 from math import factorial as fac
 from math import pi
-from typing import Tuple
 
 import numpy as np
+from scipy.interpolate import make_interp_spline, splder
+
 from gpaw.sphere.integrate import integrate_radial_grid
 from gpaw.spline import Spline
 from gpaw.typing import Array1D
 from gpaw.utilities import divrl, hartree
-from scipy.interpolate import make_interp_spline, splder
 
 
 def radial_grid_descriptor(eq: str, **kwargs) -> 'RadialGridDescriptor':
@@ -369,7 +369,7 @@ class RadialGridDescriptor(ABC):
                         gc: int,
                         l: int = 0,
                         points: int = 3,
-                        Gcut: float = 6.0) -> Tuple[Array1D, float]:
+                        Gcut: float = 6.0) -> tuple[Array1D, float]:
         """Minimize Fourier components above Gcut."""
         b_g, _ = self.pseudize(a_g, gc, l, points)
         c_x = np.empty(points + 1)
@@ -538,9 +538,7 @@ class EquidistantRadialGridDescriptor(RadialGridDescriptor):
 
         The radial grid is r(g) = h0 + g*h,  g = 0, 1, ..., N - 1."""
 
-        RadialGridDescriptor.__init__(self,
-                                      h * np.arange(N) + h0,
-                                      h + np.zeros(N))
+        super().__init__(h * np.arange(N) + h0, h + np.zeros(N))
 
     def r2g(self, r):
         return int(np.ceil((r - self.r_g[0]) / (self.r_g[1] - self.r_g[0])))
@@ -574,7 +572,7 @@ class AERadialGridDescriptor(RadialGridDescriptor):
         g = np.arange(N)
         r_g = self.a * g / (1 - self.b * g)
         dr_g = (self.b * r_g + self.a)**2 / self.a
-        RadialGridDescriptor.__init__(self, r_g, dr_g, default_spline_points)
+        super().__init__(r_g, dr_g, default_spline_points)
         self._d2gdr2 = -2 * self.a * self.b / (self.b * self.r_g + self.a)**3
 
     @property
@@ -624,7 +622,7 @@ class AbinitRadialGridDescriptor(RadialGridDescriptor):
         g = np.arange(N)
         r_g = a * (np.exp(d * g) - 1)
         dr_g = (r_g + a) * d
-        RadialGridDescriptor.__init__(self, r_g, dr_g, default_spline_points)
+        super().__init__(r_g, dr_g, default_spline_points)
 
     def r2g(self, r):
         return np.log(r / self.a + 1) / self.d

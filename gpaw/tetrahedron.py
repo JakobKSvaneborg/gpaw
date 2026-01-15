@@ -11,19 +11,20 @@ See::
 """
 
 from math import nan
-from typing import List, Tuple, cast
+from typing import cast
+
 import numpy as np
 from scipy.spatial import Delaunay
 
-from gpaw.occupations import (ZeroWidth, findroot, collect_eigelvalues,
-                              distribute_occupation_numbers,
-                              OccupationNumberCalculator, ParallelLayout)
 from gpaw.mpi import broadcast_float
+from gpaw.occupations import (OccupationNumberCalculator, ParallelLayout,
+                              ZeroWidth, collect_eigelvalues,
+                              distribute_occupation_numbers, findroot)
 from gpaw.typing import Array1D, Array2D, Array3D, ArrayLike1D, ArrayLike2D
 
 
 def bja1(e1: Array1D, e2: Array1D, e3: Array1D, e4: Array1D
-         ) -> Tuple[float, Array1D]:
+         ) -> tuple[float, Array1D]:
     """Eq. (A2) and (C2) from Blöchl, Jepsen and Andersen."""
     x = 1.0 / ((e2 - e1) * (e3 - e1) * (e4 - e1))
     return (-(e1**3).dot(x),
@@ -31,7 +32,7 @@ def bja1(e1: Array1D, e2: Array1D, e3: Array1D, e4: Array1D
 
 
 def bja2(e1: Array1D, e2: Array1D, e3: Array1D, e4: Array1D
-         ) -> Tuple[float, Array1D]:
+         ) -> tuple[float, Array1D]:
     """Eq. (A3) and (C3) from Blöchl, Jepsen and Andersen."""
     x = 1.0 / ((e3 - e1) * (e4 - e1))
     y = (e3 - e1 + e4 - e2) / ((e3 - e2) * (e4 - e2))
@@ -45,7 +46,7 @@ def bja2(e1: Array1D, e2: Array1D, e3: Array1D, e4: Array1D
 
 
 def bja3(e1: Array1D, e2: Array1D, e3: Array1D, e4: Array1D
-         ) -> Tuple[float, Array1D]:
+         ) -> tuple[float, Array1D]:
     """Eq. (A4) and (C4) from Blöchl, Jepsen and Andersen."""
     x = 1.0 / ((e4 - e1) * (e4 - e2) * (e4 - e3))
     return (len(e1) - x.dot(e4**3),
@@ -139,11 +140,11 @@ class TetrahedronMethod(OccupationNumberCalculator):
         The reciprocal cell, *rcell*, can be given in arbitrary units
         (only the shape matters) and *size* is the size of the
         Monkhorst-Pack grid.  If k-points have been symmetry-reduced
-        the *bz2ibzmap* parameter  mapping BZ k-point indizes to
+        the *bz2ibzmap* parameter  mapping BZ k-point indices to
         IBZ k-point indices must be given.
         """
 
-        OccupationNumberCalculator.__init__(self, parallel_layout)
+        super().__init__(parallel_layout)
 
         self.rcell_cv = np.asarray(rcell)
         self.size_c = np.asarray(size)
@@ -179,7 +180,7 @@ class TetrahedronMethod(OccupationNumberCalculator):
 
     def copy(self,
              parallel_layout: ParallelLayout = None,
-             bz2ibzmap: List[int] = None
+             bz2ibzmap: list[int] = None
              ) -> OccupationNumberCalculator:
         return TetrahedronMethod(
             self.rcell_cv,
@@ -195,7 +196,7 @@ class TetrahedronMethod(OccupationNumberCalculator):
                    spin_q,
                    f_qn,
                    fermi_level_guess=nan,
-                   fix_fermi_level=False) -> Tuple[float, float]:
+                   fix_fermi_level=False) -> tuple[float, float]:
         if np.isnan(fermi_level_guess):
             zero = ZeroWidth(self.parallel_layout)
             fermi_level_guess, _ = zero._calculate(
@@ -259,7 +260,7 @@ class TetrahedronMethod(OccupationNumberCalculator):
 
 def count(fermi_level: float,
           eig_in: Array2D,
-          i_ktq: Array3D) -> Tuple[float, float]:
+          i_ktq: Array3D) -> tuple[float, float]:
     """Count electrons.
 
     Return number of electrons and derivative with respect to fermi level.

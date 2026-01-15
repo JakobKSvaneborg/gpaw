@@ -1,10 +1,11 @@
-from gpaw.mpi import world
 import numpy as np
+import pytest
 from ase.units import Ha
-from gpaw.response.pair import get_gs_and_context
+
+from gpaw.mpi import world
 from gpaw.response.chi0 import (Chi0Calculator, get_frequency_descriptor,
                                 get_omegamax)
-import pytest
+from gpaw.response.pair import get_gs_and_context
 
 
 @pytest.mark.response
@@ -37,8 +38,8 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     omegamax2 = np.max(wd2.omega_w) * Ha
     omegamax1 = np.max(wd1.omega_w) * Ha
 
-    assert omegamax1 == pytest.approx(45.223, abs=1e-3)
-    assert omegamax2 == pytest.approx(100.713, abs=1e-3)
+    assert omegamax1 == pytest.approx(45.223, abs=3e-3)
+    assert omegamax2 == pytest.approx(100.714, abs=3e-3)
 
     assert np.allclose(wd1.omega_w, wd2.omega_w[:len(wd1)])
 

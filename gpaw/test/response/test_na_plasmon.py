@@ -1,13 +1,13 @@
-import pytest
 import numpy as np
-
+import pytest
 from ase import Atoms
+
 from gpaw import GPAW, PW
 from gpaw.mpi import world
-from gpaw.test import findpeak
-from gpaw.utilities import compiled_with_sl
 from gpaw.response.df import DielectricFunction
 from gpaw.response.symmetry import QSymmetryAnalyzer
+from gpaw.test import findpeak
+from gpaw.utilities import compiled_with_sl
 
 # Comparing the plasmon peaks found in bulk sodium for two different
 # atomic structures. Testing for identical plasmon peaks. Not using
@@ -37,6 +37,7 @@ def test_response_na_plasmon(in_tmp_dir):
     a1.calc = GPAW(mode=PW(250),
                    kpts={'size': (4, 4, 4), 'gamma': True},
                    parallel=parallel,
+                   convergence={'density': 1e-6},
                    # txt='small.txt',
                    )
 
@@ -44,6 +45,7 @@ def test_response_na_plasmon(in_tmp_dir):
     a2.calc = GPAW(mode=PW(250),
                    kpts={'size': (2, 4, 4), 'gamma': True},
                    parallel=parallel,
+                   convergence={'density': 1e-6},
                    # txt='large.txt',
                    )
 

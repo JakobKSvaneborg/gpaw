@@ -1,11 +1,12 @@
 import numpy as np
-from typing import Union
-from gpaw.gpu.diagonalization.diagonalizer import (NonDistributedDiagonalizer,
-                                                   DiagonalizerOptions)
-from gpaw.gpu import cupy as cp, cupy_is_fake
+
+from gpaw.cgpaw import have_magma
+from gpaw.gpu import cupy as cp
+from gpaw.gpu import cupy_is_fake
+from gpaw.gpu.diagonalization.diagonalizer import (DiagonalizerOptions,
+                                                   NonDistributedDiagonalizer)
 from gpaw.new.timer import trace
 from gpaw.utilities import as_real_dtype
-from gpaw.cgpaw import have_magma
 
 
 class MagmaDiagonalizer(NonDistributedDiagonalizer):
@@ -28,10 +29,10 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
 
     @trace(gpu=True)
     def eigh_non_distributed(self,
-                             inout_matrix: Union[cp.ndarray, np.ndarray],
+                             inout_matrix: cp.ndarray | np.ndarray,
                              options: DiagonalizerOptions
-                             ) -> Union[tuple[cp.ndarray, cp.ndarray],
-                                        tuple[np.ndarray, np.ndarray]]:
+                             ) -> (tuple[cp.ndarray, cp.ndarray] |
+                                   tuple[np.ndarray, np.ndarray]):
         """
         Wrapper for MAGMA symmetric/Hermitian eigensolvers.
 

@@ -2,11 +2,14 @@
 Tools for directmin
 """
 
+from collections.abc import Callable
+from copy import deepcopy
+from typing import cast
+
 import numpy as np
 import scipy.linalg as lalg
-from copy import deepcopy
-from typing import Callable, cast
-from gpaw.typing import ArrayND, IntVector, RNG
+
+from gpaw.typing import RNG, ArrayND, IntVector
 
 
 def expm_ed(a_mat, evalevec=False):

@@ -1,15 +1,15 @@
-from math import sqrt, pi
+from math import pi, sqrt
 
-import pytest
 import numpy as np
+import pytest
 from ase import Atoms
 from ase.units import Bohr, Hartree
 
-from gpaw.mpi import rank, size
 from gpaw import GPAW
 from gpaw.external import ConstantElectricField
-from gpaw.utilities import packed_index
+from gpaw.mpi import world
 from gpaw.pair_density import PairDensity
+from gpaw.utilities import packed_index
 
 # Three ways to compute the polarizability of hydrogen:
 # 1. Perturbation theory
@@ -77,7 +77,7 @@ def test_stark_shift():
         return me * Bohr
 
     # Currently only works on a single processor
-    assert size == 1
+    assert world.size == 1
 
     maxfield = 0.01
     nfs = 5  # number of field
@@ -136,7 +136,7 @@ def test_stark_shift():
 
         alpha *= 2
 
-        if rank == 0 and debug:
+        if world.rank == 0 and debug:
             print('From perturbation theory:')
             print('  alpha = ', alpha, ' A**2/eV')
             print('  alpha = ', alpha * to_au, ' Bohr**3')
@@ -169,7 +169,7 @@ def test_stark_shift():
         d = []
         fields = np.linspace(-maxfield, maxfield, nfs)
         for field in fields:
-            if rank == 0 and debug:
+            if world.rank == 0 and debug:
                 print(field)
             c = c.new(external=ConstantElectricField(field))
             a.calc = c
@@ -184,7 +184,7 @@ def test_stark_shift():
         pol1, dummy = np.polyfit(fields, d, 1)
         pol2, dummy1, dummy2 = np.polyfit(fields, e1s, 2)
 
-        if rank == 0 and debug:
+        if world.rank == 0 and debug:
             print('From shift in 1s-state at constant electric field:')
             print('  alpha = ', -pol2, ' A**2/eV')
             print('  alpha = ', -pol2 * to_au, ' Bohr**3')

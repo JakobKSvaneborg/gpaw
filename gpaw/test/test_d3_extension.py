@@ -1,18 +1,16 @@
+import numpy as np
 import pytest
+from ase import Atoms
+
+from gpaw import restart
 from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW
-from gpaw import restart
 from gpaw.new.extensions import D3
-import numpy as np
-from ase import Atoms
 
 
 @pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
 @pytest.mark.parametrize('mode', [{'name': 'pw', 'ecut': 300}, 'lcao'])
-def test_d3_extensions(mode, parallel, in_tmp_dir, gpaw_new, dftd3):
-    if not gpaw_new:
-        pytest.skip('Only GPAW new.')
-
+def test_d3_extensions(mode, parallel, in_tmp_dir, dftd3):
     from ase.calculators.dftd3 import PureDFTD3
     domain, band = parallel
     if world.size < domain * band:
@@ -127,10 +125,11 @@ def test_d3_extensions(mode, parallel, in_tmp_dir, gpaw_new, dftd3):
 
 @pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
 def test_d3_stress(parallel, in_tmp_dir, dftd3):
-    from ase.calculators.dftd3 import DFTD3
-    from ase.optimize import CellAwareBFGS
     from ase.build import bulk
+    from ase.calculators.dftd3 import DFTD3
     from ase.filters import FrechetCellFilter
+    from ase.optimize import CellAwareBFGS
+
     from gpaw.new.ase_interface import GPAW
 
     domain, band = parallel

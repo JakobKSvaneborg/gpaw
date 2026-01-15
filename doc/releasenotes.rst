@@ -10,6 +10,36 @@ Git master branch
 
 :git:`master <>`.
 
+* GPAW C-extension can now be built as C++ code. You can enable this
+  experimental feature in ``siteconfig.py`` by setting ``use_cpp = True`` and
+  choosing a valid C++ compiler.
+
+* Minimum version requirements: Python 3.10, ASE 3.25.0.
+
+* Ongoing work with optimizng the defaults of GPAW, so far the following
+  changes have been made:
+
+  * mixer (with pbc):
+
+    * spin-driver: 'difference' -> 'fullspin'
+
+    * beta: 0.05 -> 0.08
+
+    * nmaxold: 5 -> 16
+
+    * weight: 50 -> 70
+
+  * mixer (without pbc):
+
+    * spin-driver: 'difference' -> 'fullspin'
+
+    * beta: 0.25 -> 0.25
+
+    * nmaxold: 3 -> 16
+
+    * weight: 1 -> 1
+
+  * eigensolver (:ref:`newgpaw` only): 'davidson' -> 'ppcg'
 
 * :ref:`newgpaw`: Calculations can now be parallelized over
   spins.
@@ -37,6 +67,20 @@ Git master branch
   You can use ``gpaw python`` as a replacement. The variable
   ``parallel_python_interpreter`` in ``siteconfig.py``
   should not be used.
+
+* GPAW will no longer run in parallel when imported from a normal
+  Python interpreter.
+  To run in parallel, be sure to use ``gpaw python``
+  or see below.
+
+* To control MPI parallelism with the ``gpaw python`` command,
+  use the environment ``GPAW_MPI_BACKEND``.
+  Current valid values are ``serial``, ``cgpaw`` for GPAW's C implementation,
+  and ``mpi4py``.
+
+* The FDTD code has been removed.  If this code is important to you,
+  please contact the developers.  You will probably need to port the code
+  to :ref:`newgpaw` in order to use it in the future.
 
 
 Version 25.7.0
@@ -67,7 +111,9 @@ July 29, 2025: :git:`25.7.0 <../25.7.0>`
   **k**-points has been implemented.  See :ref:`hse06 on lda` and
   :class:`gpaw.new.pw.nschse.NonSelfConsistentHSE06`.
 
-* Experimental: Support for using MPI4PY_.  Set ``GPAW_MPI4PY=1`` to use this.
+* Experimental: Support for using MPI4PY_.
+  **Update:** Set GPAW_MPI_BACKEND=mpi4py to use this.
+  [Originally: Set ``GPAW_MPI4PY=1`` to use this.]
 
 * Bug fix for spin-polarized LCAO-TDDFT circular dichroism See :mr:`2667`.
 
@@ -129,7 +175,7 @@ January 6, 2025: :git:`25.1.0 <../25.1.0>`
 
 * The :meth:`gpaw.calculator.GPAW.fixed_density` method now respects the
   ``update_fermi_level`` argument.  Previously, the Fermi-level would not
-  be updated, but the occupation numers would be calculated with an
+  be updated, but the occupation numbers would be calculated with an
   updated Fermi-level.  Now, the Fermi-level and the occupation numbers
   always in sync.
 
@@ -182,7 +228,7 @@ May 31, 2024: :git:`24.6.0 <../24.6.0>`
   your results.
 
 * New 14 electron Cr PAW potential added to our :ref:`setup releases`.
-  For high accuracy, it is recommented over the old 6-electron version
+  For high accuracy, it is recommended  over the old 6-electron version
   (which is still the default).  You can use it by
   specifying ``setups={'Cr': '14'}`` (see also :ref:`manual_setups`).
   It has been generated with the following command::
@@ -571,7 +617,7 @@ Jun 24, 2021: :git:`21.6.0 <../21.6.0>`
   * The observers for :ref:`inducedfield` need now to be defined before
     the kick instead of after it.
 
-  * Corresponding updates for :ref:`qsfdtd` and :ref:`hybridscheme`.
+  * Corresponding updates for ``qsfdtd`` and ``hybridscheme``.
 
 * It is now possible to calculate electronic circular dichroism spectra
   with real-time time-propagation TDDFT.
@@ -1343,7 +1389,7 @@ July 22, 2015: :git:`0.11.0 <../0.11.0>`.
 
 * A :ref:`orbital-free DFT <ofdft>` with PAW transformation is available.
 
-* GPAW can now perform :ref:`electrodynamics` simulations using the
+* GPAW can now perform ``electrodynamics`` simulations using the
   quasistatic finite-difference time-domain (QSFDTD) method.
 
 * BEEF-vdW, mBEEF and mBEEF-vdW functionals added.

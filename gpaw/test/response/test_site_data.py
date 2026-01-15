@@ -1,20 +1,17 @@
-import pytest
-
 import numpy as np
-
+import pytest
 from ase.spacegroup import crystal
 from ase.units import Bohr
 
 from gpaw import GPAW
-from gpaw.sphere.integrate import integrate_lebedev
-
 from gpaw.response import ResponseGroundStateAdapter
-from gpaw.response.site_data import (AtomicSites, AtomicSiteData,
+from gpaw.response.localft import add_spin_polarization
+from gpaw.response.site_data import (AtomicSiteData, AtomicSites,
                                      calculate_site_magnetization,
                                      calculate_site_zeeman_energy,
                                      get_site_radii_range,
                                      maximize_site_magnetization)
-from gpaw.response.localft import add_spin_polarization
+from gpaw.sphere.integrate import integrate_lebedev
 
 
 @pytest.mark.response

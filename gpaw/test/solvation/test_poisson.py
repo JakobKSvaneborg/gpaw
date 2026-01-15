@@ -1,18 +1,18 @@
 import warnings
 
+import numpy as np
+import pytest
 from ase.parallel import parprint
 from ase.units import Bohr
-import numpy as np
 from scipy.special import erf
 
-from gpaw.solvation.poisson import (WeightedFDPoissonSolver,
-                                    ADM12PoissonSolver,
-                                    PolarizationPoissonSolver)
-from gpaw.solvation.dielectric import Dielectric
-from gpaw.old.grid_descriptor import GridDescriptor
-from gpaw.utilities.gauss import Gaussian
 from gpaw.fd_operators import Gradient
-import pytest
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.solvation.dielectric import Dielectric
+from gpaw.solvation.poisson import (ADM12PoissonSolver,
+                                    PolarizationPoissonSolver,
+                                    WeightedFDPoissonSolver)
+from gpaw.utilities.gauss import Gaussian
 
 nn = 3
 accuracy = 2e-10
@@ -34,7 +34,7 @@ def make_gd(h, box, pbc):
 
 class MockDielectric(Dielectric):
     def __init__(self, epsinf, nn):
-        Dielectric.__init__(self, epsinf)
+        super().__init__(epsinf)
         self.nn = nn
 
     def update(self, cavity):

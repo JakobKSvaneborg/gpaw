@@ -1,13 +1,13 @@
 import pytest
-from gpaw.response.pair import get_gs_and_context
+from ase.units import Hartree
+
 from gpaw.mpi import world
 from gpaw.response.bse import BSE
-
-from ase.units import Hartree
+from gpaw.response.pair import get_gs_and_context
 
 
 @pytest.mark.response
-def test_BSE_q0correction(in_tmp_dir, gpw_files):
+def test_BSE_q0correction(in_tmp_dir, gpw_files, scalapack):
     gs, context = get_gs_and_context(
         gpw_files['mos2_5x5_pw'], txt=None, world=world, timer=None
     )

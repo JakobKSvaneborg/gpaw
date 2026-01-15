@@ -1,21 +1,20 @@
 from math import pi, sqrt
 from warnings import warn
-from typing import Optional, List, Dict
 
 import numpy as np
 from ase.units import Bohr, Ha
 
-from gpaw.old.calculator import GPAW
 from gpaw.atom.shapefunc import shape_functions
 from gpaw.fftw import get_efficient_fft_size
-from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.lfc import LocalizedFunctionsCollection as LFC
-from gpaw.utilities import h2gpts
-from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.mpi import serial_comm
+from gpaw.old.calculator import GPAW
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.setup import Setup
 from gpaw.spline import Spline
 from gpaw.typing import Array3D
+from gpaw.utilities import h2gpts
 
 
 class Interpolator:
@@ -45,11 +44,11 @@ class PS2AE:
         """Create transformation object.
 
         calc: GPAW calculator object
-            The calcalator that has the wave functions.
+            The calculator that has the wave functions.
         grid_spacing: float
             Desired grid-spacing in Angstrom.
         n: int
-            Force number of points to be a mulitiple of n.
+            Force number of points to be a multiple of n.
         """
         if h is not None:
             warn('Please use grid_spacing=... instead of h=...')
@@ -66,7 +65,7 @@ class PS2AE:
         gd2 = self.gd = GridDescriptor(N_c, gd.cell_cv, comm=serial_comm)
         self.interpolator = Interpolator(gd1, gd2, self.calc.wfs.dtype)
 
-        self._dphi: Optional[LFC] = None  # PAW correction
+        self._dphi: LFC | None = None  # PAW correction
 
         self.dv = self.gd.dv * Bohr**3
 
@@ -75,7 +74,7 @@ class PS2AE:
         if self._dphi is not None:
             return self._dphi
 
-        splines: Dict[Setup, List[Spline]] = {}
+        splines: dict[Setup, list[Spline]] = {}
         dphi_aj = []
         for setup in self.calc.wfs.setups:
             dphi_j = splines.get(setup)
@@ -106,7 +105,7 @@ class PS2AE:
                           periodic: bool = False) -> Array3D:
         """Interpolate wave function.
 
-        Returns 3-d array in units of Ang**-1.5.
+        Returns 3-d array in units of Ång**-1.5.
 
         n: int
             Band index.

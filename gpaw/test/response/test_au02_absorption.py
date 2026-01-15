@@ -1,7 +1,8 @@
-import pytest
 import numpy as np
+import pytest
 from ase import Atoms
-from gpaw import GPAW, FermiDirac, PW
+
+from gpaw import GPAW, PW, FermiDirac
 from gpaw.response.df import DielectricFunction
 from gpaw.test import findpeak
 
@@ -20,7 +21,7 @@ def gpwfile(in_tmp_dir):
 
     cluster.calc = calc
     cluster.get_potential_energy()
-    calc.diagonalize_full_hamiltonian(nbands=24, scalapack=True)
+    calc.diagonalize_full_hamiltonian(nbands=24)
     gpwname = 'Au2.gpw'
     calc.write(gpwname, 'all')
     return gpwname

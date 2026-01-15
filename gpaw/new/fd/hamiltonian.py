@@ -1,13 +1,14 @@
 import numpy as np
+
 from gpaw.core import UGArray
-from gpaw.core.arrays import DistributedArrays as XArray
+from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArraysLayout
 from gpaw.external import ConstantElectricField, ExternalPotential
 from gpaw.fd_operators import Gradient, Laplace
 from gpaw.new import zips
 from gpaw.new.fd.pot_calc import FDPotentialCalculator
-from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.hamiltonian import Hamiltonian
+from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 
 
 class FDHamiltonian(Hamiltonian):
