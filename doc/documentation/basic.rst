@@ -107,8 +107,8 @@ given in the following sections.
       -
       - :ref:`manual_convergence`
     * - ``eigensolver``
-      - ``str``
-      - ``'dav'``
+      - ``str`` or ``dict``
+      - ``'ppcg'``
       - :ref:`manual_eigensolver`
     * - ``external``
       - Object
