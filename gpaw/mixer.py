@@ -247,7 +247,7 @@ class NewMixer(BaseMixer):
             if self.metric is None:
                 mR_sG = R_sG
             else:
-                mR_sG = self.mR_sG[:spin]
+                mR_sG = np.empty_like(R_sG)
                 for s in range(spin):
                     self.metric(R_sG[s], mR_sG[s])
 
