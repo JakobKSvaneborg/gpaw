@@ -105,7 +105,8 @@ class BaseMixer:
     def calculate_charge_sloshing(self, R_sG) -> float:
         return self.gd.integrate(np.fabs(R_sG)).sum()
 
-    def mix_density(self, nt_sG, D_asp, g_ss=None):
+    def mix_density(self, nt_sG, D_asp, g_ss=None, rhot=None):
+        # nt_sG /= np.sum(nt_sG)
         nt_isG = self.nt_isG
         R_isG = self.R_isG
         D_iasp = self.D_iasp
@@ -190,8 +191,13 @@ class BaseMixer:
         return dNt
 
     # may presently be overridden by passing argument in constructor
-    def dotprod(self, R1_G, R2_G, dD1_ap, dD2_ap):
-        return np.vdot(R1_G, R2_G).real
+    def dotprod(self, R1_G, R2_G, dD1_ap, dD2_ap, metric=None):
+        if metric is None:
+            return np.vdot(R1_G, R2_G).real
+        mR2_G = R2_G.copy()
+        for R2, mR2 in zip(R2_G, mR2_G):
+            metric(R2, mR2)
+        return np.vdot(R1_G, mR2_G).real
 
     def estimate_memory(self, mem, gd):
         gridbytes = gd.bytecount()
@@ -202,6 +208,146 @@ class BaseMixer:
         template = '%s(beta=%f, nmaxold=%d, weight=%f)'
         string = template % (classname, self.beta, self.nmaxold, self.weight)
         return string
+
+
+class NewMixer(BaseMixer):
+    def mix_density(self, nt_sG, D_asp, g_ss=None):
+        # XXX Normalize dnesity
+        # nt_sG /= np.sqrt(np.sqrt(self.gd.comm.sum_scalar(
+        #         self.dotprod(nt_sG, nt_sG, None, None, None))))
+
+        nt_isG = self.nt_isG
+        R_isG = self.R_isG
+        D_iasp = self.D_iasp
+        dD_iasp = self.dD_iasp
+        spin = len(nt_sG)
+        iold = len(self.nt_isG)
+        dNt = np.inf
+        if iold > 0:
+            if iold > self.nmaxold:
+                # Throw away too old stuff:
+                del nt_isG[0]
+                del R_isG[0]
+                del D_iasp[0]
+                del dD_iasp[0]
+                # for D_p, D_ip, dD_ip in self.D_a:
+                #     del D_ip[0]
+                #     del dD_ip[0]
+                iold = self.nmaxold
+
+            # Calculate new residual (difference between input and
+            # output density):
+            R_sG = nt_sG - nt_isG[-1]
+            R_isG.append(R_sG)
+            dNt = self.calculate_charge_sloshing(R_sG)
+            dD_iasp.append([])
+            for D_sp, D_isp in zip(D_asp, D_iasp[-1]):
+                dD_iasp[-1].append(D_sp - D_isp)
+
+        if iold > 1:
+            if self.metric is None:
+                mR_sG = R_sG
+            else:
+                mR_sG = self.mR_sG[:spin]
+                for s in range(spin):
+                    self.metric(R_sG[s], mR_sG[s])
+
+            if g_ss is not None:
+                mR_sG = np.tensordot(g_ss, mR_sG, axes=(1, 0))
+
+            # Most likely, these all have the wrong sign.
+            s_isG = -(np.array(nt_isG)[:-1] - nt_isG[-1])
+            y_isG = -(np.array(R_isG)[:-1] - R_sG)
+            sD_iasp = []
+            yD_iasp = []
+            for i1 in range(len(D_iasp) - 1):
+                sD_asp = []
+                yD_asp = []
+                for a1 in range(len(D_iasp[i1])):
+                    sD_asp.append(-(D_iasp[i1][a1] - D_iasp[-1][a1]))
+                    yD_asp.append(-(dD_iasp[i1][a1] - dD_iasp[-1][a1]))
+                sD_iasp.append(sD_asp)
+                yD_iasp.append(yD_asp)
+            # End of stuff with most likely wrong sign.
+
+            metric = None
+            # Update matrix:
+            psi_i = np.zeros((iold - 1))
+            A_ii = np.zeros((iold - 1, iold - 1))
+
+            for i1, y_sG in enumerate(y_isG):
+                a = 1 / np.sqrt(self.gd.comm.sum_scalar(
+                    self.dotprod(y_sG, y_sG, None, None, metric)))
+                psi_i[i1] = a
+
+                for i2, y2_sG in enumerate(y_isG):
+                    A_ii[i1, i2] = self.gd.comm.sum_scalar(
+                        self.dotprod(y_sG, y2_sG, None, None, metric))
+            # A_ii[:i2, :i2] = self.A_ii[-i2:, -i2:]
+            # self.A_ii = A_ii
+
+            alpha = 1e-4
+            C_ii = psi_i[None, :] * A_ii * psi_i[:, None] + alpha * np.eye(iold - 1)
+            D_ii = psi_i[None, :] * np.linalg.inv(C_ii) * psi_i[:, None]
+            B_isG = (D_ii @ y_isG.reshape((iold - 1, -1))).reshape(y_isG.shape)
+            for B_sG in B_isG:
+                for B_G in B_sG:
+                    self.metric(B_G, B_G)
+
+            res_fact_n0 = self.gd.comm.sum_scalar(
+                self.dotprod(R_isG[-2], R_isG[-2], None, None, metric)
+            )
+            res_fact_n1 = self.gd.comm.sum_scalar(
+                self.dotprod(R_isG[-1], R_isG[-1], None, None, metric)
+            )
+
+            QQ_sG = np.zeros_like(R_sG)
+            for i1, B_sG in enumerate(B_isG):
+                alpha = self.gd.comm.sum_scalar(
+                    self.dotprod(B_sG, R_sG, None, None, metric)
+                )
+                QQ_sG -= alpha * s_isG[i1]
+            dens_fact_n1 = self.gd.comm.sum_scalar(
+                self.dotprod(QQ_sG, QQ_sG, None, None, None)
+            )
+            beta_max = 60 * np.sqrt(dens_fact_n1 / res_fact_n1)
+            self.beta *= max(0.5, min(2.0, np.sqrt(res_fact_n0 / res_fact_n1)))
+
+            A0 = min(beta_max, self.beta, 1)
+            nt_sG[:] = nt_isG[-1] - A0 * R_sG
+            for a1, D_sp in enumerate(D_asp):
+                D_sp[:] = D_iasp[-1][a1] - A0 * dD_iasp[-1][a1]
+
+            for i1, B_sG in enumerate(B_isG):
+                alpha = self.gd.comm.sum_scalar(
+                    self.dotprod(B_sG, R_sG, None, None, metric)
+                )
+                Q_sG = A0 * alpha * y_isG[i1]
+                QQ_sG = alpha * s_isG[i1]
+                nt_sG += Q_sG - QQ_sG
+
+                for a1, D_sp in enumerate(D_asp):
+                    Q_sp = A0 * alpha * yD_iasp[i1][a1]
+                    QQ_sp = alpha * sD_iasp[i1][a1]
+                    D_sp += Q_sp - QQ_sp
+                    # axpy(alpha, D_isp, D_sp)
+                    # axpy(alpha * beta, dD_isp, D_sp)
+
+            #if self.world:
+            #    self.world.broadcast(alpha_i, 0)
+        elif iold == 1:
+            # Pratt step
+            A0 = self.beta
+            nt_sG[:] = nt_isG[-1] - A0 * R_sG
+            for a1, D_sp in enumerate(D_asp):
+                D_sp[:] = D_iasp[-1][a1] - A0 * dD_iasp[-1][a1]
+
+        # Store new input density (and new atomic density matrices):
+        nt_isG.append(nt_sG.copy())
+        D_iasp.append([])
+        for D_sp in D_asp:
+            D_iasp[-1].append(D_sp.copy())
+        return dNt
 
 
 class ExperimentalDotProd:
@@ -232,12 +378,12 @@ class ReciprocalMetric:
         mR_Q[:] = R_Q * (1.0 + self.q1 / self.k2_Q)
 
 
-class FFTBaseMixer(BaseMixer):
+class FFTBaseMixer(NewMixer):
     name = 'fft'
 
     """Mix the density in Fourier space"""
     def __init__(self, beta, nmaxold, weight):
-        BaseMixer.__init__(self, beta, nmaxold, weight)
+        super().__init__(beta, nmaxold, weight)
         self.gd1 = None
 
     def initialize_metric(self, gd):
@@ -261,20 +407,20 @@ class FFTBaseMixer(BaseMixer):
             cs = 0.0
         return self.gd.comm.sum_scalar(cs)
 
-    def mix_density(self, nt_sR, D_asp, g_ss=None):
+    def mix_density(self, nt_sR, D_asp, g_ss=None, rhot=None):
         # Transform real-space density to Fourier space
         nt1_sR = [self.gd.collect(nt_R) for nt_R in nt_sR]
         if self.gd.comm.rank == 0:
-            nt1_sG = np.ascontiguousarray([fftn(nt_R) for nt_R in nt1_sR])
+            nt1_sG = np.ascontiguousarray([fftn(nt_R, norm='backward') for nt_R in nt1_sR])
         else:
             nt1_sG = np.empty((len(nt_sR), 0, 0, 0), dtype=complex)
 
-        dNt = BaseMixer.mix_density(self, nt1_sG, D_asp)
+        dNt = super().mix_density(nt1_sG, D_asp)
 
         # Return density in real space
         for nt_G, nt_R in zip(nt1_sG, nt_sR):
             if self.gd.comm.rank == 0:
-                nt1_R = ifftn(nt_G).real
+                nt1_R = ifftn(nt_G, norm='backward').real
             else:
                 nt1_R = None
             self.gd.distribute(nt1_R, nt_R)
@@ -639,13 +785,13 @@ class FullSpinMixerDriver:
         basemixer = self.basemixerclass(self.beta, self.nmaxold, self.weight)
         return [basemixer]
 
-    def mix(self, basemixers, nt_sG, D_asp):
+    def mix(self, basemixers, nt_sG, D_asp, rhot=None):
         D_asp = D_asp.values()
         basemixer = basemixers[0]
         if self.g_ss is None:
             self.g_ss = np.identity(len(nt_sG))
 
-        dNt = basemixer.mix_density(nt_sG, D_asp, self.g_ss)
+        dNt = basemixer.mix_density(nt_sG, D_asp, self.g_ss, rhot=rhot)
 
         return dNt
 
@@ -730,7 +876,7 @@ class MixerWrapper:
             basemixer.world = world
 
     @trace
-    def mix(self, nt_sR, D_asp=None):
+    def mix(self, nt_sR, D_asp=None, rhot=None):
         if D_asp is not None:
             return self.driver.mix(self.basemixers, nt_sR, D_asp)
 
