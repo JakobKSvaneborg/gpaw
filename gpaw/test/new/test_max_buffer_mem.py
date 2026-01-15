@@ -27,3 +27,7 @@ def test_max_buffer_mem(mode, eigensolver, max_mem):
                   'pw-davidson': -16.0133410,
                   'fd-davidson': 4.6795767}
     assert e == pytest.approx(expected_e[f'{mode}-{eigensolver}'], abs=1e-3)
+
+
+if __name__ == '__main__':
+    test_max_buffer_mem('pw', 'davidson', -50)

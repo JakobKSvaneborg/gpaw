@@ -13,6 +13,7 @@ from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D
 from gpaw.mpi import serial_comm
+from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 
 
 def slparams(nbands, comm):
@@ -50,13 +51,14 @@ class Davidson(PWFDEigensolver):
         self.H_NN: Matrix
         self.S_NN: Matrix
         self.M_nn: Matrix
+        self.domain_band_comm = domain_band_comm
 
     def __str__(self):
         return pformat(dict(name='Davidson',
                             niter=self.niter,
                             converge_bands=self.converge_bands))
 
-    def _initialize(self, ibzwfs):
+    def _initialize(self, ibzwfs: PWFDIBZWaveFunctions):
         super()._initialize(ibzwfs)
         self._allocate_work_arrays(ibzwfs, shape=(1,))
         self._allocate_buffer_arrays(ibzwfs, shape=(1,))
@@ -67,9 +69,13 @@ class Davidson(PWFDEigensolver):
         B = ibzwfs.nbands
         xp = ibzwfs.xp
         dtype = ibzwfs.dtype
-        if domain_comm.rank == 0 and band_comm.rank == 0:
+        if 0:  # domain_comm.rank == 0 and band_comm.rank == 0:
             self.H_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp)
             self.S_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp)
+        elif 1:
+            self.H_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp,
+                               dist=(self.domain_band_comm, 1, 1))
+            self.S_NN = self.H_NN.new()
         else:
             self.H_NN = self.S_NN = Matrix(0, 0)
 
