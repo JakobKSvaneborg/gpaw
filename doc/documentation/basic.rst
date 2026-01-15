@@ -915,7 +915,7 @@ Eigensolver
 -----------
 
 The default solver for iterative diagonalization of the Kohn-Sham
-Hamiltonian is a simple Davidson method, (``eigensolver='dav'``), which
+Hamiltonian is the PPCG method, (``eigensolver='ppcg'``), which
 seems to perform well in most cases. Sometimes more efficient/stable
 convergence can be obtained with a different eigensolver. One option is the
 RMM-DIIS (Residual minimization method - direct inversion in iterative
