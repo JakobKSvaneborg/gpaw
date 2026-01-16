@@ -32,7 +32,7 @@ we don't have to implement it multiple times (estimate memory, etc.).
 In the end, what the user provides is probably a dictionary anyway, and the
 relevant objects are instantiated automatically."""
 
-
+#class BaseMixer:
 class BaseMixerOld:
     name = 'pulay'
 
@@ -208,13 +208,9 @@ class BaseMixerOld:
         string = template % (classname, self.beta, self.nmaxold, self.weight)
         return string
 
-
+#class FKA(BaseMixer):
 class BaseMixer(BaseMixerOld):
     def mix_density(self, nt_sG, D_asp, g_ss=None):
-        # XXX Normalize dnesity
-        # nt_sG /= np.sqrt(np.sqrt(self.gd.comm.sum_scalar(
-        #         self.dotprod(nt_sG, nt_sG, None, None, None))))
-
         nt_isG = self.nt_isG
         R_isG = self.R_isG
         D_iasp = self.D_iasp
@@ -254,93 +250,65 @@ class BaseMixer(BaseMixerOld):
             if g_ss is not None:
                 mR_sG = np.tensordot(g_ss, mR_sG, axes=(1, 0))
 
+            greed = 0.25
+
             # Most likely, these all have the wrong sign.
-            s_isG = -(np.array(nt_isG)[:-1] - nt_isG[-1])
-            y_isG = -(np.array(R_isG)[:-1] - R_sG)
+            s_isG = (np.array(nt_isG)[:-1] - nt_isG[-1])
+            y_isG = (np.array(R_isG)[:-1] - R_sG)
+            t_isG = y_isG + greed * s_isG
             sD_iasp = []
             yD_iasp = []
             for i1 in range(len(D_iasp) - 1):
                 sD_asp = []
                 yD_asp = []
                 for a1 in range(len(D_iasp[i1])):
-                    sD_asp.append(-(D_iasp[i1][a1] - D_iasp[-1][a1]))
-                    yD_asp.append(-(dD_iasp[i1][a1] - dD_iasp[-1][a1]))
+                    sD_asp.append((D_iasp[i1][a1] - D_iasp[-1][a1]))
+                    yD_asp.append((dD_iasp[i1][a1] - dD_iasp[-1][a1]))
                 sD_iasp.append(sD_asp)
                 yD_iasp.append(yD_asp)
             # End of stuff with most likely wrong sign.
 
-            metric = None
             # Update matrix:
-            psi_i = np.zeros((iold - 1))
             A_ii = np.zeros((iold - 1, iold - 1))
+            metric = self.metric
 
             for i1, y_sG in enumerate(y_isG):
-                a = 1 / np.sqrt(self.gd.comm.sum_scalar(
-                    self.dotprod(y_sG, y_sG, None, None, metric)))
-                psi_i[i1] = a
+                for i2, t_sG in enumerate(t_isG):
+                    A_ii[i2, i1] = self.gd.comm.sum_scalar(
+                        self.dotprod(t_sG, y_sG, None, None, metric))
 
-                for i2, y2_sG in enumerate(y_isG):
-                    A_ii[i1, i2] = self.gd.comm.sum_scalar(
-                        self.dotprod(y_sG, y2_sG, None, None, metric))
-            # A_ii[:i2, :i2] = self.A_ii[-i2:, -i2:]
-            # self.A_ii = A_ii
+            alpha = 0 # 1e-9
+            B_isG = np.linalg.solve(A_ii + alpha * np.eye(iold - 1), t_isG.reshape((iold - 1, -1))).reshape(t_isG.shape)
 
-            alpha = 1e-4
-            C_ii = psi_i[None, :] * A_ii * psi_i[:, None] + alpha * np.eye(iold - 1)
-            D_ii = psi_i[None, :] * np.linalg.inv(C_ii) * psi_i[:, None]
-            B_isG = (D_ii @ y_isG.reshape((iold - 1, -1))).reshape(y_isG.shape)
-            if self.metric is not None:
-                for B_sG in B_isG:
-                    for B_G in B_sG:
-                        self.metric(B_G, B_G)
+            A0 = self.beta
+            B0 = -1 # 0.95
 
-            res_fact_n0 = self.gd.comm.sum_scalar(
-                self.dotprod(R_isG[-2], R_isG[-2], None, None, metric)
-            )
-            res_fact_n1 = self.gd.comm.sum_scalar(
-                self.dotprod(R_isG[-1], R_isG[-1], None, None, metric)
-            )
-
-            QQ_sG = np.zeros_like(R_sG)
-            for i1, B_sG in enumerate(B_isG):
-                alpha = self.gd.comm.sum_scalar(
-                    self.dotprod(B_sG, R_sG, None, None, metric)
-                )
-                QQ_sG -= alpha * s_isG[i1]
-            dens_fact_n1 = self.gd.comm.sum_scalar(
-                self.dotprod(QQ_sG, QQ_sG, None, None, None)
-            )
-            beta_max = 60 * np.sqrt(dens_fact_n1 / res_fact_n1)
-            self.beta *= max(0.5, min(2.0, np.sqrt(res_fact_n0 / res_fact_n1)))
-
-            A0 = min(beta_max, self.beta, 1)
-            nt_sG[:] = nt_isG[-1] - A0 * R_sG
+            nt_sG[:] = nt_isG[-1] + A0 * R_sG
             for a1, D_sp in enumerate(D_asp):
-                D_sp[:] = D_iasp[-1][a1] - A0 * dD_iasp[-1][a1]
+                D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1]
 
+            alpha_i = []
             for i1, B_sG in enumerate(B_isG):
-                alpha = self.gd.comm.sum_scalar(
+                alpha_i.append(self.gd.comm.sum_scalar(
                     self.dotprod(B_sG, R_sG, None, None, metric)
-                )
-                Q_sG = A0 * alpha * y_isG[i1]
-                QQ_sG = alpha * s_isG[i1]
+                ))
+
+            for i1, alpha in enumerate(alpha_i):
+                QQ_sG = A0 * alpha * y_isG[i1]
+                Q_sG = B0 * alpha * s_isG[i1]
                 nt_sG += Q_sG - QQ_sG
+                #adf
 
                 for a1, D_sp in enumerate(D_asp):
-                    Q_sp = A0 * alpha * yD_iasp[i1][a1]
-                    QQ_sp = alpha * sD_iasp[i1][a1]
+                    QQ_sp = A0 * alpha * yD_iasp[i1][a1]
+                    Q_sp = B0 * alpha * sD_iasp[i1][a1]
                     D_sp += Q_sp - QQ_sp
-                    # axpy(alpha, D_isp, D_sp)
-                    # axpy(alpha * beta, dD_isp, D_sp)
-
-            #if self.world:
-            #    self.world.broadcast(alpha_i, 0)
         elif iold == 1:
             # Pratt step
             A0 = self.beta
-            nt_sG[:] = nt_isG[-1] - A0 * R_sG
+            nt_sG[:] = nt_isG[-1] + A0 * R_sG
             for a1, D_sp in enumerate(D_asp):
-                D_sp[:] = D_iasp[-1][a1] - A0 * dD_iasp[-1][a1]
+                D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1]
 
         # Store new input density (and new atomic density matrices):
         nt_isG.append(nt_sG.copy())
@@ -792,7 +760,7 @@ class FullSpinMixerDriver:
         if self.g_ss is None:
             self.g_ss = np.identity(len(nt_sG))
 
-        dNt = basemixer.mix_density(nt_sG, D_asp, self.g_ss, rhot=rhot)
+        dNt = basemixer.mix_density(nt_sG, D_asp, self.g_ss)
 
         return dNt
 
