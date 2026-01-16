@@ -563,7 +563,7 @@ test-cuda-mpi-makefile-build:
     - nvidia-smi
     # just a very lightweight test as we mainly want to ensure that
     # runtime linking is OK
-    - gpaw -P 2 test
+    - GPAW_NEW=1 GPAW_USE_GPUS=1 gpaw -P 2 test
 
 
 test-hip-cuda:
