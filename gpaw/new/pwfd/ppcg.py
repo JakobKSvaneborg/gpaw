@@ -100,7 +100,7 @@ class PPCG(PWFDEigensolver):
         self.band_comm = band_comm
         self.niter = niter
         self.min_niter = min_niter if min_niter is not None else niter
-        self.blocksize = blocksize
+        self.max_blocksize = blocksize
         self.rr_modulo = rr_modulo
         self.tolerances = tolerances
         self.MW_nn: Matrix
@@ -119,16 +119,16 @@ class PPCG(PWFDEigensolver):
     def _initialize(self, ibzwfs):
         xp = ibzwfs.xp
 
-        if self.blocksize is None:
+        if self.max_blocksize is None:
             if xp == np:
-                self.blocksize = 32
+                self.max_blocksize = 32
             else:
-                self.blocksize = 512
+                self.max_blocksize = 512
 
         if isinstance(self.wf_grid, PWDesc):
             S = self.wf_grid.comm.size
             # Use a multiple of S for maximum efficiency
-            self.blocksize = int(np.ceil(self.blocksize / S)) * S
+            self.max_blocksize = int(np.ceil(self.max_blocksize / S)) * S
 
         super()._initialize(ibzwfs)
         if self.include_cg:
@@ -142,7 +142,7 @@ class PPCG(PWFDEigensolver):
         assert isinstance(wfs, PWFDWaveFunctions)
         B = ibzwfs.nbands
         b = wfs.psit_nX.mydims[0]
-        self.blocksize = max(min(self.blocksize, b),
+        self.blocksize = max(min(self.max_blocksize, b),
                              1)
         self.nblocksizes = 3 * self.blocksize \
             if self.include_cg else 2 * self.blocksize
@@ -294,10 +294,10 @@ class PPCG(PWFDEigensolver):
 
             with tracectx('Block-diagonal Update'):
                 new_eigs_n = np.zeros_like(wfs.myeig_n)  # New eigenvalues
-                for j in range(0, loop_limit, self.blocksize):
+                for j in range(0, loop_limit, self.max_blocksize):
                     block_slice_base = \
                         slice(min(j, active_bands),
-                              min(j + self.blocksize, active_bands))
+                              min(j + self.max_blocksize, active_bands))
                     block = \
                         block_slice_base.stop - block_slice_base.start
                     block_slice = active_indicies[block_slice_base]
