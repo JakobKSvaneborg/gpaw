@@ -722,10 +722,16 @@ def redist(dist1, M1, dist2, M2, context):
 def create_distribution(M: int,
                         N: int,
                         comm: MPIComm | None = None,
-                        r: int = 1,
-                        c: int = 1,
-                        b: int | None = None,
+                        r: int = 0,
+                        c: int = 0,
+                        br: int = 0,
+                        bc: int = 0,
                         xp=None) -> MatrixDistribution:
+    if r == -1:
+        if c == 0:
+            r = comm.size
+            c = 1
+        else:
     if xp is cp:
         b = None  # blocking not implemented
         comm = comm or serial_comm
@@ -748,7 +754,8 @@ class MatrixDistribution:
     comm: MPIComm
     rows: int
     columns: int
-    blocksize: int | None  # None means everything on rank=0
+    br: int
+    bc: int
     shape: tuple[int, int]
     full_shape: tuple[int, int]
     desc: Array1D
@@ -838,11 +845,10 @@ class NoDistribution(MatrixDistribution):
 class BLACSDistribution(MatrixDistribution):
     serial = False
 
-    def __init__(self, M, N, comm, r, c, b):
+    def __init__(self, M, N, comm, r, c, br, bc):
         self.comm = comm
         self.rows = r
         self.columns = c
-        self.blocksize = b
         self.full_shape = (M, N)
         self.simple = False
 
@@ -857,6 +863,7 @@ class BLACSDistribution(MatrixDistribution):
             else:
                 _global_blacs_context_store[key] = context
 
+        if
         if b is None:
             if c == 1:
                 br = (M + r - 1) // r
@@ -968,16 +975,15 @@ def cublas_mmm(alpha, a, opa, b, opb, beta, c):
 
 
 class CuPyDistribution(MatrixDistribution):
-    def __init__(self, M, N, comm, r, c, b):
+    def __init__(self, M, N, comm, r, c):
         self.comm = comm
         self.rows = r
         self.columns = c
-        self.blocksize = b
         self.full_shape = (M, N)
-        # assert r == comm.size, (M, N, comm, r, c, b)
         assert c == 1
-        br = (M + r - 1) // r
-        m = min((comm.rank + 1) * br, M) - min(comm.rank * br, M)
+        self.br = (M + r - 1) // r
+        self.bc = N
+        m = min((comm.rank + 1) * self.br, M) - min(comm.rank * self.br, M)
         self.shape = (m, N)
 
     def __str__(self):
