@@ -252,14 +252,14 @@ class PPCG(PWFDEigensolverParameter):
     cls = PPCGEigensolver
 
     def __init__(self,
-                 niter: int = 5,
-                 min_niter: int | None = 2,
+                 niter: int = 2,
+                 min_niter: int | None = 1,
                  max_buffer_mem: int = 200 * 1024**2,
                  blocksize=None,
                  rr_modulo=5,
                  include_cg=True,
                  promote_inner_dtype=False,
-                 tolerances: tuple[float] | None = None):
+                 tolerances: tuple[float, float, float] = (0.0, 0.0, 4e-8)):
         self.niter = niter
         self.min_niter = min_niter
         self.max_buffer_mem = max_buffer_mem
@@ -268,6 +268,10 @@ class PPCG(PWFDEigensolverParameter):
         self.include_cg = include_cg
         self.promote_inner_dtype = promote_inner_dtype
         self.tolerances = tolerances
+
+        # Ensure backwards compatibity
+        if self.tolerances is None:
+            self.tolerances = (0.0, 0.0, 4e-8)
 
     def todict(self):
         return {'niter': self.niter,

@@ -24,6 +24,7 @@ def test_spin_dir_constraint_H(in_tmp_dir):
         xc='LDA',
         nbands=1,
         symmetry='off',
+        eigensolver={'niter': 8},  # Needs good eigenstates
         soc=True,
         magmoms=np.array([[1, 1, 1]]) / np.sqrt(3),
         parallel={'domain': 1, 'band': 1},

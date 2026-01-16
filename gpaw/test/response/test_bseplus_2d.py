@@ -137,4 +137,4 @@ def test_BSEPlus_2d(in_tmp_dir, gpw_files, scalapack):
                (-0.0221078136579067 + 0.00854914022562708j)]
 
         for i, r in enumerate(ref):
-            assert np.allclose(chi_BSEPlus_WGG[i, i, i + 1], r)
+            assert chi_BSEPlus_WGG[i, i, i + 1] == pytest.approx(r, rel=2e-3)

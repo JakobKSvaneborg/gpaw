@@ -29,13 +29,13 @@ class PPCG(PWFDEigensolver):
                  band_comm,
                  hamiltonian,
                  converge_bands='occupied',
-                 niter=5,
-                 min_niter=2,
+                 niter=2,
+                 min_niter=1,
                  blocksize=None,
                  rr_modulo=5,
                  include_cg=True,
                  promote_inner_dtype=False,
-                 tolerances: tuple[float, ...] | None = None,
+                 tolerances: tuple[float, float, float] = (0, 0, 4e-8),
                  scalapack_parameters=None,
                  max_buffer_mem: int = 200 * 1024 ** 2):
         """
@@ -100,13 +100,16 @@ class PPCG(PWFDEigensolver):
         self.band_comm = band_comm
         self.niter = niter
         self.min_niter = min_niter if min_niter is not None else niter
-        self.blocksize = blocksize
+        self.max_blocksize = blocksize
         self.rr_modulo = rr_modulo
         self.tolerances = tolerances
         self.MW_nn: Matrix
         self.MP_nn: Matrix
         self.include_cg = include_cg
         self.promote_inner_dtype = promote_inner_dtype
+
+        # We disable dynamic breakout for hybrids, to avoid deadlocks
+        self.allow_dynamic_breakout = hamiltonian.band_local
 
     def __str__(self):
         return pformat(dict(name='PPCG',
@@ -116,16 +119,16 @@ class PPCG(PWFDEigensolver):
     def _initialize(self, ibzwfs):
         xp = ibzwfs.xp
 
-        if self.blocksize is None:
+        if self.max_blocksize is None:
             if xp == np:
-                self.blocksize = 128
+                self.max_blocksize = 32
             else:
-                self.blocksize = 1024
+                self.max_blocksize = 512
 
         if isinstance(self.wf_grid, PWDesc):
             S = self.wf_grid.comm.size
             # Use a multiple of S for maximum efficiency
-            self.blocksize = int(np.ceil(self.blocksize / S)) * S
+            self.max_blocksize = int(np.ceil(self.max_blocksize / S)) * S
 
         super()._initialize(ibzwfs)
         if self.include_cg:
@@ -139,13 +142,13 @@ class PPCG(PWFDEigensolver):
         assert isinstance(wfs, PWFDWaveFunctions)
         B = ibzwfs.nbands
         b = wfs.psit_nX.mydims[0]
-        self.blocksize = max(min(self.blocksize, b),
+        self.blocksize = max(min(self.max_blocksize, b),
                              1)
         self.nblocksizes = 3 * self.blocksize \
             if self.include_cg else 2 * self.blocksize
         dtype = wfs.psit_nX.desc.dtype
-        G_max = np.prod(ibzwfs.get_max_shape())
 
+        assert len(self.tolerances) == 3
         # --------------- Convergence parameters ---------------
         # Mostly relevant for single precision, however the
         # breakout_tolerance could be used to speed up convergence
@@ -156,24 +159,18 @@ class PPCG(PWFDEigensolver):
         #   improves numerical stability at the cost of
         #   convergence speed - up to a certain point.
         #   Probably best to not use this one.
-        self.tol_factor = 0
+        self.tol_factor = self.tolerances[0]
         # tolerance :
         #   Freeze bands with residual < tolerance
         #   improves numerical stability at the cost of
         #   minimum achievable residual.
-        self.tolerance = np.finfo(dtype).eps**2 * G_max**0.5
+        self.tolerance = self.tolerances[1]
         # breakout_tolerance :
         #   Stop iteration if sum(residual_ns) < breakout_tolerance
         #   breakout_tolerance saves time at the cost of minimum
         #   achievable residual. Can also be used to improve numerical
         #   stability.
-        self.breakout_tolerance = 1e-5 / Ha**2
-
-        if self.tolerances is not None:
-            assert len(self.tolerances) == 3
-            self.tol_factor = self.tolerances[0]
-            self.tolerance = self.tolerances[1]
-            self.breakout_tolerance = self.tolerances[2] / Ha**2
+        self.breakout_tolerance = self.tolerances[2] / Ha**2
 
         self.M_nn = Matrix(B, B, dtype=dtype,
                            dist=(band_comm, band_comm.size),
@@ -254,11 +251,15 @@ class PPCG(PWFDEigensolver):
             error_n = as_np(residual_nX.norm2())
             if len(error_n.shape) > 1:
                 error_n = error_n.sum(axis=1)
-            active_indicies = np.logical_or(
-                np.greater(error_n, self.tolerance),
-                np.greater(error_n,
-                           np.max(error_n, initial=0) * self.tol_factor))
-            active_indicies = np.where(active_indicies)[0]
+            if self.allow_dynamic_breakout and \
+                    (self.tol_factor or self.tolerance):
+                active_indicies = np.logical_or(
+                    np.greater(error_n, self.tolerance),
+                    np.greater(error_n,
+                               np.max(error_n, initial=0) * self.tol_factor))
+                active_indicies = np.where(active_indicies)[0]
+            else:
+                active_indicies = np.arange(b)
             error = weight_n @ error_n
             b_error = band_comm.sum_scalar(error) / \
                 max(band_comm.sum_scalar(weight_n.sum()), 0.5)
@@ -287,13 +288,16 @@ class PPCG(PWFDEigensolver):
                 M_nn.multiply(psit_nX, out=residual_nX, beta=1.0, alpha=-1.0)
                 M_nn.multiply(P_ani, out=P2_ani, beta=1.0, alpha=-1.0)
 
-            active_bs = len(active_indicies)
+            loop_limit = len(active_indicies) if self.allow_dynamic_breakout \
+                else (psit_nX.dims[0] + band_comm.size - 1) // band_comm.size
+            active_bands = len(active_indicies)
 
             with tracectx('Block-diagonal Update'):
                 new_eigs_n = np.zeros_like(wfs.myeig_n)  # New eigenvalues
-                for j in range(0, active_bs, self.blocksize):
+                for j in range(0, loop_limit, self.max_blocksize):
                     block_slice_base = \
-                        slice(j, min(j + self.blocksize, active_bs))
+                        slice(min(j, active_bands),
+                              min(j + self.max_blocksize, active_bands))
                     block = \
                         block_slice_base.stop - block_slice_base.start
                     block_slice = active_indicies[block_slice_base]
@@ -466,7 +470,8 @@ class PPCG(PWFDEigensolver):
             wfs.myeig_n[:] = new_eigs_n
             band_comm.sum(wfs._eig_n)
             wfs.orthonormalized = False
-            if break_after_update or i >= self.niter - 1:
+            if (self.allow_dynamic_breakout and break_after_update) or \
+                    i >= self.niter - 1:
                 break
 
             with tracectx('Residual'):
@@ -490,11 +495,13 @@ class PPCG(PWFDEigensolver):
                 if len(error_n.shape) > 1:
                     error_n = error_n.sum(axis=1)
 
-                active_indicies = np.logical_or(
-                    np.greater(error_n, self.tolerance),
-                    np.greater(error_n, np.max(error_n, initial=0) *
-                               self.tol_factor))
-                active_indicies = np.where(active_indicies)[0]
+                if self.allow_dynamic_breakout and \
+                        (self.tol_factor or self.tolerance):
+                    active_indicies = np.logical_or(
+                        np.greater(error_n, self.tolerance),
+                        np.greater(error_n, np.max(error_n, initial=0) *
+                                   self.tol_factor))
+                    active_indicies = np.where(active_indicies)[0]
                 error = weight_n @ error_n
                 b_error = band_comm.sum_scalar(error) / \
                     max(band_comm.sum_scalar(weight_n.sum()), 0.5)

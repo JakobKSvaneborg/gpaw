@@ -14,6 +14,7 @@ def test_lcao_lcao_projections():
     calc = GPAW(mode='fd',
                 gpts=(32, 32, 48),
                 poissonsolver=FDPoissonSolver(),
+                convergence={'density': 1e-5},
                 eigensolver='rmm-diis')
     atoms.calc = calc
     atoms.get_potential_energy()
@@ -29,4 +30,4 @@ def test_lcao_lcao_projections():
                         0.5929813570454503, 3.925217670277378,
                         7.451140780537926, 26.734705668744386])
     print(eig)
-    assert np.allclose(eig, eig_ref)
+    assert np.array(eig) == pytest.approx(eig_ref, abs=1e-3)

@@ -27,7 +27,7 @@ def test_exx_unocc():
         h=0.3,
         eigensolver='rmm-diis',
         nbands=nbands,
-        convergence={'eigenstates': 1e-4},
+        convergence={'density': 1e-5},
         txt=txt)
     # usual calculation
     fname = 'Be2.gpw'
