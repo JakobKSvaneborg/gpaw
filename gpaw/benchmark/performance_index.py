@@ -120,7 +120,7 @@ def workflow(skip: list[str] | None = None) -> list:
             tmax = '3h'
         elif cores == 56:
             nodename = 'xeon56'
-            tmax = '5h'
+            tmax = '7h'
 
         handle = run(function=work,
                      args=[name],
