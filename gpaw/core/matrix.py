@@ -486,7 +486,10 @@ class Matrix(XP):
                 S = S0.new(dist=dist)
                 S0.redist(S)
         else:
-            # assert self.dist.comm.size == slcomm.size
+            assert (
+                self.dist.comm.size == slcomm.size or
+                slcomm.size == 1 and
+                self.dist.rows == 1 and self.dist.columns == 1)
             H = self
 
         if limit == H.shape[0]:

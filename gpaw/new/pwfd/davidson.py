@@ -12,14 +12,18 @@ from gpaw.new import tracectx
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D
-from gpaw.mpi import serial_comm
+from gpaw.mpi import serial_comm, MPIComm
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 
 
-def slparams(nbands, comm):
+def slparams(nbands: int, comm: MPIComm) -> tuple[MPIComm, int, int, int]:
     if nbands < 1000:
         return serial_comm, 1, 1, None
     # How much of comm should we use?
+    # At least 30,000 numbers per core:
+    ncores = 2**int(np.log2(nbands**2 / 30_000))
+    if ncores < comm.size:
+        comm = comm.new_communicator(range(ncores))
     return (comm, *suggest_blocking(nbands, comm.size))
 
 
@@ -44,10 +48,12 @@ class Davidson(PWFDEigensolver):
         if scalapack_parameters is None:
             self.scalapack_parameters = slparams(nbands, domain_band_comm)
         else:
-            r, c, _ = scalapack_parameters
-            assert r * c == domain_band_comm.size
-            self.scalapack_parameters = (
-                domain_band_comm, *scalapack_parameters)
+            r, c, b = scalapack_parameters
+            slcomm = domain_band_comm
+            assert r * c <= slcomm.size
+            if r * c < slcomm.size:
+                slcomm = slcomm.new_communicator(range(r * c))
+            self.scalapack_parameters = (slcomm, r, c, b)
         self.H_NN: Matrix
         self.S_NN: Matrix
         self.M_nn: Matrix
@@ -63,7 +69,6 @@ class Davidson(PWFDEigensolver):
         self._allocate_work_arrays(ibzwfs, shape=(1,))
         self._allocate_buffer_arrays(ibzwfs, shape=(1,))
 
-        domain_comm = ibzwfs.domain_comm
         band_comm = ibzwfs.band_comm
 
         B = ibzwfs.nbands
@@ -198,7 +203,7 @@ class Davidson(PWFDEigensolver):
             eig_n[:] = H_NN.eigh(S_NN,
                                  limit=B,
                                  scalapack=self.scalapack_parameters)
-            wfs._eig_n[:] = as_np(eig_n)
+            wfs.eig_n = as_np(eig_n)
             if is_domain_band_master:
                 M0_nn.data[:] = H_NN.data[:B, :B]
                 M0_nn.complex_conjugate()
