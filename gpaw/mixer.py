@@ -250,12 +250,11 @@ class BaseMixer(BaseMixerOld):
             if g_ss is not None:
                 mR_sG = np.tensordot(g_ss, mR_sG, axes=(1, 0))
 
-            greed = 0.25
+            greed = 0.33
 
-            # Most likely, these all have the wrong sign.
             s_isG = (np.array(nt_isG)[:-1] - nt_isG[-1])
             y_isG = (np.array(R_isG)[:-1] - R_sG)
-            t_isG = y_isG + greed * s_isG
+            t_isG = (1 - greed) * y_isG + greed * s_isG
             sD_iasp = []
             yD_iasp = []
             for i1 in range(len(D_iasp) - 1):
@@ -266,7 +265,6 @@ class BaseMixer(BaseMixerOld):
                     yD_asp.append((dD_iasp[i1][a1] - dD_iasp[-1][a1]))
                 sD_iasp.append(sD_asp)
                 yD_iasp.append(yD_asp)
-            # End of stuff with most likely wrong sign.
 
             # Update matrix:
             A_ii = np.zeros((iold - 1, iold - 1))
@@ -277,15 +275,11 @@ class BaseMixer(BaseMixerOld):
                     A_ii[i2, i1] = self.gd.comm.sum_scalar(
                         self.dotprod(t_sG, y_sG, None, None, metric))
 
-            alpha = 0 # 1e-9
-            B_isG = np.linalg.solve(A_ii + alpha * np.eye(iold - 1), t_isG.reshape((iold - 1, -1))).reshape(t_isG.shape)
-
-            A0 = self.beta
-            B0 = -1 # 0.95
-
-            nt_sG[:] = nt_isG[-1] + A0 * R_sG
-            for a1, D_sp in enumerate(D_asp):
-                D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1]
+            alpha = 1e-6
+            S, V, D = np.linalg.svd(A_ii)
+            V = V / (V**2 + alpha**2)
+            A_ii = D.T @ np.diag(V) @ S.T
+            B_isG = (A_ii @ t_isG.reshape((iold - 1, -1))).reshape(t_isG.shape)
 
             alpha_i = []
             for i1, B_sG in enumerate(B_isG):
@@ -293,20 +287,54 @@ class BaseMixer(BaseMixerOld):
                     self.dotprod(B_sG, R_sG, None, None, metric)
                 ))
 
+            A1 = self.dotprod(self.uk_sG, self.uk_sG, None, None, metric)
+            B1 = self.dotprod(self.R_isG[-2] - self.uk_sG,
+                self.R_isG[-2] - self.uk_sG, None, None, metric)
+            A2 = 0
+            B2 = 0
+            for i1, (y_sG, B_sG) in enumerate(zip(y_isG, B_isG)):
+                A2 += self.dotprod(B_sG, self.uk_sG, None, None, metric) \
+                    * self.dotprod(self.uk_sG, y_sG, None, None, metric)
+
+                B2 += self.dotprod(B_sG, self.pk_sG, None, None, metric) \
+                    * self.dotprod(R_isG[-2] - self.uk_sG,
+                       y_sG, None, None, metric)
+
+            new_beta_factor = (self.beta + np.abs(A1 / A2)) / (2 * self.beta)
+            self.beta *= max(min(new_beta_factor, 5/3), 3/5)
+            self.beta = min(self.beta, 0.5)
+            print(self.beta)
+            self.B0 = 1 # if iold == 2 else min(1, (self.B0 + np.abs(B1 / B2) + 0.1) / 2)
+            A0 = self.beta
+            B0 = self.B0
+
+            self.uk_sG = np.zeros_like(nt_sG)
+            self.pk_sG = np.zeros_like(nt_sG)
+
+            for a1, D_sp in enumerate(D_asp):
+                            D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1]
+
             for i1, alpha in enumerate(alpha_i):
-                QQ_sG = A0 * alpha * y_isG[i1]
-                Q_sG = B0 * alpha * s_isG[i1]
-                nt_sG += Q_sG - QQ_sG
+                self.uk_sG -= alpha * y_isG[i1]
+                self.pk_sG -= alpha * s_isG[i1]
+                #nt_sG += Q_sG - QQ_sG
                 #adf
 
                 for a1, D_sp in enumerate(D_asp):
                     QQ_sp = A0 * alpha * yD_iasp[i1][a1]
                     Q_sp = B0 * alpha * sD_iasp[i1][a1]
-                    D_sp += Q_sp - QQ_sp
+                    D_sp -= Q_sp + QQ_sp
+
+            self.uk_sG += R_sG
+            nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG + B0 * self.pk_sG
+
+
         elif iold == 1:
             # Pratt step
-            A0 = self.beta
-            nt_sG[:] = nt_isG[-1] + A0 * R_sG
+            A0 = self.beta * 0.1
+            self.uk_sG = R_sG
+            self.pk_sG = np.zeros_like(self.uk_sG)
+            nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG
             for a1, D_sp in enumerate(D_asp):
                 D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1]
 
