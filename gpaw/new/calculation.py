@@ -217,7 +217,7 @@ class DFTCalculation:
         else:  # no break
             self.log('SCF steps:', step)
 
-    def energy(self):
+    def calculate_energy(self):
         self.results['free_energy'] = broadcast_float(
             self.energies.total_free, self.comm)
         self.results['energy'] = broadcast_float(
@@ -226,6 +226,9 @@ class DFTCalculation:
         self.log('Energy contributions relative to reference atoms:',
                  f'(reference = {self.setups.Eref * Ha:.6f})\n')
         self.energies.summary(self.log)
+        return self.results['energy'] * Ha
+
+    energy = calculate_energy
 
     def dipole(self):
         if 'dipole' in self.results:

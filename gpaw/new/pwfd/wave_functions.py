@@ -288,25 +288,18 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
         psit_nX = self.psit_nX
         domain_comm = psit_nX.desc.comm
-        if domain_comm.rank == 0:
-            slcomm, r, c, b = scalapack_params
-            if r == c == 1:
-                slcomm = None
-            self.eig_n = as_np(H_nm.eigh(scalapack=(slcomm, r, c, b)),
-                               dtype=np.float64)
-            H_nm.complex_conjugate()
-            # H.data[n, :] now contains the nth eigenvector and eps_n[n]
-            # the nth eigenvalue
-        else:
-            self.eig_n = np.empty(psit_nX.dims[0])
-
-        # broad cast eigenvalues
-        domain_comm.broadcast(self.eig_n, 0)
-
-        # broadcast eigenvectors (not needed if only eigenvalues used)
+        slcomm, r, c, b = scalapack_params
+        Hd_nm = H_nm.new(dist=(self.domain_band_comm,
+                               self.band_comm.size,
+                               self.domain_comm.size, -1, self.nbands),
+                         data=H_nm.data if self.domain_comm.rank == 0
+                         else None)
+        self.eig_n = as_np(Hd_nm.eigh(scalapack=(slcomm, r, c, b)),
+                           dtype=np.float64)
+        Hd_nm.complex_conjugate()
+        # H.data[n, :] now contains the nth eigenvector and eps_n[n]
+        # the nth eigenvalue
         domain_comm.broadcast(H_nm.data, 0)
-        self.eigvec_n = H_nm.data[:]
-        return
 
     @trace
     def canonical_transformation(self, H_nm, psit2_nX, data_buffer):

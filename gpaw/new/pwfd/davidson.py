@@ -79,7 +79,7 @@ class Davidson(PWFDEigensolver):
             self.S_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp)
         elif 1:
             self.H_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp,
-                               dist=(self.domain_band_comm, 1, 1))
+                               dist=(self.domain_band_comm, -1, 1, 2 * B))
             self.S_NN = self.H_NN.new()
         else:
             self.H_NN = self.S_NN = Matrix(0, 0)

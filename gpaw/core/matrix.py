@@ -509,8 +509,8 @@ class Matrix(XP):
             # Handle generalized eigenproblem
             if S is not None:
                 if self.is_distributed():
-                    raise NotImplementedError("GPU generalized eigh "
-                                              "for distributed matrices")
+                    raise NotImplementedError(
+                        'GPU generalized eigh for distributed matrices')
                 S.invcholesky()
                 self.tril2full()
                 eigs = self.dist.eighl(self, S)
@@ -585,8 +585,8 @@ class Matrix(XP):
             # necessary to broadcast eps when some ranks are not used
             # in current scalapack parameter set
             # eg. (2, 1, 2) with 4 processes
-            if rows * columns < slcomm.size:
-                H.dist.comm.broadcast(eps, 0)
+            if rows * columns < self.dist.comm.size:
+                self.dist.comm.broadcast(eps, 0)
 
         if redist:
             H.redist(self)
