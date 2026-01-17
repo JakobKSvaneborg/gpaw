@@ -348,7 +348,7 @@ class MSR1Mixer(BaseMixer):
 
         elif iold == 1:
             # Pratt step
-            A0 = self.beta
+            A0 = self.beta * 0.2
             self.uk_sG = R_sG
             self.pk_sG = np.zeros_like(self.uk_sG)
             nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG
