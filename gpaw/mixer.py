@@ -268,43 +268,47 @@ class MSR1Mixer(BaseMixer):
                 yD_iasp.append(yD_asp)
 
             # Update matrix:
-            A_ii = np.zeros((iold - 1, iold - 1))
-            metric = self.metric
+            metric = None # self.metric
 
-            for i1, y_sG in enumerate(y_isG):
-                for i2, t_sG in enumerate(t_isG):
-                    A_ii[i2, i1] = self.gd.comm.sum_scalar(
-                        self.dotprod(t_sG, y_sG, None, None, metric))
+            A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
+            B_ii = t_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
+            self.gd.comm.sum(A_ii)
+            self.gd.comm.sum(B_ii)
 
-            alpha = 5e-5
+            alpha = 5e-6
             S, V, D = np.linalg.svd(A_ii)
             V = V / (V**2 + alpha**2)
             A_ii = D.T @ np.diag(V) @ S.T
-            B_isG = (A_ii @ t_isG.reshape((iold - 1, -1))).reshape(t_isG.shape)
+            S, V, D = np.linalg.svd(B_ii)
+            V = V / (V**2 + alpha**2)
+            B_ii = D.T @ np.diag(V) @ S.T
+            H_isG = (A_ii @ t_isG.reshape((iold - 1, -1))).reshape(t_isG.shape)
+            B_isG = (B_ii @ t_isG.reshape((iold - 1, -1))).reshape(t_isG.shape)
 
             alpha_i = []
-            for i1, B_sG in enumerate(B_isG):
+            for i1, H_sG in enumerate(H_isG):
                 alpha_i.append(self.gd.comm.sum_scalar(
-                    self.dotprod(B_sG, R_sG, None, None, metric)
+                    self.dotprod(H_sG, R_sG, None, None, metric)
                 ))
 
             A1 = self.gd.comm.sum_scalar(
-                self.dotprod(self.uk_sG, self.uk_sG, None, None, metric)
+                self.dotprod(self.uk_sG, self.uk_sG, None, None, None)
             )
             B1 = self.gd.comm.sum_scalar(
                 self.dotprod(self.R_isG[-2] - self.uk_sG,
-                self.R_isG[-2] - self.uk_sG, None, None, metric)
+                self.R_isG[-2] - self.uk_sG, None, None, None)
             )
-            A2 = 0
-            B2 = 0
-            for i1, B_sG in enumerate(B_isG):
-                for i2, y_sG in enumerate(y_isG):
-                    A2 += self.gd.comm.sum_scalar(self.dotprod(B_sG, self.uk_sG, None, None, metric)) \
-                        * self.gd.comm.sum_scalar(self.dotprod(self.uk_sG, y_sG, None, None, metric))
+            A2_i = B_isG.reshape((iold - 1, -1)) @ self.uk_sG.reshape(-1)
+            self.gd.comm.sum(A2_i)
+            B2_i = B_isG.reshape((iold - 1, -1)) @ self.pk_sG.reshape(-1)
+            self.gd.comm.sum(B2_i)
+            A3_i = y_isG.reshape((iold - 1, -1)) @ self.uk_sG.reshape(-1)
+            self.gd.comm.sum(A3_i)
+            B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
+            self.gd.comm.sum(B3_i)
 
-                    B2 += self.gd.comm.sum_scalar(self.dotprod(B_sG, self.pk_sG, None, None, metric)) \
-                        * self.gd.comm.sum_scalar(self.dotprod(R_isG[-2] - self.uk_sG,
-                        y_sG, None, None, metric))
+            A2 = A2_i @ A3_i
+            B2 = B2_i @ B3_i
 
             if iold != 2:
                 new_B0_factor = (self.B0 + np.abs(B1 / B2) + 0.1) / (2 * self.B0)
@@ -315,11 +319,11 @@ class MSR1Mixer(BaseMixer):
             new_beta_factor = (self.beta + np.abs(A1 / A2)) / (2 * self.beta)
             self.beta *= max(min(new_beta_factor, 4/3), 3/4)
 
-            self.beta = max(min(self.beta, 0.4), 0.1)
-            self.B0 = max(min(self.B0, 1.33), 0.75)
+            self.beta = max(min(self.beta, 0.3), 0.02)
+            self.B0 = max(min(self.B0, 1.1), 0.9)
             A0 = self.beta
-            B0 = 1 #self.B0
-            #print(f"A0: {A0}, B0: {B0}")
+            B0 = self.B0
+            # print(f"A0: {A0}, B0: {B0}")
 
             self.uk_sG = np.zeros_like(nt_sG)
             self.pk_sG = np.zeros_like(nt_sG)
@@ -344,7 +348,7 @@ class MSR1Mixer(BaseMixer):
 
         elif iold == 1:
             # Pratt step
-            A0 = self.beta * 0.1
+            A0 = self.beta
             self.uk_sG = R_sG
             self.pk_sG = np.zeros_like(self.uk_sG)
             nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG
