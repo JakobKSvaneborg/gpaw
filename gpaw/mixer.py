@@ -32,8 +32,8 @@ we don't have to implement it multiple times (estimate memory, etc.).
 In the end, what the user provides is probably a dictionary anyway, and the
 relevant objects are instantiated automatically."""
 
-#class BaseMixer:
-class BaseMixerOld:
+class BaseMixer:
+#class BaseMixerOld:
     name = 'pulay'
 
     """Pulay density mixer."""
@@ -208,8 +208,9 @@ class BaseMixerOld:
         string = template % (classname, self.beta, self.nmaxold, self.weight)
         return string
 
-#class FKA(BaseMixer):
-class BaseMixer(BaseMixerOld):
+class MSR1Mixer(BaseMixer):
+    name = 'MSR1'
+
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         nt_isG = self.nt_isG
         R_isG = self.R_isG
@@ -250,7 +251,7 @@ class BaseMixer(BaseMixerOld):
             if g_ss is not None:
                 mR_sG = np.tensordot(g_ss, mR_sG, axes=(1, 0))
 
-            greed = 0.33
+            greed = 0.1
 
             s_isG = (np.array(nt_isG)[:-1] - nt_isG[-1])
             y_isG = (np.array(R_isG)[:-1] - R_sG)
@@ -275,7 +276,7 @@ class BaseMixer(BaseMixerOld):
                     A_ii[i2, i1] = self.gd.comm.sum_scalar(
                         self.dotprod(t_sG, y_sG, None, None, metric))
 
-            alpha = 1e-6
+            alpha = 5e-5
             S, V, D = np.linalg.svd(A_ii)
             V = V / (V**2 + alpha**2)
             A_ii = D.T @ np.diag(V) @ S.T
@@ -287,26 +288,38 @@ class BaseMixer(BaseMixerOld):
                     self.dotprod(B_sG, R_sG, None, None, metric)
                 ))
 
-            A1 = self.dotprod(self.uk_sG, self.uk_sG, None, None, metric)
-            B1 = self.dotprod(self.R_isG[-2] - self.uk_sG,
+            A1 = self.gd.comm.sum_scalar(
+                self.dotprod(self.uk_sG, self.uk_sG, None, None, metric)
+            )
+            B1 = self.gd.comm.sum_scalar(
+                self.dotprod(self.R_isG[-2] - self.uk_sG,
                 self.R_isG[-2] - self.uk_sG, None, None, metric)
+            )
             A2 = 0
             B2 = 0
-            for i1, (y_sG, B_sG) in enumerate(zip(y_isG, B_isG)):
-                A2 += self.dotprod(B_sG, self.uk_sG, None, None, metric) \
-                    * self.dotprod(self.uk_sG, y_sG, None, None, metric)
+            for i1, B_sG in enumerate(B_isG):
+                for i2, y_sG in enumerate(y_isG):
+                    A2 += self.gd.comm.sum_scalar(self.dotprod(B_sG, self.uk_sG, None, None, metric)) \
+                        * self.gd.comm.sum_scalar(self.dotprod(self.uk_sG, y_sG, None, None, metric))
 
-                B2 += self.dotprod(B_sG, self.pk_sG, None, None, metric) \
-                    * self.dotprod(R_isG[-2] - self.uk_sG,
-                       y_sG, None, None, metric)
+                    B2 += self.gd.comm.sum_scalar(self.dotprod(B_sG, self.pk_sG, None, None, metric)) \
+                        * self.gd.comm.sum_scalar(self.dotprod(R_isG[-2] - self.uk_sG,
+                        y_sG, None, None, metric))
+
+            if iold != 2:
+                new_B0_factor = (self.B0 + np.abs(B1 / B2) + 0.1) / (2 * self.B0)
+                self.B0 *= max(min(new_B0_factor, 4/3), 3/4)
+            else:
+                self.B0 = 1
 
             new_beta_factor = (self.beta + np.abs(A1 / A2)) / (2 * self.beta)
-            self.beta *= max(min(new_beta_factor, 5/3), 3/5)
-            self.beta = min(self.beta, 0.5)
-            print(self.beta)
-            self.B0 = 1 # if iold == 2 else min(1, (self.B0 + np.abs(B1 / B2) + 0.1) / 2)
+            self.beta *= max(min(new_beta_factor, 4/3), 3/4)
+
+            self.beta = max(min(self.beta, 0.4), 0.1)
+            self.B0 = max(min(self.B0, 1.33), 0.75)
             A0 = self.beta
-            B0 = self.B0
+            B0 = 1 #self.B0
+            #print(f"A0: {A0}, B0: {B0}")
 
             self.uk_sG = np.zeros_like(nt_sG)
             self.pk_sG = np.zeros_like(nt_sG)
@@ -796,7 +809,7 @@ class FullSpinMixerDriver:
 # Dictionaries to get mixers by name:
 _backends = {}
 _methods = {}
-for cls in [FFTBaseMixer, BroydenBaseMixer, BaseMixer, NotMixingMixer]:
+for cls in [FFTBaseMixer, BroydenBaseMixer, BaseMixer, NotMixingMixer, MSR1Mixer]:
     _backends[cls.name] = cls  # type:ignore
 for dcls in [SeparateSpinMixerDriver, SpinSumMixerDriver,
              FullSpinMixerDriver, SpinSumMixerDriver2,
