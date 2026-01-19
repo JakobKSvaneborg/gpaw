@@ -135,15 +135,18 @@ class Matrix(XP):
                 xp = np
         super().__init__(xp)
 
-        dist = dist or ()
-        if isinstance(dist, tuple):
+        if isinstance(dist, MatrixDistribution):
+            assert self.shape == dist.full_shape
+            dist = dist.to_xp(xp)  # make sure xp and dist match
+        else:
+            if dist is None:
+                dist = ()
+            elif not isinstance(dist, tuple):
+                dist = (dist,)
             kwargs = {
                 key: val for key, val in zip(['comm', 'r', 'c', 'br', 'bc'],
                                              dist)}
             dist = create_distribution(M, N, xp=self.xp, **kwargs)
-        else:
-            assert self.shape == dist.full_shape
-            dist = dist.to_xp(xp)  # make sure xp and dist match
         self.dist = dist
 
         self.data: Array2D
@@ -330,7 +333,7 @@ class Matrix(XP):
         if c is not None:
             M, N = self.shape
             d1 = create_distribution(M, N, c,
-                                     d1.rows, d1.columns, d1.br, d2.bc)
+                                     d1.rows, d1.columns, d1.br, d1.bc)
             d2 = create_distribution(M, N, c,
                                      d2.rows, d2.columns, d2.br, d2.bc)
             if n1 == n:
@@ -858,7 +861,7 @@ class BLACSDistribution(MatrixDistribution):
         if context is None:
             try:
                 context = cgpaw.new_blacs_context(comm.get_c_object(),
-                                                  c, r, 'R')
+                                                  c, r, 'C')
             except AttributeError:
                 pass
             else:
@@ -869,6 +872,8 @@ class BLACSDistribution(MatrixDistribution):
             bc = (N + c - 1) // c
         elif bc == 0:
             bc = br
+        self.br = br
+        self.bc = bc
 
         if context is None:
             assert c == 1
