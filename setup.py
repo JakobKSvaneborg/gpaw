@@ -658,8 +658,8 @@ class BuildGPU:
         inout_makefile.append("GPU_DEPS := $(GPU_OBJECTS:.o=.d)")
 
         inout_makefile.append("GPU_PREBUILD_DIRS := $(sort $(dir $(GPU_OBJECTS)))")
-        inout_makefile.append("gpu_prebuild:\n\t @mkdir -p $(GPU_PREBUILD_DIRS)")
-        inout_makefile.append("\n$(GPU_OBJECTS): | gpu_prebuild")
+        inout_makefile.append("$(GPU_PREBUILD_DIRS):\n\t mkdir -p $(GPU_PREBUILD_DIRS)")
+        inout_makefile.append("\n$(GPU_OBJECTS): | $(GPU_PREBUILD_DIRS)")
 
         inout_makefile.append(f"\nCC_GPU := {self.compiler}\n")
         inout_makefile.append(f"CFLAGS_GPU := {cflags_str} -MMD -MP\n")
@@ -761,8 +761,8 @@ class BuildGPAW(build_ext):
         makefile_lines.append("DEPS := $(OBJECTS:.o=.d)")
 
         makefile_lines.append("PREBUILD_DIRS := $(sort $(dir $(OBJECTS)))")
-        makefile_lines.append("prebuild:\n\t @mkdir -p $(PREBUILD_DIRS)")
-        makefile_lines.append("\n$(OBJECTS): | prebuild")
+        makefile_lines.append("$(PREBUILD_DIRS):\n\t mkdir -p $(PREBUILD_DIRS)")
+        makefile_lines.append("\n$(OBJECTS): | $(PREBUILD_DIRS)")
 
         makefile_lines.append(f"\nCC := {self.compiler.compiler_so[0]}")
 
