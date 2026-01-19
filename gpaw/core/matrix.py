@@ -476,7 +476,8 @@ class Matrix(XP):
 
         redist = (rows != self.dist.rows or
                   columns != self.dist.columns or
-                  blocksize != self.dist.blocksize)
+                  blocksize != self.dist.br or
+                  blocksize != self.dist.bc)
 
         if redist:
             H = self.new(dist=dist)
@@ -722,32 +723,31 @@ def redist(dist1, M1, dist2, M2, context):
 def create_distribution(M: int,
                         N: int,
                         comm: MPIComm | None = None,
-                        r: int = 0,
-                        c: int = 0,
+                        r: int = -1,
+                        c: int = 1,
                         br: int = 0,
                         bc: int = 0,
                         xp=None) -> MatrixDistribution:
+    comm = comm or serial_comm
+
     if r == -1:
-        if c == 0:
-            r = comm.size
-            c = 1
-        else:
+        r = comm.size // c
+    elif c == -1:
+        c = comm.size // r
+    if r * c != comm.size:
+        raise ValueError
+
     if xp is cp:
         b = None  # blocking not implemented
         comm = comm or serial_comm
         return CuPyDistribution(M, N, comm,
                                 r if r != -1 else comm.size,
-                                c if c != -1 else comm.size,
-                                b)
+                                c if c != -1 else comm.size)
 
-    if comm is None or comm.size == 1:
-        assert r == 1 and abs(c) == 1 or c == 1 and abs(r) == 1
+    if comm.size == 1:
         return NoDistribution(M, N)
 
-    return BLACSDistribution(M, N, comm,
-                             r if r != -1 else comm.size,
-                             c if c != -1 else comm.size,
-                             b)
+    return BLACSDistribution(M, N, comm, r, c, br, bc)
 
 
 class MatrixDistribution:
@@ -781,14 +781,15 @@ class MatrixDistribution:
         >>> Matrix(2, 2).dist.my_row_range()
         (0, 2)
         """
+        M, N = self.full_shape
+        b = (M + self.rows - 1) // self.rows
         ok = (self.rows == self.comm.size and
               self.columns == 1 and
-              self.blocksize is None)
+              self.br == b and
+              self.bc == N)
         if not ok:
             raise ValueError(f'Can not create slice of distribution: {self}')
-        M = self.full_shape[0]
-        b = (M + self.rows - 1) // self.rows
-        n1 = self.comm.rank * b
+        n1 = min(self.comm.rank * b, M)
         n2 = min(n1 + b, M)
         return n1, n2
 
@@ -802,11 +803,12 @@ class NoDistribution(MatrixDistribution):
     comm = serial_comm
     rows = 1
     columns = 1
-    blocksize = None
 
     def __init__(self, M, N):
         self.shape = (M, N)
         self.full_shape = (M, N)
+        self.br = M
+        self.bc = N
 
     def __str__(self):
         return 'NoDistribution({}x{})'.format(*self.shape)
@@ -850,7 +852,7 @@ class BLACSDistribution(MatrixDistribution):
         self.rows = r
         self.columns = c
         self.full_shape = (M, N)
-        self.simple = False
+        # self.simple = False
 
         key = (comm, r, c)
         context = _global_blacs_context_store.get(key)
@@ -863,23 +865,15 @@ class BLACSDistribution(MatrixDistribution):
             else:
                 _global_blacs_context_store[key] = context
 
-        if
-        if b is None:
-            if c == 1:
-                br = (M + r - 1) // r
-                bc = max(1, N)
-                self.simple = True
-            elif r == 1:
-                br = M
-                bc = (N + c - 1) // c
-            else:
-                raise ValueError('Please specify block size!')
-        else:
-            br = bc = b
+        if br == 0 and bc == 0:
+            br = (M + r - 1) // r
+            bc = (N + c - 1) // c
+        elif bc == 0:
+            bc = br
 
         if context is None:
-            assert b is None
             assert c == 1
+            assert br == (M + r - 1) // r
             n = N
             m = min((comm.rank + 1) * br, M) - min(comm.rank * br, M)
         else:
@@ -906,7 +900,7 @@ class BLACSDistribution(MatrixDistribution):
         return BLACSDistribution(M, N,
                                  self.comm,
                                  self.rows, self.columns,
-                                 self.blocksize)
+                                 self.br, self.bc)
 
     def multiply(self, alpha, a, opa, b, opb, beta, c, symmetric):
         if self.comm.size > 1:
