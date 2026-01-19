@@ -296,7 +296,7 @@ class MSR1Mixer(BaseMixer):
                     good_broydenness += 2**(-iter) * max_gb
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
-            print(good_broydenness)
+            # print(good_broydenness)
 
             B_ii = t_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(B_ii)
