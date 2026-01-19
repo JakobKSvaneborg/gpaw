@@ -253,10 +253,12 @@ class MSR1Mixer(BaseMixer):
 
             s_isG = (np.array(nt_isG)[:-1] - nt_isG[-1])
             y_isG = -(np.array(R_isG)[:-1] - R_sG)
-            # s_norm = np.linalg.norm(s_isG.reshape(iold - 1, -1), axis=1)
-            # y_norm = np.linalg.norm(y_isG.reshape(iold - 1, -1), axis=1)
-            # s_isG /= np.expand_dims(s_norm, axis=tuple(np.arange(1, s_isG.ndim)))
-            # y_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, y_isG.ndim)))
+            # s_norm = np.linalg.norm(s_isG.reshape(iold - 1, -1), axis=1)**2
+            y_norm = np.linalg.norm(y_isG.reshape(iold - 1, -1), axis=1)**2
+            # self.gd.comm.sum(s_norm)
+            self.gd.comm.sum(y_norm)
+            s_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, s_isG.ndim)))
+            y_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, y_isG.ndim)))
 
             sD_iasp = []
             yD_iasp = []
@@ -264,41 +266,42 @@ class MSR1Mixer(BaseMixer):
                 sD_asp = []
                 yD_asp = []
                 for a1 in range(len(D_iasp[i1])):
-                    sD_asp.append((D_iasp[i1][a1] - D_iasp[-1][a1])) # / s_norm[i1])
-                    yD_asp.append(-(dD_iasp[i1][a1] - dD_iasp[-1][a1])) # / y_norm[i1])
+                    sD_asp.append((D_iasp[i1][a1] - D_iasp[-1][a1]) / y_norm[i1])
+                    yD_asp.append(-(dD_iasp[i1][a1] - dD_iasp[-1][a1]) / y_norm[i1])
                 sD_iasp.append(sD_asp)
                 yD_iasp.append(yD_asp)
 
             # Update matrix:
             metric = None # self.metric
 
-            max_gb = 0.6
+            max_gb = 0.9
             good_broydenness = 0.5 * max_gb
 
             # Choose max good_broydenness s.t. A_ii is positive definite
             # for good_broydenness in good_broydenness_range:
-            # binary search 2**(-18) accuracy:
+            # binary search 2**(-16) accuracy:
             for iter in range(2, 16):
                 t_isG = (1 - good_broydenness) * y_isG \
-                    + good_broydenness * s_isG
+                    + good_broydenness * s_isG # * np.expand_dims(y_norm / s_norm, axis=tuple(np.arange(1, s_isG.ndim)))
                 # Normalize t_isG
-                t_norm = np.linalg.norm(t_isG.reshape((iold - 1, -1)), axis=1)**2
-                self.gd.comm.sum(t_norm)
-                t_isG /= np.expand_dims(np.sqrt(t_norm), axis=tuple(np.arange(1, t_isG.ndim)))
+                # t_norm = np.linalg.norm(t_isG.reshape((iold - 1, -1)), axis=1)**2
+                # self.gd.comm.sum(t_norm)
+                # t_isG /= np.expand_dims(np.sqrt(t_norm), axis=tuple(np.arange(1, t_isG.ndim)))
 
                 A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
                 self.gd.comm.sum(A_ii)
 
-                if np.all(np.linalg.eigvals(A_ii) > 0):
+                # Hopefully a trust region makes the iold > 4 not needed.
+                if np.all(np.linalg.eigvals(A_ii) > 1e-10) and iold > 4:
                     good_broydenness += 2**(-iter) * max_gb
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
-            # print(good_broydenness)
+            print(good_broydenness)
 
             B_ii = t_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(B_ii)
 
-            alpha = 5e-8
+            alpha = 5e-6
             S, V, D = np.linalg.svd(A_ii)
             V = V / (V**2 + (alpha * np.max(V))**2)
             A_ii = D.T @ np.diag(V) @ S.T
@@ -342,8 +345,8 @@ class MSR1Mixer(BaseMixer):
             new_beta_factor = (self.beta + np.abs(A1 / A2)) / (2 * self.beta)
             self.beta *= max(min(new_beta_factor, 5/3), 3/5)
 
-            self.beta = max(min(self.beta, 0.4), 0.02)
-            self.B0 = max(min(self.B0, 1.3), 0.75)
+            self.beta = max(min(self.beta, 0.2), 0.02)
+            self.B0 = max(min(self.B0, 1.25), 0.8)
             A0 = self.beta
             B0 = self.B0
             # print(f"A0: {A0}, B0: {B0}")
