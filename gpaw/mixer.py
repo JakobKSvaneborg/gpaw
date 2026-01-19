@@ -251,36 +251,59 @@ class MSR1Mixer(BaseMixer):
             if g_ss is not None:
                 mR_sG = np.tensordot(g_ss, mR_sG, axes=(1, 0))
 
-            greed = 0.1
-
             s_isG = (np.array(nt_isG)[:-1] - nt_isG[-1])
-            y_isG = (np.array(R_isG)[:-1] - R_sG)
-            t_isG = (1 - greed) * y_isG + greed * s_isG
+            y_isG = -(np.array(R_isG)[:-1] - R_sG)
+            # s_norm = np.linalg.norm(s_isG.reshape(iold - 1, -1), axis=1)
+            # y_norm = np.linalg.norm(y_isG.reshape(iold - 1, -1), axis=1)
+            # s_isG /= np.expand_dims(s_norm, axis=tuple(np.arange(1, s_isG.ndim)))
+            # y_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, y_isG.ndim)))
+
             sD_iasp = []
             yD_iasp = []
             for i1 in range(len(D_iasp) - 1):
                 sD_asp = []
                 yD_asp = []
                 for a1 in range(len(D_iasp[i1])):
-                    sD_asp.append((D_iasp[i1][a1] - D_iasp[-1][a1]))
-                    yD_asp.append((dD_iasp[i1][a1] - dD_iasp[-1][a1]))
+                    sD_asp.append((D_iasp[i1][a1] - D_iasp[-1][a1])) # / s_norm[i1])
+                    yD_asp.append(-(dD_iasp[i1][a1] - dD_iasp[-1][a1])) # / y_norm[i1])
                 sD_iasp.append(sD_asp)
                 yD_iasp.append(yD_asp)
 
             # Update matrix:
             metric = None # self.metric
 
-            A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
+            max_gb = 0.6
+            good_broydenness = 0.5 * max_gb
+
+            # Choose max good_broydenness s.t. A_ii is positive definite
+            # for good_broydenness in good_broydenness_range:
+            # binary search 2**(-18) accuracy:
+            for iter in range(2, 16):
+                t_isG = (1 - good_broydenness) * y_isG \
+                    + good_broydenness * s_isG
+                # Normalize t_isG
+                t_norm = np.linalg.norm(t_isG.reshape((iold - 1, -1)), axis=1)**2
+                self.gd.comm.sum(t_norm)
+                t_isG /= np.expand_dims(np.sqrt(t_norm), axis=tuple(np.arange(1, t_isG.ndim)))
+
+                A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
+                self.gd.comm.sum(A_ii)
+
+                if np.all(np.linalg.eigvals(A_ii) > 0):
+                    good_broydenness += 2**(-iter) * max_gb
+                else:
+                    good_broydenness -= 2**(-iter) * max_gb
+            # print(good_broydenness)
+
             B_ii = t_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
-            self.gd.comm.sum(A_ii)
             self.gd.comm.sum(B_ii)
 
-            alpha = 5e-6
+            alpha = 5e-8
             S, V, D = np.linalg.svd(A_ii)
-            V = V / (V**2 + alpha**2)
+            V = V / (V**2 + (alpha * np.max(V))**2)
             A_ii = D.T @ np.diag(V) @ S.T
             S, V, D = np.linalg.svd(B_ii)
-            V = V / (V**2 + alpha**2)
+            V = V / (V**2 + (alpha * np.max(V))**2)
             B_ii = D.T @ np.diag(V) @ S.T
             H_isG = (A_ii @ t_isG.reshape((iold - 1, -1))).reshape(t_isG.shape)
             B_isG = (B_ii @ t_isG.reshape((iold - 1, -1))).reshape(t_isG.shape)
@@ -312,15 +335,15 @@ class MSR1Mixer(BaseMixer):
 
             if iold != 2:
                 new_B0_factor = (self.B0 + np.abs(B1 / B2) + 0.1) / (2 * self.B0)
-                self.B0 *= max(min(new_B0_factor, 4/3), 3/4)
+                self.B0 *= max(min(new_B0_factor, 5/3), 3/5)
             else:
                 self.B0 = 1
 
             new_beta_factor = (self.beta + np.abs(A1 / A2)) / (2 * self.beta)
-            self.beta *= max(min(new_beta_factor, 4/3), 3/4)
+            self.beta *= max(min(new_beta_factor, 5/3), 3/5)
 
-            self.beta = max(min(self.beta, 0.3), 0.02)
-            self.B0 = max(min(self.B0, 1.1), 0.9)
+            self.beta = max(min(self.beta, 0.4), 0.02)
+            self.B0 = max(min(self.B0, 1.3), 0.75)
             A0 = self.beta
             B0 = self.B0
             # print(f"A0: {A0}, B0: {B0}")
@@ -329,18 +352,18 @@ class MSR1Mixer(BaseMixer):
             self.pk_sG = np.zeros_like(nt_sG)
 
             for a1, D_sp in enumerate(D_asp):
-                            D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1]
+                D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1]
 
             for i1, alpha in enumerate(alpha_i):
                 self.uk_sG -= alpha * y_isG[i1]
-                self.pk_sG -= alpha * s_isG[i1]
+                self.pk_sG += alpha * s_isG[i1]
                 #nt_sG += Q_sG - QQ_sG
                 #adf
 
                 for a1, D_sp in enumerate(D_asp):
                     QQ_sp = A0 * alpha * yD_iasp[i1][a1]
                     Q_sp = B0 * alpha * sD_iasp[i1][a1]
-                    D_sp -= Q_sp + QQ_sp
+                    D_sp += Q_sp - QQ_sp
 
             self.uk_sG += R_sG
             nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG + B0 * self.pk_sG
@@ -348,7 +371,7 @@ class MSR1Mixer(BaseMixer):
 
         elif iold == 1:
             # Pratt step
-            A0 = self.beta * 0.2
+            A0 = max(self.beta, 0.08)
             self.uk_sG = R_sG
             self.pk_sG = np.zeros_like(self.uk_sG)
             nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG
