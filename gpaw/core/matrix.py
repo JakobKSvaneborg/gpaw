@@ -137,8 +137,9 @@ class Matrix(XP):
 
         dist = dist or ()
         if isinstance(dist, tuple):
-            kwargs = {key: val for key, val in zip(['comm', 'r', 'c', 'b'],
-                                                   dist)}
+            kwargs = {
+                key: val for key, val in zip(['comm', 'r', 'c', 'br', 'bc'],
+                                             dist)}
             dist = create_distribution(M, N, xp=self.xp, **kwargs)
         else:
             assert self.shape == dist.full_shape
@@ -292,9 +293,8 @@ class Matrix(XP):
             other.data[:] = self.data
             return
 
-        if n2 == 1 and d1.blocksize is None:
-            assert d2.blocksize is None
-            assert d1.columns == 1
+        if n2 == 1 and d1.simple:
+            assert d2.simple
             comm = d1.comm
             if comm.rank == 0:
                 M = self.shape[0]
@@ -308,9 +308,8 @@ class Matrix(XP):
                 comm.send(self.data, 0)
             return
 
-        if n1 == 1 and d2.blocksize is None:
-            assert d1.blocksize is None
-            assert d2.columns == 1
+        if n1 == 1 and d2.simple:
+            assert d1.simple
             comm = d2.comm
             if comm.rank == 0:
                 M = self.shape[0]
@@ -331,9 +330,9 @@ class Matrix(XP):
         if c is not None:
             M, N = self.shape
             d1 = create_distribution(M, N, c,
-                                     d1.rows, d1.columns, d1.blocksize)
+                                     d1.rows, d1.columns, d1.br, d2.bc)
             d2 = create_distribution(M, N, c,
-                                     d2.rows, d2.columns, d2.blocksize)
+                                     d2.rows, d2.columns, d2.br, d2.bc)
             if n1 == n:
                 ctx = d1.desc[1]
             else:
@@ -738,11 +737,8 @@ def create_distribution(M: int,
         raise ValueError
 
     if xp is cp:
-        b = None  # blocking not implemented
         comm = comm or serial_comm
-        return CuPyDistribution(M, N, comm,
-                                r if r != -1 else comm.size,
-                                c if c != -1 else comm.size)
+        return CuPyDistribution(M, N, comm, r, c)
 
     if comm.size == 1:
         return NoDistribution(M, N)
@@ -759,6 +755,7 @@ class MatrixDistribution:
     shape: tuple[int, int]
     full_shape: tuple[int, int]
     desc: Array1D
+    simple = True
 
     def matrix(self, dtype=None, data=None):
         return Matrix(*self.full_shape, dtype=dtype, data=data, dist=self)
@@ -804,7 +801,7 @@ class NoDistribution(MatrixDistribution):
     rows = 1
     columns = 1
 
-    def __init__(self, M, N):
+    def __init__(self, M: int, N: int):
         self.shape = (M, N)
         self.full_shape = (M, N)
         self.br = M
@@ -816,7 +813,7 @@ class NoDistribution(MatrixDistribution):
     def to_xp(self, xp) -> MatrixDistribution:
         if xp is np:
             return self
-        return CuPyDistribution(*self.shape, serial_comm, 1, 1, None)
+        return CuPyDistribution(*self.shape, serial_comm, 1, 1)
 
     def global_index(self, n):
         return n
@@ -852,7 +849,9 @@ class BLACSDistribution(MatrixDistribution):
         self.rows = r
         self.columns = c
         self.full_shape = (M, N)
-        # self.simple = False
+        self.simple = (c == 1 and
+                       br == (M + r - 1) // r and
+                       bc == N)
 
         key = (comm, r, c)
         context = _global_blacs_context_store.get(key)
@@ -956,7 +955,7 @@ class BLACSDistribution(MatrixDistribution):
             return self
         return CuPyDistribution(
             *self.full_shape,
-            self.comm, self.rows, self.columns, self.blocksize)
+            self.comm, self.rows, self.columns)
 
 
 def cublas_mmm(alpha, a, opa, b, opb, beta, c):
@@ -992,7 +991,7 @@ class CuPyDistribution(MatrixDistribution):
             return NoDistribution(*self.full_shape)
         return BLACSDistribution(
             *self.full_shape,
-            self.comm, self.rows, self.columns, self.blocksize)
+            self.comm, self.rows, self.columns, self.br, self.bc)
 
     def global_index(self, n):
         1 / 0
@@ -1001,8 +1000,7 @@ class CuPyDistribution(MatrixDistribution):
     def new(self, M, N):
         return CuPyDistribution(M, N,
                                 self.comm,
-                                self.rows, self.columns,
-                                self.blocksize)
+                                self.rows, self.columns)
 
     def multiply(self, alpha, a, opa, b, opb, beta, c, *, symmetric=False):
         if self.comm.size > 1:
