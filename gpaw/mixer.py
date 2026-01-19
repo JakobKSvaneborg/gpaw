@@ -274,7 +274,15 @@ class MSR1Mixer(BaseMixer):
             # Update matrix:
             metric = None # self.metric
 
-            max_gb = 0.9
+            # Limit good_broydenness
+            YY_LIM = y_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
+            self.gd.comm.sum(YY_LIM)
+            YY_LIM = np.linalg.norm(YY_LIM)
+            YS_LIM = y_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
+            self.gd.comm.sum(YS_LIM)
+            YS_LIM = np.linalg.norm(YS_LIM)
+            # iold > 4 to build some history first
+            max_gb = max(0.5, YY_LIM / (YS_LIM + YY_LIM) * (iold > 5))
             good_broydenness = 0.5 * max_gb
 
             # Choose max good_broydenness s.t. A_ii is positive definite
@@ -291,23 +299,40 @@ class MSR1Mixer(BaseMixer):
                 A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
                 self.gd.comm.sum(A_ii)
 
-                # Hopefully a trust region makes the iold > 4 not needed.
-                if np.all(np.linalg.eigvals(A_ii) > 1e-10) and iold > 4:
+                eigs = np.linalg.eigvalsh(A_ii)
+                if np.all(eigs > 0):
                     good_broydenness += 2**(-iter) * max_gb
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
-            # print(good_broydenness)
+            # print(good_broydenness, max_gb)
 
             B_ii = t_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(B_ii)
 
             alpha = 5e-6
+            normA = np.linalg.norm(A_ii, ord=2)
+            normB = np.linalg.norm(B_ii, ord=2)
+
+            ### SVD Regularization:
             S, V, D = np.linalg.svd(A_ii)
-            V = V / (V**2 + (alpha * np.max(V))**2)
+            V = V / (V**2 + (alpha * normA)**2)
             A_ii = D.T @ np.diag(V) @ S.T
             S, V, D = np.linalg.svd(B_ii)
-            V = V / (V**2 + (alpha * np.max(V))**2)
+            V = V / (V**2 + (alpha * normB)**2)
             B_ii = D.T @ np.diag(V) @ S.T
+
+            ### Moore-Penrose:
+            # Lots of numerical noise here... Meaning alpha is super important...
+            # I wonder what can be done.
+            # A_ii = np.linalg.solve(
+            #     A_ii @ A_ii + normA * alpha * np.eye(A_ii.shape[0]), A_ii)
+            # B_ii = np.linalg.solve(
+            #     B_ii @ B_ii + normB * alpha * np.eye(B_ii.shape[0]), B_ii)
+
+            ### Rawdog Inverse:
+            # A_ii = np.linalg.inv(A_ii)
+            # B_ii = np.linalg.inv(B_ii)
+
             H_isG = (A_ii @ t_isG.reshape((iold - 1, -1))).reshape(t_isG.shape)
             B_isG = (B_ii @ t_isG.reshape((iold - 1, -1))).reshape(t_isG.shape)
 
@@ -345,7 +370,7 @@ class MSR1Mixer(BaseMixer):
             new_beta_factor = (self.beta + np.abs(A1 / A2)) / (2 * self.beta)
             self.beta *= max(min(new_beta_factor, 5/3), 3/5)
 
-            self.beta = max(min(self.beta, 0.2), 0.02)
+            self.beta = max(min(self.beta, 0.15), 0.02)
             self.B0 = max(min(self.B0, 1.25), 0.8)
             A0 = self.beta
             B0 = self.B0
