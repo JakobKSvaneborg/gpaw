@@ -241,9 +241,24 @@ class MSR1Mixer(BaseMixer):
                 dD_iasp[-1].append(D_sp - D_isp)
 
         if iold > 1:
+            if dNt > self.last_dNt * 4:
+                dNt = self.last_dNt
+                temp = nt_isG[-1].copy()
+                nt_isG[-1] = nt_isG[-2].copy()
+                nt_isG[-2] = temp
+                temp = R_isG[-1].copy()
+                R_isG[-1] = R_isG[-2].copy()
+                R_isG[-2] = temp
+                temp = D_iasp[-1].copy()
+                D_iasp[-1] = D_iasp[-2].copy()
+                D_iasp[-2] = temp
+                temp = dD_iasp[-1].copy()
+                dD_iasp[-1] = dD_iasp[-2].copy()
+                dD_iasp[-2] = temp
+                R_sG[:] = R_isG[-1]
             ### 2023 Paper, Eq: 8 + 9:
-            s_isG = (np.array(nt_isG)[:-1] - nt_isG[-1])
-            y_isG = -(np.array(R_isG)[:-1] - R_sG)
+            s_isG = (nt_isG[:-1] - nt_isG[-1])
+            y_isG = -(R_isG[:-1] - R_isG[-1])
             # s_norm = np.linalg.norm(s_isG.reshape(iold - 1, -1), axis=1)**2
             y_norm = np.linalg.norm(y_isG.reshape(iold - 1, -1), axis=1)**2
             # self.gd.comm.sum(s_norm)
@@ -275,8 +290,8 @@ class MSR1Mixer(BaseMixer):
 
             # Choose max good_broydenness s.t. A_ii is positive definite
             # for good_broydenness in good_broydenness_range:
-            # binary search 2**(-16) accuracy:
-            for iter in range(2, 16):
+            # binary search 2**(-12) accuracy:
+            for iter in range(2, 12):
                 t_isG = (1 - good_broydenness) * y_isG \
                     + good_broydenness * s_isG # * np.expand_dims(y_norm / s_norm, axis=tuple(np.arange(1, s_isG.ndim)))
                 # Normalize t_isG
@@ -366,11 +381,11 @@ class MSR1Mixer(BaseMixer):
             new_beta_factor = (self.beta + np.abs(A1 / A2)) / (2 * self.beta)
             self.beta *= max(min(new_beta_factor, 5/3), 3/5)
 
-            self.beta = max(min(self.beta, 0.15), 0.02)
+            self.beta = max(min(self.beta, 0.2), 0.02)
             self.B0 = max(min(self.B0, 1.2), 0.1)
             A0 = self.beta
             B0 = self.B0
-            print(f"A0: {A0}, B0: {B0}")
+            # print(f"A0: {A0}, B0: {B0}")
 
             self.uk_sG = np.zeros_like(nt_sG)
             self.pk_sG = np.zeros_like(nt_sG)
@@ -407,6 +422,7 @@ class MSR1Mixer(BaseMixer):
         D_iasp.append([])
         for D_sp in D_asp:
             D_iasp[-1].append(D_sp.copy())
+        self.last_dNt = dNt
         return dNt
 
 
