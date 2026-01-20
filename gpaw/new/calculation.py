@@ -556,11 +556,16 @@ class DFTCalculation:
             builder.setups, scf_loop, pot_calc, log,
             params=params, energies=energies)
 
+<<<<<<< Updated upstream
     def pwify(self):
         if self.ibzwfs.mode == 'pw':
             return
         self.ibzwfs.pwify(self.relpos_ac, self.setups,
                           self.scf_loop.hamiltonian.basis)
+=======
+    def change_mode(self, mode):
+        ...
+>>>>>>> Stashed changes
 
     def get_state(self):
         return DFTState(self.ibzwfs, self.density, self.potential)
