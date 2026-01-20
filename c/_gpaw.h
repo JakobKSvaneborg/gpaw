@@ -411,7 +411,7 @@ static PyObject* moduleinit(void)
 # endif
 #endif
 
-#if GPAW_CPP
+#ifdef GPAW_CPP
     PyObject_SetAttrString(m, "gpaw_cpp", Py_True);
 #else
     PyObject_SetAttrString(m, "gpaw_cpp", Py_False);
