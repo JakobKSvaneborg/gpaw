@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from gpaw.core.atom_arrays import AtomArrays
-from gpaw.core.matrix import Matrix, create_distribution
+from gpaw.core.matrix import Matrix, create_distribution, suggest_blocking
 from gpaw.core.plane_waves import PWArray, PWAtomCenteredFunctions, PWDesc
 from gpaw.core.uniform_grid import UGArray
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
@@ -44,6 +44,7 @@ def pw_matrix(pw: PWDesc,
                     ---  i         ij  j
                     aij
     """
+    assert pw.comm.size == 1
     assert pw.dtype == complex
     npw = pw.shape[0]
     dist = create_distribution(npw, npw, comm, -1, 1)
@@ -104,7 +105,9 @@ def diagonalize(potential: Potential,
                 ibzwfs: PWFDIBZWaveFunctions,
                 occ_calc: OccupationNumberCalculator,
                 nbands: int,
-                nelectrons: float) -> PWFDIBZWaveFunctions:
+                nelectrons: float,
+                scalapack: tuple[int, int, int | None] | None,
+                log) -> PWFDIBZWaveFunctions:
     """Diagonalize hamiltonian in plane-wave basis."""
     vt_sR = potential.vt_sR
     dH_asii = potential.dH_asii
@@ -113,6 +116,19 @@ def diagonalize(potential: Potential,
         dedtaut_sR = potential.dedtaut_sR
 
     band_comm = ibzwfs.band_comm
+
+    (npw,) = ibzwfs.get_max_shape()
+    log(f'Matrix size: {npw}x{npw}')
+    if scalapack is not None:
+        r, c, b = scalapack
+    elif band_comm.size > 1:
+        r, c, b = suggest_blocking(npw, band_comm.size)
+    else:
+        r, c, b = 1, 1, -1
+    sl = (band_comm, r, c, b)
+
+    if r * c > 1:
+        log(f'Using scalapack: {r}x{c} blocks of size {b}x{b}')
 
     wfs_u: list[WaveFunctions] = []
     for wfs in ibzwfs:
@@ -127,8 +143,7 @@ def diagonalize(potential: Potential,
                                vt_sR[wfs.spin],
                                dedtaut_sR[wfs.spin],
                                band_comm)
-
-        eig_n = H_GG.eigh(S_GG, limit=nbands)
+        eig_n = H_GG.eigh(S_GG, limit=nbands, scalapack=sl)
         H_GG.complex_conjugate()
         assert eig_n[0] > -1000, 'See issue #241'
         psit_nG = pw.empty(nbands, comm=band_comm)

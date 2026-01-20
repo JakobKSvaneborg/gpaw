@@ -37,6 +37,7 @@ def test_response_na_plasmon(in_tmp_dir):
     a1.calc = GPAW(mode=PW(250),
                    kpts={'size': (4, 4, 4), 'gamma': True},
                    parallel=parallel,
+                   convergence={'density': 1e-6},
                    # txt='small.txt',
                    )
 
@@ -44,6 +45,7 @@ def test_response_na_plasmon(in_tmp_dir):
     a2.calc = GPAW(mode=PW(250),
                    kpts={'size': (2, 4, 4), 'gamma': True},
                    parallel=parallel,
+                   convergence={'density': 1e-6},
                    # txt='large.txt',
                    )
 

@@ -97,7 +97,18 @@ class GPUEvent:
 
 class GPUTimerBase:
 
-    def __init__(self, max_stack=10):
+    def __init__(self, max_stack=10, comm=None):
+        # Typically, the device is initialized inside GPAW call
+        # However, we need to set the device here to capture all of the
+        # events. It is ok to opt in to initialize GPU here, because we
+        # are asking for a GPUTimer anyway.
+        if comm is None:
+            from gpaw.mpi import world
+            comm = world
+        from gpaw.gpu import set_device
+        from gpaw.new.logger import Logger
+        set_device(Logger('-', comm), comm)
+
         self.event_queue = []
         self.event_stack = []
         self.max_stack = max_stack
@@ -139,9 +150,9 @@ class GPUTimerBase:
 
 
 class GPUTimer(Timer, GPUTimerBase):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, comm=None, **kwargs):
         Timer.__init__(self, *args, **kwargs)
-        GPUTimerBase.__init__(self)
+        GPUTimerBase.__init__(self, comm=comm)
 
     def start(self, name):
         super().start(name)
@@ -265,7 +276,7 @@ class Profiler(Timer):
 class GPUProfiler(Profiler, GPUTimerBase):
     def __init__(self, prefix, comm=None):
         Profiler.__init__(self, prefix, comm=comm)
-        GPUTimerBase.__init__(self)
+        GPUTimerBase.__init__(self, comm=comm)
 
     def synchronize(self):
         from cupy.cuda import Event

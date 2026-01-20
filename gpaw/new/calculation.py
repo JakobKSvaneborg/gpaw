@@ -18,7 +18,7 @@ from gpaw.new import trace, zips
 from gpaw.new.density import Density
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.ibzwfs import IBZWaveFunctions
-from gpaw.new.logger import Logger
+from gpaw.new.logger import Logger, indent
 from gpaw.new.potential import Potential
 from gpaw.new.scf import SCFLoop
 from gpaw.setup import Setups
@@ -408,37 +408,77 @@ class DFTCalculation:
             psit_nR = bcast(psit_nR, 0, comm=self.comm)
         return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
 
-    def change_xc(self, xc):
-        from gpaw.dft import XC
+    def change(self, *, xc=None, eigensolver=None,
+               mixer=None, occupations=None, convergence=None):
+
+        # build kwargs
+        allargs = {'xc': xc, 'eigensolver': eigensolver,
+                   'mixer': mixer, 'occupations': occupations,
+                   'convergence': convergence}
+        kwargs = {key: val for key, val in allargs.items() if val is not None}
+
+        from gpaw.dft import XC, Eigensolver, Mixer, Occupations
+
         atoms = self.atoms
         params = self.params
-        ibzwfs = self.ibzwfs
-        is_collinear = ibzwfs.collinear
         log = self.log
 
-        # old xc functional
-        xcfunc_o = params.xc.functional(collinear=is_collinear,
-                                        atoms=atoms)
+        prop_update = {'xc': XC.from_param,
+                       'eigensolver': Eigensolver.from_param,
+                       'mixer': Mixer.from_param,
+                       'occupations': Occupations.from_param}
 
-        # actually change the functional
-        params.xc = XC.from_param(xc)
+        # update params
+        for prop in kwargs:
+            val = kwargs[prop]
+            update_func = prop_update.get(prop, None)
+            # actually change property
+            if update_func is None:
+                # update dictionary
+                getattr(params, prop).update(val)
+            else:
+                setattr(params, prop, update_func(val))
+
+        # rebuild
         builder = params.dft_component_builder(atoms, log=log,
                                                comm=self.comm)
 
-        # new xc functional
-        xcfunc_n = params.xc.functional(collinear=is_collinear,
-                                        atoms=atoms)
+        scf_loop = builder.create_scf_loop()
+        pot_calc = builder.create_potential_calculator()
+        xcfunc_n = pot_calc.xc
 
-        # check that 'base' functional is the same
-        assert xcfunc_n.get_setup_name() == xcfunc_o.get_setup_name()
+        # checks compatibility
+        if 'xc' in kwargs:
+            # check that 'base' functional is the same
+            xcfunc_o = self.pot_calc.xc
+            assert xcfunc_n.get_setup_name() == xcfunc_o.get_setup_name()
 
-        self.scf_loop = builder.create_scf_loop()
-        self.pot_calc = builder.create_potential_calculator()
+        self.scf_loop = scf_loop
+        self.pot_calc = pot_calc
+
+        if 'occupations' in kwargs:
+            dens = self.density
+            wfs = self.ibzwfs
+            # update occupations numbers
+            nelectrons = dens.nvalence - dens.charge + self.pot_calc.charge
+            wfs.calculate_occs(self.scf_loop.occ_calc, nelectrons,
+                               fix_fermi_level=self.scf_loop.fix_fermi_level)
+
+        prop_log = {'xc': xcfunc_n.name,
+                    'eigensolver': self.scf_loop.eigensolver,
+                    'mixer': self.scf_loop.mixer,
+                    'occupations': self.scf_loop.occ_calc,
+                    'convergence': allargs['convergence']}
+
+        # assemble log
+        for prop in kwargs:
+            log(f'Changed {prop}:')
+            log(indent(prop_log[prop]))
+
+        log('Reusing wavefunctions.')
+
+        # unset results
         self.results = {}
-
-        log('Changed xc-functional ' +
-            f'from {xcfunc_o.name} to {xcfunc_n.name}. ' +
-            'Reusing wavefunctions.')
 
     def new(self,
             atoms: Atoms,

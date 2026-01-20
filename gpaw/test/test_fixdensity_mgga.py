@@ -17,6 +17,7 @@ def test_fixdensity(in_tmp_dir, gpaw_new, eigensolver):
                      eigensolver=eigensolver,
                      xc='revTPSS',
                      h=0.12,
+                     nbands=5,
                      kpts=(3, 3, 1), txt='li-1.txt',
                      parallel=dict(kpt=1))
     slab.get_potential_energy()
@@ -32,7 +33,7 @@ def test_fixdensity(in_tmp_dir, gpaw_new, eigensolver):
     # Fix density and continue:
     calc = slab.calc.fixed_density(
         txt='li-2.txt',
-        convergence={'minimum iterations': 5},
+        convergence={'minimum iterations': 8},
         nbands=5,
         kpts=kpts)
     e2 = calc.get_eigenvalues(kpt=0)[0]
@@ -42,7 +43,7 @@ def test_fixdensity(in_tmp_dir, gpaw_new, eigensolver):
     calc = GPAW('li.gpw', txt=None)
     calc = calc.fixed_density(
         txt='li-3.txt',
-        convergence={'minimum iterations': 5},
+        convergence={'minimum iterations': 8},
         nbands=5,
         kpts=kpts)
     e3 = calc.get_eigenvalues(kpt=0)[0]
@@ -59,7 +60,7 @@ def test_fixdensity(in_tmp_dir, gpaw_new, eigensolver):
             calc = calc.fixed_density(txt='li-3.txt', nbands=5, kpts=kpts)
     else:
         calc = calc.fixed_density(txt='li-3.txt', nbands=5, kpts=kpts,
-                                  convergence={'minimum iterations': 5},)
+                                  convergence={'minimum iterations': 8},)
         e4 = calc.get_eigenvalues(kpt=0)[0]
         f4 = calc.get_fermi_level()
         assert f4 == pytest.approx(f1, abs=1e-10)
