@@ -681,6 +681,14 @@ class BuildGPU:
 class BuildGPAW(build_ext):
     """"""
 
+    def add_base_include_dirs(self) -> None:
+        """Adds GPAW base includes to include dirs list.
+        Currently just the c/ directory.
+        """
+        c_path = Path('c').resolve()
+        if c_path not in self.include_dirs:
+            self.include_dirs.insert(0, str(c_path))
+
     @property
     def makefile_build_dir(self) -> str:
         """Build dir to use when doing a Makefile based build.
@@ -835,6 +843,8 @@ class BuildGPAW(build_ext):
 
     def run(self):
         """"""
+        self.add_base_include_dirs()
+
         import numpy as np
         self.include_dirs.append(np.get_include())
 
