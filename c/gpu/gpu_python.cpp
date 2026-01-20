@@ -2,6 +2,7 @@
 #include "gpu_python.hpp"
 
 #include "gpu/cpp/pyarray_utils.hpp"
+#include "gpu/cpp/pybind_cupy_type_caster.hpp"
 
 namespace py = pybind11;
 
