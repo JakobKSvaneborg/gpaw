@@ -72,12 +72,7 @@ static void test_array_metadata(py::handle cupy_array, const PyDeviceArray& same
     }
 }
 
-static void test_fill_array(PyDeviceArray& array)
-{
-
-}
-
-}
+} // namespace gpaw
 
 bool bind_gpu_submodule(PyObject* module)
 {
