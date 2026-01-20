@@ -7,7 +7,7 @@ import numpy as np
 from ase import Atoms
 from ase.units import Bohr, Ha
 
-from gpaw.core import UGArray, UGDesc
+from gpaw.core import UGArray, UGDesc, PWDesc
 from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.densities import Densities
 from gpaw.electrostatic_potential import ElectrostaticPotential
@@ -410,14 +410,13 @@ class DFTCalculation:
 
     def change(self, *, xc=None, eigensolver=None,
                mixer=None, occupations=None, convergence=None):
+        from gpaw.dft import XC, Eigensolver, Mixer, Occupations
 
         # build kwargs
         allargs = {'xc': xc, 'eigensolver': eigensolver,
                    'mixer': mixer, 'occupations': occupations,
                    'convergence': convergence}
         kwargs = {key: val for key, val in allargs.items() if val is not None}
-
-        from gpaw.dft import XC, Eigensolver, Mixer, Occupations
 
         atoms = self.atoms
         params = self.params
@@ -477,7 +476,6 @@ class DFTCalculation:
 
         log('Reusing wavefunctions.')
 
-        # unset results
         self.results = {}
 
     def new(self,
@@ -556,16 +554,36 @@ class DFTCalculation:
             builder.setups, scf_loop, pot_calc, log,
             params=params, energies=energies)
 
-<<<<<<< Updated upstream
-    def pwify(self):
+    def pwifyyyyyyyyyyyyyy(self):
         if self.ibzwfs.mode == 'pw':
             return
         self.ibzwfs.pwify(self.relpos_ac, self.setups,
                           self.scf_loop.hamiltonian.basis)
-=======
-    def change_mode(self, mode):
-        ...
->>>>>>> Stashed changes
+
+    def convert_to_pw_mode(self, ecut=None, nbands=None):
+        from gpaw.dft import PW
+        assert self.ibzwfs.mode == 'lcao'
+        ecut = ecut or 0.5 * self.density.nt_sR.desc.ekin_max()
+        self.params.mode = PW(ecut=ecut)
+        builder = self.params.dft_component_builder(
+            self.atoms, log=self.log, comm=self.comm)
+        self.scf_loop = builder.create_scf_loop()
+        self.pot_calc = builder.create_potential_calculator()
+        self.density = self.density.new(builder.grid,
+                                        builder.interpolation_desc,
+                                        builder.relpos_ac,
+                                        builder.atomdist)
+        self.density.normalize(self.pot_calc.charge)
+        if self.density.nt_sR.xp is np:
+            self.ibzwfs.kpt_band_comm.broadcast(self.density.nt_sR.data, 0)
+        self.potential, self.energies, _ = self.pot_calc.calculate(
+            self.density)
+        self.ibzwfs = self.ibzwfs.convert_to(
+            'pw',
+            grid=builder.grid,
+            pw=builder.wfs_desc,
+            nbands=nbands)
+        self.results = {}
 
     def get_state(self):
         return DFTState(self.ibzwfs, self.density, self.potential)
