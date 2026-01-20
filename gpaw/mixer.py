@@ -259,10 +259,9 @@ class MSR1Mixer(BaseMixer):
             ### 2023 Paper, Eq: 8 + 9:
             s_isG = (nt_isG[:-1] - nt_isG[-1])
             y_isG = -(R_isG[:-1] - R_isG[-1])
-            # s_norm = np.linalg.norm(s_isG.reshape(iold - 1, -1), axis=1)**2
             y_norm = np.linalg.norm(y_isG.reshape(iold - 1, -1), axis=1)**2
-            # self.gd.comm.sum(s_norm)
             self.gd.comm.sum(y_norm)
+            y_norm = np.sqrt(y_norm) * np.sqrt(len(y_norm) / np.arange(1, len(y_norm) + 1))
             s_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, s_isG.ndim)))
             y_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, y_isG.ndim)))
 
@@ -276,6 +275,15 @@ class MSR1Mixer(BaseMixer):
                     yD_asp.append(-(dD_iasp[i1][a1] - dD_iasp[-1][a1]) / y_norm[i1])
                 sD_iasp.append(sD_asp)
                 yD_iasp.append(yD_asp)
+
+
+            ty_isG = y_isG.copy()
+            ts_isG = s_isG.copy()
+            if self.metric is not None:
+                for y_sG, s_sG, ty_sG, ts_sG in zip(y_isG, s_isG, ty_isG, ts_isG):
+                    for y_G, s_G, ty_G, ts_G in zip(y_sG, s_sG, ty_sG, ts_sG):
+                        self.metric(y_G, ty_G)
+                        self.metric(s_G, ts_G)
 
             ### 2023 paper eq 22 - Limit good_broydenness
             YY_LIM = y_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
@@ -292,16 +300,13 @@ class MSR1Mixer(BaseMixer):
             # for good_broydenness in good_broydenness_range:
             # binary search 2**(-12) accuracy:
             for iter in range(2, 12):
-                t_isG = (1 - good_broydenness) * y_isG \
-                    + good_broydenness * s_isG # * np.expand_dims(y_norm / s_norm, axis=tuple(np.arange(1, s_isG.ndim)))
+                t_isG = (1 - good_broydenness) * ty_isG \
+                    + good_broydenness * ts_isG # * np.expand_dims(y_norm / s_norm, axis=tuple(np.arange(1, s_isG.ndim)))
                 # Normalize t_isG
                 # t_norm = np.linalg.norm(t_isG.reshape((iold - 1, -1)), axis=1)**2
                 # self.gd.comm.sum(t_norm)
                 # t_isG /= np.expand_dims(np.sqrt(t_norm), axis=tuple(np.arange(1, t_isG.ndim)))
-                if self.metric is not None:
-                    for t_sG in t_isG:
-                        for t_G in t_sG:
-                            self.metric(t_G.copy(), t_G)
+
                 if g_ss is not None:
                     for t_sG in t_isG:
                         for t_G in t_sG:
@@ -323,7 +328,7 @@ class MSR1Mixer(BaseMixer):
             # This parameter is surprisingly important for stability
             # 5e-3 seems to work well for most systems
             alphaA = 5e-3
-            alphaB= 1e-5
+            alphaB = 5e-6
             normA = np.linalg.norm(A_ii, ord='fro')
             normB = np.linalg.norm(B_ii, ord='fro')
 
@@ -388,7 +393,8 @@ class MSR1Mixer(BaseMixer):
             self.B0 = np.clip(self.B0, 0.1, 1.0)
             A0 = self.beta
             B0 = self.B0
-            # print(f"A0: {A0}, B0: {B0}")
+            if self.gd.comm.rank == 0:
+                print(f"A0: {A0}, B0: {B0}")
 
             self.uk_sG = np.zeros_like(nt_sG)
             self.pk_sG = np.zeros_like(nt_sG)
