@@ -1,5 +1,5 @@
 #include "python_utils.h"
-#include "gpu_python.hpp"
+#include "gpu_python.h"
 
 #include "gpu/cpp/pyarray_utils.hpp"
 #include "gpu/cpp/pybind_cupy_type_caster.hpp"

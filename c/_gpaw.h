@@ -17,7 +17,7 @@
 #endif
 
 #ifdef GPAW_GPU
-#include "gpu/cpp/gpu_python.hpp"
+#include "gpu/cpp/gpu_python.h"
 #endif
 
 PyObject* evaluate_mpa_poly(PyObject *self, PyObject *args);
