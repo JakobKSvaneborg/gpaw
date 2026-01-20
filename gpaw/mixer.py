@@ -322,29 +322,30 @@ class MSR1Mixer(BaseMixer):
 
             # This parameter is surprisingly important for stability
             # 5e-3 seems to work well for most systems
-            alpha = 5e-3
-            normA = np.linalg.norm(A_ii, ord=2)
-            normB = np.linalg.norm(B_ii, ord=2)
+            alphaA = 5e-3
+            alphaB= 1e-5
+            normA = np.linalg.norm(A_ii, ord='fro')
+            normB = np.linalg.norm(B_ii, ord='fro')
 
             ### SVD Regularization:
             S, V, D = np.linalg.svd(A_ii)
-            V = V / (V**2 + (alpha * normA)**2)
+            V = V / (V**2 + (alphaA * normA)**2)
             A_ii = D.T @ np.diag(V) @ S.T
             S, V, D = np.linalg.svd(B_ii)
-            V = V / (V**2 + (alpha * normB)**2)
-            B_ii = D.T @ np.diag(V) @ S.T
+            V = V / (V**2 + (alphaB * normB)**2)
+            # B_ii = D.T @ np.diag(V) @ S.T
 
             ### Moore-Penrose:
             # Lots of numerical noise here... Meaning alpha is super important...
             # I wonder what can be done.
             # A_ii = np.linalg.solve(
-            #     A_ii @ A_ii + normA * alpha * np.eye(A_ii.shape[0]), A_ii)
+            #     A_ii @ A_ii + (normA * alpha * np.eye(A_ii.shape[0]))**2, A_ii)
             # B_ii = np.linalg.solve(
-            #     B_ii @ B_ii + normB * alpha * np.eye(B_ii.shape[0]), B_ii)
+            #     B_ii @ B_ii + (normB * alpha * np.eye(B_ii.shape[0]))**2, B_ii)
 
             ### Rawdog Inverse:
             # A_ii = np.linalg.inv(A_ii)
-            # B_ii = np.linalg.inv(B_ii)
+            B_ii = np.linalg.inv(B_ii)
 
             H_isG = (A_ii @ t_isG.reshape((iold - 1, -1))).reshape(t_isG.shape)
             B_isG = (B_ii @ t_isG.reshape((iold - 1, -1))).reshape(t_isG.shape)
@@ -376,15 +377,15 @@ class MSR1Mixer(BaseMixer):
 
             if iold != 2:
                 new_B0_factor = (self.B0 + np.abs(B1 / B2) + 0.1) / (2 * self.B0)
-                self.B0 *= max(min(new_B0_factor, 5/3), 3/5)
+                self.B0 *= np.clip(new_B0_factor, 3/5, 5/3)
             else:
                 self.B0 = 1
 
             new_beta_factor = (self.beta + np.abs(A1 / A2)) / (2 * self.beta)
-            self.beta *= max(min(new_beta_factor, 5/3), 3/5)
+            self.beta *= np.clip(new_beta_factor, 0.5, 1.2)
 
-            self.beta = max(min(self.beta, 0.2), 0.02)
-            self.B0 = max(min(self.B0, 1.2), 0.1)
+            self.beta = np.clip(self.beta, 0.02, 0.6)  # Just let it mix!
+            self.B0 = np.clip(self.B0, 0.1, 1.0)
             A0 = self.beta
             B0 = self.B0
             # print(f"A0: {A0}, B0: {B0}")
@@ -412,7 +413,7 @@ class MSR1Mixer(BaseMixer):
 
         elif iold == 1:
             # Pratt step
-            A0 = 0.035
+            A0 = max(0.035, self.beta / 2)
             self.uk_sG = R_sG
             self.pk_sG = np.zeros_like(self.uk_sG)
             nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG
