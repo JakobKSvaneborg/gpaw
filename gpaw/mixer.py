@@ -315,8 +315,8 @@ class MSR1Mixer(BaseMixer):
                 A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
                 self.gd.comm.sum(A_ii)
 
-                eigs = np.linalg.eigvalsh(A_ii)
-                if np.all(eigs > 0):
+                eigs = np.linalg.eigvals(A_ii)
+                if np.all(eigs > 0) and iter < 12:
                     good_broydenness += 2**(-iter) * max_gb
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
@@ -326,31 +326,29 @@ class MSR1Mixer(BaseMixer):
             self.gd.comm.sum(B_ii)
 
             # This parameter is surprisingly important for stability
-            # 5e-3 seems to work well for most systems
-            alphaA = 5e-3
-            alphaB = 5e-6
+            # 5e-4 seems to work well for most systems
+            alphaA = 5e-4
+            alphaB = 1e-9
             normA = np.linalg.norm(A_ii, ord='fro')
             normB = np.linalg.norm(B_ii, ord='fro')
 
             ### SVD Regularization:
-            S, V, D = np.linalg.svd(A_ii)
-            V = V / (V**2 + (alphaA * normA)**2)
-            A_ii = D.T @ np.diag(V) @ S.T
-            S, V, D = np.linalg.svd(B_ii)
-            V = V / (V**2 + (alphaB * normB)**2)
+            # S, V, D = np.linalg.svd(A_ii)
+            # V = V / (V**2 + (alphaA * normA)**2)
+            # A_ii = D.T @ np.diag(V) @ S.T
+            # S, V, D = np.linalg.svd(B_ii)
+            # V = V / (V**2 + (alphaB * normB)**2)
             # B_ii = D.T @ np.diag(V) @ S.T
 
             ### Moore-Penrose:
-            # Lots of numerical noise here... Meaning alpha is super important...
-            # I wonder what can be done.
-            # A_ii = np.linalg.solve(
-            #     A_ii @ A_ii + (normA * alpha * np.eye(A_ii.shape[0]))**2, A_ii)
-            # B_ii = np.linalg.solve(
-            #     B_ii @ B_ii + (normB * alpha * np.eye(B_ii.shape[0]))**2, B_ii)
+            A_ii = np.linalg.solve(
+                A_ii @ A_ii.T + (normA * alphaA * np.eye(A_ii.shape[0]))**2, A_ii).T
+            B_ii = np.linalg.solve(
+                B_ii @ B_ii.T + (normB * alphaB * np.eye(B_ii.shape[0]))**2, B_ii).T
 
             ### Rawdog Inverse:
             # A_ii = np.linalg.inv(A_ii)
-            B_ii = np.linalg.inv(B_ii)
+            # B_ii = np.linalg.inv(B_ii)
 
             H_isG = (A_ii @ t_isG.reshape((iold - 1, -1))).reshape(t_isG.shape)
             B_isG = (B_ii @ t_isG.reshape((iold - 1, -1))).reshape(t_isG.shape)
@@ -387,14 +385,14 @@ class MSR1Mixer(BaseMixer):
                 self.B0 = 1
 
             new_beta_factor = (self.beta + np.abs(A1 / A2)) / (2 * self.beta)
-            self.beta *= np.clip(new_beta_factor, 0.5, 1.2)
+            self.beta *= np.clip(new_beta_factor, 0.5, 1.25)
 
             self.beta = np.clip(self.beta, 0.02, 0.6)  # Just let it mix!
             self.B0 = np.clip(self.B0, 0.1, 1.0)
             A0 = self.beta
             B0 = self.B0
-            if self.gd.comm.rank == 0:
-                print(f"A0: {A0}, B0: {B0}")
+            # if self.gd.comm.rank == 0:
+            #     print(f"A0: {A0}, B0: {B0}")
 
             self.uk_sG = np.zeros_like(nt_sG)
             self.pk_sG = np.zeros_like(nt_sG)
