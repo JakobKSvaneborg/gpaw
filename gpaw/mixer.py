@@ -321,8 +321,8 @@ class MSR1Mixer(BaseMixer):
             self.gd.comm.sum(B_ii)
 
             # This parameter is surprisingly important for stability
-            # 1e-4 seems to work well for most systems
-            alpha = 1e-4
+            # 5e-3 seems to work well for most systems
+            alpha = 5e-3
             normA = np.linalg.norm(A_ii, ord=2)
             normB = np.linalg.norm(B_ii, ord=2)
 
