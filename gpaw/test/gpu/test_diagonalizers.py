@@ -85,21 +85,17 @@ def diagonalizer_tester_common(
                           CuPyDiagonalizer,
                           MagmaDiagonalizer])
 # Test both the "safe" CuPyMPI communicator and direct GPU-aware MPI (world)
-@pytest.mark.parametrize("distribution",
-                         [(CuPyMPI(world), -1, 1, None),
-                          (world, -1, 1, None)])
+@pytest.mark.parametrize('comm', [CuPyMPI(world), world])
 def test_gpu_diagonalizer(fixt_eigh_test_matrix: cp.ndarray,
                           diagonalizer_class: type["GPUDiagonalizer"],
                           matrix_size: int,
                           # dist as in Matrix class: (comm, rows, cols, block)
-                          distribution: tuple["MPIComm", int, int,
-                                              int | None],
+                          comm: MPIComm,
                           dtype: np.dtype,
                           uplo: str,
                           inplace: bool):
     """Test GPU eigensystem solvers."""
 
-    comm = distribution[0]
     if not GPU_AWARE_MPI and not isinstance(comm, CuPyMPI):
         pytest.skip("No GPU-aware MPI")
 
@@ -108,7 +104,7 @@ def test_gpu_diagonalizer(fixt_eigh_test_matrix: cp.ndarray,
                                                    dtype=dtype,
                                                    backend='cupy')
 
-    matrix = Matrix.scatter(raw_matrix, distribution, 0)
+    matrix = Matrix.scatter(raw_matrix, dist=comm)
 
     options = DiagonalizerOptions(uplo=uplo, inplace=inplace)
 

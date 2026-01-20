@@ -342,26 +342,25 @@ class Matrix(XP):
                 ctx = d2.desc[1]
             redist(d1, self.data, d2, other.data, ctx)
 
-    def gather(self, root: int = 0, broadcast=False) -> Matrix:
+    def gather(self, root: int = 0, *, broadcast=False) -> Matrix:
         """Gather the Matrix on the root rank.
 
         Returns a new Matrix distributed so that all data is on the root rank
         """
         assert root == 0
-        if self.dist.comm.size > 1:
-            S = self.new(dist=(self.dist.comm, 1, 1))
-            self.redist(S)
-            if broadcast:
-                if self.dist.comm.rank > 0:
-                    S = self.new(dist=None)
-                self.dist.comm.broadcast(S.data, 0)
-        else:
-            S = self
 
+        if self.dist.comm.size == 1:
+            return self
+
+        S = self.new(dist=(self.dist.comm, -1, 1, *self.shape))
+        self.redist(S)
+        assert not broadcast
+        # self.dist.comm.broadcast(S.data, 0)
         return S
 
     @staticmethod
     def scatter(data: Array2D,
+                *,
                 dist: tuple[_Communicator, int, int, int | None],
                 root: int = 0) -> Matrix:
         """Construct a distributed Matrix object by scattering a raw 2D array
@@ -369,26 +368,17 @@ class Matrix(XP):
         and wanted distribution in same way as in the Matrix constructor
         Empty 'dist' argument is not allowed!
         """
-
-        assert len(data.shape) == 2
-        assert dist is not None and len(dist) >= 3
+        assert root == 0
+        rows, cols = data.shape
+        xp = cp if isinstance(data, cp.ndarray) else np
+        matrix = Matrix(rows, cols, dtype=data.dtype, xp=xp, dist=dist)
 
         # Some acrobatics needed to bypass limitations in Matrix.redist()
 
-        rows, cols = data.shape[0], data.shape[1]
-        xp = cp if isinstance(data, cp.ndarray) else np
-        comm = dist[0]
-
+        comm = matrix.dist.comm
         non_distributed_matrix = Matrix(rows, cols,
-                                        dtype=data.dtype,
-                                        dist=(comm, 1, 1),
-                                        xp=xp)
-
-        if comm.rank == root:
-            non_distributed_matrix.data[:] = data[:]
-
-        matrix = Matrix(rows, cols, dtype=data.dtype, xp=xp, dist=dist)
-
+                                        dist=(comm, -1, 1, rows, cols),
+                                        data=data if comm.rank == 0 else None)
         non_distributed_matrix.redist(matrix)
         return matrix
 
@@ -739,9 +729,15 @@ def create_distribution(M: int,
     if r * c != comm.size:
         raise ValueError
 
+    if br == 0 and bc == 0:
+        br = (M + r - 1) // r
+        bc = (N + c - 1) // c
+    elif bc == 0:
+        bc = br
+
     if xp is cp:
         comm = comm or serial_comm
-        return CuPyDistribution(M, N, comm, r, c)
+        return CuPyDistribution(M, N, comm, r, c, br, bc)
 
     if comm.size == 1:
         return NoDistribution(M, N)
@@ -816,7 +812,7 @@ class NoDistribution(MatrixDistribution):
     def to_xp(self, xp) -> MatrixDistribution:
         if xp is np:
             return self
-        return CuPyDistribution(*self.shape, serial_comm, 1, 1)
+        return CuPyDistribution(*self.shape, serial_comm, 1, 1, *self.shape)
 
     def global_index(self, n):
         return n
@@ -852,9 +848,8 @@ class BLACSDistribution(MatrixDistribution):
         self.rows = r
         self.columns = c
         self.full_shape = (M, N)
-        self.simple = (c == 1 and
-                       br == (M + r - 1) // r and
-                       bc == N)
+        self.br = br
+        self.bc = bc
 
         key = (comm, r, c)
         context = _global_blacs_context_store.get(key)
@@ -867,13 +862,9 @@ class BLACSDistribution(MatrixDistribution):
             else:
                 _global_blacs_context_store[key] = context
 
-        if br == 0 and bc == 0:
-            br = (M + r - 1) // r
-            bc = (N + c - 1) // c
-        elif bc == 0:
-            bc = br
-        self.br = br
-        self.bc = bc
+        self.simple = (c == 1 and
+                       br == (M + r - 1) // r and
+                       bc == N)
 
         if context is None:
             assert c == 1
@@ -960,7 +951,7 @@ class BLACSDistribution(MatrixDistribution):
             return self
         return CuPyDistribution(
             *self.full_shape,
-            self.comm, self.rows, self.columns)
+            self.comm, self.rows, self.columns, self.br, self.bc)
 
 
 def cublas_mmm(alpha, a, opa, b, opb, beta, c):
@@ -973,15 +964,21 @@ def cublas_mmm(alpha, a, opa, b, opb, beta, c):
 
 
 class CuPyDistribution(MatrixDistribution):
-    def __init__(self, M, N, comm, r, c):
+    def __init__(self, M, N, comm, r, c, br, bc):
         self.comm = comm
         self.rows = r
         self.columns = c
         self.full_shape = (M, N)
         assert c == 1
-        self.br = (M + r - 1) // r
-        self.bc = N
-        m = min((comm.rank + 1) * self.br, M) - min(comm.rank * self.br, M)
+        self.br = br
+        self.bc = bc
+        assert bc == N
+        if br == M:
+            m = M if comm.rank == 0 else 0
+        elif br == (M + r - 1) // r:
+            m = min((comm.rank + 1) * br, M) - min(comm.rank * br, M)
+        else:
+            raise ValueError
         self.shape = (m, N)
 
     def __str__(self):
