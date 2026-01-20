@@ -320,7 +320,9 @@ class MSR1Mixer(BaseMixer):
             B_ii = t_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(B_ii)
 
-            alpha = 5e-6
+            # This parameter is surprisingly important for stability
+            # 1e-4 seems to work well for most systems
+            alpha = 1e-4
             normA = np.linalg.norm(A_ii, ord=2)
             normB = np.linalg.norm(B_ii, ord=2)
 
