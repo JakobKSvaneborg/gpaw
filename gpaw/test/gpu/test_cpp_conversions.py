@@ -5,7 +5,7 @@ import pytest
 import gpaw.cgpaw as cgpaw
 
 try:
-    from gpaw.cgpaw import gpu as cgpu
+    from gpaw.cgpaw import gpu as cgpu  # noqa: F401
 except ImportError:
     pytest.skip("No _gpaw.gpu module", allow_module_level=True)
 
