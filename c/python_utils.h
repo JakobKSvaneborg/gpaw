@@ -5,7 +5,7 @@
 * Therefore: this header should ALWAYS be the first header to include in files
 * that use Python stuff.
 * See https://docs.python.org/3/c-api/intro.html#include-files.
-*/  
+*/
 
 /* Includes Python.h and Numpy headers with correct defines.
 * Other files that need Python stuff should include this file instead of manually including Python or Numpy.
@@ -21,6 +21,11 @@
 
 #define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
 #include <numpy/arrayobject.h>
+
+#if defined(__cplusplus) && (defined(GPAW_GPU) || defined(GPAW_CPP))
+    #include <pybind11/pybind11.h>
+    #include <pybind11/numpy.h>
+#endif
 
 /* NOTE: Numpy 2.0 dev version had a bug for a short period where its public headers
 * literally did "#undef I" after including complex.h. This is obviously horrible since `I` is defined in the C99 standard.
