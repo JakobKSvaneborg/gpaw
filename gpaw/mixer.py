@@ -241,16 +241,7 @@ class MSR1Mixer(BaseMixer):
                 dD_iasp[-1].append(D_sp - D_isp)
 
         if iold > 1:
-            if self.metric is None:
-                mR_sG = R_sG
-            else:
-                mR_sG = np.empty_like(R_sG)
-                for s in range(spin):
-                    self.metric(R_sG[s], mR_sG[s])
-
-            if g_ss is not None:
-                mR_sG = np.tensordot(g_ss, mR_sG, axes=(1, 0))
-
+            ### 2023 Paper, Eq: 8 + 9:
             s_isG = (np.array(nt_isG)[:-1] - nt_isG[-1])
             y_isG = -(np.array(R_isG)[:-1] - R_sG)
             # s_norm = np.linalg.norm(s_isG.reshape(iold - 1, -1), axis=1)**2
@@ -271,17 +262,14 @@ class MSR1Mixer(BaseMixer):
                 sD_iasp.append(sD_asp)
                 yD_iasp.append(yD_asp)
 
-            # Update matrix:
-            metric = None # self.metric
-
-            # Limit good_broydenness
+            ### 2023 paper eq 22 - Limit good_broydenness
             YY_LIM = y_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YY_LIM)
             YY_LIM = np.linalg.norm(YY_LIM)
             YS_LIM = y_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YS_LIM)
             YS_LIM = np.linalg.norm(YS_LIM)
-            # iold > 4 to build some history first
+            # iold > 5 to build some history first
             max_gb = max(0.5, YY_LIM / (YS_LIM + YY_LIM) * (iold > 5))
             good_broydenness = 0.5 * max_gb
 
@@ -295,6 +283,14 @@ class MSR1Mixer(BaseMixer):
                 # t_norm = np.linalg.norm(t_isG.reshape((iold - 1, -1)), axis=1)**2
                 # self.gd.comm.sum(t_norm)
                 # t_isG /= np.expand_dims(np.sqrt(t_norm), axis=tuple(np.arange(1, t_isG.ndim)))
+                if self.metric is not None:
+                    for t_sG in t_isG:
+                        for t_G in t_sG:
+                            self.metric(t_G.copy(), t_G)
+                if g_ss is not None:
+                    for t_sG in t_isG:
+                        for t_G in t_sG:
+                            t_sG[:] = np.tensordot(g_ss, t_sG, axes=(1, 0))
 
                 A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
                 self.gd.comm.sum(A_ii)
@@ -339,7 +335,7 @@ class MSR1Mixer(BaseMixer):
             alpha_i = []
             for i1, H_sG in enumerate(H_isG):
                 alpha_i.append(self.gd.comm.sum_scalar(
-                    self.dotprod(H_sG, R_sG, None, None, metric)
+                    self.dotprod(H_sG, R_sG, None, None, None)
                 ))
 
             A1 = self.gd.comm.sum_scalar(
@@ -371,10 +367,10 @@ class MSR1Mixer(BaseMixer):
             self.beta *= max(min(new_beta_factor, 5/3), 3/5)
 
             self.beta = max(min(self.beta, 0.15), 0.02)
-            self.B0 = max(min(self.B0, 1.25), 0.8)
+            self.B0 = max(min(self.B0, 1.2), 0.1)
             A0 = self.beta
             B0 = self.B0
-            # print(f"A0: {A0}, B0: {B0}")
+            print(f"A0: {A0}, B0: {B0}")
 
             self.uk_sG = np.zeros_like(nt_sG)
             self.pk_sG = np.zeros_like(nt_sG)
@@ -399,7 +395,7 @@ class MSR1Mixer(BaseMixer):
 
         elif iold == 1:
             # Pratt step
-            A0 = max(self.beta, 0.08)
+            A0 = 0.035
             self.uk_sG = R_sG
             self.pk_sG = np.zeros_like(self.uk_sG)
             nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG
