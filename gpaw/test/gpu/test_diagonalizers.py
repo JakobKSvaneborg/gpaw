@@ -11,13 +11,12 @@ from gpaw.gpu.diagonalization import (CPUPYDiagonalizer, CuPyDiagonalizer,
                                       DiagonalizerOptions)
 from gpaw.gpu.diagonalization.magma_diagonalizer import MagmaDiagonalizer
 from gpaw.gpu.mpi import CuPyMPI
-from gpaw.mpi import world
+from gpaw.mpi import world, MPIComm
 from gpaw.new.c import GPU_AWARE_MPI
 from gpaw.test.gpu import assert_eigenpairs, fill_uplo
 
 if TYPE_CHECKING:
     from gpaw.gpu.diagonalization import GPUDiagonalizer
-    from gpaw.mpi import MPIComm
 
 
 def diagonalizer_tester_common(

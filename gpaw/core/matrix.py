@@ -215,7 +215,9 @@ class Matrix(XP):
             assert beta == 0.0
             M = A.shape[0] if opa == 'N' else A.shape[1]
             N = B.shape[1] if opb == 'N' else B.shape[0]
-            out = Matrix(M, N, dtype=A.dtype, dist=dist.new(M, N))
+            out = Matrix(M, N,
+                         dtype=A.dtype,
+                         dist=dist.comm)
         elif not isinstance(out, Matrix):
             out = out.matrix
         if out.data is other.data:
@@ -270,7 +272,7 @@ class Matrix(XP):
                     data=data_buffer[
                         :l_buffer_size].reshape(
                         (other.data.shape[0], r_buffer_size)),
-                    dist=dist.new(M=other.shape[0], N=r_buffer_size),
+                    dist=dist.comm,  # .new(M=other.shape[0], N=r_buffer_size),
                     xp=other.xp)
                 buffer.data[:] \
                     = other.data[:, i:i + buffer_size]
@@ -1002,7 +1004,7 @@ class CuPyDistribution(MatrixDistribution):
     def new(self, M, N):
         return CuPyDistribution(M, N,
                                 self.comm,
-                                self.rows, self.columns)
+                                self.rows, self.columns, self.br, self.bc)
 
     def multiply(self, alpha, a, opa, b, opb, beta, c, *, symmetric=False):
         if self.comm.size > 1:
