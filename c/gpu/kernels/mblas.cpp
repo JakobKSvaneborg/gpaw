@@ -1,8 +1,8 @@
 
-#include "../../python_utils.h"
-#include "../../gpaw_complex.h"
-#include "../gpu-complex.h"
-#include "../gpu_interface.h"
+#include "python_utils.h"
+#include "gpaw_complex.h"
+#include "gpu/gpu-complex.h"
+#include "gpu/gpu_interface.h"
 
 #include <stdlib.h>
 #include <stdio.h>

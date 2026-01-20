@@ -1,8 +1,8 @@
-#include "../python_utils.h"
+#include "python_utils.h"
 
 #define GPAW_ARRAY_DISABLE_NUMPY
 #define GPAW_ARRAY_ALLOW_CUPY
-#include "../array.h"
+#include "array.h"
 #undef GPAW_ARRAY_DISABLE_NUMPY
 
 #include "gpu.h"

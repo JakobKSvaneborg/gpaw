@@ -1,6 +1,6 @@
-#include "../gpu.h"
-#include "../gpu-complex.h"
-#include "../bmgs.h"
+#include "gpu/gpu.h"
+#include "gpu/gpu-complex.h"
+#include "gpu/bmgs.h"
 
 #include <stdio.h>
 #include <time.h>

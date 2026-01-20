@@ -2,9 +2,9 @@
  *  Copyright (C) 2007-2009  CAMd
  *  Please see the accompanying LICENSE file for further information. */
 
-#include "../python_utils.h"
+#include "python_utils.h"
 #include "xc_gpaw.h"
-#include "../extensions.h"
+#include "extensions.h"
 
 //
 //          __  2

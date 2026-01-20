@@ -2,7 +2,7 @@
  *  Please see the accompanying LICENSE file for further information. */
 
 #include "bmgs.h"
-#include "../gpaw_utils.h"
+#include "gpaw_utils.h"
 
 #if GPAW_CPP
 #include <algorithm>
