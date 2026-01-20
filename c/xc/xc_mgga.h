@@ -33,4 +33,9 @@ typedef struct common_params {
   const mgga_func_info *funcinfo;
 } common_params;
 
+
+extern const mgga_func_info m06l_info;
+extern const mgga_func_info tpss_info;
+extern const mgga_func_info revtpss_info;
+
 #endif

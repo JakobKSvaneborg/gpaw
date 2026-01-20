@@ -164,13 +164,19 @@ class ChargedPWPoissonSolver(PWPoissonSolver):
     def _solve(self,
                vHt_g,
                rhot_g) -> float:
+        xp = vHt_g.xp
+        if self.potential_g.xp is not xp:
+            self.ekin_g = xp.array(self.ekin_g)
+            self.charge_g = xp.array(self.charge_g)
+            self.potential_g = self.potential_g.to_xp(xp)
+
         neutral_g = rhot_g.copy()
         neutral_g.data += self.charge_g
 
         if neutral_g.desc.comm.rank == 0:
             error = neutral_g.data[0]  # * self.pd.gd.dv
             assert error.imag == 0.0, error
-            assert abs(error.real) < 0.00001, error
+            assert abs(float(error.real)) < 0.00001, error
             neutral_g.data[0] = 0.0
 
         vHt_g.data[:] = 2 * pi * neutral_g.data

@@ -3,8 +3,10 @@ Test with unrealisticly loose parameters to catch if the numerics change.
 """
 
 import numpy as np
+
 # General modules
 import pytest
+
 # Script modules
 from ase.build import bulk
 
@@ -21,7 +23,8 @@ from gpaw.response.mft import (HeisenbergExchangeCalculator,
                                calculate_pair_site_zeeman_energy,
                                calculate_single_particle_site_magnetization,
                                calculate_single_particle_site_zeeman_energy)
-from gpaw.response.site_data import (AtomicSites, calculate_site_magnetization,
+from gpaw.response.site_data import (AtomicSites,
+                                     calculate_site_magnetization,
                                      calculate_site_zeeman_energy,
                                      get_site_radii_range)
 from gpaw.response.site_kernels import (CylindricalSiteKernels,
@@ -245,6 +248,10 @@ def test_NiO_withU(in_tmp_dir):
                 setups={'Ni': ':d,4.0'},
                 kpts={'size': (2, 2, 2), 'gamma': True},
                 occupations=FermiDirac(0.001),
+                convergence={'density': 1e-5},
+                mixer={'method': 'difference',
+                       'beta': 0.05,
+                       'weight': 50},
                 parallel=dict(domain=1))
 
     a.calc = calc

@@ -429,7 +429,6 @@ def read_dft_state(reader: ulm.Reader,
     energies = DFTEnergies(**ec)
 
     potential = Potential(vt_sR, dH_asp.to_full(), dedtaut_sR, vHt_x, e_stress)
-
     ibzwfs = builder.read_ibz_wave_functions(reader)
 
     return builder, params, (ibzwfs, density, potential, energies)

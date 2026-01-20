@@ -99,10 +99,13 @@ History
 * Added LCAO and FD results to the graphs.
 
 
+2026, January
+-------------
+
+* Added two more systems (``ErGe-2M``, ``Fe8O8-3M``).
+
+
 The future
 ----------
 
-* Added three more systems (``ErGe-2M``, ``Mn2O2-3M``, ``Fe8O8-3M``).
-
-
-(:download:`pw-perf-index.svg`)
+* Added one more system: ``Mn2O2-3M``.

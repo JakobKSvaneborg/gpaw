@@ -3,15 +3,16 @@
 
 #include "../extensions.h"
 #include "bmgs.h"
+#include <pthread.h>
 
 #ifdef K
 struct RST1DA{
   int thread_id;
   int nthds;
-  const T* a;
+  const TGPAW* a;
   int n;
   int m;
-  T* b;
+  TGPAW* b;
 };
 
 void *RST1DW(void *threadarg)
@@ -28,8 +29,8 @@ void *RST1DW(void *threadarg)
 
   for (int j = 0; j < m; j++)
     {
-      const T* aa = args->a + j * args->n;
-      T* bb = args->b + j;
+      const TGPAW* aa = args->a + j * args->n;
+      TGPAW* bb = args->b + j;
 
       for (int i = 0; i < (args->n - K * 2 + 3) / 2; i++)
         {
@@ -61,7 +62,7 @@ void *RST1DW(void *threadarg)
   return NULL;
 }
 
-void RST1D(const T* a, int n, int m, T* b)
+void RST1D(const TGPAW* a, int n, int m, TGPAW* b)
 {
   a += K - 1;
 
@@ -133,9 +134,9 @@ void RST1D(const T* a, int n, int m, T* b)
 #  undef RST1DW
 #  undef K
 
-void Z(bmgs_restrict)(int k, T* a, const int n[3], T* b, T* w)
+void Z(bmgs_restrict)(int k, TGPAW* a, const int n[3], TGPAW* b, TGPAW* w)
 {
-  void (*plg)(const T*, int, int, T*);
+  void (*plg)(const TGPAW*, int, int, TGPAW*);
 
   if (k == 2)
     plg = Z(bmgs_restrict1D2);

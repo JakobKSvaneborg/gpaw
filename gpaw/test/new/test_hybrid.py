@@ -68,7 +68,7 @@ def test_h(gpaw_new, dtype, eigensolver):
                       eigensolver=eigensolver,
                       nbands=2,
                       parallel={'kpt': 1, 'band': 1, 'domain': world.size},
-                      convergence={'energy': 1e-4})
+                      convergence={'density': 1e-6})
     e = atoms.get_potential_energy()
     eigs = atoms.calc.get_eigenvalues(spin=0)
     assert e == pytest.approx(-1.7041, abs=4e-4)

@@ -3,10 +3,10 @@
  *  Please see the accompanying LICENSE file for further information. */
 
 #include "bmgs.h"
+#include "../gpaw_utils.h"
 
-void
-bmgs_relax(const int relax_method, const bmgsstencil* s,
-           double* restrict a, double* restrict b, const double* src, 
+void bmgs_relax(const int relax_method, const bmgsstencil* s,
+           double* GPAW_RESTRICT a, double* GPAW_RESTRICT b, const double* src, 
            const double w)
 {
   if (relax_method == 1) {
