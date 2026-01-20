@@ -4,7 +4,7 @@
 #error "Need C++"
 #endif
 
-#include "../../gpaw_utils.h"
+#include "gpaw_utils.h"
 
 #include <functional>
 #include <memory>
