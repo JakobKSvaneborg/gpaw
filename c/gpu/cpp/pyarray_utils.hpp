@@ -60,6 +60,104 @@ private:
     PyGILState_STATE gil_state;
 };
 
+// Scoped numpy datatypes
+enum class DataType
+{
+    eUnknown = -1,
+    eBool = NPY_BOOL,
+    eInt8 = NPY_INT8,
+    eUint8 = NPY_UINT8,
+    eInt16 = NPY_INT16,
+    eUint16 = NPY_UINT16,
+    eInt32 = NPY_INT32,
+    eUint32 = NPY_UINT32,
+    eInt64 = NPY_INT64,
+    eUint64 = NPY_UINT64,
+    eFloat32 = NPY_FLOAT32,
+    eFloat64 = NPY_FLOAT64,
+    eComplex64 = NPY_COMPLEX64,
+    eComplex128 = NPY_COMPLEX128
+};
+
+// Map runtime DataType to compile-time T
+template<typename T>
+constexpr bool matches_dtype(DataType dtype)
+{
+    if constexpr (std::is_same_v<T, bool>) return dtype == DataType::eBool;
+    if constexpr (std::is_same_v<T, int8_t>) return dtype == DataType::eInt8;
+    if constexpr (std::is_same_v<T, uint8_t>) return dtype == DataType::eUint8;
+    if constexpr (std::is_same_v<T, int16_t>) return dtype == DataType::eInt16;
+    if constexpr (std::is_same_v<T, uint16_t>) return dtype == DataType::eUint16;
+    if constexpr (std::is_same_v<T, npy_int32>) return dtype == DataType::eInt32;
+    if constexpr (std::is_same_v<T, int32_t>) return dtype == DataType::eInt32;
+    if constexpr (std::is_same_v<T, uint32_t>) return dtype == DataType::eUint32;
+    if constexpr (std::is_same_v<T, int64_t>) return dtype == DataType::eInt64;
+    if constexpr (std::is_same_v<T, uint64_t>) return dtype == DataType::eUint64;
+    if constexpr (std::is_same_v<T, float>) return dtype == DataType::eFloat32;
+    if constexpr (std::is_same_v<T, double>) return dtype == DataType::eFloat64;
+    if constexpr (std::is_same_v<T, std::complex<float>>) return dtype == DataType::eComplex64;
+    if constexpr (std::is_same_v<T, std::complex<double>>) return dtype == DataType::eComplex128;
+    if constexpr (std::is_same_v<T, gpuFloatComplex>) return dtype == DataType::eComplex64;
+    if constexpr (std::is_same_v<T, gpuDoubleComplex>) return dtype == DataType::eComplex128;
+    else
+    {
+        // FIXME use static_assert, but looks like some trickery is needed
+        assert("No match for dtype");
+    }
+    return false;
+}
+
+/* Convert Numpy's type identifier to a DataType enum.
+For example, dtype_from_typenum(NPY_FLOAT32) would return DataType::eFloat32 */
+constexpr inline DataType dtype_from_typenum(int typenum)
+{
+    return static_cast<DataType>(typenum);
+}
+
+/* Convert DataType to raw Numpy typenum */
+constexpr inline int typenum_from_dtype(DataType dtype)
+{
+    return static_cast<int>(dtype);
+}
+
+inline bool is_complex_dtype(pybind11::dtype dtype) { return dtype.kind() == 'c'; }
+// FIXME c_style has different semantics for 1D arrays
+inline bool is_c_contiguous(pybind11::array arr) { return arr.flags() & pybind11::array::c_style; }
+
+/* Checks if the input object is a Cupy array (cupy.ndarray).
+Empty Cupy array is considered valid.
+NOTE: Not quite foolproof: we assume that only Numpy and Cupy arrays are passed around
+so this will return true for anything that looks like an ndarray but is NOT a Numpy array. */
+bool is_cupy_array(PyObject* obj);
+
+// See the `is_cupy_array(PyObject*)` overload for docstring
+inline bool is_cupy_array(pybind11::handle obj) { return is_cupy_array(obj.ptr()); }
+
+/* Cheap, type-erased wrapper around a Python-side GPU array (cupy.ndarray).
+Does NOT take ownership or copy the data. */
+struct PyDeviceArray
+{
+    // Allow default construction for pybind11 type casting
+    PyDeviceArray() noexcept;
+    PyDeviceArray(PyObject* array);
+    PyDeviceArray(pybind11::handle array);
+
+    void* data = nullptr;
+    DataType dtype;
+    bool c_contiguous;
+    // Use int64_t for shape/strides for compatibility with standards like dlpack
+    std::vector<int64_t> shape;
+    std::vector<int64_t> strides;
+
+private:
+    void from_cupy(pybind11::handle array);
+    void from_cupy(PyObject* obj) { from_cupy(pybind11::handle(obj)); }
+
+    // Let pybind11 type caster access private members
+    friend class pybind11::detail::type_caster<gpaw::PyDeviceArray>;
+};
+
+// Old CPython-style stuff below
 
 // Get pointer to the array data
 template<typename T>
