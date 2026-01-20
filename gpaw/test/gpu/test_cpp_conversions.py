@@ -14,6 +14,9 @@ from gpaw.gpu import cupy as cp, cupy_is_fake
 if cupy_is_fake:
     pytest.skip("Fake cupy", allow_module_level=True)
 
+# Mark everything as gpu tests
+pytestmark = pytest.mark.gpu
+
 
 def test_cupy_array_input():
     """Tests that we can call a C++ function that takes in
