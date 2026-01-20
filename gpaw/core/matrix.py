@@ -217,6 +217,7 @@ class Matrix(XP):
             N = B.shape[1] if opb == 'N' else B.shape[0]
             out = Matrix(M, N,
                          dtype=A.dtype,
+                         xp=self.xp,
                          dist=dist.comm)
         elif not isinstance(out, Matrix):
             out = out.matrix
@@ -465,6 +466,7 @@ class Matrix(XP):
             scalapack = None, 1, 1, None
 
         slcomm, rows, columns, blocksize = scalapack
+        assert blocksize is not None
         slcomm = slcomm or self.dist.comm
         dist = (slcomm, rows, columns, blocksize)
 
