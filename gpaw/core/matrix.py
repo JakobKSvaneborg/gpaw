@@ -355,10 +355,12 @@ class Matrix(XP):
         if self.dist.comm.size == 1:
             return self
 
-        S = self.new(dist=(self.dist.comm, -1, 1, *self.shape))
+        S = self.new(dist=(self.dist.comm, 1, 1, *self.shape))
         self.redist(S)
-        assert not broadcast
-        # self.dist.comm.broadcast(S.data, 0)
+        if broadcast:
+            if self.dist.comm.rank != 0:
+                S = self.new(dist=None)
+            self.dist.comm.broadcast(S.data, 0)
         return S
 
     @staticmethod
@@ -726,8 +728,8 @@ def create_distribution(M: int,
         r = comm.size // c
     elif c == -1:
         c = comm.size // r
-    if r * c != comm.size:
-        raise ValueError
+    # if r * c != comm.size:
+    #     raise ValueError
 
     if br == 0 and bc == 0:
         br = (M + r - 1) // r
