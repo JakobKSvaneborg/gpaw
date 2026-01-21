@@ -241,7 +241,7 @@ class MSR1Mixer(BaseMixer):
                 dD_iasp[-1].append(D_sp - D_isp)
 
         if iold > 1:
-            if dNt > self.last_dNt * 4:
+            if dNt > self.last_dNt * 5.0:
                 dNt = self.last_dNt
                 temp = nt_isG[-1].copy()
                 nt_isG[-1] = nt_isG[-2].copy()
@@ -259,9 +259,9 @@ class MSR1Mixer(BaseMixer):
             ### 2023 Paper, Eq: 8 + 9:
             s_isG = (nt_isG[:-1] - nt_isG[-1])
             y_isG = -(R_isG[:-1] - R_isG[-1])
-            y_norm = np.linalg.norm(y_isG.reshape(iold - 1, -1), axis=1)**2
+            y_norm = np.vecdot(y_isG.reshape(iold - 1, -1), y_isG.reshape(iold - 1, -1))
             self.gd.comm.sum(y_norm)
-            y_norm = np.sqrt(y_norm) * np.sqrt(len(y_norm) / np.arange(1, len(y_norm) + 1))
+            y_norm = np.sqrt(y_norm) # * np.sqrt(len(y_norm) / np.arange(1, len(y_norm) + 1))
             s_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, s_isG.ndim)))
             y_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, y_isG.ndim)))
 
@@ -276,59 +276,56 @@ class MSR1Mixer(BaseMixer):
                 sD_iasp.append(sD_asp)
                 yD_iasp.append(yD_asp)
 
-
             ty_isG = y_isG.copy()
             ts_isG = s_isG.copy()
-            if self.metric is not None:
-                for y_sG, s_sG, ty_sG, ts_sG in zip(y_isG, s_isG, ty_isG, ts_isG):
-                    for y_G, s_G, ty_G, ts_G in zip(y_sG, s_sG, ty_sG, ts_sG):
-                        self.metric(y_G, ty_G)
-                        self.metric(s_G, ts_G)
+            for y_sG, s_sG, ty_sG, ts_sG in zip(y_isG, s_isG, ty_isG, ts_isG):
+                for y_G, s_G, ty_G, ts_G in zip(y_sG, s_sG, ty_sG, ts_sG):
+                    if self.metric is not None:
+                        self.metric(y_G / self.weight, ty_G)
+                        self.metric(s_G / self.weight, ts_G)
+                if g_ss is not None:
+                    ty_sG[:] = np.tensordot(g_ss, ty_sG, axes=(1, 0))
+                    ts_sG[:] = np.tensordot(g_ss, ts_sG, axes=(1, 0))
 
             ### 2023 paper eq 22 - Limit good_broydenness
-            YY_LIM = y_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
+            YY_LIM = y_isG.reshape((iold - 1, -1)) @ ty_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YY_LIM)
             YY_LIM = np.linalg.norm(YY_LIM)
-            YS_LIM = y_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
+            YS_LIM = y_isG.reshape((iold - 1, -1)) @ ts_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YS_LIM)
             YS_LIM = np.linalg.norm(YS_LIM)
             # iold > 5 to build some history first
-            max_gb = max(0.5, YY_LIM / (YS_LIM + YY_LIM) * (iold > 5))
+            max_gb = max(1, (YY_LIM / YS_LIM) * ((iold - 2) / (self.nmaxold - 2))**2)
             good_broydenness = 0.5 * max_gb
 
             # Choose max good_broydenness s.t. A_ii is positive definite
             # for good_broydenness in good_broydenness_range:
-            # binary search 2**(-12) accuracy:
-            for iter in range(2, 12):
-                t_isG = (1 - good_broydenness) * ty_isG \
-                    + good_broydenness * ts_isG # * np.expand_dims(y_norm / s_norm, axis=tuple(np.arange(1, s_isG.ndim)))
-                # Normalize t_isG
-                # t_norm = np.linalg.norm(t_isG.reshape((iold - 1, -1)), axis=1)**2
-                # self.gd.comm.sum(t_norm)
-                # t_isG /= np.expand_dims(np.sqrt(t_norm), axis=tuple(np.arange(1, t_isG.ndim)))
-
-                if g_ss is not None:
-                    for t_sG in t_isG:
-                        for t_G in t_sG:
-                            t_sG[:] = np.tensordot(g_ss, t_sG, axes=(1, 0))
+            # binary search 2**(-8) accuracy:
+            for iter in range(2, 9):
+                t_isG = ty_isG + good_broydenness * ts_isG
 
                 A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
                 self.gd.comm.sum(A_ii)
 
                 eigs = np.linalg.eigvals(A_ii)
-                if np.all(eigs > 0) and iter < 12:
+                if np.all(eigs > 1e-12):
                     good_broydenness += 2**(-iter) * max_gb
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
+            good_broydenness -= 2**(-iter) * max_gb
             # print(good_broydenness, max_gb)
 
+            t_isG = ty_isG + good_broydenness * ts_isG
+
+            A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
+            self.gd.comm.sum(A_ii)
             B_ii = t_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(B_ii)
 
             # This parameter is surprisingly important for stability
             # 5e-4 seems to work well for most systems
             alphaA = 5e-4
-            alphaB = 1e-9
+            alphaB = alphaA # 5e-9
             normA = np.linalg.norm(A_ii, ord='fro')
             normB = np.linalg.norm(B_ii, ord='fro')
 
@@ -359,13 +356,12 @@ class MSR1Mixer(BaseMixer):
                     self.dotprod(H_sG, R_sG, None, None, None)
                 ))
 
-            A1 = self.gd.comm.sum_scalar(
-                self.dotprod(self.uk_sG, self.uk_sG, None, None, None)
-            )
-            B1 = self.gd.comm.sum_scalar(
-                self.dotprod(self.R_isG[-2] - self.uk_sG,
-                self.R_isG[-2] - self.uk_sG, None, None, None)
-            )
+            A1 = self.uk_sG.reshape(-1) @ self.uk_sG.reshape(-1)
+            A1 = self.gd.comm.sum_scalar(A1)
+            B1 = (self.R_isG[-2] - self.uk_sG).reshape(-1) @ \
+                (self.R_isG[-2] - self.uk_sG).reshape(-1)
+            B1 = self.gd.comm.sum_scalar(B1)
+
             A2_i = B_isG.reshape((iold - 1, -1)) @ self.uk_sG.reshape(-1)
             self.gd.comm.sum(A2_i)
             B2_i = B_isG.reshape((iold - 1, -1)) @ self.pk_sG.reshape(-1)
@@ -375,20 +371,22 @@ class MSR1Mixer(BaseMixer):
             B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
             self.gd.comm.sum(B3_i)
 
-            A2 = A2_i @ A3_i
-            B2 = B2_i @ B3_i
+            A2 = A2_i @ A3_i # * len(self.uk_sG)
+            B2 = B2_i @ B3_i # * len(self.uk_sG)
+
+            clip_factors = [0.5, 1.25]
 
             if iold != 2:
-                new_B0_factor = (self.B0 + np.abs(B1 / B2) + 0.1) / (2 * self.B0)
-                self.B0 *= np.clip(new_B0_factor, 3/5, 5/3)
+                new_B0_factor = (self.B0 + np.abs(B1 / B2)) / (2 * self.B0)
+                self.B0 *= np.clip(new_B0_factor, *clip_factors)
             else:
                 self.B0 = 1
 
             new_beta_factor = (self.beta + np.abs(A1 / A2)) / (2 * self.beta)
-            self.beta *= np.clip(new_beta_factor, 0.5, 1.25)
+            self.beta *= np.clip(new_beta_factor, *clip_factors)
 
-            self.beta = np.clip(self.beta, 0.02, 0.6)  # Just let it mix!
-            self.B0 = np.clip(self.B0, 0.1, 1.0)
+            self.beta = np.clip(self.beta, 0.02, 0.3)  # Just let it mix!
+            self.B0 = np.clip(self.B0, 0.5, 1.2)
             A0 = self.beta
             B0 = self.B0
             # if self.gd.comm.rank == 0:
@@ -403,8 +401,6 @@ class MSR1Mixer(BaseMixer):
             for i1, alpha in enumerate(alpha_i):
                 self.uk_sG -= alpha * y_isG[i1]
                 self.pk_sG += alpha * s_isG[i1]
-                #nt_sG += Q_sG - QQ_sG
-                #adf
 
                 for a1, D_sp in enumerate(D_asp):
                     QQ_sp = A0 * alpha * yD_iasp[i1][a1]
