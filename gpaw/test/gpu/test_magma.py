@@ -7,7 +7,7 @@ from gpaw.cgpaw import have_magma
 if not have_magma:
     pytest.skip("No MAGMA", allow_module_level=True)
 
-import gpaw.cgpaw as cgpaw
+from gpaw.cgpaw.gpu import magma
 from gpaw.gpu import cupy as cp, cupy_is_fake
 from gpaw.utilities import as_real_dtype
 from gpaw.test.gpu import assert_eigenpairs, fill_uplo
@@ -16,10 +16,6 @@ import sys
 
 if cupy_is_fake:
     pytest.skip("Not testing MAGMA with fake Cupy", allow_module_level=True)
-
-# Hack around cgpaw not being a package: cant do `from cgpaw.gpu import magma`.
-# Will fix in a followup MR.
-magma = cgpaw.gpu.magma
 
 
 @pytest.mark.gpu
