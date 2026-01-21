@@ -444,8 +444,12 @@ static PyObject* moduleinit(void)
 #endif
 
 #ifdef GPAW_GPU
-    bind_gpu_submodule(m);
+    if (!bind_gpu_submodule(m))
+    {
+        return NULL;
+    }
 #endif
+
     // Version number of C-code.  Keep in sync with gpaw/_broadcast_imports.py
     PyObject_SetAttrString(m, "version", PyLong_FromLong(10));
 
