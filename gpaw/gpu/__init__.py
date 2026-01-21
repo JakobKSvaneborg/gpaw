@@ -270,13 +270,13 @@ __all__ = ['cupy', 'cupyx', 'as_xp', 'as_np', 'synchronize',
            'flush_pinned_arrays']
 
 try:
-    from gpaw.cgpaw import _flush_pending_decrefs
+    from gpaw.cgpaw import flush_pending_decrefs
 
     def flush_pinned_arrays() -> None:
         """Flushes the list of arrays that are currently pinned by GPAW's
         'GPU array life support' system.
         """
-        _flush_pending_decrefs()
+        flush_pending_decrefs()
 
     # Hook the above to garbage collector
     import gc
@@ -288,7 +288,7 @@ try:
     gc.callbacks.append(gpaw_gc_flush_pinned_arrays)
 
 except ImportError:
-    def _flush_pending_decrefs() -> None:
+    def flush_pending_decrefs() -> None:
         # no-op
         pass
 

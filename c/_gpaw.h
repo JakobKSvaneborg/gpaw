@@ -318,7 +318,7 @@ static PyMethodDef functions[] = {
     {"evaluate_pbe_gpu", evaluate_pbe_gpu, METH_VARARGS, 0},
     {"calculate_residuals_gpu", calculate_residual_gpu, METH_VARARGS, 0},
 
-    {"_flush_pending_decrefs", flush_pending_decrefs, METH_NOARGS, 0},
+    {"flush_pending_decrefs", flush_pending_decrefs, METH_NOARGS, 0},
 
 #endif // GPAW_GPU
 
