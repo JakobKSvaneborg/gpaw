@@ -4,6 +4,8 @@
 #include "magma_template_wrappers.hpp"
 #include "gpu/cpp/utils.hpp"
 
+// Defines "plug & play" solvers that handle workspace creation and call the low-level solver routines.
+
 namespace gpaw
 {
 
