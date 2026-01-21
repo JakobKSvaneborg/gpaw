@@ -217,7 +217,7 @@ class DFTCalculation:
         else:  # no break
             self.log('SCF steps:', step)
 
-    def energy(self):
+    def calculate_energy(self) -> float:
         self.results['free_energy'] = broadcast_float(
             self.energies.total_free, self.comm)
         self.results['energy'] = broadcast_float(
@@ -226,6 +226,9 @@ class DFTCalculation:
         self.log('Energy contributions relative to reference atoms:',
                  f'(reference = {self.setups.Eref * Ha:.6f})\n')
         self.energies.summary(self.log)
+        return self.results['energy'] * Ha
+
+    energy = calculate_energy
 
     def dipole(self):
         if 'dipole' in self.results:
@@ -569,7 +572,9 @@ class DFTCalculation:
         from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
         assert isinstance(self.ibzwfs, LCAOIBZWaveFunctions)
         if mode == 'pw':
-            ecut = ecut or 0.5 * self.density.nt_sR.desc.ekin_max()
+            print(self.density.nt_sR)
+            ecut = ecut or 0.5 * self.density.nt_sR.desc.ekin_max() * Ha
+            print(ecut)
             self.params.mode = PW(ecut=ecut)
         elif mode == 'fd':
             assert ecut is None
@@ -579,21 +584,29 @@ class DFTCalculation:
         self.scf_loop = builder.create_scf_loop()
         self.pot_calc = builder.create_potential_calculator()
         if mode == 'pw':
+            self.density.nct_aX = builder.get_pseudo_core_densities()
+            self.density.tauct_aX = builder.get_pseudo_core_ked()
             self.density = self.density.new(builder.grid,
-                                            builder.interpolation_desc,
-                                            builder.relpos_ac,
-                                            builder.atomdist)
+                                            builder.interpolation_desc)
+            print(self.pot_calc.charge)
+            print(self.density.nt_sR.integrate())
             self.density.normalize(self.pot_calc.charge)
             if self.density.nt_sR.xp is np:
                 self.ibzwfs.kpt_band_comm.broadcast(self.density.nt_sR.data, 0)
             self.potential, self.energies, _ = self.pot_calc.calculate(
                 self.density)
 
+        print(
+            mode,
+            builder.grid,
+            builder.wf_desc,
+            nbands)
         self.ibzwfs = self.ibzwfs.convert_to(
             mode,
             grid=builder.grid,
-            pw=builder.wfs_desc,
+            pw=builder.wf_desc,
             nbands=nbands)
+        print(self.results)
 
         self.results = {}
 

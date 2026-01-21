@@ -153,17 +153,19 @@ class Density:
                                           scale=1.0 / (self.ncomponents % 3))
         return self._tauct_R
 
-    def new(self, new_grid, pw, relpos_ac, atomdist):
-        self.move(relpos_ac, atomdist)
+    def new(self, new_grid, pw, relpos_ac=None, atomdist=None):
+        if relpos_ac is not None:
+            self.move(relpos_ac, atomdist)
         new_pw = PWDesc(ecut=0.99 * new_grid.ekin_max(),
                         cell=new_grid.cell,
                         comm=new_grid.comm)
-        old_grid = self.nt_sR.desc
+        old_nt_sR = self.nt_sR.to_pbc_grid()
+        old_grid = old_nt_sR.desc
         old_pw = PWDesc(ecut=0.99 * old_grid.ekin_max(),
                         cell=old_grid.cell,
                         comm=new_grid.comm)
         new_nt_sR = new_grid.empty(self.ncomponents, xp=self.nt_sR.xp)
-        for new_nt_R, old_nt_R in zips(new_nt_sR, self.nt_sR):
+        for new_nt_R, old_nt_R in zips(new_nt_sR, old_nt_sR):
             old_nt_R.fft(pw=old_pw).morph(new_pw).ifft(out=new_nt_R)
 
         self.nct_aX.change_cell(pw)

@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from ase import Atoms
 from ase.build import molecule
-from gpaw.dft import DFT
+from gpaw.dft import DFT, PW
 
 
 def test_changes():
@@ -60,12 +60,17 @@ def test_changes():
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
 def test_lcao_to_x(mode):
     h = Atoms('H', magmoms=[1])
-    h.center(vacuum=1.5)
+    h.center(vacuum=3.5)
+
     dft = DFT(h, mode='lcao')
     dft.converge()
-    dft.change_mode(mode)
+    dft.change_mode(mode)#, ecut=240 if mode == 'pw' else None)
     dft.converge()
     e1 = dft.calculate_energy()
+
+    if mode == 'pw':
+        mode = PW(ecut=340)
+
     dft = DFT(h, mode=mode)
     dft.converge()
     e2 = dft.calculate_energy()

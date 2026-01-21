@@ -308,8 +308,10 @@ class LCAOWaveFunctions(WaveFunctions, XP):
             emikr_R = grid.eikr(-self.kpt_c)
 
         mynbands, M = self.C_nM.dist.shape
+        print(mynbands, M, self.C_nM.data, grid, pw)
         if self.ncomponents < 4:
             psit_nG = pw.empty(nbands, self.band_comm)
+            print(psit_nG)
             psit_R = grid.empty()
             if grid.dtype != pw.dtype:
                 psit0_R = grid.new(dtype=pw.dtype).empty()
