@@ -1,6 +1,6 @@
 #pragma once
 
-#include "magma_python_interface.h"
+#include "magma_python.h"
 
 #include <magma_auxiliary.h>
 #include <magma_types.h>
