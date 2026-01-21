@@ -6,7 +6,7 @@
 
 
 template<typename T>
-EighErrorType magma_symmetric_solver_host(
+magma_int_t magma_symmetric_solver_host(
     const MagmaEighContext& context,
     T* inout_matrix,
     T* inout_eigvals)
@@ -26,11 +26,11 @@ EighErrorType magma_symmetric_solver_host(
     gpaw::TFree(workspace.work);
     gpaw::TFree(workspace.iwork);
 
-    return interpret_magma_status(status);
+    return status;
 }
 
 template<typename T>
-EighErrorType magma_hermitian_solver_host(
+magma_int_t magma_hermitian_solver_host(
     const MagmaEighContext& context,
     magmaComplex<T>* inout_matrix,
     T* inout_eigvals)
@@ -52,11 +52,11 @@ EighErrorType magma_hermitian_solver_host(
     gpaw::TFree(workspace.iwork);
     gpaw::TFree(workspace.rwork);
 
-    return interpret_magma_status(status);
+    return status;
 }
 
 template<typename T>
-EighErrorType magma_symmetric_solver_gpu(
+magma_int_t magma_symmetric_solver_gpu(
     const MagmaEighContext& context,
     T* inout_matrix,
     T* inout_eigvals)
@@ -87,11 +87,11 @@ EighErrorType magma_symmetric_solver_gpu(
     MAGMA_CHECK(magma_host_free(workspace.iwork));
     MAGMA_CHECK(magma_host_free(workspace.work));
 
-    return interpret_magma_status(status);
+    return status;
 }
 
 template<typename T>
-EighErrorType magma_hermitian_solver_gpu(
+magma_int_t magma_hermitian_solver_gpu(
     const MagmaEighContext& context,
     magmaComplex<T>* inout_matrix,
     T* inout_eigvals)
@@ -124,5 +124,5 @@ EighErrorType magma_hermitian_solver_gpu(
     MAGMA_CHECK(magma_host_free(workspace.iwork));
     MAGMA_CHECK(magma_host_free(workspace.work));
 
-    return interpret_magma_status(status);
+    return status;
 }
