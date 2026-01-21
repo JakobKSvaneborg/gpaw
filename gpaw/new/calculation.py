@@ -7,7 +7,7 @@ import numpy as np
 from ase import Atoms
 from ase.units import Bohr, Ha
 
-from gpaw.core import UGArray, UGDesc, PWDesc
+from gpaw.core import UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.densities import Densities
 from gpaw.electrostatic_potential import ElectrostaticPotential
@@ -566,7 +566,8 @@ class DFTCalculation:
                     ecut=None,
                     nbands=None):
         from gpaw.dft import PW, FD
-        assert self.ibzwfs.mode == 'lcao'
+        from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
+        assert isinstance(self.ibzwfs, LCAOIBZWaveFunctions)
         if mode == 'pw':
             ecut = ecut or 0.5 * self.density.nt_sR.desc.ekin_max()
             self.params.mode = PW(ecut=ecut)
