@@ -11,16 +11,16 @@ import gpaw.cgpaw as cgpaw
 from gpaw.gpu import cupy as cp, cupy_is_fake
 from gpaw.utilities import as_real_dtype
 from gpaw.test.gpu import assert_eigenpairs, fill_uplo
-from gpaw.test.gpu.test_diagonalizers import fixt_eigh_test_matrix
 import numpy as np
 import sys
 
-# if cupy_is_fake:
-#     pytest.skip("Not testing MAGMA with fake Cupy", allow_module_level=True)
+if cupy_is_fake:
+    pytest.skip("Not testing MAGMA with fake Cupy", allow_module_level=True)
 
-# Hack around cgpaw not being a package: can't do `from cgpaw.gpu import magma`.
-# Will fix in a followup MR
+# Hack around cgpaw not being a package: cant do `from cgpaw.gpu import magma`.
+# Will fix in a followup MR.
 magma = cgpaw.gpu.magma
+
 
 @pytest.mark.parametrize("matrix_dtype", [np.float64, np.complex128])
 def test_invalid_input(matrix_dtype: np.dtype):
@@ -72,7 +72,7 @@ def test_invalid_input(matrix_dtype: np.dtype):
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64,
-                                          np.complex64, np.complex128])
+                                   np.complex64, np.complex128])
 @pytest.mark.parametrize("uplo", ['U', "L"])
 @pytest.mark.parametrize("xp", [np, cp])
 def test_magma_eigh(fixt_eigh_test_matrix,
@@ -102,7 +102,7 @@ def test_magma_eigh(fixt_eigh_test_matrix,
     atol = 1e-12 if (dtype == np.float64 or dtype == np.complex128) else 1e-5
     rtol = 1e-12 if (dtype == np.float64 or dtype == np.complex128) else 1e-5
 
-    # matrix may have not been symmetric/hermitian (intentionally, for uplo test)
+    # matrix may not be symmetric/hermitian (intentionally for testing uplo)
     true_matrix = fill_uplo(matrix_orig, uplo)
 
     xp.testing.assert_allclose(eigvals, eigvals_ref, rtol=rtol, atol=atol)
