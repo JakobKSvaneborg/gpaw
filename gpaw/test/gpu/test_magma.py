@@ -22,6 +22,7 @@ if cupy_is_fake:
 magma = cgpaw.gpu.magma
 
 
+@pytest.mark.gpu
 @pytest.mark.parametrize("matrix_dtype", [np.float64, np.complex128])
 def test_invalid_input(matrix_dtype: np.dtype):
     """Checks that we correctly catch non-conforming inputs.
@@ -71,6 +72,7 @@ def test_invalid_input(matrix_dtype: np.dtype):
         magma.eigh_magma_numpy(matrix, eigvals, "U", sys.maxsize)
 
 
+@pytest.mark.gpu
 @pytest.mark.parametrize("dtype", [np.float32, np.float64,
                                    np.complex64, np.complex128])
 @pytest.mark.parametrize("uplo", ['U', "L"])
