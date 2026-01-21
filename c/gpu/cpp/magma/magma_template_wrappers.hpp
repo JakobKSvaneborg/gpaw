@@ -4,6 +4,8 @@
 #include "gpu/cpp/utils.hpp"
 #include "gpu/cpp/gpu_core.hpp"
 
+// Thin template wrappers around MAGMA's C-API
+
 namespace gpaw
 {
 
