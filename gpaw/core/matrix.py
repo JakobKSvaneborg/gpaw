@@ -19,7 +19,7 @@ from gpaw.typing import Array1D, Array2D, ArrayLike1D, ArrayLike2D
 _global_blacs_context_store: dict[tuple[_Communicator, int, int], int] = {}
 
 
-def suggest_blocking(N: int, ncpus: int) -> tuple[int, int, int | None]:
+def suggest_blocking(N: int, ncpus: int) -> tuple[int, int, int]:
     """Suggest blocking of ``NxN`` matrix.
 
     Returns rows, columns, blocksize tuple.
@@ -29,7 +29,7 @@ def suggest_blocking(N: int, ncpus: int) -> tuple[int, int, int | None]:
     """
 
     if ncpus == 1:
-        return 1, 1, None
+        return 1, 1, 0
 
     nprow = ncpus
     npcol = 1
@@ -89,7 +89,7 @@ class Matrix(XP):
                  *,
                  dtype=None,
                  data: ArrayLike2D | None = None,
-                 dist: MatrixDistribution | tuple | None = None,
+                 dist: MatrixDistribution | MPIComm | tuple | None = None,
                  xp=None):
         """Matrix object.
 
@@ -299,8 +299,7 @@ class Matrix(XP):
             other.data[:] = self.data
             return
 
-        if n2 == 1 and d1.simple:
-            assert d2.simple
+        if d2.all_data_on_rank_zero and d1.simple:
             comm = d1.comm
             if comm.rank == 0:
                 M = self.shape[0]
@@ -314,7 +313,7 @@ class Matrix(XP):
                 comm.send(self.data, 0)
             return
 
-        if n1 == 1 and d2.simple:
+        if d1.all_data_on_rank_zero and d2.simple:
             assert d1.simple
             comm = d2.comm
             if comm.rank == 0:
@@ -329,6 +328,7 @@ class Matrix(XP):
                 comm.receive(other.data, 0)
             return
 
+        assert self.xp is np
         c = d1.comm if d1.comm.size > d2.comm.size else d2.comm
         n = max(n1, n2)
         if n < c.size:
@@ -375,13 +375,9 @@ class Matrix(XP):
         rows, cols = data.shape
         xp = cp if isinstance(data, cp.ndarray) else np
         matrix = Matrix(rows, cols, dtype=data.dtype, xp=xp, dist=dist)
-
         # Some acrobatics needed to bypass limitations in Matrix.redist()
 
-        comm = matrix.dist.comm
-        non_distributed_matrix = Matrix(rows, cols,
-                                        dist=(comm, -1, 1, rows, cols),
-                                        data=data if comm.rank == 0 else None)
+        non_distributed_matrix = Matrix(rows, cols, data=data)
         non_distributed_matrix.redist(matrix)
         return matrix
 
@@ -444,7 +440,7 @@ class Matrix(XP):
              S=None,
              *,
              cc=False,
-             scalapack=(None, 1, 1, None),
+             scalapack=(None, 1, 1, 0),
              limit: int | None = None) -> Array1D:
         """Calculate eigenvectors and eigenvalues.
 
@@ -463,7 +459,7 @@ class Matrix(XP):
         """
         if self.xp is cp:
             # use MAGMA here?
-            scalapack = None, 1, 1, None
+            scalapack = None, 1, 1, 0
 
         slcomm, rows, columns, blocksize = scalapack
         assert blocksize is not None
@@ -759,6 +755,7 @@ class MatrixDistribution:
     full_shape: tuple[int, int]
     desc: Array1D
     simple = True
+    all_data_on_rank_zero = True
 
     def matrix(self, dtype=None, data=None):
         return Matrix(*self.full_shape, dtype=dtype, data=data, dist=self)
@@ -869,6 +866,7 @@ class BLACSDistribution(MatrixDistribution):
         self.simple = (c == 1 and
                        br == (M + r - 1) // r and
                        bc == N)
+        self.all_data_on_rank_zero = (br == M and bc == N)
 
         if context is None:
             assert c == 1
@@ -981,6 +979,7 @@ class CuPyDistribution(MatrixDistribution):
             m = M if comm.rank == 0 else 0
         elif br == (M + r - 1) // r:
             m = min((comm.rank + 1) * br, M) - min(comm.rank * br, M)
+            self.all_data_on_rank_zero = False
         else:
             raise ValueError
         self.shape = (m, N)
