@@ -1,4 +1,4 @@
-#include "magma_python_interface.h"
+#include "magma_python.h"
 #include "gpu/cpp/pyarray_utils.hpp"
 #include "magma_gpaw.hpp"
 #include "gpaw_utils.h"
