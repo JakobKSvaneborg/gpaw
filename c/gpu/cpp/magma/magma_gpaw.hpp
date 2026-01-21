@@ -20,6 +20,8 @@
 #include <cstdint>
 #include <cstdio>
 
+namespace gpaw
+{
 
 // Check error code of a MAGMA function. Intended for fatal errors, so we exit on failure.
 #define MAGMA_CHECK(result) gpaw_magma_errcheck(result, __FILE__, __LINE__)
@@ -106,3 +108,5 @@ struct HeevdWorkspace_gpu : public HeevdWorkspace<T>
     magmaComplex<T>* wA;
     magma_int_t ldwa = 0;
 };
+
+} // namespace gpaw

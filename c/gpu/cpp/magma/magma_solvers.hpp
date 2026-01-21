@@ -4,6 +4,8 @@
 #include "magma_template_wrappers.hpp"
 #include "gpu/cpp/utils.hpp"
 
+namespace gpaw
+{
 
 template<typename T>
 magma_int_t magma_symmetric_solver_host(
@@ -126,3 +128,5 @@ magma_int_t magma_hermitian_solver_gpu(
 
     return status;
 }
+
+} // namespace gpaw
