@@ -195,7 +195,7 @@ static void eigh_magma_cupy(
         throw std::invalid_argument("Input array for eigenvalues must be 1D and have length N (if the matrix is N x N)");
     }
 
-    if (!inout_matrix.is_c_contiguous() || inout_eigvals.is_c_contiguous())
+    if (!inout_matrix.is_c_contiguous() || !inout_eigvals.is_c_contiguous())
     {
         throw std::invalid_argument("Input matrix and eigenvalue arrays must be C-contiguous");
     }
