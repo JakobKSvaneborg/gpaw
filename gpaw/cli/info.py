@@ -96,7 +96,8 @@ def info(comm=None) -> None:
         githash = ''
 
     results.append(('_gpaw' + githash,
-                    os.path.normpath(getattr(cgpaw._gpaw, '__file__',
+                    os.path.normpath(getattr(cgpaw._get_extension_module(),
+                                             '__file__',
                                              'built-in'))))
 
     results.append(('MPI enabled', have_mpi))
