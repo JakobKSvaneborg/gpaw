@@ -1,5 +1,6 @@
-import pytest
 import numpy as np
+import pytest
+from ase import Atoms
 from ase.build import molecule
 from gpaw.dft import DFT
 
@@ -56,5 +57,20 @@ def test_changes():
     assert forces_xc == pytest.approx(forces_hse, abs=1e-2)
 
 
-if __name__ == "__main__":
+@pytest.mark.parametrize('mode', ['pw', 'fd'])
+def test_lcao_to_x(mode):
+    h = Atoms('H', magmoms=[1])
+    h.center(vacuum=1.5)
+    dft = DFT(h, mode='lcao')
+    dft.converge()
+    dft.change_mode(mode)
+    dft.converge()
+    e1 = dft.calculate_energy()
+    dft = DFT(h, mode=mode)
+    dft.converge()
+    e2 = dft.calculate_energy()
+    assert e1 == pytest.approx(e2)
+
+
+if __name__ == '__main__':
     test_changes()

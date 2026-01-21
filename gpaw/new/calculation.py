@@ -560,29 +560,40 @@ class DFTCalculation:
         self.ibzwfs.pwify(self.relpos_ac, self.setups,
                           self.scf_loop.hamiltonian.basis)
 
-    def convert_to_pw_mode(self, ecut=None, nbands=None):
-        from gpaw.dft import PW
+    def change_mode(self,
+                    mode: str,
+                    *,
+                    ecut=None,
+                    nbands=None):
+        from gpaw.dft import PW, FD
         assert self.ibzwfs.mode == 'lcao'
-        ecut = ecut or 0.5 * self.density.nt_sR.desc.ekin_max()
-        self.params.mode = PW(ecut=ecut)
+        if mode == 'pw':
+            ecut = ecut or 0.5 * self.density.nt_sR.desc.ekin_max()
+            self.params.mode = PW(ecut=ecut)
+        elif mode == 'fd':
+            assert ecut is None
+            self.params.mode = FD()
         builder = self.params.dft_component_builder(
             self.atoms, log=self.log, comm=self.comm)
         self.scf_loop = builder.create_scf_loop()
         self.pot_calc = builder.create_potential_calculator()
-        self.density = self.density.new(builder.grid,
-                                        builder.interpolation_desc,
-                                        builder.relpos_ac,
-                                        builder.atomdist)
-        self.density.normalize(self.pot_calc.charge)
-        if self.density.nt_sR.xp is np:
-            self.ibzwfs.kpt_band_comm.broadcast(self.density.nt_sR.data, 0)
-        self.potential, self.energies, _ = self.pot_calc.calculate(
-            self.density)
+        if mode == 'pw':
+            self.density = self.density.new(builder.grid,
+                                            builder.interpolation_desc,
+                                            builder.relpos_ac,
+                                            builder.atomdist)
+            self.density.normalize(self.pot_calc.charge)
+            if self.density.nt_sR.xp is np:
+                self.ibzwfs.kpt_band_comm.broadcast(self.density.nt_sR.data, 0)
+            self.potential, self.energies, _ = self.pot_calc.calculate(
+                self.density)
+
         self.ibzwfs = self.ibzwfs.convert_to(
-            'pw',
+            mode,
             grid=builder.grid,
             pw=builder.wfs_desc,
             nbands=nbands)
+
         self.results = {}
 
     def get_state(self):
