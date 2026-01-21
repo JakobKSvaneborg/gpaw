@@ -45,7 +45,7 @@ stages:
 .build_matrix: &build_matrix
   parallel:
     matrix:
-      - LANG: ["c", "cpp"]
+      - LANG: ["c", "c++"]
 
 
 .needs_corresponding_build: &needs_corresponding_build
@@ -266,6 +266,30 @@ build-hip-cuda:
      # Set env variable for HIPCC because otherwise it fails to pass the -std
     # flag to underlying nvcc/cicc... and may default to c++14.
     - export HIPCC_COMPILE_FLAGS_APPEND="-std=c++17"
+    - pip install -v --user --log build.log --editable .
+
+
+# Like build-cuda but uses the makefile compilation path.
+build-cuda-makefile:
+  image: $IMAGE_CUDA
+  extends:
+    - build-cuda
+  script:
+    - |
+      cat << EOF >> siteconfig.py
+      makefile_build = True
+      gpu = True
+      gpu_target = 'cuda'
+      gpu_compiler = 'nvcc'
+      gpu_compile_args = ['-O3',
+                          '-g']
+      libraries += ['cudart', 'cublas']
+
+      # MAGMA
+      magma = True
+      libraries += ['magma']
+      EOF
+    - cat siteconfig.py
     - pip install -v --user --log build.log --editable .
 
 
@@ -522,6 +546,25 @@ test-cuda-mpi:
     - gpaw info
     - GPAW_DEBUG=1 gpaw -P 2 python -m pytest -v -x -m gpu
     - gpaw -P 4 python -m pytest -v -x -m gpu
+
+
+test-cuda-mpi-makefile-build:
+  image: $IMAGE_CUDA
+  extends:
+    - .test
+    - .gpu-job
+  <<: *build_matrix
+  needs:
+    - job: build-cuda-makefile
+      <<: *needs_corresponding_build
+  tags:
+    - cuda-mpi
+  script:
+    - nvidia-smi
+    # just a very lightweight test as we mainly want to ensure that
+    # runtime linking is OK
+    - GPAW_NEW=1 GPAW_USE_GPUS=1 gpaw -P 2 test
+
 
 test-hip-cuda:
   image: $IMAGE_CUDA
