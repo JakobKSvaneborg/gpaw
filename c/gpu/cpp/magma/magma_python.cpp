@@ -71,6 +71,26 @@ static MagmaPythonContext decide_solver_type(int matrix_numpy_dtype)
     return context;
 }
 
+bool bind_magma_submodule(pybind11::module_ gpu_module)
+{
+    namespace py = pybind11;
+
+    if (!gpu_module || gpu_module == Py_None)
+    {
+        return false;
+    }
+
+    py::module_ m = py::reinterpret_borrow<py::module_>(gpu_module);
+    if (m.is_none())
+    {
+        return false;
+    }
+
+    py::module_ submodule = m.def_submodule("magma", "MAGMA bindings for GPAW");
+
+    return true;
+}
+
 void gpaw_magma_init()
 {
     MAGMA_CHECK(magma_init());

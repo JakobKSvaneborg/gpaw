@@ -7,7 +7,7 @@
 #include <string.h>
 
 #ifdef GPAW_WITH_MAGMA
-    #include "cpp/magma/magma_python_interface.h"
+    #include "cpp/magma/magma_python.h"
 #endif
 
 #include "lfc_gpu.h"
