@@ -3,6 +3,7 @@
 #include "magma_gpaw.hpp"
 #include "magma_solvers.hpp"
 #include "gpu/cpp/pyarray_utils.hpp"
+#include "gpu/cpp/pybind_cupy_type_caster.hpp"
 #include "gpaw_utils.h"
 
 #include <cassert>
@@ -58,11 +59,8 @@ static void check_gpu_request(int64_t requested_num_gpus)
 * If matrix dtype is T -> eigenvalue dtype must be T.
 * Throws on failure. Note that integer dtypes may pass this.
 */
-static void ensure_dtype_match_eigh(py::array matrix, py::array eigvals)
+static void ensure_dtype_match_eigh(py::dtype matrix_dtype, py::dtype eigval_dtype)
 {
-    const py::dtype matrix_dtype = matrix.dtype();
-    const py::dtype eigval_dtype = eigvals.dtype();
-
     // Complex case
     if (matrix_dtype.kind() == 'c')
     {
@@ -86,6 +84,11 @@ static void ensure_dtype_match_eigh(py::array matrix, py::array eigvals)
     {
         throw std::invalid_argument("Matrix/eigenvalue mismatch (real matrix)");
     }
+}
+
+static void ensure_dtype_match_eigh(py::array matrix, py::array eigvals)
+{
+    ensure_dtype_match_eigh(matrix.dtype(), eigvals.dtype());
 }
 
 /* We could use the templated py::array_t<T> type here to enforce matching dtypes for the matrix and eigenvalue arrays.
@@ -181,6 +184,78 @@ static void eigh_magma_cupy(
     PyDeviceArray& inout_eigvals,
     const py::str& uplo)
 {
+    if (inout_matrix.ndim() != 2 || inout_matrix.shape[0] != inout_matrix.shape[1])
+    {
+        throw std::invalid_argument("Input matrix must be an N x N matrix");
+    }
+    const py::ssize_t matrix_size = inout_matrix.shape[0];
+
+    if (inout_eigvals.ndim() != 1 || inout_eigvals.shape[0] != matrix_size)
+    {
+        throw std::invalid_argument("Input array for eigenvalues must be 1D and have length N (if the matrix is N x N)");
+    }
+
+    if (!inout_matrix.is_c_contiguous() || inout_eigvals.is_c_contiguous())
+    {
+        throw std::invalid_argument("Input matrix and eigenvalue arrays must be C-contiguous");
+    }
+
+    ensure_dtype_match_eigh(inout_matrix.dtype, inout_eigvals.dtype);
+
+    MagmaEighContext solver_context;
+    solver_context.matrix_size = static_cast<magma_int_t>(matrix_size);
+    solver_context.matrix_lda = solver_context.matrix_size;
+    solver_context.uplo = get_magma_uplo(uplo.cast<std::string>());
+    solver_context.jobz = MagmaVec; // Always do eigenvectors
+
+    const py::dtype dtype = inout_matrix.dtype;
+    magma_int_t status;
+
+    switch (dtype.normalized_num())
+    {
+        case py::dtype::num_of<float>():
+            status = magma_symmetric_solver_gpu<float>(
+                solver_context,
+                static_cast<float*>(inout_matrix.data),
+                static_cast<float*>(inout_eigvals.data)
+            );
+            break;
+        case py::dtype::num_of<double>():
+            status = magma_symmetric_solver_gpu<double>(
+                solver_context,
+                static_cast<double*>(inout_matrix.data),
+                static_cast<double*>(inout_eigvals.data)
+            );
+            break;
+        case py::dtype::num_of<std::complex<float>>():
+            status = magma_hermitian_solver_gpu<float>(
+                solver_context,
+                static_cast<magmaComplex<float>*>(inout_matrix.data),
+                static_cast<float*>(inout_eigvals.data)
+            );
+            break;
+        case py::dtype::num_of<std::complex<double>>():
+            status = magma_hermitian_solver_gpu<double>(
+                solver_context,
+                static_cast<magmaComplex<double>*>(inout_matrix.data),
+                static_cast<double*>(inout_eigvals.data)
+            );
+            break;
+    default:
+        throw std::invalid_argument("Unsupported matrix dtype");
+    }
+
+    if (status < 0)
+    {
+        throw std::runtime_error("Invalid input to MAGMA solver at position " + std::to_string(-status));
+    }
+    else if (status > 0)
+    {
+        PyErr_WarnEx(PyExc_RuntimeWarning,
+            "MAGMA eigensolver failed to converge",
+            1
+        );
+    }
 }
 
 
@@ -205,7 +280,6 @@ void gpaw_magma_finalize()
 
 bool bind_magma_submodule(pybind11::module_ gpu_module)
 {
-
     if (!gpu_module || gpu_module == Py_None)
     {
         return false;
@@ -229,10 +303,18 @@ bool bind_magma_submodule(pybind11::module_ gpu_module)
         so you will need to conjugate transpose to get back to Numpy conventions for eigenvectors.
 
         Passing num_gpus > 1 will instruct the solver to utilize multiple GPUs. This can be beneficial for large matrices (N >= 10k).
-        Note though that the GPUs must be directly reachable from the same Cuda/HIP context, ie. this is a single-node solver without Scalapack-like support.
-    )");
+        Note though that the GPUs must be directly reachable from the same Cuda/HIP context, ie. this is a single-node solver without Scalapack-like support.)"
+    );
 
-    submodule.def("eigh_magma_cupy", &gpaw::eigh_magma_cupy);
+    submodule.def("eigh_magma_cupy", &gpaw::eigh_magma_cupy,
+        py::arg("inout_matrix"), py::arg("inout_eigenvalues"), py::arg("uplo"),
+        R"(
+        Solves eigensystem on the GPU with Cupy input/output. This is an in-place solver:
+        the input matrix will be overwritten with resulting eigenvectors. The input eigenvalue array
+        must already be allocated to correct size (its contents don't matter).
+        Input matrix is in Cupy/Scipy conventions. Output is still in MAGMA (Fortran) convention,
+        so you will need to conjugate transpose to get back to Numpy conventions for eigenvectors.)"
+    );
 
     return true;
 }
