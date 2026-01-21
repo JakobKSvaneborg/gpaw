@@ -158,7 +158,7 @@ PyObject* calculate_forces_H2O(PyObject *self, PyObject *args);
 #ifdef GPAW_GPU
 #include "gpu/gpu_interface.h"
     #ifdef GPAW_WITH_MAGMA
-        #include "gpu/cpp/magma/magma_python_interface.h"
+        #include "gpu/cpp/magma/magma_python.h"
     #endif // GPAW_WITH_MAGMA
 #endif // GPAW_GPU
 
