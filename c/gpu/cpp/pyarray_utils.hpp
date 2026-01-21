@@ -88,10 +88,12 @@ struct GPAW_HIDDEN_SYMBOL PyDeviceArray
     PyDeviceArray(PyObject* array);
     PyDeviceArray(pybind11::handle array);
 
+    // Number of array dimensions
+    size_t ndim() const { return shape.size(); }
+    bool is_c_contiguous() const { return c_contiguous; }
+
     void* data = nullptr;
-
     pybind11::dtype dtype;
-
     bool c_contiguous;
     // Use int64_t for shape/strides for compatibility with standards like dlpack
     std::vector<int64_t> shape;
