@@ -6,8 +6,11 @@ if GPAW_NO_C_EXTENSION:
 else:
     import _gpaw  # type: ignore[no-redef]
 
-    # Do not force users to recompile due to merging magma support to master
-    have_magma = getattr(_gpaw, 'have_magma', False)
+try:
+    import _gpaw.gpu.magma
+    have_magma = True
+except ImportError:
+    have_magma = False
 
 
 def __getattr__(name):
