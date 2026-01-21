@@ -258,10 +258,7 @@ static void eigh_magma_cupy(
     }
 }
 
-
-} // namespace gpaw
-
-void gpaw_magma_init()
+static void init_magma_internals()
 {
     MAGMA_CHECK(magma_init());
 
@@ -273,10 +270,13 @@ void gpaw_magma_init()
     gpaw::magma_static_data.num_gpus = ndevices;
 }
 
-void gpaw_magma_finalize()
+static void finalize_magma_internals()
 {
     MAGMA_CHECK(magma_finalize());
 }
+
+} // namespace gpaw
+
 
 bool bind_magma_submodule(pybind11::module_ gpu_module)
 {
@@ -291,6 +291,15 @@ bool bind_magma_submodule(pybind11::module_ gpu_module)
         return false;
     }
     py::module_ submodule = m.def_submodule("magma", "MAGMA bindings for GPAW");
+
+    submodule.def("magma_init", &gpaw::init_magma_internals,
+    R"(Initializes MAGMA library. Must be called come AFTER any calls to cudaSetValidDevices and cudaSetDeviceFlags.
+        Call only if GPUs are available.)"
+    );
+
+    submodule.def("magma_finalize", &gpaw::finalize_magma_internals,
+        R"(Cleanup of internal MAGMA state.)"
+    );
 
     submodule.def("eigh_magma_numpy", &gpaw::eigh_magma_numpy,
     py::arg("inout_matrix"), py::arg("inout_eigenvalues"),
