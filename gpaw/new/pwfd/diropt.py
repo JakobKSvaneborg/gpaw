@@ -79,7 +79,7 @@ class DirOptPWFD(PWFDEigensolver):
                      ibzwfs, density.D_asii)
 
         # build wfs
-        psit_unX = build_wfs(ibzwfs, self.nband_s)
+        psit_unX = build_wfs(ibzwfs, self.nocc_s)
 
         if len(self.grad_unX) == 0:
             # build first gradient vector
@@ -203,8 +203,8 @@ class DirOptPWFD(PWFDEigensolver):
         update_eigenvalues(ibzwfs, Ht, potential,
                            nocc_s=self.nocc_s)
 
-        # build wfs with all bands
-        psit_unX = build_wfs(ibzwfs, len(self.nocc_s) * [ibzwfs.nbands])
+        # build wfs with bands to converge
+        psit_unX = build_wfs(ibzwfs, self.nband_s)
         self.grad_unX = apply_hamiltonian(ibzwfs, psit_unX, Ht, potential)
 
         # project gradient
@@ -231,8 +231,8 @@ class DirOptPWFD(PWFDEigensolver):
 
             orthogonalize(ibzwfs)
             # update gradient
-            self.grad_unX = apply_hamiltonian(ibzwfs, psit_unX,
-                                              Ht, potential)
+            self.grad_unX = apply_hamiltonian(ibzwfs, psit_unX, Ht, potential)
+
             # project gradient
             for grad_nX, wfs in zips(self.grad_unX, ibzwfs):
                 project_wfs(grad_nX, wfs, dS_aii=self.dS_aii)
@@ -252,6 +252,7 @@ class DirOptPWFD(PWFDEigensolver):
 
             # eigenvalues (in eV)
             update_eigenvalues(ibzwfs, Ht, potential,
+                               nocc_s=self.nband_s,
                                eigenvalues_only=True)
             eig_skn = ibzwfs.get_all_eigs_and_occs()[0]
             eig_un = eig_skn.flatten() * Hartree
@@ -272,7 +273,8 @@ class DirOptPWFD(PWFDEigensolver):
             niter += 1
 
         orthogonalize(ibzwfs)
-        update_eigenvalues(ibzwfs, Ht, potential)
+        update_eigenvalues(ibzwfs, Ht, potential,
+                           nocc_s=self.nband_s)
 
         # reset search direction
         self.search_dir.reset()

@@ -7,9 +7,8 @@ from gpaw.mpi import world
 
 
 @pytest.mark.parametrize('mode', ['pw'])
-# @pytest.mark.parametrize('eigensolver', ['ppcg'])
-@pytest.mark.parametrize('eigensolver', ['etdm-fdpw'])
-@pytest.mark.parametrize('setup', ['paw'])
+@pytest.mark.parametrize('eigensolver', ['ppcg', 'etdm-fdpw'])
+@pytest.mark.parametrize('setup', ['paw', 'ae'])
 def test_ae(mode, eigensolver, setup, gpaw_new):
     if not gpaw_new:
         pytest.skip('Only implemented for new GPAW')
@@ -50,7 +49,7 @@ def test_ae(mode, eigensolver, setup, gpaw_new):
               'setups': setup,
               'convergence': {'eigenstates': 1e-8,
                               'energy': 1e-5,
-                              'bands': 'occupied'}}
+                              'bands': 'all'}}
 
     calc = GPAW(**params)
     atoms.calc = calc
