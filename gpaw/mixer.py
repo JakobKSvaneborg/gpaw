@@ -411,7 +411,7 @@ class MSR1Mixer(BaseMixer):
 
             # Sync the density, because apparantly they cant agree...
             if self.world:
-                nt_sR = self.gd.collect(nt_sG)
+                nt_sR = self.gd.collect(nt_sG, broadcast=True)
                 self.world.broadcast(nt_sR, 0)
                 nt_sG[:] = self.gd.distribute(nt_sR)
 
