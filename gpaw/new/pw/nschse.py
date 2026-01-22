@@ -70,13 +70,21 @@ class NonSelfConsistentHSE06:
         self.relpos_ac = relpos_ac
         self.setups = setups
 
+        # self.dxc_sR is the xc-potential from the self-consistent
+        # DFT calculation.
+        # self.dhyb_sR is the xc-potential from the semi-local part
+        # of the hybrid functional (for EXX, this will be all zeros).
+        # self.dxc_asii and self.dhyb_asii are the corresponding PAW
+        # corrections.
         self.dxc_sR, self.dhyb_sR, self.dxc_asii, self.dhyb_asii = \
             nsc_corrections(density, pot_calc, semilocal_xc_name)
 
         for a, D_sii in density.D_asii.items():
             setup = setups[a]
+            # Valence-core EXX PAW-corrections:
             VC_ii = unpack_hermitian(setup.X_p * self.exx_fraction)
             for D_ii, dhyb_ii in zip(D_sii, self.dhyb_asii[a]):
+                # Valence-valence EXX PAW-corrections:
                 VV_ii = self.exx_fraction * (
                     pawexxvv(2 * setup.M_pp, D_ii / ibzwfs.spin_degeneracy))
                 dhyb_ii -= VC_ii + VV_ii
