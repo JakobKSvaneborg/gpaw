@@ -85,7 +85,7 @@ class DirOptPWFD(PWFDEigensolver):
             # build first gradient vector
             orthogonalize(ibzwfs)
             update_eigenvalues(ibzwfs, Ht, potential,
-                               nocc_s=self.nocc_s,
+                               nband_s=self.nocc_s,
                                eigenvalues_only=True)
 
             # update density and hamiltonian
@@ -185,7 +185,7 @@ class DirOptPWFD(PWFDEigensolver):
 
         orthogonalize(ibzwfs)
         update_eigenvalues(ibzwfs, Ht, potential,
-                           nocc_s=self.nocc_s,
+                           nband_s=self.nocc_s,
                            eigenvalues_only=self.converge_unocc)
 
         # reset search direction
@@ -197,11 +197,10 @@ class DirOptPWFD(PWFDEigensolver):
 
         import numpy as np
         import time
-        from ase.units import Hartree
 
         orthogonalize(ibzwfs)
         update_eigenvalues(ibzwfs, Ht, potential,
-                           nocc_s=self.nocc_s)
+                           nband_s=self.nocc_s)
 
         # build wfs with bands to converge
         psit_unX = build_wfs(ibzwfs, self.nband_s)
@@ -250,21 +249,12 @@ class DirOptPWFD(PWFDEigensolver):
                 error += grad_nX.norm2().sum() * weights
             error = ibzwfs.kpt_comm.sum_scalar(error)
 
-            # eigenvalues (in eV)
-            update_eigenvalues(ibzwfs, Ht, potential,
-                               nocc_s=self.nband_s,
-                               eigenvalues_only=True)
-            eig_skn = ibzwfs.get_all_eigs_and_occs()[0]
-            eig_un = eig_skn.flatten() * Hartree
-
             # iterations and time.
             now = time.localtime()
             line = ('iter:{:4d} {:02d}:{:02d}:{:02d} '
                     .format(niter, *now[3:6]))
             # eigenstates
             line += 14 * ' ' + '{:+6.2f}'.format(np.log10(error))
-            line += ' eig_un:'
-            line += (len(eig_un) * ' {:+8.6f}').format(*eig_un)
             log(line)
 
             if abs(error) < cc['eigenstates'].tol:
@@ -274,18 +264,18 @@ class DirOptPWFD(PWFDEigensolver):
 
         orthogonalize(ibzwfs)
         update_eigenvalues(ibzwfs, Ht, potential,
-                           nocc_s=self.nband_s)
+                           nband_s=self.nband_s)
 
         # reset search direction
         self.search_dir.reset()
         self.grad_unX = []
 
 
-def build_wfs(ibzwfs, nocc_s):
+def build_wfs(ibzwfs, nband_s):
     psit_unX = []
     for wfs in ibzwfs:
-        nocc = nocc_s[wfs.spin]
-        bslice = slice(0, nocc, 1)
+        nband = nband_s[wfs.spin]
+        bslice = slice(0, nband, 1)
         psit_nX = wfs.psit_nX[bslice]
         psit_unX.append(psit_nX)
     return psit_unX
@@ -300,18 +290,12 @@ def orthogonalize(ibzwfs):
 
 
 def update_eigenvalues(ibzwfs, Ht, potential,
-                       nocc_s=None,
-                       eigenvalues_only=False):
+                       nband_s, eigenvalues_only=False):
     for wfs in ibzwfs:
-        if nocc_s is None:
-            # no decomposition into occupied and unoccupied subspace
-            nocc = None
-        else:
-            # decompose into occupied and unoccupied subspace
-            nocc = nocc_s[wfs.spin]
+        nband = nband_s[wfs.spin]
         tmp_nX = wfs.psit_nX.new()
         wfs.subspace_diagonalize(Ht, potential.deltaH, tmp_nX,
-                                 nocc=nocc,
+                                 nocc=nband,
                                  eigenvalues_only=eigenvalues_only)
 
 
