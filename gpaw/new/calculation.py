@@ -572,9 +572,7 @@ class DFTCalculation:
         from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
         assert isinstance(self.ibzwfs, LCAOIBZWaveFunctions)
         if mode == 'pw':
-            print(self.density.nt_sR)
             ecut = ecut or 0.5 * self.density.nt_sR.desc.ekin_max() * Ha
-            print(ecut)
             self.params.mode = PW(ecut=ecut)
         elif mode == 'fd':
             assert ecut is None
@@ -588,25 +586,17 @@ class DFTCalculation:
             self.density.tauct_aX = builder.get_pseudo_core_ked()
             self.density = self.density.new(builder.grid,
                                             builder.interpolation_desc)
-            print(self.pot_calc.charge)
-            print(self.density.nt_sR.integrate())
             self.density.normalize(self.pot_calc.charge)
             if self.density.nt_sR.xp is np:
                 self.ibzwfs.kpt_band_comm.broadcast(self.density.nt_sR.data, 0)
             self.potential, self.energies, _ = self.pot_calc.calculate(
                 self.density)
 
-        print(
-            mode,
-            builder.grid,
-            builder.wf_desc,
-            nbands)
         self.ibzwfs = self.ibzwfs.convert_to(
             mode,
             grid=builder.grid,
             pw=builder.wf_desc,
             nbands=nbands)
-        print(self.results)
 
         self.results = {}
 

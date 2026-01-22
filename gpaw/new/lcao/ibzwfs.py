@@ -52,7 +52,7 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
 
     def convert_to(self,
                    mode: str,
-                   grid,
+                   grid=None,
                    pw=None,
                    qspiral_v=None,
                    nbands: int | None = None) -> PWFDIBZWaveFunctions:
@@ -63,7 +63,7 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
             assert lcaowfs.spin == spin
 
             if mode == 'pw':
-                psit_nX = lcaowfs.to_pw_expansion(nbands, grid, pw)
+                psit_nX = lcaowfs.to_pw_expansion(nbands, pw)
             else:
                 psit_nX = lcaowfs.to_uniform_grid(nbands, grid)
 

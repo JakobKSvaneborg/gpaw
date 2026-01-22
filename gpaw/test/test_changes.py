@@ -60,11 +60,11 @@ def test_changes():
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
 def test_lcao_to_x(mode):
     h = Atoms('H', magmoms=[1])
-    h.center(vacuum=3.5)
+    h.center(vacuum=1.5)
 
     dft = DFT(h, mode='lcao')
     dft.converge()
-    dft.change_mode(mode)#, ecut=240 if mode == 'pw' else None)
+    dft.change_mode(mode, ecut=340 if mode == 'pw' else None)
     dft.converge()
     e1 = dft.calculate_energy()
 
@@ -78,4 +78,4 @@ def test_lcao_to_x(mode):
 
 
 if __name__ == '__main__':
-    test_changes()
+    test_lcao_to_x('pw')

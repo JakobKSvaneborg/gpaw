@@ -1158,6 +1158,7 @@ class BasisFunctions(LocalizedFunctionsCollection):
 
         xshape = C_xM.shape[:-1]
         assert psit_xG.shape[:-3] == xshape, (psit_xG.shape, xshape)
+        assert (self.gd.n_c == psit_xG.shape[-3:]).all()
 
         C_xM = C_xM.reshape((-1,) + C_xM.shape[-1:])
         psit_xG = psit_xG.reshape((-1,) + psit_xG.shape[-3:])

@@ -300,18 +300,16 @@ class LCAOWaveFunctions(WaveFunctions, XP):
                                  weight=weight,
                                  ncomponents=ncomponents)
 
-    def to_pw_expansion(self, nbands, grid, pw):
-        grid = grid.new(kpt=self.kpt_c, dtype=self.dtype)
+    def to_pw_expansion(self, nbands, pw):
+        grid = self.basis.grid.new(kpt=self.kpt_c, dtype=self.dtype)
         pw = pw.new(kpt=self.kpt_c)
 
         if np.issubdtype(self.dtype, np.complexfloating):
             emikr_R = grid.eikr(-self.kpt_c)
 
         mynbands, M = self.C_nM.dist.shape
-        print(mynbands, M, self.C_nM.data, grid, pw)
         if self.ncomponents < 4:
             psit_nG = pw.empty(nbands, self.band_comm)
-            print(psit_nG)
             psit_R = grid.empty()
             if grid.dtype != pw.dtype:
                 psit0_R = grid.new(dtype=pw.dtype).empty()
@@ -320,6 +318,7 @@ class LCAOWaveFunctions(WaveFunctions, XP):
                 self.basis.lcao_to_grid(as_np(C_M), psit_R.data, self.q)
                 if np.issubdtype(self.dtype, np.complexfloating):
                     psit_R.data *= emikr_R
+
                 if grid.dtype != pw.dtype:
                     psit0_R.data[:] = psit_R.data
                     psit0_R.fft(out=psit_G)
