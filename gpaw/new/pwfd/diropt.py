@@ -101,11 +101,11 @@ class DirOptPWFD(PWFDEigensolver):
             MultiXArray(psit_unX, ibzwfs.kpt_comm, weights),
             MultiXArray(self.grad_unX, ibzwfs.kpt_comm, weights)).a_unX
 
-        for wfs, p_nX in zips(ibzwfs, p_unX):
-            # projecting search direction on tangent space at psi
-            # is slightly different from project gradient
-            # as it doesn't apply overlap matrix because of S^{-1}
-            project_wfs(p_nX, wfs)
+        # for wfs, p_nX in zips(ibzwfs, p_unX):
+        #     # projecting search direction on tangent space at psi
+        #     # is slightly different from project gradient
+        #     # as it doesn't apply overlap matrix because of S^{-1}
+        #     project_wfs(p_nX, wfs)
 
         # total projected search_direction length
         slength = ibzwfs.kpt_comm.sum_scalar(
