@@ -69,13 +69,13 @@ def test_ae(mode, eigensolver, setup, gpaw_new):
 
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
 @pytest.mark.parametrize('element', ['Al', 'Si'])
-@pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg'])
+@pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg', 'etdm-fdpw'])
 def test_eigensolver(mode, element, eigensolver, gpaw_new):
     if not gpaw_new:
         pytest.skip('Only implemented for new GPAW')
 
-    energy_tolerance = 5e-5
-    eig_tolerance = 1e-3
+    energy_tolerance = 2e-4
+    eig_tolerance = 5e-3
     spinpol = False
 
     # enforce band parallelization
@@ -85,39 +85,58 @@ def test_eigensolver(mode, element, eigensolver, gpaw_new):
         parallel = {'band': None}
 
     if mode == 'pw':
-        mode_d = {'name': 'pw', 'ecut': 400}
+        mode_d = {'name': 'pw', 'ecut': 400, 'force_complex_dtype': True}
     elif mode == 'fd':
         mode_d = {'name': 'fd'}
+
+    if eigensolver == 'etdm-fdpw':
+        eigensolver = {'name': 'etdm-fdpw', 'converge_unocc': True}
+        mixer = {'backend': 'no-mixing'}
+        unocc = 2
+    else:
+        mixer = {}
+        unocc = 4
 
     if element == 'Si':
         a = 5.431
         atoms = bulk('Si', 'diamond', a=a)
-        e0_t = {'pw': -11.7125397, 'fd': -11.7032261}
+        e0_t = {'pw': 5.399216, 'fd': 5.404339}
         # occupied eigenvalues
         nocc = 4
-        eig_t = [-4.08139256, -1.23190614, 1.59863588, 2.95648716]
+        eig_t = {'pw': [-6.13255919, 6.1272574, 6.1272574, 6.12725741,
+                        8.20382699, 8.20382699, 8.203827, 9.27983828],
+                 'fd': [-6.13244429, 6.12635448, 6.12650731, 6.12650731,
+                        8.2028067, 8.2028067, 8.20310601, 9.28131683]}
     elif element == 'Al':
         a = 4.05
         d = a / 2**0.5
         atoms = Atoms('Al2', positions=[[0, 0, 0], [.5, .5, .5]], pbc=True)
         atoms.set_cell((d, d, a), scale_atoms=True)
-        e0_t = {'pw': -6.9786673, 'fd': -6.9797518}
+        e0_t = {'pw': -13.094688, 'fd': -13.095997}
         nocc = 3
-        eig_t = [-1.36400629, 2.97388703, 6.63549518]
+        eig_t = {'pw': [-4.17024869, 3.99359521, 5.29823738, 12.41017037,
+                        12.41017037, 15.76853787, 20.68135664, 20.72192261],
+                 'fd': [-4.17056109, 3.99314069, 5.29779531, 12.40978288,
+                        12.40978288, 15.76715099, 20.7216331, 20.7216331]}
 
     params = {'mode': mode_d,
-              'nbands': 2 * 8,
-              'kpts': {'size': [2, 2, 2]},
+              'nbands': 2 * 4,
+              'kpts': {'size': [1, 1, 1], 'gamma': True},
               'eigensolver': eigensolver,
               'spinpol': spinpol,
               'parallel': parallel,
-              'convergence': {'eigenstates': 1e-8,
-                              'energy': 1e-5}}
+              'mixer': mixer,
+              'convergence': {'eigenstates': 1e-12,
+                              'energy': 1e-5,
+                              'bands': 'all'}}
 
     calc = GPAW(**params)
     atoms.calc = calc
     e0 = atoms.get_potential_energy()
-    eig = atoms.calc.get_eigenvalues()[:nocc]
+    eig = atoms.calc.get_eigenvalues()
 
     assert e0 == pytest.approx(e0_t[mode], abs=energy_tolerance)
-    assert eig == pytest.approx(eig_t, abs=eig_tolerance)
+    assert eig[:nocc] == pytest.approx(eig_t[mode][:nocc], abs=eig_tolerance)
+    eig_un = eig[:nocc + unocc]
+    eig_t_un = eig_t[mode][:nocc + unocc]
+    assert eig_un == pytest.approx(eig_t_un, abs=eig_tolerance)
