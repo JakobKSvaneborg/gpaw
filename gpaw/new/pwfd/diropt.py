@@ -65,21 +65,20 @@ class DirOptPWFD(PWFDEigensolver):
                      potential.dedtaut_sR,
                      ibzwfs, density.D_asii)
 
+        # build wfs
+        psit_unX = build_wfs(ibzwfs, self.nocc_s)
+
         if len(self.grad_unX) == 0:
             # build first gradient vector
-
-            for wfs in ibzwfs:
-                wfs._P_ani = None
-                tmp_nX = wfs.psit_nX.new()
-                wfs.orthonormalized = False
-                wfs.orthonormalize(tmp_nX)
-                wfs.subspace_diagonalize(Ht, potential.deltaH, tmp_nX,
-                                         nocc=self.nocc_s[wfs.spin],
-                                         eigenvalues_only=True)
+            orthogonalize(ibzwfs)
+            update_eigenvalues(ibzwfs, Ht, potential,
+                               nocc_s=self.nocc_s,
+                               eigenvalues_only=True)
 
             # update density and hamiltonian
             energies, potential = update_density_and_potential(
                 density, potential, pot_calc, ibzwfs, hamiltonian)
+
             Ht = partial(hamiltonian.apply,
                          potential.vt_sR,
                          potential.dedtaut_sR,
@@ -101,12 +100,6 @@ class DirOptPWFD(PWFDEigensolver):
                 shape = (-1,) + (1,) * (grad_nX.data.ndim - 1)
                 grad_nX.data *= weight_n.reshape(shape)
                 self.grad_unX.append(grad_nX)
-
-        psit_unX = []
-        for wfs in ibzwfs:
-            nocc = self.nocc_s[wfs.spin]
-            psit_nX = wfs.psit_nX[:nocc]
-            psit_unX.append(psit_nX)
 
         # precondition gradient
         pg_unX = []
@@ -141,11 +134,8 @@ class DirOptPWFD(PWFDEigensolver):
         for psit_nX, p_nX in zips(psit_unX, p_unX):
             psit_nX.data += alpha * p_nX.data
 
-        # update wavefunctions
-        for wfs in ibzwfs:
-            wfs._P_ani = None
-            wfs.orthonormalized = False
-            wfs.orthonormalize()
+        # orthongonalize wavefunctions
+        orthogonalize(ibzwfs)
 
         # update density
         energies, potential = update_density_and_potential(
@@ -160,6 +150,7 @@ class DirOptPWFD(PWFDEigensolver):
         error = 0.0
         # from updated hamiltonian and wfs calculate new (projected) residual
         for psit_nX, grad_nX, wfs in zips(psit_unX, self.grad_unX, ibzwfs):
+            nocc = self.nocc_s[wfs.spin]
             Ht(psit_nX, out=grad_nX, spin=wfs.spin)
             apply_non_local_hamiltonian(grad_nX, wfs, potential)
             project_gradient(grad_nX, wfs, self.dS_aii)
@@ -194,61 +185,39 @@ class DirOptPWFD(PWFDEigensolver):
         self.search_dir.reset()
         self.grad_unX = []
 
-        if not self.converge_unocc:
-            return
-        # following our discussion 02/10/2025 converge_unocc
-        # should be discouraged completely in pwfd
 
-        psit_unX = []
-        grad_unX = []
+def build_wfs(ibzwfs, nocc_s):
+    psit_unX = []
+    for wfs in ibzwfs:
+        nocc = nocc_s[wfs.spin]
+        bslice = slice(0, nocc, 1)
+        psit_nX = wfs.psit_nX[bslice]
+        psit_unX.append(psit_nX)
+    return psit_unX
 
-        # build first gradient
-        for wfs in ibzwfs:
-            nocc = self.nocc_s[wfs.spin]
-            psit_nX = wfs.psit_nX[nocc:]
-            psit_unX.append(psit_nX)
-            grad_nX = psit_nX.new()
-            Ht(psit_nX, out=grad_nX, spin=wfs.spin)
-            apply_non_local_hamiltonian(grad_nX, wfs, potential,
-                                        slice(nocc, None))
-            project_gradient(grad_nX, wfs, self.dS_aii)
-            weight = wfs.weight * wfs.spin_degeneracy
-            grad_nX.data *= weight
-            grad_unX.append(grad_nX)
 
-        while 1:
-            pg_unX = []
-            for psit_nX, grad_nX in zips(psit_unX, grad_unX):
-                pg_nX = grad_nX.new()
-                self.preconditioner(psit_nX, grad_nX, out=pg_nX)
-                pg_nX.data *= -1.0 / (2 * (3 - len(self.nocc_s)))
-                pg_unX.append(pg_nX)
+def orthogonalize(ibzwfs):
+    # check whether already orthogonal states are changed
+    for wfs in ibzwfs:
+        wfs._P_ani = None
+        wfs.orthonormalized = False
+        wfs.orthonormalize()
 
-            p_unX = self.search_dir.update_distributed(psit_unX, pg_unX)
-            for wfs, p_nX in zips(ibzwfs, p_unX):
-                project_gradient(p_nX, wfs)
 
-            slength = sum(p_nX.norm2().sum() for p_nX in p_unX)**0.5
-            max_step = 0.2
-            alpha = max_step / slength if slength > max_step else 1.0
-
-            for psit_nX, p_nX in zips(psit_unX, p_unX):
-                psit_nX.data += alpha * p_nX.data
-
-            for wfs in ibzwfs:
-                wfs._P_ani = None
-                wfs.orthonormalized = False
-                wfs.orthonormalize()
-
-            error = 0.0
-            for psit_nX, grad_nX, wfs in zips(psit_unX, grad_unX, ibzwfs):
-                Ht(psit_nX, out=grad_nX, spin=wfs.spin)
-                apply_non_local_hamiltonian(grad_nX, wfs, potential)
-                project_gradient(grad_nX, wfs, self.dS_aii)
-                weight = wfs.weight * wfs.spin_degeneracy
-                error += grad_nX.norm2().sum() * weight
-                grad_nX.data *= weight
-            print(error)
+def update_eigenvalues(ibzwfs, Ht, potential,
+                       nocc_s=None,
+                       eigenvalues_only=False):
+    for wfs in ibzwfs:
+        if nocc_s is None:
+            # no decomposition into occupied and unoccupied subspace
+            nocc = None
+        else:
+            # decompose into occupied and unoccupied subspace
+            nocc = nocc_s[wfs.spin]
+        tmp_nX = wfs.psit_nX.new()
+        wfs.subspace_diagonalize(Ht, potential.deltaH, tmp_nX,
+                                 nocc=nocc,
+                                 eigenvalues_only=eigenvalues_only)
 
 
 @trace
