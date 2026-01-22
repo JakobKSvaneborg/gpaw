@@ -557,12 +557,6 @@ class DFTCalculation:
             builder.setups, scf_loop, pot_calc, log,
             params=params, energies=energies)
 
-    def pwifyyyyyyyyyyyyyy(self):
-        if self.ibzwfs.mode == 'pw':
-            return
-        self.ibzwfs.pwify(self.relpos_ac, self.setups,
-                          self.scf_loop.hamiltonian.basis)
-
     def change_mode(self,
                     mode: str,
                     *,

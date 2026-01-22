@@ -70,14 +70,21 @@ class NonSelfConsistentHSE06:
         self.relpos_ac = relpos_ac
         self.setups = setups
 
+        # self.dxc_sR is the xc-potential from the self-consistent
+        # DFT calculation.
+        # self.dhyb_sR is the xc-potential from the semi-local part
+        # of the hybrid functional (for EXX, this will be all zeros).
+        # self.dxc_asii and self.dhyb_asii are the corresponding PAW
+        # corrections.
         self.dxc_sR, self.dhyb_sR, self.dxc_asii, self.dhyb_asii = \
             nsc_corrections(density, pot_calc, semilocal_xc_name)
 
         for a, D_sii in density.D_asii.items():
             setup = setups[a]
-            VC_ii = (unpack_hermitian(setup.X_p * self.exx_fraction)
-                     if setup.X_p is not None else 0.0)
+            # Valence-core EXX PAW-corrections:
+            VC_ii = unpack_hermitian(setup.X_p * self.exx_fraction)
             for D_ii, dhyb_ii in zip(D_sii, self.dhyb_asii[a]):
+                # Valence-valence EXX PAW-corrections:
                 VV_ii = self.exx_fraction * (
                     pawexxvv(2 * setup.M_pp, D_ii / ibzwfs.spin_degeneracy))
                 dhyb_ii -= VC_ii + VV_ii
@@ -179,14 +186,14 @@ class NonSelfConsistentHSE06:
                           psit2_nG: PWArray,
                           P2_ani: AtomArrays,
                           spin: int) -> tuple[np.ndarray, np.ndarray]:
-        """Calculate eigenvalues at one k-point.
+        """Calculate eigenvalue-contributions at one k-point.
 
-        Returned eigenvalues are in eV.
+        Returned eigenvalue-contributions are in eV.
         """
         ut2_nR = self.grid.empty(len(psit2_nG))
         psit2_nG.ifft(out=ut2_nR, plan=self.plan, periodic=False)
 
-        dxc_n, dhyb_n = self._semi_local_xc_part(ut2_nR, spin)
+        dxc_n, dhyb_n = self._semi_local_xc_parts(ut2_nR, spin)
 
         # PAW corrections:
         for a, dxc_sii in self.dxc_asii.items():
@@ -248,9 +255,9 @@ class NonSelfConsistentHSE06:
             e_n += rhot_nG.norm2() * f1_n[n1]
         return e_n
 
-    def _semi_local_xc_part(self,
-                            ut2_nR: UGArray,
-                            spin: int) -> tuple[np.ndarray, np.ndarray]:
+    def _semi_local_xc_parts(self,
+                             ut2_nR: UGArray,
+                             spin: int) -> tuple[np.ndarray, np.ndarray]:
         dxc_n = np.zeros(len(ut2_nR))
         dhyb_n = np.zeros(len(ut2_nR))
         if self.dxc_sR is not None:

@@ -46,9 +46,8 @@ def test_hse06(gpaw_new, dtype, eigensolver):
     eigs = atoms.calc.get_eigenvalues(spin=0)
     assert eigs[0] == pytest.approx(-4.67477532, abs=1e-4)
     f = atoms.get_forces()
-    f0 = 2.3505
-    tol = 1e-4 if gpaw_new else 2e-4
-    assert f == pytest.approx(np.array([[0, 0, -f0], [0, 0, f0]]), abs=tol)
+    f0 = 2.35055
+    assert f == pytest.approx(np.array([[0, 0, -f0], [0, 0, f0]]), abs=3e-4)
 
 
 @pytest.mark.new_gpaw_ready

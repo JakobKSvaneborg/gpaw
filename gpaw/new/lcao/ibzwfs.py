@@ -64,8 +64,10 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
 
             if mode == 'pw':
                 psit_nX = lcaowfs.to_pw_expansion(nbands, pw)
-            else:
+            elif mode == 'fd':
                 psit_nX = lcaowfs.to_uniform_grid(nbands, grid)
+            else:
+                raise ValueError(f'Illegal mode: {mode}')
 
             mylcaonbands, nao = lcaowfs.C_nM.dist.shape
             mynbands = len(psit_nX.data)
@@ -87,7 +89,7 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
                 ncomponents=self.ncomponents,
                 qspiral_v=qspiral_v)
             wfs.eig_n = eig_n
-            if lcaowfs._occ_n is not None:
+            if lcaowfs.has_occs:
                 wfs._occ_n = lcaowfs._occ_n.copy()
             return wfs
 
