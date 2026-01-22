@@ -318,6 +318,7 @@ class MSR1Mixer(BaseMixer):
             A_ii = y_isG.reshape((iold - 1, -1)) @ t_isG.reshape((iold - 1, -1)).T
             A1_ii = y_isG.reshape((iold - 1, -1)) @ ty_isG.reshape((iold - 1, -1)).T
             A2_ii = y_isG.reshape((iold - 1, -1)) @ ts_isG.reshape((iold - 1, -1)).T
+            self.gd.comm.sum(A_ii)
             self.gd.comm.sum(A1_ii)
             self.gd.comm.sum(A2_ii)
 
