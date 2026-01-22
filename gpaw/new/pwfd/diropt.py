@@ -58,6 +58,8 @@ class DirOptPWFD(PWFDEigensolver):
             self.dS_aii = pot_calc.setups.get_overlap_corrections(
                 density.D_asii.layout.atomdist, xp)
 
+        nspins = len(self.nocc_s)
+
         # H_KS = - 1/2 nabla^2 + veff(r) + dExc/dtau O_tau
         #                        vt_sR     dedtaut_sR (projection |tau><tau|)
         Ht = partial(hamiltonian.apply,
@@ -91,13 +93,8 @@ class DirOptPWFD(PWFDEigensolver):
             subspace_projection(self.grad_unX, ibzwfs, self.dS_aii)
 
         # precondition gradient
-        pg_unX = []
-        for psit_nX, grad_nX in zips(psit_unX, self.grad_unX):
-            pg_nX = grad_nX.new()
-            self.preconditioner(psit_nX, grad_nX, out=pg_nX)
-            pg_nX.data *= -1.0 / (2 * (3 - len(self.nocc_s)))
-            pg_unX.append(pg_nX)
-
+        self.grad_unX = precondition(psit_unX, self.grad_unX,
+                                     self.preconditioner, nspins)
         if self.search_dir is None:
             self.search_dir = LBFGS()
 
@@ -105,7 +102,7 @@ class DirOptPWFD(PWFDEigensolver):
 
         p_unX = self.search_dir.update(
             MultiXArray(psit_unX, ibzwfs.kpt_comm, weights),
-            MultiXArray(pg_unX, ibzwfs.kpt_comm, weights)).a_unX
+            MultiXArray(self.grad_unX, ibzwfs.kpt_comm, weights)).a_unX
 
         for wfs, p_nX in zips(ibzwfs, p_unX):
             # projecting search direction on tangent space at psi
@@ -266,6 +263,16 @@ def weight_wfs(psit_nX: XArray, wfs):
                 wfs.myocc_n[:nbands])
     shape = (-1,) + (1,) * (psit_nX.data.ndim - 1)
     psit_nX.data *= weight_n.reshape(shape)
+
+
+def precondition(psit_unX, grad_unX, preconditioner, nspins):
+    pg_unX = []
+    for psit_nX, grad_nX in zips(psit_unX, grad_unX):
+        pg_nX = grad_nX.new()
+        preconditioner(psit_nX, grad_nX, out=pg_nX)
+        pg_nX.data *= -1.0 / (2 * (3 - nspins))
+        pg_unX.append(pg_nX)
+    return pg_unX
 
 
 @trace
