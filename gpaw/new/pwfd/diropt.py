@@ -155,15 +155,10 @@ class DirOptPWFD(PWFDEigensolver):
                      potential.dedtaut_sR,
                      ibzwfs, density.D_asii)
 
-        # calculate new eigenvalues
-        for wfs in ibzwfs:
-            # wfs._P_ani = None
-            tmp_nX = wfs.psit_nX.new()
-            wfs.orthonormalized = False
-            wfs.orthonormalize(tmp_nX)
-            wfs.subspace_diagonalize(Ht, potential.deltaH, tmp_nX,
-                                     nocc=self.nocc_s[wfs.spin],
-                                     eigenvalues_only=False)
+        orthogonalize(ibzwfs)
+        update_eigenvalues(ibzwfs, Ht, potential,
+                           nocc_s=self.nocc_s,
+                           eigenvalues_only=False)
 
         # reset search direction
         self.search_dir.reset()
