@@ -1,4 +1,5 @@
 import numpy as np
+from typing import cast
 
 import gpaw.cgpaw as cgpaw
 from gpaw.cgpaw import have_magma
@@ -87,10 +88,12 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
         else:
             eigvals = xp.empty((shape[0]), dtype=eigval_dtype)
             if xp is np:
+                eigvecs = cast(np.ndarray, eigvecs)
                 cgpaw.gpu.magma.eigh_magma_numpy(eigvecs, eigvals,
                                                  options.uplo,
                                                  options.gpus_per_process)
             else:
+                eigvecs = cast(cp.ndarray, eigvecs)
                 cgpaw.gpu.magma.eigh_magma_cupy(eigvecs, eigvals, options.uplo)
 
         # Transform to Numpy convention (conjugate transpose)
