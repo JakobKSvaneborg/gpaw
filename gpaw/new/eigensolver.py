@@ -25,7 +25,8 @@ class Eigensolver:
                 energies: DFTEnergies) -> tuple[float, float, DFTEnergies]:
         raise NotImplementedError
 
-    def postprocess(self, ibzwfs, density, potential, hamiltonian):
+    def postprocess(self, ibzwfs, density, potential, hamiltonian,
+                    maxiter, cc, log):
         pass
 
     def iterate_kpt(self, wfs, weight_n, iter_func, **fkwargs):

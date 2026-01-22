@@ -7,8 +7,10 @@ from gpaw.mpi import world
 
 
 @pytest.mark.parametrize('mode', ['pw'])
+# @pytest.mark.parametrize('eigensolver', ['ppcg'])
 @pytest.mark.parametrize('eigensolver', ['etdm-fdpw'])
-def test_ae(mode, eigensolver, gpaw_new):
+@pytest.mark.parametrize('setup', ['paw'])
+def test_ae(mode, eigensolver, setup, gpaw_new):
     if not gpaw_new:
         pytest.skip('Only implemented for new GPAW')
 
@@ -33,9 +35,10 @@ def test_ae(mode, eigensolver, gpaw_new):
     atoms = molecule('H2')
     atoms.center(vacuum=2.0)
     atoms.set_pbc(True)
-    e0_t = {'pw': -30.51296326464609}
+    e0_t = {'ae': {'pw': -30.5129632}, 'paw': {'pw': -6.9729888}}
     nocc = 1
-    eig_t = {'pw': [-10.23992982, -0.14717341, 1.86971487, 5.10020947]}
+    eig_t = {'ae': {'pw': [-10.239929, -0.147173, 1.869714, 5.100209]},
+             'paw': {'pw': [-10.386695, -0.159743, 1.876333, 5.132689]}}
 
     params = {'mode': mode_d,
               'nbands': -3,
@@ -44,7 +47,7 @@ def test_ae(mode, eigensolver, gpaw_new):
               'spinpol': spinpol,
               'occupations': occupations,
               'mixer': mixer,
-              'setups': 'ae',
+              'setups': setup,
               'convergence': {'eigenstates': 1e-8,
                               'energy': 1e-5,
                               'bands': 'occupied'}}
@@ -59,9 +62,10 @@ def test_ae(mode, eigensolver, gpaw_new):
         eig_exact = atoms.calc.get_eigenvalues()
         print('exact', eig_exact)
 
-    assert e0 == pytest.approx(e0_t[mode], abs=energy_tolerance)
-    assert eig[:nocc] == pytest.approx(eig_t[mode][:nocc], abs=eig_tolerance)
-    assert eig == pytest.approx(eig_t[mode], abs=eig_tolerance)
+    eig_test = eig_t[setup][mode]
+    assert e0 == pytest.approx(e0_t[setup][mode], abs=energy_tolerance)
+    assert eig[:nocc] == pytest.approx(eig_test[:nocc], abs=eig_tolerance)
+    assert eig == pytest.approx(eig_test, abs=eig_tolerance)
 
 
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
