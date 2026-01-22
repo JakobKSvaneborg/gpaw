@@ -1,4 +1,5 @@
 from math import pi
+from typing import TYPE_CHECKING
 
 import numpy as np
 from ase.units import Bohr
@@ -9,7 +10,9 @@ from gpaw.gpu import as_np, as_numpy, as_xp, cupy_is_fake
 from gpaw.new import trace
 from gpaw.old.grid_descriptor import GridBoundsError, GridDescriptor
 from gpaw.utilities import smallest_safe_grid_spacing
-from gpaw.core import UGDesc
+
+if TYPE_CHECKING:
+    from gpaw.core import UGDesc
 
 """
 
