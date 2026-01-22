@@ -221,10 +221,9 @@ class DirOptPWFD(PWFDEigensolver):
 
             weights_u = [wfs.weight for wfs in ibzwfs]
 
-            gradX = MultiXArray(self.grad_unX, ibzwfs.kpt_comm, weights_u)
             p_unX = self.search_dir.update(
                 MultiXArray(psit_unX, ibzwfs.kpt_comm, weights_u),
-                gradX).a_unX
+                MultiXArray(self.grad_unX, ibzwfs.kpt_comm, weights_u)).a_unX
 
             # update wavefunctions coefficents
             for psit_nX, p_nX in zips(psit_unX, p_unX):
@@ -245,12 +244,10 @@ class DirOptPWFD(PWFDEigensolver):
             error = 0.0
             # calculate residual
             for grad_nX, wfs in zip(self.grad_unX, ibzwfs):
-                nbands = len(grad_nX)
-                # weights according to kpt, spin and occupation f_n
-                weight_n = (wfs.weight * wfs.spin_degeneracy *
-                            wfs.myocc_n[:nbands])
+                # weights according to kpt, spin
                 # sum weigthed residual
-                error += grad_nX.norm2() @ weight_n
+                weights = wfs.weight * wfs.spin_degeneracy
+                error += grad_nX.norm2().sum() * weights
             error = ibzwfs.kpt_comm.sum_scalar(error)
 
             # eigenvalues (in eV)
