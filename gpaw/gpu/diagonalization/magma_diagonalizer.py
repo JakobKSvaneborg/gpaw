@@ -2,7 +2,7 @@ import numpy as np
 from typing import cast
 
 import gpaw.cgpaw as cgpaw
-from gpaw.cgpaw import have_magma
+from gpaw.cgpaw.gpu.magma import have_magma
 from gpaw.gpu import cupy as cp
 from gpaw.gpu import cupy_is_fake
 from gpaw.gpu.diagonalization.diagonalizer import (DiagonalizerOptions,

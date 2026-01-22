@@ -2,7 +2,7 @@
 See also gpaw/test/gpu/test_diagonalizers.py"""
 
 import pytest
-from gpaw.cgpaw import have_magma
+from gpaw.cgpaw.gpu.magma import have_magma
 
 if not have_magma:
     pytest.skip("No MAGMA", allow_module_level=True)

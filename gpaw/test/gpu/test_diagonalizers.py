@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from gpaw.cgpaw import have_magma
+from gpaw.cgpaw.gpu.magma import have_magma
 from gpaw.core.matrix import Matrix
 from gpaw.gpu import cupy as cp
 from gpaw.gpu import cupy_is_fake, device_count

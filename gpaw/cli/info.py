@@ -117,7 +117,8 @@ def info(comm=None) -> None:
                                   'environment variable GPAW_CPUPY=1, '
                                   'which uses GPAW\'s fake CuPy '
                                   '(gpaw.gpu.cpupy) for testing purposes')
-    results.append(('MAGMA', cgpaw.have_magma))
+    from gpaw.cgpaw.gpu.magma import have_magma
+    results.append(('MAGMA', have_magma))
     if have_mpi:
         have_sl = compiled_with_sl()
         have_elpa = LibElpa.have_elpa()

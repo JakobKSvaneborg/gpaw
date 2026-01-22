@@ -1,7 +1,7 @@
 # Tight coupling with matrix.py... so need to be careful with circular imports
 from typing import TYPE_CHECKING
 
-from gpaw.cgpaw import have_magma
+from gpaw.cgpaw.gpu.magma import have_magma
 from gpaw.gpu import cupy_is_fake, device_count, is_hip
 from gpaw.gpu.diagonalization.diagonalizer import (CPUPYDiagonalizer,
                                                    CuPyDiagonalizer,
