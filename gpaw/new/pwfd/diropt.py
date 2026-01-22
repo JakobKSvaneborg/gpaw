@@ -84,22 +84,11 @@ class DirOptPWFD(PWFDEigensolver):
                          potential.dedtaut_sR,
                          ibzwfs, density.D_asii)
 
-            for wfs in ibzwfs:
-                nocc = self.nocc_s[wfs.spin]
-                psit_nX = wfs.psit_nX[:nocc]
-                grad_nX = psit_nX.new()
-                # gradient grad_nX
-                # | g_nX > = H_KS | psit_nX >
-                Ht(psit_nX, out=grad_nX, spin=wfs.spin)
-                apply_non_local_hamiltonian(grad_nX, wfs, potential)
-                # determine gradient contribution out of subspace
-                project_gradient(grad_nX, wfs, self.dS_aii)
-                # weights according to kpt, spin and occupation f_n
-                weight_n = (wfs.weight * wfs.spin_degeneracy *
-                            wfs.myocc_n[:nocc])
-                shape = (-1,) + (1,) * (grad_nX.data.ndim - 1)
-                grad_nX.data *= weight_n.reshape(shape)
-                self.grad_unX.append(grad_nX)
+            # get gradient by applying hamiltonian
+            self.grad_unX = apply_hamiltonian(ibzwfs, psit_unX, Ht, potential)
+
+            # project_gradient
+            subspace_projection(self.grad_unX, ibzwfs, self.dS_aii)
 
         # precondition gradient
         pg_unX = []
@@ -218,6 +207,67 @@ def update_eigenvalues(ibzwfs, Ht, potential,
         wfs.subspace_diagonalize(Ht, potential.deltaH, tmp_nX,
                                  nocc=nocc,
                                  eigenvalues_only=eigenvalues_only)
+
+def apply_hamiltonian(ibzwfs, psit_unX, Ht, potential):
+    grad_unX = []
+    for psit_nX, wfs in zips(psit_unX, ibzwfs):
+        grad_nX = psit_nX.new()
+        Ht(psit_nX, out=grad_nX, spin=wfs.spin)
+        apply_non_local_hamiltonian(grad_nX, wfs, potential)
+        grad_unX.append(grad_nX)
+
+    return grad_unX
+
+
+def subspace_projection(psit_unX, ibzwfs, dS_aii):
+    for psit_nX, wfs in zips(psit_unX, ibzwfs):
+        project_wfs(psit_nX, wfs, dS_aii=dS_aii)
+        weight_wfs(psit_nX, wfs)
+
+@trace
+def project_wfs(grad_nX: XArray, wfs,
+                dS_aii=None):
+
+    # gradient grad_nX
+    # | g_nX > = H_KS | psit_nX >
+
+    # project gradient
+    # | pg_nX > = | g_nX > - < psi_mX | g_nX > S | psi_mX >
+    #           = | g_nX > - M_mn S | psi_mX>
+    # with M_mn = < psi_mX | g_nX >
+    # such that < psi_mX | pg_nX> = 0
+    # because < psi_mX | S | psi_mX > = 1
+    nbands = len(grad_nX)
+    bslice = slice(0, nbands, 1)
+
+    psit_mX = wfs.psit_nX[bslice]
+    mbands = psit_mX.data.shape[0]
+
+    M_nm = grad_nX.integrate(psit_mX)
+    # why does Re(M_nn) = 0.5 * (M_nn + M_nn*) appear ?
+    # only works for n = m
+    M_nm += M_nm.T.conj()
+    M_nm *= 0.5
+
+    # Reshape is needed here for FD-mode:
+    grad_nX.data -= (M_nm @ psit_mX.data.reshape((mbands, -1))).reshape(
+        grad_nX.data.shape)
+
+    # PAW contribution
+    if dS_aii is not None:
+        c_ani = {}
+        for a, P_mi in wfs.P_ani.items():
+            c_ani[a] = M_nm @ P_mi[bslice] @ -dS_aii[a]
+        wfs.pt_aiX.add_to(grad_nX, c_ani)
+
+
+def weight_wfs(psit_nX: XArray, wfs):
+    nbands = len(psit_nX)
+    # weights according to kpt, spin and occupation f_n
+    weight_n = (wfs.weight * wfs.spin_degeneracy *
+                wfs.myocc_n[:nbands])
+    shape = (-1,) + (1,) * (psit_nX.data.ndim - 1)
+    psit_nX.data *= weight_n.reshape(shape)
 
 
 @trace
