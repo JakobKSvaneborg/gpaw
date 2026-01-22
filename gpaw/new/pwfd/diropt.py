@@ -102,6 +102,10 @@ class DirOptPWFD(PWFDEigensolver):
             for grad_nX, wfs in zips(self.grad_unX, ibzwfs):
                 project_wfs(grad_nX, wfs, dS_aii=self.dS_aii)
 
+            # precondition gradient
+            self.grad_unX = precondition(psit_unX, self.grad_unX,
+                                         self.preconditioner, nspins)
+
         if self.search_dir is None:
             self.search_dir = LBFGS()
 
