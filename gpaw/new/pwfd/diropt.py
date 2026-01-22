@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import numpy as np
-import time
 from functools import partial
-from ase.units import Hartree
 
 from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArrays
@@ -198,6 +195,7 @@ def update_eigenvalues(ibzwfs, Ht, potential,
                                  nocc=nocc,
                                  eigenvalues_only=eigenvalues_only)
 
+
 def apply_hamiltonian(ibzwfs, psit_unX, Ht, potential):
     grad_unX = []
     for psit_nX, wfs in zips(psit_unX, ibzwfs):
@@ -213,6 +211,7 @@ def subspace_projection(psit_unX, ibzwfs, dS_aii):
     for psit_nX, wfs in zips(psit_unX, ibzwfs):
         project_wfs(psit_nX, wfs, dS_aii=dS_aii)
         weight_wfs(psit_nX, wfs)
+
 
 @trace
 def project_wfs(grad_nX: XArray, wfs,
