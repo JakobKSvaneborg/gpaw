@@ -24,6 +24,7 @@ class DirOptPWFD(PWFDEigensolver):
                  converge_bands: int | str = 'occupied',
                  alpha: float = 0.1,
                  scalapack_params=(None, 1, 1, None)):
+
         # Lazy initialization of search_dir, done later in iterate()
         self.search_dir: LBFGS | None = None
         self.grad_unX: list[XArray] = []
@@ -31,6 +32,7 @@ class DirOptPWFD(PWFDEigensolver):
         self.nocc_s: list[int] = []
         self.scalapack = scalapack_params
         self.alpha = alpha
+        self.converge_unocc = converge_unocc
         super().__init__(hamiltonian, converge_bands)
 
     def new(self, **params) -> DirOptPWFD:
@@ -171,7 +173,10 @@ class DirOptPWFD(PWFDEigensolver):
 
         return 0.0, error, energies
 
-    def postprocess(self, ibzwfs, density, potential, hamiltonian):
+    def postprocess(self, ibzwfs, density, potential, hamiltonian,
+                    maxiter, cc, log):
+
+        nspins = len(self.nocc_s)
 
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
@@ -181,7 +186,96 @@ class DirOptPWFD(PWFDEigensolver):
         orthogonalize(ibzwfs)
         update_eigenvalues(ibzwfs, Ht, potential,
                            nocc_s=self.nocc_s,
-                           eigenvalues_only=False)
+                           eigenvalues_only=self.converge_unocc)
+
+        # reset search direction
+        self.search_dir.reset()
+        self.grad_unX = []
+
+        if not self.converge_unocc:
+            return
+
+        import numpy as np
+        import time
+        from ase.units import Hartree
+
+        orthogonalize(ibzwfs)
+        update_eigenvalues(ibzwfs, Ht, potential,
+                           nocc_s=self.nocc_s)
+
+        # build wfs with all bands
+        psit_unX = build_wfs(ibzwfs, len(self.nocc_s)*[ibzwfs.nbands])
+        self.grad_unX = apply_hamiltonian(ibzwfs, psit_unX, Ht, potential)
+
+        # project gradient
+        for grad_nX, wfs in zips(self.grad_unX, ibzwfs):
+            project_wfs(grad_nX, wfs, dS_aii=self.dS_aii)
+
+        # precondition gradient
+        self.grad_unX = precondition(psit_unX, self.grad_unX,
+                                     self.preconditioner, nspins)
+
+        niter = 0
+        log('Converging unoccupied states')
+        while niter < maxiter:
+
+            weights_u = [wfs.weight for wfs in ibzwfs]
+
+            gradX = MultiXArray(self.grad_unX, ibzwfs.kpt_comm, weights_u)
+            p_unX = self.search_dir.update(
+                MultiXArray(psit_unX, ibzwfs.kpt_comm, weights_u),
+                gradX).a_unX
+
+            # update wavefunctions coefficents
+            for psit_nX, p_nX in zips(psit_unX, p_unX):
+                psit_nX.data += self.alpha * p_nX.data
+
+            orthogonalize(ibzwfs)
+            # update gradient
+            self.grad_unX = apply_hamiltonian(ibzwfs, psit_unX,
+                                              Ht, potential)
+            # project gradient
+            for grad_nX, wfs in zips(self.grad_unX, ibzwfs):
+                project_wfs(grad_nX, wfs, dS_aii=self.dS_aii)
+
+            # precondition gradient
+            self.grad_unX = precondition(psit_unX, self.grad_unX,
+                                         self.preconditioner, nspins)
+
+            error = 0.0
+            # calculate residual
+            for grad_nX, wfs in zip(self.grad_unX, ibzwfs):
+                nbands = len(grad_nX)
+                # weights according to kpt, spin and occupation f_n
+                weight_n = (wfs.weight * wfs.spin_degeneracy *
+                            wfs.myocc_n[:nbands])
+                # sum weigthed residual
+                error += grad_nX.norm2() @ weight_n
+            error = ibzwfs.kpt_comm.sum_scalar(error)
+
+            # eigenvalues (in eV)
+            update_eigenvalues(ibzwfs, Ht, potential,
+                               eigenvalues_only=True)
+            eig_skn = ibzwfs.get_all_eigs_and_occs()[0]
+            eig_un = eig_skn.flatten() * Hartree
+
+            # iterations and time.
+            now = time.localtime()
+            line = ('iter:{:4d} {:02d}:{:02d}:{:02d} '
+                    .format(niter, *now[3:6]))
+            # eigenstates
+            line += 14 * ' ' + '{:+6.2f}'.format(np.log10(error))
+            line += ' eig_un:'
+            line += (len(eig_un) * ' {:+8.6f}').format(*eig_un)
+            log(line)
+
+            if abs(error) < cc['eigenstates'].tol:
+                break
+
+            niter += 1
+
+        orthogonalize(ibzwfs)
+        update_eigenvalues(ibzwfs, Ht, potential)
 
         # reset search direction
         self.search_dir.reset()
