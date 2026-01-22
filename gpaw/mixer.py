@@ -241,7 +241,7 @@ class MSR1Mixer(BaseMixer):
                 dD_iasp[-1].append(D_sp - D_isp)
 
         if iold > 1:
-            if dNt > self.last_dNt * 5.0:
+            if dNt > self.last_dNt * 5:
                 dNt = self.last_dNt
                 temp = nt_isG[-1].copy()
                 nt_isG[-1] = nt_isG[-2].copy()
@@ -261,7 +261,7 @@ class MSR1Mixer(BaseMixer):
             y_isG = -(R_isG[:-1] - R_isG[-1])
             y_norm = np.vecdot(y_isG.reshape(iold - 1, -1), y_isG.reshape(iold - 1, -1))
             self.gd.comm.sum(y_norm)
-            y_norm = np.sqrt(y_norm) # * np.sqrt(len(y_norm) / np.arange(1, len(y_norm) + 1))
+            y_norm = np.sqrt(y_norm) / np.sqrt((iold - 1) / np.arange(1, iold))
             s_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, s_isG.ndim)))
             y_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, y_isG.ndim)))
 
@@ -323,9 +323,9 @@ class MSR1Mixer(BaseMixer):
             self.gd.comm.sum(B_ii)
 
             # This parameter is surprisingly important for stability
-            # 5e-4 seems to work well for most systems
-            alphaA = 5e-4
-            alphaB = alphaA # 5e-9
+            # 1e-4 seems to work well for most systems
+            alphaA = 1e-4
+            alphaB = alphaA
             normA = np.linalg.norm(A_ii, ord='fro')
             normB = np.linalg.norm(B_ii, ord='fro')
 
@@ -371,23 +371,17 @@ class MSR1Mixer(BaseMixer):
             B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
             self.gd.comm.sum(B3_i)
 
-            A2 = A2_i @ A3_i # * len(self.uk_sG)
-            B2 = B2_i @ B3_i # * len(self.uk_sG)
-
-            clip_factors = [0.5, 1.25]
+            A2 = A2_i @ A3_i
+            B2 = B2_i @ B3_i
 
             if iold != 2:
-                new_B0_factor = (self.B0 + np.abs(B1 / B2)) / (2 * self.B0)
-                self.B0 *= np.clip(new_B0_factor, *clip_factors)
+                self.B0 = (self.B0 + min(np.abs(B1 / B2), 1.5) + 1) / 3
             else:
                 self.B0 = 1
 
-            new_beta_factor = (self.beta + np.abs(A1 / A2)) / (2 * self.beta)
-            self.beta *= np.clip(new_beta_factor, *clip_factors)
+            self.A0 = (self.A0 + min(np.abs(A1 / A2), 1) + self.beta) / 3
 
-            self.beta = np.clip(self.beta, 0.02, 0.3)  # Just let it mix!
-            self.B0 = np.clip(self.B0, 0.5, 1.2)
-            A0 = self.beta
+            A0 = self.A0
             B0 = self.B0
             # if self.gd.comm.rank == 0:
             #     print(f"A0: {A0}, B0: {B0}")
@@ -403,9 +397,8 @@ class MSR1Mixer(BaseMixer):
                 self.pk_sG += alpha * s_isG[i1]
 
                 for a1, D_sp in enumerate(D_asp):
-                    QQ_sp = A0 * alpha * yD_iasp[i1][a1]
-                    Q_sp = B0 * alpha * sD_iasp[i1][a1]
-                    D_sp += Q_sp - QQ_sp
+                    D_sp -= A0 * alpha * yD_iasp[i1][a1]
+                    D_sp += B0 * alpha * sD_iasp[i1][a1]
 
             self.uk_sG += R_sG
             nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG + B0 * self.pk_sG
@@ -413,6 +406,7 @@ class MSR1Mixer(BaseMixer):
 
         elif iold == 1:
             # Pratt step
+            self.A0 = self.beta
             A0 = max(0.035, self.beta / 2)
             self.uk_sG = R_sG
             self.pk_sG = np.zeros_like(self.uk_sG)
