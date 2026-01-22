@@ -161,12 +161,12 @@ class DirOptPWFD(PWFDEigensolver):
             nbands = len(grad_nX)
             # weights according to kpt, spin and occupation f_n
             weight_n = (wfs.weight * wfs.spin_degeneracy *
-                wfs.myocc_n[:nbands])
+                        wfs.myocc_n[:nbands])
             # update gradient with weights
             shape = (-1,) + (1,) * (grad_nX.data.ndim - 1)
             grad_nX.data *= weight_n.reshape(shape)
             # sum weigthed residual
-            error += grad_nX.norm2().sum() # @ weight_n
+            error += grad_nX.norm2().sum()
         error = ibzwfs.kpt_comm.sum_scalar(error)
 
         return 0.0, error, energies
