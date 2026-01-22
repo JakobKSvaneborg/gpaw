@@ -1,7 +1,9 @@
+import pytest
 from gpaw.core.matrix import Matrix
 from gpaw.mpi import world
 
 
+@pytest.mark.skipif(world.size == 1, reason='Only run in parallel')
 def test_redist():
     D = 2
     r = world.rank // 2 * 2
@@ -21,17 +23,6 @@ def test_redist():
     print('M3', world.rank, band_comm.rank, domain_comm.rank, M3)
     M2.redist(M3)
     print(M3.data)
-
-
-def test_redist0():
-    n = 5
-    M1 = Matrix(n, n,
-                dist=(world, 2, 2, 2, 2))
-    M1.data[:] = world.rank
-    M2 = Matrix(n, n,
-                dist=(world, 2, 2, n, n))
-    M1.redist(M2)
-    print(world.rank, M2.data.shape, M2.data)
 
 
 if __name__ == '__main__':
