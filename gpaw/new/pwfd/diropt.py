@@ -98,12 +98,10 @@ class DirOptPWFD(PWFDEigensolver):
             # get gradient by applying hamiltonian
             self.grad_unX = apply_hamiltonian(ibzwfs, psit_unX, Ht, potential)
 
-            # project_gradient
-            subspace_projection(self.grad_unX, ibzwfs, self.dS_aii)
+            # project gradient
+            for grad_nX, wfs in zips(self.grad_unX, ibzwfs):
+                project_wfs(grad_nX, wfs, dS_aii=self.dS_aii)
 
-        # precondition gradient
-        self.grad_unX = precondition(psit_unX, self.grad_unX,
-                                     self.preconditioner, nspins)
         if self.search_dir is None:
             self.search_dir = LBFGS()
 
@@ -145,14 +143,26 @@ class DirOptPWFD(PWFDEigensolver):
         # get gradient by applying hamiltonian
         self.grad_unX = apply_hamiltonian(ibzwfs, psit_unX, Ht, potential)
 
-        # project_gradient
-        subspace_projection(self.grad_unX, ibzwfs, self.dS_aii)
+        # project gradient
+        for grad_nX, wfs in zips(self.grad_unX, ibzwfs):
+            project_wfs(grad_nX, wfs, dS_aii=self.dS_aii)
+
+        # precondition gradient
+        self.grad_unX = precondition(psit_unX, self.grad_unX,
+                                     self.preconditioner, nspins)
 
         error = 0.0
         # calculate residual
-        for grad_nX in self.grad_unX:
+        for grad_nX, wfs in zip(self.grad_unX, ibzwfs):
+            nbands = len(grad_nX)
+            # weights according to kpt, spin and occupation f_n
+            weight_n = (wfs.weight * wfs.spin_degeneracy *
+                wfs.myocc_n[:nbands])
+            # update gradient with weights
+            shape = (-1,) + (1,) * (grad_nX.data.ndim - 1)
+            grad_nX.data *= weight_n.reshape(shape)
             # sum weigthed residual
-            error += grad_nX.norm2().sum()
+            error += grad_nX.norm2().sum() # @ weight_n
         error = ibzwfs.kpt_comm.sum_scalar(error)
 
         return 0.0, error, energies
@@ -219,12 +229,6 @@ def apply_hamiltonian(ibzwfs, psit_unX, Ht, potential):
     return grad_unX
 
 
-def subspace_projection(psit_unX, ibzwfs, dS_aii):
-    for psit_nX, wfs in zips(psit_unX, ibzwfs):
-        project_wfs(psit_nX, wfs, dS_aii=dS_aii)
-        weight_wfs(psit_nX, wfs)
-
-
 @trace
 def project_wfs(grad_nX: XArray, wfs,
                 dS_aii=None):
@@ -260,15 +264,6 @@ def project_wfs(grad_nX: XArray, wfs,
         for a, P_mi in wfs.P_ani.items():
             c_ani[a] = M_nm @ P_mi[bslice] @ -dS_aii[a]
         wfs.pt_aiX.add_to(grad_nX, c_ani)
-
-
-def weight_wfs(psit_nX: XArray, wfs):
-    nbands = len(psit_nX)
-    # weights according to kpt, spin and occupation f_n
-    weight_n = (wfs.weight * wfs.spin_degeneracy *
-                wfs.myocc_n[:nbands])
-    shape = (-1,) + (1,) * (psit_nX.data.ndim - 1)
-    psit_nX.data *= weight_n.reshape(shape)
 
 
 def precondition(psit_unX, grad_unX, preconditioner, nspins):
