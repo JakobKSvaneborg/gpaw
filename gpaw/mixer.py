@@ -241,7 +241,7 @@ class MSR1Mixer(BaseMixer):
                 dD_iasp[-1].append(D_sp - D_isp)
 
         if iold > 1:
-            if dNt > self.last_dNt * 5:
+            if dNt > self.last_dNt * 10:
                 dNt = self.last_dNt
                 temp = nt_isG[-1].copy()
                 nt_isG[-1] = nt_isG[-2].copy()
@@ -261,7 +261,7 @@ class MSR1Mixer(BaseMixer):
             y_isG = -(R_isG[:-1] - R_isG[-1])
             y_norm = np.vecdot(y_isG.reshape(iold - 1, -1), y_isG.reshape(iold - 1, -1))
             self.gd.comm.sum(y_norm)
-            y_norm = np.sqrt(y_norm) / np.sqrt((iold - 1) / np.arange(1, iold))
+            y_norm = np.sqrt(y_norm) # / np.sqrt((iold - 1) / np.arange(1, iold))
             s_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, s_isG.ndim)))
             y_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, y_isG.ndim)))
 
@@ -288,12 +288,12 @@ class MSR1Mixer(BaseMixer):
                     ts_sG[:] = np.tensordot(g_ss, ts_sG, axes=(1, 0))
 
             ### 2023 paper eq 22 - Limit good_broydenness
-            YY_LIM = y_isG.reshape((iold - 1, -1)) @ ty_isG.reshape((iold - 1, -1)).T
+            YY_LIM = ty_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YY_LIM)
-            YY_LIM = np.linalg.norm(YY_LIM)
-            YS_LIM = y_isG.reshape((iold - 1, -1)) @ ts_isG.reshape((iold - 1, -1)).T
+            YY_LIM = np.linalg.norm(YY_LIM, ord='fro')
+            YS_LIM = ty_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YS_LIM)
-            YS_LIM = np.linalg.norm(YS_LIM)
+            YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
             # iold > 5 to build some history first
             max_gb = max(1, (YY_LIM / YS_LIM) * ((iold - 2) / (self.nmaxold - 2))**2)
             good_broydenness = 0.5 * max_gb
@@ -304,7 +304,7 @@ class MSR1Mixer(BaseMixer):
             for iter in range(2, 9):
                 t_isG = ty_isG + good_broydenness * ts_isG
 
-                A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
+                A_ii = y_isG.reshape((iold - 1, -1)) @ t_isG.reshape((iold - 1, -1)).T
                 self.gd.comm.sum(A_ii)
 
                 eigs = np.linalg.eigvals(A_ii)
@@ -313,48 +313,53 @@ class MSR1Mixer(BaseMixer):
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
             good_broydenness -= 2**(-iter) * max_gb
-            # print(good_broydenness, max_gb)
+            print(good_broydenness, max_gb)
 
             t_isG = ty_isG + good_broydenness * ts_isG
 
-            A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
+            A_ii = y_isG.reshape((iold - 1, -1)) @ t_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(A_ii)
-            B_ii = t_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
+            B_ii = s_isG.reshape((iold - 1, -1)) @ t_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(B_ii)
 
             # This parameter is surprisingly important for stability
-            # 1e-4 seems to work well for most systems
-            alphaA = 1e-4
+            # 2e-4 seems to work well for most systems
+            alphaA = 2e-4
             alphaB = alphaA
             normA = np.linalg.norm(A_ii, ord='fro')
             normB = np.linalg.norm(B_ii, ord='fro')
 
             ### SVD Regularization:
-            # S, V, D = np.linalg.svd(A_ii)
-            # V = V / (V**2 + (alphaA * normA)**2)
-            # A_ii = D.T @ np.diag(V) @ S.T
-            # S, V, D = np.linalg.svd(B_ii)
-            # V = V / (V**2 + (alphaB * normB)**2)
-            # B_ii = D.T @ np.diag(V) @ S.T
+            S, V, D = np.linalg.svd(A_ii)
+            V = V / (V**2 + (alphaA * normA)**2)
+            A_ii = D.T @ np.diag(V) @ S.T
+            S, V, D = np.linalg.svd(B_ii)
+            V = V / (V**2 + (alphaB * normB)**2)
+            B_ii = D.T @ np.diag(V) @ S.T
 
             ### Moore-Penrose:
-            A_ii = np.linalg.solve(
-                A_ii @ A_ii.T + (normA * alphaA * np.eye(A_ii.shape[0]))**2, A_ii).T
-            B_ii = np.linalg.solve(
-                B_ii @ B_ii.T + (normB * alphaB * np.eye(B_ii.shape[0]))**2, B_ii).T
+            # A_ii = np.linalg.solve(
+            #     A_ii.T @ A_ii + (normA * alphaA * np.eye(A_ii.shape[0]))**2, A_ii)
+            # B_ii = np.linalg.solve(
+            #     B_ii.T @ B_ii + (normB * alphaB * np.eye(B_ii.shape[0]))**2, B_ii)
 
             ### Rawdog Inverse:
             # A_ii = np.linalg.inv(A_ii)
             # B_ii = np.linalg.inv(B_ii)
 
-            H_isG = (A_ii @ t_isG.reshape((iold - 1, -1))).reshape(t_isG.shape)
-            B_isG = (B_ii @ t_isG.reshape((iold - 1, -1))).reshape(t_isG.shape)
+            # H_isG = (A_ii @ t_isG.reshape((iold - 1, -1))).reshape(t_isG.shape)
+            # B_isG = (B_ii @ t_isG.reshape((iold - 1, -1))).reshape(t_isG.shape)
 
-            alpha_i = []
-            for i1, H_sG in enumerate(H_isG):
-                alpha_i.append(self.gd.comm.sum_scalar(
-                    self.dotprod(H_sG, R_sG, None, None, None)
-                ))
+            # 2023 paper eq 14 alpha_i = Inv(Y_n^T @ W) @ W^T @ Res_n part
+            # A_ii should not be transposed... Or should be... Depending on
+            # what paper your read, transposed works best, but most papers
+            # say not to, so... rip
+            alpha_i = t_isG.reshape((iold - 1, -1)) @ R_sG.reshape((-1))
+            self.gd.comm.sum(alpha_i)
+            alpha_i = A_ii.T @ alpha_i
+            if self.world:
+                self.world.broadcast(alpha_i, 0)
+
 
             A1 = self.uk_sG.reshape(-1) @ self.uk_sG.reshape(-1)
             A1 = self.gd.comm.sum_scalar(A1)
@@ -362,29 +367,30 @@ class MSR1Mixer(BaseMixer):
                 (self.R_isG[-2] - self.uk_sG).reshape(-1)
             B1 = self.gd.comm.sum_scalar(B1)
 
-            A2_i = B_isG.reshape((iold - 1, -1)) @ self.uk_sG.reshape(-1)
+            A2_i = t_isG.reshape((iold - 1, -1)) @ self.uk_sG.reshape(-1)
             self.gd.comm.sum(A2_i)
-            B2_i = B_isG.reshape((iold - 1, -1)) @ self.pk_sG.reshape(-1)
+            B2_i = t_isG.reshape((iold - 1, -1)) @ self.pk_sG.reshape(-1)
             self.gd.comm.sum(B2_i)
             A3_i = y_isG.reshape((iold - 1, -1)) @ self.uk_sG.reshape(-1)
             self.gd.comm.sum(A3_i)
             B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
             self.gd.comm.sum(B3_i)
 
-            A2 = A2_i @ A3_i
-            B2 = B2_i @ B3_i
+            # Same as for A_ii.T, but maybe in reverse??? Or not??? Who knows???
+            A2 = (B_ii @ A2_i) @ A3_i
+            B2 = (B_ii @ B2_i) @ B3_i
 
             if iold != 2:
-                self.B0 = (self.B0 + min(np.abs(B1 / B2), 1.5) + 1) / 3
+                self.B0 = (self.B0 + min(np.abs(B1 / B2), 1.2) + 0.1) / 2
             else:
                 self.B0 = 1
 
-            self.A0 = (self.A0 + min(np.abs(A1 / A2), 1) + self.beta) / 3
+            self.A0 = (self.A0 + min(np.abs(A1 / A2), 3 * self.beta, 1)) / 2
 
             A0 = self.A0
             B0 = self.B0
-            # if self.gd.comm.rank == 0:
-            #     print(f"A0: {A0}, B0: {B0}")
+            if self.gd.comm.rank == 0:
+                print(f"rank: {self.world.rank}, A0: {A0}, B0: {B0}")
 
             self.uk_sG = np.zeros_like(nt_sG)
             self.pk_sG = np.zeros_like(nt_sG)
@@ -393,8 +399,8 @@ class MSR1Mixer(BaseMixer):
                 D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1]
 
             for i1, alpha in enumerate(alpha_i):
-                self.uk_sG -= alpha * y_isG[i1]
-                self.pk_sG += alpha * s_isG[i1]
+                self.uk_sG -= y_isG[i1] * alpha
+                self.pk_sG += s_isG[i1] * alpha
 
                 for a1, D_sp in enumerate(D_asp):
                     D_sp -= A0 * alpha * yD_iasp[i1][a1]
@@ -403,6 +409,11 @@ class MSR1Mixer(BaseMixer):
             self.uk_sG += R_sG
             nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG + B0 * self.pk_sG
 
+            # Sync the density, because apparantly they cant agree...
+            if self.world:
+                nt_sR = self.gd.collect(nt_sG)
+                self.world.broadcast(nt_sR, 0)
+                nt_sG[:] = self.gd.distribute(nt_sR)
 
         elif iold == 1:
             # Pratt step
