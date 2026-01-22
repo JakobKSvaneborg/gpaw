@@ -111,7 +111,7 @@ class DirOptPWFD(PWFDEigensolver):
             # projecting search direction on tangent space at psi
             # is slightly different from project gradient
             # as it doesn't apply overlap matrix because of S^{-1}
-            project_gradient(p_nX, wfs)
+            project_wfs(p_nX, wfs)
 
         # total projected search_direction length
         slength = ibzwfs.kpt_comm.sum_scalar(
@@ -136,19 +136,17 @@ class DirOptPWFD(PWFDEigensolver):
                      potential.dedtaut_sR,
                      ibzwfs, density.D_asii)
 
+        # get gradient by applying hamiltonian
+        self.grad_unX = apply_hamiltonian(ibzwfs, psit_unX, Ht, potential)
+
+        # project_gradient
+        subspace_projection(self.grad_unX, ibzwfs, self.dS_aii)
+
         error = 0.0
-        # from updated hamiltonian and wfs calculate new (projected) residual
-        for psit_nX, grad_nX, wfs in zips(psit_unX, self.grad_unX, ibzwfs):
-            nocc = self.nocc_s[wfs.spin]
-            Ht(psit_nX, out=grad_nX, spin=wfs.spin)
-            apply_non_local_hamiltonian(grad_nX, wfs, potential)
-            project_gradient(grad_nX, wfs, self.dS_aii)
-            weight_n = (wfs.weight * wfs.spin_degeneracy *
-                        wfs.myocc_n[:nocc])
+        # calculate residual
+        for grad_nX in self.grad_unX:
             # sum weigthed residual
-            error += grad_nX.norm2() @ weight_n
-            shape = (-1,) + (1,) * (grad_nX.data.ndim - 1)
-            grad_nX.data *= weight_n.reshape(shape)
+            error += grad_nX.norm2().sum()
         error = ibzwfs.kpt_comm.sum_scalar(error)
 
         return 0.0, error, energies
@@ -282,40 +280,6 @@ def apply_non_local_hamiltonian(Htpsit_nX,
         dH_ii = dH_asii[a][wfs.spin]
         c_ani[a] = P_ni[bands] @ dH_ii
     wfs.pt_aiX.add_to(Htpsit_nX, c_ani)
-
-
-@trace
-def project_gradient(grad_nX: XArray,
-                     wfs,
-                     dS_aii=None):
-
-    # gradient grad_nX
-    # | g_nX > = H_KS | psit_nX >
-
-    # project gradient
-    # | pg_nX > = | g_nX > - < psi_nX | g_nX > | psi_nX >
-    #           = | g_nX >
-    #             - Re(M_nn) | psit_nX >
-    #             - sum_a M_nn @ P_ani @ dS_aii
-    # with M_nn < psit_nX | H_KS | psit_nX > = < psi_nX | g_nk >
-    nocc = len(grad_nX)
-    psit_nX = wfs.psit_nX[:nocc]
-
-    M_nn = grad_nX.integrate(psit_nX)
-    # why does Re(M_nn) = 0.5 * (M_nn + M_nn*) appear ?
-    M_nn += M_nn.T.conj()
-    M_nn *= 0.5
-
-    # Reshape is needed here for FD-mode:
-    grad_nX.data -= (M_nn @ psit_nX.data.reshape((nocc, -1))).reshape(
-        grad_nX.data.shape)
-
-    # dS_aii contribution only for gradient not for search direction
-    if dS_aii:
-        c_ani = {}
-        for a, P_ni in wfs.P_ani.items():
-            c_ani[a] = M_nn @ P_ni[:nocc] @ -dS_aii[a]
-        wfs.pt_aiX.add_to(grad_nX, c_ani)
 
 
 @trace
