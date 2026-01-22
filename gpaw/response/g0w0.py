@@ -1438,38 +1438,19 @@ class EXXVXCCalculator:
         from gpaw.new.pw.nschse import NonSelfConsistentHSE06
         from gpaw.dft import GPAW as NewGPAW
 
-        if 1:
-            dft = NewGPAW(self._gpwfile, communicator=self.world).dft
-            ibzwfs = dft.ibzwfs
-            if dft.params.mode.name == 'lcao':
-                grid = dft.density.nt_sR.desc
-                pw = PWDesc(ecut=0.5 * grid.ekin_max(),
-                            cell=grid.cell,
-                            comm=grid.comm,
-                            dtype=ibzwfs.dtype)
-                ibzwfs = ibzwfs.convert_to('pw', grid, pw)
-            exx = NonSelfConsistentHSE06(
-                ibzwfs, dft.density, dft.pot_calc, dft.setups, dft.relpos_ac,
-                'EXX')
-            dft_skn, exx_skn = exx.calculate(
-                ibzwfs, n1, n2, kpt_indices)
-            return np.zeros_like(dft_skn), (exx_skn - dft_skn) / Ha
-
-        calc = GPAW(self._gpwfile, parallel={'kpt': 1, 'band': 1},
-                    communicator=self.world)
-
-        # To convert the LCAO wave functions, we need to add the
-        # custom psit to all k-points which know how to convert
-        # the wave functions. Initializing the ResponseGroundStateAdapter
-        # establishes that.
-        # TODO: Now we call this for all files, not just LCAO
-        ResponseGroundStateAdapter(calc, lazy=False)
-
-        _, vxc_skn, exx_skn = non_self_consistent_eigenvalues(
-            calc,
-            'EXX',
-            n1, n2,
-            kpt_indices=kpt_indices,
-            snapshot=f'{self._snapshotfile_prefix}-vxc-exx.json',
-        )
-        return vxc_skn / Ha, exx_skn / Ha
+        dft = NewGPAW(self._gpwfile, communicator=self.world).dft
+        ibzwfs = dft.ibzwfs
+        if dft.params.mode.name == 'lcao':
+            grid = dft.density.nt_sR.desc
+            pw = PWDesc(ecut=0.5 * grid.ekin_max(),
+                        cell=grid.cell,
+                        comm=grid.comm,
+                        dtype=ibzwfs.dtype)
+            nocc = ibzwfs.number_of_occupied_bands()
+            ibzwfs = ibzwfs.convert_to('pw', grid, pw, nbands=max(nocc, n2))
+        exx = NonSelfConsistentHSE06(
+            ibzwfs, dft.density, dft.pot_calc, dft.setups, dft.relpos_ac,
+            'EXX')
+        dft_skn, exx_skn = exx.calculate(
+            ibzwfs, n1, n2, kpt_indices)
+        return np.zeros_like(dft_skn), (exx_skn - dft_skn) / Ha
