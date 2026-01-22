@@ -2,7 +2,7 @@ from gpaw import GPAW_NO_C_EXTENSION
 from types import ModuleType
 
 if GPAW_NO_C_EXTENSION:
-    from gpaw.cgpaw.purepython import *
+    from gpaw.purepython import *
 else:
     from _gpaw import *
 
