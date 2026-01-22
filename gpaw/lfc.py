@@ -9,6 +9,7 @@ from gpaw.gpu import as_np, as_numpy, as_xp, cupy_is_fake
 from gpaw.new import trace
 from gpaw.old.grid_descriptor import GridBoundsError, GridDescriptor
 from gpaw.utilities import smallest_safe_grid_spacing
+from gpaw.core import UGDesc
 
 """
 
@@ -976,6 +977,7 @@ class BasisFunctions(LocalizedFunctionsCollection):
         self.use_global_indices = True
         self.Mstart = None
         self.Mstop = None
+        self.grid: UGDesc
 
     @trace
     def set_positions(self, spos_ac):
