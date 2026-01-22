@@ -52,7 +52,8 @@ class DirOptPWFD(PWFDEigensolver):
             # np -> numpy
             # cp -> cupy
             xp = ibzwfs.xp
-            self.nocc_s = find_number_of_occupied_bands(ibzwfs)
+            # self.nocc_s = find_number_of_occupied_bands(ibzwfs)
+            self.nocc_s = find_highest_occupied_bands(ibzwfs)
             self.dS_aii = pot_calc.setups.get_overlap_corrections(
                 density.D_asii.layout.atomdist, xp)
 
@@ -302,7 +303,20 @@ def update_density_and_potential(density,
 def find_number_of_occupied_bands(ibzwfs: IBZWaveFunctions) -> list[int]:
     nocc_s = [-1] * ibzwfs.nspins
     for wfs in ibzwfs:
-        nocc = (wfs.occ_n > 0.5).sum()
+        nocc = (wfs.occ_n > 0.4).sum()
+        n = nocc_s[wfs.spin]
+        if n != -1:
+            assert nocc == n
+        else:
+            nocc_s[wfs.spin] = nocc
+    return nocc_s
+
+
+def find_highest_occupied_bands(ibzwfs: IBZWaveFunctions) -> list[int]:
+    nocc_s = [-1] * ibzwfs.nspins
+    for wfs in ibzwfs:
+        nocc = max(oo for oo, occ in enumerate(wfs.occ_n)
+                   if occ > 0.4) + 1
         n = nocc_s[wfs.spin]
         if n != -1:
             assert nocc == n
