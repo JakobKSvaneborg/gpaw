@@ -100,7 +100,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
         LCAOEigensolver(basis).iterate(
             lcao_ibzwfs, None, potential, hamiltonian)
 
-        self.log('Converting LCAO to {self.mode} mode', flush=True)
+        self.log(f'Converting LCAO to {self.mode} mode', flush=True)
         return lcao_ibzwfs.convert_to(mode=self.mode,
                                       grid=self.grid,
                                       pw=self.wf_desc,
