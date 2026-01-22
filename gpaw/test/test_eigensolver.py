@@ -47,7 +47,7 @@ def test_ae(mode, eigensolver, gpaw_new):
               'setups': 'ae',
               'convergence': {'eigenstates': 1e-8,
                               'energy': 1e-5,
-                              'bands': 4}}
+                              'bands': 'occupied'}}
 
     calc = GPAW(**params)
     atoms.calc = calc
@@ -59,7 +59,7 @@ def test_ae(mode, eigensolver, gpaw_new):
         eig_exact = atoms.calc.get_eigenvalues()
         print('exact', eig_exact)
 
-    #assert e0 == pytest.approx(e0_t[mode], abs=energy_tolerance)
+    assert e0 == pytest.approx(e0_t[mode], abs=energy_tolerance)
     assert eig[:nocc] == pytest.approx(eig_t[mode][:nocc], abs=eig_tolerance)
     assert eig == pytest.approx(eig_t[mode], abs=eig_tolerance)
 
