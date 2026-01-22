@@ -204,7 +204,7 @@ class DirOptPWFD(PWFDEigensolver):
                            nocc_s=self.nocc_s)
 
         # build wfs with all bands
-        psit_unX = build_wfs(ibzwfs, len(self.nocc_s)*[ibzwfs.nbands])
+        psit_unX = build_wfs(ibzwfs, len(self.nocc_s) * [ibzwfs.nbands])
         self.grad_unX = apply_hamiltonian(ibzwfs, psit_unX, Ht, potential)
 
         # project gradient
