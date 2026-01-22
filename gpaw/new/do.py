@@ -1,5 +1,5 @@
 from gpaw.dft import Eigensolver
-from gpaw.new.pwfd.dir_opt import DirOptPWFD
+from gpaw.new.pwfd.diropt import DirOptPWFD
 
 
 class DirectOptimization(Eigensolver):

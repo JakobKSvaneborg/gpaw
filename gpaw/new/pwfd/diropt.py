@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import numpy as np
+import time
 from functools import partial
+from ase.units import Hartree
 
 from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArrays
@@ -21,6 +24,7 @@ class DirOptPWFD(PWFDEigensolver):
                  hamiltonian,
                  excited_state: bool = False,
                  converge_unocc: bool = False,
+                 alpha: float = 0.1,
                  scalapack_params=(None, 1, 1, None)):
         # Lazy initialization of search_dir, done later in iterate()
         self.search_dir: LBFGS | None = None
