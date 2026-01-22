@@ -89,7 +89,7 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
                 ncomponents=self.ncomponents,
                 qspiral_v=qspiral_v)
             wfs.eig_n = eig_n
-            if lcaowfs._occ_n is not None:
+            if lcaowfs.has_occs:
                 wfs._occ_n = lcaowfs._occ_n.copy()
             return wfs
 

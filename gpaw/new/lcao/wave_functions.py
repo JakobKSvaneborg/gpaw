@@ -222,7 +222,7 @@ class LCAOWaveFunctions(WaveFunctions, XP):
         # Quick'n'dirty implementation
         # We should generalize the PW+FD method
         assert self.band_comm.size == 1
-        n2 = n2 or self.nbands + n2
+        n2 = n2 or self.nbands
         wfs = LCAOWaveFunctions(
             setups=self.setups,
             tci_derivatives=self.tci_derivatives,
@@ -241,10 +241,8 @@ class LCAOWaveFunctions(WaveFunctions, XP):
             k=self.k,
             weight=self.weight,
             ncomponents=self.ncomponents)
-        wfs._eig_n = self.eig_n[n1:n2]
+        wfs.eig_n = self.eig_n[n1:n2]
         wfs._occ_n = self.occ_n[n1:n2]
-        if hasattr(self, 'psit_nX'):
-            wfs.psit_nX = self.psit_nX[n1:n2]  # type: ignore [attr-defined]
         return wfs
 
     def force_contribution(self, potential: Potential, F_av: Array2D):
