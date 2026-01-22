@@ -30,6 +30,7 @@ class DirOptPWFD(PWFDEigensolver):
         self.dS_aii: AtomArrays
         self.nocc_s: list[int] = []
         self.scalapack = scalapack_params
+        self.alpha = alpha
         super().__init__(hamiltonian)
 
     def new(self, **params) -> DirOptPWFD:
@@ -107,15 +108,15 @@ class DirOptPWFD(PWFDEigensolver):
         #     # as it doesn't apply overlap matrix because of S^{-1}
         #     project_wfs(p_nX, wfs)
 
-        # total projected search_direction length
-        slength = ibzwfs.kpt_comm.sum_scalar(
-            sum(p_nX.norm2().sum() for p_nX in p_unX))**0.5
-        max_step = 0.2
-        alpha = max_step / slength if slength > max_step else 1.0
+        # # total projected search_direction length
+        # slength = ibzwfs.kpt_comm.sum_scalar(
+        #     sum(p_nX.norm2().sum() for p_nX in p_unX))**0.5
+        # max_step = 0.2
+        # alpha = max_step / slength if slength > max_step else 1.0
 
         # update wavefunctions coefficents
         for psit_nX, p_nX in zips(psit_unX, p_unX):
-            psit_nX.data += alpha * p_nX.data
+            psit_nX.data += self.alpha * p_nX.data
 
         # orthongonalize wavefunctions
         orthogonalize(ibzwfs)
