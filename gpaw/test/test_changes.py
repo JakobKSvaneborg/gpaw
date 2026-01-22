@@ -64,6 +64,7 @@ def test_lcao_to_x(mode):
 
     dft = DFT(h, mode='lcao')
     dft.converge()
+
     dft.change_mode(mode, ecut=340 if mode == 'pw' else None)
     dft.converge()
     e1 = dft.calculate_energy()
