@@ -21,17 +21,17 @@ class DirOptPWFD(PWFDEigensolver):
                  hamiltonian,
                  excited_state: bool = False,
                  converge_unocc: bool = False,
+                 converge_bands: int | str = 'occupied',
                  alpha: float = 0.1,
                  scalapack_params=(None, 1, 1, None)):
         # Lazy initialization of search_dir, done later in iterate()
         self.search_dir: LBFGS | None = None
         self.grad_unX: list[XArray] = []
-        self.converge_unocc = converge_unocc
         self.dS_aii: AtomArrays
         self.nocc_s: list[int] = []
         self.scalapack = scalapack_params
         self.alpha = alpha
-        super().__init__(hamiltonian)
+        super().__init__(hamiltonian, converge_bands)
 
     def new(self, **params) -> DirOptPWFD:
         return DirOptPWFD(**params)
@@ -52,8 +52,18 @@ class DirOptPWFD(PWFDEigensolver):
             # np -> numpy
             # cp -> cupy
             xp = ibzwfs.xp
+
             # self.nocc_s = find_number_of_occupied_bands(ibzwfs)
             self.nocc_s = find_highest_occupied_bands(ibzwfs)
+
+            if self.converge_bands == 'occupied':
+                self.nband_s = self.nocc_s.copy()
+            elif self.converge_bands == 'all':
+                self.nband_s = [ibzwfs.nbands for _ in self.nocc_s]
+            else:
+                assert isinstance(self.converge_bands, int)
+                self.nband_s = [self.converge_bands for _ in self.nocc_s]
+
             self.dS_aii = pot_calc.setups.get_overlap_corrections(
                 density.D_asii.layout.atomdist, xp)
 
@@ -67,7 +77,7 @@ class DirOptPWFD(PWFDEigensolver):
                      ibzwfs, density.D_asii)
 
         # build wfs
-        psit_unX = build_wfs(ibzwfs, self.nocc_s)
+        psit_unX = build_wfs(ibzwfs, self.nband_s)
 
         if len(self.grad_unX) == 0:
             # build first gradient vector

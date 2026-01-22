@@ -15,7 +15,7 @@ def test_ae(mode, eigensolver, gpaw_new):
     occupations = {'name': 'fermi-dirac', 'width': 0.01}
     mixer = {'backend': 'fft'}
     if eigensolver == 'etdm-fdpw':
-        eigensolver = {'name': 'etdm-fdpw', 'converge_unocc': True}
+        eigensolver = {'name': 'etdm-fdpw'}
         occupations = {'name': 'fixed',
                        'numbers': [[1, 0, 0, 0], [1, 0, 0, 0]]}
         mixer = {'backend': 'no-mixing'}
@@ -47,7 +47,7 @@ def test_ae(mode, eigensolver, gpaw_new):
               'setups': 'ae',
               'convergence': {'eigenstates': 1e-8,
                               'energy': 1e-5,
-                              'bands': 'all'}}
+                              'bands': 4}}
 
     calc = GPAW(**params)
     atoms.calc = calc

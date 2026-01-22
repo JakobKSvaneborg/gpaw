@@ -25,4 +25,5 @@ class DirectOptimization(Eigensolver):
               atoms):
         return DirOptPWFD(
             converge_unocc=self.converge_unocc,
+            converge_bands=converge_bands,
             hamiltonian=hamiltonian)
