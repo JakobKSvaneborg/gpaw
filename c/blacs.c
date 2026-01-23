@@ -369,7 +369,7 @@ CLINKAGE_END
 when extracting optimal lwork */
 static inline int get_lwork(double_complex c_work)
 {
-#if GPAW_CPP
+#ifdef GPAW_CPP
   return static_cast<int>(c_work.real());
 #else
   return (int)(c_work);

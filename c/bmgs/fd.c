@@ -3,7 +3,7 @@
 
  *  Please see the accompanying LICENSE file for further information. */
 
-#include "../extensions.h"
+#include "extensions.h"
 #include "bmgs.h"
 
 void
@@ -16,7 +16,7 @@ Z(bmgs_fd)(const bmgsstencil* s, const TGPAW* a, TGPAW* b)
         for (int i1 = 0; i1 < s->n[1]; i1++) {
 #ifdef _OPENMP
 #pragma omp simd
-#endif                
+#endif
             for (int i2 = 0; i2 < s->n[2]; i2++) {
                 int i = i2
                       + i1 * (s->j[2] + s->n[2])

@@ -10,11 +10,15 @@ Git master branch
 
 :git:`master <>`.
 
+* Minimum version requirements: Python 3.10, ASE 3.27.0.
+
+* Added option for generating a Makefile for building GPAW with ``make`` on
+  Unix-like systems. Convenient for developers who frequently need to modify
+  the C/C++ backend. See :ref:`workflow_c_extension` for details.
+
 * GPAW C-extension can now be built as C++ code. You can enable this
   experimental feature in ``siteconfig.py`` by setting ``use_cpp = True`` and
   choosing a valid C++ compiler.
-
-* Minimum version requirements: Python 3.10, ASE 3.25.0.
 
 * Ongoing work with optimizng the defaults of GPAW, so far the following
   changes have been made:
@@ -22,21 +26,15 @@ Git master branch
   * mixer (with pbc):
 
     * spin-driver: 'difference' -> 'fullspin'
-
     * beta: 0.05 -> 0.08
-
     * nmaxold: 5 -> 16
-
     * weight: 50 -> 70
 
   * mixer (without pbc):
 
     * spin-driver: 'difference' -> 'fullspin'
-
     * beta: 0.25 -> 0.25
-
     * nmaxold: 3 -> 16
-
     * weight: 1 -> 1
 
   * eigensolver (:ref:`newgpaw` only): 'davidson' -> 'ppcg'

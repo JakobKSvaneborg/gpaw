@@ -17,7 +17,7 @@
 /* Handle `restrict` keyword not existing in C++. Use compiler extension if
 supported, otherwise simply leave GPAW_RESTRICT undefined */
 
-#if GPAW_CPP
+#ifdef GPAW_CPP
     #if defined(__clang__) || defined(__GNUC__)
         #define GPAW_RESTRICT __restrict__
     #elif defined(_MSC_VER)
