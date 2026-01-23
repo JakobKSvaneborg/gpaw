@@ -485,7 +485,6 @@ class DFTCalculation:
             params: Parameters,
             log=None) -> DFTCalculation:
         """Create new DFTCalculation object."""
-
         if params.mode.name != 'pw':
             raise ReuseWaveFunctionsError
 

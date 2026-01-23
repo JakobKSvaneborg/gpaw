@@ -35,7 +35,7 @@ def test_hse06(gpaw_new, dtype, eigensolver):
     atoms.center(vacuum=2.5)
     atoms.calc = GPAW(
         mode=dict(name='pw',
-                  force_complex_dtype=dtype is complex),
+                  force_complex_dtype=not gpaw_new and dtype is complex),
         xc='HSE06',
         eigensolver=eigensolver,
         convergence={'density': 1e-6},

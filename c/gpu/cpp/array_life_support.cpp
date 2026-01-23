@@ -2,9 +2,9 @@
 #include "pyarray_utils.hpp"
 #include "utils.hpp"
 #include "gpu_core.hpp"
-#include "../gpu_interface.h"
+#include "gpu/gpu_interface.h"
 
-#include "../../python_utils.h"
+#include "python_utils.h"
 #include <mutex>
 
 PyObject* flush_pending_decrefs(PyObject* self, PyObject* args)

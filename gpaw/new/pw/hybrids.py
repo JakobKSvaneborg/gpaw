@@ -73,14 +73,6 @@ def truncated_coulomb(cell_cv,
     return lambda pw: wstc.get_potential_new(pw)
 
 
-def number_of_non_empty_bands(ibzwfs: PWFDIBZWaveFunctions,
-                              tolerance: float = 1e-5) -> int:
-    nocc = 0
-    for wfs in ibzwfs:
-        nocc = max(nocc, int((wfs.occ_n > tolerance).sum()))
-    return int(ibzwfs.kpt_comm.max_scalar(nocc))
-
-
 def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
            setups: Setups,
            relpos_ac: np.ndarray,
@@ -90,7 +82,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
            forces: bool = False) -> tuple[list[Psit], int]:
     """Compute BZ from IBZ and distribute."""
     log = log or Logger(None, None)
-    nocc = number_of_non_empty_bands(ibzwfs)
+    nocc = ibzwfs.number_of_occupied_bands()
     nspins = ibzwfs.nspins
     ibz = ibzwfs.ibz
     log(ibz)
@@ -152,8 +144,9 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
                     comm.send(psit_nG.data[na:nb], rank,
                               block=False, tag=K * nspins + spin))
 
-    pw = ibzwfs._wfs_u[0].psit_nX.desc.new(comm=None)
     _, occ_skn = ibzwfs.get_all_eigs_and_occs(broadcast=True)
+
+    pw = ibzwfs._wfs_u[0].psit_nX.desc.new(comm=None)
 
     mypsits = []
     for rank, K, (na, nb) in blocks:
@@ -171,7 +164,6 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
                 [setup.pt_j for setup in setups],
                 relpos_ac)
             P_ani = pt_aiG.integrate(psit_nG)
-
             psit_nR = psit_nG.ifft(grid=grid, plan=plan, periodic=False)
             Q_aniL = {a: np.einsum('ijL, nj -> niL',
                                    setup.Delta_iiL, P_ani[a].conj())

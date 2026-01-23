@@ -4,7 +4,7 @@
  *  Copyright (C) 2003-2007  CAMP
  *  Please see the accompanying LICENSE file for further information. */
 
-#include "../extensions.h"
+#include "extensions.h"
 #include "bmgs.h"
 
 void Z(bmgs_wfd)(int nweights, const bmgsstencil* stencils, const double** weights, const TGPAW* a, TGPAW* b)
