@@ -10,7 +10,9 @@ version: int
 from ._gpaw_manual import *
 # mypy: disable-error-code=no-redef
 
-"""Automatic, but rather useless, stubs for _gpaw.
+"""Automatic, but rather unhelpful, stubs for _gpaw. These are functions
+created with the raw CPython API without including any type info or
+docstrings.
 Commented out Operator and Spline which are types, not functions, in the
 purepython version (suppresses mypy error).
 """
