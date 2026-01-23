@@ -820,7 +820,7 @@ class BuildGPAW(build_ext):
 
             # Add CFLAGS and LDFLAGS, with extra flags for dependency generation
             makefile_lines.append(f"\nCFLAGS_BASE := {cflags_base_str}\n")
-            makefile_lines.append(f"\nCFLAGS_EXTRA := {cflags_extra_str} -MMD -MP\n")
+            makefile_lines.append(f"CFLAGS_EXTRA := {cflags_extra_str} -MMD -MP\n")
             makefile_lines.append(f"LDFLAGS := {ldflags_str}\n")
 
             # Define build target. Need to include .o files from GPU part
