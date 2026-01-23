@@ -47,6 +47,9 @@ class DirOptPWFD(PWFDEigensolver):
                 pot_calc,
                 energies) -> tuple[float, float, DFTEnergies]:
 
+        # no band parallization supported
+        assert ibzwfs.band_comm.size == 1
+
         if len(self.nocc_s) == 0:
             # init: setup preconditioner
             self._initialize(ibzwfs)
@@ -327,10 +330,9 @@ def project_wfs(grad_nX: XArray, wfs,
     mbands = psit_mX.data.shape[0]
 
     M_nm = grad_nX.integrate(psit_mX)
-    # # why does Re(M_nn) = 0.5 * (M_nn + M_nn*) appear ?
-    # # only works for n = m
-    # M_nm += M_nm.T.conj()
-    # M_nm *= 0.5
+    # condition to satisfy: Psi^+ G + G^+ Psi = 0
+    M_nm += M_nm.T.conj()
+    M_nm *= 0.5
 
     # Reshape is needed here for FD-mode:
     grad_nX.data -= (M_nm @ psit_mX.data.reshape((mbands, -1))).reshape(

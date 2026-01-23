@@ -79,7 +79,9 @@ def test_eigensolver(mode, element, eigensolver, gpaw_new):
     spinpol = False
 
     # enforce band parallelization
-    if world.size > 1:
+    if eigensolver == 'etdm-fdpw':
+        parallel = {'band': 1}
+    elif world.size > 1:
         parallel = {'band': 2}
     else:
         parallel = {'band': None}
