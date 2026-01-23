@@ -284,7 +284,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
     @trace
     def subspace_eigenvalues(self, H_nm,
-                             scalapack_params=(None, 1, 1, None)):
+                             scalapack_params=(None, 1, 1, 0)):
 
         psit_nX = self.psit_nX
         domain_comm = psit_nX.desc.comm
@@ -325,7 +325,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                              dH,
                              psit2_nX,
                              data_buffer=None,
-                             scalapack_parameters=(None, 1, 1, None),
+                             scalapack_parameters=(None, 1, 1, 0),
                              nocc=None,
                              eigenvalues_only=False):
         """

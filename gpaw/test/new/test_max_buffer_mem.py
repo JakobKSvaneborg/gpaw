@@ -30,4 +30,4 @@ def test_max_buffer_mem(mode, eigensolver, max_mem):
 
 
 if __name__ == '__main__':
-    test_max_buffer_mem('pw', 'davidson', -50)
+    test_max_buffer_mem('fd', 'rmm-diis', -50)
