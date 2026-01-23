@@ -2,14 +2,14 @@
  *  Copyright (C) 2007-2008  CAMd
  *  Please see the accompanying LICENSE file for further information. */
 
-#include "../python_utils.h"
+#include "python_utils.h"
 #include <xc.h>
 #if XC_MAJOR_VERSION >= 7
   #include <xc_funcs.h>
   #include <xc_funcs_removed.h>
 #endif
 #include "xc_gpaw.h"
-#include "../extensions.h"
+#include "extensions.h"
 #include <assert.h>
 
 typedef struct
@@ -606,7 +606,7 @@ lxcXCFunctional_tb09(lxcXCFunctionalObject *self, PyObject *args)
       (double*) PyArray_DATA(vx_g),
       (double*) PyArray_DATA(vx_g)
     );
-    
+
     Py_RETURN_NONE;
 }
 

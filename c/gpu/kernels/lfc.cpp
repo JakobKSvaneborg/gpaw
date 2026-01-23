@@ -1,8 +1,8 @@
-#include "../../python_utils.h"
-#include "../../gpaw_complex.h"
-#include "../lfc_gpu.h"
-#include "../gpu.h"
-#include "../gpu-complex.h"
+#include "python_utils.h"
+#include "gpaw_complex.h"
+#include "gpu/lfc_gpu.h"
+#include "gpu/gpu.h"
+#include "gpu/gpu-complex.h"
 
 #include <stdio.h>
 #include <malloc.h>

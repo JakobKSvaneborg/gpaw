@@ -2,15 +2,15 @@
  *  Please see the accompanying LICENSE file for further information. */
 
 #include "bmgs.h"
-#include "../gpaw_utils.h"
+#include "gpaw_utils.h"
 #include <string.h>
 
 void bmgs_translate(double* a, const int sizea[3], const int size[3],
 		    const int start1[3], const int start2[3])
 {
-  const double* GPAW_RESTRICT s = 
+  const double* GPAW_RESTRICT s =
     a + start1[2] + (start1[1] + start1[0] * sizea[1]) * sizea[2];
-  double* GPAW_RESTRICT d = 
+  double* GPAW_RESTRICT d =
     a + start2[2] + (start2[1] + start2[0] * sizea[1]) * sizea[2];
   for (int i0 = 0; i0 < size[0]; i0++)
     {
@@ -29,9 +29,9 @@ void bmgs_translatemz(double_complex* a, const int sizea[3], const int size[3],
 		      const int start1[3], const int start2[3],
 		      double_complex phase)
 {
-  const double_complex* GPAW_RESTRICT s = 
+  const double_complex* GPAW_RESTRICT s =
     a + start1[2] + (start1[1] + start1[0] * sizea[1]) * sizea[2];
-  double_complex* GPAW_RESTRICT d = 
+  double_complex* GPAW_RESTRICT d =
     a + start2[2] + (start2[1] + start2[0] * sizea[1]) * sizea[2];
   for (int i0 = 0; i0 < size[0]; i0++)
     {

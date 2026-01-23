@@ -1,7 +1,7 @@
 #ifndef GPU_RUNTIME_H
 #define GPU_RUNTIME_H
 
-#include "../gpaw_utils.h"
+#include "gpaw_utils.h"
 
 #ifdef GPAW_CUDA
 #include "cuda.h"
