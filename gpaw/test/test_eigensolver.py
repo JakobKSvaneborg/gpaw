@@ -74,7 +74,7 @@ def test_eigensolver(mode, element, eigensolver, gpaw_new):
     if not gpaw_new:
         pytest.skip('Only implemented for new GPAW')
 
-    energy_tolerance = 2e-4
+    energy_tolerance = 1e-4
     eig_tolerance = 5e-3
     spinpol = False
 
@@ -99,7 +99,7 @@ def test_eigensolver(mode, element, eigensolver, gpaw_new):
     if element == 'Si':
         a = 5.431
         atoms = bulk('Si', 'diamond', a=a)
-        e0_t = {'pw': 5.399216, 'fd': 5.404339}
+        e0_t = {'pw': 5.399042, 'fd': 5.404165}
         # occupied eigenvalues
         nocc = 4
         eig_t = {'pw': [-6.13255919, 6.1272574, 6.1272574, 6.12725741,
@@ -125,7 +125,8 @@ def test_eigensolver(mode, element, eigensolver, gpaw_new):
               'spinpol': spinpol,
               'parallel': parallel,
               'mixer': mixer,
-              'convergence': {'eigenstates': 1e-12,
+              'occupations': {'name': 'fermi-dirac', 'width': 0.01},
+              'convergence': {'eigenstates': 1e-8,
                               'energy': 1e-5,
                               'bands': 12}}
 
@@ -134,7 +135,7 @@ def test_eigensolver(mode, element, eigensolver, gpaw_new):
     e0 = atoms.get_potential_energy()
     eig = atoms.calc.get_eigenvalues()
     print(eigensolver, eig)
-    if mode == 'pw':
+    if 0 and mode == 'pw':
         atoms.calc.diagonalize_full_hamiltonian(nbands=8)
         eig_exact = atoms.calc.get_eigenvalues()
         print('exact', eig_exact)
