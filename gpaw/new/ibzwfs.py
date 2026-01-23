@@ -560,6 +560,13 @@ class IBZWaveFunctions(Generic[WFT]):
 
         return e_kin + e_kin_paw
 
+    def number_of_occupied_bands(self,
+                                 tolerance: float = 1e-5) -> int:
+        nocc = 0
+        for wfs in self:
+            nocc = max(nocc, int((wfs.occ_n > tolerance).sum()))
+        return int(self.kpt_comm.max_scalar(nocc))
+
 
 def bytes_for_projectors(ibzwfs: IBZWaveFunctions) -> int:
     """Calculate number of bytest used for PAW projectors.

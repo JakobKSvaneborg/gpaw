@@ -70,7 +70,7 @@ def main(argv: list[str] = None) -> None:
 
     n1, n2 = args.band_range
     nbands = calc.get_number_of_bands()
-    n2 = n2 or n2 + nbands
+    n2 = n2 or nbands
 
     d_snnv = dipole_matrix_elements_from_calc(calc, n1, n2)
 
