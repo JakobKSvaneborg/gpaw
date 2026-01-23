@@ -185,8 +185,8 @@ class DirOptPWFD(PWFDEigensolver):
 
         orthogonalize(ibzwfs)
         update_eigenvalues(ibzwfs, Ht, potential,
-                           nband_s=self.nocc_s,
-                           eigenvalues_only=self.converge_unocc)
+                           nband_s=self.nocc_s)
+        #                   eigenvalues_only=self.converge_unocc)
 
         # reset search direction
         self.search_dir.reset()
@@ -198,10 +198,7 @@ class DirOptPWFD(PWFDEigensolver):
         import numpy as np
         import time
 
-        orthogonalize(ibzwfs)
-        update_eigenvalues(ibzwfs, Ht, potential,
-                           nband_s=self.nocc_s)
-
+        # build first gradient
         # build wfs with bands to converge
         psit_unX = build_wfs(ibzwfs, self.nband_s)
         self.grad_unX = apply_hamiltonian(ibzwfs, psit_unX, Ht, potential)
