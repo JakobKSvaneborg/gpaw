@@ -18,9 +18,6 @@ htmlcov/
 .idea
 Makefile
 
-# _gpaw root stubs have manual modifications that get overriden by automatic stubgen all the time
-typings/_gpaw/__init__.pyi
-
 # If you build the documentation in the source tree, you will create a
 # lot of files that we don't want to see with "git status":
 *.html
