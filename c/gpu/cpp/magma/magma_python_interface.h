@@ -3,9 +3,9 @@
 
 // C99 compliant header that can safely be included from main GPAW.
 
-#include "../../../python_utils.h"
-#include "../../../gpaw_utils.h"
-#include "../../gpu_interface.h"
+#include "python_utils.h"
+#include "gpaw_utils.h"
+#include "gpu/gpu_interface.h"
 
 // MAGMA needs stdbool.h but it is not properly included by their own headers.
 // Can remove this include once it's fixed in MAGMA.
