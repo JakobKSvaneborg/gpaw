@@ -976,7 +976,7 @@ class CuPyDistribution(MatrixDistribution):
         assert c == 1
         self.br = br
         self.bc = bc
-        assert bc == N
+        assert bc == max(1, N)
         if br == M:
             m = M if comm.rank == 0 else 0
         elif br == (M + r - 1) // r:
