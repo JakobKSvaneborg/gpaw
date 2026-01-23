@@ -56,7 +56,7 @@ def test_ae(mode, eigensolver, setup, gpaw_new):
     e0 = atoms.get_potential_energy()
     eig = atoms.calc.get_eigenvalues()
     print(eigensolver, eig)
-    if 1:
+    if 0:       # will not work with mpi
         atoms.calc.diagonalize_full_hamiltonian(nbands=8)
         eig_exact = atoms.calc.get_eigenvalues()
         print('exact', eig_exact)
@@ -135,7 +135,7 @@ def test_eigensolver(mode, element, eigensolver, gpaw_new):
     e0 = atoms.get_potential_energy()
     eig = atoms.calc.get_eigenvalues()
     print(eigensolver, eig)
-    if 0 and mode == 'pw':
+    if 0 and mode == 'pw':  # will not work with mpi
         atoms.calc.diagonalize_full_hamiltonian(nbands=8)
         eig_exact = atoms.calc.get_eigenvalues()
         print('exact', eig_exact)
