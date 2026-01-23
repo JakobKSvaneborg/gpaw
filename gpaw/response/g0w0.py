@@ -14,7 +14,6 @@ from ase.utils.filecache import MultiFileJSONCache as FileCache
 
 import gpaw.mpi as mpi
 from gpaw import GPAW, debug
-from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
 from gpaw.mpi import broadcast_exception
 from gpaw.old.pw.descriptor import PWMapping, count_reciprocal_vectors
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter, timer
