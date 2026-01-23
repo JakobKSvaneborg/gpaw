@@ -121,7 +121,8 @@ constexpr inline int typenum_from_dtype(DataType dtype)
 }
 
 inline bool is_complex_dtype(pybind11::dtype dtype) { return dtype.kind() == 'c'; }
-// FIXME c_style has different semantics for 1D arrays
+/* Returns true if the input array has c_contiguous flag set.
+Note that contiguous 1D arrays are both C- and F-contiguous. */
 inline bool is_c_contiguous(pybind11::array arr) { return arr.flags() & pybind11::array::c_style; }
 
 /* Checks if the input object is a Cupy array (cupy.ndarray).
