@@ -732,8 +732,8 @@ def create_distribution(M: int,
     #     raise ValueError
 
     if br == 0 and bc == 0:
-        br = (M + r - 1) // r
-        bc = (N + c - 1) // c
+        br = max(1, (M + r - 1) // r)
+        bc = max(1, (N + c - 1) // c)
     elif bc == 0:
         bc = br
 
