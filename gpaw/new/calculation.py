@@ -411,8 +411,13 @@ class DFTCalculation:
             psit_nR = bcast(psit_nR, 0, comm=self.comm)
         return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
 
-    def change(self, *, xc=None, eigensolver=None,
-               mixer=None, occupations=None, convergence=None):
+    def change(self,
+               *,
+               xc=None,
+               eigensolver=None,
+               mixer=None,
+               occupations=None,
+               convergence=None) -> None:
         from gpaw.dft import XC, Eigensolver, Mixer, Occupations
 
         # build kwargs
@@ -560,17 +565,24 @@ class DFTCalculation:
     def change_mode(self,
                     mode: str,
                     *,
-                    ecut=None,
-                    nbands=None):
+                    ecut: float | None = None,  # eV units
+                    nbands: int | None = None) -> None:
+        """In-place convertion from one mode to another.
+
+        **Only LCAO to PW or FD mode implemented!**
+        """
         from gpaw.dft import PW, FD
         from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
-        assert isinstance(self.ibzwfs, LCAOIBZWaveFunctions)
+        if not isinstance(self.ibzwfs, LCAOIBZWaveFunctions):
+            raise ValueError
         if mode == 'pw':
             ecut = ecut or 0.5 * self.density.nt_sR.desc.ekin_max() * Ha
             self.params.mode = PW(ecut=ecut)
         elif mode == 'fd':
             assert ecut is None
             self.params.mode = FD()
+        else:
+            raise ValueError
         builder = self.params.dft_component_builder(
             self.atoms, log=self.log, comm=self.comm)
         self.scf_loop = builder.create_scf_loop()
