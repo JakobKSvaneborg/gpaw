@@ -58,7 +58,7 @@ def non_self_consistent_eigenvalues(
             return (np.zeros((1, 1, 1)),
                     np.zeros((1, 1, 1)),
                     np.zeros((1, 1, 1)))
-        calc = GPAW(Path(calc),  #type:ignore
+        calc = GPAW(Path(calc),  # type:ignore
                     txt=None,
                     parallel={'band': 1, 'kpt': 1})
 

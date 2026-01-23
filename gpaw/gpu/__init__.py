@@ -288,7 +288,7 @@ try:
     gc.callbacks.append(gpaw_gc_flush_pinned_arrays)
 
 except ImportError:
-    def flush_pending_decrefs() -> None:  #type:ignore
+    def flush_pending_decrefs() -> None:  # type:ignore
         # no-op
         pass
 
