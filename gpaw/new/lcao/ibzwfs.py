@@ -72,7 +72,7 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
             mylcaonbands, nao = lcaowfs.C_nM.dist.shape
             mynbands = len(psit_nX.data)
             eig_n = np.empty(nbands)
-            eig_n[:self.nbands] = lcaowfs.eig_n
+            eig_n[:self.nbands] = lcaowfs.eig_n[:nbands]
             eig_n[self.nbands:] = 100.0  # set high value for random wfs.
             if mylcaonbands < mynbands:
                 psit_nX[mylcaonbands:].randomize(
@@ -90,7 +90,8 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
                 qspiral_v=qspiral_v)
             wfs.eig_n = eig_n
             if lcaowfs.has_occs:
-                wfs._occ_n = lcaowfs._occ_n.copy()
+                wfs._occ_n = np.zeros(nbands)
+                wfs._occ_n[:self.nbands] = lcaowfs._occ_n[:nbands]
             return wfs
 
         return PWFDIBZWaveFunctions.create(
