@@ -22,7 +22,7 @@
 #define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
 #include <numpy/arrayobject.h>
 
-#if defined(__cplusplus) && (defined(GPAW_GPU) || defined(GPAW_CPP))
+#if defined(__cplusplus)
     #include <pybind11/pybind11.h>
     #include <pybind11/numpy.h>
 #endif
