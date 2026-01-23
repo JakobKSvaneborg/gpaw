@@ -22,7 +22,7 @@ class DirOptPWFD(PWFDEigensolver):
                  excited_state: bool = False,
                  converge_unocc: bool = False,
                  converge_bands: int | str = 'occupied',
-                 alpha: float = 0.1,
+                 alpha: float = 0.2,
                  scalapack_params=(None, 1, 1, None)):
 
         # Lazy initialization of search_dir, done later in iterate()
