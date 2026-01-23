@@ -20,8 +20,7 @@ static void test_array_metadata(py::handle cupy_array, const PyDeviceArray& same
 
     py::object dtype_obj = cupy_array.attr("dtype");
     py::object num_obj = dtype_obj.attr("num");
-    const int typenum = num_obj.cast<int>();
-    const DataType dtype = dtype_from_typenum(typenum);
+    py::dtype dtype(num_obj.cast<int>());
     if (dtype != same_array.dtype)
     {
         throw std::runtime_error("dtype does not match");

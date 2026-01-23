@@ -2,6 +2,13 @@
 
 // Build system must define GPAW_CPP if compiling all of GPAW as C++
 
+#ifndef _MSC_VER
+    #define GPAW_HIDDEN_SYMBOL __attribute__((visibility("hidden")))
+#else
+    // MSVC hides symbols by default
+    #define GPAW_HIDDEN_SYMBOL
+#endif
+
 #ifdef __cplusplus
     #define CLINKAGE extern "C"
     // Starts an extern "C" block

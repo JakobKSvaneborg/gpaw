@@ -28,8 +28,7 @@ void PyDeviceArray::from_cupy(pybind11::handle array)
     // dtype
     pybind11::object dtype_obj = array.attr("dtype");
     pybind11::object num_obj = dtype_obj.attr("num");
-    const int typenum = num_obj.cast<int>();
-    dtype = dtype_from_typenum(typenum);
+    dtype = pybind11::dtype(num_obj.cast<int>());
 
     // Read C-contiguity flag
     pybind11::object flags = array.attr("flags");
