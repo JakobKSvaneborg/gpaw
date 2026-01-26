@@ -17,7 +17,6 @@ from gpaw.symmetry import Symmetry as OldSymmetry
 from gpaw.symmetry import frac
 from gpaw.typing import Array2D, Array3D, ArrayLike1D, ArrayLike2D, ArrayLike3D
 
-
 class SymmetryBrokenError(Exception):
     """Broken-symmetry error."""
 
@@ -344,7 +343,7 @@ class Symmetries:
                             tolerance=tolerance)
         if ids is None:
             ids = atoms.numbers
-        return sym.analyze_positions(atoms.positions,
+        return sym.analyze_positions(atoms.get_scaled_positions(),
                                      ids=ids,
                                      symmorphic=symmorphic)
 
@@ -467,7 +466,8 @@ def find_lattice_symmetry(cell_cv, pbc_c, tol, _backwards_compatible=False):
     # Operation is a 3x3 matrix, with possible elements -1, 0, 1, thus
     # there are 3**9 = 19683 possible matrices:
     combinations = 1 - np.indices([3] * 9)
-    U_scc = combinations.reshape((3, 3, 3**9)).transpose((2, 0, 1))
+    U_scc = combinations.reshape((3, 3, 3**9)).transpose((2, 0, 1)) * 1.0
+    U_scc = U_scc[abs(np.linalg.det(U_scc)) == 1.0]
 
     # The metric of the cell should be conserved after applying
     # the operation:
@@ -475,11 +475,16 @@ def find_lattice_symmetry(cell_cv, pbc_c, tol, _backwards_compatible=False):
     metric_scc = np.einsum('sij, jk, slk -> sil',
                            U_scc, metric_cc, U_scc,
                            optimize=True)
+
     if _backwards_compatible:
         mask_s = abs(metric_scc - metric_cc).sum(2).sum(1) <= tol
     else:
-        mask_s = abs(metric_scc - metric_cc).sum(2).sum(1) <= tol**2
-    U_scc = U_scc[mask_s]
+        s_c = metric_cc.diagonal()**0.25
+        tol_cc = np.outer(s_c, s_c) * tol
+        err_scc = abs(metric_scc - metric_cc)
+        mask_s = (err_scc <= tol_cc).all(axis=(1, 2))
+
+    U_scc = U_scc[mask_s].astype(int)
 
     # Operation must not swap axes that don't have same PBC:
     pbc_cc = np.logical_xor.outer(pbc_c, pbc_c)
