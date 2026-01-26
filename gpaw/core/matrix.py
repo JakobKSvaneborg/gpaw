@@ -314,7 +314,6 @@ class Matrix(XP):
             return
 
         if d1.all_data_on_rank_zero and d2.simple:
-            assert d1.simple
             comm = d2.comm
             if comm.rank == 0:
                 M = self.shape[0]
