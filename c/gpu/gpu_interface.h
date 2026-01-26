@@ -1,9 +1,9 @@
 #pragma once
 
 // FIXME: can we forward declare the PyObject typedef to avoid including Python.h,
-// because of their include order requirement mess? Should work in C++11. 
-#include "../python_utils.h"
-#include "../gpaw_utils.h"
+// because of their include order requirement mess? Should work in C++11.
+#include "python_utils.h"
+#include "gpaw_utils.h"
 #include "gpu_utils.h"
 
 GPAW_GPU_LINKAGE_BEGIN

@@ -1,10 +1,10 @@
 #ifdef GPAW_WITH_LIBVDWXC
-#include "../python_utils.h"
-#include "../extensions.h"
+#include "python_utils.h"
+#include "extensions.h"
 
 #ifdef PARALLEL
 #include <mpi.h>
-#include "../mympi.h"
+#include "mympi.h"
 #include <vdwxc_mpi.h>
 #else
 #include <vdwxc.h>

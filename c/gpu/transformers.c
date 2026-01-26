@@ -1,6 +1,6 @@
-#include "../python_utils.h"
-#include "../extensions.h"
-#include "../transformers.h"
+#include "python_utils.h"
+#include "extensions.h"
+#include "transformers.h"
 #include "bmgs.h"
 #include "gpu.h"
 #include <stdlib.h>

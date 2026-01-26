@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 __version__ = '25.7.1b1'
-__ase_version_required__ = '3.25.0'
+__ase_version_required__ = '3.27.0'
 
 __all__ = ['GPAW',
            'Mixer', 'MixerSum', 'MixerDif', 'MixerSum2',

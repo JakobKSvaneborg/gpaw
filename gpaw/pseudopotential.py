@@ -300,6 +300,7 @@ class PseudoPotential(BaseSetup):
         self.MB = 0.0
         self.MB_p = np.zeros(_np)
         self.dO_ii = np.zeros((self.ni, self.ni))
+        self.X_p = np.zeros(_np)
 
         # We don't really care about these variables
         self.rcutfilter = None
@@ -318,7 +319,6 @@ class PseudoPotential(BaseSetup):
         self.Delta_iiL = np.zeros((self.ni, self.ni, 1))
         self.B_ii = None
         self.dC_ii = None
-        self.X_p = None
         self.X_wp = {}
         self.X_pg = None
         self.ExxC = None

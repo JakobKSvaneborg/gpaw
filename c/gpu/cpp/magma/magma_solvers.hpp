@@ -2,7 +2,7 @@
 
 #include "magma_gpaw.hpp"
 #include "magma_template_wrappers.hpp"
-#include "../utils.hpp"
+#include "gpu/cpp/utils.hpp"
 
 
 template<typename T>
