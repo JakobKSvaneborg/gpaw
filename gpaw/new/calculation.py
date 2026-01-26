@@ -6,14 +6,14 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr, Ha
-
 from gpaw.core import UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.densities import Densities
 from gpaw.electrostatic_potential import ElectrostaticPotential
 from gpaw.gpu import as_np
+from gpaw.mpi import MPIComm
 from gpaw.mpi import broadcast as bcast
-from gpaw.mpi import broadcast_float, MPIComm
+from gpaw.mpi import broadcast_float
 from gpaw.new import trace, zips
 from gpaw.new.density import Density
 from gpaw.new.energies import DFTEnergies
@@ -27,7 +27,7 @@ from gpaw.utilities import (check_atoms_too_close,
                             check_atoms_too_close_to_boundary)
 
 if TYPE_CHECKING:
-    from gpaw.dft import Parameters
+    from gpaw.dft import Parameters, Mode
 
 
 class ReuseWaveFunctionsError(Exception):
@@ -178,7 +178,9 @@ class DFTCalculation:
         self.potential, self.energies, _ = self.pot_calc.calculate(
             self.density, self.ibzwfs, self.potential.vHt_x)
 
-        mm_av = self.results['non_collinear_magmoms']
+        mm_av = self.results.get('non_collinear_magmoms')
+        if mm_av is None:
+            _, mm_av = self.density.calculate_magnetic_moments()
         write_atoms(atoms, mm_av, self.density.nt_sR.desc, self.log)
 
         self.results = {}
@@ -563,31 +565,23 @@ class DFTCalculation:
             params=params, energies=energies)
 
     def change_mode(self,
-                    mode: str,
+                    mode: str | dict | Mode,
                     *,
-                    ecut: float | None = None,  # eV units
                     nbands: int | None = None) -> None:
         """In-place convertion from one mode to another.
 
         **Only LCAO to PW or FD mode implemented!**
         """
-        from gpaw.dft import PW, FD
+        from gpaw.dft import Mode
         from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
         if not isinstance(self.ibzwfs, LCAOIBZWaveFunctions):
             raise ValueError
-        if mode == 'pw':
-            ecut = ecut or 0.5 * self.density.nt_sR.desc.ekin_max() * Ha
-            self.params.mode = PW(ecut=ecut)
-        elif mode == 'fd':
-            assert ecut is None
-            self.params.mode = FD()
-        else:
-            raise ValueError
+        self.params.mode = Mode.from_param(mode)
         builder = self.params.dft_component_builder(
             self.atoms, log=self.log, comm=self.comm)
         self.scf_loop = builder.create_scf_loop()
         self.pot_calc = builder.create_potential_calculator()
-        if mode == 'pw':
+        if builder.mode == 'pw':
             self.density.nct_aX = builder.get_pseudo_core_densities()
             self.density.tauct_aX = builder.get_pseudo_core_ked()
             self.density = self.density.new(builder.grid,
