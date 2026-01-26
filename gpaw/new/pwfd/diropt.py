@@ -50,6 +50,8 @@ class DirOptPWFD(PWFDEigensolver):
         # no band parallization supported
         assert ibzwfs.band_comm.size == 1
 
+        hamiltonian.update_wave_functions(ibzwfs)
+
         if len(self.nocc_s) == 0:
             # init: setup preconditioner
             self._initialize(ibzwfs)
@@ -79,7 +81,8 @@ class DirOptPWFD(PWFDEigensolver):
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
                      potential.dedtaut_sR,
-                     ibzwfs, density.D_asii)
+                     ibzwfs, density.D_asii,
+                     calculate_energy=True)
 
         # build wfs
         psit_unX = build_wfs(ibzwfs, self.nocc_s)
@@ -98,7 +101,8 @@ class DirOptPWFD(PWFDEigensolver):
             Ht = partial(hamiltonian.apply,
                          potential.vt_sR,
                          potential.dedtaut_sR,
-                         ibzwfs, density.D_asii)
+                         ibzwfs, density.D_asii,
+                         calculate_energy=True)
 
             # get gradient by applying hamiltonian
             self.grad_unX = apply_hamiltonian(ibzwfs, psit_unX, Ht, potential)
@@ -147,7 +151,8 @@ class DirOptPWFD(PWFDEigensolver):
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
                      potential.dedtaut_sR,
-                     ibzwfs, density.D_asii)
+                     ibzwfs, density.D_asii,
+                     calculate_energy=True)
 
         # get gradient by applying hamiltonian
         self.grad_unX = apply_hamiltonian(ibzwfs, psit_unX, Ht, potential)
@@ -184,7 +189,8 @@ class DirOptPWFD(PWFDEigensolver):
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
                      potential.dedtaut_sR,
-                     ibzwfs, density.D_asii)
+                     ibzwfs, density.D_asii,
+                     calculate_energy=True)
 
         orthogonalize(ibzwfs)
         update_eigenvalues(ibzwfs, Ht, potential,

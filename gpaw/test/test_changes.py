@@ -19,15 +19,20 @@ def test_changes():
               'nbands': 3,
               'convergence': {'eigenstates': 1e-4,
                               'density': 1e-2,
-                              'forces': 1e-3}}
+                              'forces': 1e-4}}
 
-    occ_fixed = {'name': 'fixed', 'numbers': [[0, 1, 0], [0, 1, 0]]}
+    # occ_fixed = {'name': 'fixed', 'numbers': [[0, 1, 0], [0, 1, 0]]}
+    occ_fixed = {'name': 'fixed', 'numbers': [[1, 0, 0], [1, 0, 0]]}
 
     mixer = {'method': 'fullspin',
              'backend': 'fft',
              'beta': 0.05,
              'nmaxold': 7,
              'weight': 50.0}
+
+    diropt = {'name': 'etdm-fdpw', 'converge_unocc': True}
+    nomixer = {'backend': 'no-mixing'}
+    xc = 'HSE06'
 
     # preconverge with PBE
     dft = DFT(atoms, **params)
@@ -36,17 +41,18 @@ def test_changes():
     with pytest.raises(AssertionError):
         dft.change(xc='LDA')
 
-    dft.change(xc='HSE06', eigensolver='ppcg', mixer=mixer,
+    dft.change(xc=xc, eigensolver=diropt, mixer=nomixer,
                occupations=occ_fixed, convergence={'energy': 1e-2})
 
     ase_calc = dft.ase_calculator()
     etot_xc = ase_calc.get_potential_energy(atoms)
     forces_xc = ase_calc.get_forces(atoms)
 
-    if 0:
+    if 1:
         from gpaw.new.ase_interface import GPAW
-        params['xc'] = 'HSE06'
+        params['xc'] = xc
         params['occupations'] = occ_fixed
+        # params['eigensolver'] = diropt
         calc = GPAW(**params)
         atoms.calc = calc
         etot_hse = atoms.get_potential_energy()
