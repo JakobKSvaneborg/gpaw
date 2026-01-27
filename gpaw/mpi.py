@@ -15,6 +15,7 @@ from typing import Any
 import numpy as np
 from ase.parallel import MPI as ASE_MPI
 from ase.parallel import world as aseworld
+from ase.parallel import broadcast as asebroadcast
 
 import gpaw
 import gpaw.cgpaw as cgpaw
@@ -103,6 +104,29 @@ def broadcast_exception(comm):
     # rank will now be the highest failing rank or -1
     if rank >= 0:
         raise broadcast(None, rank, comm=comm)
+
+
+def rank0_call(func, comm):
+
+    def wrapper(*args, **kwargs):
+        error = None
+        result = None
+        if comm.rank == 0:
+            try:
+                # calculation in serial only on master
+                result = func(*args, **kwargs)
+            except Exception as err:
+                error = str(err)
+
+        # broadcast error
+        error = asebroadcast(error, 0, comm=comm)
+        if error:
+            raise RuntimeError(error)
+
+        # broadcast results
+        return asebroadcast(result, 0, comm=comm)
+
+    return wrapper
 
 
 class _Communicator:

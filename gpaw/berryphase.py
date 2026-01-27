@@ -5,14 +5,13 @@ from pathlib import Path
 
 import numpy as np
 from ase import Atoms
-from ase.parallel import broadcast
 from ase.dft.bandgap import bandgap
 from ase.dft.kpoints import get_monkhorst_pack_size_and_offset
 
 from gpaw import GPAW
 from gpaw.ibz2bz import (get_overlap, get_overlap_coefficients,
                          get_phase_shifted_overlap_coefficients)
-from gpaw.mpi import normalize_communicator, serial_comm
+from gpaw.mpi import normalize_communicator, serial_comm, rank0_call
 from gpaw.spinorbit import soc_eigenstates
 from gpaw.utilities.blas import gemmdot
 
@@ -197,27 +196,10 @@ def polarization_phase(gpw_wfs: Path, comm, cleanup: bool = False):
 
     """
 
-    # calculation in serial only on master
-    error = None
-    phases_c = None
-    if comm.rank == 0:
-        try:
-            phases_c = _get_phases(gpw_wfs, cleanup=cleanup)
-        except Exception as err:
-            error = str(err)
-
-    # broadcast error
-    error = broadcast(error, 0, comm)
-    if error:
-        raise RuntimeError(error)
-
-    # broadcast results
-    phases_c = broadcast(phases_c, 0, comm)
-
-    return phases_c
+    return rank0_call(_polarization_phase, comm)(gpw_wfs, cleanup=cleanup)
 
 
-def _get_phases(gpw_wfs: Path, cleanup: bool = False):
+def _polarization_phase(gpw_wfs: Path, cleanup: bool = False):
     print(f'Reading wfs from {gpw_wfs}')
     calc = GPAW(gpw_wfs, communicator=serial_comm, txt=None)
     atoms = calc.get_atoms()
