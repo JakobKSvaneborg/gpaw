@@ -645,7 +645,7 @@ class ASECalculator:
 
         old_params = self.params.todict()
         old_params.pop('h', None)
-        kwargs['gpts'] = self.density.nt_sG.desc.size
+        kwargs['gpts'] = self.dft.density.nt_sR.desc.size
         kwargs = {**old_params, **kwargs,
                   'mode': {**old_params['mode'], **mode}}
 
