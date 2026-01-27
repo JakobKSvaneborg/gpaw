@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 from ase import Atoms
+from ase.parallel import broadcast
 from ase.dft.bandgap import bandgap
 from ase.dft.kpoints import get_monkhorst_pack_size_and_offset
 
@@ -195,19 +196,21 @@ def polarization_phase(gpw_wfs: Path, comm, cleanup: bool = False):
     """
 
     # calculation in serial only on master
+    error = None
+    phases_c = None
     if comm.rank == 0:
-        phases_c = _get_phases(gpw_wfs, cleanup=cleanup)
-    else:
-        phases_c = {
-            'phase_c': np.empty(3),
-            'electronic_phase_c': np.empty(3),
-            'atomic_phase_c': np.empty(3),
-            'dipole_phase_c': np.empty(3),
-        }
+        try:
+            phases_c = _get_phases(gpw_wfs, cleanup=cleanup)
+        except Exception as err:
+            error = str(err)
 
-    # broadcast
-    for key in phases_c:
-        comm.broadcast(phases_c[key], 0)
+    # broadcast error
+    error = broadcast(error, 0, comm)
+    if error:
+        raise RuntimeError(error)
+
+    # broadcast results
+    phases_c = broadcast(phases_c, 0, comm)
 
     return phases_c
 
