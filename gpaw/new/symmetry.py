@@ -17,6 +17,7 @@ from gpaw.symmetry import Symmetry as OldSymmetry
 from gpaw.symmetry import frac
 from gpaw.typing import Array2D, Array3D, ArrayLike1D, ArrayLike2D, ArrayLike3D
 
+
 class SymmetryBrokenError(Exception):
     """Broken-symmetry error."""
 
