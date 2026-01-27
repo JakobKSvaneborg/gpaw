@@ -2502,6 +2502,29 @@ class GPWFiles(CachedFilesHandler):
         atoms.get_potential_energy()
         return atoms.calc
 
+    @gpwfile
+    def si_scs_gpw(self):
+        """
+        Silicon with self-consistent scissors eigensolver
+        """
+        shifts = [
+            (0.5, -0.5, 1)
+        ]
+        a = 5.431
+        atoms = bulk('Si', 'diamond', a=a)
+        Nk = 2
+        calc = GPAW(
+            mode="lcao",
+            basis="dzp",
+            nbands="nao",
+            kpts=dict(size=(Nk, Nk, Nk)),
+            eigensolver={"name": "scissors", "shifts": shifts},
+            txt="gs.txt",
+        )
+        atoms.calc = calc
+        atoms.get_potential_energy()
+        return calc
+
 
 # We add Si fixtures with various symmetries to the GPWFiles namespace
 for name, method in si_gpwfiles().items():
