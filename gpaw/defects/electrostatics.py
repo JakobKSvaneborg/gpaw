@@ -5,6 +5,7 @@ from gpaw.mpi import serial_comm
 from gpaw.core import PWDesc, UGDesc, UGArray
 from ase.units import Bohr, Hartree
 from ase.geometry import find_mic
+from ase.parallel import broadcast
 
 
 _avg_methods_ = ['atoms', 'sparse-planar', 'full-planar']
@@ -17,21 +18,13 @@ def charged_defect_corrections(calc_pristine, calc_defect, defect_index=0,
     Makes ElectrostaticCorrections instance for charged defects.
 
     calc_pristine: ``GPAW`` calculator for neutral pristine reference
-
     calc_defect: ``GPAW`` calculator for charged defect
-
     defect_index: index of defect site in the pristine reference
-
     charge: charge state of the defect calculation
-
     epsilon: macroscopic electrostatic constant of the host system
-
     ecut: energy cutoff for ``calculate_model_potential`` [eV]
-
     rc: spread of the model charge distribution [Angstrom]
-
     ravg: average radius for bulk-atom average [Angstrom]
-
     method: method selection string
 
     """
@@ -54,7 +47,8 @@ def charged_defect_corrections(calc_pristine, calc_defect, defect_index=0,
                                     sigma=sigma,
                                     epsilon=epsilon,
                                     method=method,
-                                    atoms_pristine=atoms_prs)
+                                    atoms_pristine=atoms_prs,
+                                    comm=calc_pristine.world)
 
 
 def build_ugarray(atoms, data):
@@ -67,7 +61,7 @@ def gather_electrostatic_potential(calc):
     phi_r = calc.get_electrostatic_potential()
     atoms = calc.get_atoms()
     phi_R = build_ugarray(atoms, phi_r)
-    phi_R = phi_R.gather(broadcast=True)
+    phi_R = phi_R.gather(broadcast=False)
     return phi_R
 
 
@@ -105,30 +99,22 @@ class ElectrostaticCorrections():
     Calculate the electrostatic corrections for electrostatic potentials.
 
     phi_pristine: ``UGArray`` pristine electrostatic_potential [eV]
-
     phi_defect: ``UGArray`` defect electrostatic_potential [eV]
-
     charge: charge state of the defect calculation
-
     epsilon: macroscopic electrostatic constant of the host system
-
     sigma: spread of the Gaussian model charge distribution [Angstrom]
-
     r0: defect position [Angstrom]
-
     ravg: average radius for bulk-atom average [Angstrom]
-
     ecut: energy cutoff for ``calculate_model_potential`` [eV]
-
     method: method selection string
-
     atoms_pristine: ``Atoms`` pristine atomic structure
     (only used for bulk-atom average)
 
     """
     def __init__(self, phi_pristine, phi_defect, ecut=500,
                  charge=None, epsilon=None, sigma=None, r0=None,
-                 ravg=2.5, method='full-planar', atoms_pristine=None):
+                 ravg=2.5, method='full-planar', atoms_pristine=None,
+                 comm=serial_comm):
 
         # read and check electrostatic potentials
         # conversion to Hartree and Bohr
@@ -151,6 +137,7 @@ class ElectrostaticCorrections():
         assert method in _avg_methods_
         self.method = method
         self.atoms_prs = atoms_pristine
+        self.comm = comm
 
         # set grid coarsening
         self.nfreq = 4              # grid coarsening
@@ -392,9 +379,22 @@ class ElectrostaticCorrections():
         return self.dphi
 
     def calculate_correction(self):
-        # conversion to eV
-        Eli = self.calculate_isolated_correction() * Hartree
-        Elp = self.calculate_periodic_correction() * Hartree
-        Delta_V = self.calculate_potential_alignment() * Hartree
-        print('Eli=', Eli, 'Elp=', Elp, 'Delta_V=', Delta_V)
-        return - (Elp - Eli) + Delta_V * self.charge
+        error = None
+        Ecorr = None
+        if self.comm.rank == 0:
+            try:
+                # conversion to eV
+                Eli = self.calculate_isolated_correction() * Hartree
+                Elp = self.calculate_periodic_correction() * Hartree
+                Delta_V = self.calculate_potential_alignment() * Hartree
+                print('Eli=', Eli, 'Elp=', Elp, 'Delta_V=', Delta_V)
+                Ecorr = - (Elp - Eli) + Delta_V * self.charge
+            except Exception as err:
+                error = str(err)
+
+        error = broadcast(error, 0, self.comm)
+        if error:
+            raise RuntimeError(error)
+
+        Ecorr = broadcast(Ecorr, 0, self.comm)
+        return Ecorr
