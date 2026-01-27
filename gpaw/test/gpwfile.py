@@ -2508,7 +2508,7 @@ class GPWFiles(CachedFilesHandler):
         Silicon with self-consistent scissors eigensolver
         """
         shifts = [
-            (0.5, -0.5, 1)
+            (0.0, -0.0, 2)
         ]
         a = 5.431
         atoms = bulk('Si', 'diamond', a=a)
@@ -2517,8 +2517,9 @@ class GPWFiles(CachedFilesHandler):
             mode="lcao",
             basis="dzp",
             nbands="nao",
-            kpts=dict(size=(Nk, Nk, Nk)),
+            kpts=dict(size=(Nk, Nk, Nk), gamma=True),
             eigensolver={"name": "scissors", "shifts": shifts},
+            occupations=FermiDirac(0.001),
             txt="gs.txt",
         )
         atoms.calc = calc
