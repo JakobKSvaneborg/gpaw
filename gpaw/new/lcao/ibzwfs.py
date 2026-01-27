@@ -94,10 +94,12 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
                 wfs._occ_n[:self.nbands] = lcaowfs._occ_n[:nbands]
             return wfs
 
-        return PWFDIBZWaveFunctions.create(
+        ibzwfs = PWFDIBZWaveFunctions.create(
             ibz=self.ibz,
             ncomponents=self.ncomponents,
             create_wfs_func=create_wfs,
             kpt_comm=self.kpt_comm,
             kpt_band_comm=self.kpt_band_comm,
             comm=self.comm)
+        ibzwfs.fermi_levels = self.fermi_levels
+        return ibzwfs
