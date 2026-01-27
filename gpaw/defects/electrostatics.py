@@ -1,7 +1,7 @@
 """ Defects module """
 
 import numpy as np
-from gpaw.mpi import serial_comm
+from gpaw.mpi import serial_comm, rank0_call
 from gpaw.core import PWDesc, UGDesc, UGArray
 from ase.units import Bohr, Hartree
 from ase.geometry import find_mic
@@ -310,7 +310,7 @@ class ElectrostaticCorrections():
         self.rc_vR = self.r_vR[:, ::nfreq, ::nfreq, ::nfreq]
         self.ngc_v = np.array(self.rc_vR.shape[1:])
 
-    def calculate_potential_profile(self, nfreq=2, nsample=8):
+    def _calculate_potential_profile(self, nfreq=2, nsample=8):
         self.coarsen_grid(nfreq=nfreq)
 
         # restrict to z-axis
@@ -346,6 +346,10 @@ class ElectrostaticCorrections():
 
         return profile
 
+    def calculate_potential_profile(self, **kwargs):
+        comm = self.comm
+        return rank0_call(self._calculate_potential_profile, comm)(**kwargs)
+
     def calculate_potential_alignment(self):
         if self.dphi is not None:
             return self.dphi
@@ -378,23 +382,14 @@ class ElectrostaticCorrections():
 
         return self.dphi
 
-    def calculate_correction(self):
-        error = None
-        Ecorr = None
-        if self.comm.rank == 0:
-            try:
-                # conversion to eV
-                Eli = self.calculate_isolated_correction() * Hartree
-                Elp = self.calculate_periodic_correction() * Hartree
-                Delta_V = self.calculate_potential_alignment() * Hartree
-                print('Eli=', Eli, 'Elp=', Elp, 'Delta_V=', Delta_V)
-                Ecorr = - (Elp - Eli) + Delta_V * self.charge
-            except Exception as err:
-                error = str(err)
-
-        error = broadcast(error, 0, self.comm)
-        if error:
-            raise RuntimeError(error)
-
-        Ecorr = broadcast(Ecorr, 0, self.comm)
+    def _calculate_correction(self):
+        # conversion to eV
+        Eli = self.calculate_isolated_correction() * Hartree
+        Elp = self.calculate_periodic_correction() * Hartree
+        Delta_V = self.calculate_potential_alignment() * Hartree
+        print('Eli=', Eli, 'Elp=', Elp, 'Delta_V=', Delta_V)
+        Ecorr = - (Elp - Eli) + Delta_V * self.charge
         return Ecorr
+
+    def calculate_correction(self):
+        return rank0_call(self._calculate_correction, self.comm)()
