@@ -60,6 +60,7 @@ def gather_electrostatic_potential(calc):
     phi_r = calc.get_electrostatic_potential()
     atoms = calc.get_atoms()
     phi_R = build_ugarray(atoms, phi_r)
+    # gather on master
     phi_R = phi_R.gather(broadcast=False)
     return phi_R
 
