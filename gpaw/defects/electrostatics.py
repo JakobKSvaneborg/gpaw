@@ -5,7 +5,6 @@ from gpaw.mpi import serial_comm, rank0_call
 from gpaw.core import PWDesc, UGDesc, UGArray
 from ase.units import Bohr, Hartree
 from ase.geometry import find_mic
-from ase.parallel import broadcast
 
 
 _avg_methods_ = ['atoms', 'sparse-planar', 'full-planar']
