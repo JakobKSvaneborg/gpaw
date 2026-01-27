@@ -107,6 +107,11 @@ def broadcast_exception(comm):
 
 
 def rank0_call(func, comm):
+    """
+        Wrap function with communicator such that
+        it will be only called on rank 0.
+        Broadcoast result and errors of the function call.
+    """
 
     def wrapper(*args, **kwargs):
         error = None
