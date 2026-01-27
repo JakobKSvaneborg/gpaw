@@ -25,7 +25,9 @@ def get_berry_phases(calc, spin=0, dir=0, check2d=False):
     if isinstance(calc, (str, Path)):
         calc = GPAW(calc, communicator=serial_comm, txt=None)
 
-    assert len(calc.symmetry.op_scc) == 1  # does not work with symmetry
+    if len(calc.symmetry.op_scc) != 1:
+        raise RuntimeError('Does not work with Symmetry')
+
     gap = bandgap(calc)[0]
 
     if gap == 0.0:
