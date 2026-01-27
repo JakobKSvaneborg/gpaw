@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
-from functools import cached_property
+from functools import cached_property, cache
 from typing import Any
 
 import numpy as np
@@ -460,14 +460,21 @@ class Symmetries:
                         'Sorry!  Try using spglib.standardize_cell(...)')
 
 
-def find_lattice_symmetry(cell_cv, pbc_c, tol, _backwards_compatible=False):
-    """Determine list of symmetry operations."""
+@cache
+def totally_unimodular_matrices() -> np.ndarray:
     # Symmetry operations as matrices in 123 basis.
     # Operation is a 3x3 matrix, with possible elements -1, 0, 1, thus
     # there are 3**9 = 19683 possible matrices:
     combinations = 1 - np.indices([3] * 9)
-    U_scc = combinations.reshape((3, 3, 3**9)).transpose((2, 0, 1)) * 1.0
-    U_scc = U_scc[abs(np.linalg.det(U_scc)) == 1.0]
+    U_scc = combinations.reshape((3, 3, 3**9)).transpose((2, 0, 1))
+    U_scc = U_scc.astype(float)
+    U_scc = U_scc[abs(np.linalg.det(U_scc)) == 1.0]  # reduce to 6960
+    return U_scc
+
+
+def find_lattice_symmetry(cell_cv, pbc_c, tol, _backwards_compatible=False):
+    """Determine list of symmetry operations."""
+    U_scc = totally_unimodular_matrices()
 
     # The metric of the cell should be conserved after applying
     # the operation:
