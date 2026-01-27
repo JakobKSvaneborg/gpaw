@@ -57,7 +57,7 @@ class ResponseGroundStateAdapter:
         self.gs_info = ""
 
         if not calc.old and calc.dft.ibzwfs.mode == 'lcao' or calc.wfs.mode == 'lcao':
-            if 1:
+            if 0:
                 from gpaw.core import PWDesc
                 dft = calc.dft
                 ibzwfs = dft.ibzwfs
@@ -69,6 +69,8 @@ class ResponseGroundStateAdapter:
                 ibzwfs = ibzwfs.convert_to('pw', grid, pw)
                 dft.ibzwfs = ibzwfs
             elif isinstance(calc, NewGPAW):
+                from gpaw.dft import DefaultEigensolver
+                calc.dft.params.eigensolver = DefaultEigensolver({})
                 calc.dft.change_mode('pw')
             else:
                 # calc = calc._to_old()

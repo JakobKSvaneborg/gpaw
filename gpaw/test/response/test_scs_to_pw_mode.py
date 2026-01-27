@@ -7,7 +7,7 @@ def test_si_scs(in_tmp_dir, gpw_files):
     bse = BSE(
         calc=gpw_files['si_scs_gpw'],
         ecut=30,
-        valence_bands=3,
+        valence_bands=2,
         conduction_bands=2,
         mode="BSE",
     )
