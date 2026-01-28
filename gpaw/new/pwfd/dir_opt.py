@@ -21,7 +21,7 @@ class DirOptPWFD(PWFDEigensolver):
                  hamiltonian,
                  excited_state: bool = False,
                  converge_unocc: bool = False,
-                 scalapack_params=(None, 1, 1, None)):
+                 scalapack_params=(None, 1, 1, 0)):
         # Lazy initialization of search_dir, done later in iterate()
         self.search_dir: LBFGS | None = None
         self.grad_unX: list[XArray] = []

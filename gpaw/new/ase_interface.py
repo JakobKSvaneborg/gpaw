@@ -644,6 +644,8 @@ class ASECalculator:
             raise TypeError('Only mode={"dtype": dtype} is allowed.')
 
         old_params = self.params.todict()
+        old_params.pop('h', None)
+        kwargs['gpts'] = self.dft.density.nt_sR.desc.size
         kwargs = {**old_params, **kwargs,
                   'mode': {**old_params['mode'], **mode}}
 

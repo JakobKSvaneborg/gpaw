@@ -284,7 +284,7 @@ class XArray(Generic[DomainType], XP):
         raise NotImplementedError
 
     def gathergather(self):
-        a_xX = self.gather()  # gather X
+        a_xX = self.gather()  # gather X (grid-points or plane-waves)
         if a_xX is not None:
             m_xX = a_xX.matrix.gather()  # gather x
             if m_xX.dist.comm.rank == 0:
