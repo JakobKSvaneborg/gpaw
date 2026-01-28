@@ -144,12 +144,12 @@ def test_assertions(in_tmp_dir, gpw_files):
     """
 
     gpw_file = gpw_files['mos2_pw']
-    with pytest.raises(AssertionError):
+    with pytest.raises(RuntimeError, match='Does not work with Symmetry'):
         polarization_phase(gpw_file, comm=mpi.serial_comm)
 
     calc = GPAW(gpw_file, communicator=mpi.serial_comm)
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(RuntimeError, match='Does not work with Symmetry'):
         ind, phases = get_berry_phases(calc)
 
     with pytest.raises(AssertionError):
