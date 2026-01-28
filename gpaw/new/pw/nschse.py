@@ -10,8 +10,6 @@ import numpy as np
 from ase.units import Ha
 from gpaw.core import PWArray, PWDesc, UGArray
 from gpaw.core.atom_arrays import AtomArrays
-from gpaw.hybrids import parse_name
-from gpaw.hybrids.paw import pawexxvv
 from gpaw.mpi import broadcast
 from gpaw.new import zips as zip
 from gpaw.new.brillouin import MonkhorstPackKPoints
@@ -52,6 +50,8 @@ class NonSelfConsistentHybridXCCalculator:
                  relpos_ac: np.ndarray,
                  xc: str,
                  log: str | Path | IO[str] | None = '-'):
+        from gpaw.hybrids import parse_name
+        from gpaw.hybrids.paw import pawexxvv
         assert isinstance(ibzwfs, PWFDIBZWaveFunctions)
         semilocal_xc_name, self.exx_fraction, exx_omega, yukawa = \
             parse_name(xc)
