@@ -389,28 +389,34 @@ class DFTCalculation:
                 spin = 0
         else:
             assert spin is None or spin == 0
-        wfs = self.ibzwfs.get_wfs(spin=spin if collinear else 0,
-                                  kpt=kpt,
-                                  n1=n1, n2=n2)
-        if wfs is not None:
-            basis = getattr(self.scf_loop.hamiltonian, 'basis', None)
-            grid = self.density.nt_sR.desc.new(comm=None)
-            if collinear:
-                wfs = wfs.to_uniform_grid_wave_functions(grid, basis)
-                psit_nR = wfs.psit_nX
-            else:
-                psit_nsG = wfs.psit_nX
-                grid = grid.new(kpt=psit_nsG.desc.kpt_c,
-                                dtype=psit_nsG.desc.dtype)
-                psit_nR = psit_nsG.ifft(grid=grid)
-            if not psit_nR.desc.pbc.all() and _pad:
-                psit_nR = psit_nR.to_pbc_grid()
-            if periodic:
-                psit_nR.multiply_by_eikr(-psit_nR.desc.kpt_c)
+
+        krank = self.ibzwfs.rank_ks[kpt][spin]
+        if krank == self.kpt_comm.rank:
+            wfs = self._get_wfs(kpt, spin)
+            wfs = wfs.collect_bands(n1, n2)
+            if wfs is not None:
+                basis = getattr(self.scf_loop.hamiltonian, 'basis', None)
+                grid = self.density.nt_sR.desc
+                if collinear:
+                    wfs = wfs.to_uniform_grid_wave_functions(grid, basis)
+                    psit_nR = wfs.psit_nX
+                else:
+                    psit_nsG = wfs.psit_nX
+                    grid = grid.new(kpt=psit_nsG.desc.kpt_c,
+                                    dtype=psit_nsG.desc.dtype)
+                    psit_nR = psit_nsG.ifft(grid=grid)
+                if not psit_nR.desc.pbc.all() and _pad:
+                    psit_nR = psit_nR.to_pbc_grid()
+                if periodic:
+                    psit_nR.multiply_by_eikr(-psit_nR.desc.kpt_c)
+                psit_nR = psit_nR.gather()
         else:
             psit_nR = None
+
         if broadcast:
             psit_nR = bcast(psit_nR, 0, comm=self.comm)
+        if psit_nR is None:
+            return None
         return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
 
     def change(self,

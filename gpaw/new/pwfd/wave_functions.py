@@ -409,7 +409,55 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             F_v -= np.einsum('nsvi, ij, nsj -> v', F_nsvi, dO_ii, P_nsi)
             F_av[a] += 2 * F_v.real
 
-    def collect(self,
+    def collect_bands(self,
+                      n1: int = 0,
+                      n2: int = 0) -> PWFDWaveFunctions | None:
+        """Collect range of bands to master of band-comm."""
+        # Also collect projections instead of recomputing XXX
+        n2 = n2 if n2 > 0 else self.nbands + n2
+        spinors = (2,) if self.ncomponents == 4 else ()
+        band_comm = self.psit_nX.comm
+        nbands = self.nbands
+        mynbands = (nbands + band_comm.size - 1) // band_comm.size
+        rank1, b1 = divmod(n1, mynbands)
+        rank2, b2 = divmod(n2, mynbands)
+        if band_comm.rank == 0:
+            psit_nX = self.psit_nX.desc.empty(
+                (n2 - n1, *spinors), xp=self.psit_nX.xp)
+            rank = rank1
+            ba = b1
+            na = n1
+            while (rank, ba) < (rank2, b2):
+                bb = min((rank + 1) * mynbands, nbands) - rank * mynbands
+                if rank == rank2 and bb > b2:
+                    bb = b2
+                nb = na + bb - ba
+                if bb > ba:
+                    if rank == 0:
+                        psit_bX = self.psit_nX[ba:bb]
+                        psit_nX.data[:bb - ba] = psit_bX.data
+                    else:
+                        band_comm.receive(psit_nX.data[na - n1:nb - n1],
+                                          rank)
+                rank += 1
+                ba = 0
+                na = nb
+
+            wfs = PWFDWaveFunctions.from_wfs(self, psit_nX)
+            if self.has_eigs:
+                wfs.eig_n = self.eig_n[n1:n2]
+            return wfs
+        else:
+            rank = band_comm.rank
+            ranka, ba = max((rank1, b1), (rank, 0))
+            rankb, bb = min((rank2, b2), (rank, self.psit_nX.mydims[0]))
+            if (ranka, ba) < (rankb, bb):
+                assert ranka == rankb == rank
+                band_comm.send(self.psit_nX.data[ba:bb], dest=0)
+
+        return None
+
+    def ___collect(self,
                 n1: int = 0,
                 n2: int = 0) -> PWFDWaveFunctions | None:
         """Collect range of bands to master of band and domain comms."""

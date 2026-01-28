@@ -262,23 +262,23 @@ class IBZWaveFunctions(Generic[WFT]):
         assert u >= 0, (kpt, spin, self.nspins, self.u0)
         return self._wfs_u[u]
 
-    def get_wfs(self,
+    def getwfs_(self,
                 *,
                 kpt: int = 0,
                 spin: int = 0,
                 n1=0,
                 n2=0):
-        rank = self.rank_ks[kpt][spin]
-        if rank == self.kpt_comm.rank:
+        krank = self.rank_ks[kpt][spin]
+        if krank == self.kpt_comm.rank:
             wfs = self._get_wfs(kpt, spin)
             wfs2 = wfs.collect(n1, n2)
-            if rank == 0:
+            if krank == 0:
                 return wfs2
             if wfs2 is not None:
                 wfs2.send(0, self.kpt_comm)
             return
         if self.comm.rank == 0:
-            return self._wfs_u[0].receive(rank, self.kpt_comm)
+            return self._wfs_u[0].receive(krank, self.kpt_comm)
         return None
 
     def get_eigs_and_occs(self, kpt=0, spin=0):
