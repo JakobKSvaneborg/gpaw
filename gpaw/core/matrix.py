@@ -720,15 +720,17 @@ def create_distribution(M: int,
                         c: int = 1,
                         br: int = 0,
                         bc: int = 0,
-                        xp=None) -> MatrixDistribution:
+                        xp=np) -> MatrixDistribution:
+    assert not (r == -1 and c == -1)
+    assert r == -1 or r > 0
+    assert c == -1 or c > 0
+
     comm = comm or serial_comm
 
     if r == -1:
         r = comm.size // c
     elif c == -1:
         c = comm.size // r
-    # if r * c != comm.size:
-    #     raise ValueError
 
     if br == 0 and bc == 0:
         br = max(1, (M + r - 1) // r)
