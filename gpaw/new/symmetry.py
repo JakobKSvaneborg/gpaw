@@ -485,10 +485,11 @@ def find_lattice_symmetry(cell_cv, pbc_c, tol, _backwards_compatible=False):
                            optimize=True)
 
     if _backwards_compatible:
+        # (wrong units)
         mask_s = abs(metric_scc - metric_cc).sum(2).sum(1) <= tol
     else:
-        s_c = metric_cc.diagonal()**0.25
-        tol_cc = np.outer(s_c, s_c) * tol
+        L_c = metric_cc.diagonal()**0.5
+        tol_cc = np.add.outer(L_c, L_c) * tol
         err_scc = abs(metric_scc - metric_cc)
         mask_s = (err_scc <= tol_cc).all(axis=(1, 2))
 
