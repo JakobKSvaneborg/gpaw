@@ -24,7 +24,8 @@
 #endif
 
 /* Handle `restrict` keyword not existing in C++. Use compiler extension if
-supported, otherwise simply leave GPAW_RESTRICT undefined */
+supported, otherwise simply leave GPAW_RESTRICT undefined.
+Note that #if defined(__restrict__) does not work as __restrict__ is not a macro.*/
 
 #ifdef __cplusplus
     #if defined(__GNUC__) || defined(__clang__)
@@ -34,6 +35,8 @@ supported, otherwise simply leave GPAW_RESTRICT undefined */
     #else
         // Unsupported compiler? Leave empty
         #define GPAW_RESTRICT
+        #warning "Could not find C++ compiler extension for 'restrict' keyword. This could be detrimental for performance.\n" \
+                 "Please report this to GPAW developers if you are sure your compiler supports some version of `restrict`."
     #endif
 
 #else
