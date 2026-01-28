@@ -128,3 +128,24 @@ def test_5x5():
         ibz = mp.reduce(sym)
         print(ibz)
         assert (ibz.weight_k > 0.0).all()
+
+
+@pytest.mark.serial
+def test_tolerance():
+    a = 1.2
+    h = 3.0
+    d = 0.001
+    tol = 1.1 * d
+
+    # Test length error:
+    sym = Symmetries.from_cell([a, a, h, 90, 90, 120])
+    assert len(sym) == 24
+    sym = Symmetries.from_cell([a + d, a, h, 90, 90, 120], tolerance=tol)
+    assert len(sym) == 24
+
+    # Test angle error:
+    sym = Symmetries.from_cell([a, a, a])
+    assert len(sym) == 48
+    sym = Symmetries.from_cell([[a, d, 0], [0, a, 0], [0, 0, a]],
+                               tolerance=tol)
+    assert len(sym) == 48
