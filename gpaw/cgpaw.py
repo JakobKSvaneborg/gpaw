@@ -8,7 +8,7 @@ else:
 try:
     import _gpaw.gpu.magma  # type: ignore[no-redef]
     have_magma = True
-except ImportError:
+except (ImportError, ModuleNotFoundError):
     have_magma = False
 
 
