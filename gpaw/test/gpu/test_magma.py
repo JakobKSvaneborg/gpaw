@@ -11,6 +11,7 @@ from gpaw.cgpaw.gpu import magma
 from gpaw.gpu import cupy as cp, cupy_is_fake
 from gpaw.utilities import as_real_dtype
 from gpaw.test.gpu import assert_eigenpairs, fill_uplo
+from gpaw.test.gpu.test_diagonalizers import eigh_test_matrix
 import numpy as np
 import sys
 
@@ -73,13 +74,12 @@ def test_invalid_input(matrix_dtype: np.dtype):
                                    np.complex64, np.complex128])
 @pytest.mark.parametrize("uplo", ['U', "L"])
 @pytest.mark.parametrize("xp", [np, cp])
-def test_magma_eigh(fixt_eigh_test_matrix,
-                    dtype: np.dtype,
+def test_magma_eigh(dtype: np.dtype,
                     uplo: str,
                     xp):
     """"""
     matrix_size = 3
-    matrix_orig: np.ndarray | cp.ndarray = fixt_eigh_test_matrix(
+    matrix_orig: np.ndarray | cp.ndarray = eigh_test_matrix(
         matrix_size,
         dtype=dtype,
         backend='cupy' if xp is cp else 'numpy'
