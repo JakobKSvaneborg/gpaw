@@ -290,7 +290,9 @@ build-cuda-makefile:
       libraries += ['magma']
       EOF
     - cat siteconfig.py
-    - pip install -v --user --log build.log --editable .[devel]
+    # Get mypy for stubgen
+    - pip install --user mypy
+    - pip install -v --user --log build.log --editable .
 
 
 build-minimal:
