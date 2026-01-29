@@ -10,12 +10,12 @@ Git master branch
 
 :git:`master <>`.
 
+* Minimum version requirements: Python 3.10, ASE 3.27.0.
+
 * `pybind11 <https://pybind11.readthedocs.io/en/stable/>`__ is now a required
   dependency when building GPAW with GPU support. It should be installed
   automatically by ``pip`` when you install GPAW. If this doesn't happen for
   whatever reason, you can get it with ``pip install pybind11``.
-
-* Minimum version requirements: Python 3.10, ASE 3.27.0.
 
 * Added option for generating a Makefile for building GPAW with ``make`` on
   Unix-like systems. Convenient for developers who frequently need to modify
