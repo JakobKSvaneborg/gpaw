@@ -408,6 +408,54 @@ class DFTCalculation:
             psit_nR = bcast(psit_nR, 0, comm=self.comm)
         return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
 
+    def gather_master(self):
+        # first try to implement gathering density and wfs on master
+
+        atoms = self.atoms
+        params = self.params
+
+        params.parallel = {'kpt': 1, 'band': 1, 'domain': 1}
+        builder = params.dft_component_builder(atoms, log=None,
+                                               comm=serial_comm)
+
+        # redistribute potential and density
+        dft = self.dft
+        kbcomm1 = dft.ibzwfs.kpt_band_comm      # old kb comm
+        kbcomm2 = builder.communicators['D']    # new kb comm
+        potential = dft.potential.redist(
+            builder.grid,
+            builder.electrostatic_potential_desc,
+            builder.atomdist,
+            kbcomm1, kbcomm2)
+        density = dft.density.redist(builder.grid,
+                                     builder.interpolation_desc,
+                                     builder.atomdist,
+                                     kbcomm1, kbcomm2)
+
+        def create_wfs(spin, q, k, kpt_kc, weight_k):
+            wfs = self.get_wfs(kpt=k, spin=spin)
+            if self.comm.rank == 0:
+                return wfs
+            else:
+                return
+
+        # redistribute (gather wfs)
+        ibzwfs = IBZWaveFunctions.create(ibz=self.ibz,
+                                         ncomponents=self.ncomponents,
+                                         create_wfs_func=create_wfs,
+                                         kpt_comm=builder.commnunicators['k'],
+                                         kpt_band_comm=builder.communicators['D'],
+                                         comm=builder.comm)
+
+        return DFTCalculation(
+            atoms, ibzwfs, density, potential,
+            builder.setups,
+            builder.create_scf_loop(),
+            builder.create_potential_calculator(),
+            builder.log,
+            params=params,
+            energies=self.dft.energies)
+
     def change(self, *, xc=None, eigensolver=None,
                mixer=None, occupations=None, convergence=None):
 
