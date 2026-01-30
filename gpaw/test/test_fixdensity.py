@@ -55,7 +55,7 @@ def test_fixdensity_world(in_tmp_dir, mpi):
     comm = mpi.comm.new_communicator(range(world.size // 2))
     if not comm:
         # Don't actually hang, if this fails
-        ibarrier(timeout=10)
+        ibarrier(timeout=10, comm=mpi.comm)
         return
     slab.calc = GPAW(mode='pw', kpts=(1, 1, 1), txt='H.txt',
                      communicator=comm)
@@ -69,4 +69,4 @@ def test_fixdensity_world(in_tmp_dir, mpi):
         kpts={'gamma': True, 'size': [2, 2, 2]})
     e2 = calc.get_eigenvalues(kpt=0)
     assert np.allclose(e1, e2, atol=1e-2)
-    ibarrier(timeout=10)
+    ibarrier(timeout=10, comm=mpi.comm)
