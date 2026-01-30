@@ -424,26 +424,20 @@ class DFTCalculation:
         ibzwfs = self.ibzwfs
         ncomponents = ibzwfs.ncomponents
         nspins = ncomponents % 3
-        kpt_comm = ibzwfs.kpt_comm
         ibz = ibzwfs.ibz
-        rank_ks = ibz.ranks(kpt_comm, nspins)
 
-        # gather on master
+        # gather wfs on master
         wfs_u = []
-        q = 0   # XXX what about q?
         for k in range(len(ibz)):
             for spin in range(nspins):
-                if kpt_comm.rank == rank_ks[k, spin]:
-                    wfs = self.ibzwfs.get_wfs(kpt=k, spin=spin)
-                    wfs_u.append(wfs)
-                    if spin == nspins - 1:
-                        q += 1
+                wfs = self.ibzwfs.get_wfs(kpt=k, spin=spin)
+                wfs_u.append(wfs)
 
         dH_asp, vt_sR, dedtaut_sR, vHt_x = self.potential.gather()
         D_asp, nt_sR, taut_sR = self.density.gather()
 
         # only create new dft object on master
-        if dH_asp is not None:
+        if comm.rank == 0:
             # make new wfs on master
 
             if mode == 'lcao':

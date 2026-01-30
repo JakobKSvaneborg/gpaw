@@ -64,7 +64,10 @@ def test_gather():
 
     params = {'xc': 'PBE',
               'mode': {'name': 'pw'},
-              'nbands': 3,
+              'nbands': 4,
+              'spinpol': True,
+              'kpts': {'size': [3, 3, 3]},
+              'parallel': {'domain': 1},
               'convergence': {'eigenstates': 1e-4,
                               'density': 1e-5,
                               'forces': 1e-3}}
