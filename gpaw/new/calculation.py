@@ -408,7 +408,7 @@ class DFTCalculation:
             psit_nR = bcast(psit_nR, 0, comm=self.comm)
         return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
 
-    def gather_master(self):
+    def gather(self):
         # first try to implement gathering density and wfs on master
 
         atoms = self.atoms
@@ -418,21 +418,18 @@ class DFTCalculation:
         builder = params.dft_component_builder(atoms, log=None,
                                                comm=serial_comm)
 
-        # redistribute potential and density
-        kbcomm1 = self.ibzwfs.kpt_band_comm     # old kb comm
-        kbcomm2 = builder.communicators['D']    # new kb comm
+        dHasp, vt_sR, dedtaut_sR, vHt_x = self.potential.gather()
+        potential = Potential(vt_sR=vt_sR, dH_asii=dHasp.to_full(),
+                              dedtaut_sR=dedtaut_sR, vHt_x=vHt_x,
+                              e_stress=self.potential.e_stress)
 
-        potential = self.potential.redist(
-            builder.grid,
-            builder.electrostatic_potential_desc,
-            builder.atomdist,
-            kbcomm1, kbcomm2)
-
-        density = self.density.redist(
-            builder.grid,
-            builder.interpolation_desc,
-            builder.atomdist,
-            kbcomm1, kbcomm2)
+        D_asp, nt_sR, tau_sR = self.density.gather()
+        density = Density.from_data_and_setups(
+            nt_sR, taut_sR, D_asp.to_full(),
+            builder.params.charge,
+            builder.setups,
+            builder.get_pseudo_core_densities(),
+            builder.get_pseudo_core_ked())
 
         def create_wfs(spin, q, k, kpt_kc, weight_k):
             wfs = self.ibzwfs.get_wfs(kpt=k, spin=spin)

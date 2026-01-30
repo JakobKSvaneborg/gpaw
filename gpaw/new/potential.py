@@ -86,13 +86,18 @@ class Potential:
             None if self.vHt_x is None else self.vHt_x.redist(
                 desc, comm1, comm2))
 
-    def write_to_gpw(self, writer, flags):
+    def gather(self):
         dH_asp = self.dH_asii.to_cpu().to_lower_triangle().gather()
         vt_sR = self.vt_sR.to_xp(np).gather()
         if self.dedtaut_sR is not None:
             dedtaut_sR = self.dedtaut_sR.to_xp(np).gather()
         if self.vHt_x is not None:
             vHt_x = self.vHt_x.to_xp(np).gather()
+        return dHasp, vt_sR, dedtaut_sR, vHt_x
+
+    def write_to_gpw(self, writer, flags):
+        dHasp, vt_sR, dedtaut_sR, vHt_x = self.gather()
+
         if dH_asp is None:
             return
 

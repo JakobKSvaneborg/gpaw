@@ -82,7 +82,7 @@ def test_gather():
     # etot_test = dft.results['energy']
     # forces_test = dft.results['forces']
 
-    calc.dft.gather_master()
+    calc.dft.gather()
 
     # ase_calc = dft.ase_calculator()
     # etot = ase_calc.get_potential_energy(atoms)
