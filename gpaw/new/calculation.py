@@ -413,19 +413,54 @@ class DFTCalculation:
 
         atoms = self.atoms
         params = self.params
+        mode = params.mode
         comm = self.comm
 
         params.parallel = {'kpt': 1, 'band': 1, 'domain': 1}
         builder = params.dft_component_builder(atoms, log=None,
                                                comm=serial_comm)
 
+        # extract sizes and communicator from old wfs
         ibzwfs = self.ibzwfs
-        for wfs in ibzwfs:
-            wfs = self.ibzwfs.get_wfs(kpt=wfs.k, spin=wfs.spin)
+        ncomponents = ibzwfs.ncomponents
+        nspins = ncomponents % 3
+        kpt_comm = ibzwfs.kpt_comm
+        ibz = ibzwfs.ibz
+        rank_ks = ibz.ranks(kpt_comm, nspins)
+
+        # gather on master
+        wfs_u = []
+        q = 0   # XXX what about q?
+        for k in range(len(ibz)):
+            for spin in range(nspins):
+                if kpt_comm.rank == rank_ks[k, spin]:
+                    wfs = self.ibzwfs.get_wfs(kpt=k, spin=spin)
+                    wfs_u.append(wfs)
+                    if spin == nspins - 1:
+                        q += 1
 
         dH_asp, vt_sR, dedtaut_sR, vHt_x = self.potential.gather()
         D_asp, nt_sR, taut_sR = self.density.gather()
+
+        # only create new dft object on master
         if dH_asp is not None:
+            # make new wfs on master
+
+            if mode == 'lcao':
+                from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
+                WaveFunctions = LCAOIBZWaveFunctions
+            else:
+                from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
+                WaveFunctions = PWFDIBZWaveFunctions
+
+            ibzwfs = WaveFunctions(
+                ibz=ibz,
+                ncomponents=ncomponents,
+                wfs_u=wfs_u,
+                kpt_comm=serial_comm,
+                kpt_band_comm=serial_comm,
+                comm=serial_comm)
+
             potential = Potential(vt_sR=vt_sR, dH_asii=dH_asp.to_full(),
                                   dedtaut_sR=dedtaut_sR, vHt_x=vHt_x,
                                   e_stress=self.potential.e_stress)
@@ -446,7 +481,8 @@ class DFTCalculation:
                 params=params,
                 energies=self.energies)
 
-            dft.results = self.results.copy()
+            # dft.results = self.results.copy()
+            dft.results = {}
         else:
             dft = None
 
