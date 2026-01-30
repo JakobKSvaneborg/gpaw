@@ -13,7 +13,7 @@ from gpaw.densities import Densities
 from gpaw.electrostatic_potential import ElectrostaticPotential
 from gpaw.gpu import as_np
 from gpaw.mpi import broadcast as bcast
-from gpaw.mpi import broadcast_float, MPIComm
+from gpaw.mpi import broadcast_float, MPIComm, serial_comm
 from gpaw.new import trace, zips
 from gpaw.new.density import Density
 from gpaw.new.energies import DFTEnergies
@@ -440,12 +440,13 @@ class DFTCalculation:
                 return
 
         # redistribute (gather wfs)
-        ibzwfs = IBZWaveFunctions.create(ibz=self.ibz,
-                                         ncomponents=self.ncomponents,
-                                         create_wfs_func=create_wfs,
-                                         kpt_comm=builder.commnunicators['k'],
-                                         kpt_band_comm=builder.communicators['D'],
-                                         comm=builder.comm)
+        ibzwfs = IBZWaveFunctions.create(
+            ibz=self.ibz,
+            ncomponents=self.ncomponents,
+            create_wfs_func=create_wfs,
+            kpt_comm=builder.commnunicators['k'],
+            kpt_band_comm=builder.communicators['D'],
+            comm=builder.comm)
 
         return DFTCalculation(
             atoms, ibzwfs, density, potential,
