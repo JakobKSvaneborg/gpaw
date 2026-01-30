@@ -41,8 +41,7 @@ def test_all(kb):
     f1 = a.get_forces()
     print(e1)
     print(f1)
-    return
-    assert e1 == pytest.approx(-47.03298218929927)
+    assert e1 == pytest.approx(-2.6074285563393125)
     assert f1[0, 0] == pytest.approx(-1.44417016, abs=5e-6)
     assert f1[0, 0] == pytest.approx(f1[0, 1])
     assert f1[0, 0] == pytest.approx(-f1[1, 0])
