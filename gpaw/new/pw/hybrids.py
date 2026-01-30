@@ -12,7 +12,7 @@ from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.pwacf import PWAtomCenteredFunctions
 from gpaw.hybrids.paw import pawexxvv
 from gpaw.hybrids.wstc import WignerSeitzTruncatedCoulomb
-from gpaw.mpi import broadcast,world
+from gpaw.mpi import broadcast, world
 from gpaw.new import zips as zip
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.logger import Logger
@@ -261,7 +261,7 @@ class PWHybridHamiltonian(PWHamiltonian):
             F1_av = None
 
         # Find projectors and k-point weight for psit2_nG:
-        for wfs in ibzwfs:
+        for u, wfs in enumerate(ibzwfs):
             if wfs.spin != spin:
                 continue
             if np.allclose(wfs.psit_nX.desc.kpt_c, psit2_nG.desc.kpt_c):
@@ -285,7 +285,7 @@ class PWHybridHamiltonian(PWHamiltonian):
             VC_ii = self.VC_aii[a]
             V_ii = -VC_ii - 2 * VV_ii
             V_aii[a] = V_ii
-            if calculate_energy:
+            if calculate_energy and u == 0:
                 ec = (D_ii * VC_ii).sum()
                 ev = (D_ii * VV_ii).sum()
                 evv -= ev
@@ -295,9 +295,9 @@ class PWHybridHamiltonian(PWHamiltonian):
         V2_aii = V_aii.gather(broadcast=True)
 
         if calculate_energy:
-            evv = domain_comm.sum_scalar(evv) * self.kpt_comm.size * kweight
-            evc = domain_comm.sum_scalar(evc) * self.kpt_comm.size * kweight
-        elif F1_av is not None:
+            evv = domain_comm.sum_scalar(evv)# * self.kpt_comm.size * kweight
+            evc = domain_comm.sum_scalar(evc)# * self.kpt_comm.size# * kweight
+        elif F1_av is not None and u == 0:
             for a, V_ii in V2_aii.items():
                 for psit in self.mypsits:
                     dP_anvi = psit.dP_anvi
@@ -324,7 +324,8 @@ class PWHybridHamiltonian(PWHamiltonian):
                             ('hybrid_kinetic_correction', ekin)]:
                 e *= ibzwfs.spin_degeneracy
                 self.xc.energies[name] += e
-            self.xc.energies['hybrid_xc'] += self.exx_cc
+            if u == 0:
+                self.xc.energies['hybrid_xc'] += self.exx_cc
 
         if F1_av is not None:
             assert F_av is not None
@@ -516,7 +517,7 @@ def forces(ghat_aLG, vrhot2_nG, P2_ani, Q2_anL, f1, f2_n, nbzk, delta_aiiL,
     for a, F_nL in ghat_aLG.integrate(vrhot2_nG).items():
         F_iin = delta_aiiL[a] @ F_nL.T
         F_av[a] -= 0.5 * w * np.einsum('ijn, vi, nj, n -> v',
-                                          F_iin,
-                                          dP_anvi[a][n1],
-                                          P2_ani[a].conj(),
-                                          f12_n).real
+                                       F_iin,
+                                       dP_anvi[a][n1],
+                                       P2_ani[a].conj(),
+                                       f12_n).real
