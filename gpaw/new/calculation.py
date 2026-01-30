@@ -436,6 +436,15 @@ class DFTCalculation:
         dH_asp, vt_sR, dedtaut_sR, vHt_x = self.potential.gather()
         D_asp, nt_sR, taut_sR = self.density.gather()
 
+        nct_aX = self.density.nct_aX
+        tauct_aX = self.density.tauct_aX
+        # pw = self.density.nct_aX.pw.new(comm=serial_comm)
+        # atomdist = self.density.nct_aX._atomdist
+        # nct_aX = self.density.nct_aX.new(pw, atomdist)
+        # nct_aX._atomdist = self.density.nct_aX._atomdist.gather()
+        # tauct_aX = self.density.tauct_aX.new(pw, atomdist)
+        # tauct_aX._atomdist = self.density.tauct_aX._atomdist.gather()
+
         # only create new dft object on master
         if comm.rank == 0:
             # make new wfs on master
@@ -463,8 +472,8 @@ class DFTCalculation:
                 nt_sR, taut_sR, D_asp.to_full(),
                 builder.params.charge,
                 builder.setups,
-                builder.get_pseudo_core_densities(),
-                builder.get_pseudo_core_ked())
+                nct_aX,
+                tauct_aX)
 
             dft = DFTCalculation(
                 atoms, ibzwfs, density, potential,
