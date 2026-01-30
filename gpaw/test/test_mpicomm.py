@@ -1,7 +1,7 @@
 import numpy as np
 
 from gpaw import GPAW_MPI_BACKEND, debug
-from gpaw.mpi import SerialCommunicator, _Communicator, serial_comm, world
+from gpaw.mpi import SerialCommunicator, _Communicator, serial_comm
 from gpaw.mpi4pywrapper import MPI4PYWrapper
 
 

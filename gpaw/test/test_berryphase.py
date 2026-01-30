@@ -146,7 +146,7 @@ def test_assertions(in_tmp_dir, gpw_files, mpi):
 
     gpw_file = gpw_files['mos2_pw']
     with pytest.raises(RuntimeError, match='Does not work with Symmetry'):
-        polarization_phase(gpw_file, comm=mpi.serial_comm)
+        polarization_phase(gpw_file, comm=serial_comm)
 
     calc = GPAW(gpw_file, communicator=serial_comm)
 

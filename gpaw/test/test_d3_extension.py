@@ -115,8 +115,9 @@ def test_d3_extensions(mode, parallel, in_tmp_dir, dftd3, mpi):
     for _, _ in zip(relax.irun(), range(3)):
         pass
     calc.write('restart_relax.gpw')
-    atoms, calc = restart('restart_relax.gpw', Class=GPAW)
-    relax = BFGS(atoms, restart='relax_restart')
+    atoms, calc = restart('restart_relax.gpw', Class=GPAW,
+                          communicator=mpi.comm)
+    relax = BFGS(atoms, restart='relax_restart', comm=mpi.comm)
     relax.run()
 
     assert relax.nsteps + 3 == nsteps
