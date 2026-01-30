@@ -12,7 +12,7 @@ from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.pwacf import PWAtomCenteredFunctions
 from gpaw.hybrids.paw import pawexxvv
 from gpaw.hybrids.wstc import WignerSeitzTruncatedCoulomb
-from gpaw.mpi import broadcast, world
+from gpaw.mpi import broadcast
 from gpaw.new import zips as zip
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.logger import Logger
@@ -285,7 +285,7 @@ class PWHybridHamiltonian(PWHamiltonian):
             VC_ii = self.VC_aii[a]
             V_ii = -VC_ii - 2 * VV_ii
             V_aii[a] = V_ii
-            if calculate_energy and u == 0:
+            if calculate_energy:
                 ec = (D_ii * VC_ii).sum()
                 ev = (D_ii * VV_ii).sum()
                 evv -= ev
@@ -295,8 +295,9 @@ class PWHybridHamiltonian(PWHamiltonian):
         V2_aii = V_aii.gather(broadcast=True)
 
         if calculate_energy:
-            evv = domain_comm.sum_scalar(evv)# * self.kpt_comm.size * kweight
-            evc = domain_comm.sum_scalar(evc)# * self.kpt_comm.size# * kweight
+            nk = len(ibzwfs._wfs_u) / ibzwfs.nspins
+            evv = domain_comm.sum_scalar(evv) / nk
+            evc = domain_comm.sum_scalar(evc) / nk
         elif F1_av is not None and u == 0:
             for a, V_ii in V2_aii.items():
                 for psit in self.mypsits:
