@@ -162,7 +162,7 @@ def write_header(log, world):
     log('units:  Angstrom and eV')
     log('cores:', world.size)
     log('OpenMP:', cgpaw.have_openmp)
-    log('OMP_NUM_THREADS:', os.environ['OMP_NUM_THREADS'])
+    log('OMP_NUM_THREADS:', os.environ.get('OMP_NUM_THREADS', ''))
 
     if gpaw.debug:
         log('DEBUG-MODE: true')

@@ -17,6 +17,11 @@ def eigh(a, UPLO='L'):
     return cp.ndarray(eigvals), cp.ndarray(eigvecs.T.copy().T)
 
 
+def solve(a, b):
+    from gpaw.gpu import cupy as cp
+    return cp.ndarray(np.linalg.solve(a._data, b._data))
+
+
 def matrix_rank(a, tol=None, hermitian=False, *, rtol=None):
     from gpaw.gpu import cupy as cp
     return cp.ndarray(

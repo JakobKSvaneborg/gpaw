@@ -306,7 +306,10 @@ class BroydenBaseMixer:
         self.u_G = []
         self.u_D = []
 
-    def mix_density(self, nt_sG, D_asp):
+    def mix_density(self, nt_sG, D_asp, g_ss=None):
+        if g_ss is not None:
+            raise NotImplementedError()
+
         nt_G = nt_sG[0]
         D_ap = [D_sp[0] for D_sp in D_asp]
         dNt = np.inf
@@ -434,7 +437,7 @@ class NotMixingMixer:
     def calculate_charge_sloshing(self, R_sG):
         return self.gd.integrate(np.fabs(R_sG)).sum()
 
-    def mix_density(self, nt_sG, D_asp):
+    def mix_density(self, nt_sG, D_asp, g_ss=None):
         iold = len(self.nt_isG)
 
         dNt = np.inf
@@ -678,14 +681,14 @@ def get_mixer_from_keywords(pbc, nspins, **mixerkwargs):
     kwargs = {'backend': BaseMixer}
 
     if np.any(pbc):  # Works on array or boolean
-        kwargs.update(beta=0.05, history=5, weight=50.0)
+        kwargs.update(beta=0.08, history=16, weight=70.0)
     else:
-        kwargs.update(beta=0.25, history=3, weight=1.0)
+        kwargs.update(beta=0.25, history=16, weight=1.0)
 
     if nspins == 1:
         kwargs['method'] = SeparateSpinMixerDriver
     else:
-        kwargs['method'] = SpinDifferenceMixerDriver
+        kwargs['method'] = FullSpinMixerDriver
 
     # Clean up mixerkwargs (compatibility)
     if 'nmaxold' in mixerkwargs:

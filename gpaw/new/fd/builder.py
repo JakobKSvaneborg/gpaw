@@ -94,18 +94,6 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                              kin_stencil=self.params.mode.nn,
                              xp=self.xp)
 
-    def convert_wave_functions_from_uniform_grid(self,
-                                                 C_nM,
-                                                 basis_set,
-                                                 kpt_c,
-                                                 q):
-        grid = self.grid.new(kpt=kpt_c, dtype=self.dtype)
-        psit_nR = grid.zeros(self.nbands, self.communicators['b'])
-        mynbands = len(C_nM.data)
-        basis_set.lcao_to_grid(C_nM.to_xp(np).data,
-                               psit_nR.data[:mynbands], q)
-        return psit_nR.to_xp(self.xp)
-
     def read_ibz_wave_functions(self, reader):
         ibzwfs = super().read_ibz_wave_functions(reader)
 

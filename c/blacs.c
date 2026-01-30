@@ -3,10 +3,10 @@
  *  Copyright (C) 2010  Argonne National Laboratory
  *  Please see the accompanying LICENSE file for further information. */
 
-#ifdef PARALLEL
+#if defined(GPAW_WITH_SL) && defined(PARALLEL)
+
 #include "python_utils.h"
-#ifdef GPAW_WITH_SL
-#include <stdlib.h>
+#include "gpaw_utils.h"
 #include <mpi.h>
 #include <structmember.h>
 #include "extensions.h"
@@ -14,6 +14,8 @@
 #ifdef GPAW_WITH_INTEL_MKL
 #include <mkl_scalapack.h>
 #endif
+
+#include <stdlib.h>
 
 // BLACS
 #define BLOCK_CYCLIC_2D 1
@@ -27,18 +29,26 @@
 #define Csys2blacs_handle_ Csys2blacs_handle
 #endif
 
-void Cblacs_barrier_(int ConTxt, char *scope);
+/* Python wrappers for SCALAPACK and BLACS stuff. The following wants to declare
+the functions manually, without including a scalapack header.
+So for this to compile also as C++ we must ensure the functions don't get name mangled.
+FIXME: don't declare API functions manually...
 
-void Cblacs_gridexit_(int ConTxt);
+See also similar comment in blas.c.
+*/
 
-void Cblacs_gridinfo_(int ConTxt, int* nprow, int* npcol,
+CLINKAGE void Cblacs_barrier_(int ConTxt, char *scope);
+
+CLINKAGE void Cblacs_gridexit_(int ConTxt);
+
+CLINKAGE void Cblacs_gridinfo_(int ConTxt, int* nprow, int* npcol,
                       int* myrow, int* mycol);
 
-void Cblacs_gridinit_(int* ConTxt, char* order, int nprow, int npcol);
+CLINKAGE void Cblacs_gridinit_(int* ConTxt, char* order, int nprow, int npcol);
 
-void Cblacs_pinfo_(int* mypnum, int* nprocs);
+CLINKAGE void Cblacs_pinfo_(int* mypnum, int* nprocs);
 
-int Csys2blacs_handle_(MPI_Comm SysCtxt);
+CLINKAGE int Csys2blacs_handle_(MPI_Comm SysCtxt);
 // End of BLACS
 
 // ScaLAPACK
@@ -97,6 +107,8 @@ int Csys2blacs_handle_(MPI_Comm SysCtxt);
 #define   Cpztrmr2d_  Cpztrmr2d
 #endif
 
+CLINKAGE_BEGIN
+
 // tools
 #ifndef GPAW_WITH_INTEL_MKL
 // These should almost certainly not be defined here, even with a non-Intel scalapack.
@@ -113,34 +125,34 @@ void Cpzgemr2d_(int m, int n,
                 void* b, int ib, int jb, int* descb,
                 int gcontext);
 
-void Cpdtrmr2d_(char* uplo, char* diag, int m, int n,
+void Cpdtrmr2d_(const char* uplo, const char* diag, int m, int n,
                 double* a, int ia, int ja, int* desca,
                 double* b, int ib, int jb, int* descb,
                 int gcontext);
 
-void Cpztrmr2d_(char* uplo, char* diag, int m, int n,
+void Cpztrmr2d_(const char* uplo, const char* diag, int m, int n,
                 void* a, int ia, int ja, int* desca,
                 void* b, int ib, int jb, int* descb,
                 int gcontext);
 
-double pdlamch_(int* ictxt, char* cmach);
+double pdlamch_(int* ictxt, const char* cmach);
 
-void pzpotri_(char* uplo, int* n, void* a, int *ia, int* ja, int* desca, int* info);
+void pzpotri_(const char* uplo, int* n, void* a, int *ia, int* ja, int* desca, int* info);
 
 void pzgetri_(int* n, void* a,
               int *ia, int* ja, int* desca, int* info);
 
-void pdlaset_(char* uplo, int* m, int* n, double* alpha, double* beta,
+void pdlaset_(const char* uplo, int* m, int* n, double* alpha, double* beta,
               double* a, int* ia, int* ja, int* desca);
 
-void pzlaset_(char* uplo, int* m, int* n, void* alpha, void* beta,
+void pzlaset_(const char* uplo, int* m, int* n, void* alpha, void* beta,
               void* a, int* ia, int* ja, int* desca);
 
 // cholesky
-void pdpotrf_(char* uplo, int* n, double* a,
+void pdpotrf_(const char* uplo, int* n, double* a,
               int* ia, int* ja, int* desca, int* info);
 
-void pzpotrf_(char* uplo, int* n, void* a,
+void pzpotrf_(const char* uplo, int* n, void* a,
               int* ia, int* ja, int* desca, int* info);
 
 void pzgesv_(int* n, int* nrhs, void* a,
@@ -152,27 +164,27 @@ void pdgesv_(int *n, int *nrhs, void *a,
              void* b, int* ib, int* jb, int* descb, int* info);
 
 
-void pdtrtri_(char* uplo, char* diag, int* n, double* a,
+void pdtrtri_(const char* uplo, const char* diag, int* n, double* a,
               int *ia, int* ja, int* desca, int* info);
 
-void pztrtri_(char* uplo, char* diag, int* n, void* a,
+void pztrtri_(const char* uplo, const char* diag, int* n, void* a,
               int *ia, int* ja, int* desca, int* info);
 
 // diagonalization
-void pdsyevd_(char* jobz, char* uplo, int* n,
+void pdsyevd_(const char* jobz, const char* uplo, int* n,
               double* a, int* ia, int* ja, int* desca,
               double* w, double* z, int* iz, int* jz,
               int* descz, double* work, int* lwork, int* iwork,
               int* liwork, int* info);
 
-void pzheevd_(char* jobz, char* uplo, int* n,
+void pzheevd_(const char* jobz, const char* uplo, int* n,
               void* a, int* ia, int* ja, int* desca,
               double* w, void* z, int* iz, int* jz,
               int* descz, void* work, int* lwork, double* rwork,
               int* lrwork, int* iwork, int* liwork, int* info);
 
-void pdsyevx_(char* jobz, char* range,
-              char* uplo, int* n,
+void pdsyevx_(const char* jobz, const char* range,
+              const char* uplo, int* n,
               double* a, int* ia, int* ja, int* desca,
               double* vl, double* vu,
               int* il, int* iu, double* abstol,
@@ -181,8 +193,8 @@ void pdsyevx_(char* jobz, char* range,
               double* work, int* lwork, int* iwork, int* liwork,
               int* ifail, int* iclustr, double* gap, int* info);
 
-void pzheevx_(char* jobz, char* range,
-              char* uplo, int* n,
+void pzheevx_(const char* jobz, const char* range,
+              const char* uplo, int* n,
               void* a, int* ia, int* ja, int* desca,
               double* vl, double* vu,
               int* il, int* iu, double* abstol,
@@ -192,8 +204,8 @@ void pzheevx_(char* jobz, char* range,
               int* iwork, int* liwork,
               int* ifail, int* iclustr, double* gap, int* info);
 
-void pdsygvx_(int* ibtype, char* jobz, char* range,
-              char* uplo, int* n,
+void pdsygvx_(int* ibtype, const char* jobz, const char* range,
+              const char* uplo, int* n,
               double* a, int* ia, int* ja, int* desca,
               double* b, int *ib, int* jb, int* descb,
               double* vl, double* vu,
@@ -203,8 +215,8 @@ void pdsygvx_(int* ibtype, char* jobz, char* range,
               double* work, int* lwork, int* iwork, int* liwork,
               int* ifail, int* iclustr, double* gap, int* info);
 
-void pzhegvx_(int* ibtype, char* jobz, char* range,
-              char* uplo, int* n,
+void pzhegvx_(int* ibtype, const char* jobz, const char* range,
+              const char* uplo, int* n,
               void* a, int* ia, int* ja, int* desca,
               void* b, int *ib, int* jb, int* descb,
               double* vl, double* vu,
@@ -215,20 +227,20 @@ void pzhegvx_(int* ibtype, char* jobz, char* range,
               int* iwork, int* liwork,
               int* ifail, int* iclustr, double* gap, int* info);
 
-void pdsyngst_(int* ibtype, char* uplo, int* n,
+void pdsyngst_(int* ibtype, const char* uplo, int* n,
                double* a, int* ia, int* ja, int* desca,
                double* b, int* ib, int* jb, int* descb,
                double* scale, double* work, int* lwork, int* info);
 
-void pzhengst_(int* ibtype, char* uplo, int* n,
+void pzhengst_(int* ibtype, const char* uplo, int* n,
                void* a, int* ia, int* ja, int* desca,
                void* b, int* ib, int* jb, int* descb,
                double* scale, void* work, int* lwork, int* info);
 #endif // GPAW_WITH_INTEL_MKL
 
 #ifdef GPAW_MR3
-void pdsyevr_(char* jobz, char* range,
-              char* uplo, int* n,
+void pdsyevr_(const char* jobz, const char* range,
+              const char* uplo, int* n,
               double* a, int* ia, int* ja, int* desca,
               double* vl, double* vu,
               int* il, int* iu,
@@ -237,8 +249,8 @@ void pdsyevr_(char* jobz, char* range,
               double* work, int* lwork, int* iwork, int* liwork,
               int* info);
 
-void pzheevr_(char* jobz, char* range,
-              char* uplo, int* n,
+void pzheevr_(const char* jobz, const char* range,
+              const char* uplo, int* n,
               void* a, int* ia, int* ja, int* desca,
               double* vl, double* vu,
               int* il, int* iu,
@@ -268,89 +280,101 @@ void pztranu_(int* m, int* n,
               void* beta,
               void* c, int* ic, int* jc, int* descc);
 
-void pdgemm_(char* transa, char* transb, int* m, int* n, int* k,
+void pdgemm_(const char* transa, const char* transb, int* m, int* n, int* k,
              double* alpha,
              double* a, int* ia, int* ja, int* desca,
              double* b, int* ib, int* jb, int* descb,
              double* beta,
              double* c, int* ic, int* jc, int* descc);
 
-void pzgemm_(char* transa, char* transb, int* m, int* n, int* k,
+void pzgemm_(const char* transa, const char* transb, int* m, int* n, int* k,
              void* alpha,
              void* a, int* ia, int* ja, int* desca,
              void* b, int* ib, int* jb, int* descb,
              void* beta,
              void* c, int* ic, int* jc, int* descc);
 
-void pzhemm_(char* side, char* uplo, int* m, int* n,
+void pzhemm_(const char* side, const char* uplo, int* m, int* n,
              void* alpha,
              void* a, int* ia, int* ja, int* desca,
              void* b, int* ib, int* jb, int* descb,
              void* beta,
              void* c, int* ic, int* jc, int* descc);
 
-void pzsymm_(char* side, char* uplo, int* m, int* n,
+void pzsymm_(const char* side, const char* uplo, int* m, int* n,
              void* alpha,
              void* a, int* ia, int* ja, int* desca,
              void* b, int* ib, int* jb, int* descb,
              void* beta,
              void* c, int* ic, int* jc, int* descc);
 
-void pdsymm_(char* side, char* uplo, int* m, int* n,
+void pdsymm_(const char* side, const char* uplo, int* m, int* n,
              void* alpha,
              void* a, int* ia, int* ja, int* desca,
              void* b, int* ib, int* jb, int* descb,
              void* beta,
              void* c, int* ic, int* jc, int* descc);
 
-void pdgemv_(char* transa, int* m, int* n, double* alpha,
+void pdgemv_(const char* transa, int* m, int* n, double* alpha,
              double* a, int* ia, int* ja, int* desca,
              double* x, int* ix, int* jx, int* descx, int* incx,
              double* beta,
              double* y, int* iy, int* jy, int* descy, int* incy);
 
-void pzgemv_(char* transa, int* m, int* n, void* alpha,
+void pzgemv_(const char* transa, int* m, int* n, void* alpha,
              void* a, int* ia, int* ja, int* desca,
              void* x, int* ix, int* jx, int* descx, int* incx,
              void* beta,
              void* y, int* iy, int* jy, int* descy, int* incy);
 
-void pdsyr2k_(char* uplo, char* trans, int* n, int* k,
+void pdsyr2k_(const char* uplo, const char* trans, int* n, int* k,
               double* alpha,
               double* a, int* ia, int* ja, int* desca,
               double* b, int* ib, int* jb, int* descb,
               double* beta,
               double* c, int* ic, int *jc, int* descc);
 
-void pzher2k_(char* uplo, char* trans, int* n, int* k,
+void pzher2k_(const char* uplo, const char* trans, int* n, int* k,
               void* alpha,
               void* a, int* ia, int* ja, int* desca,
               void* b, int* ib, int* jb, int* descb,
               void* beta,
               void* c, int* ic, int* jc, int* descc);
 
-void pdsyrk_(char* uplo, char* trans, int* n, int* k,
+void pdsyrk_(const char* uplo, const char* trans, int* n, int* k,
              double* alpha,
              double* a, int* ia, int* ja, int* desca,
              double* beta,
              double* c, int* ic, int* jc, int* descc);
 
-void pzherk_(char* uplo, char* trans, int* n, int* k,
+void pzherk_(const char* uplo, const char* trans, int* n, int* k,
              void* alpha,
              void* a, int* ia, int* ja, int* desca,
              void* beta,
              void* c, int* ic, int* jc, int* descc);
 
-void pdtrsm_(char* side, char* uplo, char* trans, char* diag,
+void pdtrsm_(const char* side, const char* uplo, const char* trans, const char* diag,
              int* m, int *n, double* alpha,
              double* a, int* ia, int* ja, int* desca,
              double* b, int* ib, int* jb, int* descb);
 
-void pztrsm_(char* side, char* uplo, char* trans, char* diag,
+void pztrsm_(const char* side, const char* uplo, const char* trans, const char* diag,
              int* m, int *n, void* alpha,
              void* a, int* ia, int* ja, int* desca,
              void* b, int* ib, int* jb, int* descb);
 
+CLINKAGE_END
+
+/* Helper for making complex -> int casts work in C++ mode,
+when extracting optimal lwork */
+static inline int get_lwork(double_complex c_work)
+{
+#ifdef GPAW_CPP
+  return static_cast<int>(c_work.real());
+#else
+  return (int)(c_work);
+#endif
+}
 
 PyObject* pblas_tran(PyObject *self, PyObject *args)
 {
@@ -701,7 +725,7 @@ PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
    int info = 0;
 
    // First we query for optimal work array size
-   pzgeevx(&balanc, 
+   pzgeevx(&balanc,
            &jobvl,
            &jobvr,
            &sense,
@@ -725,9 +749,9 @@ PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
 
    lwork = (int) qwork;
    double_complex* work = (double_complex*) malloc(sizeof(double_complex) * lwork);
- 
+
    // Then we diagonalize
-   pzgeevx(&balanc, 
+   pzgeevx(&balanc,
            &jobvl,
            &jobvr,
            &sense,
@@ -893,7 +917,7 @@ PyObject* scalapack_diagonalize_dc(PyObject *self, PyObject *args)
                (void*)COMPLEXP(z), &one,  &one, INTP(desca),
                (void*)&c_work, &querywork, &d_work, &querywork,
                &i_work, &querywork, &info);
-      lwork = (int)(c_work);
+      lwork = get_lwork(c_work);
       lrwork = (int)(d_work);
     }
 
@@ -1022,7 +1046,7 @@ PyObject* scalapack_diagonalize_ex(PyObject *self, PyObject *args)
                (void*)&c_work, &querywork, d_work, &querywork,
                &i_work, &querywork,
                ifail, iclustr, gap, &info);
-      lwork = MAX(3, (int)(c_work));
+      lwork = MAX(3, get_lwork(c_work));
       lrwork = MAX(3, (int)(d_work[0]));
     }
 
@@ -1265,7 +1289,7 @@ PyObject* scalapack_general_diagonalize_dc(PyObject *self, PyObject *args)
                 (void*)COMPLEXP(a), &one, &one, INTP(desca),
                 (void*)COMPLEXP(b), &one, &one, INTP(desca),
                 &scale, (void*)&c_work, &querywork, &info);
-      lwork = (int)(c_work);
+      lwork = get_lwork(c_work);
     }
 
   if (info != 0) {
@@ -1321,7 +1345,7 @@ PyObject* scalapack_general_diagonalize_dc(PyObject *self, PyObject *args)
                (void*)COMPLEXP(z), &one,  &one, INTP(desca),
                (void*)&c_work, &querywork, &d_work, &querywork,
                &i_work, &querywork, &info);
-      lwork = (int)(c_work);
+      lwork = get_lwork(c_work);
       lrwork = (int)(d_work);
     }
 
@@ -1473,7 +1497,7 @@ PyObject* scalapack_general_diagonalize_ex(PyObject *self, PyObject *args)
                (void*)&c_work, &querywork, d_work, &querywork,
                &i_work, &querywork,
                ifail, iclustr, gap, &info);
-      lwork = MAX(3, (int)(c_work));
+      lwork = MAX(3, get_lwork(c_work));
       lrwork = MAX(3, (int)(d_work[0]));
     }
   if (info != 0) {
@@ -1935,5 +1959,4 @@ PyObject* scalapack_solve(PyObject *self, PyObject *args) {
   return returnvalue;
 }
 
-#endif
-#endif // PARALLEL
+#endif // GPAW_WITH_SL and PARALLEL

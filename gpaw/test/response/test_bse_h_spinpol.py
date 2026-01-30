@@ -8,7 +8,8 @@ from gpaw.response.bse import BSE
 
 @pytest.mark.response
 @pytest.mark.serial
-def test_bse_spinpol(in_tmp_dir):
+def test_bse_spinpol(in_tmp_dir, scalapack):
+    # Somewhat surprising for a test to be serial *and* require scalapack?
     atoms = Atoms('H', magmoms=[1], pbc=True)
     atoms.center(vacuum=1.5)
     atoms.calc = GPAW(mode=PW(180, force_complex_dtype=True),

@@ -1,3 +1,4 @@
+#include "python_utils.h"
 #include "extensions.h"
 
 // Evaluate the multipole expansion
@@ -9,6 +10,7 @@
 // W_nGG: The residue of poles for each GG
 // eta: extra broadening
 // factor: total prefactor to multiply the result
+__attribute__((optimize("fast-math")))
 PyObject* evaluate_mpa_poly(PyObject *self, PyObject *args)
 {
     PyArrayObject* x_GG_obj;
@@ -72,7 +74,7 @@ PyObject* evaluate_mpa_poly(PyObject *self, PyObject *args)
         PyErr_SetString(PyExc_TypeError, "Arrays need to be c-contiguous.");
         return NULL;
     }
-    
+
     double_complex* x_GG = (double_complex*)PyArray_DATA(x_GG_obj);
     double_complex* dx_GG = (double_complex*)PyArray_DATA(dx_GG_obj);
     double_complex* omegat_nGG = (double_complex*)PyArray_DATA(omegat_nGG_obj);
@@ -105,8 +107,8 @@ PyObject* evaluate_mpa_poly(PyObject *self, PyObject *args)
                     result += x1 * W_nGG[index];
                     dresult -= x1 * x1 * W_nGG[index];
                 }
-                *x_GG++ = result * 2 * factor;
-                *dx_GG++ = dresult * 2 * factor;
+                *x_GG++ = result * 2. * factor;
+                *dx_GG++ = dresult * 2. * factor;
             }
         }
     }
@@ -126,8 +128,8 @@ PyObject* evaluate_mpa_poly(PyObject *self, PyObject *args)
                     result += x2 * W_nGG[index];
                     dresult -= x2 * x2 * W_nGG[index];
                 }
-                *x_GG++ = result * (2 * factor);
-                *dx_GG++ = dresult * 2 * factor;
+                *x_GG++ = result * (2. * factor);
+                *dx_GG++ = dresult * 2. * factor;
             }
         }
     }
@@ -148,12 +150,10 @@ PyObject* evaluate_mpa_poly(PyObject *self, PyObject *args)
                     result += (x1 + x2) * W_nGG[index];
                     dresult -= (x1 * x1 + x2 * x2) * W_nGG[index];
                 }
-                *x_GG++ = result * (2 * factor);
-                *dx_GG++ = dresult * (2 * factor);
+                *x_GG++ = result * (2. * factor);
+                *dx_GG++ = dresult * (2. * factor);
             }
         }
     }
     Py_RETURN_NONE;
 }
-
-

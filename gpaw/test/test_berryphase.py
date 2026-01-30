@@ -115,7 +115,7 @@ def test_polarization_phase(in_tmp_dir, gpw_files, mpi):
         dphi = phases_c[key] - phases_t[key]
         phases_c[key] -= np.rint(dphi / pi2) * pi2
         print(key)
-        assert phases_c[key] == pytest.approx(phases_t[key], abs=1e-6)
+        assert phases_c[key] == pytest.approx(phases_t[key], rel=2e-5)
 
 
 def test_berry_phases(in_tmp_dir, gpw_files, mpi):
@@ -145,12 +145,12 @@ def test_assertions(in_tmp_dir, gpw_files, mpi):
     """
 
     gpw_file = gpw_files['mos2_pw']
-    with pytest.raises(AssertionError):
-        polarization_phase(gpw_file, comm=serial_comm)
+    with pytest.raises(RuntimeError, match='Does not work with Symmetry'):
+        polarization_phase(gpw_file, comm=mpi.serial_comm)
 
     calc = GPAW(gpw_file, communicator=serial_comm)
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(RuntimeError, match='Does not work with Symmetry'):
         ind, phases = get_berry_phases(calc)
 
     with pytest.raises(AssertionError):

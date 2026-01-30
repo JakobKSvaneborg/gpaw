@@ -9,7 +9,6 @@ from ase.build.supercells import make_supercell
 from ase.lattice.compounds import L1_2
 from ase.lattice.hexagonal import Graphene
 from ase.units import Bohr
-
 from gpaw import FD, GPAW, LCAO, PW, Davidson, FermiDirac, Mixer
 from gpaw.directmin.derivatives import Davidson as SICDavidson
 from gpaw.directmin.etdm_fdpw import FDPWETDM
@@ -954,7 +953,7 @@ class GPWFiles(CachedFilesHandler):
         from gpaw.new.ase_interface import GPAW
         a = 2.5
         k = 4
-        """Compare 2*H AFM cell with 1*H q=1/2 spin-spiral cell."""
+        # Compare 2*H AFM cell with 1*H q=1/2 spin-spiral cell.
         h = Atoms('H',
                   magmoms=[1],
                   cell=[a, 0, 0],
@@ -1045,7 +1044,7 @@ class GPWFiles(CachedFilesHandler):
                        txt=self.folder / 'n2_pw.txt')
 
         N2.get_potential_energy()
-        N2.calc.diagonalize_full_hamiltonian(nbands=104, scalapack=True)
+        N2.calc.diagonalize_full_hamiltonian(nbands=104)
         return N2.calc
 
     @gpwfile
@@ -1063,7 +1062,7 @@ class GPWFiles(CachedFilesHandler):
                       eigensolver='rmm-diis',
                       txt=self.folder / 'n_pw.txt')
         N.get_potential_energy()
-        N.calc.diagonalize_full_hamiltonian(nbands=104, scalapack=True)
+        N.calc.diagonalize_full_hamiltonian(nbands=104)
         return N.calc
 
     @gpwfile
@@ -1280,7 +1279,7 @@ class GPWFiles(CachedFilesHandler):
                     nbands=10,
                     symmetry='off',
                     convergence={'bands': -4, 'density': 1e-7,
-                                 'eigenstates': 1e-10})
+                                 'eigenstates': 1e-12})
 
         atoms = bulk('Si', 'diamond', a=5.431)
         atoms.calc = calc
@@ -1471,8 +1470,7 @@ class GPWFiles(CachedFilesHandler):
                           parallel={'domain': 1},
                           txt=self.folder / name)
         atoms.get_potential_energy()
-        scalapack = atoms.calc.wfs.bd.comm.size
-        atoms.calc.diagonalize_full_hamiltonian(nbands=8, scalapack=scalapack)
+        atoms.calc.diagonalize_full_hamiltonian(nbands=8)
         return atoms.calc
 
     @gpwfile
@@ -1848,7 +1846,9 @@ class GPWFiles(CachedFilesHandler):
                     nbands='nao',
                     setups={'Mo': '6'},
                     occupations=FermiDirac(0.001),
-                    convergence={'bands': -5},
+                    convergence={'bands': -5,
+                                 'eigenstates': 1e-9,
+                                 'density': 1e-5},
                     kpts=(5, 5, 1))
 
         from ase.build import mx2
@@ -2060,13 +2060,13 @@ class GPWFiles(CachedFilesHandler):
     def _fe(self, *, band_cutoff, symmetry=None):
         if symmetry is None:
             symmetry = {}
-        """See also the fe_fixture_test.py test."""
+        # See also the fe_fixture_test.py test.
         xc = 'LDA'
         kpts = 4
         pw = 300
         occw = 0.01
         conv = {'bands': band_cutoff + 1,
-                'density': 1.e-8}
+                'density': 1.e-9}
         a = 2.867
         mm = 2.21
         atoms = bulk('Fe', 'bcc', a=a)
@@ -2487,6 +2487,20 @@ class GPWFiles(CachedFilesHandler):
     @gpwfile
     def intraband_spinpolarized_fulldiag(self):
         return self._intraband(True)
+
+    @gpwfile
+    def diamond_lcao(self):
+        atoms = bulk('C')
+        atoms.calc = GPAW(
+            mode='lcao',
+            basis='dzp',
+            nbands='nao',
+            convergence={'density': 1e-6},
+            kpts={'gamma': True,
+                  'size': (2, 2, 2)},
+            txt=self.folder / 'diamond_lcao.txt')
+        atoms.get_potential_energy()
+        return atoms.calc
 
 
 # We add Si fixtures with various symmetries to the GPWFiles namespace

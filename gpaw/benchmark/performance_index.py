@@ -50,8 +50,8 @@ RESCALE_FACTOR = 1.0
 # (new GPAW, master branch Nov. 11 2025):
 REFERENCES0 |= {
     'MnVS2-2M': (-29.11777, -0.00014, 24, 98.608),
-    'PtLi2O6-2M': (0.0, 0.0, 24, 454.22),
-    'V3Cl6-2N': (0.0, 0.0, 24, 3364.039)}
+    'PtLi2O6-2M': (-40.713, -2.068, 24, 454.22),
+    'V3Cl6-2N': (-51.117, -0.102, 24, 3364.039)}
 
 # Score for the 14 systems was 94.34.
 # Rescaling to 17 systems:
@@ -63,11 +63,20 @@ RESCALE_FACTOR *= old / new
 # Time for MnVS2-2M system changed from 98.608 to 68.767 seconds:
 REFERENCES0['MnVS2-2M'] = (-29.11777, -0.00014, 24, 68.767)
 
-# New stuff not yet included in benchmark:
+# New score for 17 systems: 115.80
+old = 115.80
+# Adding two more converged systems:
+REFERENCES0 |= {
+    'ErGe-2M': (-5.557, -0.0578, 24, 72.937),
+    'Fe8O8-3M': (-126.756, 0.000025, 40, 316.031)}
+new = (old / 100 * 17 + 2) / 19 * 100
+RESCALE_FACTOR *= old / new
+
+# Not yet included in benchmark:
 REFERENCES = REFERENCES0 | {
-    'ErGe-2M': (0.0, 0.0, 24, 9999999),
-    'Mn2O2-3M': (0.0, 0.0, 24, 9999999),
-    'Fe8O8-3M': (0.0, 0.0, 40, 9999999)}
+    'Mn2O2-3M': (0.0, 0.0, 24, 9999999)}
+
+NAMES = sorted(REFERENCES, key=lambda name: name.split('-')[::-1])
 
 
 def score(data: dict[str, float]) -> tuple[float, int]:
@@ -96,10 +105,13 @@ def score(data: dict[str, float]) -> tuple[float, int]:
     return 100 * RESCALE_FACTOR * s / len(REFERENCES0), n
 
 
-def workflow():
+def workflow(skip: list[str] | None = None) -> list:
     """MyQueue workflow."""
     from myqueue.workflow import run
+    handles = []
     for name, (_, _, cores, _) in REFERENCES.items():
+        if skip and name in skip:
+            continue
         tmax = '2h'
         if cores == 24:
             nodename = 'xeon24el8'
@@ -108,18 +120,22 @@ def workflow():
             tmax = '3h'
         elif cores == 56:
             nodename = 'xeon56'
-            tmax = '5h'
+            tmax = '7h'
 
-        run(function=work,
-            args=[name],
-            cores=cores,
-            tmax=tmax,
-            nodename=nodename,
-            name=name,
-            creates=[f'{name}.json'])
+        handle = run(function=work,
+                     args=[name],
+                     cores=cores,
+                     tmax=tmax,
+                     nodename=nodename,
+                     name=name,
+                     creates=[f'{name}.json'])
+        handles.append(handle)
+    return handles
 
 
-def work(name: str, params: dict | None = None, world=None) -> None:
+def work(name: str,
+         params: dict | None = None,
+         world=None) -> None:
     """Do two steps."""
     world = normalize_communicator(world)
 
@@ -262,15 +278,18 @@ def summary(folders: list[Path], mode: int) -> None:
 def average(folders: list[Path]) -> None:
     data: dict[str, np.ndarray] = defaultdict(lambda: np.zeros(8))
     for folder in folders:
-        for path in folder.glob('*.json'):
+        for path in folder.glob('*-*.json'):
             x = json.loads(path.read_text())
             data[path.stem] += np.array(x)
-    for name, x in data.items():
+    for name in NAMES:
+        if name not in data:
+            continue
+        x = data[name]
         e1, t1, i1, m1, e2, t2, i2, m2 = x / len(folders)
         print(
-            f'    {name!r}: ('
+            f'    "{name}": ['
             f'{e1:.6f}, {t1:.3f}, {round(i1):.0f}, {int(m1)}, '
-            f'{e2:.6f}, {t2:.3f}, {round(i2):.0f}, {int(m2)}),')
+            f'{e2:.6f}, {t2:.3f}, {round(i2):.0f}, {int(m2)}],')
 
 
 def main(arguments: list[str] | None = None, world=None):

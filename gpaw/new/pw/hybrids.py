@@ -3,19 +3,21 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import pi
 from time import time
+from typing import Callable
 
 import numpy as np
 from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
-from gpaw.core.arrays import DistributedArrays as XArray
+from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.pwacf import PWAtomCenteredFunctions
 from gpaw.hybrids.paw import pawexxvv
+from gpaw.hybrids.wstc import WignerSeitzTruncatedCoulomb
 from gpaw.mpi import broadcast
+from gpaw.new import zips as zip
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.logger import Logger
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
-from gpaw.new import zips as zip
 from gpaw.setup import Setups
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.blas import mmm
@@ -33,18 +35,19 @@ class Psit:
     dP_anvi: AtomArrays | None = None  # used for forces
 
 
-def truncated_coulomb(pw: PWDesc,
+def truncated_coulomb(cell_cv,
+                      nkpt_c,
                       omega: float = 0.11,
-                      yukawa: bool = False) -> np.ndarray:
+                      yukawa: bool = False) -> Callable[[PWDesc], np.ndarray]:
     """Fourier transform of truncated Coulomb.
 
-    Real space:::
+    For the yukawa=False case, we have in real space:::
 
         erfc(ωr)
         --------.
            r
 
-    Reciprocal space:::
+    In reciprocal space:::
 
         4π             _ _ 2     2
       ------(1 - exp(-(G+k) /(4 ω )))
@@ -53,23 +56,21 @@ def truncated_coulomb(pw: PWDesc,
 
     (G+k=0 limit is pi/ω^2).
     """
-    G2_G = pw.ekin_G * 2
     if yukawa:
-        v_G = 4 * pi / (G2_G + omega**2)
-    else:
-        v_G = 4 * pi * (1 - np.exp(-G2_G / (4 * omega**2)))
-        ok_G = G2_G > 1e-10
-        v_G[ok_G] /= G2_G[ok_G]
-        v_G[~ok_G] = pi / omega**2
-    return v_G
+        return lambda pw: 2 * pi / (pw.ekin_G + 0.5 * omega**2)
 
+    if omega != 0.0:
+        def f(pw):
+            G2_G = pw.ekin_G * 2
+            v_G = 4 * pi * (1 - np.exp(-G2_G / (4 * omega**2)))
+            ok_G = G2_G > 1e-10
+            v_G[ok_G] /= G2_G[ok_G]
+            v_G[~ok_G] = pi / omega**2
+            return v_G
+        return f
 
-def number_of_non_empty_bands(ibzwfs: PWFDIBZWaveFunctions,
-                              tolerance: float = 1e-5) -> int:
-    nocc = 0
-    for wfs in ibzwfs:
-        nocc = max(nocc, int((wfs.occ_n > tolerance).sum()))
-    return int(ibzwfs.kpt_comm.max_scalar(nocc))
+    wstc = WignerSeitzTruncatedCoulomb(cell_cv, nkpt_c)
+    return lambda pw: wstc.get_potential_new(pw)
 
 
 def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
@@ -81,7 +82,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
            forces: bool = False) -> tuple[list[Psit], int]:
     """Compute BZ from IBZ and distribute."""
     log = log or Logger(None, None)
-    nocc = number_of_non_empty_bands(ibzwfs)
+    nocc = ibzwfs.number_of_occupied_bands()
     nspins = ibzwfs.nspins
     ibz = ibzwfs.ibz
     log(ibz)
@@ -111,7 +112,8 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
             psit2_nG = psit1_nG.transform(U_cc, complex_conjugate)
             if wfs.spin == 0:
                 kpt_Kc[K] = psit2_nG.desc.kpt_c
-            assert abs(psit2_nG.desc.kpt_c - ibz.bz.kpt_Kc[K]).max() < 1e-8
+            dk_c = psit2_nG.desc.kpt_c - ibz.bz.kpt_Kc[K]
+            assert abs(dk_c - dk_c.round()).max() < 1e-8
             psit_KsnG[(K, wfs.spin)] = psit2_nG
     comm.sum(rank_Ks)
     comm.sum(kpt_Kc)
@@ -142,8 +144,9 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
                     comm.send(psit_nG.data[na:nb], rank,
                               block=False, tag=K * nspins + spin))
 
-    pw = ibzwfs._wfs_u[0].psit_nX.desc.new(comm=None)
     _, occ_skn = ibzwfs.get_all_eigs_and_occs(broadcast=True)
+
+    pw = ibzwfs._wfs_u[0].psit_nX.desc.new(comm=None)
 
     mypsits = []
     for rank, K, (na, nb) in blocks:
@@ -161,7 +164,6 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
                 [setup.pt_j for setup in setups],
                 relpos_ac)
             P_ani = pt_aiG.integrate(psit_nG)
-
             psit_nR = psit_nG.ifft(grid=grid, plan=plan, periodic=False)
             Q_aniL = {a: np.einsum('ijL, nj -> niL',
                                    setup.Delta_iiL, P_ani[a].conj())
@@ -192,13 +194,13 @@ class PWHybridHamiltonian(PWHamiltonian):
                  relpos_ac,
                  atomdist,
                  log,
+                 nkpt_c,
                  kpt_comm,
                  band_comm,
                  comm):
         super().__init__(grid, pw.dtype)
         self.pw = pw
         self.exx_fraction = xc.exx_fraction
-        self.exx_omega = xc.exx_omega
         self.xc = xc
         self.kpt_comm = kpt_comm
         self.band_comm = band_comm
@@ -207,6 +209,9 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.delta_aiiL = [setup.Delta_iiL for setup in setups]
         self.relpos_ac = relpos_ac
         self.setups = setups
+        self.nbzk = np.prod(nkpt_c)
+        self.real = np.issubdtype(pw.dtype, np.floating)
+        self.zaxpy = get_blas_funcs('axpy', dtype=complex)
 
         # Stuff for PAW core-core, core-valence and valence-valence correctios:
         self.exx_cc = sum(setup.ExxC for setup in setups) * self.exx_fraction
@@ -215,10 +220,12 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.delta_aiiL = [setup.Delta_iiL for setup in setups]
         self.VV_app = [setup.M_pp * self.exx_fraction for setup in setups]
 
+        # Globally distributed wave functions:
         self.mypsits: list[Psit] = []
-        self.nbzk = 0
-        self.real = np.issubdtype(pw.dtype, np.floating)
-        self.zaxpy = get_blas_funcs('axpy', dtype=complex)
+
+        # Cached potential for gamma-point calculation:
+        self.coulomb = truncated_coulomb(
+            grid.cell_cv, nkpt_c, xc.exx_omega, xc.exx_yukawa)
 
     def update_wave_functions(self,
                               ibzwfs: PWFDIBZWaveFunctions,
@@ -227,7 +234,6 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.mypsits, _ = ibz2bz(
             ibzwfs, self.setups, self.relpos_ac, self.grid_local, self.plan,
             self.log if self.nbzk == 0 else None, forces)
-        self.nbzk = len(ibzwfs.ibz.bz)
         self.xc.energies = {'hybrid_xc': 0.0,
                             'hybrid_kinetic_correction': 0.0}
 
@@ -402,7 +408,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         for psit1 in self.mypsits:
             if psit1.spin == spin:
                 pw = pw2.new(kpt=pw2.kpt_c - psit1.kpt_c)
-                v_G = truncated_coulomb(pw, self.exx_omega)
+                v_G = self.coulomb(pw)
                 e += self._apply3(
                     pw, v_G, psit1, ut2_nR, P2_ani, Htpsit2_nG, V2_ani, f2_n,
                     calculate_energy, F1_av)

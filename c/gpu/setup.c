@@ -1,4 +1,5 @@
-#include "../extensions.h"
+#include "python_utils.h"
+#include "extensions.h"
 #include "gpu.h"
 #include "gpu-complex.h"
 #include <stdio.h>

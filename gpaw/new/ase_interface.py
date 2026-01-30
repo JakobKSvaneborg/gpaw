@@ -267,7 +267,6 @@ class ASECalculator:
         return self.dft.results['forces']
 
     def __del__(self):
-        self.log('---')
         self.timer.write(self.log)
         try:
             mib = maxrss() / 1024**2
@@ -617,7 +616,9 @@ class ASECalculator:
                              dft.ibzwfs,
                              dft.scf_loop.occ_calc,
                              nbands,
-                             dft.density.nvalence + dft.density.charge)
+                             dft.density.nvalence + dft.density.charge,
+                             scalapack,
+                             self.log)
         dft.ibzwfs = ibzwfs
         self.params.nbands = ibzwfs.nbands
         if 'nbands' not in self.params._non_defaults:
@@ -647,6 +648,8 @@ class ASECalculator:
             raise TypeError('Only mode={"dtype": dtype} is allowed.')
 
         old_params = self.params.todict()
+        old_params.pop('h', None)
+        kwargs['gpts'] = self.dft.density.nt_sR.desc.size
         kwargs = {**old_params, **kwargs,
                   'mode': {**old_params['mode'], **mode}}
 
@@ -783,12 +786,16 @@ class ASECalculator:
         from gpaw.mpi import broadcast_string
 
         if self._dft is None:
-            return OldGPAW(**self.params.todict(), txt=self.log.fd)
+            return OldGPAW(**self.params.todict(),
+                           communicator=self.comm,
+                           txt=self.log.fd)
 
+        # Quick hack for now:
+        # write gpw-file and read with old GPAW!
         if self.comm.rank == 0:
             gpw = tempfile.mkstemp(suffix='.gpw')[1]
         else:
-            gpw = ''
+            gpw = None
         gpw = broadcast_string(gpw, comm=self.comm)
         self.write(gpw, mode='all')
-        return OldGPAW(gpw)
+        return OldGPAW(gpw, communicator=self.comm)

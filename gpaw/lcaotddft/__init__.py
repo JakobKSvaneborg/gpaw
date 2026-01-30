@@ -14,11 +14,11 @@ from gpaw.typing import Any, Vector
 
 
 def LCAOTDDFT(filename: str, **kwargs) -> Any:
-    if GPAW_NEW:
+    if GPAW_NEW == 1:
         from gpaw.new.rttddft.backwards_compatibility import RTTDDFTAdapter
-        kwargs.pop('txt', None)  # Ignore silently
-        kwargs.pop('parallel', None)  # Ignore silently
-        kwargs.pop('communicator', None)  # Ignore silently
+        kwargs.pop('txt', None)  # ignore silently
+        kwargs.pop('parallel', None)  # ignore silently
+        kwargs.pop('communicator', None)  # ignore silently
         assert kwargs.pop('td_potential', None) in [None], \
             'td_potential not implemented yet'
         assert kwargs.pop('rremission', None) in [None], \

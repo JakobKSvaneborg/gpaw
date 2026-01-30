@@ -1,13 +1,13 @@
+#include "python_utils.h"
+
+#include "gpu/gpu.h"
+#include "gpu/gpu-complex.h"
+#include "gpu/gpu_interface.h"
+
 #include <stdio.h>
 #include <time.h>
 #include <sys/types.h>
 #include <sys/time.h>
-
-#include "../../python_utils.h"
-
-#include "../gpu.h"
-#include "../gpu-complex.h"
-#include "../gpu_interface.h"
 
 #ifndef GPU_USE_COMPLEX
 #define BLOCK_SIZEX 32

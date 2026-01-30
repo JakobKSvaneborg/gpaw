@@ -598,7 +598,7 @@ epot_li_metal = epot_li_metal_cell / len(li_metal)  # student: epot_li_metal = .
 # print(epot_fepo4, ...)
 
 # %%
-"""
+r"""
 No calculate the equilibrium potential under the assumption that it is given by $V_{eq} = \Delta U /e $, where $U$ is the electronic potential energy of the system and $e$ is the number of electrons transfered.
 """
 

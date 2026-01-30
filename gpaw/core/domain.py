@@ -13,7 +13,7 @@ from gpaw.typing import (Array2D, ArrayLike, ArrayLike1D, ArrayLike2D,
 
 if TYPE_CHECKING:
     from gpaw.core import UGDesc
-    from gpaw.core.arrays import DistributedArrays
+    from gpaw.core.arrays import XArray
 
 
 def normalize_cell(cell: ArrayLike) -> Array2D:
@@ -32,10 +32,10 @@ def normalize_cell(cell: ArrayLike) -> Array2D:
     return cellpar_to_cell(cell)
 
 
-XArray = TypeVar('XArray', bound='DistributedArrays')
+X = TypeVar('X', bound='XArray')
 
 
-class Domain(Generic[XArray]):
+class Domain(Generic[X]):
     itemsize: int
 
     def __init__(self,
@@ -120,12 +120,12 @@ class Domain(Generic[XArray]):
 
     def empty(self,
               shape: int | tuple[int, ...] = (),
-              comm: MPIComm = serial_comm, xp=None) -> XArray:
+              comm: MPIComm = serial_comm, xp=None) -> X:
         raise NotImplementedError
 
     def zeros(self,
               shape: int | tuple[int, ...] = (),
-              comm: MPIComm = serial_comm, xp=None) -> XArray:
+              comm: MPIComm = serial_comm, xp=None) -> X:
         array = self.empty(shape, comm, xp=xp)
         array.data[:] = 0.0
         return array

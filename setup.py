@@ -14,7 +14,7 @@ import textwrap
 import traceback
 import warnings
 from pathlib import Path
-from subprocess import run
+import subprocess
 from sysconfig import get_config_var, get_platform
 from typing import Any, Callable
 
@@ -22,12 +22,10 @@ from distutils.ccompiler import new_compiler, CCompiler
 from distutils.errors import CCompilerError
 from distutils.sysconfig import customize_compiler
 from setuptools import Extension, find_packages, setup
-from setuptools.command.build_ext import build_ext as _build_ext
+from setuptools.command.build_ext import build_ext
 
 config = runpy.run_path(Path(__file__).parent / 'config.py')
 
-build_gpu = config['build_gpu']
-check_dependencies = config['check_dependencies']
 write_configuration = config['write_configuration']
 
 
@@ -53,11 +51,17 @@ for i, arg in enumerate(sys.argv):
             f'Please set GPAW_CONFIG={custom} or place {custom} in ' +
             '~/.gpaw/siteconfig.py')
 
+# Globals that can be replaced by values in user siteconfig.py
+
+# temp flag for choosing different options for C/C++ builds.
+# Currently this must be set to true in siteconfig.py if compiling as C++
+use_cpp = False
+
 libraries = ['xc']
 library_dirs = []
 include_dirs = []
 extra_link_args = []
-extra_compile_args = ['-Wall', '-Wno-unknown-pragmas', '-std=c99']
+extra_compile_args = ['-Wall', '-Wno-unknown-pragmas']
 runtime_library_dirs = []
 extra_objects = []
 define_macros = [('NPY_NO_DEPRECATED_API', '7'),
@@ -94,6 +98,58 @@ compiler_args = None
 linker_so_args = None
 linker_exe_args = None
 
+makefile_build: bool = False
+"""EXPERIMENTAL: Flag that enables generation of GPAW Makefiles and compiling
+the C++ through make, instead of going through the usual setuptools build path.
+This is intended for developers that actively modify the C++ code and has much
+better support for incremental builds over setuptools.
+
+If enabled, the following changes apply:
+- A Makefile is produced in GPAW root folder that has the same compiler inputs
+as what setuptools would use (see caveat below).
+- Build directory for .o files is forcibly changed to _build instead of some
+temporary location.
+- The _gpaw.*.so extension will be built with make. Setuptools does no
+compilation.
+- `extra_objects` is not supported.
+
+Intended usage: Set `makefile_build = True` in siteconfig.py, make an editable
+install with `pip install -v -e . --no-build-isolation`, then run `make`
+whenever you change a source file. This will recompile only the sources that
+have changed and rebuild the *.so module by running the link stage again.
+Without `--no-build-isolation` the include path to Numpy's headers would point
+to a temporary pip directory.
+
+If changing siteconfig.py, you should reconstruct the Makefile by running the
+pip step again, and probably run `make clean`.
+
+See also the `configure_only` flag.
+"""
+
+configure_only: bool = False
+"""EXPERIMENTAL: If True, will not compile anything. Use with `makefile_build`
+to quickly re-generate the Makefile after changing siteconfig.py."""
+
+
+def ensure_cpp_standard(compile_args: list):
+    """GPAW C++ code requires -std=c++17. This adds it to the input compile
+    args list if it's missing. Don't override existing flags, but warn if the
+    user-specified standard is too low.
+    """
+    old_std = None
+    for arg in compile_args:
+        m = re.match(r'-std=(c\+\+(\d+))', arg)
+        if m:
+            old_std = m.group(1)
+            version = int(m.group(2))
+            if version < 17:
+                warnings.warn(f"C++ standard {old_std} is too low, "
+                              "GPAW requires -std=c++17 or newer")
+            break
+
+    if old_std is None:
+        compile_args.append('-std=c++17')
+
 
 # Search and store current git hash if possible
 try:
@@ -123,6 +179,10 @@ else:  # no break
     if not noblas:
         libraries.append('blas')
 
+if use_cpp:
+    print("EXPERIMENTAL: Compiling entire GPAW as C++.")
+    ensure_cpp_standard(extra_compile_args)
+
 # Deprecation check
 if 'mpicompiler' in locals():
     mpicompiler = locals()['mpicompiler']
@@ -141,16 +201,17 @@ if 'mpicompiler' in locals():
 
 # If `mpi` was not set in siteconfig,
 # it is enabled by default if `mpicc` is found
+default_mpi_compiler = 'mpic++' if use_cpp else 'mpicc'
 if mpi is None:
     if compiler is None:
         if (os.name != 'nt'
-                and run(['which', 'mpicc'],
-                        capture_output=True).returncode == 0):
+                and subprocess.run(['which', default_mpi_compiler],
+                                   capture_output=True).returncode == 0):
             mpi = True
-            compiler = 'mpicc'
+            compiler = default_mpi_compiler
         else:
             mpi = False
-    elif compiler == 'mpicc':
+    elif compiler in ['mpicc', 'mpic++', 'mpiCC', 'mpicxx']:
         warn_deprecated(
             'Define in siteconfig explicitly'
             '\n\nmpi = True')
@@ -162,6 +223,7 @@ if mpi:
     if compiler is None:
         raise_error('Define compiler for MPI in siteconfig:'
                     "\ncompiler = ...  # MPI compiler, e.g., 'mpicc'")
+
 
 # Deprecation check
 if 'mpilinker' in locals():
@@ -197,6 +259,7 @@ if parallel_python_interpreter is not PLACEHOLDER:
 if mpi:
     print('Building GPAW with MPI support.')
 
+
 if gpu:
     valid_gpu_targets = ['cuda', 'hip-amd', 'hip-cuda']
     if gpu_target not in valid_gpu_targets:
@@ -209,27 +272,17 @@ if gpu:
         elif gpu_target == 'cuda':
             gpu_compiler = 'nvcc'
 
-    if gpu_target == 'cuda':
-        gpu_compile_args += ['-x', 'cu']
-
     if '-fPIC' not in ' '.join(gpu_compile_args):
         if gpu_target in ['cuda', 'hip-cuda']:
             gpu_compile_args += ['-Xcompiler']
         gpu_compile_args += ['-fPIC']
 
-    # Some C++ code (eg. magma wrappers) requires C++17 standard.
-    # Add the flag here, but don't override any user-specified option.
-    # GPAW C++ files that require C++17 are encouraged to #error
-    # with a sensible message if the standard is too low.
-    has_std_flag = (
-        any(re.match(r'-std=.+', arg) for arg in gpu_compile_args)
-    )
-    if not has_std_flag:
-        print("Adding gpu compile argument: '-std=c++17'")
-        gpu_compile_args += ['-std=c++17']
+    ensure_cpp_standard(gpu_compile_args)
 
-    # GPU code needs to link to c++ stdlib
-    libraries += ['stdc++']
+    # GPU code needs to link to c++ stdlib. This is automatic if the linking
+    # is done using a C++ compiler, if not we have to add it manually
+    if not use_cpp:
+        libraries += ['stdc++']
 
 
 def set_compiler_executables(cc: CCompiler) -> None:
@@ -238,10 +291,15 @@ def set_compiler_executables(cc: CCompiler) -> None:
     # https://shwina.github.io/custom-compiler-linker-extensions/
     for (name, my_args) in [('compiler', compiler_args),
                             ('compiler_so', compiler_args),
+                            ('compiler_cxx', compiler_args),
+                            ('compiler_so_cxx', compiler_args),
                             ('linker_so', linker_so_args),
-                            ('linker_exe', linker_exe_args)]:
+                            ('linker_exe', linker_exe_args),
+                            ('linker_so_cxx', linker_so_args),
+                            ('linker_exe_cxx', linker_exe_args)]:
         new_args = []
         old_args = getattr(cc, name)
+
         # Set executable
         if compiler is not None:
             new_args += [compiler]
@@ -326,15 +384,21 @@ def test_libxc() -> bool:
 @try_compiling
 def test_blas() -> bool:
     """
-    // For some reasons GPAW doesn't seem to use any of the BLAS header
-    // files (e.g. 'cblas.h' and 'f77blas.h'), but instead declares
-    // them explicitly (e.g. 'c/blas.c');
-    // do as the Romans do
-    #ifdef GPAW_NO_UNDERSCORE_BLAS
+    // GPAW calls Fortran BLAS functions directly instead of using cblas.h,
+    // so must forward declare the function here and prevent name mangling.
+
+    # ifdef GPAW_NO_UNDERSCORE_BLAS
     #  define dnrm2_  dnrm2
+    # endif
+
+    #ifdef __cplusplus
+    extern "C" {
     #endif
 
     double dnrm2_(int n, double *vec, int stride);
+    #ifdef __cplusplus
+    }
+    #endif
 
     void no_op(double _) { return; }  // Suppress -Wunused-variable
 
@@ -385,6 +449,7 @@ for flag, name in [(noblas, 'GPAW_WITHOUT_BLAS'),
                        '__HIP_PLATFORM_AMD__'),
                    (gpu and gpu_target == 'hip-cuda',
                        '__HIP_PLATFORM_NVIDIA__'),
+                   (use_cpp, 'GPAW_CPP'),
                    ]:
     if flag and name not in [n for (n, _) in define_macros]:
         define_macros.append((name, None))
@@ -421,8 +486,6 @@ if noblas:  # Cleanup: remove stale refrerences to BLAS
 sources = [str(source) for source in sources]
 sources.sort()
 
-check_dependencies(sources)
-
 # Convert Path objects to str:
 runtime_library_dirs = [str(dir) for dir in runtime_library_dirs]
 library_dirs = [str(dir) for dir in library_dirs]
@@ -442,7 +505,7 @@ extensions = [Extension('_gpaw',
                         extra_compile_args=extra_compile_args,
                         runtime_library_dirs=runtime_library_dirs,
                         extra_objects=extra_objects,
-                        language='c')]
+                        language='c++' if use_cpp else 'c')]
 
 
 write_configuration(define_macros, include_dirs, libraries, library_dirs,
@@ -450,31 +513,413 @@ write_configuration(define_macros, include_dirs, libraries, library_dirs,
                     runtime_library_dirs, extra_objects, compiler)
 
 
-class build_ext(_build_ext):
+def parse_cflags(define_macros:list[tuple[str, str]] | None,
+                 undef_macros: list[str] | None,
+                 include_dirs: list[str] | None
+                 ) -> list[str]:
+    """Converts setuptools-style compiler args to a form that corresponds to
+    CFLAGS in Makefiles. Example output:
+        ['-DSOME_DEFINE', '-USOME_UNDEF', '-I/some/path']
+
+    Note that flags like -O3, -fopenmp etc must be added separately.
+    See the BuildGPAW class.
+    """
+    cflags = []
+
+    if define_macros:
+        for name, val in define_macros:
+            if val is None:
+                cflags.append(f"-D{name}")
+            else:
+                cflags.append(f"-D{name}={val}")
+    if undef_macros:
+        cflags += [f"-U{m}" for m in undef_macros]
+
+    if include_dirs:
+        cflags += [f"-I{d}" for d in include_dirs]
+
+    return cflags
+
+
+class BuildGPU:
+    """Build helper for the GPU part. Does not use setuptools!"""
+    def __init__(
+            self,
+            gpu_compiler_: str,
+            gpu_compile_args_: list[str],
+            gpu_include_dirs_: list[str],
+            define_macros_: list[tuple[str, str]],
+            undef_macros_: list[str],
+            build_dir: str):
+        """"""
+        # underscores because we have global vars with same names...
+        self.compiler = gpu_compiler_
+        self.include_dirs = gpu_include_dirs_
+        self.define_macros = define_macros_
+        self.undef_macros = undef_macros_
+        self.build_dir = build_dir
+
+        self.sources = BuildGPU.get_sources()
+
+        if '-x' not in gpu_compile_args_:
+            lang = 'cu' if gpu_target == 'cuda' else 'hip'
+            print(f"Adding GPU compilation flag: -x {lang}")
+            self.compile_args = gpu_compile_args_ + ['-x'] + [f'{lang}']
+        else:
+            self.compile_args = gpu_compile_args_
+
+    @staticmethod
+    def get_sources() -> list[Path]:
+        """Collect source files that are compiled with the GPU compiler.
+        TODO: reduce the number of source files that need this special compilation
+        path. Currently there is GPU code in common headers so many otherwise
+        normal .cpp files end up becoming CUDA/HIP code."""
+        # Messy: Some .cpp files under kernels/ get #included by other files.
+        # So we glob everything except kernels/, then global kernels/ separately
+        # and remove those that are #included by others.
+        gpu_dpath = Path("c/gpu")
+        kernels_dpath = Path("c/gpu/kernels")
+
+        # .cpp files in these dirs will be ignored
+        skip_paths = [kernels_dpath]
+        if not magma:
+            skip_paths += [Path("c/gpu/cpp/magma")]
+
+        cpp_files = [
+            p for p in gpu_dpath.rglob("*.cpp")
+            if not any(skip in p.parents for skip in skip_paths)
+        ]
+
+        # Glob all kernel files, but remove those #included by other kernels
+        kernels = sorted(kernels_dpath.glob('*.cpp'))
+        for name in ['interpolate-stencil.cpp',
+                     'lfc-reduce.cpp',
+                     'lfc-reduce-kernel.cpp',
+                     'reduce.cpp',
+                     'reduce-kernel.cpp',
+                     'restrict-stencil.cpp']:
+            kernels.remove(kernels_dpath / name)
+
+        cpp_files = sorted(cpp_files + kernels)
+        return cpp_files
+
+    def build(self) -> list[str]:
+        """Manually builds all CUDA/HIP source files with the GPU compiler.
+        Return value is a list of objects that can be added as extra
+        link_objects to setuptools when building the main GPAW extension.
+        """
+        print("Building gpu code", flush=True)
+
+        # Create build dirs
+        build_dir_root_absolute = Path(self.build_dir).resolve()
+        for p in self.sources:
+            build_path = (build_dir_root_absolute / p).parent
+            if not build_path.exists():
+                print(f'creating {build_path}', flush=True)
+                build_path.mkdir(parents=True)
+
+        cflags = self._make_full_cflags()
+
+        # Compile with cuda/hip compiler
+        objects = []
+        for src in self.sources:
+            obj = self.build_dir / src.with_suffix('.o')
+            objects.append(str(obj))
+
+            run_args = [self.compiler]
+            run_args += cflags
+            run_args += ['-c', str(src)]
+            run_args += ['-o', str(obj)]
+
+            print(shlex.join(run_args), flush=True)
+            p = subprocess.run(run_args, check=False, shell=False)
+
+            if p.returncode != 0:
+                print(f'error: command {repr(self.compiler)} failed '
+                    f'with exit code {p.returncode}',
+                    file=sys.stderr, flush=True)
+                sys.exit(1)
+
+        return objects
+
+    def write_makefile(self, inout_makefile: list[str]) -> None:
+        """Appends GPU compilation commands and boilerplate to the input
+        makefile."""
+        print("Configuring GPU build", flush=True)
+
+        sources_str = " ".join([str(src) for src in self.sources])
+        cflags = self._make_full_cflags()
+        cflags_str = " ".join(cflags)
+
+        inout_makefile.append("# BEGIN GPU SECTION\n")
+        inout_makefile.append(f"GPU_SOURCES := {sources_str}\n")
+        inout_makefile.append(f"GPU_BUILD_DIR := {self.build_dir}")
+        inout_makefile.append("GPU_OBJECTS := $(addprefix $(GPU_BUILD_DIR)/,$(addsuffix .o,$(basename $(GPU_SOURCES))))")
+        inout_makefile.append("GPU_DEPS := $(GPU_OBJECTS:.o=.d)")
+
+        inout_makefile.append("GPU_PREBUILD_DIRS := $(sort $(dir $(GPU_OBJECTS)))")
+        inout_makefile.append("$(GPU_PREBUILD_DIRS):\n\t mkdir -p $(GPU_PREBUILD_DIRS)")
+        inout_makefile.append("\n$(GPU_OBJECTS): | $(GPU_PREBUILD_DIRS)")
+
+        inout_makefile.append(f"\nCC_GPU := {self.compiler}\n")
+        inout_makefile.append(f"CFLAGS_GPU := {cflags_str} -MMD -MP\n")
+
+        for src in self.sources:
+            obj = self.build_dir / src.with_suffix('.o')
+            inout_makefile.append(f"{obj}: {src}\n\t$(CC_GPU) $(CFLAGS_GPU) -c {src} -o {obj}\n")
+
+        inout_makefile.append("-include $(GPU_DEPS)")
+        inout_makefile.append("# END GPU SECTION\n")
+
+    def _make_full_cflags(self) -> list[str]:
+        """"""
+        return self.compile_args + parse_cflags(self.define_macros,
+                                                self.undef_macros,
+                                                self.include_dirs)
+
+
+class BuildGPAW(build_ext):
+    """"""
+
+    def add_base_include_dirs(self) -> None:
+        """Adds GPAW base includes to include dirs list.
+        Currently just the c/ directory.
+        """
+        c_path = Path('c').resolve()
+        if c_path not in self.include_dirs:
+            self.include_dirs.insert(0, str(c_path))
+
+    @property
+    def makefile_build_dir(self) -> str:
+        """Build dir to use when doing a Makefile based build.
+        This is relative to the Makefile (project root).
+        """
+        return "_build"
+
+    def parse_ldflags(self,
+                      libraries: list[str] | None,
+                      library_dirs: list[str] | None,
+                      runtime_library_dirs: list[str] | None) -> list[str]:
+        """Converts setuptools-style linker args to a form that corresponds to
+        LDFLAGS in Makefiles. Example output:
+            ['-lsomelib', '-L/some/lib/path/', '-Wl,-rpath,/some/rpath/']
+        This depends on setuptools compiler configuration for figuring out
+        what to do with runtime_library_dirs (ie. RPATH or RUNPATH).
+        """
+        ldflags = []
+
+        if library_dirs:
+            ldflags += [f"-L{d}" for d in library_dirs]
+
+        if runtime_library_dirs:
+            # Use same runtime linker flags as setuptools on Unix systems.
+            # It defines function `runtime_library_dir_option` which fills in
+            # the appropriate flags; however it's not clear what the concrete
+            # type of self.compiler is. So here we manually check if this
+            # helper function exists on the object; if not, fallback to
+            # ld-style RUNPATH flagging.
+            # Naturally this step won't work on non-unix systems, but that is
+            # true for this entire makefile generator.
+
+            can_use_setuptools = callable(getattr(self.compiler, "runtime_library_dir_option", None))
+            if can_use_setuptools:
+                for dir in runtime_library_dirs:
+                    flag = self.compiler.runtime_library_dir_option(dir)
+                    if isinstance(flag, list):
+                        flag = " ".join(flag)
+                    ldflags.append(self.compiler.runtime_library_dir_option(dir))
+            else:
+                print("Failed to get runtime_library_dir options from setuptools (non-Unix system?)")
+                print(r"Defaulting to '-Wl,--enable-new-dtags,-Wl,-rpath, \{dir\}'")
+                ldflags += [f"-Wl,--enable-new-dtags,-rpath,{rp}" for rp in runtime_library_dirs]
+
+        if libraries:
+            ldflags += [f"-l{lib}" for lib in libraries]
+
+        return ldflags
+
+    def generate_makefile(self) -> None:
+        """Produces a makefile for incremental developer builds.
+        This must be called in self.build_extensions, AFTER overriding
+        setuptools compiler."""
+        makefile_lines: list[str] = []
+        global extra_objects
+        assert len(extra_objects) == 0, "extra_objects is not supported with GPAW makefile build"
+
+        # _gpaw.cpython-3XX-ARCH-PLATFORM.so
+        module_names = [self.get_ext_filename(ext.name) for ext in self.extensions]
+        module_names_str = " ".join(name for name in module_names)
+
+        # Use self.makefile_build_dir for all paths in the makefile, instead
+        # of the absolute path that is in self.build_temp. Reason: shorter.
+        build_dir_base = self.makefile_build_dir
+
+        makefile_lines.append("# MAKEFILE GENERATED BY GPAW BUILD SYSTEM\n")
+
+        makefile_lines.append("all: " + module_names_str)
+        makefile_lines.append(f"\nclean:\n\trm -rf {build_dir_base} " + module_names_str + "\n")
+
+        if gpu:
+            self.gpu_builder.write_makefile(makefile_lines)
+
+        sources_str = " ".join([str(src) for src in sources])
+        makefile_lines.append(f"SOURCES := {sources_str}\n")
+        makefile_lines.append(f"BUILD_DIR := {build_dir_base}\n")
+        makefile_lines.append("OBJECTS := $(addprefix $(BUILD_DIR)/,$(addsuffix .o,$(basename $(SOURCES))))")
+        makefile_lines.append("DEPS := $(OBJECTS:.o=.d)")
+
+        makefile_lines.append("PREBUILD_DIRS := $(sort $(dir $(OBJECTS)))")
+        makefile_lines.append("$(PREBUILD_DIRS):\n\t mkdir -p $(PREBUILD_DIRS)")
+        makefile_lines.append("\n$(OBJECTS): | $(PREBUILD_DIRS)")
+
+        makefile_lines.append(f"\nCC := {self.compiler.compiler_so[0]}")
+
+        for ext in self.extensions:
+            # Object filenames
+            objs = [self.compiler.object_filenames([src], output_dir=build_dir_base)[0] for src in ext.sources]
+
+            # Python and Numpy includes are added to self, NOT to the
+            # extension. So take them, plus any user-specified includes.
+            includes = ext.include_dirs + self.include_dirs
+
+            """
+            Compiler flags. We replicate what Setuptools does:
+            the compilation command will look like
+                $(CC) $(CFLAGS_BASE) -c src.c -o src.o $(CFLAGS_EXTRA)
+            where CFLAGS_BASE contains "base" args originating from `compiler_args`,
+            `define_macros`, `undef_macros` and `include_dirs`.
+            CFLAGS_EXTRA contains flags from `extra_compile_args`.
+            Unclear why setuptools does this instead of grouping everything
+            under one CFLAGS and apply it before the input, but it is what it
+            is.
+            """
+
+            # "base"
+            cflags_base = list(self.compiler.compiler_so[1:])
+            # Build -D, -U, -I flags
+            cflags_base += parse_cflags(ext.define_macros,
+                                        ext.undef_macros,
+                                        includes)
+            # "extra"
+            cflags_extra = []
+            if ext.extra_compile_args:
+                cflags_extra += ext.extra_compile_args
+
+            # Linker flags
+            ldflags = list(self.compiler.linker_so[1:])
+            if ext.extra_link_args:
+                ldflags += ext.extra_link_args
+
+            ldflags += self.parse_ldflags(ext.libraries + self.libraries,
+                                          ext.library_dirs + self.library_dirs,
+                                          ext.runtime_library_dirs)
+
+            cflags_base_str = " ".join(cflags_base)
+            cflags_extra_str = " ".join(cflags_extra)
+            ldflags_str = " ".join(ldflags)
+
+            # Add CFLAGS and LDFLAGS, with extra flags for dependency generation
+            makefile_lines.append(f"\nCFLAGS_BASE := {cflags_base_str}\n")
+            makefile_lines.append(f"\nCFLAGS_EXTRA := {cflags_extra_str} -MMD -MP\n")
+            makefile_lines.append(f"LDFLAGS := {ldflags_str}\n")
+
+            # Define build target. Need to include .o files from GPU part
+            target_name = self.get_ext_filename(ext.name)
+            target_objects = "$(OBJECTS)"
+            if gpu:
+                # Put GPU objects first so that they are built first
+                target_objects = " $(GPU_OBJECTS) " + target_objects
+
+            makefile_lines.append(f"{target_name}: {target_objects}\n\t$(CC) {target_objects} -o $@ $(LDFLAGS)\n")
+
+            # Compile rules
+            for src, obj in zip(ext.sources, objs):
+                makefile_lines.append(f"{obj}: {src}\n\t$(CC) $(CFLAGS_BASE) -c {src} -o {obj} $(CFLAGS_EXTRA)\n")
+
+        makefile_lines.append("\n-include $(DEPS)")
+        with open("Makefile", "w") as mf:
+            mf.write("\n".join(makefile_lines))
+            print("Generated Makefile")
+
     def run(self):
+        """"""
+        self.add_base_include_dirs()
+
         import numpy as np
         self.include_dirs.append(np.get_include())
+
+        if use_cpp or gpu:
+            import pybind11
+            self.include_dirs.append(pybind11.get_include())
+
+        if makefile_build:
+            # Set a persistent build directory. We get a more readable
+            # Makefile by using relative build paths instead
+            self.build_temp = str(Path(__file__).parent / self.makefile_build_dir)
 
         if self.link_objects is None:
             self.link_objects = []
 
         if gpu:
-            objects = build_gpu(gpu_compiler, gpu_compile_args,
-                                gpu_include_dirs + self.include_dirs,
-                                define_macros, undef_macros,
-                                self.build_temp)
+            assert gpu_compiler
+            # Cache the GPU builder as the Makefile generator will also use it
+            self.gpu_builder = BuildGPU(gpu_compiler,
+                                   gpu_compile_args,
+                                   gpu_include_dirs + self.include_dirs,
+                                   define_macros,
+                                   undef_macros,
+                                   # For makefiles, prefer relative path (shorter)
+                                   self.build_temp if not makefile_build else self.makefile_build_dir)
 
-            self.link_objects += objects
+            if not makefile_build:
+               self.link_objects += self.gpu_builder.build()
 
         super().run()
 
     def build_extensions(self):
-        set_compiler_executables(self.compiler)
-        super().build_extensions()
+        """Called from super().run()"""
 
-        print("Build temp:", self.build_temp)
-        print("Build lib: ", self.build_lib)
+        set_compiler_executables(self.compiler)
+        if not makefile_build:
+            # Build normally with setuptools
+            print("Build temp:", self.build_temp)
+            print("Build lib: ", self.build_lib)
+            super().build_extensions()
+            return
+
+        print(f"Makefile build: using build dir {self.build_temp}")
+        self.generate_makefile()
+        if not configure_only:
+            # run make
+            print("Running `make`", flush=True)
+            p = subprocess.run(["make"], check=False, shell=False)
+
+            if p.returncode != 0:
+                print(f'error: command make failed '
+                      f'with exit code {p.returncode}',
+                      file=sys.stderr, flush=True)
+                sys.exit(1)
+        else:
+            print(
+                "\n"
+                "***********************************************************\n"
+                "NOTE: your siteconfig is using `configure_only = True`.\n"
+                "GPAW C-extension has NOT been built.\n"
+                "You can either compile it manually using the generated\n"
+                "Makefile, or removing the configure_only flag and\n"
+                "rerunning this installation.\n"
+                "***********************************************************\n"
+                "\n"
+            )
+
+    def copy_extensions_to_source(self):
+        """Override to prevent copy errors when building using `make`, which
+        does not put the .so in a temp dir (self.build_lib). Also needed to
+        prevent errors if using `configure_only = True`.
+        """
+        if not makefile_build:
+            super().copy_extensions_to_source()
 
 
 data = 'git+https://gitlab.com/gpaw/gpaw-web-page-data.git'
-setup(ext_modules=extensions, cmdclass={'build_ext': build_ext})
+setup(ext_modules=extensions, cmdclass={'build_ext': BuildGPAW})

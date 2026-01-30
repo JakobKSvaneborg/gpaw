@@ -12,7 +12,7 @@ import numpy as np
 
 
 class EdmistonRuedenberg(ObjectiveFunctionETDM):
-    def __init__(self, ibzwfs, loctype="pseudo-paw", indices="all"):
+    def __init__(self, ibzwfs, loctype='pseudo-paw', indices='all'):
 
         dtype, nkps = (
             ibzwfs.dtype,
@@ -21,17 +21,17 @@ class EdmistonRuedenberg(ObjectiveFunctionETDM):
 
         assert nkps == 1
 
-        if indices == "all":
+        if indices == 'all':
             ndim = ibzwfs.nbands
             self._indices = range(ndim)
-        elif indices == "occupied":
+        elif indices == 'occupied':
             f_n = ibzwfs.get_all_eigs_and_occs(broadcast=True)[1]
             if ibzwfs.domain_comm.rank != 0:
                 f_n = np.zeros(ibzwfs.nbands)
             ibzwfs.domain_comm.broadcast(f_n, 0)
             self._indices = f_n > 1.0e-5
             ndim = sum(self._indices)
-        elif indices == "virtual":
+        elif indices == 'virtual':
             f_n = ibzwfs.get_eigs_and_occs(0, 0)[1]
             if ibzwfs.domain_comm.rank != 0:
                 f_n = np.zeros(ibzwfs.nbands)
@@ -48,7 +48,7 @@ class EdmistonRuedenberg(ObjectiveFunctionETDM):
         self._dtype = ibzwfs.dtype
         self._loc_type = loctype
         assert (
-            loctype == "pseudo" or loctype == "paw" or loctype == "pseudo-paw"
+            loctype == 'pseudo' or loctype == 'paw' or loctype == 'pseudo-paw'
         )
 
         for wfs in ibzwfs:
@@ -85,7 +85,7 @@ class EdmistonRuedenberg(ObjectiveFunctionETDM):
         for wfs in self._ibzwfs:
             psit_nX = wfs.psit_nX
             h_nn = np.zeros(shape=(self._ndim, self._ndim), dtype=wfs.dtype)
-            if "pseudo" in self._loc_type:
+            if 'pseudo' in self._loc_type:
                 grid_spacing = (
                     cutoff2gridspacing(3 * psit_nX.desc.ecut * Ha) / Bohr
                 )
@@ -96,7 +96,7 @@ class EdmistonRuedenberg(ObjectiveFunctionETDM):
                     np.ix_(self._indices, self._indices)
                 ]
                 energy += np.diag(h_nn).sum() * 0.5
-            if "paw" in self._loc_type:
+            if 'paw' in self._loc_type:
                 h_paw_nn = self_hartree_paw(wfs, wfs.setups, None, None)
                 h_paw_nn = h_paw_nn[np.ix_(self._indices, self._indices)]
                 energy += np.diag(h_paw_nn).sum() * 0.5
@@ -125,7 +125,7 @@ class EdmistonRuedenberg(ObjectiveFunctionETDM):
 
 
 class EdmistonRuedenbergUpdateRef(EdmistonRuedenberg):
-    def __init__(self, ibzwfs, loctype="pseudo-paw", indices="all"):
+    def __init__(self, ibzwfs, loctype='pseudo-paw', indices='all'):
         super().__init__(ibzwfs, loctype, indices)
 
     def rotate_wfs(self):

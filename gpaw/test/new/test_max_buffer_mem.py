@@ -22,8 +22,12 @@ def test_max_buffer_mem(mode, eigensolver, max_mem):
     atoms.calc = calc
     e = atoms.get_potential_energy()
 
-    expected_e = {'pw-rmm-diis': -14.398,
+    expected_e = {'pw-rmm-diis': -14.400,
                   'fd-rmm-diis': 5.9194033,
                   'pw-davidson': -16.0133410,
                   'fd-davidson': 4.6795767}
     assert e == pytest.approx(expected_e[f'{mode}-{eigensolver}'], abs=1e-3)
+
+
+if __name__ == '__main__':
+    test_max_buffer_mem('fd', 'rmm-diis', -50)

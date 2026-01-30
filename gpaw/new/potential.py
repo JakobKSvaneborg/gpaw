@@ -4,7 +4,7 @@ import numpy as np
 from ase.units import Bohr, Ha
 
 from gpaw.core import PWArray, UGArray, UGDesc
-from gpaw.core.arrays import DistributedArrays as XArray
+from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.core.domain import Domain as XDesc
 from gpaw.mpi import MPIComm, broadcast_float
@@ -32,7 +32,7 @@ class Potential:
         return (f'potential:\n'
                 f'  grid points: {self.vt_sR.desc.size}\n')
 
-    def dH(self, P_ani, out_ani, spin):
+    def deltaH(self, P_ani, out_ani, spin):
         if len(P_ani.dims) == 1:  # collinear wave functions
             P_ani.block_diag_multiply(self.dH_asii, out_ani, spin)
             return

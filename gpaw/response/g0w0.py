@@ -14,7 +14,6 @@ from ase.utils.filecache import MultiFileJSONCache as FileCache
 
 import gpaw.mpi as mpi
 from gpaw import GPAW, debug
-from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
 from gpaw.mpi import broadcast_exception
 from gpaw.old.pw.descriptor import PWMapping, count_reciprocal_vectors
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter, timer
@@ -27,6 +26,7 @@ from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.response.screened_interaction import (GammaIntegrationMode,
                                                 initialize_w_calculator)
 from gpaw.utilities.progressbar import ProgressBar
+from gpaw.core import PWDesc
 
 
 def compare_inputs(inp1, inp2, rel_tol=1e-14, abs_tol=1e-14):
@@ -313,14 +313,17 @@ gw_logo = """\
 """
 
 
-def get_max_nblocks(world, calc, ecut):
+def get_max_nblocks(world, calc, ecut, max_nblocks):
     nblocks = world.size
+    if max_nblocks:
+        nblocks = min(world.size, max_nblocks)
+
     if not isinstance(calc, (str, Path)):
         raise Exception('Using a calulator is not implemented at '
                         'the moment, load from file!')
         # nblocks_calc = calc
     else:
-        nblocks_calc = GPAW(calc)
+        nblocks_calc = GPAW(calc, communicator=world)
     ngmax = []
     for q_c in nblocks_calc.wfs.kd.bzk_kc:
         qpd = SingleQPWDescriptor.from_q(q_c, np.min(ecut) / Ha,
@@ -1315,7 +1318,10 @@ class G0W0(G0W0Calculator):
 
         # Check if nblocks is compatible, adjust if not
         if nblocksmax:
-            nblocks = get_max_nblocks(context.comm, gpwfile, ecut)
+            max_nblocks = mpa['npoles'] if mpa else None
+            if ppa:
+                max_nblocks = 1
+            nblocks = get_max_nblocks(context.comm, gpwfile, ecut, max_nblocks)
 
         kpts = list(select_kpts(kpts, gs.kd))
 
@@ -1340,6 +1346,8 @@ class G0W0(G0W0Calculator):
                    'eta0': 1e-6, 'eta_rest': Ha, 'alpha': 1}
 
         if mpa:
+            if nblocks > mpa['npoles']:
+                raise ValueError('Too many nblocks')
 
             frequencies = mpa_frequency_sampling(**mpa)
 
@@ -1426,20 +1434,21 @@ class EXXVXCCalculator:
         self.world = world
 
     def calculate(self, n1, n2, kpt_indices):
-        calc = GPAW(self._gpwfile, parallel={'kpt': 1, 'band': 1},
-                    communicator=self.world)
-
-        # To convert the LCAO wave functions, we need to add the
-        # custom psit to all k-points which know how to convert
-        # the wave functions. Initializing the ResponseGroundStateAdapter
-        # establishes that.
-        # TODO: Now we call this for all files, not just LCAO
-        ResponseGroundStateAdapter(calc, lazy=False)
-        _, vxc_skn, exx_skn = non_self_consistent_eigenvalues(
-            calc,
-            'EXX',
-            n1, n2,
-            kpt_indices=kpt_indices,
-            snapshot=f'{self._snapshotfile_prefix}-vxc-exx.json',
-        )
+        from gpaw.new.pw.nschse import NonSelfConsistentHSE06
+        from gpaw.dft import GPAW as NewGPAW
+        dft = NewGPAW(self._gpwfile, communicator=self.world).dft
+        ibzwfs = dft.ibzwfs
+        if dft.params.mode.name == 'lcao':
+            grid = dft.density.nt_sR.desc
+            pw = PWDesc(ecut=0.5 * grid.ekin_max(),
+                        cell=grid.cell,
+                        comm=grid.comm,
+                        dtype=ibzwfs.dtype)
+            nocc = ibzwfs.number_of_occupied_bands()
+            ibzwfs = ibzwfs.convert_to('pw', grid, pw, nbands=max(nocc, n2))
+        exx = NonSelfConsistentHSE06(
+            ibzwfs, dft.density, dft.pot_calc, dft.setups, dft.relpos_ac,
+            'EXX')
+        dft_skn, vxc_skn, exx_skn = exx._calculate(
+            ibzwfs, n1, n2, kpt_indices)
         return vxc_skn / Ha, exx_skn / Ha

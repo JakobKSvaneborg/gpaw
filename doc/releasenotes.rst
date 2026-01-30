@@ -10,7 +10,39 @@ Git master branch
 
 :git:`master <>`.
 
-* Minimum version requirements: Python 3.10, ASE 3.25.0.
+* Minimum version requirements: Python 3.10, ASE 3.27.0.
+
+* `pybind11 <https://pybind11.readthedocs.io/en/stable/>`__ is now a required
+  dependency when building GPAW with GPU support. It should be installed
+  automatically by ``pip`` when you install GPAW. If this doesn't happen for
+  whatever reason, you can get it with ``pip install pybind11``.
+
+* Added option for generating a Makefile for building GPAW with ``make`` on
+  Unix-like systems. Convenient for developers who frequently need to modify
+  the C/C++ backend. See :ref:`workflow_c_extension` for details.
+
+* GPAW C-extension can now be built as C++ code. You can enable this
+  experimental feature in ``siteconfig.py`` by setting ``use_cpp = True`` and
+  choosing a valid C++ compiler.
+
+* Ongoing work with optimizng the defaults of GPAW, so far the following
+  changes have been made:
+
+  * mixer (with pbc):
+
+    * spin-driver: 'difference' -> 'fullspin'
+    * beta: 0.05 -> 0.08
+    * nmaxold: 5 -> 16
+    * weight: 50 -> 70
+
+  * mixer (without pbc):
+
+    * spin-driver: 'difference' -> 'fullspin'
+    * beta: 0.25 -> 0.25
+    * nmaxold: 3 -> 16
+    * weight: 1 -> 1
+
+  * eigensolver (:ref:`newgpaw` only): 'davidson' -> 'ppcg'
 
 * :ref:`newgpaw`: Calculations can now be parallelized over
   spins.
@@ -38,6 +70,16 @@ Git master branch
   You can use ``gpaw python`` as a replacement. The variable
   ``parallel_python_interpreter`` in ``siteconfig.py``
   should not be used.
+
+* GPAW will no longer run in parallel when imported from a normal
+  Python interpreter.
+  To run in parallel, be sure to use ``gpaw python``
+  or see below.
+
+* To control MPI parallelism with the ``gpaw python`` command,
+  use the environment ``GPAW_MPI_BACKEND``.
+  Current valid values are ``serial``, ``cgpaw`` for GPAW's C implementation,
+  and ``mpi4py``.
 
 * The FDTD code has been removed.  If this code is important to you,
   please contact the developers.  You will probably need to port the code
@@ -72,7 +114,9 @@ July 29, 2025: :git:`25.7.0 <../25.7.0>`
   **k**-points has been implemented.  See :ref:`hse06 on lda` and
   :class:`gpaw.new.pw.nschse.NonSelfConsistentHSE06`.
 
-* Experimental: Support for using MPI4PY_.  Set ``GPAW_MPI4PY=1`` to use this.
+* Experimental: Support for using MPI4PY_.
+  **Update:** Set GPAW_MPI_BACKEND=mpi4py to use this.
+  [Originally: Set ``GPAW_MPI4PY=1`` to use this.]
 
 * Bug fix for spin-polarized LCAO-TDDFT circular dichroism See :mr:`2667`.
 

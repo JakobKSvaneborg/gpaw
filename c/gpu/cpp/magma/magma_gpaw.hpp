@@ -9,7 +9,7 @@
     #error "C++ needed for GPAW Magma wrappers"
 #endif
 
-#include "../utils.hpp"
+#include "gpu/cpp/utils.hpp"
 
 #include <cassert>
 #include <cstdlib>

@@ -19,7 +19,7 @@ from gpaw.typing import Array1D, Array2D, ArrayLike1D, ArrayLike2D
 _global_blacs_context_store: dict[tuple[_Communicator, int, int], int] = {}
 
 
-def suggest_blocking(N: int, ncpus: int) -> tuple[int, int, int | None]:
+def suggest_blocking(N: int, ncpus: int) -> tuple[int, int, int]:
     """Suggest blocking of ``NxN`` matrix.
 
     Returns rows, columns, blocksize tuple.
@@ -29,7 +29,7 @@ def suggest_blocking(N: int, ncpus: int) -> tuple[int, int, int | None]:
     """
 
     if ncpus == 1:
-        return 1, 1, None
+        return 1, 1, 0
 
     nprow = ncpus
     npcol = 1
@@ -89,7 +89,7 @@ class Matrix(XP):
                  *,
                  dtype=None,
                  data: ArrayLike2D | None = None,
-                 dist: MatrixDistribution | tuple | None = None,
+                 dist: MatrixDistribution | MPIComm | tuple | None = None,
                  xp=None):
         """Matrix object.
 
@@ -135,14 +135,18 @@ class Matrix(XP):
                 xp = np
         super().__init__(xp)
 
-        dist = dist or ()
-        if isinstance(dist, tuple):
-            kwargs = {key: val for key, val in zip(['comm', 'r', 'c', 'b'],
-                                                   dist)}
-            dist = create_distribution(M, N, xp=self.xp, **kwargs)
-        else:
+        if isinstance(dist, MatrixDistribution):
             assert self.shape == dist.full_shape
             dist = dist.to_xp(xp)  # make sure xp and dist match
+        else:
+            if dist is None:
+                dist = ()
+            elif not isinstance(dist, tuple):
+                dist = (dist,)
+            kwargs = {
+                key: val for key, val in zip(['comm', 'r', 'c', 'br', 'bc'],
+                                             dist)}
+            dist = create_distribution(M, N, xp=self.xp, **kwargs)
         self.dist = dist
 
         self.data: Array2D
@@ -211,7 +215,10 @@ class Matrix(XP):
             assert beta == 0.0
             M = A.shape[0] if opa == 'N' else A.shape[1]
             N = B.shape[1] if opb == 'N' else B.shape[0]
-            out = Matrix(M, N, dtype=A.dtype, dist=dist.new(M, N))
+            out = Matrix(M, N,
+                         dtype=A.dtype,
+                         xp=self.xp,
+                         dist=dist.comm)
         elif not isinstance(out, Matrix):
             out = out.matrix
         if out.data is other.data:
@@ -265,9 +272,8 @@ class Matrix(XP):
                     N=r_buffer_size,
                     data=data_buffer[
                         :l_buffer_size].reshape(
-                        (other.data.shape[0], r_buffer_size)
-                    ),
-                    dist=dist.new(M=other.shape[0], N=r_buffer_size),
+                        (other.data.shape[0], r_buffer_size)),
+                    dist=dist.comm,  # .new(M=other.shape[0], N=r_buffer_size),
                     xp=other.xp)
                 buffer.data[:] \
                     = other.data[:, i:i + buffer_size]
@@ -293,9 +299,7 @@ class Matrix(XP):
             other.data[:] = self.data
             return
 
-        if n2 == 1 and d1.blocksize is None:
-            assert d2.blocksize is None
-            assert d1.columns == 1
+        if d2.all_data_on_rank_zero and d1.simple:
             comm = d1.comm
             if comm.rank == 0:
                 M = self.shape[0]
@@ -309,9 +313,7 @@ class Matrix(XP):
                 comm.send(self.data, 0)
             return
 
-        if n1 == 1 and d2.blocksize is None:
-            assert d1.blocksize is None
-            assert d2.columns == 1
+        if d1.all_data_on_rank_zero and d2.simple:
             comm = d2.comm
             if comm.rank == 0:
                 M = self.shape[0]
@@ -325,6 +327,7 @@ class Matrix(XP):
                 comm.receive(other.data, 0)
             return
 
+        assert self.xp is np
         c = d1.comm if d1.comm.size > d2.comm.size else d2.comm
         n = max(n1, n2)
         if n < c.size:
@@ -332,35 +335,36 @@ class Matrix(XP):
         if c is not None:
             M, N = self.shape
             d1 = create_distribution(M, N, c,
-                                     d1.rows, d1.columns, d1.blocksize)
+                                     d1.rows, d1.columns, d1.br, d1.bc)
             d2 = create_distribution(M, N, c,
-                                     d2.rows, d2.columns, d2.blocksize)
+                                     d2.rows, d2.columns, d2.br, d2.bc)
             if n1 == n:
                 ctx = d1.desc[1]
             else:
                 ctx = d2.desc[1]
             redist(d1, self.data, d2, other.data, ctx)
 
-    def gather(self, root: int = 0, broadcast=False) -> Matrix:
+    def gather(self, root: int = 0, *, broadcast=False) -> Matrix:
         """Gather the Matrix on the root rank.
 
         Returns a new Matrix distributed so that all data is on the root rank
         """
         assert root == 0
-        if self.dist.comm.size > 1:
-            S = self.new(dist=(self.dist.comm, 1, 1))
-            self.redist(S)
-            if broadcast:
-                if self.dist.comm.rank > 0:
-                    S = self.new(dist=None)
-                self.dist.comm.broadcast(S.data, 0)
-        else:
-            S = self
 
+        if self.dist.comm.size == 1:
+            return self
+
+        S = self.new(dist=(self.dist.comm, 1, 1, *self.shape))
+        self.redist(S)
+        if broadcast:
+            if self.dist.comm.rank != 0:
+                S = self.new(dist=None)
+            self.dist.comm.broadcast(S.data, 0)
         return S
 
     @staticmethod
     def scatter(data: Array2D,
+                *,
                 dist: tuple[_Communicator, int, int, int | None],
                 root: int = 0) -> Matrix:
         """Construct a distributed Matrix object by scattering a raw 2D array
@@ -368,26 +372,13 @@ class Matrix(XP):
         and wanted distribution in same way as in the Matrix constructor
         Empty 'dist' argument is not allowed!
         """
-
-        assert len(data.shape) == 2
-        assert dist is not None and len(dist) >= 3
-
+        assert root == 0
+        rows, cols = data.shape
+        xp = cp if isinstance(data, cp.ndarray) else np
+        matrix = Matrix(rows, cols, dtype=data.dtype, xp=xp, dist=dist)
         # Some acrobatics needed to bypass limitations in Matrix.redist()
 
-        rows, cols = data.shape[0], data.shape[1]
-        xp = cp if isinstance(data, cp.ndarray) else np
-        comm = dist[0]
-
-        non_distributed_matrix = Matrix(rows, cols,
-                                        dtype=data.dtype,
-                                        dist=(comm, 1, 1),
-                                        xp=xp)
-
-        if comm.rank == root:
-            non_distributed_matrix.data[:] = data[:]
-
-        matrix = Matrix(rows, cols, dtype=data.dtype, xp=xp, dist=dist)
-
+        non_distributed_matrix = Matrix(rows, cols, data=data)
         non_distributed_matrix.redist(matrix)
         return matrix
 
@@ -423,7 +414,7 @@ class Matrix(XP):
         ...                        [0.1, 1.0]])
         >>> S.invcholesky()
         >>> S.data
-        array([[ 1.        , -0.        ],
+        array([[ 1.        ,  0.        ],
                [-0.10050378,  1.00503782]])
         """
         S = self.gather()
@@ -450,7 +441,7 @@ class Matrix(XP):
              S=None,
              *,
              cc=False,
-             scalapack=(None, 1, 1, None),
+             scalapack=(None, 1, 1, 0),
              limit: int | None = None) -> Array1D:
         """Calculate eigenvectors and eigenvalues.
 
@@ -469,15 +460,17 @@ class Matrix(XP):
         """
         if self.xp is cp:
             # use MAGMA here?
-            scalapack = None, 1, 1, None
+            scalapack = None, 1, 1, 0
 
         slcomm, rows, columns, blocksize = scalapack
+        assert blocksize is not None
         slcomm = slcomm or self.dist.comm
         dist = (slcomm, rows, columns, blocksize)
 
         redist = (rows != self.dist.rows or
                   columns != self.dist.columns or
-                  blocksize != self.dist.blocksize)
+                  blocksize != self.dist.br or
+                  blocksize != self.dist.bc)
 
         if redist:
             H = self.new(dist=dist)
@@ -563,12 +556,21 @@ class Matrix(XP):
             self.dist.comm.broadcast(eps, 0)
         else:
             if slcomm.rank < rows * columns:
-                assert S is None
                 array = H.data.copy()
                 if not cc and np.issubdtype(H.dtype, np.complexfloating):
                     np.negative(array.imag, array.imag)
-                info = cgpaw.scalapack_diagonalize_dc(array, H.dist.desc, 'U',
-                                                      H.data, eps)
+                eps0 = np.empty(H.shape[0]) if limit else eps
+                if S is None:
+                    info = cgpaw.scalapack_diagonalize_dc(
+                        array, H.dist.desc, 'U', H.data, eps0)
+                else:
+                    sarray = S.data
+                    if not cc and np.issubdtype(H.dtype, np.complexfloating):
+                        np.negative(sarray.imag, sarray.imag)
+                    info = cgpaw.scalapack_general_diagonalize_dc(
+                        array, H.dist.desc, 'U', sarray, H.data, eps0)
+                if limit:
+                    eps[:] = eps0[:limit]
                 assert info == 0, info
 
             # necessary to broadcast eps when some ranks are not used
@@ -714,36 +716,49 @@ def redist(dist1, M1, dist2, M2, context):
 def create_distribution(M: int,
                         N: int,
                         comm: MPIComm | None = None,
-                        r: int = 1,
+                        r: int = -1,
                         c: int = 1,
-                        b: int | None = None,
-                        xp=None) -> MatrixDistribution:
-    if xp is cp:
-        b = None  # blocking not implemented
-        comm = comm or serial_comm
-        return CuPyDistribution(M, N, comm,
-                                r if r != -1 else comm.size,
-                                c if c != -1 else comm.size,
-                                b)
+                        br: int = 0,
+                        bc: int = 0,
+                        xp=np) -> MatrixDistribution:
+    assert not (r == -1 and c == -1)
+    assert r == -1 or r > 0
+    assert c == -1 or c > 0
 
-    if comm is None or comm.size == 1:
-        assert r == 1 and abs(c) == 1 or c == 1 and abs(r) == 1
+    comm = comm or serial_comm
+
+    if r == -1:
+        r = comm.size // c
+    elif c == -1:
+        c = comm.size // r
+
+    if br == 0 and bc == 0:
+        br = max(1, (M + r - 1) // r)
+        bc = max(1, (N + c - 1) // c)
+    elif bc == 0:
+        bc = br
+
+    if xp is cp:
+        comm = comm or serial_comm
+        return CuPyDistribution(M, N, comm, r, c, br, bc)
+
+    if comm.size == 1:
         return NoDistribution(M, N)
 
-    return BLACSDistribution(M, N, comm,
-                             r if r != -1 else comm.size,
-                             c if c != -1 else comm.size,
-                             b)
+    return BLACSDistribution(M, N, comm, r, c, br, bc)
 
 
 class MatrixDistribution:
     comm: MPIComm
     rows: int
     columns: int
-    blocksize: int | None  # None means everything on rank=0
+    br: int
+    bc: int
     shape: tuple[int, int]
     full_shape: tuple[int, int]
     desc: Array1D
+    simple = True
+    all_data_on_rank_zero = True
 
     def matrix(self, dtype=None, data=None):
         return Matrix(*self.full_shape, dtype=dtype, data=data, dist=self)
@@ -766,14 +781,15 @@ class MatrixDistribution:
         >>> Matrix(2, 2).dist.my_row_range()
         (0, 2)
         """
+        M, N = self.full_shape
+        b = (M + self.rows - 1) // self.rows
         ok = (self.rows == self.comm.size and
               self.columns == 1 and
-              self.blocksize is None)
+              self.br == b and
+              self.bc == N)
         if not ok:
             raise ValueError(f'Can not create slice of distribution: {self}')
-        M = self.full_shape[0]
-        b = (M + self.rows - 1) // self.rows
-        n1 = self.comm.rank * b
+        n1 = min(self.comm.rank * b, M)
         n2 = min(n1 + b, M)
         return n1, n2
 
@@ -787,11 +803,12 @@ class NoDistribution(MatrixDistribution):
     comm = serial_comm
     rows = 1
     columns = 1
-    blocksize = None
 
-    def __init__(self, M, N):
+    def __init__(self, M: int, N: int):
         self.shape = (M, N)
         self.full_shape = (M, N)
+        self.br = M
+        self.bc = N
 
     def __str__(self):
         return 'NoDistribution({}x{})'.format(*self.shape)
@@ -799,7 +816,7 @@ class NoDistribution(MatrixDistribution):
     def to_xp(self, xp) -> MatrixDistribution:
         if xp is np:
             return self
-        return CuPyDistribution(*self.shape, serial_comm, 1, 1, None)
+        return CuPyDistribution(*self.shape, serial_comm, 1, 1, *self.shape)
 
     def global_index(self, n):
         return n
@@ -830,41 +847,33 @@ class NoDistribution(MatrixDistribution):
 class BLACSDistribution(MatrixDistribution):
     serial = False
 
-    def __init__(self, M, N, comm, r, c, b):
+    def __init__(self, M, N, comm, r, c, br, bc):
         self.comm = comm
         self.rows = r
         self.columns = c
-        self.blocksize = b
         self.full_shape = (M, N)
-        self.simple = False
+        self.br = br
+        self.bc = bc
 
         key = (comm, r, c)
         context = _global_blacs_context_store.get(key)
         if context is None:
             try:
                 context = cgpaw.new_blacs_context(comm.get_c_object(),
-                                                  c, r, 'R')
+                                                  c, r, 'C')
             except AttributeError:
                 pass
             else:
                 _global_blacs_context_store[key] = context
 
-        if b is None:
-            if c == 1:
-                br = (M + r - 1) // r
-                bc = max(1, N)
-                self.simple = True
-            elif r == 1:
-                br = M
-                bc = (N + c - 1) // c
-            else:
-                raise ValueError('Please specify block size!')
-        else:
-            br = bc = b
+        self.simple = (c == 1 and
+                       br == (M + r - 1) // r and
+                       bc == N)
+        self.all_data_on_rank_zero = (br == M and bc == N)
 
         if context is None:
-            assert b is None
             assert c == 1
+            assert br == (M + r - 1) // r
             n = N
             m = min((comm.rank + 1) * br, M) - min(comm.rank * br, M)
         else:
@@ -891,7 +900,7 @@ class BLACSDistribution(MatrixDistribution):
         return BLACSDistribution(M, N,
                                  self.comm,
                                  self.rows, self.columns,
-                                 self.blocksize)
+                                 self.br, self.bc)
 
     def multiply(self, alpha, a, opa, b, opb, beta, c, symmetric):
         if self.comm.size > 1:
@@ -947,7 +956,7 @@ class BLACSDistribution(MatrixDistribution):
             return self
         return CuPyDistribution(
             *self.full_shape,
-            self.comm, self.rows, self.columns, self.blocksize)
+            self.comm, self.rows, self.columns, self.br, self.bc)
 
 
 def cublas_mmm(alpha, a, opa, b, opb, beta, c):
@@ -960,16 +969,22 @@ def cublas_mmm(alpha, a, opa, b, opb, beta, c):
 
 
 class CuPyDistribution(MatrixDistribution):
-    def __init__(self, M, N, comm, r, c, b):
+    def __init__(self, M, N, comm, r, c, br, bc):
         self.comm = comm
         self.rows = r
         self.columns = c
-        self.blocksize = b
         self.full_shape = (M, N)
-        # assert r == comm.size, (M, N, comm, r, c, b)
         assert c == 1
-        br = (M + r - 1) // r
-        m = min((comm.rank + 1) * br, M) - min(comm.rank * br, M)
+        self.br = br
+        self.bc = bc
+        assert bc == max(1, N)
+        if br >= M:
+            m = M if comm.rank == 0 else 0
+        elif br == (M + r - 1) // r:
+            m = min((comm.rank + 1) * br, M) - min(comm.rank * br, M)
+            self.all_data_on_rank_zero = False
+        else:
+            raise ValueError
         self.shape = (m, N)
 
     def __str__(self):
@@ -984,7 +999,7 @@ class CuPyDistribution(MatrixDistribution):
             return NoDistribution(*self.full_shape)
         return BLACSDistribution(
             *self.full_shape,
-            self.comm, self.rows, self.columns, self.blocksize)
+            self.comm, self.rows, self.columns, self.br, self.bc)
 
     def global_index(self, n):
         1 / 0
@@ -993,8 +1008,7 @@ class CuPyDistribution(MatrixDistribution):
     def new(self, M, N):
         return CuPyDistribution(M, N,
                                 self.comm,
-                                self.rows, self.columns,
-                                self.blocksize)
+                                self.rows, self.columns, self.br, self.bc)
 
     def multiply(self, alpha, a, opa, b, opb, beta, c, *, symmetric=False):
         if self.comm.size > 1:

@@ -1,5 +1,5 @@
 import numpy as np
-from gpaw.mpi import rank
+from gpaw.mpi import world
 from gpaw.response import ResponseGroundStateAdapter, ResponseContext
 from gpaw.response.mft import HeisenbergExchangeCalculator
 from gpaw.response.site_data import AtomicSites, get_site_radii_range
@@ -37,6 +37,6 @@ J_qab = np.array([jcalc(q_c).array[..., 0] for q_c in q_qc])
 context.write_timer()
 
 # Save the bandpath, spherical radii and computed exchange constants
-if rank == 0:
+if world.rank == 0:
     np.save('q_qc_path.npy', q_qc)
     np.save('J_60_qab_path.npy', J_qab)

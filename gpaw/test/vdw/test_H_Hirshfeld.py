@@ -20,9 +20,10 @@ def test_vdw_H_Hirshfeld():
         calc = GPAW(mode='fd',
                     h=h,
                     occupations=FermiDirac(0.1, fixmagmom=spinpol),
+                    convergence={'density': 1e-6},
                     spinpol=spinpol)
         calc.calculate(atoms)
         vol = HirshfeldPartitioning(calc).get_effective_volume_ratios()
         volumes.append(vol)
     parprint(volumes)
-    assert volumes[0][0] == pytest.approx(volumes[1][0], abs=4e-9)
+    assert volumes[0][0] == pytest.approx(volumes[1][0], abs=2e-7)

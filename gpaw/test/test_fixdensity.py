@@ -12,6 +12,7 @@ def test_fixdensity(in_tmp_dir, gpaw_new, mpi):
     slab = Atoms('Li', cell=(a, a, 2 * a), pbc=1)
     slab.calc = mpi.GPAW(
         mode='fd', kpts=(3, 3, 1), txt='li-1.txt',
+        nbands=5,
         parallel=dict(kpt=1))
     slab.get_potential_energy()
     slab.calc.write('li.gpw')

@@ -3,15 +3,15 @@
 
 // C99 compliant header that can safely be included from main GPAW.
 
-#include "../../../gpaw_utils.h"
-#include "../../gpu_interface.h"
+#include "python_utils.h"
+#include "gpaw_utils.h"
+#include "gpu/gpu_interface.h"
 
 // MAGMA needs stdbool.h but it is not properly included by their own headers.
 // Can remove this include once it's fixed in MAGMA.
 // See https://github.com/icl-utk-edu/magma/pull/41
 #include <stdbool.h>
 #include <magma_v2.h>
-#include "../../../python_utils.h"
 
 /* Initializes MAGMA library. Must be called come AFTER any calls to cudaSetValidDevices
 * and cudaSetDeviceFlags. Call only if GPUs are available.

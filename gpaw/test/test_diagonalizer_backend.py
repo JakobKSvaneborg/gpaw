@@ -27,8 +27,7 @@ def prepare_eigensolver_matrices(size_of_matrices, dtype):
 
 
 @pytest.fixture(params=['eigh', 'scalapack', 'elpa'])
-def backend_problemsize_kwargs(request, mpi):
-    world = mpi.comm
+def backend_problemsize_kwargs(request, require_real_mpi, mpi):
     name = request.param
     eigenproblem_size = world.size * 64
     if name == 'eigh':

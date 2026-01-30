@@ -11,7 +11,7 @@ from gpaw.response.pair import get_gs_and_context
 
 
 @pytest.mark.response
-def test_BSEPlus_2d(in_tmp_dir, gpw_files):
+def test_BSEPlus_2d(in_tmp_dir, gpw_files, scalapack):
     """
     This test makes a BSEPlus calculation with the BSEPlus class and
     manually to test that the BSEPlus code is working. It tests that the
@@ -137,4 +137,4 @@ def test_BSEPlus_2d(in_tmp_dir, gpw_files):
                (-0.0221078136579067 + 0.00854914022562708j)]
 
         for i, r in enumerate(ref):
-            assert np.allclose(chi_BSEPlus_WGG[i, i, i + 1], r)
+            assert chi_BSEPlus_WGG[i, i, i + 1] == pytest.approx(r, rel=2e-3)

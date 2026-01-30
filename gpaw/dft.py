@@ -169,6 +169,9 @@ class Eigensolver(Parameter):
     @classmethod
     def from_param(cls, eigensolver):
         from gpaw.new.do import DirectOptimization
+        from gpaw.new.eigensolver import Eigensolver as NewEigensolver
+        from gpaw.old.eigensolvers.eigensolver import Eigensolver as OES
+
         eigensolvers = {
             'davidson': Davidson,
             'rmm-diis': RMMDIIS,
@@ -178,22 +181,29 @@ class Eigensolver(Parameter):
             'hybrid-lcao': HybridLCAOEigensolver,
             'scissors': Scissors}
 
-        if isinstance(eigensolver, str):
-            eigensolver = {'name': eigensolver}
-        elif not isinstance(eigensolver, dict):
-            return eigensolver
-        if 'name' in eigensolver:
-            eigensolver = eigensolver.copy()
-            name = eigensolver.pop('name')
-            if name == 'dav':
-                name = 'davidson'
-                warnings.warn('Please use "davidson" instead of "dav"')
-            if name in eigensolvers:
-                return eigensolvers[name](**eigensolver)
-            if name in {'etdm-lcao', 'etdm', 'direct'}:
-                raise NotImplementedError
-            raise ValueError(f'Unknown eigensolver: {name}')
-        return DefaultEigensolver(eigensolver)
+        match eigensolver:
+            case str(name):
+                return cls.from_param({'name': name})
+            case {'name': name, **kwargs}:
+                if name == 'dav':
+                    warnings.warn('Please use "davidson" instead of "dav"')
+                    return eigensolvers['davidson'](**kwargs)
+                if GPAW_NEW == 147 and name in {'etdm-lcao', 'etdm-fdpw',
+                                                'etdm', 'direct'}:
+                    raise NotImplementedError
+                if name in eigensolvers:
+                    return eigensolvers[name](**kwargs)
+                raise ValueError(f'Unknown name of eigensolver: {name}')
+            case {**kwargs}:
+                return DefaultEigensolver(kwargs)
+            case NewEigensolver():
+                return eigensolver
+            case OES():
+                return cls.from_param(eigensolver.todict())
+            case _:
+                if GPAW_NEW == 147:
+                    raise NotImplementedError
+                raise ValueError(f'Unknown eigensolver input: {eigensolver}')
 
 
 class DefaultEigensolver(Eigensolver):
@@ -204,7 +214,7 @@ class DefaultEigensolver(Eigensolver):
         return self.params
 
 
-class PWFDEigensolverParamater(Eigensolver):
+class PWFDEigensolverParameter(Eigensolver):
     def __init__(self,
                  niter: int = 2,
                  max_buffer_mem: int = 200 * 1024**2):
@@ -232,24 +242,24 @@ class PWFDEigensolverParamater(Eigensolver):
             max_buffer_mem=self.max_buffer_mem)
 
 
-class Davidson(PWFDEigensolverParamater):
+class Davidson(PWFDEigensolverParameter):
     name = 'davidson'
     cls = DavidsonEigensolver
 
 
-class PPCG(PWFDEigensolverParamater):
+class PPCG(PWFDEigensolverParameter):
     name = 'ppcg'
     cls = PPCGEigensolver
 
     def __init__(self,
-                 niter: int = 5,
-                 min_niter: int | None = 2,
+                 niter: int = 2,
+                 min_niter: int | None = 1,
                  max_buffer_mem: int = 200 * 1024**2,
                  blocksize=None,
                  rr_modulo=5,
                  include_cg=True,
                  promote_inner_dtype=False,
-                 tolerances: tuple[float] | None = None):
+                 tolerances: tuple[float, float, float] = (0.0, 0.0, 4e-8)):
         self.niter = niter
         self.min_niter = min_niter
         self.max_buffer_mem = max_buffer_mem
@@ -258,6 +268,10 @@ class PPCG(PWFDEigensolverParamater):
         self.include_cg = include_cg
         self.promote_inner_dtype = promote_inner_dtype
         self.tolerances = tolerances
+
+        # Ensure backwards compatibity
+        if self.tolerances is None:
+            self.tolerances = (0.0, 0.0, 4e-8)
 
     def todict(self):
         return {'niter': self.niter,
@@ -293,20 +307,23 @@ class PPCG(PWFDEigensolverParamater):
             tolerances=self.tolerances)
 
 
-class RMMDIIS(PWFDEigensolverParamater):
+class RMMDIIS(PWFDEigensolverParameter):
     name = 'rmm-diis'
     cls = RMMDIISEigensolver
 
     def __init__(self,
                  niter: int = 1,
+                 diis_steps: int = 1,
                  max_buffer_mem: int = 200 * 1024**2,
                  trial_step: float | None = None):
         self.niter = niter
+        self.diis_steps = diis_steps
         self.max_buffer_mem = max_buffer_mem
         self.trial_step = trial_step
 
     def todict(self):
         return {'niter': self.niter,
+                'diis_steps': self.diis_steps,
                 'max_buffer_mem': self.max_buffer_mem,
                 'trial_step': self.trial_step}
 
@@ -325,6 +342,7 @@ class RMMDIIS(PWFDEigensolverParamater):
             create_preconditioner,
             converge_bands,
             niter=self.niter,
+            diis_steps=self.diis_steps,
             max_buffer_mem=self.max_buffer_mem,
             trial_step=self.trial_step)
 
@@ -335,6 +353,9 @@ class LCAOEigensolver(Eigensolver):
     def build_lcao(self, basis, relpos_ac, cell_cv, symmetries):
         from gpaw.new.lcao.eigensolver import LCAOEigensolver as LCAOES
         return LCAOES(basis)
+
+    def todict(self):
+        return {}
 
 
 class HybridLCAOEigensolver(LCAOEigensolver):
@@ -637,7 +658,8 @@ class Parameters:
         soc: bool | None = None,
         spinpol: bool | None = None,
         symmetry: str | dict | Symmetry | None = None,
-        xc: str | dict | XC | None = None):
+        xc: str | dict | XC | None = None,
+        external=None):
         r"""DFT-parameters object.
 
         >>> p = Parameters(mode=PW(400))
@@ -719,6 +741,8 @@ class Parameters:
         xc:
             XC-functional.  Default is PZ-LDA.
         """
+        if external is not None:
+            raise NotImplementedError
         soc, magmoms = _parse_experimental(experimental, soc, magmoms)
         self._non_defaults = [
             key for key, value in locals().items()
@@ -833,7 +857,6 @@ def _parse_experimental(experimental: dict | None,
         magmoms = experimental.pop('magmoms')
     unknown = experimental.keys() - {'backwards_compatible',
                                      'ccirs',
-                                     'fast_pw_init',
                                      'pw_pot_calc'}
     if unknown:
         warnings.warn(f'Unknown experimental keyword(s): {unknown}',
@@ -972,17 +995,19 @@ def GPAW(
         else:
             _use_old_gpaw = True
 
+    # Sorry about the following mess, but it will become a lot simpler
+    # in the near future!
+    params = None
     use_old_if_reading_fails = False
     if _use_old_gpaw is None:
         if _USE_OLD_GPAW is None:
             if GPAW_NEW == 147:
-                if filename is not None:
-                    _use_old_gpaw = False
+                can, params = _can_use_new(filename, kwargs)
+                _use_old_gpaw = not can
+                if not _use_old_gpaw and filename:
                     use_old_if_reading_fails = True
-                else:
-                    _use_old_gpaw = not _can_use_new(kwargs)
             else:
-                _use_old_gpaw = not GPAW_NEW
+                _use_old_gpaw = GPAW_NEW == 0
         else:
             _use_old_gpaw = _USE_OLD_GPAW
 
@@ -1016,25 +1041,36 @@ def GPAW(
         return ASECalculator(params,
                              log=log, dft=dft, atoms=atoms)
 
-    params = Parameters(**kwargs)
+    params = params or Parameters(**kwargs)
     return ASECalculator(params, log=log)
 
 
-def _can_use_new(kwargs) -> bool:
+def _can_use_new(filename, kwargs) -> tuple[bool, Parameters | None]:
+    """Decide if the parameters are compatible with new-GPAW."""
+    if filename is not None:
+        from ase.io.ulm import ulmopen
+        from gpaw.mpi import world, broadcast
+        version = None
+        if world.rank == 0:
+            with ulmopen(filename) as reader:
+                version = reader.version
+        version = broadcast(version, comm=world)
+        return version >= 4, None
+
     try:
         params = Parameters(**kwargs)
     except NotImplementedError:
-        return False
+        return False, None
     if params.mode.name == 'lcao':
-        return False
+        return False, None
     xcname = params.xc.name
     if xcname.startswith(('GLLB', 'TB09')):
-        return False
+        return False, None
     FD_HYBRIDS = {'EXX', 'PBE0', 'B3LYP',
                   'CAMY-BLYP', 'CAMY-B3LYP',
                   'LCY-BLYP', 'LCY-PBE'}
     if params.mode.name == 'fd' and xcname in FD_HYBRIDS:
-        return False
+        return False, None
     if xcname.startswith('LCY-PBE:'):
-        return False
-    return True
+        return False, None
+    return True, params

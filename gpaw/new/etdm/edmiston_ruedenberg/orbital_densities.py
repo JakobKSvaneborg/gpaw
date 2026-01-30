@@ -169,7 +169,7 @@ def orbital_compensation_charges(setups: Setups, wfs: WaveFunctions):
 
     for a, P_ni in P_ani.items():
         Q_anL[a] = np.einsum(
-            "ni,nj,ijL->nnL",
+            'ni,nj,ijL->nnL',
             P_ni.conj(),
             P_ni,
             setups[a].Delta_iiL,
@@ -234,7 +234,7 @@ def self_hartree_paw(
     for a, P_ni in P_ani.items():
         dH_nii = np.array([unpack_hermitian(dH_p) for dH_p in dH_anp[a]])
         dG_nm -= np.einsum(
-            "ni,mij,mj->nm",
+            'ni,mij,mj->nm',
             P_ni.conj(),
             dH_nii,
             P_ni,

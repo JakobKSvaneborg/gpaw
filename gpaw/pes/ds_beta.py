@@ -9,9 +9,6 @@ from gpaw.pes.continuum import PlaneWave
 from gpaw.pes.state import H1s
 from gpaw.utilities.gl_quadrature import GaussLegendre
 
-# debug
-# from gpaw.mpi import rank
-
 
 class CrossSectionBeta:
 

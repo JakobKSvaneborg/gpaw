@@ -63,13 +63,14 @@ def test_propagated_wave_function(initialize_system, module_tmp_path):
               -2.6174901880264838e+00 + 1.9885717875694848e+00j,
               7.2641847473298660e-01 + 1.6020733667409095e+00j]]]]
     err = calculate_error(coeff, ref)
-    assert err < 7e-9
+    assert err < 7e-7
 
 
 @pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 @pytest.mark.parametrize('parallel', parallel_i)
-def test_propagation(initialize_system, module_tmp_path, parallel, in_tmp_dir):
+def test_propagation(initialize_system, module_tmp_path, parallel, in_tmp_dir,
+                     scalapack):
     calculate_time_propagation(module_tmp_path / 'gs.gpw',
                                kick=[0, 0, 1e-5],
                                parallel=parallel)

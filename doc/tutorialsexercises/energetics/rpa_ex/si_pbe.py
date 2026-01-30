@@ -19,7 +19,7 @@ bulk_crystal = bulk('Si', 'diamond', a=alat)
 bulk_calc = GPAW(mode=PW(pwcutoff),
                  kpts={'size': (k, k, k), 'gamma': True},
                  xc='PBE',
-                 txt='si.pbe_output.txt',
+                 txt='si_pbe_output.txt',
                  parallel={'band': 1},
                  occupations=FermiDirac(0.01)
                  )

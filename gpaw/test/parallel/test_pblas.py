@@ -20,8 +20,12 @@ from gpaw.utilities.scalapack import (pblas_gemm, pblas_gemv, pblas_hemm,
                                       pblas_symm)
 from gpaw.utilities.tools import tri2full
 
-pytestmark = pytest.mark.skipif(not compiled_with_sl(),
-                                reason='not compiled with scalapack')
+
+@pytest.fixture(autouse=True)
+def functioning_scalapack(require_real_mpi):
+    if not compiled_with_sl():
+        pytest.skip('not compiled with scalapack')
+
 
 # may need to be be increased if the mprocs-by-nprocs
 # BLACS grid becomes larger

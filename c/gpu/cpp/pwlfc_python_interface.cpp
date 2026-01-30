@@ -1,9 +1,10 @@
-#include "../../gpaw_utils.h"
-#include "../gpu.h"
-#include "../gpu-complex.h"
+#include "python_utils.h"
 #include "pyarray_utils.hpp"
+#include "gpaw_utils.h"
+#include "gpu/gpu.h"
+#include "gpu/gpu-complex.h"
 #include "array_life_support.hpp"
-#include "../gpu_interface.h"
+#include "gpu/gpu_interface.h"
 #include "pwlfc_expand.hpp"
 
 static int get_dtype(PyObject* array)

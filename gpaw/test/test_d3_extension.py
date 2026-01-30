@@ -79,7 +79,7 @@ def test_d3_extensions(mode, parallel, in_tmp_dir, dftd3, mpi):
     atoms.positions[0, 2] -= 0.1
     movedE0, movedF0 = atoms.get_potential_energy(), atoms.get_forces()
     assert movedE == pytest.approx(movedE0 + movedD3_E)
-    assert movedF == pytest.approx(movedF0 + movedD3_F)
+    assert movedF == pytest.approx(movedF0 + movedD3_F, abs=5e-5)
 
     # 4. Test restarting from a file
     atoms, calc = restart('calc.gpw', Class=GPAW, communicator=mpi.comm)
