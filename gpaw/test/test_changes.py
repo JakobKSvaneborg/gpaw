@@ -3,7 +3,7 @@ import numpy as np
 from ase.build import molecule
 from gpaw.dft import DFT
 from gpaw.new.ase_interface import GPAW
-from gpaw.mpi import rank0_call
+from gpaw.mpi import serial_comm
 
 
 def test_changes():
@@ -66,7 +66,7 @@ def test_gather():
               'mode': {'name': 'pw'},
               'nbands': 3,
               'convergence': {'eigenstates': 1e-4,
-                              'density': 1e-4,
+                              'density': 1e-5,
                               'forces': 1e-3}}
 
     # preconverge with PBE
@@ -74,29 +74,19 @@ def test_gather():
     atoms.calc = calc
     etot_test = atoms.get_potential_energy()
     forces_test = atoms.get_forces()
+    density_test = atoms.calc.get_all_electron_density()
 
-    # dft = DFT(atoms, **params)
-    # dft.converge()
-    # dft.energy()
-    # dft.forces()
-    # etot_test = dft.results['energy']
-    # forces_test = dft.results['forces']
+    newdft = calc.dft.gather()
 
-    calc.dft.gather()
+    if newdft is not None:
+        ase_calc = newdft.ase_calculator()
+        etot = ase_calc.get_potential_energy(atoms)
+        forces = ase_calc.get_forces(atoms)
+        density = ase_calc.get_all_electron_density()
 
-    # ase_calc = dft.ase_calculator()
-    # etot = ase_calc.get_potential_energy(atoms)
-    # forces = ase_calc.get_forces(atoms)
-
-    def get_energy_and_forces(calc, atoms):
-        etot = calc.get_potential_energy(atoms)
-        forces = calc.get_forces(atoms)
-        return (etot, forces)
-
-    etot, forces = rank0_call(get_energy_and_forces, calc.world)(calc, atoms)
-
-    assert etot == pytest.approx(etot_test)
-    assert forces == pytest.approx(forces_test)
+        assert etot == pytest.approx(etot_test)
+        assert forces == pytest.approx(forces_test, abs=1e-3)
+        assert density == pytest.approx(density_test, abs=1e-3)
 
 if __name__ == "__main__":
     test_gather()

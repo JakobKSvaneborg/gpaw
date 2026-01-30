@@ -413,49 +413,44 @@ class DFTCalculation:
 
         atoms = self.atoms
         params = self.params
+        comm = self.comm
 
         params.parallel = {'kpt': 1, 'band': 1, 'domain': 1}
         builder = params.dft_component_builder(atoms, log=None,
                                                comm=serial_comm)
 
+        ibzwfs = self.ibzwfs
+        for wfs in ibzwfs:
+            wfs = self.ibzwfs.get_wfs(kpt=wfs.k, spin=wfs.spin)
+
         dH_asp, vt_sR, dedtaut_sR, vHt_x = self.potential.gather()
-        potential = Potential(vt_sR=vt_sR, dH_asii=dH_asp.to_full(),
-                              dedtaut_sR=dedtaut_sR, vHt_x=vHt_x,
-                              e_stress=self.potential.e_stress)
-
         D_asp, nt_sR, taut_sR = self.density.gather()
-        density = Density.from_data_and_setups(
-            nt_sR, taut_sR, D_asp.to_full(),
-            builder.params.charge,
-            builder.setups,
-            builder.get_pseudo_core_densities(),
-            builder.get_pseudo_core_ked())
+        if dH_asp is not None:
+            potential = Potential(vt_sR=vt_sR, dH_asii=dH_asp.to_full(),
+                                  dedtaut_sR=dedtaut_sR, vHt_x=vHt_x,
+                                  e_stress=self.potential.e_stress)
 
-        def create_wfs(spin, q, k, kpt_kc, weight_k):
-            wfs = self.ibzwfs.get_wfs(kpt=k, spin=spin)
-            if self.comm.rank == 0:
-                return wfs
-            else:
-                return
+            density = Density.from_data_and_setups(
+                nt_sR, taut_sR, D_asp.to_full(),
+                builder.params.charge,
+                builder.setups,
+                builder.get_pseudo_core_densities(),
+                builder.get_pseudo_core_ked())
 
-        # redistribute (gather wfs)
-        ibzwfs = IBZWaveFunctions.create(
-            ibz=self.ibzwfs.ibz,
-            ncomponents=self.ibzwfs.ncomponents,
-            create_wfs_func=create_wfs,
-            kpt_comm=builder.communicators['k'],
-            kpt_band_comm=builder.communicators['D'],
-            comm=builder.log.comm)
+            dft = DFTCalculation(
+                atoms, ibzwfs, density, potential,
+                builder.setups,
+                builder.create_scf_loop(),
+                builder.create_potential_calculator(),
+                builder.log,
+                params=params,
+                energies=self.energies)
 
-        dft = DFTCalculation(
-            atoms, ibzwfs, density, potential,
-            builder.setups,
-            builder.create_scf_loop(),
-            builder.create_potential_calculator(),
-            builder.log,
-            params=params,
-            energies=self.energies)
+            dft.results = self.results.copy()
+        else:
+            dft = None
 
+        comm.barrier()
         return dft
 
     def change(self, *, xc=None, eigensolver=None,
