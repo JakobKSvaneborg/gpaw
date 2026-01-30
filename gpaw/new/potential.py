@@ -89,11 +89,13 @@ class Potential:
     def gather(self):
         dH_asp = self.dH_asii.to_cpu().to_lower_triangle().gather()
         vt_sR = self.vt_sR.to_xp(np).gather()
+        dedtaut_sR = None
+        vHt_x = None
         if self.dedtaut_sR is not None:
             dedtaut_sR = self.dedtaut_sR.to_xp(np).gather()
         if self.vHt_x is not None:
             vHt_x = self.vHt_x.to_xp(np).gather()
-        return dHasp, vt_sR, dedtaut_sR, vHt_x
+        return dH_asp, vt_sR, dedtaut_sR, vHt_x
 
     def write_to_gpw(self, writer, flags):
         dHasp, vt_sR, dedtaut_sR, vHt_x = self.gather()

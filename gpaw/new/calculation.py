@@ -418,12 +418,12 @@ class DFTCalculation:
         builder = params.dft_component_builder(atoms, log=None,
                                                comm=serial_comm)
 
-        dHasp, vt_sR, dedtaut_sR, vHt_x = self.potential.gather()
-        potential = Potential(vt_sR=vt_sR, dH_asii=dHasp.to_full(),
+        dH_asp, vt_sR, dedtaut_sR, vHt_x = self.potential.gather()
+        potential = Potential(vt_sR=vt_sR, dH_asii=dH_asp.to_full(),
                               dedtaut_sR=dedtaut_sR, vHt_x=vHt_x,
                               e_stress=self.potential.e_stress)
 
-        D_asp, nt_sR, tau_sR = self.density.gather()
+        D_asp, nt_sR, taut_sR = self.density.gather()
         density = Density.from_data_and_setups(
             nt_sR, taut_sR, D_asp.to_full(),
             builder.params.charge,

@@ -368,9 +368,10 @@ class Density:
     def gather(self):
         D_asp = self.D_asii.to_cpu().to_lower_triangle().gather()
         nt_sR = self.nt_sR.to_xp(np).gather()
+        taut_sR = None
         if self.taut_sR is not None:
             taut_sR = self.taut_sR.to_xp(np).gather()
-        return D_asp, nt_sR, tau_sR
+        return D_asp, nt_sR, taut_sR
 
     @trace
     def write_to_gpw(self, writer, flags):
