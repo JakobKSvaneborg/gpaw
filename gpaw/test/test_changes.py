@@ -2,6 +2,8 @@ import pytest
 import numpy as np
 from ase.build import molecule
 from gpaw.dft import DFT
+from gpaw.new.ase_interface import GPAW
+from gpaw.mpi import rank0_call
 
 
 def test_changes():
@@ -44,7 +46,6 @@ def test_changes():
     forces_xc = ase_calc.get_forces(atoms)
 
     if 0:
-        from gpaw.new.ase_interface import GPAW
         params['xc'] = 'HSE06'
         params['occupations'] = occ_fixed
         calc = GPAW(**params)
@@ -55,6 +56,47 @@ def test_changes():
     assert etot_xc == pytest.approx(etot_hse, abs=1e-4)
     assert forces_xc == pytest.approx(forces_hse, abs=1e-2)
 
+def test_gather():
+
+    atoms = molecule('H2', cell=[4, 4, 4])
+    atoms.center()
+    atoms.set_pbc(True)
+
+    params = {'xc': 'PBE',
+              'mode': {'name': 'pw'},
+              'nbands': 3,
+              'convergence': {'eigenstates': 1e-4,
+                              'density': 1e-4,
+                              'forces': 1e-3}}
+
+    # preconverge with PBE
+    calc = GPAW(**params)
+    atoms.calc = calc
+    etot_test = atoms.get_potential_energy()
+    forces_test = atoms.get_forces()
+
+    # dft = DFT(atoms, **params)
+    # dft.converge()
+    # dft.energy()
+    # dft.forces()
+    # etot_test = dft.results['energy']
+    # forces_test = dft.results['forces']
+
+    calc.dft.gather_master()
+
+    # ase_calc = dft.ase_calculator()
+    # etot = ase_calc.get_potential_energy(atoms)
+    # forces = ase_calc.get_forces(atoms)
+
+    def get_energy_and_forces(calc, atoms):
+        etot = calc.get_potential_energy(atoms)
+        forces = calc.get_forces(atoms)
+        return (etot, forces)
+
+    etot, forces = rank0_call(get_energy_and_forces, calc.world)(calc, atoms)
+
+    assert etot == pytest.approx(etot_test)
+    assert forces == pytest.approx(forces_test)
 
 if __name__ == "__main__":
-    test_changes()
+    test_gather()
