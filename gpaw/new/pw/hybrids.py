@@ -99,7 +99,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
     kpt_Kc = np.zeros((nbzk, 3))
     psit_KsnG = {}
     for wfs1 in ibzwfs:
-        wfs = wfs1.collect(0, nocc)
+        wfs = wfs1.collect_bands_and_domain(0, nocc)
         if wfs is None:
             continue
         for K, k in enumerate(ibz.bz2ibz_K):

@@ -262,16 +262,16 @@ class IBZWaveFunctions(Generic[WFT]):
         assert u >= 0, (kpt, spin, self.nspins, self.u0)
         return self._wfs_u[u]
 
-    def getwfs_(self,
-                *,
-                kpt: int = 0,
-                spin: int = 0,
-                n1=0,
-                n2=0):
+    def get_wfs_on_master(self,
+                          *,
+                          kpt: int = 0,
+                          spin: int = 0,
+                          n1=0,
+                          n2=0):
         krank = self.rank_ks[kpt][spin]
         if krank == self.kpt_comm.rank:
             wfs = self._get_wfs(kpt, spin)
-            wfs2 = wfs.collect(n1, n2)
+            wfs2 = wfs.collect_bands_and_domain(n1, n2)
             if krank == 0:
                 return wfs2
             if wfs2 is not None:
