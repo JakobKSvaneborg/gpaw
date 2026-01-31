@@ -7,7 +7,6 @@ import numpy as np
 
 from gpaw.core import UGArray, UGDesc
 from gpaw.gpu import einsum
-from gpaw.hybrids import HybridXC
 from gpaw.new import zips
 from gpaw.new.c import (add_to_density, add_to_density_gpu, evaluate_lda_gpu,
                         evaluate_pbe_gpu)
@@ -26,6 +25,7 @@ from gpaw.xc.hybrid import HybridXC as OldHybridXC
 def create_functional(xc: OldXCFunctional | str | dict,
                       grid: UGDesc,
                       xp=np) -> Functional:
+    from gpaw.hybrids import HybridXC
     if isinstance(xc, OldHybridXC):
         raise NotImplementedError
 
