@@ -373,16 +373,17 @@ class DFTCalculation:
 
     def wave_function(self, band: int, kpt=0, spin=None,
                       periodic=False,
-                      broadcast=True) -> UGArray:
+                      broadcast=True) -> UGArray | None:
         psit_nR = self.wave_functions(n1=band, n2=band + 1, kpt=kpt, spin=spin,
                                       periodic=periodic, broadcast=broadcast)
         if psit_nR is not None:
             return psit_nR[0]
+        return None
 
     def wave_functions(self, n1=0, n2=None, kpt=0, spin=None,
                        periodic=False,
                        broadcast=True,
-                       _pad=True) -> UGArray:
+                       _pad=True) -> UGArray | None:
         collinear = self.ibzwfs.collinear
         if collinear:
             if spin is None:
@@ -599,7 +600,7 @@ class DFTCalculation:
                 self.density)
 
         self.ibzwfs = self.ibzwfs.convert_to(
-            mode,
+            builder.mode,
             grid=builder.grid,
             pw=builder.wf_desc,
             nbands=nbands)

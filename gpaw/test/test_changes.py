@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from ase import Atoms
 from ase.build import molecule
-from gpaw.dft import DFT, PW
+from gpaw.dft import DFT
 
 
 def test_changes():
@@ -67,17 +67,16 @@ def test_lcao_to_x(mode):
 
     dft.change_mode(mode)
     dft.converge()
-    e1 = dft.calculate_energy()
 
     atoms.positions[:] += 0.1
     dft.move_atoms(atoms)
     dft.converge()
-    e2 = dft.calculate_energy()
+    e1 = dft.calculate_energy()
 
     dft = DFT(atoms, mode=mode)
     dft.converge()
-    e3 = dft.calculate_energy()
-    assert e2 == pytest.approx(e3)
+    e2 = dft.calculate_energy()
+    assert e1 == pytest.approx(e2)
 
 
 if __name__ == '__main__':

@@ -458,8 +458,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         return None
 
     def ___collect(self,
-                n1: int = 0,
-                n2: int = 0) -> PWFDWaveFunctions | None:
+                   n1: int = 0,
+                   n2: int = 0) -> PWFDWaveFunctions | None:
         """Collect range of bands to master of band and domain comms."""
         # Also collect projections instead of recomputing XXX
         n2 = n2 if n2 > 0 else self.nbands + n2

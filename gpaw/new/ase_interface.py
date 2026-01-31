@@ -365,13 +365,13 @@ class ASECalculator:
                                  periodic=False,
                                  broadcast=True,
                                  pad=True) -> Array3D | None:
-        psit_R = self.dft.wave_functions(n1=band, n2=band + 1,
-                                         kpt=kpt, spin=spin,
-                                         periodic=periodic,
-                                         broadcast=broadcast,
-                                         _pad=pad)[0]
-        if psit_R is not None:
-            return psit_R.data
+        psit_1R = self.dft.wave_functions(n1=band, n2=band + 1,
+                                          kpt=kpt, spin=spin,
+                                          periodic=periodic,
+                                          broadcast=broadcast,
+                                          _pad=pad)
+        if psit_1R is not None:
+            return psit_1R[0].data
         return None
 
     def get_atoms(self):
