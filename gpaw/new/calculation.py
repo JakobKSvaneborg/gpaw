@@ -384,16 +384,17 @@ class DFTCalculation:
                        periodic=False,
                        broadcast=True,
                        _pad=True) -> UGArray | None:
-        collinear = self.ibzwfs.collinear
+        ibzwfs = self.ibzwfs
+        collinear = ibzwfs.collinear
         if collinear:
             if spin is None:
                 spin = 0
         else:
             assert spin is None or spin == 0
 
-        krank = self.ibzwfs.rank_ks[kpt][spin]
-        if krank == self.kpt_comm.rank:
-            wfs = self._get_wfs(kpt, spin)
+        krank = ibzwfs.rank_ks[kpt][spin]
+        if krank == ibzwfs.kpt_comm.rank:
+            wfs = ibzwfs._get_wfs(kpt, spin)
             wfs = wfs.collect_bands(n1, n2)
             if wfs is not None:
                 basis = getattr(self.scf_loop.hamiltonian, 'basis', None)
