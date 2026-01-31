@@ -98,7 +98,7 @@ class Potential:
         return dH_asp, vt_sR, dedtaut_sR, vHt_x
 
     def write_to_gpw(self, writer, flags):
-        dHasp, vt_sR, dedtaut_sR, vHt_x = self.gather()
+        dH_asp, vt_sR, dedtaut_sR, vHt_x = self.gather()
 
         if dH_asp is None:
             return

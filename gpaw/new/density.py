@@ -375,7 +375,7 @@ class Density:
 
     @trace
     def write_to_gpw(self, writer, flags):
-        D_asp, nt_sR, tau_sR = self.gather()
+        D_asp, nt_sR, taut_sR = self.gather()
 
         if D_asp is None:
             return  # let master do the writing
