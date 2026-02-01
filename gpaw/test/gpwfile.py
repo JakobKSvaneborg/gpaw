@@ -160,7 +160,7 @@ class GPWFiles(CachedFilesHandler):
                                        'eigenstates': 1e-12},
                           magmoms=magmoms,
                           soc=soc,
-                          comm=self.comm,
+                          communicator=self.comm,
                           txt=self.folder / f'fcc_Ni_{calc_type}.txt')
         Ni.get_potential_energy()
         return Ni.calc
@@ -177,8 +177,10 @@ class GPWFiles(CachedFilesHandler):
     def h2_lcao(self):
         return self.h2({'name': 'lcao'})
 
-    def GPAW(self, *args, **kwargs):
-        return GPAW(*args, communicator=self.comm, **kwargs)
+    def GPAW(self, *args, communicator=None, **kwargs):
+        if communicator is None:
+            communicator = self.comm
+        return GPAW(*args, communicator=communicator, **kwargs)
 
     def h2(self, mode):
         h2 = Atoms('H2', positions=[[0, 0, 0], [0.74, 0, 0]])
@@ -979,13 +981,14 @@ class GPWFiles(CachedFilesHandler):
                   cell=[a, 0, 0],
                   pbc=[1, 0, 0])
         h.center(vacuum=2.0, axis=(1, 2))
-        h.calc = self.GPAW(
+        h.calc = GPAWNew(
             mode={'name': 'pw',
                   'ecut': 400,
                   'qspiral': [0.5, 0, 0]},
             magmoms=[[1, 0, 0]],
             symmetry='off',
             kpts=(2 * k, 1, 1),
+            communicator=self.comm,
             txt=self.folder / 'h_chain.txt')
         h.get_potential_energy()
         return h.calc
