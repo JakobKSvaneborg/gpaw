@@ -971,7 +971,6 @@ class GPWFiles(CachedFilesHandler):
 
     @gpwfile
     def h_chain(self):
-        from gpaw.new.ase_interface import GPAW
         a = 2.5
         k = 4
         # Compare 2*H AFM cell with 1*H q=1/2 spin-spiral cell.
