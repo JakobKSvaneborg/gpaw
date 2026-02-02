@@ -81,7 +81,7 @@ def test_gather():
 
     newdft = calc.dft.gather()
 
-    if newdft is not None:
+    if calc.world.rank == 0:
         ase_calc = newdft.ase_calculator()
         etot = ase_calc.get_potential_energy(atoms)
         forces = ase_calc.get_forces(atoms)
@@ -90,6 +90,8 @@ def test_gather():
         assert etot == pytest.approx(etot_test)
         assert forces == pytest.approx(forces_test, abs=1e-3)
         assert density == pytest.approx(density_test, abs=1e-3)
+    else:
+        assert newdft is None
 
 
 if __name__ == "__main__":

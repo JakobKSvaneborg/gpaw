@@ -427,7 +427,10 @@ class DFTCalculation:
         for k in range(len(ibz)):
             for spin in range(nspins):
                 wfs = self.ibzwfs.get_wfs(kpt=k, spin=spin)
-                wfs_u.append(wfs)
+                if wfs is not None:
+                    P_ani = wfs.P_ani.to_cpu().gather()  # gather atoms
+                    wfs._P_ani = P_ani
+                    wfs_u.append(wfs)
 
         dH_asp, vt_sR, dedtaut_sR, vHt_x = self.potential.gather()
         D_asp, nt_sR, taut_sR = self.density.gather()
