@@ -77,6 +77,7 @@ def test_gather():
     atoms.calc = calc
     etot_test = atoms.get_potential_energy()
     forces_test = atoms.get_forces()
+    pseudo_test = atoms.calc.get_pseudo_density()
     density_test = atoms.calc.get_all_electron_density()
 
     newdft = calc.dft.gather()
@@ -85,11 +86,16 @@ def test_gather():
         ase_calc = newdft.ase_calculator()
         etot = ase_calc.get_potential_energy(atoms)
         forces = ase_calc.get_forces(atoms)
+        pseudo = ase_calc.get_pseudo_density()
         density = ase_calc.get_all_electron_density()
 
         assert etot == pytest.approx(etot_test)
         assert forces == pytest.approx(forces_test, abs=1e-3)
-        assert density == pytest.approx(density_test, abs=1e-3)
+        assert pseudo == pytest.approx(pseudo_test, abs=1e-5)
+        assert density == pytest.approx(density_test, abs=1e-5)
+        # print(density.shape)
+        # idx = np.where(np.abs(density - density_test) > 1e-3)
+        # print(idx)
     else:
         assert newdft is None
 
