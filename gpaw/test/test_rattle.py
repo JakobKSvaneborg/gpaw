@@ -11,7 +11,7 @@ from gpaw.utilities.watermodel import TIP3PWaterModel as TIP3Pc
 # and constraints give the same results
 
 
-def test_rattle(in_tmp_dir):
+def test_rattle(in_tmp_dir, mpi):
     pairs = [(3 * i + j, 3 * i + (j + 1) % 3)
              for i in range(2)
              for j in [0, 1, 2]]
@@ -32,7 +32,7 @@ def test_rattle(in_tmp_dir):
 
             atoms.calc = calc
 
-            with FIRE(atoms, logfile='test.log') as opt:
+            with FIRE(atoms, logfile='test.log', comm=mpi.comm) as opt:
                 opt.run(0.05)
             p = atoms.get_positions()
             d = np.linalg.norm(p[0] - p[3])
