@@ -227,8 +227,7 @@ class DFTCalculation:
                  f'(reference = {self.setups.Eref * Ha:.6f})\n')
         self.energies.summary(self.log)
 
-        # return energy in Hartree
-        return self.results['energy']
+        return self.results['energy'] * units['energy']
 
     def dipole(self):
         if 'dipole' in self.results:
@@ -263,20 +262,18 @@ class DFTCalculation:
             self._calculate_forces()
 
         if self.forces_have_been_printed:
-            # return forces in Hartree / Bohr
-            return self.results['forces']
+            return self.results['forces'] * units['forces']
 
         self.forces_have_been_printed = True
         self.log('\nForces in eV/Ang:')
-        F_av = self.results['forces'] * (Ha / Bohr)
+        F_av = self.results['forces'] * units['forces']
         for a, setup in enumerate(self.setups):
             x, y, z = F_av[a]
             self.log(f'  {a:4} {setup.symbol:2} '
                      f'{x:10.5f} {y:10.5f} {z:10.5f}')
         self.log.fd.flush()
 
-        # return forces in Hartree / Bohr
-        return self.results['forces']
+        return self.results['forces'] * units['forces']
 
     def _calculate_forces(self):
         xc = self.pot_calc.xc
@@ -327,13 +324,14 @@ class DFTCalculation:
 
     def stress(self) -> None:
         if 'stress' in self.results:
-            return
+            return self.results['stress'] * units['stress']
         stress_vv = self.pot_calc.stress(
             self.ibzwfs, self.density, self.potential)
         self.log('\nstress tensor: [  # eV/Ang^3')
-        for (x, y, z), c in zips(stress_vv * (Ha / Bohr**3), ',,]'):
+        for (x, y, z), c in zips(stress_vv * units['stress'], ',,]'):
             self.log(f'  [{x:13.6f}, {y:13.6f}, {z:13.6f}]{c}')
         self.results['stress'] = stress_vv.flat[[0, 4, 8, 5, 2, 1]]
+        return self.results['stress'] * units['stress']
 
     def write_converged(self) -> None:
         self.ibzwfs.write_summary(self.log)
