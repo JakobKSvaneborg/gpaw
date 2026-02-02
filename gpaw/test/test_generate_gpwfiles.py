@@ -9,6 +9,3 @@ def test_generate_gpwfiles(no_touch_world, all_gpw_files):
     all gpw files of the gpw_files fixture being accessed.
 
     See the all_gpw_files fixture."""
-
-    from gpaw.mpi import world
-    world.sum_scalar(42)
