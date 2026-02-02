@@ -12,6 +12,7 @@ variables:
   # pipelines on shared runners.
   DEFAULT_RUNNER_TAG: "saas-linux-small-amd64"
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
+  COV: "--cov=gpaw --cov-report= "
 
   # OpenMPI binds processes to specific physical cores (cf. mpiexec
   # manpage) when there are <= 2 cores.  This will cause it to
@@ -432,8 +433,7 @@ gpwfiles:
     - !reference [default, before_script]
   script:
     - >
-      pytest -n 16 -m generate_gpw_files --durations 30 -v
-      --cov=gpaw
+      pytest -n 16 -m generate_gpw_files --durations 30 -v $COV
     - mv .coverage coverage-$CI_JOB_NAME
   artifacts:
     paths:
@@ -756,7 +756,7 @@ nightly-all:
       gpaw -P $GPAW_MPI_NPROCS python -m pytest
       --test-group-count $GPAW_TESTGROUPS --test-group=$GPAW_MYTESTGROUP
       --test-group-random-seed=42
-      --cov=gpaw --instafail -r s --durations 30
+      $COV --instafail -r s --durations 30
   after_script:
     - coverage combine gpaw-coverage-*
     - mv .coverage coverage-$CI_JOB_NAME
@@ -778,7 +778,7 @@ nightly-mpi-1-group-1-1:
   script:
     - gpaw info
     - pytest --cache-show
-    - pytest -n 8 --instafail -r s --durations 30 --cov=gpaw
+    - pytest -n 8 --instafail -r s --durations 30 $COV
     - coverage
   after_script:
     - mv .coverage coverage-$CI_JOB_NAME
@@ -827,7 +827,7 @@ nightly-mpi-8-group-2-2:
       gpaw -P $GPAW_MPI_NPROCS python -m pytest
       --test-group-count $GPAW_TESTGROUPS --test-group=$GPAW_MYTESTGROUP
       --test-group-random-seed=42
-      --cov=gpaw --instafail -r s --durations 30
+      $COV --instafail -r s --durations 30
       -m "not (old_gpaw_only_mpi or old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
   extends:
     - .nightly
@@ -842,7 +842,7 @@ nightly-mpi-1-group-1-1-new:
     - >
       pytest -n 8 --instafail -r s --durations 30 -m
       "not (old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
-      --cov=gpaw
+      $COV
   after_script:
     - mv .coverage coverage-$CI_JOB_NAME
 
