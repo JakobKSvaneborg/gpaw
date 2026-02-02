@@ -1064,13 +1064,8 @@ def _can_use_new(filename, kwargs) -> tuple[bool, Parameters | None]:
     if params.mode.name == 'lcao':
         return False, None
     xcname = params.xc.name
-    if xcname.startswith(('GLLB', 'TB09')):
+    if xcname.startswith(('GLLB', 'TB09', 'LCY', 'CAMY')):
         return False, None
-    FD_HYBRIDS = {'EXX', 'PBE0', 'B3LYP',
-                  'CAMY-BLYP', 'CAMY-B3LYP',
-                  'LCY-BLYP', 'LCY-PBE'}
-    if params.mode.name == 'fd' and xcname in FD_HYBRIDS:
-        return False, None
-    if xcname.startswith('LCY-PBE:'):
+    if params.mode.name == 'fd' and xcname in ['EXX', 'PBE0', 'B3LYP']:
         return False, None
     return True, params
