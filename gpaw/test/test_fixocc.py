@@ -2,11 +2,10 @@ import pytest
 from ase.build import molecule
 from ase.parallel import parprint
 
-from gpaw import GPAW
 from gpaw.utilities.adjust_cell import adjust_cell
 
 
-def test_fixocc():
+def test_fixocc(mpi):
     h = 0.4
     box = 2
     nbands = 2
@@ -26,12 +25,13 @@ def test_fixocc():
 
     if 1:
         # test ZeroKelvin vs FixedOccupations
-        c = GPAW(**base_kwargs, occupations={'width': 0.0})
+        c = mpi.GPAW(**base_kwargs, occupations={'width': 0.0})
         H2.calc = c
         E_zk = H2.get_potential_energy()
 
-        c = GPAW(**base_kwargs,
-                 occupations=dict(name='fixed', numbers=[[1, 0]]))
+        c = mpi.GPAW(
+            **base_kwargs,
+            occupations=dict(name='fixed', numbers=[[1, 0]]))
         H2.calc = c
         E_fo = H2.get_potential_energy()
         parprint(E_zk, E_fo)
@@ -39,14 +39,16 @@ def test_fixocc():
 
     if 1:
         # test spin-paired vs spin-polarized
-        c = GPAW(**base_kwargs,
-                 occupations={'name': 'fixed', 'numbers': [[0.5, 0.5]]})
+        c = mpi.GPAW(
+            **base_kwargs,
+            occupations={'name': 'fixed', 'numbers': [[0.5, 0.5]]})
         H2.calc = c
         E_ns = H2.get_potential_energy()
     if 1:
-        c = GPAW(**base_kwargs,
-                 spinpol=True,
-                 occupations={'name': 'fixed', 'numbers': [[0.5, 0.5]] * 2})
+        c = mpi.GPAW(
+            **base_kwargs,
+            spinpol=True,
+            occupations={'name': 'fixed', 'numbers': [[0.5, 0.5]] * 2})
         H2.calc = c
         E_sp = H2.get_potential_energy()
         parprint(E_ns, E_sp)

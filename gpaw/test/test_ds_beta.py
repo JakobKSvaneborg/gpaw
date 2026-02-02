@@ -2,13 +2,12 @@ from ase import Atoms
 from ase.parallel import parprint
 from ase.units import Ha
 
-from gpaw import GPAW
 from gpaw.pes.ds_beta import CrossSectionBeta
 from gpaw.pes.state import BoundState, H1s
 from gpaw.utilities.adjust_cell import adjust_cell
 
 
-def test_ds_beta(in_tmp_dir):
+def test_ds_beta(in_tmp_dir, mpi):
     ngauss = 2
 
     h = .3
@@ -16,13 +15,13 @@ def test_ds_beta(in_tmp_dir):
 
     gpwname = 'H1s.gpw'
     if 1:
-        c = GPAW(mode='fd', xc='PBE', nbands=-1, h=h)
+        c = mpi.GPAW(mode='fd', xc='PBE', nbands=-1, h=h)
         s = Atoms('H')
         adjust_cell(s, box, h=h)
         c.calculate(s)
         c.write(gpwname, 'all')
     else:
-        c = GPAW(gpwname)
+        c = mpi.GPAW(gpwname)
         s = c.get_atoms()
         c.converge_wave_functions()
     cm = s.get_center_of_mass()
