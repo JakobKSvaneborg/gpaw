@@ -416,10 +416,6 @@ class DFTCalculation:
         mode = params.mode
         comm = self.comm
 
-        params.parallel = {'kpt': 1, 'band': 1, 'domain': 1}
-        builder = params.dft_component_builder(atoms, log=None,
-                                               comm=serial_comm)
-
         # extract sizes and communicator from old wfs
         ibzwfs = self.ibzwfs
         ncomponents = ibzwfs.ncomponents
@@ -436,17 +432,12 @@ class DFTCalculation:
         dH_asp, vt_sR, dedtaut_sR, vHt_x = self.potential.gather()
         D_asp, nt_sR, taut_sR = self.density.gather()
 
-        nct_aX = self.density.nct_aX
-        tauct_aX = self.density.tauct_aX
-        # pw = self.density.nct_aX.pw.new(comm=serial_comm)
-        # atomdist = self.density.nct_aX._atomdist
-        # nct_aX = self.density.nct_aX.new(pw, atomdist)
-        # nct_aX._atomdist = self.density.nct_aX._atomdist.gather()
-        # tauct_aX = self.density.tauct_aX.new(pw, atomdist)
-        # tauct_aX._atomdist = self.density.tauct_aX._atomdist.gather()
-
         # only create new dft object on master
         if comm.rank == 0:
+
+            params.parallel = {'kpt': 1, 'band': 1, 'domain': 1}
+            builder = params.dft_component_builder(atoms, log=None,
+                                                   comm=serial_comm)
             # make new wfs on master
 
             if mode == 'lcao':
@@ -472,8 +463,8 @@ class DFTCalculation:
                 nt_sR, taut_sR, D_asp.to_full(),
                 builder.params.charge,
                 builder.setups,
-                nct_aX,
-                tauct_aX)
+                builder.get_pseudo_core_densities(),
+                builder.get_pseudo_core_ked())
 
             dft = DFTCalculation(
                 atoms, ibzwfs, density, potential,
@@ -484,7 +475,6 @@ class DFTCalculation:
                 params=params,
                 energies=self.energies)
 
-            # dft.results = self.results.copy()
             dft.results = {}
         else:
             dft = None

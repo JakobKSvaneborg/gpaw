@@ -3,7 +3,6 @@ import numpy as np
 from ase.build import molecule
 from gpaw.dft import DFT
 from gpaw.new.ase_interface import GPAW
-from gpaw.mpi import serial_comm
 
 
 def test_changes():
@@ -56,6 +55,7 @@ def test_changes():
     assert etot_xc == pytest.approx(etot_hse, abs=1e-4)
     assert forces_xc == pytest.approx(forces_hse, abs=1e-2)
 
+
 def test_gather():
 
     atoms = molecule('H2', cell=[4, 4, 4])
@@ -67,7 +67,7 @@ def test_gather():
               'nbands': 4,
               # 'spinpol': True,
               # 'kpts': {'size': [3, 3, 3]},
-              'parallel': {'domain': 1},
+              # 'parallel': {'domain': 1},
               'convergence': {'eigenstates': 1e-4,
                               'density': 1e-5,
                               'forces': 1e-3}}
@@ -90,6 +90,7 @@ def test_gather():
         assert etot == pytest.approx(etot_test)
         assert forces == pytest.approx(forces_test, abs=1e-3)
         assert density == pytest.approx(density_test, abs=1e-3)
+
 
 if __name__ == "__main__":
     test_gather()
