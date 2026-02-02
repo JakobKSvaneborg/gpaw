@@ -78,8 +78,8 @@ def test_gather():
     # in a.u.
     etot_test = dft.energy()
     forces_test = dft.forces()
-    nt_sr_test = dft.densities().pseudo_densities().data
-    n_sr_test = dft.densities().all_electron_densities().data
+    nt_sr_test = dft.densities().pseudo_densities().gather()
+    n_sr_test = dft.densities().all_electron_densities().gather()
 
     newdft = dft.gather()
 
@@ -93,8 +93,8 @@ def test_gather():
         # in a.u.
         assert etot == pytest.approx(etot_test)
         assert forces == pytest.approx(forces_test, abs=1e-3)
-        assert nt_sr == pytest.approx(nt_sr_test, abs=1e-5)
-        assert n_sr == pytest.approx(n_sr_test, abs=1e-5)
+        assert nt_sr == pytest.approx(nt_sr_test.data, abs=1e-5)
+        assert n_sr == pytest.approx(n_sr_test.data, abs=1e-5)
     else:
         assert newdft is None
 
