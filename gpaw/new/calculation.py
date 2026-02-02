@@ -227,6 +227,9 @@ class DFTCalculation:
                  f'(reference = {self.setups.Eref * Ha:.6f})\n')
         self.energies.summary(self.log)
 
+        # return energy in Hartree
+        return self.results['energy']
+
     def dipole(self):
         if 'dipole' in self.results:
             return
@@ -260,7 +263,8 @@ class DFTCalculation:
             self._calculate_forces()
 
         if self.forces_have_been_printed:
-            return
+            # return forces in Hartree / Bohr
+            return self.results['forces']
 
         self.forces_have_been_printed = True
         self.log('\nForces in eV/Ang:')
@@ -270,6 +274,9 @@ class DFTCalculation:
             self.log(f'  {a:4} {setup.symbol:2} '
                      f'{x:10.5f} {y:10.5f} {z:10.5f}')
         self.log.fd.flush()
+
+        # return forces in Hartree / Bohr
+        return self.results['forces']
 
     def _calculate_forces(self):
         xc = self.pot_calc.xc
@@ -428,8 +435,8 @@ class DFTCalculation:
             for spin in range(nspins):
                 wfs = self.ibzwfs.get_wfs(kpt=k, spin=spin)
                 if wfs is not None:
-                    P_ani = wfs.P_ani.to_cpu().gather()  # gather atoms
-                    wfs._P_ani = P_ani
+                    # P_ani = wfs.P_ani.to_cpu().gather()  # gather atoms
+                    # wfs._P_ani = P_ani
                     wfs_u.append(wfs)
 
         dH_asp, vt_sR, dedtaut_sR, vHt_x = self.potential.gather()
@@ -439,7 +446,7 @@ class DFTCalculation:
         if comm.rank == 0:
 
             params.parallel = {'kpt': 1, 'band': 1, 'domain': 1}
-            builder = params.dft_component_builder(atoms, log=None,
+            builder = params.dft_component_builder(atoms, log='-',
                                                    comm=serial_comm)
             # make new wfs on master
 
