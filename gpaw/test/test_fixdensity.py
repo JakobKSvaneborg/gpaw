@@ -52,11 +52,12 @@ def test_fixdensity(in_tmp_dir, gpaw_new, mpi):
 def test_fixdensity_world(in_tmp_dir, mpi):
     a = 2.5
     slab = Atoms('H', cell=(a, a, a), pbc=1)
-    comm = mpi.comm.new_communicator(range(world.size // 2))
+    comm = mpi.comm.new_communicator(range(mpi.comm.size // 2))
     if not comm:
         # Don't actually hang, if this fails
         ibarrier(timeout=10, comm=mpi.comm)
         return
+
     slab.calc = GPAW(mode='pw', kpts=(1, 1, 1), txt='H.txt',
                      communicator=comm)
     slab.get_potential_energy()
