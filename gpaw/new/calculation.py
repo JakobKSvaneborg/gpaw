@@ -391,6 +391,7 @@ class DFTCalculation:
                 spin = 0
         else:
             assert spin is None or spin == 0
+            spin = 0
 
         krank = ibzwfs.rank_ks[kpt][spin]
         if krank == ibzwfs.kpt_comm.rank:

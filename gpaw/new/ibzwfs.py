@@ -242,7 +242,7 @@ class IBZWaveFunctions(Generic[WFT]):
                                        spin=0,
                                        grid_spacing=0.05,
                                        skip_paw_correction=False):
-        wfs = self.get_wfs(kpt=kpt, spin=spin, n1=band, n2=band + 1)
+        wfs = self.get_wfs_on_master(kpt=kpt, spin=spin, n1=band, n2=band + 1)
         if wfs is None:
             return None
         assert isinstance(wfs, PWFDWaveFunctions)
