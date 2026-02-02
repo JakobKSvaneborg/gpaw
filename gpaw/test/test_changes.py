@@ -78,9 +78,10 @@ def test_gather():
     # in a.u.
     etot_test = dft.energy()
     forces_test = dft.forces()
-    nt_sr_test = dft.densities().pseudo_densities().gather()
+    psit_nR_test = dft.wave_functions(n1=0, n2=1, kpt=0, spin=0)
+    nt_sR_test = dft.densities().pseudo_densities().gather()
     # get_all_electron_density broken for domain_comm > 1
-    n_sr_test = dft.densities().all_electron_densities().gather()
+    n_sR_test = dft.densities().all_electron_densities().gather()
 
     newdft = dft.gather()
 
@@ -88,16 +89,18 @@ def test_gather():
         newdft.converge()   # SCF needed to set occupations
         etot = newdft.energy()
         forces = newdft.forces()
-        nt_sr = newdft.densities().pseudo_densities().data
-        n_sr = newdft.densities().all_electron_densities().data
+        psit_nR = newdft.wave_functions(n1=0, n2=1, kpt=0, spin=0)
+        nt_sR = newdft.densities().pseudo_densities().data
+        n_sR = newdft.densities().all_electron_densities().data
 
         # in a.u.
         assert etot == pytest.approx(etot_test)
         assert forces == pytest.approx(forces_test, abs=1e-3)
-        assert nt_sr == pytest.approx(nt_sr_test.data, abs=1e-5)
+        assert psit_nR.data == pytest.approx(psit_nR_test.data, abs=1e-5)
+        assert nt_sR == pytest.approx(nt_sR_test.data, abs=1e-5)
         if dft.density.nt_sR.desc.comm.size == 1:
             # get_all_electron_density broken for domain_comm > 1
-            assert n_sr == pytest.approx(n_sr_test.data, abs=1e-5)
+            assert n_sR == pytest.approx(n_sR_test.data, abs=1e-5)
     else:
         assert newdft is None
 
