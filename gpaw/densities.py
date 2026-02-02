@@ -96,6 +96,7 @@ class Densities:
         ncomponents = n_sR.dims[0]
         nspins = ncomponents % 3
         grid = n_sR.desc
+        assert grid.comm.size == 1
 
         electrons_as = np.zeros((len(self.relpos_ac), ncomponents))
         splines = {}
