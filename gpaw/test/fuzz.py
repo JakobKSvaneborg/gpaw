@@ -17,7 +17,7 @@ from ase import Atoms
 from ase.build import bulk
 from ase.units import Bohr, Ha
 
-from gpaw.mpi import world
+from gpaw.mpi import normalize_communicator
 from gpaw.new.ase_interface import GPAW as NewGPAW
 from gpaw.old.calculator import GPAW as OldGPAW
 
@@ -26,7 +26,8 @@ if TYPE_CHECKING:
     PickFunc = Callable[[list[T]], list[T]]
 
 
-def main(args: str | list[str] = None) -> int:
+def main(args: str | list[str] = None, comm=None) -> int:
+    comm = normalize_communicator(comm)
     if isinstance(args, str):
         args = args.split()
 
@@ -53,7 +54,7 @@ def main(args: str | list[str] = None) -> int:
     if args.pickle:
         pckl_file = Path(args.pickle)
         atoms, params, result_file = pickle.loads(pckl_file.read_bytes())
-        run2(atoms, params, result_file)
+        run2(atoms, params, result_file, comm=comm)
         return 0
 
     many = args.all or args.fuzz
@@ -81,8 +82,8 @@ def main(args: str | list[str] = None) -> int:
         args.use_symmetry = args.use_symmetry or '1'
         args.complex = args.complex or '0'
 
-    if world.size > 1:
-        args.ncores = str(world.size)
+    if comm.size > 1:
+        args.ncores = str(comm.size)
 
     repeat_all = [[int(r) for r in rrr.split('x')]
                   for rrr in args.repeat.split(',')]
@@ -137,7 +138,8 @@ def main(args: str | list[str] = None) -> int:
                                  params2,
                                  tag + ' ' + xtag,
                                  args.ignore_cache,
-                                 args.stdout)
+                                 args.stdout,
+                                 comm=comm)
                     ok = check(tag, result, calculations)
                     count += 1
                     if not ok:
@@ -157,7 +159,9 @@ def run(atoms: Atoms,
         params: dict[str, Any],
         tag: str,
         ignore_cache: bool = False,
-        use_stdout: bool = False) -> dict[str, Any]:
+        use_stdout: bool = False,
+        *,
+        comm) -> dict[str, Any]:
     params = params.copy()
     name, things = tag.split(' ', 1)
     print(f'{name:3} {things}:', end='')
@@ -171,8 +175,8 @@ def run(atoms: Atoms,
     if not result_file.is_file() or ignore_cache:
         print(' ...', end='', flush=True)
         ncores = params.pop('ncores')
-        if ncores == world.size:
-            result = run2(atoms, params, result_file)
+        if ncores == comm.size:
+            result = run2(atoms, params, result_file, comm=comm)
         else:
             pckl_file = result_file.with_suffix('.pckl')
             pckl_file.write_bytes(pickle.dumps((atoms, params, result_file)))
@@ -194,16 +198,18 @@ def run(atoms: Atoms,
 
 def run2(atoms: Atoms,
          params: dict[str, Any],
-         result_file: Path) -> dict[str, Any]:
+         result_file: Path,
+         *,
+         comm) -> dict[str, Any]:
     params = params.copy()
 
     code = params.pop('code')
     if code[0] == 'n':
         if params.pop('dtype', None) == complex:
             params['mode']['force_complex_dtype'] = True
-        calc = NewGPAW(**params)
+        calc = NewGPAW(communicator=comm, **params)
     else:
-        calc = OldGPAW(**params)
+        calc = OldGPAW(communicator=comm, **params)
     atoms.calc = calc
 
     t1 = time()
@@ -222,7 +228,7 @@ def run2(atoms: Atoms,
     gpw_file = result_file.with_suffix('.gpw')
     calc.write(gpw_file, mode='all')
 
-    dft = NewGPAW(gpw_file).dft
+    dft = NewGPAW(gpw_file, communicator=comm).dft
 
     energy2 = dft.results['energy'] * Ha
     assert abs(energy2 - energy) < 1e-13, (energy2, energy)
@@ -234,7 +240,7 @@ def run2(atoms: Atoms,
     # ibz_index = atoms.calc.wfs.kd.bz2ibz_k[p.kpt]
     # eigs = atoms.calc.get_eigenvalues(ibz_index, p.spin)
 
-    if world.rank == 0:
+    if comm.rank == 0:
         if 'dtype' in params:
             params['dtype'] = 'complex'
         result_file.write_text(json.dumps([result, params], indent=2))

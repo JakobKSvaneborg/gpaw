@@ -759,7 +759,7 @@ class DielectricFunction(DielectricFunctionCalculator):
             *args, truncation=self.truncation,
             **kwargs).macroscopic_dielectric_function()
         if filename:
-            df.write(filename)
+            df.write(filename, comm=self.context.comm)
         return df.unpack()
 
     def get_eels_spectrum(self, *args, filename='eels.csv', **kwargs):
@@ -777,7 +777,7 @@ class DielectricFunction(DielectricFunctionCalculator):
         eels = self.get_inverse_dielectric_function(
             *args, truncation=self.truncation, **kwargs).eels_spectrum()
         if filename:
-            eels.write(filename)
+            eels.write(filename, comm=self.context.comm)
         return eels.unpack()
 
     def get_polarizability(self, q_c: list | np.ndarray = [0, 0, 0],

@@ -14,7 +14,7 @@ except ImportError:  # scipy < 1.8
     from scipy.spatial.qhull import QhullError
 
 from gpaw import GPAW
-from gpaw.mpi import normalize_communicator
+from gpaw.mpi import SerialCommunicator
 from gpaw.new import zips
 from gpaw.new.brillouin import BZPoints
 from gpaw.new.symmetry import create_symmetries_object, find_lattice_symmetry
@@ -256,7 +256,8 @@ def contains_ibz_vertices_predicate(mp_grids,
 
     # Expand IBZ vertices from lattice group to crystal group.
     cU_scc = create_symmetries_object(atoms).rotation_scc
-    ibzk_kc = expand_ibz(lU_scc, cU_scc, latibz_vert_kc, pbc_c=pbc_c)
+    ibzk_kc = expand_ibz(lU_scc, cU_scc, latibz_vert_kc,
+                         comm=SerialCommunicator(), pbc_c=pbc_c)
 
     bools = np.zeros(len(mp_grids), dtype=bool)
     for count, size in enumerate(np.array(mp_grids)):
@@ -529,7 +530,7 @@ def get_ibz_vertices(cell_cv, U_scc=None, time_reversal=None,
     return ibzk_kc
 
 
-def get_bz(calc, pbc_c=np.ones(3, bool)):
+def get_bz(calc, comm, pbc_c=np.ones(3, bool)):
     """Return the BZ and IBZ vertices.
 
     Parameters
@@ -554,7 +555,7 @@ def get_bz(calc, pbc_c=np.ones(3, bool)):
     cU_scc = get_symmetry_operations(symmetry.op_scc,
                                      symmetry.time_reversal)
 
-    return get_reduced_bz(cell_cv, cU_scc, False, pbc_c=pbc_c)
+    return get_reduced_bz(cell_cv, cU_scc, False, comm, pbc_c=pbc_c)
 
 
 def get_bz_from_atoms(atoms):
@@ -570,7 +571,7 @@ def get_bz_from_atoms(atoms):
     return get_reduced_bz(cell_cv, cU_scc, False, pbc_c=pbc_c)
 
 
-def get_reduced_bz(cell_cv, cU_scc, time_reversal,
+def get_reduced_bz(cell_cv, cU_scc, time_reversal, comm,
                    pbc_c=np.ones(3, bool), tolerance=1e-7):
 
     """Reduce the BZ using the crystal symmetries to obtain the IBZ.
@@ -605,7 +606,7 @@ def get_reduced_bz(cell_cv, cU_scc, time_reversal,
     latibzk_kc = ibzk_kc.copy()
 
     # Expand lattice IBZ to crystal IBZ
-    ibzk_kc = expand_ibz(lU_scc, cU_scc, ibzk_kc, pbc_c=pbc_c)
+    ibzk_kc = expand_ibz(lU_scc, cU_scc, ibzk_kc, comm, pbc_c=pbc_c)
 
     # Fold out to full BZ
     bzk_kc = unique_rows(np.concatenate(np.dot(ibzk_kc,
@@ -614,7 +615,7 @@ def get_reduced_bz(cell_cv, cU_scc, time_reversal,
     return bzk_kc, ibzk_kc, latibzk_kc
 
 
-def expand_ibz(lU_scc, cU_scc, latibzk_kc, pbc_c=np.ones(3, bool), world=None):
+def expand_ibz(lU_scc, cU_scc, latibzk_kc, comm, pbc_c=np.ones(3, bool)):
     """Expand IBZ vertices from lattice group to crystal group.
 
     Parameters
@@ -636,7 +637,6 @@ def expand_ibz(lU_scc, cU_scc, latibzk_kc, pbc_c=np.ones(3, bool), world=None):
     # Find right cosets. The lattice group is partioned into right cosets of
     # the crystal group. This can in practice be done by testing whether
     # U1 U2^{-1} is in the crystal group as done below.
-    world = normalize_communicator(world)
 
     cosets = []
     Utmp_scc = lU_scc.copy()
@@ -668,7 +668,7 @@ def expand_ibz(lU_scc, cU_scc, latibzk_kc, pbc_c=np.ones(3, bool), world=None):
     # and pick (one of) the ones that have the smallest volume. This is done by
     # brute force and can sometimes take a while, however, in most cases this
     # is not a problem.
-    combs = list(product(*cosets[1:]))[world.rank::world.size]
+    combs = list(product(*cosets[1:]))[comm.rank::comm.size]
     for U_scc in combs:
         if not len(U_scc):
             continue
@@ -688,16 +688,16 @@ def expand_ibz(lU_scc, cU_scc, latibzk_kc, pbc_c=np.ones(3, bool), world=None):
     ibzk_kc = unique_rows(nibzk_kc)
     volume = np.array((volume,))
 
-    volumes = np.zeros(world.size, float)
-    world.all_gather(volume, volumes)
+    volumes = np.zeros(comm.size, float)
+    comm.all_gather(volume, volumes)
 
     minrank = np.argmin(volumes)
     minshape = np.array(ibzk_kc.shape)
-    world.broadcast(minshape, minrank)
+    comm.broadcast(minshape, minrank)
 
-    if world.rank != minrank:
+    if comm.rank != minrank:
         ibzk_kc = np.zeros(minshape, float)
-    world.broadcast(ibzk_kc, minrank)
+    comm.broadcast(ibzk_kc, minrank)
 
     return ibzk_kc
 

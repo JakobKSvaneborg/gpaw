@@ -106,7 +106,7 @@ def diagonalize(potential: Potential,
                 occ_calc: OccupationNumberCalculator,
                 nbands: int,
                 nelectrons: float,
-                scalapack: tuple[int, int, int | None] | None,
+                scalapack: tuple[int, int, int] | None,
                 log) -> PWFDIBZWaveFunctions:
     """Diagonalize hamiltonian in plane-wave basis."""
     vt_sR = potential.vt_sR
@@ -124,7 +124,7 @@ def diagonalize(potential: Potential,
     elif band_comm.size > 1:
         r, c, b = suggest_blocking(npw, band_comm.size)
     else:
-        r, c, b = 1, 1, -1
+        r, c, b = 1, 1, 0
     sl = (band_comm, r, c, b)
 
     if r * c > 1:
