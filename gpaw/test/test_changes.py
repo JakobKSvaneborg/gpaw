@@ -81,6 +81,12 @@ def test_gather():
     nt_sr_test = dft.densities().pseudo_densities().gather()
     n_sr_test = dft.densities().all_electron_densities().gather()
 
+    D_asii_test = []
+    for d_asii in dft.density.D_asii.values():
+        if d_asii is not None:
+            D_asii_test.append(d_asii.data)
+    D_asii_test = np.array(D_asii_test)
+
     newdft = dft.gather()
 
     if dft.comm.rank == 0:
@@ -90,10 +96,17 @@ def test_gather():
         nt_sr = newdft.densities().pseudo_densities().data
         n_sr = newdft.densities().all_electron_densities().data
 
+        D_asii = []
+        for d_asii in dft.density.D_asii.values():
+            if d_asii is not None:
+                D_asii.append(d_asii.data)
+        D_asii = np.array(D_asii)
+
         # in a.u.
         assert etot == pytest.approx(etot_test)
         assert forces == pytest.approx(forces_test, abs=1e-3)
         assert nt_sr == pytest.approx(nt_sr_test.data, abs=1e-5)
+        assert D_asii  == pytest.approx(D_asii_test, abs=1e-5)
         assert n_sr == pytest.approx(n_sr_test.data, abs=1e-5)
     else:
         assert newdft is None
