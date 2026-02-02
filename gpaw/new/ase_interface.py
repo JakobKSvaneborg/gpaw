@@ -798,4 +798,6 @@ class ASECalculator:
             gpw = None
         gpw = broadcast_string(gpw, comm=self.comm)
         self.write(gpw, mode='all')
-        return OldGPAW(gpw, communicator=self.comm)
+        calc = OldGPAW(gpw, communicator=self.comm)
+        calc.set_positions()
+        return calc
