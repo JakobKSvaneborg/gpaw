@@ -403,8 +403,8 @@ class MSR1Mixer(BaseMixer):
 
             A0 = self.A0
             B0 = self.B0
-            if self.gd.comm.rank == 0:
-                print(f"rank: {self.world.rank}, A0: {A0}, B0: {B0}")
+            # if self.gd.comm.rank == 0:
+            #     print(f"rank: {self.world.rank}, A0: {A0}, B0: {B0}")
 
             self.uk_sG = np.zeros_like(nt_sG)
             self.pk_sG = np.zeros_like(nt_sG)
