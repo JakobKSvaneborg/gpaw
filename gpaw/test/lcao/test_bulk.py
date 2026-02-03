@@ -20,7 +20,6 @@ def test_lcao_bulk(in_tmp_dir):
     for a in A:
         bulk.set_cell((a, a, a))
         e.append(bulk.get_potential_energy())
-        calc.get_pseudo_wave_function(kpt=3, band=0)
         niter.append(calc.get_number_of_iterations())
 
     a = np.roots(np.polyder(np.polyfit(A, e, 2), 1))[0]
