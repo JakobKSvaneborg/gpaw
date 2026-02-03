@@ -468,12 +468,12 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         psit_nX = wfs.psit_nX.gather()
         atomdist = self.atomdist.gather()
         if domain_comm.rank == 0:
-            wfs = PWFDWaveFunctions.from_wfs(
+            wfs1 = PWFDWaveFunctions.from_wfs(
                 wfs,
                 psit_nX,
                 atomdist=atomdist)
-            wfs._eig_n = wfs._eig_n
-            return wfs
+            wfs1._eig_n = wfs._eig_n
+            return wfs1
         return None
 
     def copy(self) -> PWFDWaveFunctions:

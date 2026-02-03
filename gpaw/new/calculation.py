@@ -13,7 +13,7 @@ from gpaw.electrostatic_potential import ElectrostaticPotential
 from gpaw.gpu import as_np
 from gpaw.mpi import MPIComm
 from gpaw.mpi import broadcast as bcast
-from gpaw.mpi import broadcast_float
+from gpaw.mpi import broadcast_float, receive, send
 from gpaw.new import trace, zips
 from gpaw.new.density import Density
 from gpaw.new.energies import DFTEnergies
@@ -27,7 +27,7 @@ from gpaw.utilities import (check_atoms_too_close,
                             check_atoms_too_close_to_boundary)
 
 if TYPE_CHECKING:
-    from gpaw.dft import Parameters, Mode
+    from gpaw.dft import Mode, Parameters
 
 
 class ReuseWaveFunctionsError(Exception):
@@ -393,8 +393,9 @@ class DFTCalculation:
             assert spin is None or spin == 0
             spin = 0
 
+        kpt_comm = ibzwfs.kpt_comm
         krank = ibzwfs.rank_ks[kpt][spin]
-        if krank == ibzwfs.kpt_comm.rank:
+        if krank == kpt_comm.rank:
             wfs = ibzwfs._get_wfs(kpt, spin)
             wfs = wfs.collect_bands(n1, n2)
             if wfs is not None:
@@ -413,6 +414,11 @@ class DFTCalculation:
                 if periodic:
                     psit_nR.multiply_by_eikr(-psit_nR.desc.kpt_c)
                 psit_nR = psit_nR.gather()
+                if krank != 0 and psit_nR is not None:
+                    send(psit_nR, 0, kpt_comm)
+                    psit_nR = None
+        elif self.comm.rank == 0:
+            psit_nR = receive(krank, kpt_comm)
         else:
             psit_nR = None
 
