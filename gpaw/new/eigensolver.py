@@ -29,14 +29,14 @@ class Eigensolver:
                     maxiter, cc, log):
         pass
 
-    def iterate_kpt(self, wfs, weight_n, iter_func, **fkwargs):
+    def iterate_kpt(self, wfs, weight_n, iter_func, **kwargs):
         had_eigs_and_occs = wfs.has_eigs and wfs.has_occs
         if had_eigs_and_occs:
             eig_old = wfs.myeig_n
-        eigs_error = iter_func(wfs=wfs, weight_n=weight_n, **fkwargs)
+        eigs_error = iter_func(wfs=wfs, weight_n=weight_n, **kwargs)
         if had_eigs_and_occs:
             eig_error = np.max(weight_n * np.abs(eig_old - wfs.myeig_n),
-                               initial=0)
+                               initial=0.0)
         else:  # no eigenvalues to compare with
             eig_error = np.inf
         return eigs_error, eig_error

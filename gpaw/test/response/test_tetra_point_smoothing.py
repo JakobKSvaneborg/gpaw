@@ -5,6 +5,7 @@ from scipy.ndimage import gaussian_filter1d
 
 from gpaw import GPAW, PW, FermiDirac
 from gpaw.bztools import optimal_monkhorst_pack_grid
+from gpaw.mpi import world
 from gpaw.response.df import DielectricFunction
 from gpaw.test import findpeak
 
@@ -13,7 +14,6 @@ from gpaw.test import findpeak
 @pytest.mark.dielectricfunction
 @pytest.mark.response
 def test_point_tetra_match(in_tmp_dir):
-
     gs_file = 'gs.gpw'
     response_file = 'gsresponse.gpw'
 
@@ -29,9 +29,10 @@ def test_point_tetra_match(in_tmp_dir):
 
     atoms.center(axis=2)
 
-    calc = GPAW(mode=PW(400),
-                kpts={'density': 10.0, 'gamma': True},
-                occupations=FermiDirac(0.1))
+    calc = GPAW(
+        mode=PW(400),
+        kpts={'density': 10.0, 'gamma': True},
+        occupations=FermiDirac(0.1))
 
     atoms.calc = calc
     atoms.get_potential_energy()
@@ -59,7 +60,8 @@ def test_point_tetra_match(in_tmp_dir):
                             rate='eta',
                             frequencies={'type': 'nonlinear',
                                          'domega0': 0.1},
-                            integrationmode='tetrahedron integration')
+                            integrationmode='tetrahedron integration',
+                            world=world)
     df1_tetra, df2_tetra = df.get_dielectric_function(q_c=[0, 0, 0])
 
     # DF with point integration
@@ -67,7 +69,7 @@ def test_point_tetra_match(in_tmp_dir):
                             frequencies={'type': 'nonlinear',
                                          'domega0': 0.1},
                             eta=25e-3,
-                            rate='eta')
+                            rate='eta', world=world)
     df1_point, df2_point = df.get_dielectric_function(q_c=[0, 0, 0])
 
     omega = df.get_frequencies()
