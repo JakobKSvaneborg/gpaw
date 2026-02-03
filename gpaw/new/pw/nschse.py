@@ -150,7 +150,8 @@ class NonSelfConsistentHSE06:
                 data = None
                 tb -= time()
                 if ibzwfs.rank_ks[k, spin] == kpt_comm.rank:
-                    wfs = ibzwfs._get_wfs(k, spin).collect(na, nb)
+                    wfs = ibzwfs._get_wfs(k, spin).collect_bands_and_domain(
+                        na, nb)
                     if wfs is not None:
                         data = (wfs.psit_nX,
                                 wfs.P_ani,

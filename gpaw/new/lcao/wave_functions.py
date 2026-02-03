@@ -216,9 +216,9 @@ class LCAOWaveFunctions(WaveFunctions, XP):
             wfs.eig_n = self.eig_n.copy()
         return wfs
 
-    def collect(self,
-                n1: int = 0,
-                n2: int = 0) -> LCAOWaveFunctions | None:
+    def collect_bands(self,
+                      n1: int = 0,
+                      n2: int = 0) -> LCAOWaveFunctions | None:
         # Quick'n'dirty implementation
         # We should generalize the PW+FD method
         assert self.band_comm.size == 1
@@ -234,7 +234,8 @@ class LCAOWaveFunctions(WaveFunctions, XP):
             T_MM=self.T_MM,
             P_aMi=self.P_aMi,
             relpos_ac=self.relpos_ac,
-            atomdist=self.atomdist.gather(),
+            atomdist=self.atomdist,
+            domain_comm=self.domain_comm,
             kpt_c=self.kpt_c,
             spin=self.spin,
             q=self.q,

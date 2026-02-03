@@ -972,7 +972,9 @@ class LocalizedFunctionsCollection(BaseLFC):
 
 
 class BasisFunctions(LocalizedFunctionsCollection):
-    def __init__(self, gd, spline_aj, kd=None, cut=False, dtype=float,
+    def __init__(self,
+                 gd: GridDescriptor,
+                 spline_aj, kd=None, cut=False, dtype=float,
                  integral=None, forces=None, xp=np,
                  gpu_add_and_integrate=True):
         super().__init__(gd, spline_aj, kd, cut, dtype, integral, forces,

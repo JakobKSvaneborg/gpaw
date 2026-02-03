@@ -96,7 +96,7 @@ class KPointDomainGenerator:
                          K_K in self.group_kpoints()])
         return k_kc
 
-    def get_tetrahedron_ikpts(self, *, pbc_c, cell_cv):
+    def get_tetrahedron_ikpts(self, *, pbc_c, cell_cv, comm):
         """Find irreducible k-points for tetrahedron integration."""
         U_scc = np.array([  # little group of q
             sign * U_cc for U_cc, sign, _ in self.symmetries])
@@ -105,6 +105,7 @@ class KPointDomainGenerator:
         bzk_kc, ibzk_kc, _ = get_reduced_bz(cell_cv,
                                             U_scc,
                                             False,
+                                            comm,
                                             pbc_c=pbc_c)
 
         n = 3
@@ -123,8 +124,9 @@ class KPointDomainGenerator:
 
         return ik_kc
 
-    def get_tetrahedron_kpt_domain(self, *, pbc_c, cell_cv):
-        ik_kc = self.get_tetrahedron_ikpts(pbc_c=pbc_c, cell_cv=cell_cv)
+    def get_tetrahedron_kpt_domain(self, *, pbc_c, cell_cv, comm):
+        ik_kc = self.get_tetrahedron_ikpts(
+            pbc_c=pbc_c, cell_cv=cell_cv, comm=comm)
         if pbc_c.all():
             k_kc = ik_kc
         else:
