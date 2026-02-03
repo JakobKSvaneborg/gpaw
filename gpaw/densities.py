@@ -96,11 +96,11 @@ class Densities:
         ncomponents = n_sR.dims[0]
         nspins = ncomponents % 3
         grid = n_sR.desc
-        assert grid.comm.size == 1
 
         electrons_as = np.zeros((len(self.relpos_ac), ncomponents))
         splines = {}
-        for a, D_sii in self.D_asii.items():
+        D_asii = self.D_asii.gather(broadcast=True)
+        for a, D_sii in D_asii.items():
             D_sii = D_sii.real
             relpos_c = self.relpos_ac[a]
             setup = self.setups[a]
@@ -128,17 +128,19 @@ class Densities:
 
             # Expected integral of PAW correction:
             electrons_s = np.zeros(ncomponents)
-            if skip_core:
-                electrons_s[:nspins] = -setup.Nct / nspins
-            else:
-                electrons_s[:nspins] = (setup.Nc - setup.Nct) / nspins
-                if setup.data.has_corehole and nspins > 1:
-                    electrons_s[0] -= setup.data.fcorehole / 2
-                    electrons_s[1] += setup.data.fcorehole / 2
+            if a in self.D_asii:
+                if skip_core:
+                    electrons_s[:nspins] = -setup.Nct / nspins
+                else:
+                    electrons_s[:nspins] = (setup.Nc - setup.Nct) / nspins
+                    if setup.data.has_corehole and nspins > 1:
+                        electrons_s[0] -= setup.data.fcorehole / 2
+                        electrons_s[1] += setup.data.fcorehole / 2
 
-            electrons_s += (4 * pi)**0.5 * np.einsum('sij, ij -> s',
-                                                     D_sii,
-                                                     setup.Delta_iiL[:, :, 0])
+                electrons_s += (4 * pi)**0.5 * np.einsum(
+                    'sij, ij -> s',
+                    D_sii,
+                    setup.Delta_iiL[:, :, 0])
 
             # Add PAW correction:
             R_v = relpos_c @ grid.cell_cv
