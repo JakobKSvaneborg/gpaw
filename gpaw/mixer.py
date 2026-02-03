@@ -241,7 +241,7 @@ class MSR1Mixer(BaseMixer):
                 dD_iasp[-1].append(D_sp - D_isp)
 
         if iold > 1:
-            if dNt > self.last_dNt * 2:
+            if dNt > self.last_dNt * 6:
                 dNt = self.last_dNt
                 temp = nt_isG[-1].copy()
                 nt_isG[-1] = nt_isG[-2].copy()
@@ -261,7 +261,7 @@ class MSR1Mixer(BaseMixer):
             y_isG = -(R_isG[:-1] - R_isG[-1])
             y_norm = np.vecdot(y_isG.reshape(iold - 1, -1), y_isG.reshape(iold - 1, -1))
             self.gd.comm.sum(y_norm)
-            y_norm[:] = np.sqrt(y_norm) / np.sqrt((iold - 1) / np.arange(1, iold))
+            y_norm[:] = np.sqrt(y_norm) # / np.sqrt((iold - 1) / np.arange(1, iold))
             s_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, s_isG.ndim)))
             y_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, y_isG.ndim)))
 
@@ -281,17 +281,17 @@ class MSR1Mixer(BaseMixer):
             for y_sG, s_sG, ty_sG, ts_sG in zip(y_isG, s_isG, ty_isG, ts_isG):
                 for y_G, s_G, ty_G, ts_G in zip(y_sG, s_sG, ty_sG, ts_sG):
                     if self.metric is not None:
-                        self.metric(y_G / self.weight, ty_G)
-                        self.metric(s_G / self.weight, ts_G)
+                        self.metric(y_G, ty_G)
+                        self.metric(s_G, ts_G)
                 if g_ss is not None:
                     ty_sG[:] = np.tensordot(g_ss, ty_sG, axes=(1, 0))
                     ts_sG[:] = np.tensordot(g_ss, ts_sG, axes=(1, 0))
 
             ### 2023 paper eq 22 - Limit good_broydenness
-            YY_LIM = ty_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
+            YY_LIM = y_isG.reshape((iold - 1, -1)) @ ty_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YY_LIM)
             YY_LIM = np.linalg.norm(YY_LIM, ord='fro')
-            YS_LIM = ty_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
+            YS_LIM = y_isG.reshape((iold - 1, -1)) @ ts_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YS_LIM)
             YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
             # iold > 5 to build some history first
@@ -304,7 +304,7 @@ class MSR1Mixer(BaseMixer):
             for iter in range(2, 9):
                 t_isG = ty_isG + good_broydenness * ts_isG
 
-                A_ii = y_isG.reshape((iold - 1, -1)) @ t_isG.reshape((iold - 1, -1)).T
+                A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
                 self.gd.comm.sum(A_ii)
 
                 eigs = np.linalg.eigvals(A_ii)
@@ -313,18 +313,19 @@ class MSR1Mixer(BaseMixer):
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
             good_broydenness -= 2**(-iter) * max_gb
-            good_broydenness = 0
-            t_isG = y_isG - good_broydenness * s_isG  # Also known as W depending on the paper
+            # good_broydenness = 0
+            t_isG = ty_isG + good_broydenness * ts_isG  # Also known as W depending on the paper
+            # t_isG = ts_isG
 
-            A_ii = ty_isG.reshape((iold - 1, -1)) @ t_isG.reshape((iold - 1, -1)).T
+            A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
             A1_ii = ty_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
-            A2_ii = ty_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
+            A2_ii = ts_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(A_ii)
             self.gd.comm.sum(A1_ii)
             self.gd.comm.sum(A2_ii)
 
-            B_ii = ts_isG.reshape((iold - 1, -1)) @ t_isG.reshape((iold - 1, -1)).T
-            B1_ii = ts_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
+            B_ii = t_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
+            B1_ii = ty_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
             B2_ii = ts_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(B_ii)
             self.gd.comm.sum(B1_ii)
@@ -332,8 +333,8 @@ class MSR1Mixer(BaseMixer):
 
             # This parameter is surprisingly important for stability
             # 2e-4 seems to work well for most systems
-            weight1 = 2e-12
-            weight2 = 5e-5
+            weight1 = 5e-5
+            weight2 = weight1 # 5e-5
             normA1 = np.linalg.norm(A1_ii, ord='fro')
             normA2 = np.linalg.norm(A2_ii, ord='fro')
             normB1 = np.linalg.norm(B1_ii, ord='fro')
@@ -350,6 +351,9 @@ class MSR1Mixer(BaseMixer):
             S, V, D = np.linalg.svd(B_ii)
             V = V / (V**2 + (alphaB1 + good_broydenness * alphaB2)**2)
             B_ii = D.T @ np.diag(V) @ S.T
+
+            # A_ii = A_ii
+            # B_ii = B_ii
 
             ### Moore-Penrose:
             # A_ii = np.linalg.solve(
@@ -395,16 +399,16 @@ class MSR1Mixer(BaseMixer):
             B2 = B3_i @ B_ii @ B2_i
 
             if iold != 2:
-                self.B0 = (self.B0 + np.clip(np.abs(B1 / B2), 0.3, 1.3) + 0.1) / 2
+                self.B0 = (self.B0 + np.clip(np.abs(B1 / B2), 0.4, 1.1)) / 2
             else:
                 self.B0 = 1
 
-            self.A0 = (self.A0 + np.clip(np.abs(A1 / A2), 0.02, min(3 * self.beta, 1))) / 2
+            self.A0 = (self.A0 + np.clip(np.abs(A1 / A2), 0.02, min(2 * self.beta, 1))) / 2
 
             A0 = self.A0
             B0 = self.B0
-            # if self.gd.comm.rank == 0:
-            #     print(f"rank: {self.world.rank}, A0: {A0}, B0: {B0}")
+            if self.gd.comm.rank == 0:
+                print(f"rank: {self.world.rank}, A0: {A0}, B0: {B0}")
 
             self.uk_sG = np.zeros_like(nt_sG)
             self.pk_sG = np.zeros_like(nt_sG)
@@ -432,7 +436,7 @@ class MSR1Mixer(BaseMixer):
         elif iold == 1:
             # Pratt step
             self.A0 = self.beta
-            A0 =0.035
+            A0 = 0.05
             self.uk_sG = R_sG
             self.pk_sG = np.zeros_like(self.uk_sG)
             nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG
