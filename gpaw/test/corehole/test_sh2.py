@@ -38,8 +38,13 @@ def sh2(setupname):
     atoms.center(3)
 
     nbands = 6
-    atoms.calc = GPAW(mode='fd', h=0.3, nbands=nbands,
-                      setups={'S': setupname}, txt=None)
+    atoms.calc = GPAW(
+        legacy_gpaw=True,
+        mode='fd',
+        h=0.3,
+        nbands=nbands,
+        setups={'S': setupname},
+        txt=None)
     atoms.get_potential_energy()
 
     return atoms
