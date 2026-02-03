@@ -2575,7 +2575,7 @@ class GPWFiles(CachedFilesHandler):
         return atoms.calc
 
     @gpwfile
-    def si_scs_gpw(self):
+    def si_scs_lcao(self):
         """
         Silicon with self-consistent scissors eigensolver
         """
@@ -2590,7 +2590,7 @@ class GPWFiles(CachedFilesHandler):
             kpts=dict(size=(Nk, Nk, Nk), gamma=True),
             eigensolver={'name': 'scissors', 'shifts': shifts},
             occupations=FermiDirac(0.001),
-            txt=self.folder / 'si_lcao_scs.txt')
+            txt=self.folder / 'si_scs_lcao.txt')
         atoms.calc = calc
         atoms.get_potential_energy()
         return calc

@@ -16,8 +16,8 @@ def calc_df(gpwfile):
 
 
 def test_si_scs(in_tmp_dir, gpw_files):
-    _, eps_w = calc_df(gpw_files["si_pw"])
-    _, eps_scs_w = calc_df(gpw_files["si_scs_gpw"])
+    _, eps_w = calc_df(gpw_files['si_pw'])
+    _, eps_scs_w = calc_df(gpw_files['si_scs_lcao'])
 
     # we use a relatively high tolerance since we wouldn't expect agreement
     # given the unconverged basis sets
