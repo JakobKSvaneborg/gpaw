@@ -779,25 +779,3 @@ class ASECalculator:
     def get_bz_to_ibz_map(self):
         """Return indices from BZ to IBZ."""
         return self.dft.ibzwfs.ibz.bz2ibz_K.copy()
-
-    def _to_old(self):
-        import tempfile
-        from gpaw.old.calculator import GPAW as OldGPAW
-        from gpaw.mpi import broadcast_string
-
-        if self._dft is None:
-            return OldGPAW(**self.params.todict(),
-                           communicator=self.comm,
-                           txt=self.log.fd)
-
-        # Quick hack for now:
-        # write gpw-file and read with old GPAW!
-        if self.comm.rank == 0:
-            gpw = tempfile.mkstemp(suffix='.gpw')[1]
-        else:
-            gpw = None
-        gpw = broadcast_string(gpw, comm=self.comm)
-        self.write(gpw, mode='all')
-        calc = OldGPAW(gpw, communicator=self.comm)
-        calc.set_positions()
-        return calc

@@ -245,9 +245,9 @@ if debug:
 if TYPE_CHECKING:
     from gpaw.dft import GPAW
 else:
-    def GPAW(*args, _use_old_gpaw=None, **kwargs):
+    def GPAW(*args, legacy_gpaw=None, **kwargs):
         from gpaw.dft import GPAW as AnyGPAW
-        return AnyGPAW(*args, _use_old_gpaw=_use_old_gpaw, **kwargs)
+        return AnyGPAW(*args, legacy_gpaw=legacy_gpaw, **kwargs)
 
 
 all_lazy_imports['get_calculation_info'] = 'gpaw.calcinfo.get_calculation_info'

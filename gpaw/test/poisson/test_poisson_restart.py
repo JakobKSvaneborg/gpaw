@@ -64,7 +64,7 @@ def test_poisson_poisson_restart(in_tmp_dir):
             # Standard ground state calculation
             # Use loose convergence criterion for speed
             calc = GPAW(
-                _use_old_gpaw=True,
+                legacy_gpaw=True,
                 nbands=2,
                 gpts=gpts / 2,
                 setups={'Na': '1'},

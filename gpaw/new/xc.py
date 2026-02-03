@@ -21,6 +21,7 @@ from gpaw.xc.libvdwxc import VDWXC
 from gpaw.xc.mgga import MGGA
 from gpaw.xc.vdw import VDWFunctionalBase
 from gpaw.xc.hybrid import HybridXC as OldHybridXC
+from gpaw.dft import LegacyGPAWError
 
 
 def create_functional(xc: OldXCFunctional | str | dict,
@@ -50,7 +51,7 @@ def create_functional(xc: OldXCFunctional | str | dict,
     elif xc.type == 'MGGA':
         functional = MGGAFunctional(xc, grid)
     elif xc.type == 'GLLB':
-        raise NotImplementedError
+        raise LegacyGPAWError
     else:
         raise ValueError(f'{xc.type} not supported')
 

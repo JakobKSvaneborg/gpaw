@@ -10,13 +10,15 @@ from gpaw.setup import Setups
 from gpaw.utilities.partition import AtomPartition
 from gpaw.utilities.tools import coordinates
 from gpaw.xc import XC
+from gpaw.old import assert_legacy_gpaw
 
 
 class HirshfeldDensity(RealSpaceDensity):
     """Density as sum of atomic densities."""
 
     def __init__(self, calculator, log=None):
-        self.calculator = calculator._to_old()
+        self.calculator = calculator
+        assert_legacy_gpaw(calculator)
         world = normalize_communicator(self.calculator.wfs.world)
         dens = self.calculator.density
         super().__init__(dens.gd, dens.finegd,
@@ -104,7 +106,8 @@ class HirshfeldPartitioning:
     """
 
     def __init__(self, calculator, density_cutoff=1.e-12):
-        self.calculator = calculator._to_old()
+        self.calculator = calculator
+        assert_legacy_gpaw(calculator)
         self.density_cutoff = density_cutoff
 
         if hasattr(self.calculator, 'timer'):

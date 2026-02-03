@@ -232,7 +232,7 @@ class GPWFiles(CachedFilesHandler):
         atm.center(vacuum=4.0)
         atm.set_pbc(False)
         atm.calc = self.GPAW(
-            _use_old_gpaw=True,
+            legacy_gpaw=True,
             mode=FD(),
             h=0.3,
             xc='PBE',
@@ -261,7 +261,7 @@ class GPWFiles(CachedFilesHandler):
         atm.center(vacuum=4.0)
         atm.set_pbc(False)
         atm.calc = self.GPAW(
-            _use_old_gpaw=True,
+            legacy_gpaw=True,
             mode=PW(300, force_complex_dtype=True),
             xc='PBE',
             occupations={'name': 'fixed-uniform'},
@@ -640,7 +640,7 @@ class GPWFiles(CachedFilesHandler):
     def h2o_mom_do_pw(self):
         atm = self.h2o_maker(vacuum=4.0)
         calc = self.GPAW(
-            _use_old_gpaw=True,
+            legacy_gpaw=True,
             mode=PW(300),
             spinpol=True,
             symmetry='off',
@@ -801,7 +801,7 @@ class GPWFiles(CachedFilesHandler):
         atm = Atoms('H2', positions=[(0, 0, 0), (0, 0, 0.737)], cell=(a, a, a))
         atm.center()
         calc = self.GPAW(
-            _use_old_gpaw=True,
+            legacy_gpaw=True,
             mode='fd',
             xc='LDA-PZ-SIC',
             eigensolver='rmm-diis',
@@ -816,7 +816,7 @@ class GPWFiles(CachedFilesHandler):
         atm = Atoms('H', magmoms=[1.0], cell=(a, a, a))
         atm.center()
         calc = self.GPAW(
-            _use_old_gpaw=True,
+            legacy_gpaw=True,
             mode='fd',
             xc='LDA-PZ-SIC',
             eigensolver='rmm-diis',
@@ -903,7 +903,7 @@ class GPWFiles(CachedFilesHandler):
                               [d / 2, 0, 0]])
         h2.center(vacuum=3)
         calc = self.GPAW(
-            _use_old_gpaw=True,
+            legacy_gpaw=True,
             mode=PW(300),
             # h=0.3,
             xc={'name': 'HSE06', 'backend': 'pw'},
@@ -2015,7 +2015,7 @@ class GPWFiles(CachedFilesHandler):
         atoms.pbc = True
 
         dct = dict(
-            _use_old_gpaw=True,
+            legacy_gpaw=True,
             mixer={'beta': 0.75, 'nmaxold': 8, 'weight': 100.0},
             mode=PW(ecut,
                     interpolation=3),  # interpolate the density in real-space
@@ -2091,7 +2091,7 @@ class GPWFiles(CachedFilesHandler):
         # Set up calculator
         tag = '_nosym' if symmetry == 'off' else ''
         atoms.calc = self.GPAW(
-            _use_old_gpaw=True,
+            legacy_gpaw=True,
             xc=xc,
             mode=PW(pw,
                     interpolation=3),  # interpolate the density in real-space

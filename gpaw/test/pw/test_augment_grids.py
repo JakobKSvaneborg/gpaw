@@ -17,7 +17,7 @@ def test_pw_augment_grids(in_tmp_dir):
 
     def calculate(aug):
         atoms.calc = GPAW(
-            _use_old_gpaw=True,
+            legacy_gpaw=True,
             mode=PW(ecut),
             txt=f'gpaw.aug{aug}.txt',
             parallel={'augment_grids': aug},

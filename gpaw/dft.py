@@ -927,7 +927,8 @@ def DFT(
     return params.dft_calculation(atoms, txt, communicator)
 
 
-_USE_OLD_GPAW = None  # used py the "gpaw_newp" parametrized fixture
+class LegacyGPAWError(Exception):
+    """Something not quite working with new GPAW - try old ..."""
 
 
 def GPAW(
@@ -961,7 +962,7 @@ def GPAW(
     txt: str | Path | IO[str] | None = '?',
     communicator: MPIComm | None = None,
     object_hooks=None,
-    _use_old_gpaw: bool | None = False,
+    legacy_gpaw: bool | None = False,
     external=None,
     background_charge=None) -> ASECalculator:
     """Create ASE-compatible GPAW calculator.
@@ -993,25 +994,22 @@ def GPAW(
         if value is None:
             del kwargs[key]
         else:
-            _use_old_gpaw = True
+            legacy_gpaw = True
 
     # Sorry about the following mess, but it will become a lot simpler
-    # in the near future!
+    # in the future!
     params = None
     use_old_if_reading_fails = False
-    if _use_old_gpaw is None:
-        if _USE_OLD_GPAW is None:
-            if GPAW_NEW == 147:
-                can, params = _can_use_new(filename, kwargs)
-                _use_old_gpaw = not can
-                if not _use_old_gpaw and filename:
-                    use_old_if_reading_fails = True
-            else:
-                _use_old_gpaw = GPAW_NEW == 0
+    if legacy_gpaw is None:
+        if GPAW_NEW == 147:
+            can, params = _can_use_new(filename, kwargs)
+            legacy_gpaw = not can
+            if not legacy_gpaw and filename:
+                use_old_if_reading_fails = True
         else:
-            _use_old_gpaw = _USE_OLD_GPAW
+            legacy_gpaw = GPAW_NEW == 0
 
-    if _use_old_gpaw:
+    if legacy_gpaw:
         from gpaw.old.calculator import GPAW as OldGPAW
         kwargs = {key: value
                   for key, value in kwargs.items() if value is not None}
@@ -1033,7 +1031,7 @@ def GPAW(
                                              log=log,
                                              parallel=parallel,
                                              object_hooks=object_hooks)
-        except NotImplementedError:
+        except LegacyGPAWError:
             if use_old_if_reading_fails:
                 from gpaw.old.calculator import GPAW as OldGPAW
                 return OldGPAW(filename, txt=txt, communicator=communicator)
