@@ -9,9 +9,7 @@ def test_si_scs(in_tmp_dir, gpw_files):
         ecut=30,
         valence_bands=3,
         conduction_bands=2,
-        mode="BSE",
-    )
+        mode='BSE')
 
     bse.get_polarizability(
-        eta=0.1, w_w=np.linspace(0, 1, 11), filename="test_si_scs.csv"
-    )
+        eta=0.1, w_w=np.linspace(0, 1, 11), filename='test_si_scs.csv')

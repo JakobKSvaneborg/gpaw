@@ -54,37 +54,22 @@ ResponseGroundStateAdaptable = Union['ResponseGroundStateAdapter',
 
 class ResponseGroundStateAdapter:
     def __init__(self, calc: GPAWCalculator, lazy=False):
-        self.gs_info = ""
+        self.gs_info = ''
 
-        if not calc.old and calc.dft.ibzwfs.mode == 'lcao' or calc.wfs.mode == 'lcao':
-            if 0:
-                from gpaw.core import PWDesc
-                dft = calc.dft
-                ibzwfs = dft.ibzwfs
-                grid = dft.density.nt_sR.desc
-                pw = PWDesc(ecut=0.5 * grid.ekin_max(),
-                            cell=grid.cell,
-                            comm=grid.comm,
-                            dtype=ibzwfs.dtype)
-                ibzwfs = ibzwfs.convert_to('pw', grid, pw)
-                dft.ibzwfs = ibzwfs
-            elif isinstance(calc, NewGPAW):
-                from gpaw.dft import DefaultEigensolver
-                calc.dft.params.eigensolver = DefaultEigensolver({})
-                calc.dft.change_mode('pw')
-            else:
-                # calc = calc._to_old()
-                # self._wfs = wfs = calc.wfs
-                calc.initialize_positions()
-                for kpt in calc.wfs.kpt_u:
-                    assert kpt.C_nM is not None
-                ecut_pw = pw_ecut_from_lcao_grid(calc.wfs.gd)
-                calc.wfs.planewavefy(ecut=ecut_pw / Ha, lazy=lazy)
-                assert calc.wfs.pd is not None
-
-                self.gs_info = f"""Converting LCAO wf to PW wf
-                             with cutoff of Ecut={ecut_pw:.3f} eV"""
-                # calc = planewavefy_completed
+        if isinstance(calc, NewGPAW) and calc.dft.ibzwfs.mode == 'lcao':
+            from gpaw.dft import DefaultEigensolver
+            calc.dft.params.eigensolver = DefaultEigensolver({})
+            calc.dft.change_mode('pw')
+            ecut = calc.dft.ibzwfs._wfs_u[0].psit_nX.desc.ecut * Ha
+            self.gs_info = f'Converting from LCAO to PW: ecut={ecut:.3f} eV'
+        elif calc.old and calc.wfs.mode == 'lcao':
+            calc.initialize_positions()
+            for kpt in calc.wfs.kpt_u:
+                assert kpt.C_nM is not None
+            ecut = pw_ecut_from_lcao_grid(calc.wfs.gd)
+            calc.wfs.planewavefy(ecut=ecut / Ha, lazy=lazy)
+            assert calc.wfs.pd is not None
+            self.gs_info = f'Converting from LCAO to PW: ecut={ecut:.3f} eV'
 
         wfs = calc.wfs  # wavefunction object from gpaw.old.wavefunctions
         self._wfs = wfs
@@ -361,8 +346,8 @@ class ResponseGroundStateAdapter:
             assert n1 <= self.nocc1
         else:
             raise ValueError(
-                f"Invalid type for nbands: {type(nbands)}."
-                "Expected None, int, or slice.")
+                f'Invalid type for nbands: {type(nbands)}. '
+                'Expected None, int, or slice.')
 
         n2 = self.nocc2
         m1 = self.nocc1
@@ -455,8 +440,8 @@ class CellDescriptor:
             # nonperiodic cell vectors in different blocks.
             assert np.allclose(cell_cv[~pbc_c][:, pbc_c], 0.) and \
                 np.allclose(cell_cv[pbc_c][:, ~pbc_c], 0.), \
-                "In 1D and 2D, please put the periodic/nonperiodic axis " \
-                "along a cartesian component"
+                'In 1D and 2D, please put the periodic/nonperiodic axis ' \
+                'along a cartesian component'
         L = np.abs(np.linalg.det(cell_cv[~pbc_c][:, ~pbc_c]))
         return L * Bohr**sum(~pbc_c)  # Bohr -> Å
 
