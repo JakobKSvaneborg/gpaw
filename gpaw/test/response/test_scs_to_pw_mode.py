@@ -1,15 +1,24 @@
 import numpy as np
-from gpaw.response.bse import BSE
+import pytest
+from gpaw.response.df import DielectricFunction
+
+
+def calc_df(gpwfile):
+    df = DielectricFunction(
+        calc=gpwfile,
+        ecut=30,
+        nbands=6,
+        eta=0.1,
+        hilbert=False,
+        frequencies=np.linspace(0, 1, 10),
+    )
+    return df.get_dielectric_function()
 
 
 def test_si_scs(in_tmp_dir, gpw_files):
+    _, eps_w = calc_df(gpw_files["si_pw"])
+    _, eps_scs_w = calc_df(gpw_files["si_scs_gpw"])
 
-    bse = BSE(
-        calc=gpw_files['si_scs_gpw'],
-        ecut=30,
-        valence_bands=3,
-        conduction_bands=2,
-        mode='BSE')
-
-    bse.get_polarizability(
-        eta=0.1, w_w=np.linspace(0, 1, 11), filename='test_si_scs.csv')
+    # we use a relatively high tolerance since we wouldn't expect agreement
+    # given the unconverged basis sets
+    assert eps_scs_w.real == pytest.approx(eps_w.real, rel=0.1)

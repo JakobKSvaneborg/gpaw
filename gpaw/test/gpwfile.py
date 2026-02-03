@@ -2580,17 +2580,17 @@ class GPWFiles(CachedFilesHandler):
         Silicon with self-consistent scissors eigensolver
         """
         shifts = [(0.0, -0.0, 2)]
-        a = 5.431
-        atoms = bulk('Si', 'diamond', a=a)
+        atoms = bulk('Si')
         Nk = 2
-        calc = GPAW(
+        calc = self.GPAW(
             mode='lcao',
             basis='dzp',
+            xc='LDA',
             nbands='nao',
             kpts=dict(size=(Nk, Nk, Nk), gamma=True),
             eigensolver={'name': 'scissors', 'shifts': shifts},
             occupations=FermiDirac(0.001),
-            txt='gs.txt')
+            txt=self.folder / 'si_lcao_scs.txt')
         atoms.calc = calc
         atoms.get_potential_energy()
         return calc
