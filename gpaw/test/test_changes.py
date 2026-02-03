@@ -24,11 +24,11 @@ def test_changes():
     # occ_fixed = {'name': 'fixed', 'numbers': [[0, 1, 0], [0, 1, 0]]}
     occ_fixed = {'name': 'fixed', 'numbers': [[1, 0, 0], [1, 0, 0]]}
 
-    mixer = {'method': 'fullspin',
-             'backend': 'fft',
-             'beta': 0.05,
-             'nmaxold': 7,
-             'weight': 50.0}
+    # mixer = {'method': 'fullspin',
+    #          'backend': 'fft',
+    #          'beta': 0.05,
+    #          'nmaxold': 7,
+    #          'weight': 50.0}
 
     diropt = {'name': 'etdm-fdpw', 'converge_unocc': True}
     nomixer = {'backend': 'no-mixing'}
