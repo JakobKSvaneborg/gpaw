@@ -71,9 +71,9 @@ def test_rank0_call(mpi):
     # and exceptions as RuntimeError to all other ranks
 
     def inverse(x):
-        return 1 / x
+        return 1 // x
 
     assert 1 == rank0_call(inverse, comm)(comm.rank + 1)
 
-    with pytest.raises(RuntimeError, match='division by zero'):
+    with pytest.raises(RuntimeError, match='integer division'):
         rank0_call(inverse, comm)(comm.rank)

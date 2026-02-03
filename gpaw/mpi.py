@@ -121,7 +121,8 @@ def rank0_call(func, comm):
                 # calculation in serial only on master
                 result = func(*args, **kwargs)
             except Exception as err:
-                error = str(err)
+                # stacktrace
+                error = ' '.join(traceback.format_exception(err))
 
         # broadcast error
         error = asebroadcast(error, 0, comm=comm)
