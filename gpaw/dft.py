@@ -78,7 +78,7 @@ class Mode(Parameter):
         self.force_complex_dtype = force_complex_dtype
         self.name = self.__class__.__name__.lower()
         if interpolation != 117:
-            raise NotImplementedError
+            raise LegacyGPAWError
 
     def todict(self) -> dict:
         dct: Dict[str, Any] = {}
@@ -125,7 +125,7 @@ class PW(Mode):
             Plane-wave cutoff energy in eV.
         """
         if 'interpolation' in kwargs:
-            raise NotImplementedError
+            raise LegacyGPAWError
 
         self.ecut = ecut
         self.qspiral = qspiral
@@ -190,7 +190,7 @@ class Eigensolver(Parameter):
                     return eigensolvers['davidson'](**kwargs)
                 if GPAW_NEW == 147 and name in {'etdm-lcao', 'etdm-fdpw',
                                                 'etdm', 'direct'}:
-                    raise NotImplementedError
+                    raise LegacyGPAWError
                 if name in eigensolvers:
                     return eigensolvers[name](**kwargs)
                 raise ValueError(f'Unknown name of eigensolver: {name}')
@@ -202,7 +202,7 @@ class Eigensolver(Parameter):
                 return cls.from_param(eigensolver.todict())
             case _:
                 if GPAW_NEW == 147:
-                    raise NotImplementedError
+                    raise LegacyGPAWError
                 raise ValueError(f'Unknown eigensolver input: {eigensolver}')
 
 
@@ -618,7 +618,7 @@ class XC(Parameter):
         if isinstance(xc, str):
             xc = {'name': xc}
         if not isinstance(xc, dict):
-            raise NotImplementedError
+            raise LegacyGPAWError
         return XC(**xc)
 
 
@@ -742,7 +742,7 @@ class Parameters:
             XC-functional.  Default is PZ-LDA.
         """
         if external is not None:
-            raise NotImplementedError
+            raise LegacyGPAWError
         soc, magmoms = _parse_experimental(experimental, soc, magmoms)
         self._non_defaults = [
             key for key, value in locals().items()
@@ -1057,7 +1057,7 @@ def _can_use_new(filename, kwargs) -> tuple[bool, Parameters | None]:
 
     try:
         params = Parameters(**kwargs)
-    except NotImplementedError:
+    except LegacyGPAWError
         return False, None
     if params.mode.name == 'lcao':
         return False, None
