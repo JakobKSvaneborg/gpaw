@@ -85,6 +85,11 @@ Git master branch
   please contact the developers.  You will probably need to port the code
   to :ref:`newgpaw` in order to use it in the future.
 
+* We now have a :ref:`ecosystem` page listing projects related to GPAW
+  or using GPAW.
+  If you know of a project which should be listed here, but isn’t,
+  please open a merge request adding link and descriptive paragraph.
+
 
 Version 25.7.0
 ==============
