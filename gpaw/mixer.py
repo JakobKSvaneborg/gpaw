@@ -241,7 +241,7 @@ class MSR1Mixer(BaseMixer):
                 dD_iasp[-1].append(D_sp - D_isp)
 
         if iold > 1:
-            if dNt > self.last_dNt * 25:
+            if dNt > self.last_dNt * 2:
                 dNt = self.last_dNt
                 temp = nt_isG[-1].copy()
                 nt_isG[-1] = nt_isG[-2].copy()
@@ -313,19 +313,19 @@ class MSR1Mixer(BaseMixer):
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
             good_broydenness -= 2**(-iter) * max_gb
-            good_broydenness = 100
-            t_isG = ty_isG - good_broydenness * ts_isG  # Also known as W depending on the paper
+            good_broydenness = 0
+            t_isG = y_isG - good_broydenness * s_isG  # Also known as W depending on the paper
 
-            A_ii = y_isG.reshape((iold - 1, -1)) @ t_isG.reshape((iold - 1, -1)).T
-            A1_ii = y_isG.reshape((iold - 1, -1)) @ ty_isG.reshape((iold - 1, -1)).T
-            A2_ii = y_isG.reshape((iold - 1, -1)) @ ts_isG.reshape((iold - 1, -1)).T
+            A_ii = ty_isG.reshape((iold - 1, -1)) @ t_isG.reshape((iold - 1, -1)).T
+            A1_ii = ty_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
+            A2_ii = ty_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(A_ii)
             self.gd.comm.sum(A1_ii)
             self.gd.comm.sum(A2_ii)
 
-            B_ii = s_isG.reshape((iold - 1, -1)) @ t_isG.reshape((iold - 1, -1)).T
-            B1_ii = s_isG.reshape((iold - 1, -1)) @ ty_isG.reshape((iold - 1, -1)).T
-            B2_ii = s_isG.reshape((iold - 1, -1)) @ ts_isG.reshape((iold - 1, -1)).T
+            B_ii = ts_isG.reshape((iold - 1, -1)) @ t_isG.reshape((iold - 1, -1)).T
+            B1_ii = ts_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
+            B2_ii = ts_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(B_ii)
             self.gd.comm.sum(B1_ii)
             self.gd.comm.sum(B2_ii)
@@ -395,11 +395,11 @@ class MSR1Mixer(BaseMixer):
             B2 = B3_i @ B_ii @ B2_i
 
             if iold != 2:
-                self.B0 = (self.B0 + min(np.abs(B1 / B2), 1.2) + 0.1) / 2
+                self.B0 = (self.B0 + np.clip(np.abs(B1 / B2), 0.3, 1.3) + 0.1) / 2
             else:
                 self.B0 = 1
 
-            self.A0 = (self.A0 + min(np.abs(A1 / A2), 3 * self.beta, 1)) / 2
+            self.A0 = (self.A0 + np.clip(np.abs(A1 / A2), 0.02, min(3 * self.beta, 1))) / 2
 
             A0 = self.A0
             B0 = self.B0
