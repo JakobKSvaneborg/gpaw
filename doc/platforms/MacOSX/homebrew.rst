@@ -23,29 +23,41 @@ Install ASE and GPAW dependencies::
     $ brew install libxc
     $ brew install open-mpi
     $ brew install fftw
+    $ brew install openblas
 
-Install pip::
+Modern MacOS installations no longer permits pip installation with
+``--user``, neither with the system Python nor with the Homebrew
+Python.  You therefore have to create a virtual environment, and
+install GPAW in it.
 
-    $ sudo easy_install pip
+Create and activate the virtual environment::
 
-Install required Python packages::
+    $ python3 -m venv venv_gpaw
+    $ source venv_gpaw/bin/activate
 
-    $ pip install numpy scipy matplotlib
+Update pip::
 
-Install and test ASE::
+    $ pip install --upgrade pip
 
-    $ pip install --upgrade --user ase
-    $ python -m ase test
+Install ASE::
 
-Use this :ref:`siteconfig.py <siteconfig>` file:
+    $ pip install --upgrade ase
+
+Use this :ref:`siteconfig.py <siteconfig>` file, download it and place
+it in the folder ``~/.gpaw``, or set the environment variable
+``$GPAW_CONFIG`` to the full path and name of the file (placing the
+file in current working directory no longer works with a modern Python):
 
 .. literalinclude:: siteconfig.py
 
 Install GPAW::
 
-    $ pip install --upgrade --user gpaw
+    $ pip install --upgrade gpaw
 
 Test GPAW::
 
     $ gpaw test
     $ gpaw -P 4 test
+
+Check the output to see that it was compiled with MPI, scalapack and
+FFTW.  If not, it failed to find the ``siteconfig.py`` file.
