@@ -1,20 +1,19 @@
 """Non self-consistent HSE06 eigenvalues."""
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from time import time
-from typing import IO, Sequence
+from typing import IO, Sequence, TYPE_CHECKING
 
 import numpy as np
 from ase.units import Ha
-
 from gpaw.core import PWArray, PWDesc, UGArray
 from gpaw.core.atom_arrays import AtomArrays
-from gpaw.hybrids.paw import pawexxvv
 from gpaw.mpi import broadcast
 from gpaw.new import zips as zip
+from gpaw.new.brillouin import MonkhorstPackKPoints
 from gpaw.new.c import add_to_density
-from gpaw.new.calculation import DFTCalculation
 from gpaw.new.density import Density
 from gpaw.new.logger import Logger
 from gpaw.new.pw.hybrids import Psit, ibz2bz, truncated_coulomb
@@ -23,17 +22,18 @@ from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.utilities import pack_density, unpack_hermitian
-from gpaw.hybrids import parse_name
-from gpaw.new.brillouin import MonkhorstPackKPoints
+if TYPE_CHECKING:
+    from gpaw.new.calculation import DFTCalculation
 
 
-class NonSelfConsistentHSE06:
+class NonSelfConsistentHybridXCCalculator:
     @classmethod
     def from_dft_calculation(cls,
                              dft: DFTCalculation,
-                             xc: str = 'HSE06',
+                             xc: str,
+                             *,
                              log: str | Path | IO[str] | None = '-',
-                             ) -> NonSelfConsistentHSE06:
+                             ) -> NonSelfConsistentHybridXCCalculator:
         """Create HSE06-eigenvalue calculator from DFT calculation."""
         return cls(dft.ibzwfs,  # type: ignore [arg-type]
                    dft.density,
@@ -51,6 +51,8 @@ class NonSelfConsistentHSE06:
                  relpos_ac: np.ndarray,
                  xc: str,
                  log: str | Path | IO[str] | None = '-'):
+        from gpaw.hybrids import parse_name
+        from gpaw.hybrids.paw import pawexxvv
         assert isinstance(ibzwfs, PWFDIBZWaveFunctions)
         semilocal_xc_name, self.exx_fraction, exx_omega, yukawa = \
             parse_name(xc)
@@ -326,3 +328,20 @@ def nsc_corrections(density: Density,
             dxc_asii[a][:] += dHU_sii
 
     return dxc_sR, dhyb_sR, dxc_asii, dhyb_asii
+
+
+# Backwards compatibility:
+class NonSelfConsistentHSE06(NonSelfConsistentHybridXCCalculator):
+    @classmethod
+    def from_dft_calculation(cls,
+                             dft: DFTCalculation,
+                             xc: str = 'HSE06',
+                             *,
+                             log: str | Path | IO[str] | None = '-',
+                             ) -> NonSelfConsistentHybridXCCalculator:
+        assert xc == 'HSE06'
+        warnings.warn(
+            'Please use gpaw.hybrids.NonSelfConsistentHybridXCCalculator '
+            'object instead.')
+        return NonSelfConsistentHybridXCCalculator.from_dft_calculation(
+            dft, 'HSE06', log=log)
