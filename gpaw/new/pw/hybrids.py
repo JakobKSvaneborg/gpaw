@@ -261,7 +261,7 @@ class PWHybridHamiltonian(PWHamiltonian):
             F1_av = None
 
         # Find projectors and k-point weight for psit2_nG:
-        for wfs in ibzwfs:
+        for u, wfs in enumerate(ibzwfs):
             if wfs.spin != spin:
                 continue
             if np.allclose(wfs.psit_nX.desc.kpt_c, psit2_nG.desc.kpt_c):
@@ -295,9 +295,10 @@ class PWHybridHamiltonian(PWHamiltonian):
         V2_aii = V_aii.gather(broadcast=True)
 
         if calculate_energy:
-            evv = domain_comm.sum_scalar(evv) * self.kpt_comm.size * kweight
-            evc = domain_comm.sum_scalar(evc) * self.kpt_comm.size * kweight
-        elif F1_av is not None:
+            nk = len(ibzwfs._wfs_u) / ibzwfs.nspins
+            evv = domain_comm.sum_scalar(evv) / nk
+            evc = domain_comm.sum_scalar(evc) / nk
+        elif F1_av is not None and u == 0:
             for a, V_ii in V2_aii.items():
                 for psit in self.mypsits:
                     dP_anvi = psit.dP_anvi
@@ -324,11 +325,12 @@ class PWHybridHamiltonian(PWHamiltonian):
                             ('hybrid_kinetic_correction', ekin)]:
                 e *= ibzwfs.spin_degeneracy
                 self.xc.energies[name] += e
-            self.xc.energies['hybrid_xc'] += self.exx_cc
+            if u == 0:
+                self.xc.energies['hybrid_xc'] += self.exx_cc
 
         if F1_av is not None:
             assert F_av is not None
-            F_av += ibzwfs.spin_degeneracy * kweight * F1_av
+            F_av += ibzwfs.spin_degeneracy * F1_av
 
     def _apply1(self,
                 spin: int,
@@ -375,7 +377,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 V_ani = P2_ani.new()
                 V_ani.data[:] = 0.0
                 e += self._apply2(psit2_nG, P2_ani, s, V_nG, V_ani, f2_n,
-                                  calculate_energy, F1_av) * w
+                                  calculate_energy, w, F1_av) * w
                 if Htpsit_nG is None:
                     continue
                 comm.sum(V_nG.data, root=rank)
@@ -399,6 +401,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 V2_ani,
                 f2_n: np.ndarray,
                 calculate_energy: bool,
+                w: float,
                 F1_av=None) -> float:
         ut2_nR = self.grid_local.empty(len(psit2_nG))
         psit2_nG.ifft(out=ut2_nR, plan=self.plan, periodic=False)
@@ -411,7 +414,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 v_G = self.coulomb(pw)
                 e += self._apply3(
                     pw, v_G, psit1, ut2_nR, P2_ani, Htpsit2_nG, V2_ani, f2_n,
-                    calculate_energy, F1_av)
+                    calculate_energy, F1_av, w)
 
         e *= -self.exx_fraction / self.nbzk
         return self.comm.sum_scalar(e)
@@ -428,7 +431,8 @@ class PWHybridHamiltonian(PWHamiltonian):
                 V2_ani,
                 f2_n: np.ndarray,
                 calculate_energy: bool,
-                F1_av: np.ndarray | None) -> float:
+                F1_av: np.ndarray | None,
+                w: float) -> float:
         ut1_nR = psit1.ut_nR
         Q1_aniL = psit1.Q_aniL
         f1_n = psit1.f_n
@@ -480,7 +484,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                        Q_anL,
                        f1, f2_n, self.nbzk, self.delta_aiiL,
                        psit1.dP_anvi,
-                       n1, eikR_a, F1_av)
+                       n1, eikR_a, F1_av, w)
                 continue
             if self.real:
                 ghat_GA[0] *= 0.5
@@ -503,17 +507,18 @@ class PWHybridHamiltonian(PWHamiltonian):
 
 
 def forces(ghat_aLG, vrhot2_nG, P2_ani, Q2_anL, f1, f2_n, nbzk, delta_aiiL,
-           dP_anvi, n1, eikR_a, F_av):
+           dP_anvi, n1, eikR_a, F_av, w):
     f12_n = f1 * f2_n
+    w *= 1 / nbzk
     for a, F_nvL in ghat_aLG.derivative(vrhot2_nG).items():
-        F_av[a] -= 0.25 / nbzk * np.einsum('n, nL, nvL -> v',
-                                           f12_n,
-                                           (Q2_anL[a] * eikR_a[a]).conj(),
-                                           F_nvL).real
+        F_av[a] -= 0.25 * w * np.einsum('n, nL, nvL -> v',
+                                        f12_n,
+                                        (Q2_anL[a] * eikR_a[a]).conj(),
+                                        F_nvL).real
     for a, F_nL in ghat_aLG.integrate(vrhot2_nG).items():
         F_iin = delta_aiiL[a] @ F_nL.T
-        F_av[a] -= 0.5 / nbzk * np.einsum('ijn, vi, nj, n -> v',
-                                          F_iin,
-                                          dP_anvi[a][n1],
-                                          P2_ani[a].conj(),
-                                          f12_n).real
+        F_av[a] -= 0.5 * w * np.einsum('ijn, vi, nj, n -> v',
+                                       F_iin,
+                                       dP_anvi[a][n1],
+                                       P2_ani[a].conj(),
+                                       f12_n).real

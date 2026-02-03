@@ -16,6 +16,10 @@
 #error "Must define GPAW_GPU in order to use GPAW_WITH_MAGMA"
 #endif
 
+#ifdef GPAW_GPU
+#include "gpu/cpp/gpu_python.h"
+#endif
+
 PyObject* evaluate_mpa_poly(PyObject *self, PyObject *args);
 PyObject* pawexxvv(PyObject* self, PyObject* args);
 PyObject* symmetrize(PyObject *self, PyObject *args);
@@ -438,6 +442,14 @@ static PyObject* moduleinit(void)
 #else
     PyObject_SetAttrString(m, "have_magma", Py_False);
 #endif
+
+#ifdef GPAW_GPU
+    if (!bind_gpu_submodule(m))
+    {
+        return NULL;
+    }
+#endif
+
     // Version number of C-code.  Keep in sync with gpaw/_broadcast_imports.py
     PyObject_SetAttrString(m, "version", PyLong_FromLong(10));
 
