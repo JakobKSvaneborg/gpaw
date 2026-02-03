@@ -1440,7 +1440,7 @@ class EXXVXCCalculator:
         ibzwfs = dft.ibzwfs
         if dft.params.mode.name == 'lcao':
             grid = dft.density.nt_sR.desc
-            pw = PWDesc(ecut=0.5 * grid.ekin_max(),
+            pw = PWDesc(ecut=0.49 * grid.ekin_max(),
                         cell=grid.cell,
                         comm=grid.comm,
                         dtype=ibzwfs.dtype)
