@@ -33,7 +33,7 @@ class NonSelfConsistentHybridXCCalculator:
                              xc: str,
                              *,
                              log: str | Path | IO[str] | None = '-',
-                             ) -> NonSelfConsistentHSE06:
+                             ) -> NonSelfConsistentHybridXCCalculator:
         """Create HSE06-eigenvalue calculator from DFT calculation."""
         return cls(dft.ibzwfs,  # type: ignore [arg-type]
                    dft.density,
@@ -335,10 +335,13 @@ class NonSelfConsistentHSE06(NonSelfConsistentHybridXCCalculator):
     @classmethod
     def from_dft_calculation(cls,
                              dft: DFTCalculation,
+                             xc: str = 'HSE06',
+                             *,
                              log: str | Path | IO[str] | None = '-',
-                             ) -> NonSelfConsistentHSE06:
+                             ) -> NonSelfConsistentHybridXCCalculator:
+        assert xc == 'HSE06'
         warnings.warn(
             'Please use gpaw.hybrids.NonSelfConsistentHybridXCCalculator '
             'object instead.')
         return NonSelfConsistentHybridXCCalculator.from_dft_calculation(
-            dft, 'HSE06', log)
+            dft, 'HSE06', log=log)
