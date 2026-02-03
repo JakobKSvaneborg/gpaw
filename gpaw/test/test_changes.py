@@ -79,20 +79,20 @@ def test_gather():
     dft = DFT(atoms, **params)
     dft.converge()
 
-    res = {}
-    res['etot'] = dft.energy()
-    res['forces'] = dft.forces()
-    res['psit_nR'] = dft.wave_functions(n1=0, n2=1, kpt=0, spin=0)
-    res['nt_sR'] = dft.densities().pseudo_densities().gather()
+    ref = {}
+    ref['etot'] = dft.energy()
+    ref['forces'] = dft.forces()
+    ref['psit_nR'] = dft.wave_functions(n1=0, n2=1, kpt=0, spin=0)
+    ref['nt_sR'] = dft.densities().pseudo_densities().gather()
     # get_all_electron_density broken for domain_comm > 1
-    res['n_sR'] = dft.densities().all_electron_densities().gather()
+    ref['n_sR'] = dft.densities().all_electron_densities().gather()
 
     newdft = dft.gather()
 
-    if dft.comm.rank == 0:
-        # remove results for test to force recalculate
+    def compare_gathered(newdft, ref, tol):
+        # remove results for test to enforce recalculate
         newdft.results = {}
-        # XXX Remove converge() once occupations are copied as well
+        # XXX TODO: remove converge() once occupations are copied as well
         newdft.converge()   # SCF needed to set occupations
         new = {}
         new['etot'] = newdft.energy()
@@ -102,12 +102,12 @@ def test_gather():
         new['n_sR'] = newdft.densities().all_electron_densities()
 
         for key in ['etot', 'forces']:
-            assert new[key] == pytest.approx(res[key], abs=tol[key])
+            assert new[key] == pytest.approx(ref[key], abs=tol[key])
 
         dtol = tol['density']
 
-        # wavefunction defined up to a phase (sign)
-        psi_o = res['psit_nR'].data
+        # wavefunction defined up to a global phase (sign)
+        psi_o = ref['psit_nR'].data
         psi_n = new['psit_nR'].data
         idx = np.flatnonzero(np.abs(psi_n) > dtol)[0]
         sign = np.sign(psi_o.flat[idx] / psi_n.flat[idx])
@@ -117,9 +117,11 @@ def test_gather():
             if dft.density.nt_sR.desc.comm.size > 1 and key == 'n_sR':
                 # get_all_electron_density broken for domain_comm > 1
                 continue
-            assert new[key].data == pytest.approx(res[key].data, abs=dtol)
-    else:
-        assert newdft is None
+            assert new[key].data == pytest.approx(ref[key].data, abs=dtol)
+        return
+
+    # only call on master and broadcast exceptions
+    rank0_call(compare_gathered, dft.comm)(newdft, ref, tol)
 
 
 if __name__ == "__main__":
