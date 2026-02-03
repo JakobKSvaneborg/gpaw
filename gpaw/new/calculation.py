@@ -482,8 +482,6 @@ class DFTCalculation:
                 builder.log,
                 params=params,
                 energies=self.energies)
-
-            dft.results = {}
         else:
             dft = None
 

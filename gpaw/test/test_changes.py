@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 from ase.build import molecule
 from gpaw.dft import DFT
+from gpaw.mpi import rank0_call
 from gpaw.new.ase_interface import GPAW
 
 
@@ -72,35 +73,51 @@ def test_gather():
                               'density': 1e-5,
                               'forces': 1e-3}}
 
+    tol = {'etot': 1e-8, 'forces': 1e-3, 'density': 1e-5}
+
     # preconverge with PBE
     dft = DFT(atoms, **params)
     dft.converge()
-    # in a.u.
-    etot_test = dft.energy()
-    forces_test = dft.forces()
-    psit_nR_test = dft.wave_functions(n1=0, n2=1, kpt=0, spin=0)
-    nt_sR_test = dft.densities().pseudo_densities().gather()
+
+    res = {}
+    res['etot'] = dft.energy()
+    res['forces'] = dft.forces()
+    res['psit_nR'] = dft.wave_functions(n1=0, n2=1, kpt=0, spin=0)
+    res['nt_sR'] = dft.densities().pseudo_densities().gather()
     # get_all_electron_density broken for domain_comm > 1
-    n_sR_test = dft.densities().all_electron_densities().gather()
+    res['n_sR'] = dft.densities().all_electron_densities().gather()
 
     newdft = dft.gather()
 
     if dft.comm.rank == 0:
+        # remove results for test to force recalculate
+        newdft.results = {}
+        # XXX Remove converge() once occupations are copied as well
         newdft.converge()   # SCF needed to set occupations
-        etot = newdft.energy()
-        forces = newdft.forces()
-        psit_nR = newdft.wave_functions(n1=0, n2=1, kpt=0, spin=0)
-        nt_sR = newdft.densities().pseudo_densities().data
-        n_sR = newdft.densities().all_electron_densities().data
+        new = {}
+        new['etot'] = newdft.energy()
+        new['forces'] = newdft.forces()
+        new['psit_nR'] = newdft.wave_functions(n1=0, n2=1, kpt=0, spin=0)
+        new['nt_sR'] = newdft.densities().pseudo_densities()
+        new['n_sR'] = newdft.densities().all_electron_densities()
 
-        # in a.u.
-        assert etot == pytest.approx(etot_test)
-        assert forces == pytest.approx(forces_test, abs=1e-3)
-        assert psit_nR.data == pytest.approx(psit_nR_test.data, abs=1e-5)
-        assert nt_sR == pytest.approx(nt_sR_test.data, abs=1e-5)
-        if dft.density.nt_sR.desc.comm.size == 1:
-            # get_all_electron_density broken for domain_comm > 1
-            assert n_sR == pytest.approx(n_sR_test.data, abs=1e-5)
+        for key in ['etot', 'forces']:
+            assert new[key] == pytest.approx(res[key], abs=tol[key])
+
+        dtol = tol['density']
+
+        # wavefunction defined up to a phase (sign)
+        psi_o = res['psit_nR'].data
+        psi_n = new['psit_nR'].data
+        idx = np.flatnonzero(np.abs(psi_n) > dtol)[0]
+        sign = np.sign(psi_o.flat[idx] / psi_n.flat[idx])
+        assert sign * psi_n == pytest.approx(psi_o, abs=dtol)
+
+        for key in ['nt_sR', 'n_sR']:
+            if dft.density.nt_sR.desc.comm.size > 1 and key == 'n_sR':
+                # get_all_electron_density broken for domain_comm > 1
+                continue
+            assert new[key].data == pytest.approx(res[key].data, abs=dtol)
     else:
         assert newdft is None
 
