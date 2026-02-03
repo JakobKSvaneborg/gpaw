@@ -403,12 +403,12 @@ class MSR1Mixer(BaseMixer):
             else:
                 self.B0 = 1
 
-            self.A0 = (self.A0 + np.clip(np.abs(A1 / A2), 0.02, min(2 * self.beta, 1))) / 2
+            self.A0 = (self.A0 + np.clip(np.abs(A1 / A2) * self.beta, 0.02, min(2 * self.beta, 1))) / 2
 
             A0 = self.A0
             B0 = self.B0
-            # if self.gd.comm.rank == 0:
-            #     print(f"rank: {self.world.rank}, A0: {A0}, B0: {B0}")
+            if self.gd.comm.rank == 0:
+                print(f"rank: {self.world.rank}, A0: {A0}, B0: {B0}")
 
             self.uk_sG = np.zeros_like(nt_sG)
             self.pk_sG = np.zeros_like(nt_sG)
