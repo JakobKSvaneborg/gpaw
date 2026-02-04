@@ -65,7 +65,7 @@ plt.xlabel('x [Å]')
 plt.ylabel(r'$\psi$')
 plt.ylim(ymin=-2, ymax=2)
 # plt.show()
-plt.savefig('co_wavefunctions2.png', dpi=dpi)
+plt.savefig('co_wavefunctions.png', dpi=dpi)
 
 fig = plt.figure()
 ax = fig.add_subplot(111)
