@@ -117,7 +117,7 @@ July 29, 2025: :git:`25.7.0 <../25.7.0>`
 
 * Non self-consistent calculation of HSE06 eigenvalues for arbitrary
   **k**-points has been implemented.  See :ref:`hse06 on lda` and
-  :class:`gpaw.new.pw.nschse.NonSelfConsistentHSE06`.
+  :class:`gpaw.hybrids.NonSelfConsistentHybridXCCalculator`.
 
 * Experimental: Support for using MPI4PY_.
   **Update:** Set GPAW_MPI_BACKEND=mpi4py to use this.
