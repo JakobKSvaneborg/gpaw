@@ -512,7 +512,6 @@ class DFTCalculation:
         else:
             dft = None
 
-        comm.barrier()
         return dft
 
     def change(self,
