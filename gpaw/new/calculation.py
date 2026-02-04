@@ -440,7 +440,7 @@ class DFTCalculation:
         mode = params.mode
         comm = self.comm
 
-        # extract sizes and communicator from old wfs
+        # extract sizes from old wfs
         ibzwfs = self.ibzwfs
         ncomponents = ibzwfs.ncomponents
         nspins = ncomponents % 3
