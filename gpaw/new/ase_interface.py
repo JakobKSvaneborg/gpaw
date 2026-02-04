@@ -177,7 +177,7 @@ class ASECalculator:
 
         # Calculate all the cheap things:
         self.dft.calculate_energy()
-        self.dft.dipole()
+        self.dft.calculate_dipole()
         self.dft.magmoms()
 
         self.dft.write_converged()
@@ -207,10 +207,10 @@ class ASECalculator:
 
         if prop == 'forces':
             with self.timer('Forces'):
-                self.dft.forces()
+                self.dft.calculate_forces()
         elif prop == 'stress':
             with self.timer('Stress'):
-                self.dft.stress()
+                self.dft.calculate_stress()
         elif prop not in self.dft.results:
             raise KeyError('Unknown property:', prop)
 

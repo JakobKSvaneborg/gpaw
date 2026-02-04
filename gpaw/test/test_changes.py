@@ -82,7 +82,7 @@ def test_gather():
 
     ref = {}
     ref['etot'] = dft.calculate_energy()
-    ref['forces'] = dft.forces()
+    ref['forces'] = dft.calculate_forces()
     ref['psit_nR'] = dft.wave_functions(n1=0, n2=1, kpt=0, spin=0)
     ref['nt_sR'] = dft.densities().pseudo_densities().gather()
     # get_all_electron_density broken for domain_comm > 1
@@ -97,7 +97,7 @@ def test_gather():
         newdft.converge()   # SCF needed to set occupations
         new = {}
         new['etot'] = newdft.calculate_energy()
-        new['forces'] = newdft.forces()
+        new['forces'] = newdft.calculate_forces()
         new['psit_nR'] = newdft.wave_functions(n1=0, n2=1, kpt=0, spin=0)
         new['nt_sR'] = newdft.densities().pseudo_densities()
         new['n_sR'] = newdft.densities().all_electron_densities()

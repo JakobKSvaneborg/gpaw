@@ -230,13 +230,14 @@ class DFTCalculation:
 
         return self.results['energy'] * units['energy']
 
-    def dipole(self):
+    def calculate_dipole(self):
         if 'dipole' in self.results:
-            return
+            return self.results['dipole'] * units['dipole']
         dipole_v = self.density.calculate_dipole_moment(self.relpos_ac)
         x, y, z = dipole_v * Bohr
         self.log(f'dipole moment: [{x:.6f}, {y:.6f}, {z:.6f}]  # |e|*Ang\n')
         self.results['dipole'] = dipole_v
+        return self.results['dipole'] * units['dipole']
 
     def magmoms(self) -> tuple[Array1D, Array2D]:
         mm_v, mm_av = self.density.calculate_magnetic_moments()
@@ -257,7 +258,7 @@ class DFTCalculation:
             self.log()
         return mm_v, mm_av
 
-    def forces(self):
+    def calculate_forces(self):
         """Calculate atomic forces."""
         if 'forces' not in self.results:
             self._calculate_forces()
@@ -323,7 +324,7 @@ class DFTCalculation:
 
         return F_av
 
-    def stress(self) -> None:
+    def calculate_stress(self) -> None:
         if 'stress' in self.results:
             return self.results['stress'] * units['stress']
         stress_vv = self.pot_calc.stress(
