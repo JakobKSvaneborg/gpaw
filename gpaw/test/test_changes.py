@@ -58,18 +58,16 @@ def test_changes():
     assert forces_xc == pytest.approx(forces_hse, abs=1e-2)
 
 
-def test_gather():
+@pytest.mark.parametrize('mode', ['pw', 'fd'])
+def test_gather(mode):
 
     atoms = molecule('H2', cell=[4, 4, 4])
     atoms.center()
     atoms.set_pbc(True)
 
     params = {'xc': 'PBE',
-              'mode': {'name': 'pw'},
-              'nbands': 4,
-              # 'spinpol': True,
-              # 'kpts': {'size': [3, 3, 3]},
-              # 'parallel': {'domain': 1},
+              'mode': {'name': mode},
+              # 'nbands': 4,
               'convergence': {'eigenstates': 1e-4,
                               'density': 1e-5,
                               'forces': 1e-3}}
