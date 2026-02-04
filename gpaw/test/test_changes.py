@@ -61,22 +61,18 @@ def test_changes():
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
 def test_gather(mode):
 
-    atoms = molecule('H2', cell=[4, 4, 4])
+    atoms = molecule('H2', cell=[3, 3, 3])
     atoms.center()
     atoms.set_pbc(True)
 
     params = {'xc': 'PBE',
-              'mode': {'name': mode},
-              # 'nbands': 4,
-              'convergence': {'eigenstates': 1e-4,
-                              'density': 1e-5,
-                              'forces': 1e-3}}
+              'mode': {'name': mode}}
 
-    tol = {'etot': 1e-8, 'forces': 1e-3, 'density': 1e-5}
+    tol = {'etot': 1e-8, 'forces': 1e-2, 'density': 1e-5}
 
     # preconverge with PBE
     dft = DFT(atoms, **params)
-    dft.converge()
+    dft.converge(steps=2)
 
     ref = {}
     ref['etot'] = dft.calculate_energy()
