@@ -432,7 +432,7 @@ class DFTCalculation:
             return None
         return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
 
-    def gather(self):
+    def gather(self, txt='-'):
         # first try to implement gathering density and wfs on master
 
         atoms = self.atoms
@@ -463,7 +463,7 @@ class DFTCalculation:
         if comm.rank == 0:
 
             params.parallel = {'kpt': 1, 'band': 1, 'domain': 1}
-            builder = params.dft_component_builder(atoms, log='-',
+            builder = params.dft_component_builder(atoms, log=txt,
                                                    comm=serial_comm)
             # make new wfs on master
 
