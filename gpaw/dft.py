@@ -1057,9 +1057,9 @@ def _can_use_new(filename, kwargs) -> tuple[bool, Parameters | None]:
 
     try:
         params = Parameters(**kwargs)
-    except LegacyGPAWError
+    except LegacyGPAWError:
         return False, None
-    if params.mode.name == 'lcao':
+    if params.mode.name == 'lcaooooooooooooo':
         return False, None
     xcname = params.xc.name
     if xcname.startswith(('GLLB', 'TB09', 'LCY', 'CAMY')):
