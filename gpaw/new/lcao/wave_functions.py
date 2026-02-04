@@ -27,7 +27,7 @@ class LCAOWaveFunctions(WaveFunctions, XP):
                  relpos_ac: Array2D,
                  atomdist: AtomDistribution,
                  kpt_c=(0.0, 0.0, 0.0),
-                 domain_comm: MPIComm = serial_comm,
+                 domain_band_comm: MPIComm = serial_comm,
                  spin: int = 0,
                  q: int = 0,
                  k: int = 0,
@@ -44,7 +44,7 @@ class LCAOWaveFunctions(WaveFunctions, XP):
                          atomdist=atomdist,
                          ncomponents=ncomponents,
                          dtype=C_nM.dtype,
-                         domain_comm=domain_comm,
+                         domain_band_comm=domain_band_comm,
                          band_comm=C_nM.dist.comm)
         XP.__init__(self, C_nM.xp)
         self.tci_derivatives = tci_derivatives
@@ -235,7 +235,7 @@ class LCAOWaveFunctions(WaveFunctions, XP):
             P_aMi=self.P_aMi,
             relpos_ac=self.relpos_ac,
             atomdist=self.atomdist,
-            domain_comm=self.domain_comm,
+            domain_band_comm=self.domain_band_comm,
             kpt_c=self.kpt_c,
             spin=self.spin,
             q=self.q,
@@ -261,6 +261,7 @@ class LCAOWaveFunctions(WaveFunctions, XP):
                                 P_aMi=self.P_aMi,
                                 relpos_ac=self.relpos_ac,
                                 atomdist=self.atomdist,
+                                domain_band_comm=self.domain_band_comm,
                                 kpt_c=self.kpt_c,
                                 spin=self.spin,
                                 q=self.q,

@@ -13,7 +13,7 @@ from gpaw.core.plane_waves import PWArray
 from gpaw.core.uniform_grid import UGArray, UGDesc
 from gpaw.fftw import get_efficient_fft_size
 from gpaw.gpu import XP, as_np
-from gpaw.mpi import receive, send
+from gpaw.mpi import receive, send, MPIComm, serial_comm
 from gpaw.new import prod, trace, zips
 from gpaw.new.potential import Potential
 from gpaw.new.wave_functions import WaveFunctions
@@ -32,6 +32,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                  setups: Setups,
                  relpos_ac: Array2D,
                  atomdist: AtomDistribution,
+                 domain_band_comm: MPIComm = serial_comm,
                  weight: float = 1.0,
                  ncomponents: int = 1,
                  qspiral_v: Vector | None = None):
@@ -50,7 +51,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                          ncomponents=ncomponents,
                          qspiral_v=qspiral_v,
                          dtype=psit_nX.desc.dtype,
-                         domain_comm=psit_nX.desc.comm,
+                         domain_band_comm=domain_band_comm,
                          band_comm=psit_nX.comm)
         self._pt_aiX: AtomCenteredFunctions | None = None
         self.orthonormalized = False
