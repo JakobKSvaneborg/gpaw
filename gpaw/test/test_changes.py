@@ -115,9 +115,6 @@ def test_gather():
         assert sign * psi_n == pytest.approx(psi_o, abs=dtol)
 
         for key in ['nt_sR', 'n_sR']:
-            #if dft.density.nt_sR.desc.comm.size > 1 and key == 'n_sR':
-            #    # get_all_electron_density broken for domain_comm > 1
-            #    continue
             assert new[key].data == pytest.approx(ref[key].data, abs=dtol)
         return
 
