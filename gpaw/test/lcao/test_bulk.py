@@ -9,8 +9,10 @@ def test_lcao_bulk(in_tmp_dir):
     bulk = Atoms('Li', pbc=True)
     k = 4
     g = 8
-    calc = GPAW(gpts=(g, g, g), kpts=(k, k, k),
-                mode='lcao', basis='dzp')
+    calc = GPAW(gpts=(g, g, g),
+                kpts=(k, k, k),
+                mode='lcao',
+                basis='dzp')
     bulk.calc = calc
     e = []
     niter = []
