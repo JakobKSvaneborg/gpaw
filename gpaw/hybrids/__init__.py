@@ -1,6 +1,7 @@
 from .wrapper import HybridXC
+from gpaw.new.pw.nschse import NonSelfConsistentHybridXCCalculator
 
-__all__ = ['HybridXC']
+__all__ = ['HybridXC', 'NonSelfConsistentHybridXCCalculator']
 
 
 def parse_name(name: str) -> tuple[str, float, float, bool]:

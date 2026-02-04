@@ -3,11 +3,11 @@ from pathlib import Path
 
 import pytest
 
-from gpaw import GPAW, PW
+from gpaw import PW
 
 
 @pytest.mark.ci
-def test_new_calculator(in_tmp_dir):
+def test_new_calculator(in_tmp_dir, mpi):
     """Test the GPAW.new() method."""
 
     params = dict(
@@ -23,7 +23,7 @@ def test_new_calculator(in_tmp_dir):
         dict(kpts={'size': (4, 4, 4)}),
         dict(kpts={'size': (3, 3, 3)}, xc='PBE')]
 
-    calc0 = GPAW(**params, txt='calc0.txt')
+    calc0 = mpi.GPAW(**params, txt='calc0.txt')
 
     for m, modification in enumerate(modification_m):
         if m == 0:

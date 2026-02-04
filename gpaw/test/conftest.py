@@ -116,7 +116,7 @@ def use_fftw_estimate_flag(sessionscoped_monkeypatch):
 
 
 @pytest.fixture(scope='session')
-def gpw_files(request):
+def gpw_files(request, _not_world):
     """Reuse gpw-files.
 
     Returns a dict mapping names to paths to gpw-files.
@@ -274,7 +274,7 @@ def gpw_files(request):
     cache = request.config.cache
     gpaw_cachedir = cache.mkdir('gpaw_test_gpwfiles')
 
-    gpwfiles = GPWFiles(gpaw_cachedir)
+    gpwfiles = GPWFiles(gpaw_cachedir, _not_world)
 
     try:
         setup_paths.append(gpwfiles.testing_setup_path)
@@ -489,6 +489,10 @@ class MPIHelper:
         from gpaw.dft import GPAW as AnyGPAW
         return AnyGPAW(*args, communicator=self.comm,
                        _use_old_gpaw=True, **kwargs)
+
+    def restart(self, *args, **kwargs):
+        from gpaw import restart
+        return restart(*args, communicator=self.comm, **kwargs)
 
 
 @pytest.fixture

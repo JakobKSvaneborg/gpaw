@@ -1,5 +1,7 @@
 #pragma once
 
+#include "gpaw_utils.h"
+
 // TODO: combine with other gpu headers or remove when moving to full C++
 
 /* Some C++ functions in the GPU code need to interface with the main GPAW extension.

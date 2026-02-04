@@ -1,5 +1,6 @@
-import pytest
 import numpy as np
+import pytest
+from ase import Atoms
 from ase.build import molecule
 from gpaw.dft import DFT
 from gpaw.mpi import rank0_call
@@ -80,7 +81,7 @@ def test_gather():
     dft.converge()
 
     ref = {}
-    ref['etot'] = dft.energy()
+    ref['etot'] = dft.calculate_energy()
     ref['forces'] = dft.forces()
     ref['psit_nR'] = dft.wave_functions(n1=0, n2=1, kpt=0, spin=0)
     ref['nt_sR'] = dft.densities().pseudo_densities().gather()
@@ -95,7 +96,7 @@ def test_gather():
         # XXX TODO: remove converge() once occupations are copied as well
         newdft.converge()   # SCF needed to set occupations
         new = {}
-        new['etot'] = newdft.energy()
+        new['etot'] = newdft.calculate_energy()
         new['forces'] = newdft.forces()
         new['psit_nR'] = newdft.wave_functions(n1=0, n2=1, kpt=0, spin=0)
         new['nt_sR'] = newdft.densities().pseudo_densities()
@@ -114,9 +115,9 @@ def test_gather():
         assert sign * psi_n == pytest.approx(psi_o, abs=dtol)
 
         for key in ['nt_sR', 'n_sR']:
-            if dft.density.nt_sR.desc.comm.size > 1 and key == 'n_sR':
-                # get_all_electron_density broken for domain_comm > 1
-                continue
+            #if dft.density.nt_sR.desc.comm.size > 1 and key == 'n_sR':
+            #    # get_all_electron_density broken for domain_comm > 1
+            #    continue
             assert new[key].data == pytest.approx(ref[key].data, abs=dtol)
         return
 
@@ -124,5 +125,27 @@ def test_gather():
     rank0_call(compare_gathered, dft.comm)(newdft, ref, tol)
 
 
-if __name__ == "__main__":
-    test_gather()
+@pytest.mark.parametrize('mode', ['pw', 'fd'])
+def test_lcao_to_x(mode):
+    atoms = Atoms('H', magmoms=[1])
+    atoms.center(vacuum=1.5)
+
+    dft = DFT(atoms, mode='lcao', symmetry='off')
+    dft.converge()
+
+    dft.change_mode(mode)
+    dft.converge()
+
+    atoms.positions[:] += 0.1
+    dft.move_atoms(atoms)
+    dft.converge()
+    e1 = dft.calculate_energy()
+
+    dft = DFT(atoms, mode=mode)
+    dft.converge()
+    e2 = dft.calculate_energy()
+    assert e1 == pytest.approx(e2)
+
+
+if __name__ == '__main__':
+    test_lcao_to_x('pw')

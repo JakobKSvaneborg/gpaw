@@ -176,7 +176,7 @@ class ASECalculator:
         self.log(f'Converged in {ctx.niter} steps')
 
         # Calculate all the cheap things:
-        self.dft.energy()
+        self.dft.calculate_energy()
         self.dft.dipole()
         self.dft.magmoms()
 
@@ -358,20 +358,24 @@ class ASECalculator:
         yield from self.iconverge(atoms)
 
     def new(self, **kwargs) -> ASECalculator:
-        kwargs = {**self.params.todict(), **kwargs}
+        kwargs = {
+            'communicator': self.comm,
+            **self.params.todict(),
+            **kwargs}
+
         return GPAW(**kwargs)
 
     def get_pseudo_wave_function(self, band, kpt=0, spin=None,
                                  periodic=False,
                                  broadcast=True,
                                  pad=True) -> Array3D | None:
-        psit_R = self.dft.wave_functions(n1=band, n2=band + 1,
-                                         kpt=kpt, spin=spin,
-                                         periodic=periodic,
-                                         broadcast=broadcast,
-                                         _pad=pad)[0]
-        if psit_R is not None:
-            return psit_R.data
+        psit_1R = self.dft.wave_functions(n1=band, n2=band + 1,
+                                          kpt=kpt, spin=spin,
+                                          periodic=periodic,
+                                          broadcast=broadcast,
+                                          _pad=pad)
+        if psit_1R is not None:
+            return psit_1R[0].data
         return None
 
     def get_atoms(self):
@@ -644,6 +648,8 @@ class ASECalculator:
             raise TypeError('Only mode={"dtype": dtype} is allowed.')
 
         old_params = self.params.todict()
+        old_params.pop('h', None)
+        kwargs['gpts'] = self.dft.density.nt_sR.desc.size
         kwargs = {**old_params, **kwargs,
                   'mode': {**old_params['mode'], **mode}}
 

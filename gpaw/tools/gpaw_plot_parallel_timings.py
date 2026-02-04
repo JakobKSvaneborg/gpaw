@@ -1,8 +1,6 @@
 import re
 from optparse import OptionParser
 
-import matplotlib.pyplot as plt
-
 
 class Function:
     thecolors = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow',
@@ -19,6 +17,8 @@ class Function:
 
 
 def main():
+    import matplotlib.pyplot as plt
+
     p = OptionParser(
         usage='%prog [OPTION] FILE...',
         description='plot timings from gpaw parallel timer.  '
