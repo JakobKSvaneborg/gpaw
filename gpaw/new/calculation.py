@@ -417,6 +417,8 @@ class DFTCalculation:
                 if krank != 0 and psit_nR is not None:
                     send(psit_nR, 0, kpt_comm)
                     psit_nR = None
+            else:
+                psit_nR = None
         elif self.comm.rank == 0:
             psit_nR = receive(krank, kpt_comm)
         else:
