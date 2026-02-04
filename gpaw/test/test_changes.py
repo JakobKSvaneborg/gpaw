@@ -93,8 +93,6 @@ def test_gather():
     def compare_gathered(newdft, ref, tol):
         # remove results for test to enforce recalculate
         newdft.results = {}
-        # XXX TODO: remove converge() once occupations are copied as well
-        newdft.converge()   # SCF needed to set occupations
         new = {}
         new['etot'] = newdft.calculate_energy()
         new['forces'] = newdft.calculate_forces()

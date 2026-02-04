@@ -493,11 +493,19 @@ class DFTCalculation:
                 builder.get_pseudo_core_densities(),
                 builder.get_pseudo_core_ked())
 
+            scf_loop = builder.create_scf_loop()
+            pot_calc = builder.create_potential_calculator()
+
+            # update occupations numbers
+            nelectrons = density.nvalence - density.charge + pot_calc.charge
+            ibzwfs.calculate_occs(scf_loop.occ_calc, nelectrons,
+                                  fix_fermi_level=scf_loop.fix_fermi_level)
+
             dft = DFTCalculation(
                 atoms, ibzwfs, density, potential,
                 builder.setups,
-                builder.create_scf_loop(),
-                builder.create_potential_calculator(),
+                scf_loop,
+                pot_calc,
                 builder.log,
                 params=params,
                 energies=self.energies)
