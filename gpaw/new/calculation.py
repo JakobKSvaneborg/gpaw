@@ -6,14 +6,14 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr, Ha
-
 from gpaw.core import UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.densities import Densities
 from gpaw.electrostatic_potential import ElectrostaticPotential
 from gpaw.gpu import as_np
+from gpaw.mpi import MPIComm
 from gpaw.mpi import broadcast as bcast
-from gpaw.mpi import broadcast_float, MPIComm
+from gpaw.mpi import broadcast_float, receive, send
 from gpaw.new import trace, zips
 from gpaw.new.density import Density
 from gpaw.new.energies import DFTEnergies
@@ -27,7 +27,7 @@ from gpaw.utilities import (check_atoms_too_close,
                             check_atoms_too_close_to_boundary)
 
 if TYPE_CHECKING:
-    from gpaw.dft import Parameters
+    from gpaw.dft import Mode, Parameters
 
 
 class ReuseWaveFunctionsError(Exception):
@@ -178,7 +178,9 @@ class DFTCalculation:
         self.potential, self.energies, _ = self.pot_calc.calculate(
             self.density, self.ibzwfs, self.potential.vHt_x)
 
-        mm_av = self.results['non_collinear_magmoms']
+        mm_av = self.results.get('non_collinear_magmoms')
+        if mm_av is None:
+            _, mm_av = self.density.calculate_magnetic_moments()
         write_atoms(atoms, mm_av, self.density.nt_sR.desc, self.log)
 
         self.results = {}
@@ -217,7 +219,7 @@ class DFTCalculation:
         else:  # no break
             self.log('SCF steps:', step)
 
-    def calculate_energy(self):
+    def calculate_energy(self) -> float:
         self.results['free_energy'] = broadcast_float(
             self.energies.total_free, self.comm)
         self.results['energy'] = broadcast_float(
@@ -371,56 +373,77 @@ class DFTCalculation:
 
     def wave_function(self, band: int, kpt=0, spin=None,
                       periodic=False,
-                      broadcast=True) -> UGArray:
+                      broadcast=True) -> UGArray | None:
         psit_nR = self.wave_functions(n1=band, n2=band + 1, kpt=kpt, spin=spin,
                                       periodic=periodic, broadcast=broadcast)
         if psit_nR is not None:
             return psit_nR[0]
+        return None
 
     def wave_functions(self, n1=0, n2=None, kpt=0, spin=None,
                        periodic=False,
                        broadcast=True,
-                       _pad=True) -> UGArray:
-        collinear = self.ibzwfs.collinear
+                       _pad=True) -> UGArray | None:
+        ibzwfs = self.ibzwfs
+        collinear = ibzwfs.collinear
         if collinear:
             if spin is None:
                 spin = 0
         else:
             assert spin is None or spin == 0
-        wfs = self.ibzwfs.get_wfs(spin=spin if collinear else 0,
-                                  kpt=kpt,
-                                  n1=n1, n2=n2)
-        if wfs is not None:
-            basis = getattr(self.scf_loop.hamiltonian, 'basis', None)
-            grid = self.density.nt_sR.desc.new(comm=None)
-            if collinear:
-                wfs = wfs.to_uniform_grid_wave_functions(grid, basis)
-                psit_nR = wfs.psit_nX
+            spin = 0
+
+        kpt_comm = ibzwfs.kpt_comm
+        krank = ibzwfs.rank_ks[kpt][spin]
+        if krank == kpt_comm.rank:
+            wfs = ibzwfs._get_wfs(kpt, spin)
+            wfs = wfs.collect_bands(n1, n2)
+            if wfs is not None:
+                basis = getattr(self.scf_loop.hamiltonian, 'basis', None)
+                grid = self.density.nt_sR.desc
+                if collinear:
+                    wfs = wfs.to_uniform_grid_wave_functions(grid, basis)
+                    psit_nR = wfs.psit_nX
+                else:
+                    psit_nsG = wfs.psit_nX
+                    grid = grid.new(kpt=psit_nsG.desc.kpt_c,
+                                    dtype=psit_nsG.desc.dtype)
+                    psit_nR = psit_nsG.ifft(grid=grid)
+                if not psit_nR.desc.pbc.all() and _pad:
+                    psit_nR = psit_nR.to_pbc_grid()
+                if periodic:
+                    psit_nR.multiply_by_eikr(-psit_nR.desc.kpt_c)
+                psit_nR = psit_nR.gather()
+                if krank != 0 and psit_nR is not None:
+                    send(psit_nR, 0, kpt_comm)
+                    psit_nR = None
             else:
-                psit_nsG = wfs.psit_nX
-                grid = grid.new(kpt=psit_nsG.desc.kpt_c,
-                                dtype=psit_nsG.desc.dtype)
-                psit_nR = psit_nsG.ifft(grid=grid)
-            if not psit_nR.desc.pbc.all() and _pad:
-                psit_nR = psit_nR.to_pbc_grid()
-            if periodic:
-                psit_nR.multiply_by_eikr(-psit_nR.desc.kpt_c)
+                psit_nR = None
+        elif self.comm.rank == 0:
+            psit_nR = receive(krank, kpt_comm)
         else:
             psit_nR = None
+
         if broadcast:
             psit_nR = bcast(psit_nR, 0, comm=self.comm)
+        if psit_nR is None:
+            return None
         return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
 
-    def change(self, *, xc=None, eigensolver=None,
-               mixer=None, occupations=None, convergence=None):
+    def change(self,
+               *,
+               xc=None,
+               eigensolver=None,
+               mixer=None,
+               occupations=None,
+               convergence=None) -> None:
+        from gpaw.dft import XC, Eigensolver, Mixer, Occupations
 
         # build kwargs
         allargs = {'xc': xc, 'eigensolver': eigensolver,
                    'mixer': mixer, 'occupations': occupations,
                    'convergence': convergence}
         kwargs = {key: val for key, val in allargs.items() if val is not None}
-
-        from gpaw.dft import XC, Eigensolver, Mixer, Occupations
 
         atoms = self.atoms
         params = self.params
@@ -480,7 +503,6 @@ class DFTCalculation:
 
         log('Reusing wavefunctions.')
 
-        # unset results
         self.results = {}
 
     def new(self,
@@ -558,6 +580,42 @@ class DFTCalculation:
             atoms, ibzwfs, density, potential,
             builder.setups, scf_loop, pot_calc, log,
             params=params, energies=energies)
+
+    def change_mode(self,
+                    mode: str | dict | Mode,
+                    *,
+                    nbands: int | None = None) -> None:
+        """In-place convertion from one mode to another.
+
+        **Only LCAO to PW or FD mode implemented!**
+        """
+        from gpaw.dft import Mode
+        from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
+        if not isinstance(self.ibzwfs, LCAOIBZWaveFunctions):
+            raise ValueError
+        self.params.mode = Mode.from_param(mode)
+        builder = self.params.dft_component_builder(
+            self.atoms, log=self.log, comm=self.comm)
+        self.scf_loop = builder.create_scf_loop()
+        self.pot_calc = builder.create_potential_calculator()
+        if builder.mode == 'pw':
+            self.density.nct_aX = builder.get_pseudo_core_densities()
+            self.density.tauct_aX = builder.get_pseudo_core_ked()
+            self.density = self.density.new(builder.grid,
+                                            builder.interpolation_desc)
+            self.density.normalize(self.pot_calc.charge)
+            if self.density.nt_sR.xp is np:
+                self.ibzwfs.kpt_band_comm.broadcast(self.density.nt_sR.data, 0)
+            self.potential, self.energies, _ = self.pot_calc.calculate(
+                self.density)
+
+        self.ibzwfs = self.ibzwfs.convert_to(
+            builder.mode,
+            grid=builder.grid,
+            pw=builder.wf_desc,
+            nbands=nbands)
+
+        self.results = {}
 
     def get_state(self):
         return DFTState(self.ibzwfs, self.density, self.potential)

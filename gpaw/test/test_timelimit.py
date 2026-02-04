@@ -1,13 +1,13 @@
 import pytest
 from ase.build import molecule
 
-from gpaw import GPAW, KohnShamConvergenceError
+from gpaw import KohnShamConvergenceError
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.tddft import TDDFT
 from gpaw.utilities.timelimit import TimeLimiter
 
 
-def test_timelimit(in_tmp_dir, gpaw_new):
+def test_timelimit(in_tmp_dir, gpaw_new, mpi):
     if gpaw_new:
         pytest.skip('rewrite later using calc.callbacks')
     # Atoms
@@ -16,10 +16,11 @@ def test_timelimit(in_tmp_dir, gpaw_new):
 
     # Ground-state calculation that will never converge
     maxiter = 10
-    calc = GPAW(mode='lcao', basis='sz(dzp)', setups='1', nbands=1,
-                convergence={'density': 1e-100},
-                symmetry={'point_group': False},
-                maxiter=maxiter)
+    calc = mpi.GPAW(
+        mode='lcao', basis='sz(dzp)', setups='1', nbands=1,
+        convergence={'density': 1e-100},
+        symmetry={'point_group': False},
+        maxiter=maxiter)
     atoms.calc = calc
 
     tl = TimeLimiter(calc, timelimit=0, output='scf.txt')
@@ -33,7 +34,7 @@ def test_timelimit(in_tmp_dir, gpaw_new):
     calc.write('gs.gpw', mode='all')
 
     # LCAOTDDFT calculation that will never finish
-    td_calc = LCAOTDDFT('gs.gpw')
+    td_calc = LCAOTDDFT('gs.gpw', communicator=mpi.comm)
     tl = TimeLimiter(td_calc, timelimit=0, output='lcaotddft.txt')
     tl.reset('tddft', min_updates=3)
     td_calc.propagate(10, maxiter - td_calc.niter)
@@ -42,8 +43,9 @@ def test_timelimit(in_tmp_dir, gpaw_new):
     # Test mode='fd'
 
     # Prepare ground state
-    calc = GPAW(mode='fd', setups='1', maxiter=1, nbands=1,
-                symmetry={'point_group': False})
+    calc = mpi.GPAW(
+        mode='fd', setups='1', maxiter=1, nbands=1,
+        symmetry={'point_group': False})
     atoms.calc = calc
     try:
         atoms.get_potential_energy()
@@ -52,7 +54,7 @@ def test_timelimit(in_tmp_dir, gpaw_new):
     calc.write('gs.gpw', mode='all')
 
     # TDDFT calculation that will never finish
-    td_calc = TDDFT('gs.gpw')
+    td_calc = TDDFT('gs.gpw', communicator=mpi.comm)
     tl = TimeLimiter(td_calc, timelimit=0, output='tddft.txt')
     tl.reset('tddft', min_updates=3)
     td_calc.propagate(10, maxiter - td_calc.niter)

@@ -314,7 +314,6 @@ class Matrix(XP):
             return
 
         if d1.all_data_on_rank_zero and d2.simple:
-            assert d1.simple
             comm = d2.comm
             if comm.rank == 0:
                 M = self.shape[0]
@@ -724,15 +723,17 @@ def create_distribution(M: int,
                         c: int = 1,
                         br: int = 0,
                         bc: int = 0,
-                        xp=None) -> MatrixDistribution:
+                        xp=np) -> MatrixDistribution:
+    assert not (r == -1 and c == -1)
+    assert r == -1 or r > 0
+    assert c == -1 or c > 0
+
     comm = comm or serial_comm
 
     if r == -1:
         r = comm.size // c
     elif c == -1:
         c = comm.size // r
-    # if r * c != comm.size:
-    #     raise ValueError
 
     if br == 0 and bc == 0:
         br = max(1, (M + r - 1) // r)
@@ -979,8 +980,8 @@ class CuPyDistribution(MatrixDistribution):
         assert c == 1
         self.br = br
         self.bc = bc
-        assert bc == N
-        if br == M:
+        assert bc == max(1, N)
+        if br >= M:
             m = M if comm.rank == 0 else 0
         elif br == (M + r - 1) // r:
             m = min((comm.rank + 1) * br, M) - min(comm.rank * br, M)
