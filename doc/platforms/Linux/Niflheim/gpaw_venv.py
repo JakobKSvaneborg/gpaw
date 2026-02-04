@@ -300,7 +300,8 @@ def main():
     packages = ['myqueue',
                 'graphviz',
                 'sphinx_rtd_theme',
-                'sphinxcontrib-jquery']
+                'sphinxcontrib-jquery',
+                'pybind11']
     if args.piponly:
         packages += ['matplotlib',
                      'scipy',
