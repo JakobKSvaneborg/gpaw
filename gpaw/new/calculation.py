@@ -219,6 +219,8 @@ class DFTCalculation:
             self.log('SCF steps:', step)
 
     def calculate_energy(self) -> float:
+        """Calculate total energy in eV."""
+
         self.results['free_energy'] = broadcast_float(
             self.energies.total_free, self.comm)
         self.results['energy'] = broadcast_float(
@@ -231,6 +233,8 @@ class DFTCalculation:
         return self.results['energy'] * units['energy']
 
     def calculate_dipole(self):
+        """Calculate dipole moment in Angstrom."""
+
         if 'dipole' in self.results:
             return self.results['dipole'] * units['dipole']
         dipole_v = self.density.calculate_dipole_moment(self.relpos_ac)
@@ -259,7 +263,8 @@ class DFTCalculation:
         return mm_v, mm_av
 
     def calculate_forces(self):
-        """Calculate atomic forces."""
+        """Calculate atomic forces in eV / Angstrom."""
+
         if 'forces' not in self.results:
             self._calculate_forces()
 
@@ -325,6 +330,8 @@ class DFTCalculation:
         return F_av
 
     def calculate_stress(self) -> None:
+        """Calculate stress in eV / Angstrom^3."""
+
         if 'stress' in self.results:
             return self.results['stress'] * units['stress']
         stress_vv = self.pot_calc.stress(
@@ -432,8 +439,9 @@ class DFTCalculation:
             return None
         return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
 
-    def gather(self, txt='-'):
-        # first try to implement gathering density and wfs on master
+    def gather(self, txt='-') -> DFTCalculation:
+        """Gather calculation data from DFTCalculation object
+           on master and return new DFTCalculation."""
 
         atoms = self.atoms
         params = self.params
@@ -451,10 +459,7 @@ class DFTCalculation:
         for k in range(len(ibz)):
             for spin in range(nspins):
                 wfs = self.ibzwfs.get_wfs_on_master(kpt=k, spin=spin)
-                if wfs is not None:
-                    # P_ani = wfs.P_ani.to_cpu().gather()  # gather atoms
-                    # wfs._P_ani = P_ani
-                    wfs_u.append(wfs)
+                wfs_u.append(wfs)
 
         dH_asp, vt_sR, dedtaut_sR, vHt_x = self.potential.gather()
         D_asp, nt_sR, taut_sR = self.density.gather()
