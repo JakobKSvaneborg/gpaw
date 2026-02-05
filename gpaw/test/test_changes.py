@@ -27,15 +27,16 @@ def test_changes():
     # occ_fixed = {'name': 'fixed', 'numbers': [[0, 1, 0], [0, 1, 0]]}
     occ_fixed = {'name': 'fixed', 'numbers': [[1, 0, 0], [1, 0, 0]]}
 
-    mixer = {'method': 'fullspin',
-             'backend': 'fft',
-             'beta': 0.05,
-             'nmaxold': 7,
-             'weight': 50.0}
+    # mixer = {'method': 'fullspin',
+    #          'backend': 'fft',
+    #          'beta': 0.05,
+    #          'nmaxold': 7,
+    #          'weight': 50.0}
 
-    # diropt = {'name': 'etdm-fdpw', 'converge_unocc': True}
-    # nomixer = {'backend': 'no-mixing'}
-    xc = 'HSE06'
+    diropt = {'name': 'etdm-fdpw', 'converge_unocc': True}
+    nomixer = {'backend': 'no-mixing'}
+    # xc = 'HSE06'
+    xc = 'PBE'
 
     # preconverge with PBE
     dft = DFT(atoms, **params)
@@ -44,14 +45,14 @@ def test_changes():
     with pytest.raises(AssertionError):
         dft.change(xc='LDA')
 
-    dft.change(xc=xc, eigensolver='davidson', mixer=mixer,
+    dft.change(xc=xc, eigensolver=diropt, mixer=nomixer,
                occupations=occ_fixed, convergence={'energy': 1e-2})
 
     ase_calc = dft.ase_calculator()
     etot_xc = ase_calc.get_potential_energy(atoms)
     forces_xc = ase_calc.get_forces(atoms)
 
-    if 0:
+    if 1:
         params['xc'] = xc
         params['occupations'] = occ_fixed
         # params['eigensolver'] = diropt

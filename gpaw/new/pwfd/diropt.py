@@ -81,8 +81,7 @@ class DirOptPWFD(PWFDEigensolver):
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
                      potential.dedtaut_sR,
-                     ibzwfs, density.D_asii,
-                     calculate_energy=True)
+                     ibzwfs, density.D_asii)
 
         # build wfs
         psit_unX = build_wfs(ibzwfs, self.nocc_s)
@@ -101,8 +100,7 @@ class DirOptPWFD(PWFDEigensolver):
             Ht = partial(hamiltonian.apply,
                          potential.vt_sR,
                          potential.dedtaut_sR,
-                         ibzwfs, density.D_asii,
-                         calculate_energy=True)
+                         ibzwfs, density.D_asii)
 
             # get gradient by applying hamiltonian
             self.grad_unX = apply_hamiltonian(ibzwfs, psit_unX, Ht, potential)
@@ -151,8 +149,7 @@ class DirOptPWFD(PWFDEigensolver):
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
                      potential.dedtaut_sR,
-                     ibzwfs, density.D_asii,
-                     calculate_energy=True)
+                     ibzwfs, density.D_asii)
 
         # get gradient by applying hamiltonian
         self.grad_unX = apply_hamiltonian(ibzwfs, psit_unX, Ht, potential)
@@ -189,8 +186,7 @@ class DirOptPWFD(PWFDEigensolver):
         Ht = partial(hamiltonian.apply,
                      potential.vt_sR,
                      potential.dedtaut_sR,
-                     ibzwfs, density.D_asii,
-                     calculate_energy=True)
+                     ibzwfs, density.D_asii)
 
         orthogonalize(ibzwfs)
         update_eigenvalues(ibzwfs, Ht, potential,
