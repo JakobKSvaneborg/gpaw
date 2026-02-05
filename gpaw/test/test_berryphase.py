@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from gpaw.mpi import serial_comm
+from gpaw.mpi import serial_comm, rank0_call
 from gpaw import GPAW
 from gpaw.berryphase import (get_berry_phases, parallel_transport,
                              _polarization_phase)
@@ -97,13 +97,14 @@ def load_renormalized_data(name):
 
 def polarization_phase(dft):
     calc = dft.ase_calculator()
-    return _polarization_phase(calc, cleanup=cleanup)
+    return _polarization_phase(calc)
 
 
 def test_polarization_phase(in_tmp_dir, gpw_files, mpi):
     pi2 = 2.0 * np.pi
     calc = GPAW(gpw_files['mos2_pw_nosym'], communicator=mpi.comm)
     dft_rank0 = calc.dft.gather()
+
     phases_c = rank0_call(polarization_phase, mpi.comm)(dft_rank0)
 
     phases_t = {
@@ -120,6 +121,8 @@ def test_polarization_phase(in_tmp_dir, gpw_files, mpi):
         dphi = phases_c[key] - phases_t[key]
         phases_c[key] -= np.rint(dphi / pi2) * pi2
         print(key)
+        print(phases_c[key])
+        print(phases_t[key])
         assert phases_c[key] == pytest.approx(phases_t[key], rel=2e-5)
 
 

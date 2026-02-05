@@ -476,6 +476,8 @@ class DFTCalculation:
                 kpt_band_comm=serial_comm,
                 comm=serial_comm)
 
+            ibzwfs.fermi_levels = self.ibzwfs.fermi_levels
+
             potential = Potential(vt_sR=vt_sR, dH_asii=dH_asp.to_full(),
                                   dedtaut_sR=dedtaut_sR, vHt_x=vHt_x,
                                   e_stress=self.potential.e_stress)
@@ -495,6 +497,8 @@ class DFTCalculation:
                 builder.log,
                 params=params,
                 energies=self.energies)
+
+            dft.results = self.results.copy()
         else:
             dft = None
 
