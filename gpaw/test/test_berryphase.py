@@ -103,6 +103,11 @@ def polarization_phase(dft):
 def test_polarization_phase(in_tmp_dir, gpw_files, mpi):
     pi2 = 2.0 * np.pi
     calc = GPAW(gpw_files['mos2_pw_nosym'], communicator=mpi.comm)
+    print(calc.dft.results)
+    calc.dft.results = {}
+    calc.dft.calculate_dipole()
+    print(calc.dft.results)
+
     dft_rank0 = calc.dft.gather()
 
     phases_c = rank0_call(polarization_phase, mpi.comm)(dft_rank0)
