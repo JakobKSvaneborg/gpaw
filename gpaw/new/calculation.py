@@ -461,15 +461,14 @@ class DFTCalculation:
             builder = params.dft_component_builder(atoms, log=txt,
                                                    comm=serial_comm)
             # make new wfs on master
-
             if mode == 'lcao':
                 from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
-                WaveFunctions = LCAOIBZWaveFunctions
+                IBZWFs = LCAOIBZWaveFunctions
             else:
                 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
-                WaveFunctions = PWFDIBZWaveFunctions
+                IBZWFs = PWFDIBZWaveFunctions   # type: ignore
 
-            ibzwfs = WaveFunctions(
+            ibzwfs = IBZWFs(
                 ibz=ibz,
                 ncomponents=ncomponents,
                 wfs_u=wfs_u,
