@@ -19,18 +19,26 @@ def main(args: str | list[str] = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('--check-serial')
     parser.add_argument('-n', '--runs', type=int, default=-1)
-    parser.add_argument('--seed', type=int)
+    parser.add_argument('--seed', type=int, default=1)
     args = parser.parse_intermixed_args(args)
 
-    rng = Random(args.seed)
-
+    seed = args.seed
     n = 0
     while n != args.runs:
-        run_random_calculation(rng)
+        run_random_calculation(seed)
         n += 1
+        seed += 1
 
 
-def run_random_calculation(rng):
+def log(*args, **kwargs):
+    if world.rank == 0:
+        print(*args, **kwargs)
+
+
+def run_random_calculation(seed):
+    log('Seed:', seed)
+    rng = Random(seed)
+
     atoms = random_atoms(rng)
 
     mode = rng.choice(['pw', 'lcao', 'fd'])
@@ -53,8 +61,8 @@ def run_random_calculation(rng):
     kwargs['parallel'] = rng.choice(parallelizations(world.size))
 
     out = StringIO()
-    print(atoms)
-    print(kwargs)
+    log(atoms.symbols.formula)
+    log(kwargs)
     try:
         dft = DFT(atoms,
                   **kwargs,
@@ -64,7 +72,7 @@ def run_random_calculation(rng):
         # dft.calculate_forces()
         # dft.calculate_stress()
     except Exception as ex:
-        print(ex)
+        log(ex)
         assert not isinstance(ex, AssertionError)
         assert isinstance(ex.args[0], str)
         frame = inspect.trace()[-1]
