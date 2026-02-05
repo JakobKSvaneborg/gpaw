@@ -277,27 +277,33 @@ class LCAOWaveFunctions(WaveFunctions, XP):
                  self.spin,
                  self.q,
                  self.k,
+                 self.eig_n,
+                 self._occ_n,
                  self.weight,
                  self.ncomponents)
         send(stuff, rank, comm)
 
     def receive(self, rank, comm):
-        kpt_c, data, spin, q, k, weight, ncomponents = receive(rank, comm)
-        return LCAOWaveFunctions(setups=self.setups,
-                                 tci_derivatives=self.tci_derivatives,
-                                 basis=self.basis,
-                                 C_nM=Matrix(*data.shape, data=data),
-                                 S_MM=None,
-                                 T_MM=None,
-                                 P_aMi=None,
-                                 relpos_ac=self.relpos_ac,
-                                 atomdist=self.atomdist.gather(),
-                                 kpt_c=kpt_c,
-                                 spin=spin,
-                                 q=q,
-                                 k=k,
-                                 weight=weight,
-                                 ncomponents=ncomponents)
+        (kpt_c, data, spin, q, k,
+         eig_n, occ_n, weight, ncomponents) = receive(rank, comm)
+        wfs = LCAOWaveFunctions(setups=self.setups,
+                                tci_derivatives=self.tci_derivatives,
+                                basis=self.basis,
+                                C_nM=Matrix(*data.shape, data=data),
+                                S_MM=None,
+                                T_MM=None,
+                                P_aMi=None,
+                                relpos_ac=self.relpos_ac,
+                                atomdist=self.atomdist.gather(),
+                                kpt_c=kpt_c,
+                                spin=spin,
+                                q=q,
+                                k=k,
+                                weight=weight,
+                                ncomponents=ncomponents)
+        wfs.eig_n = eig_n
+        wfs._occ_n = occ_n
+        return wfs
 
     def to_pw_expansion(self, nbands, pw):
         grid = self.basis.grid.new(kpt=self.kpt_c, dtype=self.dtype)
