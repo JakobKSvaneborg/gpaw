@@ -439,9 +439,10 @@ class DFTCalculation:
             return None
         return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
 
-    def gather(self, txt='-') -> DFTCalculation:
+    def gather(self, txt='-') -> DFTCalculation | None:
         """Gather calculation data from DFTCalculation object
-           on master and return new DFTCalculation."""
+           on master and return new DFTCalculation
+           (only on master, None everywhere else)."""
 
         atoms = self.atoms
         params = self.params
