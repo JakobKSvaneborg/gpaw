@@ -311,13 +311,13 @@ class MSR1Mixer(BaseMixer):
                     ts_sG[:] = np.tensordot(g_ss, ts_sG, axes=(1, 0))
 
             ### 2023 paper eq 22 - Limit good_broydenness
-            YY_LIM = ty_isG.reshape((iold - 1, -1)) @ ty_isG.reshape((iold - 1, -1)).T
+            YY_LIM = y_isG.reshape((iold - 1, -1)) @ ty_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YY_LIM)
             YY_LIM = np.linalg.norm(YY_LIM, ord='fro')
-            YS_LIM = ty_isG.reshape((iold - 1, -1)) @ ts_isG.reshape((iold - 1, -1)).T
+            YS_LIM = y_isG.reshape((iold - 1, -1)) @ ts_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YS_LIM)
             YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
-            max_gb = max(1, (YY_LIM / YS_LIM))
+            max_gb = max(1, (YY_LIM / YS_LIM) * min(1, iold / 4))
             good_broydenness = 0.5 * max_gb
 
             # Choose max good_broydenness s.t. A_ii is positive definite
