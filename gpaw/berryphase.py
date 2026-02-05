@@ -199,9 +199,9 @@ def polarization_phase(gpw_wfs: Path, comm, cleanup: bool = False):
     return rank0_call(_polarization_phase, comm)(gpw_wfs, cleanup=cleanup)
 
 
-def _polarization_phase(gpw_wfs: Path, cleanup: bool = False):
-    print(f'Reading wfs from {gpw_wfs}')
-    calc = GPAW(gpw_wfs, communicator=serial_comm, txt=None)
+def _polarization_phase(calc, cleanup=False):
+    #print(f'Reading wfs from {gpw_wfs}')
+    #calc = GPAW(gpw_wfs, communicator=serial_comm, txt=None)
     atoms = calc.get_atoms()
 
     print('Calculating polarization')
