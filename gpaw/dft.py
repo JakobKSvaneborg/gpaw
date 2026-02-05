@@ -962,7 +962,7 @@ def GPAW(
     txt: str | Path | IO[str] | None = '?',
     communicator: MPIComm | None = None,
     object_hooks=None,
-    legacy_gpaw: bool | None = False,
+    legacy_gpaw: bool | None = None,
     external=None,
     background_charge=None) -> ASECalculator:
     """Create ASE-compatible GPAW calculator.

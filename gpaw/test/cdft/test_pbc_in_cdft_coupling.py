@@ -17,6 +17,7 @@ def test_pbc_cdft(in_tmp_dir, not_parallelized, comm):
 
     # Calculator for the initial state
     calc_a = GPAW(
+        legacy_gpaw=True,
         h=0.2,
         mode='fd',
         basis='dzp',

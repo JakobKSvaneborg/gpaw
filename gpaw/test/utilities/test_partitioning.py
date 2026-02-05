@@ -71,7 +71,8 @@ def test_utilities_partitioning(in_tmp_dir):
     # calculate
     if 1:
         parprint('### fresh:')
-        calc = GPAW(mode='fd',
+        calc = GPAW(legacy_gpaw=True,
+                    mode='fd',
                     nbands=6,
                     h=h,
                     txt=None)
