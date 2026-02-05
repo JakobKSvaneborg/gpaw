@@ -1,7 +1,8 @@
-from ase import Atoms
-from ase.parallel import parprint
-from ase.units import Ha
+from functools import partial
 
+import ase.parallel
+from ase import Atoms
+from ase.units import Ha
 from gpaw.pes.ds_beta import CrossSectionBeta
 from gpaw.pes.state import BoundState, H1s
 from gpaw.utilities.adjust_cell import adjust_cell
@@ -26,6 +27,8 @@ def test_ds_beta(in_tmp_dir, mpi):
         c.converge_wave_functions()
     cm = s.get_center_of_mass()
     Ekin = 1.
+
+    parprint = partial(ase.parallel.parprint, comm=mpi.comm)
 
     for form, title in [('L', 'length form'),
                         ('V', 'velocity form')]:

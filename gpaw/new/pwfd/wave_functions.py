@@ -409,23 +409,21 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             F_v -= np.einsum('nsvi, ij, nsj -> v', F_nsvi, dO_ii, P_nsi)
             F_av[a] += 2 * F_v.real
 
-    def collect(self,
-                n1: int = 0,
-                n2: int = 0) -> PWFDWaveFunctions | None:
-        """Collect range of bands to master of band and domain comms."""
+    def collect_bands(self,
+                      n1: int = 0,
+                      n2: int = 0) -> PWFDWaveFunctions | None:
+        """Collect range of bands to master of band-comm."""
         # Also collect projections instead of recomputing XXX
         n2 = n2 if n2 > 0 else self.nbands + n2
         spinors = (2,) if self.ncomponents == 4 else ()
         band_comm = self.psit_nX.comm
-        domain_comm = self.psit_nX.desc.comm
         nbands = self.nbands
         mynbands = (nbands + band_comm.size - 1) // band_comm.size
         rank1, b1 = divmod(n1, mynbands)
         rank2, b2 = divmod(n2, mynbands)
         if band_comm.rank == 0:
-            if domain_comm.rank == 0:
-                psit_nX = self.psit_nX.desc.new(comm=None).empty(
-                    (n2 - n1, *spinors), xp=self.psit_nX.xp)
+            psit_nX = self.psit_nX.desc.empty(
+                (n2 - n1, *spinors), xp=self.psit_nX.xp)
             rank = rank1
             ba = b1
             na = n1
@@ -436,24 +434,21 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                 nb = na + bb - ba
                 if bb > ba:
                     if rank == 0:
-                        psit_bX = self.psit_nX[ba:bb].gather()
-                        if domain_comm.rank == 0:
-                            psit_nX.data[:bb - ba] = psit_bX.data
+                        psit_bX = self.psit_nX[ba:bb]
+                        psit_nX.data[:bb - ba] = psit_bX.data
                     else:
-                        if domain_comm.rank == 0:
-                            band_comm.receive(psit_nX.data[na - n1:nb - n1],
-                                              rank)
+                        band_comm.receive(psit_nX.data[na - n1:nb - n1],
+                                          rank)
                 rank += 1
                 ba = 0
                 na = nb
-            if domain_comm.rank == 0:
-                wfs = PWFDWaveFunctions.from_wfs(
-                    self,
-                    psit_nX,
-                    atomdist=self.atomdist.gather())
-                if self.has_eigs:
-                    wfs.eig_n = self.eig_n[n1:n2]
-                return wfs
+
+            wfs = PWFDWaveFunctions.from_wfs(self, psit_nX)
+            if self.has_eigs:
+                wfs.eig_n = self.eig_n[n1:n2]
+                if self._occ_n is not None:
+                    wfs._occ_n = self._occ_n[n1:n2]
+            return wfs
         else:
             rank = band_comm.rank
             ranka, ba = max((rank1, b1), (rank, 0))
@@ -462,6 +457,26 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                 assert ranka == rankb == rank
                 band_comm.send(self.psit_nX.data[ba:bb], dest=0)
 
+        return None
+
+    def collect_bands_and_domain(self,
+                                 n1: int = 0,
+                                 n2: int = 0) -> PWFDWaveFunctions | None:
+        """Collect range of bands to master of band and domain comms."""
+        wfs = self.collect_bands(n1, n2)
+        domain_comm = self.psit_nX.desc.comm
+        if wfs is None or domain_comm.size == 1:
+            return wfs
+        psit_nX = wfs.psit_nX.gather()
+        atomdist = self.atomdist.gather()
+        if domain_comm.rank == 0:
+            wfs1 = PWFDWaveFunctions.from_wfs(
+                wfs,
+                psit_nX,
+                atomdist=atomdist)
+            wfs1._eig_n = wfs._eig_n
+            wfs1._occ_n = wfs._occ_n
+            return wfs1
         return None
 
     def copy(self) -> PWFDWaveFunctions:
@@ -485,22 +500,27 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                  self.spin,
                  self.q,
                  self.k,
+                 self.eig_n,
+                 self._occ_n,
                  self.weight)
         send(stuff, rank, comm)
 
     def receive(self, rank, comm):
-        kpt_c, data, spin, q, k, weight = receive(rank, comm)
+        kpt_c, data, spin, q, k, eig_n, occ_n, weight = receive(rank, comm)
         psit_nX = self.psit_nX.desc.new(kpt=kpt_c, comm=None).from_data(data)
-        return PWFDWaveFunctions(psit_nX,
-                                 spin=spin,
-                                 q=q,
-                                 k=k,
-                                 setups=self.setups,
-                                 relpos_ac=self.relpos_ac,
-                                 atomdist=self.atomdist.gather(),
-                                 weight=weight,
-                                 ncomponents=self.ncomponents,
-                                 qspiral_v=self.qspiral_v)
+        wfs = PWFDWaveFunctions(psit_nX,
+                                spin=spin,
+                                q=q,
+                                k=k,
+                                setups=self.setups,
+                                relpos_ac=self.relpos_ac,
+                                atomdist=self.atomdist.gather(),
+                                weight=weight,
+                                ncomponents=self.ncomponents,
+                                qspiral_v=self.qspiral_v)
+        wfs.eig_n = eig_n
+        wfs._occ_n = occ_n
+        return wfs
 
     def dipole_matrix_elements(self) -> Array3D:
         """Calculate dipole matrix-elements.

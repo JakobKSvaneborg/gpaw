@@ -6,6 +6,8 @@ from time import time
 from typing import Callable
 
 import numpy as np
+from scipy.linalg.blas import get_blas_funcs
+
 from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
 from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArrays
@@ -18,10 +20,10 @@ from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.logger import Logger
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
+from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.setup import Setups
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.blas import mmm
-from scipy.linalg.blas import get_blas_funcs
 
 
 @dataclass
@@ -97,7 +99,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
     kpt_Kc = np.zeros((nbzk, 3))
     psit_KsnG = {}
     for wfs1 in ibzwfs:
-        wfs = wfs1.collect(0, nocc)
+        wfs = wfs1.collect_bands_and_domain(0, nocc)
         if wfs is None:
             continue
         for K, k in enumerate(ibz.bz2ibz_K):
@@ -107,6 +109,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
             s = ibz.s_K[K]
             U_cc = symmetries.rotation_scc[s]
             complex_conjugate = ibz.time_reversal_K[K]
+            assert isinstance(wfs, PWFDWaveFunctions)
             psit1_nG = wfs.psit_nX
             assert isinstance(psit1_nG, PWArray)
             psit2_nG = psit1_nG.transform(U_cc, complex_conjugate)

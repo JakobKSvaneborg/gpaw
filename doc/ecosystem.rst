@@ -1,3 +1,5 @@
+.. _ecosystem:
+
 GPAW ecosystem
 ==============
 
@@ -28,7 +30,7 @@ Software using GPAW
   ``Nanoworks`` is a unified, high-level Python interface that orchestrates
   Density Functional Theory (using GPAW), Molecular-Dynamics (MD), and modern
   machine-learning (ML) potentials to simplify advanced materials simulations.
-  The project is the successor to ``gpaw-tools`` and provides dedicated 
+  The project is the successor to ``gpaw-tools`` and provides dedicated
   solver commands for conventional DFT, MD and ML workflows that use input files.
 
 
