@@ -446,6 +446,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             wfs = PWFDWaveFunctions.from_wfs(self, psit_nX)
             if self.has_eigs:
                 wfs.eig_n = self.eig_n[n1:n2]
+                if self._occ_n is not None:
+                    wfs._occ_n = self._occ_n[n1:n2]
             return wfs
         else:
             rank = band_comm.rank
@@ -473,6 +475,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                 psit_nX,
                 atomdist=atomdist)
             wfs1._eig_n = wfs._eig_n
+            wfs1._occ_n = wfs._occ_n
             return wfs1
         return None
 
