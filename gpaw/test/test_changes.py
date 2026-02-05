@@ -27,14 +27,14 @@ def test_changes():
     # occ_fixed = {'name': 'fixed', 'numbers': [[0, 1, 0], [0, 1, 0]]}
     occ_fixed = {'name': 'fixed', 'numbers': [[1, 0, 0], [1, 0, 0]]}
 
-    # mixer = {'method': 'fullspin',
-    #          'backend': 'fft',
-    #          'beta': 0.05,
-    #          'nmaxold': 7,
-    #          'weight': 50.0}
+    mixer = {'method': 'fullspin',
+             'backend': 'fft',
+             'beta': 0.05,
+             'nmaxold': 7,
+             'weight': 50.0}
 
-    diropt = {'name': 'etdm-fdpw', 'converge_unocc': True}
-    nomixer = {'backend': 'no-mixing'}
+    # diropt = {'name': 'etdm-fdpw', 'converge_unocc': True}
+    # nomixer = {'backend': 'no-mixing'}
     xc = 'HSE06'
 
     # preconverge with PBE
@@ -44,7 +44,7 @@ def test_changes():
     with pytest.raises(AssertionError):
         dft.change(xc='LDA')
 
-    dft.change(xc=xc, eigensolver='davidson', mixer=nomixer,
+    dft.change(xc=xc, eigensolver='davidson', mixer=mixer,
                occupations=occ_fixed, convergence={'energy': 1e-2})
 
     ase_calc = dft.ase_calculator()
@@ -52,7 +52,6 @@ def test_changes():
     forces_xc = ase_calc.get_forces(atoms)
 
     if 0:
-        from gpaw.new.ase_interface import GPAW
         params['xc'] = xc
         params['occupations'] = occ_fixed
         # params['eigensolver'] = diropt
