@@ -219,18 +219,8 @@ class MSR1Mixer(BaseMixer):
         spin = len(nt_sG)
         iold = len(self.nt_isG)
         dNt = np.inf
+        min_imp = 2.0
         if iold > 0:
-            if iold > self.nmaxold:
-                # Throw away too old stuff:
-                del nt_isG[0]
-                del R_isG[0]
-                del D_iasp[0]
-                del dD_iasp[0]
-                # for D_p, D_ip, dD_ip in self.D_a:
-                #     del D_ip[0]
-                #     del dD_ip[0]
-                iold = self.nmaxold
-
             # Calculate new residual (difference between input and
             # output density):
             R_sG = nt_sG - nt_isG[-1]
@@ -240,8 +230,21 @@ class MSR1Mixer(BaseMixer):
             for D_sp, D_isp in zip(D_asp, D_iasp[-1]):
                 dD_iasp[-1].append(D_sp - D_isp)
 
+            while (iold > self.nmaxold and dNt <= self.last_dNt * min_imp) \
+                    or iold > self.nmaxold + 4:
+                # Throw away too old stuff:
+                del nt_isG[0]
+                del R_isG[0]
+                del D_iasp[0]
+                del dD_iasp[0]
+                # for D_p, D_ip, dD_ip in self.D_a:
+                #     del D_ip[0]
+                #     del dD_ip[0]
+                iold = len(nt_isG)
+
+        print(iold)
         if iold > 1:
-            if dNt > self.last_dNt * 6:
+            if dNt > self.last_dNt * min_imp:
                 dNt = self.last_dNt
                 temp = nt_isG[-1].copy()
                 nt_isG[-1] = nt_isG[-2].copy()
@@ -256,6 +259,18 @@ class MSR1Mixer(BaseMixer):
                 dD_iasp[-1] = dD_iasp[-2].copy()
                 dD_iasp[-2] = temp
                 R_sG[:] = R_isG[-1]
+
+            # 1st order norm
+            # ntnorm_i = np.sum(np.abs(nt_isG).reshape(iold, -1), axis=(1, ))
+            # self.gd.comm.sum(ntnorm_i)
+            # ntnorm_i = np.expand_dims(1 / ntnorm_i, axis=tuple(np.arange(1, np.array(nt_isG).ndim)))
+
+            # 2nd order norm
+            ntnorm_i = np.vecdot(np.array(nt_isG).reshape(iold, -1),
+                np.array(nt_isG).reshape(iold, -1))
+            self.gd.comm.sum(ntnorm_i)
+            ntnorm_i = np.expand_dims(1 / np.sqrt(ntnorm_i), axis=tuple(np.arange(1, np.array(nt_isG).ndim)))
+
             ### 2023 Paper, Eq: 8 + 9:
             s_isG = (nt_isG[:-1] - nt_isG[-1])
             y_isG = -(R_isG[:-1] - R_isG[-1])
@@ -276,25 +291,32 @@ class MSR1Mixer(BaseMixer):
                 sD_iasp.append(sD_asp)
                 yD_iasp.append(yD_asp)
 
-            ty_isG = y_isG.copy()
-            ts_isG = s_isG.copy()
-            for y_sG, s_sG, ty_sG, ts_sG in zip(y_isG, s_isG, ty_isG, ts_isG):
-                for y_G, s_G, ty_G, ts_G in zip(y_sG, s_sG, ty_sG, ts_sG):
+            # Normalize t
+            ts_isG = (nt_isG[:-1] * ntnorm_i[:-1] - nt_isG[-1] * ntnorm_i[-1])
+            ty_isG = -(R_isG[:-1] * ntnorm_i[:-1] - R_isG[-1] * ntnorm_i[-1])
+            ts_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, s_isG.ndim)))
+            ty_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, y_isG.ndim)))
+
+            # Dont
+            # ts_isG = s_isG.copy()
+            # ty_isG = y_isG.copy()
+
+            for ty_sG, ts_sG in zip(ty_isG, ts_isG):
+                for ty_G, ts_G in zip(ty_sG, ts_sG):
                     if self.metric is not None:
-                        self.metric(y_G, ty_G)
-                        self.metric(s_G, ts_G)
+                        self.metric(ty_G, ty_G)
+                        self.metric(ts_G, ts_G)
                 if g_ss is not None:
                     ty_sG[:] = np.tensordot(g_ss, ty_sG, axes=(1, 0))
                     ts_sG[:] = np.tensordot(g_ss, ts_sG, axes=(1, 0))
 
             ### 2023 paper eq 22 - Limit good_broydenness
-            YY_LIM = y_isG.reshape((iold - 1, -1)) @ ty_isG.reshape((iold - 1, -1)).T
+            YY_LIM = ty_isG.reshape((iold - 1, -1)) @ ty_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YY_LIM)
             YY_LIM = np.linalg.norm(YY_LIM, ord='fro')
-            YS_LIM = y_isG.reshape((iold - 1, -1)) @ ts_isG.reshape((iold - 1, -1)).T
+            YS_LIM = ty_isG.reshape((iold - 1, -1)) @ ts_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YS_LIM)
             YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
-            # iold > 5 to build some history first
             max_gb = max(1, (YY_LIM / YS_LIM))
             good_broydenness = 0.5 * max_gb
 
@@ -394,16 +416,15 @@ class MSR1Mixer(BaseMixer):
             B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
             self.gd.comm.sum(B3_i)
 
-            # Same as for A_ii, but maybe in reverse??? Or not??? Who knows???
-            A2 = A3_i @ B_ii @ A2_i
+            A2 = A3_i @ B_ii @ A2_i * np.sqrt(iold)  # Mixer likes to become overconfident with history
             B2 = B3_i @ B_ii @ B2_i
 
             if iold != 2:
-                self.B0 = (self.B0 + np.clip(np.abs(B1 / B2), 0.4, 1.1)) / 2
+                self.B0 = (2 * self.B0 + np.clip(np.abs(B1 / B2), 0.4, 1.1)) / 3
             else:
                 self.B0 = 1
 
-            self.A0 = (self.A0 + np.clip(np.abs(A1 / A2) * self.beta, 0.02, min(2 * self.beta, 1))) / 2
+            self.A0 = (2 * self.A0 + np.clip(np.abs(A1 / A2), 0.02, 1)) / 3
 
             A0 = self.A0
             B0 = self.B0
