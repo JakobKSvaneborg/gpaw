@@ -18,7 +18,7 @@ from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 
 def slparams(nbands: int, comm: MPIComm) -> tuple[MPIComm, int, int, int]:
     if nbands < 1000:
-        return serial_comm, 1, 1, None
+        return serial_comm, 1, 1, 0
     # How much of comm should we use?
     # At least 30,000 numbers per core:
     ncores = 2**int(np.log2(nbands**2 / 30_000))
@@ -36,9 +36,7 @@ class Davidson(PWFDEigensolver):
                  hamiltonian,
                  converge_bands='occupied',
                  niter=2,
-                 scalapack_parameters: tuple[int,
-                                             int,
-                                             int | None] | None = None,
+                 scalapack_parameters: tuple[int, int, int] | None = None,
                  max_buffer_mem: int = 200 * 1024**2):
         super().__init__(
             hamiltonian,

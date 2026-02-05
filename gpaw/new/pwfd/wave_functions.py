@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from functools import partial
 from math import pi
-
 import numpy as np
 
 from gpaw.core.arrays import XArray
@@ -290,9 +289,13 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         psit_nX = self.psit_nX
         domain_comm = psit_nX.desc.comm
         slcomm, r, c, b = scalapack_params
+        blocksize = (
+            (self.nbands + self.band_comm.size - 1) // self.band_comm.size,
+            self.nbands)
         Hd_nm = H_nm.new(dist=(self.domain_band_comm,
                                self.band_comm.size,
-                               self.domain_comm.size, -1, self.nbands),
+                               self.domain_comm.size,
+                               *blocksize),
                          data=H_nm.data if self.domain_comm.rank == 0
                          else None)
         self.eig_n = as_np(Hd_nm.eigh(scalapack=(slcomm, r, c, b)),

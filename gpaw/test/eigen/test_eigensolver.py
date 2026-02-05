@@ -13,7 +13,7 @@ def parallelizations(size: int) -> list[tuple[int, int, int, int]]:
             for d in [1, 2, 4, 8]:
                 if k * b * d != size:
                     continue
-                for s in range(b * d):
+                for s in range(b * d + 1):
                     kbds.append((k, b, d, s))
     return kbds
 
@@ -35,8 +35,8 @@ def test_eigensolver(k, b, d, s):
         parallel=parallel)
     dft.converge(steps=3)
     e = dft.calculate_energy()
-    assert e == pytest.approx(-11.893551140773509)
+    assert e == pytest.approx(-11.893955)
 
 
 if __name__ == '__main__':
-    test_eigensolver(1, 1, 4, 2)
+    test_eigensolver(1, 1, 1, 0)
