@@ -448,19 +448,8 @@ class DFTCalculation:
         mode = params.mode
         comm = self.comm
 
-        # extract sizes from old wfs
-        ibzwfs = self.ibzwfs
-        ncomponents = ibzwfs.ncomponents
-        nspins = ncomponents % 3
-        ibz = ibzwfs.ibz
-
-        # gather wfs on master
-        wfs_u = []
-        for k in range(len(ibz)):
-            for spin in range(nspins):
-                wfs = self.ibzwfs.get_wfs_on_master(kpt=k, spin=spin)
-                wfs_u.append(wfs)
-
+        # gather data on master
+        ibz, ncomponents, wfs_u = self.ibzwfs.gather()
         dH_asp, vt_sR, dedtaut_sR, vHt_x = self.potential.gather()
         D_asp, nt_sR, taut_sR = self.density.gather()
 
