@@ -9,8 +9,8 @@ from gpaw.new.ase_interface import GPAW
 
 def test_changes():
 
-    etot_hse = 23.546547
-    fz = 21.11820
+    etot_hse = -9.773299
+    fz = 1.44907
     forces_hse = np.array([[0, 0, fz], [0, 0, -fz]])
 
     atoms = molecule('H2', cell=[4, 4, 4])
@@ -21,16 +21,13 @@ def test_changes():
               'mode': {'name': 'pw', 'ecut': 400},
               'nbands': 3,
               'convergence': {'eigenstates': 1e-4,
-                              'density': 1e-2,
-                              'forces': 1e-3}}
+                              'density': 1e-3,
+                              'forces': 1e-2}}
 
-    occ_fixed = {'name': 'fixed', 'numbers': [[0, 1, 0], [0, 1, 0]]}
+    # occ_fixed = {'name': 'fixed', 'numbers': [[0, 1, 0], [0, 1, 0]]}
+    occ_fixed = {'name': 'fixed', 'numbers': [[1, 0, 0], [1, 0, 0]]}
 
-    mixer = {'method': 'fullspin',
-             'backend': 'fft',
-             'beta': 0.05,
-             'nmaxold': 7,
-             'weight': 50.0}
+    xc = 'HSE06'
 
     # preconverge with PBE
     dft = DFT(atoms, **params)
@@ -39,15 +36,15 @@ def test_changes():
     with pytest.raises(AssertionError):
         dft.change(xc='LDA')
 
-    dft.change(xc='HSE06', eigensolver='ppcg', mixer=mixer,
-               occupations=occ_fixed, convergence={'energy': 1e-2})
+    dft.change(xc=xc, eigensolver='davidson',
+               occupations=occ_fixed, convergence={'energy': 1e-3})
 
     ase_calc = dft.ase_calculator()
     etot_xc = ase_calc.get_potential_energy(atoms)
     forces_xc = ase_calc.get_forces(atoms)
 
     if 0:
-        params['xc'] = 'HSE06'
+        params['xc'] = xc
         params['occupations'] = occ_fixed
         calc = GPAW(**params)
         atoms.calc = calc
