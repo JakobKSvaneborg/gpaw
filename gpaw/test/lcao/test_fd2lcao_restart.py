@@ -40,6 +40,7 @@ def test_lcao_fd2lcao_restart(in_tmp_dir):
     if os.path.isfile('Na4_fd.gpw'):
         # LCAO calculation based on grid kpts calculation
         atoms, calc = restart('Na4_fd.gpw',
+                              lagegacy_gpaw=True,
                               # basis='dzp',
                               mode='lcao',
                               txt='Na4_lcao.txt')
