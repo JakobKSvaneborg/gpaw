@@ -11,7 +11,7 @@ from ase.units import Ha
 
 from gpaw import __version__
 from gpaw.core import UGArray
-from gpaw.dft import GPAW, Parameters
+from gpaw.dft import GPAW as AnyGPAW, Parameters
 from gpaw.dos import DOSCalculator
 from gpaw.mpi import broadcast, synchronize_atoms
 from gpaw.new import Timer, trace
@@ -33,6 +33,10 @@ LOGO = """\
  |__ |  _|___|_____| - {version}
  |___|_|
 """
+
+
+def GPAW(*args, **kwargs):
+    return AnyGPAW(*args, legacy_gpaw=False, **kwargs)
 
 
 def write_header(log: Logger, params: Parameters) -> None:

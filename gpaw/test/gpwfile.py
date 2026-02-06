@@ -16,7 +16,6 @@ from gpaw.directmin.etdm_lcao import LCAOETDM
 from gpaw.directmin.tools import excite
 from gpaw.mom import prepare_mom_calculation
 from gpaw.mpi import serial_comm, world
-from gpaw.new.ase_interface import GPAW as GPAWNew
 from gpaw.poisson import FDPoissonSolver, PoissonSolver
 from gpaw.test.cachedfilehandler import CachedFilesHandler
 
@@ -147,21 +146,23 @@ class GPWFiles(CachedFilesHandler):
         magmoms = None if calc_type == 'col' else [mm * easy_axis]
         soc = True if calc_type == 'ncolsoc' else False
 
-        Ni.calc = GPAWNew(mode={'name': 'pw', 'ecut': 380},
-                          xc='LDA',
-                          nbands='200%',
-                          kpts={'size': (4, 4, 4), 'gamma': True},
-                          parallel={'domain': 1, 'band': 1},
-                          mixer={'beta': 0.5},
-                          symmetry=symmetry,
-                          occupations={'name': 'fermi-dirac', 'width': 0.05},
-                          convergence={'density': 1e-8,
-                                       'bands': 'CBM+10',
-                                       'eigenstates': 1e-12},
-                          magmoms=magmoms,
-                          soc=soc,
-                          communicator=self.comm,
-                          txt=self.folder / f'fcc_Ni_{calc_type}.txt')
+        Ni.calc = GPAW(
+            legacy_gpaw=False,
+            mode={'name': 'pw', 'ecut': 380},
+            xc='LDA',
+            nbands='200%',
+            kpts={'size': (4, 4, 4), 'gamma': True},
+            parallel={'domain': 1, 'band': 1},
+            mixer={'beta': 0.5},
+            symmetry=symmetry,
+            occupations={'name': 'fermi-dirac', 'width': 0.05},
+            convergence={'density': 1e-8,
+                         'bands': 'CBM+10',
+                         'eigenstates': 1e-12},
+            magmoms=magmoms,
+            soc=soc,
+            communicator=self.comm,
+            txt=self.folder / f'fcc_Ni_{calc_type}.txt')
         Ni.get_potential_energy()
         return Ni.calc
 
@@ -981,7 +982,8 @@ class GPWFiles(CachedFilesHandler):
                   cell=[a, 0, 0],
                   pbc=[1, 0, 0])
         h.center(vacuum=2.0, axis=(1, 2))
-        h.calc = GPAWNew(
+        h.calc = GPAW(
+            legacy_gpaw=False,
             mode={'name': 'pw',
                   'ecut': 400,
                   'qspiral': [0.5, 0, 0]},
@@ -2045,7 +2047,8 @@ class GPWFiles(CachedFilesHandler):
                    scaled_positions=[[0.5, 0.5, 0.5]],
                    pbc=False)
 
-        Tl.calc = GPAWNew(
+        Tl.calc = GPAW(
+            legacy_gpaw=False,
             mode={'name': 'pw', 'ecut': 300},
             xc='LDA',
             occupations={'name': 'fermi-dirac', 'width': 0.01},
