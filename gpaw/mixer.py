@@ -341,7 +341,7 @@ class MSR1Mixer(BaseMixer):
             # Do not good broyden when density is crap
             crapiness_mult = 15e-4 / (dNt * ntnorm_i.ravel()[-1])
             print('crab_factor: ', crapiness_mult)
-            good_broydenness *= min(0.9, crapiness_mult)
+            good_broydenness *= min(0.95, crapiness_mult)
 
             t_isG = ty_isG + good_broydenness * ts_isG  # Also known as W depending on the paper
 
@@ -402,7 +402,7 @@ class MSR1Mixer(BaseMixer):
             B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
             self.gd.comm.sum(B3_i)
 
-            A2 = A3_i @ B_ii @ A2_i * iold**(0.75)  # Mixer likes to become overconfident with history
+            A2 = A3_i @ B_ii @ A2_i * iold**(0.5)  # Mixer likes to become overconfident with history
             B2 = B3_i @ B_ii @ B2_i
 
             if iold != 2:
@@ -411,7 +411,7 @@ class MSR1Mixer(BaseMixer):
                 self.B0 = 1
 
             A0_ratio = (self.A0 + np.clip(np.abs(A1 / A2), 0.03, max(self.beta, 0.6 * min(1, (iold + 1) / self.nmaxold)))) / (2 * self.A0)
-            self.A0 *= np.clip(A0_ratio, 3/5, 5/3)
+            self.A0 *= np.clip(A0_ratio, 2/5, 5/3)
 
             A0 = self.A0
             B0 = self.B0
@@ -723,7 +723,7 @@ class NotMixingMixer:
 class SeparateSpinMixerDriver:
     name = 'separate'
 
-    def __init__(self, basemixerclass, beta, nmaxold, weight):
+    def __init__(self, basemixerclass, beta, nmaxold, weight, *args, **kwargs):
         self.basemixerclass = basemixerclass
 
         self.beta = beta
@@ -901,7 +901,7 @@ class FullSpinMixerDriver:
     def mix(self, basemixers, nt_sG, D_asp, rhot=None):
         D_asp = D_asp.values()
         basemixer = basemixers[0]
-        if self.g_ss is None:
+        if self.g_ss is None or len(self.g_ss) != len(nt_sG):
             self.g_ss = np.identity(len(nt_sG))
 
         dNt = basemixer.mix_density(nt_sG, D_asp, self.g_ss)
