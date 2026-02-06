@@ -56,6 +56,7 @@ def test_pbc_cdft(in_tmp_dir, not_parallelized, comm):
 
     # the same for the final state
     calc_b = GPAW(
+        legacy_gpaw=True,
         h=0.2,
         mode='fd',
         basis='dzp',
