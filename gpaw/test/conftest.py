@@ -481,7 +481,7 @@ class MPIHelper:
         return GPAW(*args, communicator=self.comm, **kwargs)
 
     def NewGPAW(self, *args, **kwargs):
-        from gpaw.new.ase_interface import GPAW
+        from gpaw.dft import GPAW
 
         return GPAW(*args, communicator=self.comm, **kwargs)
 

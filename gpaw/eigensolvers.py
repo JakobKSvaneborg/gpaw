@@ -5,4 +5,4 @@ from gpaw.old.eigensolvers.davidson import Davidson
 from gpaw.old.eigensolvers.rmmdiis import RMMDIIS
 from gpaw.lcao.eigensolver import DirectLCAO
 __all__ = ['FDPWETDM', 'LCAOETDM', 'CG', 'Davidson',
-           'DirectPW', 'DirectLCAO', 'RMMDIIS']
+           'DirectLCAO', 'RMMDIIS']

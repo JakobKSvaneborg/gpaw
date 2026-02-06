@@ -28,6 +28,7 @@ def main(args: str | list[str] = None) -> int:
         run_random_calculation(seed)
         n += 1
         seed += 1
+    return 0
 
 
 def log(*args, **kwargs):
