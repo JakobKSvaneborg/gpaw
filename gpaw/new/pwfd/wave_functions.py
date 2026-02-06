@@ -292,15 +292,12 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         blocksize = (
             (self.nbands + self.band_comm.size - 1) // self.band_comm.size,
             self.nbands)
-        Hd_nm = H_nm.new(dist=(self.domain_band_comm,
-                               self.band_comm.size,
-                               self.domain_comm.size,
-                               *blocksize),
-                         data=H_nm.data if self.domain_comm.rank == 0
-                         else None)
-        self.eig_n = as_np(Hd_nm.eigh(scalapack=(slcomm, r, c, b)),
-                           dtype=np.float64)
-        Hd_nm.complex_conjugate()
+        print(slcomm.rank, slcomm.size, blocksize, H_nm)
+        H0_nn = H_nm.new(dist=(self.domain_band_comm, 1, 1))
+        eig_n = H0_nn.eigh(scalapack=(slcomm, r, c, b))
+        self.eig_n = as_np(eig_n, dtype=np.float64)
+        H0_nn.redist(H_nm)
+        H_nm.complex_conjugate()
         # H.data[n, :] now contains the nth eigenvector and eps_n[n]
         # the nth eigenvalue
         domain_comm.broadcast(H_nm.data, 0)
