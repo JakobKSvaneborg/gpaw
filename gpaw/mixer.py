@@ -212,7 +212,8 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-
+    min_imp = 2.5
+    
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         nt_isG = self.nt_isG
         R_isG = self.R_isG
@@ -221,7 +222,6 @@ class MSR1Mixer(BaseMixer):
         spin = len(nt_sG)
         iold = len(self.nt_isG)
         dNt = np.inf
-        min_imp = 2.5
         if iold > 0:
             # Calculate new residual (difference between input and
             # output density):
@@ -232,7 +232,7 @@ class MSR1Mixer(BaseMixer):
             for D_sp, D_isp in zip(D_asp, D_iasp[-1]):
                 dD_iasp[-1].append(D_sp - D_isp)
 
-            while (iold > self.nmaxold and dNt <= self.last_dNt * min_imp) \
+            while (iold > self.nmaxold and dNt <= self.last_dNt * self.min_imp) \
                     or iold > self.nmaxold + 4:
                 # Throw away too old stuff:
                 del nt_isG[0]
@@ -246,7 +246,7 @@ class MSR1Mixer(BaseMixer):
 
         print(iold)
         if iold > 1:
-            if dNt > self.last_dNt * min_imp:
+            if dNt > self.last_dNt * self.min_imp:
                 dNt = self.last_dNt
                 temp = nt_isG[-1].copy()
                 nt_isG[-1] = nt_isG[-2].copy()
@@ -822,9 +822,11 @@ class SpinDifferenceMixerDriver:
         if nspins == 1:
             raise ValueError('Spin difference mixer expects 2 or 4 components')
         basemixer = self.basemixerclass(self.beta, self.nmaxold, self.weight)
+        basemixer.min_imp = 100000
         if nspins == 2:
             basemixer_m = self.basemixerclass(self.beta_m, self.nmaxold_m,
                                               self.weight_m)
+            basemixer_m.min_imp = 100000
             return basemixer, basemixer_m
         else:
             basemixer_x = self.basemixerclass(self.beta_m, self.nmaxold_m,
