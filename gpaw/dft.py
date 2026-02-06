@@ -1045,7 +1045,8 @@ def GPAW(
 
 def _can_use_new(filename, kwargs) -> tuple[bool, Parameters | None]:
     """Decide if the parameters are compatible with new-GPAW."""
-    if 0:  # filename is not None:
+    if filename is not None:
+        return True, None
         from ase.io.ulm import ulmopen
         from gpaw.mpi import world, broadcast
         version = None

@@ -22,7 +22,6 @@ def test_lcao_bsse():
 
     def prepare(setups):
         calc = GPAW(
-            legacy_gpaw=True,
             basis={'H': b},
             mode='lcao',
             setups=setups,
