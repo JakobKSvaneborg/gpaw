@@ -221,7 +221,7 @@ class MSR1Mixer(BaseMixer):
         spin = len(nt_sG)
         iold = len(self.nt_isG)
         dNt = np.inf
-        min_imp = 2.0
+        min_imp = 2.5
         if iold > 0:
             # Calculate new residual (difference between input and
             # output density):
@@ -332,17 +332,17 @@ class MSR1Mixer(BaseMixer):
                 self.gd.comm.sum(A_ii)
 
                 eigs = np.linalg.eigvals(A_ii)
-                if np.all(eigs > 1e-10):
+                if np.all(eigs > 1e-14):
                     good_broydenness += 2**(-iter) * max_gb
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
             good_broydenness -= 2**(-iter) * max_gb
             good_broydenness *=  min(1, iold / 5)  # Be very careful with good broyden
             # Do not good broyden when density is crap
-            crapiness_mult = 1e-3 / (dNt * ntnorm_i.ravel()[-1])
+            crapiness_mult = 15e-4 / (dNt * ntnorm_i.ravel()[-1])
             print('crab_factor: ', crapiness_mult)
-            good_broydenness *= min(1, crapiness_mult)
-            
+            good_broydenness *= min(0.9, crapiness_mult)
+
             t_isG = ty_isG + good_broydenness * ts_isG  # Also known as W depending on the paper
 
             A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
@@ -406,11 +406,11 @@ class MSR1Mixer(BaseMixer):
             B2 = B3_i @ B_ii @ B2_i
 
             if iold != 2:
-                self.B0 = (2 * self.B0 + np.clip(np.abs(B1 / B2), 0.4, 1.05)) / 3
+                self.B0 = (self.B0 + np.clip(np.abs(B1 / B2), 0.3, 1.05)) / 2
             else:
                 self.B0 = 1
 
-            A0_ratio = (2 * self.A0 + np.clip(np.abs(A1 / A2), 0.02, max(self.beta, 0.6 * min(1, (iold + 1) / self.nmaxold)))) / (3 * self.A0)
+            A0_ratio = (self.A0 + np.clip(np.abs(A1 / A2), 0.03, max(self.beta, 0.6 * min(1, (iold + 1) / self.nmaxold)))) / (2 * self.A0)
             self.A0 *= np.clip(A0_ratio, 3/5, 5/3)
 
             A0 = self.A0
