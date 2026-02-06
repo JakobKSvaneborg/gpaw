@@ -21,7 +21,7 @@ def test_changes():
               'mode': {'name': 'pw', 'ecut': 400},
               'nbands': 3,
               'convergence': {'eigenstates': 1e-4,
-                              'density': 1e-2,
+                              'density': 1e-3,
                               'forces': 1e-2}}
 
     # occ_fixed = {'name': 'fixed', 'numbers': [[0, 1, 0], [0, 1, 0]]}
