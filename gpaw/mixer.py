@@ -212,7 +212,7 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = 2.5
+    min_imp = 4
     
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         nt_isG = self.nt_isG
@@ -341,7 +341,7 @@ class MSR1Mixer(BaseMixer):
             # Do not good broyden when density is crap
             crapiness_mult = 15e-4 / (dNt * ntnorm_i.ravel()[-1])
             print('crab_factor: ', crapiness_mult)
-            good_broydenness *= min(0.95, crapiness_mult)
+            good_broydenness *= min(0.90, crapiness_mult)
 
             t_isG = ty_isG + good_broydenness * ts_isG  # Also known as W depending on the paper
 
@@ -353,7 +353,7 @@ class MSR1Mixer(BaseMixer):
 
             # This parameter is surprisingly important for stability
             # 2e-4 seems to work well for most systems
-            weight = (5e-3 + good_broydenness) * 1e-4
+            weight = (1e-2 + good_broydenness) * 2e-4
 
             ### SVD Regularization:
             S, V, D = np.linalg.svd(A_ii)
@@ -402,7 +402,7 @@ class MSR1Mixer(BaseMixer):
             B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
             self.gd.comm.sum(B3_i)
 
-            A2 = A3_i @ B_ii @ A2_i * iold**(0.5)  # Mixer likes to become overconfident with history
+            A2 = A3_i @ B_ii @ A2_i * iold**(0.25)  # Mixer likes to become overconfident with history
             B2 = B3_i @ B_ii @ B2_i
 
             if iold != 2:
