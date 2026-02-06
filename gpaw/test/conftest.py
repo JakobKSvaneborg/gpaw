@@ -482,8 +482,7 @@ class MPIHelper:
 
     def NewGPAW(self, *args, **kwargs):
         from gpaw.dft import GPAW
-
-        return GPAW(*args, communicator=self.comm, **kwargs)
+        return GPAW(*args, communicator=self.comm, legacy_gpaw=False, **kwargs)
 
     def OldGPAW(self, *args, **kwargs):
         from gpaw.dft import GPAW as AnyGPAW

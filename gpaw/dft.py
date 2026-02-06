@@ -1004,7 +1004,7 @@ def GPAW(
             # if not legacy_gpaw and filename:
             #    use_old_if_reading_fails = True
         else:
-            legacy_gpaw = GPAW_NEW == 0
+            legacy_gpaw = False
 
     if legacy_gpaw:
         from gpaw.old.calculator import GPAW as OldGPAW

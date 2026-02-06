@@ -17,7 +17,7 @@ def main(args: str | list[str] = None) -> int:
         args = args.split()
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--check-serial')
+    # parser.add_argument('--check-serial')
     parser.add_argument('-n', '--runs', type=int, default=-1)
     parser.add_argument('--seed', type=int, default=1)
     args = parser.parse_intermixed_args(args)
@@ -109,7 +109,7 @@ def parallelizations(n: int) -> list[dict[str, int]]:
     """Find possible parallelizations.
 
     >>> parallelizations(2)
-    {}
+    [{'kpt': 1, 'band': 1}, {'kpt': 1, 'band': 2}, {'kpt': 2, 'band': 1}]
     """
     results = []
     for k in range(1, n + 1):
