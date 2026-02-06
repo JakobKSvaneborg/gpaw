@@ -81,7 +81,7 @@ def test_poisson_poisson_restart(in_tmp_dir):
             calc.write('%s_gs.gpw' % name, mode='all')
 
             # Restart ground state
-            calc = GPAW('%s_gs.gpw' % name, txt=None)
+            calc = GPAW('%s_gs.gpw' % name, legacy_gpaw=True)
             ps = calc.hamiltonian.poisson
             assert descr == ps.get_description(), \
                 'poisson solver has changed in GPAW / %s' % mode

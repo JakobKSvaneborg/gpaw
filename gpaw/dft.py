@@ -188,9 +188,6 @@ class Eigensolver(Parameter):
                 if name == 'dav':
                     warnings.warn('Please use "davidson" instead of "dav"')
                     return eigensolvers['davidson'](**kwargs)
-                if GPAW_NEW == 147 and name in {'etdm-lcao', 'etdm-fdpw',
-                                                'etdm', 'direct'}:
-                    raise LegacyGPAWError
                 if name in eigensolvers:
                     return eigensolvers[name](**kwargs)
                 raise ValueError(f'Unknown name of eigensolver: {name}')
@@ -1032,7 +1029,7 @@ def GPAW(
                                              parallel=parallel,
                                              object_hooks=object_hooks)
         except LegacyGPAWError:
-            if use_old_if_reading_fails:
+            if 0:  # use_old_if_reading_fails:
                 from gpaw.old.calculator import GPAW as OldGPAW
                 return OldGPAW(filename, txt=txt, communicator=communicator)
             raise

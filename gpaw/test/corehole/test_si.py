@@ -11,7 +11,7 @@ from gpaw.xas import XAS, RecursionMethod
 @pytest.mark.hmm
 def test_corehole_si(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
     # restart from file
-    calc = GPAW(gpw_files['si_corehole_pw'])
+    calc = GPAW(gpw_files['si_corehole_pw'], legacy_gpaw=True)
     si = calc.atoms
 
     if world.size == 1:
@@ -56,8 +56,8 @@ def test_si_nonortho(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
     # restart from file
     # code moved to fixtures: si_corehole_sym,
     # si_corehole_nosym_pw, si_corehole_sym_pw
-    calc1 = GPAW(gpw_files['si_corehole_sym_pw'])
-    calc2 = GPAW(gpw_files['si_corehole_nosym_pw'])
+    calc1 = GPAW(gpw_files['si_corehole_sym_pw'], legacy_gpaw=True)
+    calc2 = GPAW(gpw_files['si_corehole_nosym_pw'], legacy_gpaw=True)
     if world.size == 1:
         xas1 = XAS(calc1)
         x, y1 = xas1.get_spectra()

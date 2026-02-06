@@ -105,7 +105,12 @@ def random_atoms(rng: Random) -> Atoms:
 
 
 @cache
-def parallelizations(n: int):
+def parallelizations(n: int) -> list[dict[str, int]]:
+    """Find possible parallelizations.
+
+    >>> parallelizations(2)
+    {}
+    """
     results = []
     for k in range(1, n + 1):
         if n % k == 0:
