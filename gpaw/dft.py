@@ -996,13 +996,13 @@ def GPAW(
     # Sorry about the following mess, but it will become a lot simpler
     # in the future!
     params = None
-    use_old_if_reading_fails = False
+    # use_old_if_reading_fails = False
     if legacy_gpaw is None:
         if GPAW_NEW == 147:
             can, params = _can_use_new(filename, kwargs)
             legacy_gpaw = not can
-            if not legacy_gpaw and filename:
-                use_old_if_reading_fails = True
+            # if not legacy_gpaw and filename:
+            #    use_old_if_reading_fails = True
         else:
             legacy_gpaw = GPAW_NEW == 0
 
