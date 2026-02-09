@@ -212,7 +212,7 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = 5.0
+    min_imp = 4.0
 
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         nt_isG = self.nt_isG
@@ -337,10 +337,10 @@ class MSR1Mixer(BaseMixer):
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
             good_broydenness -= 2**(-iter) * max_gb
-            good_broydenness *=  min(1, iold / self.nmaxold)**2  # Be very careful with good broyden
+            good_broydenness *=  min(1, iold - 2) # Be very careful with good broyden
             # Do not good broyden when density is crap
-            crapiness_mult = 3e-2 / (dNt * ntnorm_i.ravel()[-1])
-            print('crab_factor: ', crapiness_mult)
+            crapiness_mult = 1e-2 / (dNt * ntnorm_i.ravel()[-1])
+            print('crab_factor: ', min(0.8, crapiness_mult))
             good_broydenness *= min(0.8, crapiness_mult)
             print('good_broydenness: ', good_broydenness)
 
@@ -403,7 +403,7 @@ class MSR1Mixer(BaseMixer):
             B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
             self.gd.comm.sum(B3_i)
 
-            A2 = A3_i @ B_ii @ A2_i * iold**(0.25) # Mixer likes to become overconfident with history
+            A2 = A3_i @ B_ii @ A2_i # Mixer likes to become overconfident with history
             B2 = B3_i @ B_ii @ B2_i
 
             if iold != 2:
