@@ -325,7 +325,7 @@ class MSR1Mixer(BaseMixer):
             # Choose max good_broydenness s.t. A_ii is positive definite
             # for good_broydenness in good_broydenness_range:
             # binary search 2**(-8) accuracy:
-            for iter in range(2, 8):
+            for iter in range(2, 9):
                 t_isG = ty_isG + good_broydenness * ts_isG
 
                 A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
@@ -354,7 +354,7 @@ class MSR1Mixer(BaseMixer):
 
             # This parameter is surprisingly important for stability
             # 2e-4 seems to work well for most systems
-            weight = 3e-5 # (3e-1 + good_broydenness) * 3e-6
+            weight = 4e-5 # (3e-1 + good_broydenness) * 3e-6
 
             ### SVD Regularization:
             S, V, D = np.linalg.svd(A_ii)
@@ -403,7 +403,7 @@ class MSR1Mixer(BaseMixer):
             B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
             self.gd.comm.sum(B3_i)
 
-            A2 = A3_i @ B_ii @ A2_i * iold**(0.4) # Mixer likes to become overconfident with history
+            A2 = A3_i @ B_ii @ A2_i * iold**(0.2) # Mixer likes to become overconfident with history
             B2 = B3_i @ B_ii @ B2_i
 
             if iold != 2:
@@ -423,7 +423,7 @@ class MSR1Mixer(BaseMixer):
             if self.gd.comm.rank == 0:
                 print(f"rank: {self.world.rank}, A0: {A0}, B0: {B0}")
 
-            trust_factor = 3.0
+            trust_factor = 1.5
             trust_radius = trust_factor * np.sum((A0 * self.uk_sG + B0 * self.pk_sG)**2)
             if self.trust_radius is not None:
                 self.trust_radius = (self.trust_radius + self.gd.comm.sum_scalar(trust_radius)**0.5) / 2
@@ -442,7 +442,7 @@ class MSR1Mixer(BaseMixer):
             step_size = np.sum(step_sG**2)
             step_size = self.gd.comm.sum_scalar(step_size)**0.5
 
-            print('Dump trust scaling: ', self.trust_radius / step_size)
+            print('Dumb trust scaling: ', self.trust_radius / step_size)
 
             nt_sG[:] = nt_isG[-1] + step_sG * min(1, self.trust_radius / step_size)
 
@@ -464,7 +464,7 @@ class MSR1Mixer(BaseMixer):
             # Pratt step
             self.trust_radius = None
             self.A0 = self.beta
-            A0 = self.beta * 0.5
+            A0 = self.beta * 0.67
             self.uk_sG = R_sG
             self.pk_sG = np.zeros_like(self.uk_sG)
             nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG
