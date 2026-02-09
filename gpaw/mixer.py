@@ -354,7 +354,7 @@ class MSR1Mixer(BaseMixer):
 
             # This parameter is surprisingly important for stability
             # 2e-4 seems to work well for most systems
-            weight = 4e-5 # (3e-1 + good_broydenness) * 3e-6
+            weight = 5e-5 # (3e-1 + good_broydenness) * 3e-6
 
             ### SVD Regularization:
             S, V, D = np.linalg.svd(A_ii)
@@ -403,7 +403,7 @@ class MSR1Mixer(BaseMixer):
             B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
             self.gd.comm.sum(B3_i)
 
-            A2 = A3_i @ B_ii @ A2_i * iold**(0.2) # Mixer likes to become overconfident with history
+            A2 = A3_i @ B_ii @ A2_i * iold**(0.1) # Mixer likes to become overconfident with history
             B2 = B3_i @ B_ii @ B2_i
 
             if iold != 2:
@@ -413,10 +413,10 @@ class MSR1Mixer(BaseMixer):
 
             A0_ratio = (self.A0 + np.clip(
                 np.abs(A1 / A2),
-                0.03,
-                max(self.beta, 0.6 * min(1, (iold + 1) / self.nmaxold)))
+                0.02,
+                self.beta + (max(self.beta, 0.5) - self.beta) * min(1, (iold + 1) / self.nmaxold)))
             ) / (2 * self.A0)
-            self.A0 *= np.clip(A0_ratio, 0.67, 1.5)
+            self.A0 *= np.clip(A0_ratio, 0.55, 1.8)
 
             A0 = self.A0
             B0 = self.B0
@@ -464,7 +464,7 @@ class MSR1Mixer(BaseMixer):
             # Pratt step
             self.trust_radius = None
             self.A0 = self.beta
-            A0 = self.beta * 0.67
+            A0 = self.beta * 0.6
             self.uk_sG = R_sG
             self.pk_sG = np.zeros_like(self.uk_sG)
             nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG
