@@ -403,7 +403,7 @@ class MSR1Mixer(BaseMixer):
             B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
             self.gd.comm.sum(B3_i)
 
-            A2 = A3_i @ B_ii @ A2_i # Mixer likes to become overconfident with history
+            A2 = A3_i @ B_ii @ A2_i * iold**(0.33) # Mixer likes to become overconfident with history
             B2 = B3_i @ B_ii @ B2_i
 
             if iold != 2:
