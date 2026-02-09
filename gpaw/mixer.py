@@ -212,7 +212,7 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = 1.5
+    min_imp = 2.0
 
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         nt_isG = self.nt_isG
@@ -263,7 +263,7 @@ class MSR1Mixer(BaseMixer):
                 R_sG = R_isG[-1]
 
             # 1st order norm
-            ntnorm_i = np.sum(np.abs(nt_isG).reshape(iold, -1), axis=(1, ))
+            ntnorm_i = np.sum(np.abs(nt_isG).reshape(iold, -1), axis=(1, )) * self.gd.dv
             self.gd.comm.sum(ntnorm_i)
             ntnorm_i = np.expand_dims(1 / ntnorm_i, axis=tuple(np.arange(1, np.array(nt_isG).ndim)))
 
@@ -339,7 +339,7 @@ class MSR1Mixer(BaseMixer):
             good_broydenness -= 2**(-iter) * max_gb
             good_broydenness *=  min(1, iold / 5)  # Be very careful with good broyden
             # Do not good broyden when density is crap
-            crapiness_mult = 4e-3 / (dNt * ntnorm_i.ravel()[-1])
+            crapiness_mult = 2e-2 / (dNt * ntnorm_i.ravel()[-1])
             print('crab_factor: ', crapiness_mult)
             good_broydenness *= min(0.95, crapiness_mult)
             print('good_broydenness: ', good_broydenness)
