@@ -337,11 +337,11 @@ class MSR1Mixer(BaseMixer):
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
             good_broydenness -= 2**(-iter) * max_gb
-            good_broydenness *=  min(1, iold / 5)  # Be very careful with good broyden
+            good_broydenness *=  min(1, iold / self.nmaxold)**2  # Be very careful with good broyden
             # Do not good broyden when density is crap
             crapiness_mult = 3e-2 / (dNt * ntnorm_i.ravel()[-1])
             print('crab_factor: ', crapiness_mult)
-            good_broydenness *= min(0.95, crapiness_mult)
+            good_broydenness *= min(0.8, crapiness_mult)
             print('good_broydenness: ', good_broydenness)
 
             t_isG = ty_isG + good_broydenness * ts_isG  # Also known as W depending on the paper
@@ -449,7 +449,7 @@ class MSR1Mixer(BaseMixer):
         elif iold == 1:
             # Pratt step
             self.A0 = self.beta
-            A0 = self.beta * 0.6
+            A0 = self.beta * 0.5
             self.uk_sG = R_sG
             self.pk_sG = np.zeros_like(self.uk_sG)
             nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG
