@@ -212,7 +212,7 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = 2.0
+    min_imp = 5.0
 
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         nt_isG = self.nt_isG
@@ -339,7 +339,7 @@ class MSR1Mixer(BaseMixer):
             good_broydenness -= 2**(-iter) * max_gb
             good_broydenness *=  min(1, iold / 5)  # Be very careful with good broyden
             # Do not good broyden when density is crap
-            crapiness_mult = 2e-2 / (dNt * ntnorm_i.ravel()[-1])
+            crapiness_mult = 3e-2 / (dNt * ntnorm_i.ravel()[-1])
             print('crab_factor: ', crapiness_mult)
             good_broydenness *= min(0.95, crapiness_mult)
             print('good_broydenness: ', good_broydenness)
@@ -354,7 +354,7 @@ class MSR1Mixer(BaseMixer):
 
             # This parameter is surprisingly important for stability
             # 2e-4 seems to work well for most systems
-            weight = (3e-1 + good_broydenness) * 3e-6
+            weight = 3e-5 # (3e-1 + good_broydenness) * 3e-6
 
             ### SVD Regularization:
             S, V, D = np.linalg.svd(A_ii)
