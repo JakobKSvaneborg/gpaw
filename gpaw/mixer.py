@@ -325,7 +325,7 @@ class MSR1Mixer(BaseMixer):
             # Choose max good_broydenness s.t. A_ii is positive definite
             # for good_broydenness in good_broydenness_range:
             # binary search 2**(-8) accuracy:
-            for iter in range(2, 9):
+            for iter in range(2, 8):
                 t_isG = ty_isG + good_broydenness * ts_isG
 
                 A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
@@ -340,8 +340,8 @@ class MSR1Mixer(BaseMixer):
             # good_broydenness *=  min(1, iold - 2) # Be very careful with good broyden
             # Do not good broyden when density is crap
             crapiness_mult = 5e-2 / (dNt * ntnorm_i.ravel()[-1])
-            print('crab_factor: ', min(0.9, crapiness_mult))
-            good_broydenness *= min(0.9, crapiness_mult)
+            print('crab_factor: ', min(0.85, crapiness_mult))
+            good_broydenness *= min(0.85, crapiness_mult)
             print('good_broydenness: ', good_broydenness)
 
             t_isG = ty_isG + good_broydenness * ts_isG  # Also known as W depending on the paper
@@ -354,7 +354,7 @@ class MSR1Mixer(BaseMixer):
 
             # This parameter is surprisingly important for stability
             # 2e-4 seems to work well for most systems
-            weight = 5e-5 # (3e-1 + good_broydenness) * 3e-6
+            weight = 2e-5 # (3e-1 + good_broydenness) * 3e-6
 
             ### SVD Regularization:
             S, V, D = np.linalg.svd(A_ii)
@@ -403,7 +403,7 @@ class MSR1Mixer(BaseMixer):
             B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
             self.gd.comm.sum(B3_i)
 
-            A2 = A3_i @ B_ii @ A2_i * iold**(0.1) # Mixer likes to become overconfident with history
+            A2 = A3_i @ B_ii @ A2_i * iold**(0.3) # Mixer likes to become overconfident with history
             B2 = B3_i @ B_ii @ B2_i
 
             if iold != 2:
@@ -414,7 +414,8 @@ class MSR1Mixer(BaseMixer):
             A0_ratio = (self.A0 + np.clip(
                 np.abs(A1 / A2),
                 0.02,
-                self.beta + (max(self.beta, 0.5) - self.beta) * min(1, (iold + 1) / self.nmaxold)))
+                self.beta + (max(self.beta, 0.5) - self.beta) * min(1, (iold + 1) / self.nmaxold)
+                )
             ) / (2 * self.A0)
             self.A0 *= np.clip(A0_ratio, 0.55, 1.8)
 
