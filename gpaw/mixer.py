@@ -212,8 +212,8 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = 4
-    
+    min_imp = 1.5
+
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         nt_isG = self.nt_isG
         R_isG = self.R_isG
@@ -332,16 +332,17 @@ class MSR1Mixer(BaseMixer):
                 self.gd.comm.sum(A_ii)
 
                 eigs = np.linalg.eigvals(A_ii)
-                if np.all(eigs > 1e-14):
+                if np.all(eigs > 0):
                     good_broydenness += 2**(-iter) * max_gb
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
             good_broydenness -= 2**(-iter) * max_gb
             good_broydenness *=  min(1, iold / 5)  # Be very careful with good broyden
             # Do not good broyden when density is crap
-            crapiness_mult = 15e-4 / (dNt * ntnorm_i.ravel()[-1])
+            crapiness_mult = 4e-3 / (dNt * ntnorm_i.ravel()[-1])
             print('crab_factor: ', crapiness_mult)
-            good_broydenness *= min(0.90, crapiness_mult)
+            good_broydenness *= min(0.95, crapiness_mult)
+            print('good_broydenness: ', good_broydenness)
 
             t_isG = ty_isG + good_broydenness * ts_isG  # Also known as W depending on the paper
 
@@ -353,7 +354,7 @@ class MSR1Mixer(BaseMixer):
 
             # This parameter is surprisingly important for stability
             # 2e-4 seems to work well for most systems
-            weight = (1e-2 + good_broydenness) * 2e-5
+            weight = (3e-1 + good_broydenness) * 3e-6
 
             ### SVD Regularization:
             S, V, D = np.linalg.svd(A_ii)
@@ -402,7 +403,7 @@ class MSR1Mixer(BaseMixer):
             B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
             self.gd.comm.sum(B3_i)
 
-            A2 = A3_i @ B_ii @ A2_i * iold**(0.25)  # Mixer likes to become overconfident with history
+            A2 = A3_i @ B_ii @ A2_i * iold**(0.25) # Mixer likes to become overconfident with history
             B2 = B3_i @ B_ii @ B2_i
 
             if iold != 2:
@@ -410,8 +411,12 @@ class MSR1Mixer(BaseMixer):
             else:
                 self.B0 = 1
 
-            A0_ratio = (self.A0 + np.clip(np.abs(A1 / A2), 0.03, max(self.beta, 0.6 * min(1, (iold + 1) / self.nmaxold)))) / (2 * self.A0)
-            self.A0 *= np.clip(A0_ratio, 2/5, 5/3)
+            A0_ratio = (self.A0 + np.clip(
+                np.abs(A1 / A2),
+                0.03,
+                max(self.beta, 0.6 * min(1, (iold + 1) / self.nmaxold)))
+            ) / (2 * self.A0)
+            self.A0 *= np.clip(A0_ratio, 0.5, 1.5)
 
             A0 = self.A0
             B0 = self.B0
@@ -444,7 +449,7 @@ class MSR1Mixer(BaseMixer):
         elif iold == 1:
             # Pratt step
             self.A0 = self.beta
-            A0 = self.beta / 5 * 3
+            A0 = self.beta * 0.6
             self.uk_sG = R_sG
             self.pk_sG = np.zeros_like(self.uk_sG)
             nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG
