@@ -212,7 +212,7 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = 4.0
+    min_imp = 8.0
 
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         nt_isG = self.nt_isG
@@ -319,7 +319,7 @@ class MSR1Mixer(BaseMixer):
             YS_LIM = y_isG.reshape((iold - 1, -1)) @ ts_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YS_LIM)
             YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
-            max_gb = max(1, (YY_LIM / YS_LIM))  # Take care
+            max_gb = max(1, (YY_LIM / YS_LIM) * (iold > 2))  # Take care
             good_broydenness = 0.5 * max_gb
 
             # Choose max good_broydenness s.t. A_ii is positive definite
@@ -337,11 +337,11 @@ class MSR1Mixer(BaseMixer):
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
             good_broydenness -= 2**(-iter) * max_gb
-            good_broydenness *=  min(1, iold - 2) # Be very careful with good broyden
+            # good_broydenness *=  min(1, iold - 2) # Be very careful with good broyden
             # Do not good broyden when density is crap
-            crapiness_mult = 1e-2 / (dNt * ntnorm_i.ravel()[-1])
-            print('crab_factor: ', min(0.8, crapiness_mult))
-            good_broydenness *= min(0.8, crapiness_mult)
+            crapiness_mult = 7e-2 / (dNt * ntnorm_i.ravel()[-1])
+            print('crab_factor: ', min(0.9, crapiness_mult))
+            good_broydenness *= min(0.9, crapiness_mult)
             print('good_broydenness: ', good_broydenness)
 
             t_isG = ty_isG + good_broydenness * ts_isG  # Also known as W depending on the paper
@@ -423,22 +423,36 @@ class MSR1Mixer(BaseMixer):
             if self.gd.comm.rank == 0:
                 print(f"rank: {self.world.rank}, A0: {A0}, B0: {B0}")
 
+            trust_factor = 2.0
+            trust_radius = trust_factor * np.sum((A0 * self.uk_sG + B0 * self.pk_sG)**2)
+            if self.trust_radius is not None:
+                self.trust_radius = (self.trust_radius + self.gd.comm.sum_scalar(trust_radius)**0.5) / 2
+            else:
+                self.trust_radius = 2 * self.gd.comm.sum_scalar(trust_radius)**0.5
+
             self.uk_sG = np.zeros_like(nt_sG)
             self.pk_sG = np.zeros_like(nt_sG)
-
-            for a1, D_sp in enumerate(D_asp):
-                D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1]
 
             for i1, alpha in enumerate(alpha_i):
                 self.uk_sG -= y_isG[i1] * alpha
                 self.pk_sG += s_isG[i1] * alpha
 
-                for a1, D_sp in enumerate(D_asp):
-                    D_sp -= A0 * alpha * yD_iasp[i1][a1]
-                    D_sp += B0 * alpha * sD_iasp[i1][a1]
-
             self.uk_sG += R_sG
-            nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG + B0 * self.pk_sG
+            step_sG = A0 * self.uk_sG + B0 * self.pk_sG
+            step_size = np.sum(step_sG**2)
+            step_size = self.gd.comm.sum_scalar(step_size)**0.5
+
+            print('Dump trust scaling: ', self.trust_radius / step_size)
+
+            nt_sG[:] = nt_isG[-1] + step_sG * min(1, self.trust_radius / step_size)
+
+            for a1, D_sp in enumerate(D_asp):
+                D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1] * min(1, self.trust_radius / step_size)
+
+            for i1, alpha in enumerate(alpha_i):
+                for a1, D_sp in enumerate(D_asp):
+                    D_sp -= A0 * alpha * yD_iasp[i1][a1] * min(1, self.trust_radius / step_size)
+                    D_sp += B0 * alpha * sD_iasp[i1][a1] * min(1, self.trust_radius / step_size)
 
             # Sync the density, because apparantly they cant agree...
             if self.world:
@@ -448,6 +462,7 @@ class MSR1Mixer(BaseMixer):
 
         elif iold == 1:
             # Pratt step
+            self.trust_radius = None
             self.A0 = self.beta
             A0 = self.beta * 0.5
             self.uk_sG = R_sG
