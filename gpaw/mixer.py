@@ -339,7 +339,7 @@ class MSR1Mixer(BaseMixer):
             good_broydenness -= 2**(-iter) * max_gb
             # good_broydenness *=  min(1, iold - 2) # Be very careful with good broyden
             # Do not good broyden when density is crap
-            crapiness_mult = 7e-2 / (dNt * ntnorm_i.ravel()[-1])
+            crapiness_mult = 5e-2 / (dNt * ntnorm_i.ravel()[-1])
             print('crab_factor: ', min(0.9, crapiness_mult))
             good_broydenness *= min(0.9, crapiness_mult)
             print('good_broydenness: ', good_broydenness)
@@ -403,7 +403,7 @@ class MSR1Mixer(BaseMixer):
             B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
             self.gd.comm.sum(B3_i)
 
-            A2 = A3_i @ B_ii @ A2_i * iold**(0.33) # Mixer likes to become overconfident with history
+            A2 = A3_i @ B_ii @ A2_i * iold**(0.4) # Mixer likes to become overconfident with history
             B2 = B3_i @ B_ii @ B2_i
 
             if iold != 2:
@@ -416,19 +416,19 @@ class MSR1Mixer(BaseMixer):
                 0.03,
                 max(self.beta, 0.6 * min(1, (iold + 1) / self.nmaxold)))
             ) / (2 * self.A0)
-            self.A0 *= np.clip(A0_ratio, 0.5, 1.5)
+            self.A0 *= np.clip(A0_ratio, 0.67, 1.5)
 
             A0 = self.A0
             B0 = self.B0
             if self.gd.comm.rank == 0:
                 print(f"rank: {self.world.rank}, A0: {A0}, B0: {B0}")
 
-            trust_factor = 2.0
+            trust_factor = 3.0
             trust_radius = trust_factor * np.sum((A0 * self.uk_sG + B0 * self.pk_sG)**2)
             if self.trust_radius is not None:
                 self.trust_radius = (self.trust_radius + self.gd.comm.sum_scalar(trust_radius)**0.5) / 2
             else:
-                self.trust_radius = 2 * self.gd.comm.sum_scalar(trust_radius)**0.5
+                self.trust_radius = self.gd.comm.sum_scalar(trust_radius)**0.5
 
             self.uk_sG = np.zeros_like(nt_sG)
             self.pk_sG = np.zeros_like(nt_sG)
