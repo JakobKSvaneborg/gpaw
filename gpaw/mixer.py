@@ -353,7 +353,7 @@ class MSR1Mixer(BaseMixer):
 
             # This parameter is surprisingly important for stability
             # 2e-4 seems to work well for most systems
-            weight = (1e-2 + good_broydenness) * 2e-4
+            weight = (1e-2 + good_broydenness) * 2e-5
 
             ### SVD Regularization:
             S, V, D = np.linalg.svd(A_ii)
