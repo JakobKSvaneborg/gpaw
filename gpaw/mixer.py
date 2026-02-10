@@ -212,7 +212,7 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = 2.0
+    min_imp = 3.0
 
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         nt_isG = self.nt_isG
@@ -332,16 +332,17 @@ class MSR1Mixer(BaseMixer):
                 self.gd.comm.sum(A_ii)
 
                 eigs = np.linalg.eigvals(A_ii)
-                if np.all(eigs > 0):
+                if np.all(eigs > 1e-12):
                     good_broydenness += 2**(-iter) * max_gb
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
             good_broydenness -= 2**(-iter) * max_gb
             # good_broydenness *=  min(1, iold - 2) # Be very careful with good broyden
             # Do not good broyden when density is crap
-            crapiness_mult = 5e-2 / (dNt * ntnorm_i.ravel()[-1])
+            crapiness_mult = 3e-2 / (dNt * ntnorm_i.ravel()[-1])
             print('crab_factor: ', min(0.9, crapiness_mult))
             good_broydenness *= min(0.9, crapiness_mult)
+            good_broydenness = min(good_broydenness, 15)  # arbitrary and scary
             print('good_broydenness: ', good_broydenness)
 
             t_isG = ty_isG + good_broydenness * ts_isG  # Also known as W depending on the paper
@@ -403,7 +404,7 @@ class MSR1Mixer(BaseMixer):
             B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
             self.gd.comm.sum(B3_i)
 
-            trust_factor = 1.55  # Account for the error introduced by psuedo densities
+            trust_factor = 1.4  # Account for the error introduced by the imperfections of the universe
 
             A2 = A3_i @ B_ii @ A2_i * trust_factor # Mixer likes to become overconfident with history
             B2 = B3_i @ B_ii @ B2_i * trust_factor
@@ -464,7 +465,7 @@ class MSR1Mixer(BaseMixer):
                 # Optimize (ridge regression):
                 def err_fct(lamb):
                     beta_i[:] = np.linalg.solve(
-                        A2_ii + 2 * lamb * np.eye(iold - 1), BR_i
+                        A2_ii + 2 * np.abs(lamb) * np.eye(iold - 1), BR_i
                     )
                     return (beta_i @ s_ii @ beta_i - self.trust_radius**2)**2
 
@@ -475,7 +476,7 @@ class MSR1Mixer(BaseMixer):
                     self.world.broadcast(beta_i, 0)
                 self.uk_sG = np.zeros_like(nt_sG)
                 self.pk_sG = np.zeros_like(nt_sG)
-                # alpha_i[:] = beta_i
+                alpha_i[:] = beta_i
 
                 for i1, (alpha, beta) in enumerate(zip(alpha_i, beta_i)):
                     self.uk_sG -= y_isG[i1] * alpha
