@@ -266,6 +266,7 @@ class MSR1Mixer(BaseMixer):
             ntnorm_i = np.sum(np.abs(nt_isG).reshape(iold, -1), axis=(1, )) * self.gd.dv
             self.gd.comm.sum(ntnorm_i)
             ntnorm_i = np.expand_dims(1 / ntnorm_i, axis=tuple(np.arange(1, np.array(nt_isG).ndim)))
+            ntnorm_i[:] = 1
 
             # 2nd order norm
             # ntnorm_i = np.vecdot(np.array(nt_isG).reshape(iold, -1),
@@ -276,33 +277,12 @@ class MSR1Mixer(BaseMixer):
             ### 2023 Paper, Eq: 8 + 9:
             s_isG = (nt_isG[:-1] - nt_isG[-1])
             y_isG = -(R_isG[:-1] - R_isG[-1])
-            y_norm = np.vecdot(y_isG.reshape(iold - 1, -1), y_isG.reshape(iold - 1, -1))
-            self.gd.comm.sum(y_norm)
-            y_norm[:] = np.sqrt(y_norm) # / np.sqrt((iold - 1) / np.arange(1, iold))
-            s_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, s_isG.ndim)))
-            y_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, y_isG.ndim)))
-
-            sD_iasp = []
-            yD_iasp = []
-            for i1 in range(len(D_iasp) - 1):
-                sD_asp = []
-                yD_asp = []
-                for a1 in range(len(D_iasp[i1])):
-                    sD_asp.append((D_iasp[i1][a1] - D_iasp[-1][a1]) / y_norm[i1])
-                    yD_asp.append(-(dD_iasp[i1][a1] - dD_iasp[-1][a1]) / y_norm[i1])
-                sD_iasp.append(sD_asp)
-                yD_iasp.append(yD_asp)
-
-            # Normalize t
-            ts_isG = (nt_isG[:-1] * ntnorm_i[:-1] - nt_isG[-1] * ntnorm_i[-1])
-            ty_isG = -(R_isG[:-1] * ntnorm_i[:-1] - R_isG[-1] * ntnorm_i[-1])
-            ts_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, s_isG.ndim)))
-            ty_isG /= np.expand_dims(y_norm, axis=tuple(np.arange(1, y_isG.ndim)))
 
             # Dont
             # ts_isG = s_isG.copy()
             # ty_isG = y_isG.copy()
-
+            ts_isG = (nt_isG[:-1] * ntnorm_i[:-1] - nt_isG[-1] * ntnorm_i[-1])
+            ty_isG = -(R_isG[:-1] * ntnorm_i[:-1] - R_isG[-1] * ntnorm_i[-1])
             for ty_sG, ts_sG in zip(ty_isG, ts_isG):
                 for ty_G, ts_G in zip(ty_sG, ts_sG):
                     if self.metric is not None:
@@ -319,7 +299,7 @@ class MSR1Mixer(BaseMixer):
             YS_LIM = y_isG.reshape((iold - 1, -1)) @ ts_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YS_LIM)
             YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
-            max_gb = max(1, (YY_LIM / YS_LIM))  # Take care
+            max_gb = max(1, (YY_LIM / YS_LIM) * min(1, (iold - 1) / 5))  # Take care
             good_broydenness = 0.5 * max_gb
 
             # Choose max good_broydenness s.t. A_ii is positive definite
@@ -330,20 +310,43 @@ class MSR1Mixer(BaseMixer):
 
                 A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
                 self.gd.comm.sum(A_ii)
+                # t_norm = np.sqrt(np.diag(A_ii))
 
                 eigs = np.linalg.eigvals(A_ii)
-                if np.all(eigs > 1e-12):
+                if np.all(eigs.real > 1e-6) and np.all(eigs.imag == 0):
                     good_broydenness += 2**(-iter) * max_gb
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
             good_broydenness -= 2**(-iter) * max_gb
             # good_broydenness *=  min(1, iold - 2) # Be very careful with good broyden
             # Do not good broyden when density is crap
-            # crapiness_mult = 3e-2 / (dNt * ntnorm_i.ravel()[-1])
-            # print('crab_factor: ', min(0.9, crapiness_mult))
-            # good_broydenness *= min(0.9, crapiness_mult)
+            # crabiness_mult = 3e-2 / (dNt * ntnorm_i.ravel()[-1])
+            # print('crab_factor: ', min(0.9, crabiness_mult))
+            # good_broydenness *= min(0.9, crabiness_mult)
             print('good_broydenness: ', good_broydenness)
+            A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
+            self.gd.comm.sum(A_ii)
+            t_norm = 1 / np.sqrt(np.abs(np.diag(A_ii)))
 
+            ### Scale the problem!
+            s_isG *= np.expand_dims(t_norm, axis=tuple(np.arange(1, s_isG.ndim)))
+            y_isG *= np.expand_dims(t_norm, axis=tuple(np.arange(1, y_isG.ndim)))
+
+            sD_iasp = []
+            yD_iasp = []
+            for i1 in range(len(D_iasp) - 1):
+                sD_asp = []
+                yD_asp = []
+                for a1 in range(len(D_iasp[i1])):
+                    sD_asp.append((D_iasp[i1][a1] - D_iasp[-1][a1]) * t_norm[i1])
+                    yD_asp.append(-(dD_iasp[i1][a1] - dD_iasp[-1][a1]) * t_norm[i1])
+                sD_iasp.append(sD_asp)
+                yD_iasp.append(yD_asp)
+            ###
+
+            # Normalize t
+            ts_isG *= np.expand_dims(t_norm, axis=tuple(np.arange(1, s_isG.ndim)))
+            ty_isG *= np.expand_dims(t_norm, axis=tuple(np.arange(1, y_isG.ndim)))
             t_isG = ty_isG + good_broydenness * ts_isG  # Also known as W depending on the paper
 
             A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
@@ -354,7 +357,7 @@ class MSR1Mixer(BaseMixer):
 
             # This parameter is surprisingly important for stability
             # 2e-4 seems to work well for most systems
-            weight = 2e-5 # (3e-1 + good_broydenness) * 3e-6
+            weight = 5e-5
 
             ### SVD Regularization:
             S, V, D = np.linalg.svd(A_ii)
@@ -416,7 +419,7 @@ class MSR1Mixer(BaseMixer):
             A0_ratio = (self.A0 + np.clip(
                 np.abs(A1 / A2),
                 0.02,
-                self.beta + (max(self.beta, 0.4) - self.beta) * min(1, (iold + 1) / self.nmaxold)
+                self.beta + (max(self.beta, 1) - self.beta) #  * min(1, (iold + 1) / self.nmaxold)
                 )
             ) / (2 * self.A0)
             self.A0 *= np.clip(A0_ratio, 0.67, 1.5)
@@ -448,8 +451,8 @@ class MSR1Mixer(BaseMixer):
 
             if step_size > self.trust_radius:
                 # Time to mix the mixing...
-                print('XXXX: Performing trust region control!!!')
-                print(f'XXXX {step_size} > {self.trust_radius}')
+                # print('XXXX: Performing trust region control!!!')
+                # print(f'XXXX {step_size} > {self.trust_radius}')
                 ### Perform lsq squares with lagrange multiplier
                 # B^T R:
                 BR_i = t_isG.reshape((iold - 1, -1)) @ R_sG.reshape(-1)
@@ -463,14 +466,16 @@ class MSR1Mixer(BaseMixer):
 
                 # Optimize (ridge regression):
                 def err_fct(lamb):
-                    beta_i[:] = np.linalg.solve(
-                        A2_ii + 2 * np.abs(lamb) * np.eye(iold - 1), BR_i
+                    beta_i = np.linalg.solve(
+                        A2_ii + np.abs(lamb) * np.eye(iold - 1), BR_i
                     )
-                    return (beta_i @ s_ii @ beta_i - self.trust_radius**2)**2
+                    return beta_i @ s_ii @ beta_i - self.trust_radius**2
 
                 from scipy.optimize import root_scalar
                 lamb = root_scalar(err_fct, x0=0)
-
+                beta_i = np.linalg.solve(
+                    A2_ii + np.abs(lamb.root) * np.eye(iold - 1), BR_i
+                )
                 if self.world:
                     self.world.broadcast(beta_i, 0)
                 self.uk_sG = np.zeros_like(nt_sG)
