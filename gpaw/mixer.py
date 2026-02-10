@@ -212,7 +212,7 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = 2.0
+    min_imp = 5.0
 
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         nt_isG = self.nt_isG
@@ -403,7 +403,7 @@ class MSR1Mixer(BaseMixer):
             B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
             self.gd.comm.sum(B3_i)
 
-            A2 = A3_i @ B_ii @ A2_i * iold**(0.33) # Mixer likes to become overconfident with history
+            A2 = A3_i @ B_ii @ A2_i # * iold**(033) # Mixer likes to become overconfident with history
             B2 = B3_i @ B_ii @ B2_i
 
             if iold != 2:
@@ -414,7 +414,7 @@ class MSR1Mixer(BaseMixer):
             A0_ratio = (self.A0 + np.clip(
                 np.abs(A1 / A2),
                 0.02,
-                self.beta + (max(self.beta, 0.5) - self.beta) * min(1, (iold + 1) / self.nmaxold)
+                self.beta + (max(self.beta, 0.4) - self.beta) * min(1, (iold + 1) / self.nmaxold)
                 )
             ) / (2 * self.A0)
             self.A0 *= np.clip(A0_ratio, 0.67, 1.5)
@@ -426,6 +426,7 @@ class MSR1Mixer(BaseMixer):
 
             trust_factor = 2.0
             trust_radius = trust_factor * np.sum((A0 * self.uk_sG + B0 * self.pk_sG)**2)
+            # trust_radius = trust_factor * np.sum((np.abs(A1 / A2) * self.uk_sG + np.abs(B1 / B2) * self.pk_sG)**2)
             if self.trust_radius is not None:
                 self.trust_radius = (self.trust_radius + self.gd.comm.sum_scalar(trust_radius)**0.5) / 2
             else:
@@ -468,6 +469,8 @@ class MSR1Mixer(BaseMixer):
                 from scipy.optimize import root_scalar
                 lamb = root_scalar(err_fct, x0=0)
 
+                if self.world:
+                    self.world.broadcast(alpha_i, 0)
                 self.uk_sG = np.zeros_like(nt_sG)
                 self.pk_sG = np.zeros_like(nt_sG)
 
