@@ -319,13 +319,13 @@ class MSR1Mixer(BaseMixer):
             YS_LIM = y_isG.reshape((iold - 1, -1)) @ ts_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YS_LIM)
             YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
-            max_gb = max(1, (YY_LIM / YS_LIM) * (iold > 2))  # Take care
+            max_gb = max(1, (YY_LIM / YS_LIM))  # Take care
             good_broydenness = 0.5 * max_gb
 
             # Choose max good_broydenness s.t. A_ii is positive definite
             # for good_broydenness in good_broydenness_range:
             # binary search 2**(-8) accuracy:
-            for iter in range(2, 8):
+            for iter in range(2, 9):
                 t_isG = ty_isG + good_broydenness * ts_isG
 
                 A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
@@ -339,10 +339,9 @@ class MSR1Mixer(BaseMixer):
             good_broydenness -= 2**(-iter) * max_gb
             # good_broydenness *=  min(1, iold - 2) # Be very careful with good broyden
             # Do not good broyden when density is crap
-            crapiness_mult = 3e-2 / (dNt * ntnorm_i.ravel()[-1])
-            print('crab_factor: ', min(0.9, crapiness_mult))
-            good_broydenness *= min(0.9, crapiness_mult)
-            good_broydenness = min(good_broydenness, 15)  # arbitrary and scary
+            # crapiness_mult = 3e-2 / (dNt * ntnorm_i.ravel()[-1])
+            # print('crab_factor: ', min(0.9, crapiness_mult))
+            # good_broydenness *= min(0.9, crapiness_mult)
             print('good_broydenness: ', good_broydenness)
 
             t_isG = ty_isG + good_broydenness * ts_isG  # Also known as W depending on the paper
