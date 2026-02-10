@@ -340,8 +340,8 @@ class MSR1Mixer(BaseMixer):
             # good_broydenness *=  min(1, iold - 2) # Be very careful with good broyden
             # Do not good broyden when density is crap
             crapiness_mult = 5e-2 / (dNt * ntnorm_i.ravel()[-1])
-            print('crab_factor: ', min(0.85, crapiness_mult))
-            good_broydenness *= min(0.85, crapiness_mult)
+            print('crab_factor: ', min(0.95, crapiness_mult))
+            good_broydenness *= min(0.95, crapiness_mult)
             print('good_broydenness: ', good_broydenness)
 
             t_isG = ty_isG + good_broydenness * ts_isG  # Also known as W depending on the paper
@@ -403,11 +403,13 @@ class MSR1Mixer(BaseMixer):
             B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
             self.gd.comm.sum(B3_i)
 
-            A2 = A3_i @ B_ii @ A2_i # * iold**(033) # Mixer likes to become overconfident with history
-            B2 = B3_i @ B_ii @ B2_i
+            trust_factor = 1.3  # Account for the error introduced by psuedo densities
+
+            A2 = A3_i @ B_ii @ A2_i * trust_factor # Mixer likes to become overconfident with history
+            B2 = B3_i @ B_ii @ B2_i * trust_factor
 
             if iold != 2:
-                self.B0 = (self.B0 + np.clip(np.abs(B1 / B2), 0.3, 1.05)) / 2
+                self.B0 = (self.B0 + np.clip(np.abs(B1 / B2), 0.3, 1) + 0.1) / 2
             else:
                 self.B0 = 1
 
@@ -424,9 +426,7 @@ class MSR1Mixer(BaseMixer):
             if self.gd.comm.rank == 0:
                 print(f"rank: {self.world.rank}, A0: {A0}, B0: {B0}")
 
-            trust_factor = 2.0
             trust_radius = trust_factor * np.sum((A0 * self.uk_sG + B0 * self.pk_sG)**2)
-            # trust_radius = trust_factor * np.sum((np.abs(A1 / A2) * self.uk_sG + np.abs(B1 / B2) * self.pk_sG)**2)
             if self.trust_radius is not None:
                 self.trust_radius = (self.trust_radius + self.gd.comm.sum_scalar(trust_radius)**0.5) / 2
             else:
@@ -443,6 +443,8 @@ class MSR1Mixer(BaseMixer):
             step_sG = A0 * self.uk_sG + B0 * self.pk_sG
             step_size = np.sum((B0 * self.pk_sG)**2)
             step_size = self.gd.comm.sum_scalar(step_size)**0.5
+
+            beta_i = alpha_i.copy()
 
             if step_size > self.trust_radius:
                 # Time to mix the mixing...
@@ -461,35 +463,37 @@ class MSR1Mixer(BaseMixer):
 
                 # Optimize (ridge regression):
                 def err_fct(lamb):
-                    alpha_i[:] = np.linalg.solve(
+                    beta_i[:] = np.linalg.solve(
                         A2_ii + 2 * lamb * np.eye(iold - 1), BR_i
                     )
-                    return (alpha_i @ s_ii @ alpha_i - self.trust_radius**2)**2
+                    return (beta_i @ s_ii @ beta_i - self.trust_radius**2)**2
 
                 from scipy.optimize import root_scalar
                 lamb = root_scalar(err_fct, x0=0)
 
                 if self.world:
-                    self.world.broadcast(alpha_i, 0)
+                    self.world.broadcast(beta_i, 0)
                 self.uk_sG = np.zeros_like(nt_sG)
                 self.pk_sG = np.zeros_like(nt_sG)
+                alpha_i[:] = beta_i
 
-                for i1, alpha in enumerate(alpha_i):
+                for i1, (alpha, beta) in enumerate(zip(alpha_i, beta_i)):
                     self.uk_sG -= y_isG[i1] * alpha
-                    self.pk_sG += s_isG[i1] * alpha
+                    self.pk_sG += s_isG[i1] * beta
 
                 self.uk_sG += R_sG
+                self.uk_sG *= np.sum(beta_i) / np.sum(alpha_i)
                 step_sG = A0 * self.uk_sG + B0 * self.pk_sG
 
-            nt_sG[:] = nt_isG[-1] + step_sG * min(1, self.trust_radius / step_size)
-
+            nt_sG[:] = nt_isG[-1] + step_sG
+            scale_factor = np.sum(beta_i) / np.sum(alpha_i)
             for a1, D_sp in enumerate(D_asp):
-                D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1] * min(1, self.trust_radius / step_size)
+                D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1] * scale_factor
 
-            for i1, alpha in enumerate(alpha_i):
+            for i1, (alpha, beta) in enumerate(zip(alpha_i, beta_i)):
                 for a1, D_sp in enumerate(D_asp):
-                    D_sp -= A0 * alpha * yD_iasp[i1][a1] * min(1, self.trust_radius / step_size)
-                    D_sp += B0 * alpha * sD_iasp[i1][a1] * min(1, self.trust_radius / step_size)
+                    D_sp -= A0 * alpha * yD_iasp[i1][a1] * scale_factor
+                    D_sp += B0 * beta * sD_iasp[i1][a1]
 
             # Sync the density, because apparantly they cant agree...
             if self.world:
