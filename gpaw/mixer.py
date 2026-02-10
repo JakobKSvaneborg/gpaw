@@ -268,6 +268,8 @@ class MSR1Mixer(BaseMixer):
             ntnorm_i = np.expand_dims(1 / ntnorm_i, axis=tuple(np.arange(1, np.array(nt_isG).ndim)))
             ntnorm_i[:] = 1
 
+            trust_factor = 1.4  # Account for the error introduced by the imperfections of the universe... or maybe just mixer.py
+
             # 2nd order norm
             # ntnorm_i = np.vecdot(np.array(nt_isG).reshape(iold, -1),
             #     np.array(nt_isG).reshape(iold, -1))
@@ -299,7 +301,7 @@ class MSR1Mixer(BaseMixer):
             YS_LIM = y_isG.reshape((iold - 1, -1)) @ ts_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YS_LIM)
             YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
-            max_gb = max(1, (YY_LIM / YS_LIM) * min(1, (iold - 1) / 5))  # Take care
+            max_gb = max(1, (YY_LIM / YS_LIM))  # Take care
             good_broydenness = 0.5 * max_gb
 
             # Choose max good_broydenness s.t. A_ii is positive definite
@@ -318,7 +320,14 @@ class MSR1Mixer(BaseMixer):
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
             good_broydenness -= 2**(-iter) * max_gb
-            # good_broydenness *=  min(1, iold - 2) # Be very careful with good broyden
+            # good_broydenness *= 1 / trust_factor
+
+            # Don't increase good-broydeness too quickly:
+            good_broydenness = min(
+                good_broydenness,
+                max(1, self.last_good_broydeness) * 1.4)
+            self.last_good_broydeness = good_broydenness
+
             # Do not good broyden when density is crap
             # crabiness_mult = 3e-2 / (dNt * ntnorm_i.ravel()[-1])
             # print('crab_factor: ', min(0.9, crabiness_mult))
@@ -405,8 +414,6 @@ class MSR1Mixer(BaseMixer):
             self.gd.comm.sum(A3_i)
             B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
             self.gd.comm.sum(B3_i)
-
-            trust_factor = 1.4  # Account for the error introduced by the imperfections of the universe
 
             A2 = A3_i @ B_ii @ A2_i * trust_factor # Mixer likes to become overconfident with history
             B2 = B3_i @ B_ii @ B2_i * trust_factor
@@ -509,6 +516,7 @@ class MSR1Mixer(BaseMixer):
         elif iold == 1:
             # Pratt step
             self.trust_radius = None
+            self.last_good_broydeness = 4
             self.A0 = self.beta
             A0 = self.beta * 0.67
             self.uk_sG = R_sG
