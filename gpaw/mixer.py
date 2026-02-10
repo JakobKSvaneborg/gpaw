@@ -212,7 +212,7 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = 8.0
+    min_imp = 2.0
 
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         nt_isG = self.nt_isG
@@ -440,10 +440,43 @@ class MSR1Mixer(BaseMixer):
 
             self.uk_sG += R_sG
             step_sG = A0 * self.uk_sG + B0 * self.pk_sG
-            step_size = np.sum(step_sG**2)
+            step_size = np.sum((B0 * self.pk_sG)**2)
             step_size = self.gd.comm.sum_scalar(step_size)**0.5
 
-            print('Dumb trust scaling: ', self.trust_radius / step_size)
+            if step_size > self.trust_radius:
+                # Time to mix the mixing...
+                print('XXXX: Performing trust region control!!!')
+                print(f'XXXX {step_size} > {self.trust_radius}')
+                ### Perform lsq squares with lagrange multiplier
+                # B^T R:
+                BR_i = t_isG.reshape((iold - 1, -1)) @ R_sG.reshape(-1)
+                self.gd.comm.sum(BR_i)
+
+                # f^T f
+                s_ii = B0**2 * s_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
+                self.gd.comm.sum(s_ii)
+
+                A2_ii = np.linalg.inv(A_ii)
+
+                # Optimize (ridge regression):
+                def err_fct(lamb):
+                    alpha_i[:] = np.linalg.solve(
+                        A2_ii + 2 * lamb * np.eye(iold - 1), BR_i
+                    )
+                    return (alpha_i @ s_ii @ alpha_i - self.trust_radius**2)**2
+
+                from scipy.optimize import root_scalar
+                lamb = root_scalar(err_fct, x0=0)
+
+                self.uk_sG = np.zeros_like(nt_sG)
+                self.pk_sG = np.zeros_like(nt_sG)
+
+                for i1, alpha in enumerate(alpha_i):
+                    self.uk_sG -= y_isG[i1] * alpha
+                    self.pk_sG += s_isG[i1] * alpha
+
+                self.uk_sG += R_sG
+                step_sG = A0 * self.uk_sG + B0 * self.pk_sG
 
             nt_sG[:] = nt_isG[-1] + step_sG * min(1, self.trust_radius / step_size)
 
