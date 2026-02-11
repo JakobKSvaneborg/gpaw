@@ -436,7 +436,7 @@ class MSR1Mixer(BaseMixer):
             A0_ratio = (self.A0 + np.clip(
                 np.abs(A1 / A2),
                 0.035,
-                self.beta + (max(self.beta, 0.5) - self.beta) #  * min(1, (iold + 1) / self.nmaxold)
+                self.beta + (max(self.beta, 1) - self.beta) #  * min(1, (iold + 1) / self.nmaxold)
                 )
             ) / (2 * self.A0)
             self.A0 *= np.clip(A0_ratio, 0.67, 1.5 if not backtracked else 1.0)
