@@ -267,7 +267,7 @@ class MSR1Mixer(BaseMixer):
             self.gd.comm.sum(ntnorm_i)
             ntnorm_i = np.expand_dims(1 / ntnorm_i, axis=tuple(np.arange(1, np.array(nt_isG).ndim)))
 
-            trust_factor = 1.2 # Account for the error introduced by the imperfections of the universe... or maybe just mixer.py
+            trust_factor = 1.4 # Account for the error introduced by the imperfections of the universe... or maybe just mixer.py
 
             # 2nd order norm
             # ntnorm_i = np.vecdot(np.array(nt_isG).reshape(iold, -1),
@@ -308,12 +308,12 @@ class MSR1Mixer(BaseMixer):
             # binary search 2**(-8) accuracy:
             t_norm = np.vecdot(ty_isG.reshape((iold - 1, -1)), y_isG.reshape((iold - 1, -1)))
             self.gd.comm.sum(t_norm)
-            t_norm = np.sqrt(t_norm)
+            t_norm = 1 / np.sqrt(t_norm)
             for iter in range(2, 9):
                 t_isG = (ty_isG + good_broydenness * ts_isG).reshape(
-                    (iold - 1, -1)) / t_norm[:, None]
+                    (iold - 1, -1)) * t_norm[:, None]
 
-                A_ii = t_isG @ (y_isG.reshape((iold - 1, -1)) / t_norm[:, None]).T
+                A_ii = t_isG @ (y_isG.reshape((iold - 1, -1)) * t_norm[:, None]).T
                 self.gd.comm.sum(A_ii)
                 try:
                     eigs = np.linalg.eigvals(A_ii)
@@ -334,14 +334,14 @@ class MSR1Mixer(BaseMixer):
             # good_broydenness *= 1 / trust_factor
 
             # Do not good broyden when density is crap
-            crabiness_mult = 3e-2 / (dNt * ntnorm_i.ravel()[-1])
+            crabiness_mult = 4e-2 / (dNt * ntnorm_i.ravel()[-1])
             # print('crab_factor: ', min(0.9, crabiness_mult))
             good_broydenness *= min(1 / trust_factor, crabiness_mult)
             print('good_broydenness: ', good_broydenness)
             t_isG = ty_isG + good_broydenness * ts_isG
             A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(A_ii)
-            t_norm = 1 / np.sqrt(np.diag(A_ii))
+            # t_norm = 1 / np.sqrt(np.diag(A_ii))
 
             ### Scale the problem!
             s_isG *= np.expand_dims(t_norm, axis=tuple(np.arange(1, s_isG.ndim)))
@@ -422,11 +422,11 @@ class MSR1Mixer(BaseMixer):
             self.gd.comm.sum(B3_i)
 
             A2 = A3_i @ B_ii @ A2_i * trust_factor
-            B2 = B3_i @ B_ii @ B2_i
+            B2 = B3_i @ B_ii @ B2_i * trust_factor
 
             if iold != 2:
                 B0_ratio = (
-                    self.B0 + np.clip(np.abs(B1 / B2), 0.3, 1)
+                    self.B0 + np.clip(np.abs(B1 / B2) + 0.1, 0.3, 1.05)
                     ) / (2 * self.B0)
                 self.B0 *= np.clip(B0_ratio, 0.67,
                    1.5 if not backtracked else 1.0)
@@ -436,7 +436,7 @@ class MSR1Mixer(BaseMixer):
             A0_ratio = (self.A0 + np.clip(
                 np.abs(A1 / A2),
                 0.035,
-                self.beta + (max(self.beta, 1) - self.beta) #  * min(1, (iold + 1) / self.nmaxold)
+                self.beta + (max(self.beta, 0.4) - self.beta) #  * min(1, (iold + 1) / self.nmaxold)
                 )
             ) / (2 * self.A0)
             self.A0 *= np.clip(A0_ratio, 0.67, 1.5 if not backtracked else 1.0)
@@ -446,7 +446,7 @@ class MSR1Mixer(BaseMixer):
             if self.gd.comm.rank == 0:
                 print(f"rank: {self.world.rank}, A0: {A0}, B0: {B0}")
 
-            trust_radius = 1 * np.sum((A0 * self.uk_sG + B0 * self.pk_sG)**2)
+            trust_radius = trust_factor * np.sum((A0 * self.uk_sG + B0 * self.pk_sG)**2)
             if self.trust_radius is not None:
                 trust_radius = (self.trust_radius + self.gd.comm.sum_scalar(trust_radius)**0.5) / 2
                 if backtracked:
