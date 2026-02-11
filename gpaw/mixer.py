@@ -316,8 +316,11 @@ class MSR1Mixer(BaseMixer):
                 A_ii = t_isG @ (y_isG.reshape((iold - 1, -1)) / t_norm[:, None]).T
                 self.gd.comm.sum(A_ii)
                 t_norm = np.sqrt(np.diag(A_ii))
-
-                eigs = np.linalg.eigvals(A_ii)
+                try:
+                    eigs = np.linalg.eigvals(A_ii)
+                except np.linalg.LinAlgError:
+                    good_broydenness -= 2**(-iter) * max_gb
+                    continue
                 if np.all(eigs.real > 0) and np.all(eigs.imag == 0):
                     good_broydenness += 2**(-iter) * max_gb
                 else:
