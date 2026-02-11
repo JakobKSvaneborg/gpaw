@@ -334,7 +334,7 @@ class MSR1Mixer(BaseMixer):
             # good_broydenness *= 1 / trust_factor
 
             # Do not good broyden when density is crap
-            crabiness_mult = 1e-2 / (dNt * ntnorm_i.ravel()[-1])
+            crabiness_mult = 3e-2 / (dNt * ntnorm_i.ravel()[-1])
             # print('crab_factor: ', min(0.9, crabiness_mult))
             good_broydenness *= min(1 / trust_factor, crabiness_mult)
             print('good_broydenness: ', good_broydenness)
