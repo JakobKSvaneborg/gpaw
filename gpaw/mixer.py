@@ -315,7 +315,6 @@ class MSR1Mixer(BaseMixer):
 
                 A_ii = t_isG @ (y_isG.reshape((iold - 1, -1)) / t_norm[:, None]).T
                 self.gd.comm.sum(A_ii)
-                t_norm = np.sqrt(np.diag(A_ii))
                 try:
                     eigs = np.linalg.eigvals(A_ii)
                 except np.linalg.LinAlgError:
@@ -339,8 +338,7 @@ class MSR1Mixer(BaseMixer):
             # print('crab_factor: ', min(0.9, crabiness_mult))
             good_broydenness *= min(1 / trust_factor, crabiness_mult)
             print('good_broydenness: ', good_broydenness)
-            t_isG = (ty_isG + good_broydenness * ts_isG).reshape(
-                (iold - 1, -1)) / t_norm[:, None]
+            t_isG = ty_isG + good_broydenness * ts_isG
             A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(A_ii)
             t_norm = 1 / np.sqrt(np.diag(A_ii))
