@@ -456,7 +456,7 @@ class DFTCalculation:
 
         # only create new dft object on master
         if comm.rank != 0:
-            return
+            return None
 
         params.parallel = {'kpt': 1, 'band': 1, 'domain': 1}
         builder = params.dft_component_builder(atoms, log=txt,
