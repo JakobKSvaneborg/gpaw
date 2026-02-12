@@ -249,7 +249,7 @@ class MSR1Mixer(BaseMixer):
             backtracked = False
             if dNt > self.last_dNt * self.min_imp:
                 dNt = self.last_dNt
-                insert_pos = 0 #-2
+                insert_pos = 0 # -2
                 tmp = nt_isG.pop()
                 nt_isG.insert(insert_pos, tmp)
                 tmp = R_isG.pop()
@@ -267,7 +267,7 @@ class MSR1Mixer(BaseMixer):
             self.gd.comm.sum(ntnorm_i)
             ntnorm_i = np.expand_dims(1 / ntnorm_i, axis=tuple(np.arange(1, np.array(nt_isG).ndim)))
 
-            trust_factor = 1.6 # Account for the error introduced by the imperfections of the universe... or maybe just mixer.py
+            trust_factor = np.sqrt(2) # Account for the error introduced by the imperfections of the universe... or maybe just mixer.py
 
             # 2nd order norm
             # ntnorm_i = np.vecdot(np.array(nt_isG).reshape(iold, -1),
@@ -300,7 +300,7 @@ class MSR1Mixer(BaseMixer):
             YS_LIM = y_isG.reshape((iold - 1, -1)) @ ts_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YS_LIM)
             YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
-            max_gb = np.clip(YY_LIM / YS_LIM, 1, 3)  # Take care
+            max_gb = np.clip(YY_LIM / YS_LIM, 0, 3.0)  # Take care
             good_broydenness = 0.5 * max_gb
 
             # Choose max good_broydenness s.t. A_ii is positive definite
@@ -421,7 +421,7 @@ class MSR1Mixer(BaseMixer):
             B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
             self.gd.comm.sum(B3_i)
 
-            A2 = A3_i @ B_ii @ A2_i * trust_factor
+            A2 = A3_i @ B_ii @ A2_i * trust_factor**2
             B2 = B3_i @ B_ii @ B2_i * trust_factor
 
             if iold != 2:
@@ -435,7 +435,7 @@ class MSR1Mixer(BaseMixer):
 
             A0_ratio = (self.A0 + np.clip(
                 np.abs(A1 / A2),
-                0.035,
+                0.025,
                 0.3  # self.beta + (max(self.beta, 0.3) - self.beta) #  * min(1, (iold + 1) / self.nmaxold)
                 )
             ) / (2 * self.A0)
@@ -473,8 +473,8 @@ class MSR1Mixer(BaseMixer):
 
             if step_size > self.trust_radius * 1.01:
                 # Time to mix the mixing...
-                # print('XXXX: Performing trust region control!!!')
-                # print(f'XXXX {step_size} > {self.trust_radius}')
+                print('XXXX: Performing trust region control!!!')
+                print(f'XXXX {step_size} > {self.trust_radius}')
                 ### Perform lsq squares with lagrange multiplier
                 # B^T R:
                 BR_i = t_isG.reshape((iold - 1, -1)) @ R_sG.reshape(-1)
@@ -512,19 +512,21 @@ class MSR1Mixer(BaseMixer):
                 new_step_size = np.sum((B0 * self.pk_sG)**2)
                 new_step_size = self.gd.comm.sum_scalar(new_step_size)**0.5
                 scale_factor = new_step_size / step_size
+                A0 *= scale_factor
+                self.A0 = A0
 
                 self.uk_sG += R_sG
-                self.uk_sG *= scale_factor
+                # self.uk_sG *= scale_factor
                 step_sG = A0 * self.uk_sG + B0 * self.pk_sG
 
             nt_sG[:] = nt_isG[-1] + step_sG
 
             for a1, D_sp in enumerate(D_asp):
-                D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1] * scale_factor
+                D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1] # * scale_factor
 
             for i1, (alpha, beta) in enumerate(zip(alpha_i, beta_i)):
                 for a1, D_sp in enumerate(D_asp):
-                    D_sp -= A0 * alpha * yD_iasp[i1][a1] * scale_factor
+                    D_sp -= A0 * alpha * yD_iasp[i1][a1] # * scale_factor
                     D_sp += B0 * beta * sD_iasp[i1][a1]
 
             # Sync the density, because apparantly they cant agree...
