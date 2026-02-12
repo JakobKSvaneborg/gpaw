@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
 
-from gpaw.mpi import serial_comm, rank0_call
+from gpaw.mpi import serial_comm
 from gpaw import GPAW
 from gpaw.berryphase import (get_berry_phases, parallel_transport,
-                             _polarization_phase)
+                             polarization_phase)
 
 # Values from an earlier test
 ref_phi_mos2_km = np.array(
@@ -96,16 +96,6 @@ def load_renormalized_data(name):
     return phi_km, S_km
 
 
-def polarization_phase(dft):
-    calc = dft.ase_calculator()
-    return _polarization_phase(calc)
-
-
-def polarization_phase_old(gpw_file):
-    calc = GPAW(gpw_file, communicator=serial_comm)
-    return _polarization_phase(calc)
-
-
 def test_polarization_phase(in_tmp_dir, gpw_files, mpi, gpaw_new):
     pi2 = 2.0 * np.pi
     gpw_file = gpw_files['mos2_pw_nosym']
@@ -113,11 +103,10 @@ def test_polarization_phase(in_tmp_dir, gpw_files, mpi, gpaw_new):
     if gpaw_new:
         # calculate on all ranks (here: read-in) then gather on master
         calc = GPAW(gpw_file, communicator=mpi.comm)
-        # calc.dft.calculate_dipole()
-        dft_rank0 = calc.dft.gather()
-        phases_c = rank0_call(polarization_phase, mpi.comm)(dft_rank0)
+        phases_c = polarization_phase(calc=calc, comm=mpi.comm)
     else:
-        phases_c = rank0_call(polarization_phase_old, mpi.comm)(gpw_file)
+        # legacy version old GPAW: read from file
+        phases_c = polarization_phase(gpw_wfs=gpw_file, comm=mpi.comm)
 
     phases_t = {
         'phase_c': pi2 * np.array([8.66037, 3.33962, 0.0]),
