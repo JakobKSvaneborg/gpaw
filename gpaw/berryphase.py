@@ -209,12 +209,8 @@ def polarization_phase(*, calc=None,
     else:
         # gather dft calculation master, None elsewhere
         dft_rank0 = calc.dft.gather()
-
-        def phases_rank0(dft):
-            calc = dft.ase_calculator()
-            return _polarization_phase(calc)
-
-        return rank0_call(phases_rank0, comm)(dft_rank0)
+        calc = dft_rank0.ase_calculator() if dft_rank0 else None
+        return rank0_call(_polarization_phase, comm)(calc)
 
 
 def _polarization_phase(calc):
