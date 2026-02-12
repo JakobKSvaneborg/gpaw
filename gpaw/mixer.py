@@ -267,8 +267,6 @@ class MSR1Mixer(BaseMixer):
             self.gd.comm.sum(ntnorm_i)
             ntnorm_i = np.expand_dims(1 / ntnorm_i, axis=tuple(np.arange(1, np.array(nt_isG).ndim)))
 
-            trust_factor = np.sqrt(2) # Account for the error introduced by the imperfections of the universe... or maybe just mixer.py
-
             # 2nd order norm
             # ntnorm_i = np.vecdot(np.array(nt_isG).reshape(iold, -1),
             #     np.array(nt_isG).reshape(iold, -1))
@@ -300,7 +298,7 @@ class MSR1Mixer(BaseMixer):
             YS_LIM = y_isG.reshape((iold - 1, -1)) @ ts_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YS_LIM)
             YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
-            max_gb = np.clip(YY_LIM / YS_LIM, 0, 3.0)  # Take care
+            max_gb = np.clip(YY_LIM / YS_LIM, 0, 1)  # Take care
             good_broydenness = 0.5 * max_gb
 
             # Choose max good_broydenness s.t. A_ii is positive definite
@@ -421,12 +419,12 @@ class MSR1Mixer(BaseMixer):
             B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
             self.gd.comm.sum(B3_i)
 
-            A2 = A3_i @ B_ii @ A2_i * trust_factor**2
-            B2 = B3_i @ B_ii @ B2_i * trust_factor
+            A2 = A3_i @ B_ii @ A2_i * 2.7  # Avoid the greed
+            B2 = B3_i @ B_ii @ B2_i
 
             if iold != 2:
                 B0_ratio = (
-                    self.B0 + np.clip(np.abs(B1 / B2) + 0.1, 0.3, 1.05)
+                    self.B0 + np.clip(np.abs(B1 / B2), 0.3, 1.05)
                     ) / (2 * self.B0)
                 self.B0 *= np.clip(B0_ratio, 0.67,
                    1.5 if not backtracked else 1.0)
@@ -435,7 +433,7 @@ class MSR1Mixer(BaseMixer):
 
             A0_ratio = (self.A0 + np.clip(
                 np.abs(A1 / A2),
-                0.025,
+                0.03,
                 0.3  # self.beta + (max(self.beta, 0.3) - self.beta) #  * min(1, (iold + 1) / self.nmaxold)
                 )
             ) / (2 * self.A0)
@@ -446,7 +444,7 @@ class MSR1Mixer(BaseMixer):
             if self.gd.comm.rank == 0:
                 print(f"rank: {self.world.rank}, A0: {A0}, B0: {B0}")
 
-            trust_radius = trust_factor * np.sum((A0 * self.uk_sG + B0 * self.pk_sG)**2)
+            trust_radius = 1.7 * np.sum((A0 * self.uk_sG + B0 * self.pk_sG)**2)
             if self.trust_radius is not None:
                 trust_radius = (self.trust_radius + self.gd.comm.sum_scalar(trust_radius)**0.5) / 2
                 if backtracked:
@@ -512,7 +510,8 @@ class MSR1Mixer(BaseMixer):
                 new_step_size = np.sum((B0 * self.pk_sG)**2)
                 new_step_size = self.gd.comm.sum_scalar(new_step_size)**0.5
                 scale_factor = new_step_size / step_size
-                A0 *= scale_factor
+                A0 *= np.clip(scale_factor, 0.5, 1)
+                A0 = np.clip(A0, 0.03, 0.3)
                 self.A0 = A0
 
                 self.uk_sG += R_sG
