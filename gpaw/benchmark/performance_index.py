@@ -157,11 +157,13 @@ def work(name: str,
     atoms.calc = GPAW(
         txt=None,
         convergence={'maximum iterations': 3},
+        communicator=world,
         **params)
     atoms.get_potential_energy()
 
     atoms.calc = GPAW(
         txt=f'{name}.txt',
+        communicator=world,
         **params)
 
     # First step:
@@ -290,8 +292,10 @@ def average(folders: list[Path]) -> None:
             f'{e2:.6f}, {t2:.3f}, {round(i2):.0f}, {int(m2)}],')
 
 
-def main(arguments: list[str] | None = None):
+def main(arguments: list[str] | None = None, world=None):
     from argparse import ArgumentParser
+    world = normalize_communicator(world)
+
     parser = ArgumentParser()
     parser.add_argument(
         '-m', '--mode', type=int, default=3,
@@ -314,7 +318,7 @@ def main(arguments: list[str] | None = None):
           '(lengths)          (angles)')
     for name, (e, de, cores, t) in REFERENCES.items():
         atoms = systems[name]()
-        info = get_calculation_info(atoms, **PARAMS)
+        info = get_calculation_info(atoms, comm=world, **PARAMS)
         print(f'{name:12} {len(atoms):4}    {atoms.pbc.sum()}',
               end=' ')
         print(f'{len(info.ibz):3}    {info.ncomponents}   {info.nbands:3}',
