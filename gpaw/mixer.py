@@ -212,7 +212,7 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = 2.0
+    min_imp = 4.0
 
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         nt_isG = self.nt_isG
@@ -373,7 +373,7 @@ class MSR1Mixer(BaseMixer):
 
             # This parameter is surprisingly important for stability
             # 2e-4 seems to work well for most systems
-            weight = 1e-4
+            weight = 5e-3
 
             ### SVD Regularization:
             S, V, D = np.linalg.svd(A_ii)
@@ -395,31 +395,35 @@ class MSR1Mixer(BaseMixer):
                 self.world.broadcast(alpha_i, 0)
 
             ######### Stuff for predicting mixing coefficients:
+            uRnoD_asp = []
+            for uD_sp, R_sp in zip(self.uD_asp, dD_iasp[-2]):
+                uRnoD_asp.append(R_sp - uD_sp)
+
             A1 = self.dotprod(self.uk_sG, self.uk_sG, self.uD_asp, self.uD_asp, mode='scalar')
             A1 = self.gd.comm.sum_scalar(A1)
 
-            B1 = (self.R_isG[-2] - self.uk_sG).reshape(-1) @ \
-                (self.R_isG[-2] - self.uk_sG).reshape(-1)
+            B1 = self.dotprod(self.R_isG[-2] - self.uk_sG,
+                self.R_isG[-2] - self.uk_sG,
+                uRnoD_asp, uRnoD_asp, mode='scalar')
             B1 = self.gd.comm.sum_scalar(B1)
 
             A2_i = self.dotprod(t_isG, [self.uk_sG, ], tD_iasp, [self.uD_asp, ], mode='gemm')[:, 0]
             self.gd.comm.sum(A2_i)
-            A3_i = self.dotprod(y_isG, [self.uk_sG, ], yD_iasp, [self.uD_asp, ], mode='gemm')[:, 0]
+            A3_i = self.dotprod([self.uk_sG, ], y_isG, [self.uD_asp, ], yD_iasp, mode='gemm')[0, :]
             self.gd.comm.sum(A3_i)
 
-            B2_i = t_isG.reshape((iold - 1, -1)) @ self.pk_sG.reshape(-1)
+            B2_i = self.dotprod(t_isG, [self.pk_sG, ], tD_iasp, [self.pD_asp, ], mode='gemm')[:, 0]
             self.gd.comm.sum(B2_i)
-            B3_i = y_isG.reshape((iold - 1, -1)) @ (self.R_isG[-2] - self.uk_sG).reshape(-1)
+            B3_i = self.dotprod([self.R_isG[-2] - self.uk_sG, ], y_isG, [uRnoD_asp, ], yD_iasp, mode='gemm')[0, :]
             self.gd.comm.sum(B3_i)
 
-            A2 = A3_i @ B_ii @ A2_i # Avoid the greed
-            B2 = B3_i @ B_ii @ B2_i
-
-            breakpoint()
+            dampen = 1.0
+            A2 = A3_i @ B_ii @ A2_i * dampen
+            B2 = B3_i @ B_ii @ B2_i * dampen
 
             if iold != 2:
                 B0_ratio = (
-                    self.B0 + np.clip(np.abs(B1 / B2) + 0.1, 0.3, 1)
+                    self.B0 + np.clip(np.abs(B1 / B2), 0.3, 1.1)
                     ) / (2 * self.B0)
                 self.B0 *= np.clip(B0_ratio, 0.67,
                    1.5 if not backtracked else 1.0)
@@ -429,36 +433,47 @@ class MSR1Mixer(BaseMixer):
             A0_ratio = (self.A0 + np.clip(
                 np.abs(A1 / A2),
                 0.03,
-                0.3  # self.beta + (max(self.beta, 0.3) - self.beta) #  * min(1, (iold + 1) / self.nmaxold)
+                0.7
                 )
             ) / (2 * self.A0)
             self.A0 *= np.clip(A0_ratio, 0.67, 1.5 if not backtracked else 1.0)
 
             A0 = self.A0
             B0 = self.B0
-            # if self.gd.comm.rank == 0:
             print(f"rank: {self.world.rank}, A0: {A0}, B0: {B0}")
 
-            trust_radius = 100 * np.sum((A0 * self.uk_sG + B0 * self.pk_sG)**2)
+            trust_step = (A0 * self.uk_sG + B0 * self.pk_sG)
+            dstep_asp = []
+            for uD_sp, pD_sp in zip(self.uD_asp, self.pD_asp):
+                dstep_asp.append(A0 * uD_sp + B0 * pD_sp)
+            trust_radius = self.dotprod(trust_step, trust_step, dstep_asp, dstep_asp, mode='scalar')
+            trust_radius = dampen * self.gd.comm.sum_scalar(trust_radius)**0.5
             if self.trust_radius is not None:
-                trust_radius = (self.trust_radius + self.gd.comm.sum_scalar(trust_radius)**0.5) / 2
+                trust_radius = (self.trust_radius + trust_radius) / 2
                 if backtracked:
                     self.trust_radius = min(self.trust_radius, trust_radius)
                 else:
                     self.trust_radius = trust_radius
             else:
-                self.trust_radius = self.gd.comm.sum_scalar(trust_radius)**0.5
+                self.trust_radius = trust_radius
 
             self.uk_sG = np.zeros_like(nt_sG)
             self.pk_sG = np.zeros_like(nt_sG)
+
+            for pD_sp in self.pD_asp:
+                pD_sp[:] = 0
 
             for i1, alpha in enumerate(alpha_i):
                 self.uk_sG -= y_isG[i1] * alpha
                 self.pk_sG += s_isG[i1] * alpha
 
+                for a1, sD_sp in enumerate(sD_iasp[i1]):
+                    self.pD_asp[a1] += alpha * sD_sp
+
             self.uk_sG += R_sG
             step_sG = A0 * self.uk_sG + B0 * self.pk_sG
-            step_size = np.sum((B0 * self.pk_sG)**2)
+            step_size = B0**2 * self.dotprod(self.pk_sG, self.pk_sG,
+                self.pD_asp, self.pD_asp, mode='scalar')
             step_size = self.gd.comm.sum_scalar(step_size)**0.5
 
             beta_i = alpha_i.copy()
@@ -470,11 +485,11 @@ class MSR1Mixer(BaseMixer):
                 print(f'XXXX {step_size} > {self.trust_radius}')
                 ### Perform lsq squares with lagrange multiplier
                 # B^T R:
-                BR_i = t_isG.reshape((iold - 1, -1)) @ R_sG.reshape(-1)
+                BR_i = self.dotprod(t_isG, [R_sG, ], tD_iasp, [dD_iasp[-1]], mode='gemm')[:, 0]
                 self.gd.comm.sum(BR_i)
 
                 # f^T f
-                s_ii = B0**2 * s_isG.reshape((iold - 1, -1)) @ s_isG.reshape((iold - 1, -1)).T
+                s_ii = self.dotprod(s_isG, s_isG, sD_iasp, sD_iasp, mode='gemm') * B0**2
                 self.gd.comm.sum(s_ii)
 
                 A2_ii = np.linalg.inv(A_ii)
@@ -487,7 +502,10 @@ class MSR1Mixer(BaseMixer):
                     return beta_i @ s_ii @ beta_i - self.trust_radius**2
 
                 from scipy.optimize import root_scalar
-                lamb = root_scalar(err_fct, bracket=[-20, 20])
+                try:
+                    lamb = root_scalar(err_fct, bracket=[-20, 20])
+                except ValueError as e:
+                    breakpoint()
                 beta_i = np.linalg.solve(
                     A2_ii + np.exp(lamb.root) * np.eye(iold - 1), BR_i
                 )
@@ -496,15 +514,21 @@ class MSR1Mixer(BaseMixer):
 
                 self.uk_sG[:] = 0
                 self.pk_sG[:] = 0
+                for pD_sp in self.pD_asp:
+                    pD_sp[:] = 0
                 alpha_i[:] = beta_i
 
                 for i1, (alpha, beta) in enumerate(zip(alpha_i, beta_i)):
                     self.uk_sG -= y_isG[i1] * alpha
                     self.pk_sG += s_isG[i1] * beta
 
-                new_step_size = np.sum((B0 * self.pk_sG)**2)
+                    for a1, sD_sp in enumerate(sD_iasp[i1]):
+                        self.pD_asp[a1] += beta * sD_sp
+
+                new_step_size = B0**2 * self.dotprod(self.pk_sG, self.pk_sG,
+                    self.pD_asp, self.pD_asp, mode='scalar')
                 new_step_size = self.gd.comm.sum_scalar(new_step_size)**0.5
-                scale_factor = new_step_size / step_size
+                scale_factor = 1 # new_step_size / step_size
                 A0 *= np.clip(scale_factor, 0.5, 1)
                 A0 = np.clip(A0, 0.03, 0.3)
                 self.A0 = A0
@@ -519,15 +543,15 @@ class MSR1Mixer(BaseMixer):
             self.pD_asp = []
             for a1, D_sp in enumerate(D_asp):
                 D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1] # * scale_factor
-                self.uD_asp.append(D_sp.copy())
+                self.uD_asp.append(dD_iasp[-1][a1].copy())
                 self.pD_asp.append(np.zeros_like(D_sp))
 
             for i1, (alpha, beta) in enumerate(zip(alpha_i, beta_i)):
                 for a1, D_sp in enumerate(D_asp):
                     D_sp -= A0 * alpha * yD_iasp[i1][a1] # * scale_factor
                     D_sp += B0 * beta * sD_iasp[i1][a1]
-                    self.uD_asp[a1] -= A0 * alpha * yD_iasp[i1][a1] # * scale_facor
-                    self.pD_asp[a1] += B0 * beta * sD_iasp[i1][a1]
+                    self.uD_asp[a1] -= alpha * yD_iasp[i1][a1] # * scale_facor
+                    self.pD_asp[a1] += beta * sD_iasp[i1][a1]
 
             # Sync the density, because apparantly they cant agree...
             if self.world:
@@ -548,7 +572,7 @@ class MSR1Mixer(BaseMixer):
             self.pD_asp = []
             for a1, D_sp in enumerate(D_asp):
                 D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1]
-                self.uD_asp.append(D_sp.copy())
+                self.uD_asp.append(dD_iasp[-1][a1].copy())
                 self.pD_asp.append(np.zeros_like(D_sp))
 
         # Store new input density (and new atomic density matrices):
