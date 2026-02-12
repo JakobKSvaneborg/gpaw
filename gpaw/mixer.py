@@ -405,7 +405,7 @@ class MSR1Mixer(BaseMixer):
             B3_i = self.dotprod([self.R_isG[-2] - self.uk_sG, ], y_isG, [uRnoD_asp, ], yD_iasp, self.gd.comm, mode='gemm')[0, :]
 
             dampen = 1.0
-            A2 = A3_i @ B_ii @ A2_i * dampen * 2
+            A2 = A3_i @ B_ii @ A2_i * dampen
             B2 = B3_i @ B_ii @ B2_i * dampen
 
             if iold != 2:
@@ -420,7 +420,7 @@ class MSR1Mixer(BaseMixer):
             A0_ratio = (self.A0 + np.clip(
                 np.abs(A1 / A2),
                 0.03,
-                0.2
+                0.5
                 )
             ) / (2 * self.A0)
             self.A0 *= np.clip(A0_ratio, 0.67, 1.5 if not backtracked else 1.0)
@@ -570,8 +570,9 @@ class MSR1Mixer(BaseMixer):
 
 
 class ExperimentalDotProd:
-    def __init__(self, setups):
+    def __init__(self, setups, atomdist):
         self.setups = setups
+        self.atomdist = atomdist
 
     def __call__(self, R1_isG, R2_isG, dD1_iasp, dD2_iasp, comm, mode='scalar'):
         from gpaw.utilities import unpack_hermitian
@@ -595,12 +596,16 @@ class ExperimentalDotProd:
                 np.reshape(R1_isG, (len(R1_isG), -1)),
                 np.reshape(R2_isG, (len(R2_isG), -1))
             )
-        comm.sum(prod)
 
-        for a, setup in enumerate(setups):
-            I4_pp = setups[a].four_phi_integrals()
-            I4_pp = unpack_hermitian(I4_pp).reshape(-1, setups[a].ni**2).T.copy()
-            I4_pp = unpack_hermitian(I4_pp).reshape(setups[a].ni**2, setups[a].ni**2).T
+        # We will have to make some strong assumptions about us owning certain atoms...
+        # Oh well
+        assert self.atomdist.comm == comm
+        my_atoms_inds = np.where(self.atomdist.rank_a == comm.rank)[0]
+        for a in range(sum(my_atoms_inds)):
+            setup = setups[my_atoms_inds[a]]
+            I4_pp = setup.four_phi_integrals()
+            I4_pp = unpack_hermitian(I4_pp).reshape(-1, setup.ni**2).T.copy()
+            I4_pp = unpack_hermitian(I4_pp).reshape(setup.ni**2, setup.ni**2).T
 
             if mode == 'gemm':
                 for i1, dD1_asp in enumerate(dD1_iasp):
@@ -613,6 +618,8 @@ class ExperimentalDotProd:
                 for i, (dD1_asp, dD2_asp) in enumerate(zip(dD1_iasp, dD2_iasp)):
                     for dD1_p, dD2_p in zip(dD1_asp[a], dD2_asp[a]):
                         prod[i] += dD1_p @ I4_pp @ dD2_p
+
+        comm.sum(prod)
         return prod[0] if mode == 'scalar' else prod
 
 
