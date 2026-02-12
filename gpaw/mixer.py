@@ -267,7 +267,7 @@ class MSR1Mixer(BaseMixer):
             self.gd.comm.sum(ntnorm_i)
             ntnorm_i = np.expand_dims(1 / ntnorm_i, axis=tuple(np.arange(1, np.array(nt_isG).ndim)))
 
-            trust_factor = 1.4 # Account for the error introduced by the imperfections of the universe... or maybe just mixer.py
+            trust_factor = 1.6 # Account for the error introduced by the imperfections of the universe... or maybe just mixer.py
 
             # 2nd order norm
             # ntnorm_i = np.vecdot(np.array(nt_isG).reshape(iold, -1),
@@ -300,7 +300,7 @@ class MSR1Mixer(BaseMixer):
             YS_LIM = y_isG.reshape((iold - 1, -1)) @ ts_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YS_LIM)
             YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
-            max_gb = np.clip(YY_LIM / YS_LIM, 1, 5)  # Take care
+            max_gb = np.clip(YY_LIM / YS_LIM, 1, 3)  # Take care
             good_broydenness = 0.5 * max_gb
 
             # Choose max good_broydenness s.t. A_ii is positive definite
@@ -309,7 +309,7 @@ class MSR1Mixer(BaseMixer):
             t_norm = np.vecdot(ty_isG.reshape((iold - 1, -1)), y_isG.reshape((iold - 1, -1)))
             self.gd.comm.sum(t_norm)
             t_norm = 1 / np.sqrt(t_norm)
-            for iter in range(2, 9):
+            for iter in range(2, 7):
                 t_isG = (ty_isG + good_broydenness * ts_isG).reshape(
                     (iold - 1, -1)) * t_norm[:, None]
 
@@ -372,7 +372,7 @@ class MSR1Mixer(BaseMixer):
 
             # This parameter is surprisingly important for stability
             # 2e-4 seems to work well for most systems
-            weight = 1e-4
+            weight = 2e-5
 
             ### SVD Regularization:
             S, V, D = np.linalg.svd(A_ii)
@@ -436,7 +436,7 @@ class MSR1Mixer(BaseMixer):
             A0_ratio = (self.A0 + np.clip(
                 np.abs(A1 / A2),
                 0.035,
-                self.beta + (max(self.beta, 0.4) - self.beta) #  * min(1, (iold + 1) / self.nmaxold)
+                0.3  # self.beta + (max(self.beta, 0.3) - self.beta) #  * min(1, (iold + 1) / self.nmaxold)
                 )
             ) / (2 * self.A0)
             self.A0 *= np.clip(A0_ratio, 0.67, 1.5 if not backtracked else 1.0)
