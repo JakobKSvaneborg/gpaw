@@ -300,7 +300,7 @@ class MSR1Mixer(BaseMixer):
             YS_LIM = y_isG.reshape((iold - 1, -1)) @ ts_isG.reshape((iold - 1, -1)).T
             self.gd.comm.sum(YS_LIM)
             YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
-            max_gb = np.clip(YY_LIM / YS_LIM, 1, 25)  # Take care
+            max_gb = np.clip(YY_LIM / YS_LIM, 1, 5)  # Take care
             good_broydenness = 0.5 * max_gb
 
             # Choose max good_broydenness s.t. A_ii is positive definite
@@ -334,9 +334,9 @@ class MSR1Mixer(BaseMixer):
             # good_broydenness *= 1 / trust_factor
 
             # Do not good broyden when density is crap
-            crabiness_mult = 4e-2 / (dNt * ntnorm_i.ravel()[-1])
+            # crabiness_mult = 4e-2 / (dNt * ntnorm_i.ravel()[-1])
             # print('crab_factor: ', min(0.9, crabiness_mult))
-            good_broydenness *= min(1 / trust_factor, crabiness_mult)
+            # good_broydenness *= min(1 / trust_factor, crabiness_mult)
             print('good_broydenness: ', good_broydenness)
             t_isG = ty_isG + good_broydenness * ts_isG
             A_ii = t_isG.reshape((iold - 1, -1)) @ y_isG.reshape((iold - 1, -1)).T
@@ -471,7 +471,7 @@ class MSR1Mixer(BaseMixer):
             beta_i = alpha_i.copy()
             scale_factor = 1
 
-            if step_size >= self.trust_radius * 1.01:
+            if step_size > self.trust_radius * 1.01:
                 # Time to mix the mixing...
                 # print('XXXX: Performing trust region control!!!')
                 # print(f'XXXX {step_size} > {self.trust_radius}')
@@ -494,7 +494,7 @@ class MSR1Mixer(BaseMixer):
                     return beta_i @ s_ii @ beta_i - self.trust_radius**2
 
                 from scipy.optimize import root_scalar
-                lamb = root_scalar(err_fct, bracket=[-15, 15])
+                lamb = root_scalar(err_fct, bracket=[-20, 20])
                 beta_i = np.linalg.solve(
                     A2_ii + np.exp(lamb.root) * np.eye(iold - 1), BR_i
                 )
