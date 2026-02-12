@@ -37,7 +37,7 @@ def test_changes():
         dft.change(xc='LDA')
 
     dft.change(xc=xc, eigensolver='davidson',
-               occupations=occ_fixed, convergence={'energy': 1e-3})
+               occupations=occ_fixed, convergence={'energy': 1e-5})
 
     ase_calc = dft.ase_calculator()
     etot_xc = ase_calc.get_potential_energy(atoms)
