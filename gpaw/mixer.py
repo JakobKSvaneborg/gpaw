@@ -601,8 +601,8 @@ class ExperimentalDotProd:
         # Oh well
         assert self.atomdist.comm == comm
         my_atoms_inds = np.where(self.atomdist.rank_a == comm.rank)[0]
-        for a in range(sum(my_atoms_inds)):
-            setup = setups[my_atoms_inds[a]]
+        for a, a_s in enumerate(my_atoms_inds):
+            setup = setups[a_s]
             I4_pp = setup.four_phi_integrals()
             I4_pp = unpack_hermitian(I4_pp).reshape(-1, setup.ni**2).T.copy()
             I4_pp = unpack_hermitian(I4_pp).reshape(setup.ni**2, setup.ni**2).T
