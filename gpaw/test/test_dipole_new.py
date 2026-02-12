@@ -22,10 +22,8 @@ def test_ug_moment(mpi):
 
 
 def test_dipole(gpw_files, mpi):
-    # dtest_v = [1.23454721e-02, -7.59770329e-15, -5.25731753e-15]
-    # calc = mpi.GPAW(gpw_files['co_lcao'])
-    dtest_v = [3.45746684, -1.99616946, 0]
-    calc = mpi.GPAW(gpw_files['mos2_pw_nosym'])
+    dtest_v = [1.23454721e-02, -7.59770329e-15, -5.25731753e-15]
+    calc = mpi.GPAW(gpw_files['co_lcao'])
     d_v = calc.get_atoms().get_dipole_moment()
     print(d_v)
     assert d_v == pytest.approx(dtest_v, abs=1e-5)

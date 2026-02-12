@@ -275,9 +275,6 @@ class IBZWaveFunctions(Generic[WFT]):
             if krank == 0:
                 return wfs2
             if wfs2 is not None:
-                # gather projections
-                # P_ani = wfs2.P_ani.to_cpu().gather()  # gather atoms
-                # wfs2._P_ani = P_ani
                 wfs2.send(0, self.kpt_comm)
             return
         if self.comm.rank == 0:
@@ -295,8 +292,7 @@ class IBZWaveFunctions(Generic[WFT]):
         for k in range(len(ibz)):
             for spin in range(nspins):
                 wfs = self.get_wfs_on_master(kpt=k, spin=spin)
-                if wfs is not None:
-                    wfs_u.append(wfs)
+                wfs_u.append(wfs)
 
         return ibz, ncomponents, wfs_u
 
