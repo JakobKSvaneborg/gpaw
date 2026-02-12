@@ -292,7 +292,6 @@ class MSR1Mixer(BaseMixer):
                 sD_iasp.append(sD_asp)
                 yD_iasp.append(yD_asp)
             ###
-            # Dont
             ts_isG = (nt_isG[:-1] * ntnorm_i[:-1] - nt_isG[-1] * ntnorm_i[-1])
             ty_isG = -(R_isG[:-1] * ntnorm_i[:-1] - R_isG[-1] * ntnorm_i[-1])
             for ty_sG, ts_sG in zip(ty_isG, ts_isG):
@@ -398,6 +397,7 @@ class MSR1Mixer(BaseMixer):
                 self.R_isG[-2] - self.uk_sG,
                 uRnoD_asp, uRnoD_asp, self.gd.comm, mode='scalar')
 
+            # For Eq 18 from mixing for dumies:
             A2_i = self.dotprod(t_isG, [self.uk_sG, ], tD_iasp, [self.uD_asp, ], self.gd.comm, mode='gemm')[:, 0]
             A3_i = self.dotprod([self.uk_sG, ], y_isG, [self.uD_asp, ], yD_iasp, self.gd.comm, mode='gemm')[0, :]
 
@@ -410,7 +410,7 @@ class MSR1Mixer(BaseMixer):
 
             if iold != 2:
                 B0_ratio = (
-                    self.B0 + np.clip(np.abs(B1 / B2), 0.3, 1.1)
+                    self.B0 + np.clip(np.abs(B1 / B2), 0.3, 1.15)
                     ) / (2 * self.B0)
                 self.B0 *= np.clip(B0_ratio, 0.67,
                    1.5 if not backtracked else 1.0)
@@ -420,7 +420,7 @@ class MSR1Mixer(BaseMixer):
             A0_ratio = (self.A0 + np.clip(
                 np.abs(A1 / A2),
                 0.03,
-                0.5
+                0.25
                 )
             ) / (2 * self.A0)
             self.A0 *= np.clip(A0_ratio, 0.67, 1.5 if not backtracked else 1.0)
@@ -599,7 +599,7 @@ class ExperimentalDotProd:
 
         # We will have to make some strong assumptions about us owning certain atoms...
         # Oh well
-        assert self.atomdist.comm == comm
+        assert self.atomdist.comm.rank == comm.rank
         my_atoms_inds = np.where(self.atomdist.rank_a == comm.rank)[0]
         for a, a_s in enumerate(my_atoms_inds):
             setup = setups[a_s]
@@ -614,12 +614,16 @@ class ExperimentalDotProd:
                         dD2_sp = dD2_asp[a]
                         for dD1_p, dD2_p in zip(dD1_sp, dD2_sp):
                             prod[i1, i2] += dD1_p @ I4_pp @ dD2_p
+                            # prod[i1, i2] += (np.outer(dD1_p, dD2_p) * I4_pp).sum()
             elif mode == 'vecdot' or mode == 'scalar':
                 for i, (dD1_asp, dD2_asp) in enumerate(zip(dD1_iasp, dD2_iasp)):
                     for dD1_p, dD2_p in zip(dD1_asp[a], dD2_asp[a]):
                         prod[i] += dD1_p @ I4_pp @ dD2_p
+                        # prod[i] += (np.outer(dD1_p, dD2_p) * I4_pp).sum()
 
         comm.sum(prod)
+        if mode == 'scalar':
+            assert prod.size == 1
         return prod[0] if mode == 'scalar' else prod
 
 
