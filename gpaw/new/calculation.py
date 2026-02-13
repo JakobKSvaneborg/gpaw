@@ -174,7 +174,7 @@ class DFTCalculation:
             self.density.update(self.ibzwfs)
         self.potential.move(atomdist)
         self.scf_loop.hamiltonian.move(self.relpos_ac)
-        for basemixer in self.scf_loop.basemixers:
+        for basemixer in self.scf_loop.mixer.basemixers:
             basemixer.dotprod.atomdist = atomdist
 
         self.potential, self.energies, _ = self.pot_calc.calculate(

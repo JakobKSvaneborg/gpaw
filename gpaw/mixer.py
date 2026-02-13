@@ -466,7 +466,7 @@ class MSR1Mixer(BaseMixer):
             beta_i = alpha_i.copy()
             scale_factor = 1
 
-            if step_size > self.trust_radius * 1.01:
+            if step_size > self.trust_radius * 1.05:
                 # Time to mix the mixing...
                 print('XXXX: Performing trust region control!!!')
                 print(f'XXXX {step_size} > {self.trust_radius}')
