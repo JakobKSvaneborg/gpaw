@@ -248,7 +248,7 @@ class MSR1Mixer(BaseMixer):
             backtracked = False
             if dNt > self.last_dNt * self.min_imp:
                 dNt = self.last_dNt
-                insert_pos = -2
+                insert_pos = 0
                 tmp = nt_isG.pop()
                 nt_isG.insert(insert_pos, tmp)
                 tmp = R_isG.pop()
@@ -266,6 +266,7 @@ class MSR1Mixer(BaseMixer):
             self.gd.comm.sum(ntnorm_i)
             ntnorm_i = np.expand_dims(1 / ntnorm_i, axis=tuple(np.arange(1, np.array(nt_isG).ndim)))
             ntnorm_i[:] = 1
+            dampen = 1.15
 
             # 2nd order norm
             # ntnorm_i = np.vecdot(np.array(nt_isG).reshape(iold, -1),
@@ -339,6 +340,7 @@ class MSR1Mixer(BaseMixer):
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
             good_broydenness -= 2**(-iter) * max_gb
+            good_broydenness /= dampen
 
             # Don't increase good-broydeness too quickly:
             # good_broydenness = min(
@@ -364,7 +366,7 @@ class MSR1Mixer(BaseMixer):
 
             # This parameter is surprisingly important for stability
             # 2e-4 seems to work well for most systems
-            weight = 5e-6
+            weight = 1e-4
 
             ### SVD Regularization:
             S, V, D = np.linalg.svd(A_ii)
@@ -403,13 +405,12 @@ class MSR1Mixer(BaseMixer):
             B2_i = self.dotprod(t_isG, [self.pk_sG, ], tD_iasp, [self.pD_asp, ], self.gd, mode='gemm')[:, 0]
             B3_i = self.dotprod([self.R_isG[-2] - self.uk_sG, ], y_isG, [uRnoD_asp, ], yD_iasp, self.gd, mode='gemm')[0, :]
 
-            dampen = 1.0
             A2 = A3_i @ B_ii @ A2_i * dampen
             B2 = B3_i @ B_ii @ B2_i * dampen
 
             if iold != 2:
                 B0_ratio = (
-                    self.B0 + np.clip(np.abs(B1 / B2), 0.3, 1.15)
+                    self.B0 + np.clip(np.abs(B1 / B2) + 0.1, 0.3, 1.25)
                     ) / (2 * self.B0)
                 self.B0 *= np.clip(B0_ratio, 0.67,
                    1.5 if not backtracked else 1.0)
@@ -460,7 +461,7 @@ class MSR1Mixer(BaseMixer):
             self.uk_sG += R_sG
             step_sG = A0 * self.uk_sG + B0 * self.pk_sG
             step_size = B0**2 * self.dotprod(self.pk_sG, self.pk_sG,
-                self.pD_asp, self.pD_asp, self.gd, mode='scalar')
+                self.pD_asp, self.pD_asp, self.gd, mode='scalar')**0.5
 
             beta_i = alpha_i.copy()
             scale_factor = 1
