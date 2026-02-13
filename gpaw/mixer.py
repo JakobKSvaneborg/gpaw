@@ -211,7 +211,7 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = 2.0
+    min_imp = 3.0
 
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         nt_isG = self.nt_isG
@@ -232,7 +232,7 @@ class MSR1Mixer(BaseMixer):
                 dD_iasp[-1].append(D_sp - D_isp)
 
             while (iold > self.nmaxold and dNt <= self.last_dNt * self.min_imp) \
-                    or iold > self.nmaxold + 1:
+                    or iold > self.nmaxold + 2:
                 # Throw away too old stuff:
                 del nt_isG[0]
                 del R_isG[0]
@@ -366,7 +366,7 @@ class MSR1Mixer(BaseMixer):
 
             # This parameter is surprisingly important for stability
             # 2e-4 seems to work well for most systems
-            weight = 1e-4
+            weight = 5e-5
 
             ### SVD Regularization:
             S, V, D = np.linalg.svd(A_ii)
@@ -420,7 +420,7 @@ class MSR1Mixer(BaseMixer):
             A0_ratio = (self.A0 + np.clip(
                 np.abs(A1 / A2),
                 0.03,
-                0.4
+                0.6
                 )
             ) / (2 * self.A0)
             self.A0 *= np.clip(A0_ratio, 0.67, 1.5 if not backtracked else 1.0)
@@ -435,7 +435,7 @@ class MSR1Mixer(BaseMixer):
                 dstep_asp.append(A0 * uD_sp + B0 * pD_sp)
             trust_radius = self.dotprod(trust_step, trust_step, dstep_asp,
                dstep_asp, self.gd, mode='scalar')
-            trust_radius = dampen * trust_radius**0.5
+            trust_radius = (dampen * trust_radius)**0.5
             if self.trust_radius is not None:
                 trust_radius = (self.trust_radius + trust_radius) / 2
                 if backtracked:
@@ -460,13 +460,13 @@ class MSR1Mixer(BaseMixer):
 
             self.uk_sG += R_sG
             step_sG = A0 * self.uk_sG + B0 * self.pk_sG
-            step_size = B0**2 * self.dotprod(self.pk_sG, self.pk_sG,
+            step_size = B0 * self.dotprod(self.pk_sG, self.pk_sG,
                 self.pD_asp, self.pD_asp, self.gd, mode='scalar')**0.5
 
             beta_i = alpha_i.copy()
             scale_factor = 1
 
-            if step_size > self.trust_radius * 1.05:
+            if step_size > self.trust_radius * 1.01:
                 # Time to mix the mixing...
                 print('XXXX: Performing trust region control!!!')
                 print(f'XXXX {step_size} > {self.trust_radius}')
