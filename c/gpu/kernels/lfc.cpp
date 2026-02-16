@@ -340,7 +340,10 @@ PyObject * NewLFCObject_gpu(LFCObject *self, PyObject *args)
 
     int WMimax = 0;
     int *WMi_gpu = GPAW_MALLOC(int, self->nW);
-    int *volume_WMi_gpu = GPAW_MALLOC(int, self->nW * self->nW);
+    // Initialize this to 0 to avoid -Wmaybe-uninitialized in the complicated loop below
+    int *volume_WMi_gpu = (int*)calloc(self->nW * self->nW, sizeof(int));
+    assert(volume_WMi_gpu);
+    //int *volume_WMi_gpu = GPAW_MALLOC(int, self->nW * self->nW);
 
     self->Mcount = 0;
     for (int W=0; W < self->nW; W++) {
@@ -352,8 +355,7 @@ PyObject * NewLFCObject_gpu(LFCObject *self, PyObject *args)
 
         for (int W2=0; W2 <= W; W2++) {
             if (WMi_gpu[W2] > 0) {
-                LFVolume_gpu* v2
-                    = &volume_W_gpu[volume_WMi_gpu[W2 * self->nW]];
+                LFVolume_gpu* v2 = &volume_W_gpu[volume_WMi_gpu[W2 * self->nW]];
                 if (v2->M == M) {
                     volume_WMi_gpu[W2 * self->nW + WMi_gpu[W2]] = W;
                     WMi_gpu[W2]++;
