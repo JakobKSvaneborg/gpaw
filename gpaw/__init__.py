@@ -247,7 +247,12 @@ if TYPE_CHECKING:
 else:
     def GPAW(*args, legacy_gpaw=None, **kwargs):
         from gpaw.dft import GPAW as AnyGPAW
-        return AnyGPAW(*args, legacy_gpaw=legacy_gpaw, **kwargs)
+        # Sorry!  Will fix this confusing code soon:
+        if legacy_gpaw is None:
+            legacy_gpaw = True if GPAW_NEW == 0 else None
+        return AnyGPAW(*args,
+                       legacy_gpaw=legacy_gpaw,
+                       **kwargs)
 
 
 all_lazy_imports['get_calculation_info'] = 'gpaw.calcinfo.get_calculation_info'

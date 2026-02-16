@@ -996,13 +996,10 @@ def GPAW(
     # Sorry about the following mess, but it will become a lot simpler
     # in the future!
     params = None
-    # use_old_if_reading_fails = False
     if legacy_gpaw is None:
         if GPAW_NEW == 147:
             can, params = _can_use_new(filename, kwargs)
             legacy_gpaw = not can
-            # if not legacy_gpaw and filename:
-            #    use_old_if_reading_fails = True
         else:
             legacy_gpaw = False
 
@@ -1023,16 +1020,10 @@ def GPAW(
             raise ValueError(
                 'Illegal argument(s) when reading from a file: '
                 f'{", ".join(args)}')
-        try:
-            atoms, dft, params, _ = read_gpw(filename,
-                                             log=log,
-                                             parallel=parallel,
-                                             object_hooks=object_hooks)
-        except LegacyGPAWError:
-            if 0:  # use_old_if_reading_fails:
-                from gpaw.old.calculator import GPAW as OldGPAW
-                return OldGPAW(filename, txt=txt, communicator=communicator)
-            raise
+        atoms, dft, params, _ = read_gpw(filename,
+                                         log=log,
+                                         parallel=parallel,
+                                         object_hooks=object_hooks)
         return ASECalculator(params,
                              log=log, dft=dft, atoms=atoms)
 
@@ -1044,14 +1035,6 @@ def _can_use_new(filename, kwargs) -> tuple[bool, Parameters | None]:
     """Decide if the parameters are compatible with new-GPAW."""
     if filename is not None:
         return True, None
-        from ase.io.ulm import ulmopen
-        from gpaw.mpi import world, broadcast
-        version = None
-        if world.rank == 0:
-            with ulmopen(filename) as reader:
-                version = reader.version
-        version = broadcast(version, comm=world)
-        return version >= 4, None
 
     try:
         params = Parameters(**kwargs)
