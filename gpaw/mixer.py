@@ -211,7 +211,7 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = 3.0
+    min_imp = 2.0
 
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         nt_isG = self.nt_isG
@@ -265,8 +265,9 @@ class MSR1Mixer(BaseMixer):
             ntnorm_i = np.sum(np.abs(nt_isG).reshape(iold, -1), axis=(1, )) * self.gd.dv
             self.gd.comm.sum(ntnorm_i)
             ntnorm_i = np.expand_dims(1 / ntnorm_i, axis=tuple(np.arange(1, np.array(nt_isG).ndim)))
-            ntnorm_i[:] = 1
-            dampen = 1.15
+            dampen = 1.5
+            A = np.diag(np.reshape(nt_isG, (iold, -1)) @ np.reshape(nt_isG, (iold, -1)).T) * self.gd.dv
+            B = self.dotprod(nt_isG, nt_isG, D_iasp, D_iasp, self.gd, mode='vecdot')
 
             # 2nd order norm
             # ntnorm_i = np.vecdot(np.array(nt_isG).reshape(iold, -1),
@@ -281,6 +282,7 @@ class MSR1Mixer(BaseMixer):
             t_norm = np.sum(y_isG.reshape(iold - 1, -1)**2, axis=1)
             self.gd.comm.sum(t_norm)
             t_norm = 1 / np.sqrt(t_norm)
+            t_norm[:] = 1
             s_isG *= np.expand_dims(t_norm, axis=tuple(np.arange(1, s_isG.ndim)))
             y_isG *= np.expand_dims(t_norm, axis=tuple(np.arange(1, y_isG.ndim)))
 
@@ -313,13 +315,13 @@ class MSR1Mixer(BaseMixer):
             YY_LIM = np.linalg.norm(YY_LIM, ord='fro')
             YS_LIM = self.dotprod(y_isG, ts_isG, yD_iasp, sD_iasp, self.gd, mode='gemm')
             YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
-            max_gb = np.clip(YY_LIM / YS_LIM, 1, 25)  # Take care
+            max_gb = np.clip(YY_LIM / YS_LIM, 1, 10)  # Take care
             good_broydenness = 0.5 * max_gb
 
             # Choose max good_broydenness s.t. A_ii is positive definite
             # for good_broydenness in good_broydenness_range:
             # binary search 2**(-8) accuracy:
-            for iter in range(2, 8):
+            for iter in range(2, 12):
                 t_isG = ty_isG + good_broydenness * ts_isG
                 tD_iasp = []
                 for i in range(iold - 1):
@@ -340,7 +342,7 @@ class MSR1Mixer(BaseMixer):
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
             good_broydenness -= 2**(-iter) * max_gb
-            good_broydenness /= dampen
+            # good_broydenness /= dampen
 
             # Don't increase good-broydeness too quickly:
             # good_broydenness = min(
@@ -350,9 +352,9 @@ class MSR1Mixer(BaseMixer):
             # good_broydenness *= 1 / trust_factor
 
             # Do not good broyden when density is crap
-            # crabiness_mult = 4e-2 / (dNt * ntnorm_i.ravel()[-1])
-            # good_broydenness *= min(0.9, crabiness_mult)
-            print('good_broydenness: ', good_broydenness)
+            crabiness_mult = -np.log(2 * dNt * ntnorm_i.ravel()[-1]) / 8
+            good_broydenness *= min(1, crabiness_mult)
+            print('good_broydenness: ', good_broydenness, ', mult: ', crabiness_mult)
             t_isG = ty_isG + good_broydenness * ts_isG
             tD_iasp = []
             for i in range(iold - 1):
@@ -406,21 +408,21 @@ class MSR1Mixer(BaseMixer):
             B3_i = self.dotprod([self.R_isG[-2] - self.uk_sG, ], y_isG, [uRnoD_asp, ], yD_iasp, self.gd, mode='gemm')[0, :]
 
             A2 = A3_i @ B_ii @ A2_i * dampen
-            B2 = B3_i @ B_ii @ B2_i * dampen
+            B2 = B3_i @ B_ii @ B2_i
 
             if iold != 2:
                 B0_ratio = (
-                    self.B0 + np.clip(np.abs(B1 / B2) + 0.1, 0.3, 1.25)
+                    self.B0 + np.clip(np.abs(B1 / B2) + 0.1, 0.3, 1.2)
                     ) / (2 * self.B0)
                 self.B0 *= np.clip(B0_ratio, 0.67,
                    1.5 if not backtracked else 1.0)
             else:
                 self.B0 = 1
 
+            A0_lims = [0.025, 0.4]
             A0_ratio = (self.A0 + np.clip(
-                np.abs(A1 / A2),
-                0.03,
-                0.6
+                np.log(1 + np.abs(A1 / A2)),
+                *A0_lims
                 )
             ) / (2 * self.A0)
             self.A0 *= np.clip(A0_ratio, 0.67, 1.5 if not backtracked else 1.0)
@@ -435,7 +437,7 @@ class MSR1Mixer(BaseMixer):
                 dstep_asp.append(A0 * uD_sp + B0 * pD_sp)
             trust_radius = self.dotprod(trust_step, trust_step, dstep_asp,
                dstep_asp, self.gd, mode='scalar')
-            trust_radius = (dampen * trust_radius)**0.5
+            trust_radius = 1.25 * (dampen * trust_radius)**0.5
             if self.trust_radius is not None:
                 trust_radius = (self.trust_radius + trust_radius) / 2
                 if backtracked:
@@ -501,7 +503,7 @@ class MSR1Mixer(BaseMixer):
                 self.pk_sG[:] = 0
                 for pD_sp in self.pD_asp:
                     pD_sp[:] = 0
-                alpha_i[:] = beta_i
+                # alpha_i[:] = beta_i
 
                 for i1, (alpha, beta) in enumerate(zip(alpha_i, beta_i)):
                     self.uk_sG -= y_isG[i1] * alpha
@@ -514,8 +516,8 @@ class MSR1Mixer(BaseMixer):
                     self.pD_asp, self.pD_asp, self.gd, mode='scalar')
                 new_step_size = new_step_size**0.5
                 scale_factor = new_step_size / step_size
-                A0 *= np.clip(scale_factor, 0.5, 1)
-                A0 = np.clip(A0, 0.03, 0.3)
+                A0 *= np.clip(scale_factor, 0, 1)
+                A0 = np.clip(A0, *A0_lims)
                 self.A0 = A0
 
                 self.uk_sG += R_sG
@@ -575,7 +577,7 @@ class ExperimentalDotProd:
         self.atomdist = atomdist
 
     def __call__(self, R1_isG, R2_isG, dD1_iasp, dD2_iasp, gd, mode='scalar'):
-        from gpaw.utilities import unpack_hermitian, unpack_density
+        from gpaw.utilities import unpack_hermitian, unpack_density, pack_density
         setups = self.setups
         comm = gd.comm
 
@@ -604,8 +606,8 @@ class ExperimentalDotProd:
             setup = setups[a_s]
             ni = setup.ni
             I4_pp = setup.four_phi_integrals()
-            I4_pp = unpack_density(I4_pp).reshape(-1, ni**2).T.copy()
-            I4_pp = unpack_density(I4_pp).reshape(ni**2, ni**2)
+            # I4_pp = unpack_hermitian(I4_pp).reshape(-1, ni**2).T.copy()
+            # I4_pp = unpack_hermitian(I4_pp).reshape(ni**2, ni**2)
 
             if mode == 'gemm':
                 for i1, dD1_asp in enumerate(dD1_iasp):
@@ -613,12 +615,12 @@ class ExperimentalDotProd:
                     for i2, dD2_asp in enumerate(dD2_iasp):
                         dD2_sp = dD2_asp[a]
                         for dD1_p, dD2_p in zip(dD1_sp, dD2_sp):
-                            prod[i1, i2] += dD1_p @ I4_pp @ dD2_p
+                            prod[i1, i2] += pack_density(dD1_p.reshape(ni, ni)) @ I4_pp @ pack_density(dD2_p.reshape(ni, ni))
                             # prod[i1, i2] += (np.outer(dD1_p, dD2_p) * I4_pp).sum()
             elif mode == 'vecdot' or mode == 'scalar':
                 for i, (dD1_asp, dD2_asp) in enumerate(zip(dD1_iasp, dD2_iasp)):
                     for dD1_p, dD2_p in zip(dD1_asp[a], dD2_asp[a]):
-                        prod[i] += dD1_p @ I4_pp @ dD2_p
+                        prod[i] += pack_density(dD1_p.reshape(ni, ni)) @ I4_pp @ pack_density(dD2_p.reshape(ni, ni))
                         # prod[i] += (np.outer(dD1_p, dD2_p) * I4_pp).sum()
         comm.sum(prod)
         if mode == 'scalar':
