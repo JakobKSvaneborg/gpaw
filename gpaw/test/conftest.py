@@ -493,6 +493,10 @@ class MPIHelper:
         from gpaw import restart
         return restart(*args, communicator=self.comm, **kwargs)
 
+    def print(self, *args, **kwargs):
+        if self.comm.rank == 0:
+            print(*args, **kwargs)
+
 
 @pytest.fixture
 def mpi(comm):
