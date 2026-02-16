@@ -918,7 +918,8 @@ class WeightFunc:
         check = abs(dis) <= Rc
 
         # Make gaussian 3D Guassian
-        gauss = 1 / ((mu**3) * (2 * pi)**(3 / 2)) * np.exp(-dis**2 / (2.0 * mu**2))
+        gauss = 1 / ((mu**3) * (2 * pi)**(3 / 2)) * np.exp(
+            -dis**2 / (2.0 * mu**2))
 
         # apply cut-off and return
         return np.array(gauss * check)
