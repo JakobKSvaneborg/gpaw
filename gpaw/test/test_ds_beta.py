@@ -8,6 +8,7 @@ from gpaw.utilities.adjust_cell import adjust_cell
 
 
 def test_ds_beta(in_tmp_dir, mpi):
+    print = lambda *args, **kwargs: parprint(*args, **kwargs, comm=mpi.comm)
     ngauss = 2
 
     h = .3
@@ -29,7 +30,7 @@ def test_ds_beta(in_tmp_dir, mpi):
 
     for form, title in [('L', 'length form'),
                         ('V', 'velocity form')]:
-        parprint('--', title)
+        print('--', title)
         ds = []
         for analytic in [True, False]:
             if analytic:
@@ -43,16 +44,16 @@ def test_ds_beta(in_tmp_dir, mpi):
                                    r0=cm, ngauss=ngauss, form=form)
             if analytic:
                 ds.append(initial.get_ds(Ekin, form))
-                parprint('analytic 1s energy, beta, ds %5.3f' %
-                         (Ekin + Ha / 2.), end='')
-                parprint(f'{2:8.4f} {ds[-1]:12.5f}')
+                print('analytic 1s energy, beta, ds %5.3f' %
+                      (Ekin + Ha / 2.), end='')
+                print(f'{2:8.4f} {ds[-1]:12.5f}')
             ds.append(csb.get_ds(Ekin))
-            parprint('numeric  1s energy, beta, ds %5.3f' %
-                     (Ekin + Ha / 2.), end='')
-            parprint(f'{csb.get_beta(Ekin):8.4f} {ds[-1]:12.5f}')
-        parprint('error analytic GS:',
-                 int(100 * abs(ds[1] / ds[0] - 1.) + .5), '%')
+            print('numeric  1s energy, beta, ds %5.3f' %
+                  (Ekin + Ha / 2.), end='')
+            print(f'{csb.get_beta(Ekin):8.4f} {ds[-1]:12.5f}')
+        print('error analytic GS:',
+              int(100 * abs(ds[1] / ds[0] - 1.) + .5), '%')
         assert abs(ds[1] / ds[0] - 1.) < 0.31
-        parprint('error numeric GS:',
-                 int(100 * abs(ds[2] / ds[0] - 1.) + .5), '%')
+        print('error numeric GS:',
+              int(100 * abs(ds[2] / ds[0] - 1.) + .5), '%')
         assert abs(ds[2] / ds[0] - 1.) < 0.2
