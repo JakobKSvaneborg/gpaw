@@ -353,7 +353,7 @@ class MSR1Mixer(BaseMixer):
 
             # Do not good broyden when density is crap
             crabiness_mult = -np.log(2 * dNt * ntnorm_i.ravel()[-1]) / 8
-            good_broydenness *= min(1, crabiness_mult)
+            good_broydenness *= np.clip(crabiness_mult, 0.1, 1)
             print('good_broydenness: ', good_broydenness, ', mult: ', crabiness_mult)
             t_isG = ty_isG + good_broydenness * ts_isG
             tD_iasp = []
