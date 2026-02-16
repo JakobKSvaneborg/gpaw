@@ -146,8 +146,8 @@ def make_nlodata(calc: ASECalculator | str | Path,
         if not (isinstance(calc, str) or isinstance(calc, Path)):
             raise TypeError('Input must be a calculator or a string / path'
                             'pointing to a calculator.')
-        from gpaw.new.ase_interface import GPAW
-        calc = GPAW(calc, txt=None, parallel={'domain': 1, 'band': 1})
+        from gpaw.dft import GPAW
+        calc = GPAW(calc, legacy_gpaw=False, parallel={'domain': 1, 'band': 1})
     assert not calc.symmetry.point_group, \
         'Point group symmetry should be off.'
 

@@ -114,7 +114,7 @@ class RTTDDFT:
         elif isinstance(hamiltonian, PWHamiltonian):
             raise NotImplementedError('PW TDDFT is not implemented')
         else:
-            raise ValueError(f"I don\'t know {hamiltonian} "
+            raise ValueError(f"I don't know {hamiltonian} "
                              f'({type(hamiltonian)})')
 
         self.timer = nulltimer

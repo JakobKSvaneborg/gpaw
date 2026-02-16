@@ -71,7 +71,8 @@ def test_utilities_partitioning(in_tmp_dir):
     # calculate
     if 1:
         parprint('### fresh:')
-        calc = GPAW(mode='fd',
+        calc = GPAW(legacy_gpaw=True,
+                    mode='fd',
                     nbands=6,
                     h=h,
                     txt=None)
@@ -83,7 +84,7 @@ def test_utilities_partitioning(in_tmp_dir):
     # load previous calculation
     if 1:
         parprint('### reloaded:')
-        calc = GPAW(gpwname, txt=None)
+        calc = GPAW(gpwname, legacy_gpaw=True)
         mol = calc.get_atoms()
         run(lastres)
 
