@@ -319,6 +319,39 @@ build-minimal:
     - gpaw info
 
 
+build-cuda-minimal:
+  # Like build-minimal but with GPU. Only takes cudart, cublas libraries
+  image: $IMAGE_CUDA
+  extends:
+    - .build
+    - .gpu-job
+  script:
+    - |
+      if [ "$LANG" == "c++" ]; then
+        compiler="g++"
+        cpp_specific="use_cpp = True"
+      else
+        compiler="gcc"
+        cpp_specific=""
+      fi
+      cat << EOF > siteconfig.py
+      ${cpp_specific}
+      compiler = '${compiler}'
+      mpi = False
+      noblas = True
+      nolibxc = True
+
+      gpu = True
+      gpu_target = 'cuda'
+      gpu_compiler = 'nvcc'
+      gpu_compile_args = ['-O3']
+      libraries += ['cudart', 'cublas']
+      EOF
+    - cat siteconfig.py
+    - pip install --user --log build.log --editable . -v
+    - gpaw info
+
+
 build-lumi-g:
   extends:
     - .build
@@ -513,6 +546,23 @@ test-minimal:
     - gpaw info
     - >
       pytest -v -m ci -We
+
+
+test-cuda-minimal:
+  image: $IMAGE_CUDA
+  extends:
+    - .test
+    - .gpu-job
+  needs:
+    - job: build-cuda-minimal
+  tags:
+    - cuda
+  script:
+    - nvidia-smi
+    - gpaw info
+    - python -c 'import cupy; import cupyx; from cupy.cuda import runtime'
+    - pytest -v -m gpu
+
 
 test-cuda:
   image: $IMAGE_CUDA
