@@ -11,32 +11,10 @@ import os
 import numpy as np
 import pytest
 
-from ase.build import mx2
 from ase.units import Hartree
 
-from gpaw import GPAW, PW, FermiDirac
 
-
-def create_mos2_groundstate(filename, kpts=(3, 3, 1), ecut=200, nbands=20):
-    """Create a MoS2 monolayer groundstate calculation."""
-    structure = mx2(formula='MoS2', kind='2H', a=3.184, thickness=3.127,
-                    size=(1, 1, 1), vacuum=5.0)
-
-    calc = GPAW(mode=PW(ecut),
-                parallel={'domain': 1},
-                xc='LDA',
-                kpts={'size': kpts, 'gamma': True},
-                occupations=FermiDirac(0.01),
-                txt=filename.replace('.gpw', '.txt'))
-
-    structure.calc = calc
-    structure.get_potential_energy()
-    calc.diagonalize_full_hamiltonian(nbands=nbands)
-    calc.write(filename, 'all')
-    return filename
-
-
-def create_chi_building_block(gpwfile, chi_filename, ecut=10, q_max=0.5):
+def _create_chi_building_block(gpwfile, chi_filename, ecut=10, q_max=0.5):
     """Create a chi building block file for QEH calculations."""
     from gpaw.response.df import DielectricFunction
     from gpaw.response.qeh import QEHChiCalc
@@ -123,26 +101,23 @@ def test_gwqeh_interlayer_conversion():
 
 
 @pytest.fixture(scope='module')
-def mos2_gpw_and_chi(module_tmp_path):
-    """Shared fixture: MoS2 groundstate and chi building block.
+def mos2_chi(module_tmp_path, gpw_files):
+    """Create chi building block from the shared mos2_pw_fulldiag fixture.
 
-    Uses module scope to avoid recomputing the expensive DFT groundstate
-    and dielectric building block for each test.
+    The gpw file is reused from the session-scoped gpw_files cache.
+    The chi building block is computed once per test module.
     """
     pytest.importorskip('qeh')
-    gpwfile = str(module_tmp_path / 'MoS2.gpw')
     chi_file = str(module_tmp_path / 'MoS2-chi.npz')
-
-    create_mos2_groundstate(gpwfile, kpts=(3, 3, 1), ecut=200, nbands=20)
-    create_chi_building_block(gpwfile, chi_file, ecut=10, q_max=0.5)
-
-    return gpwfile, chi_file
+    _create_chi_building_block(gpw_files['mos2_pw_fulldiag'],
+                               chi_file, ecut=10, q_max=0.5)
+    return str(gpw_files['mos2_pw_fulldiag']), chi_file
 
 
 @pytest.mark.response
 @pytest.mark.serial
 @pytest.mark.slow
-def test_gwqeh_monolayer_qp_correction(mos2_gpw_and_chi):
+def test_gwqeh_monolayer_qp_correction(mos2_chi):
     """Test QP corrections for an isolated MoS2 monolayer.
 
     For an isolated monolayer (single building block, no neighbors),
@@ -151,7 +126,7 @@ def test_gwqeh_monolayer_qp_correction(mos2_gpw_and_chi):
     """
     from gpaw.response.gwqeh import GWQEHCorrection
 
-    gpwfile, chi_file = mos2_gpw_and_chi
+    gpwfile, chi_file = mos2_chi
 
     # Isolated monolayer: structure has just one layer
     gwq = GWQEHCorrection(calc=gpwfile,
@@ -180,7 +155,7 @@ def test_gwqeh_monolayer_qp_correction(mos2_gpw_and_chi):
 @pytest.mark.response
 @pytest.mark.serial
 @pytest.mark.slow
-def test_gwqeh_bilayer_physical_signs(mos2_gpw_and_chi):
+def test_gwqeh_bilayer_physical_signs(mos2_chi):
     """Test that bilayer QP corrections have physically correct signs.
 
     In a bilayer, the additional screening from the neighboring layer
@@ -193,7 +168,7 @@ def test_gwqeh_bilayer_physical_signs(mos2_gpw_and_chi):
     """
     from gpaw.response.gwqeh import GWQEHCorrection
 
-    gpwfile, chi_file = mos2_gpw_and_chi
+    gpwfile, chi_file = mos2_chi
 
     # Bilayer MoS2 with typical interlayer distance
     gwq = GWQEHCorrection(calc=gpwfile,
@@ -232,7 +207,7 @@ def test_gwqeh_bilayer_physical_signs(mos2_gpw_and_chi):
 @pytest.mark.response
 @pytest.mark.serial
 @pytest.mark.slow
-def test_gwqeh_bilayer_vs_trilayer(mos2_gpw_and_chi):
+def test_gwqeh_bilayer_vs_trilayer(mos2_chi):
     """Test that more layers produce larger QP corrections.
 
     Adding more screening layers should increase |Delta W| and
@@ -241,7 +216,7 @@ def test_gwqeh_bilayer_vs_trilayer(mos2_gpw_and_chi):
     """
     from gpaw.response.gwqeh import GWQEHCorrection
 
-    gpwfile, chi_file = mos2_gpw_and_chi
+    gpwfile, chi_file = mos2_chi
 
     # Bilayer
     gwq_bi = GWQEHCorrection(calc=gpwfile,
@@ -281,11 +256,11 @@ def test_gwqeh_bilayer_vs_trilayer(mos2_gpw_and_chi):
 @pytest.mark.response
 @pytest.mark.serial
 @pytest.mark.slow
-def test_gwqeh_state_file(mos2_gpw_and_chi):
+def test_gwqeh_state_file(mos2_chi):
     """Test saving and loading state files for restart capability."""
     from gpaw.response.gwqeh import GWQEHCorrection
 
-    gpwfile, chi_file = mos2_gpw_and_chi
+    gpwfile, chi_file = mos2_chi
 
     gwq = GWQEHCorrection(calc=gpwfile,
                           filename='gwqeh_restart',
