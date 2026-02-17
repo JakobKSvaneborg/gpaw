@@ -320,7 +320,9 @@ build-minimal:
 
 
 build-cuda-minimal:
-  # Like build-minimal but with GPU. Only takes cudart, cublas libraries
+  # Like build-minimal but with GPU. Only includes cudart, cublas libraries.
+  # FIXME: For now we also include MPI, because the GPU part does not compile
+  # without it! Too many direct MPI calls hardcoded in eg. gpu/bc.c.
   image: $IMAGE_CUDA
   extends:
     - .build
@@ -328,16 +330,16 @@ build-cuda-minimal:
   script:
     - |
       if [ "$LANG" == "c++" ]; then
-        compiler="g++"
+        compiler="mpic++"
         cpp_specific="use_cpp = True"
       else
-        compiler="gcc"
+        compiler="mpicc"
         cpp_specific=""
       fi
       cat << EOF > siteconfig.py
       ${cpp_specific}
       compiler = '${compiler}'
-      mpi = False
+      mpi = True
       noblas = True
       nolibxc = True
 
