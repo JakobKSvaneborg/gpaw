@@ -16,7 +16,6 @@ from gpaw.directmin.etdm_lcao import LCAOETDM
 from gpaw.directmin.tools import excite
 from gpaw.mom import prepare_mom_calculation
 from gpaw.mpi import serial_comm, world
-from gpaw.new.ase_interface import GPAW as GPAWNew
 from gpaw.poisson import FDPoissonSolver, PoissonSolver
 from gpaw.test.cachedfilehandler import CachedFilesHandler
 
@@ -82,8 +81,9 @@ def gpwfile(meth):
 class GPWFiles(CachedFilesHandler):
     """Create gpw-files."""
 
-    def __init__(self, folder: Path):
+    def __init__(self, folder: Path, comm):
         super().__init__(folder, '.gpw')
+        self.comm = comm
 
     def _calculate_and_write(self, name, work_path):
         calc = getattr(self, name)()
@@ -103,9 +103,10 @@ class GPWFiles(CachedFilesHandler):
 
     def bcc_li(self, mode):
         li = bulk('Li', 'bcc', 3.49)
-        li.calc = GPAW(mode=mode,
-                       kpts=(3, 3, 3),
-                       txt=self.folder / f'bcc_li_{mode["name"]}.txt')
+        li.calc = self.GPAW(
+            mode=mode,
+            kpts=(3, 3, 3),
+            txt=self.folder / f'bcc_li_{mode["name"]}.txt')
         li.get_potential_energy()
         return li.calc
 
@@ -113,8 +114,9 @@ class GPWFiles(CachedFilesHandler):
     def be_atom_fd(self):
         atoms = Atoms('Be', [(0, 0, 0)], pbc=False)
         atoms.center(vacuum=6)
-        calc = GPAW(mode='fd', h=0.35, symmetry={'point_group': False},
-                    txt=self.folder / 'be_atom_fd.txt')
+        calc = self.GPAW(
+            mode='fd', h=0.35, symmetry={'point_group': False},
+            txt=self.folder / 'be_atom_fd.txt')
         atoms.calc = calc
         atoms.get_potential_energy()
         return atoms.calc
@@ -144,20 +146,23 @@ class GPWFiles(CachedFilesHandler):
         magmoms = None if calc_type == 'col' else [mm * easy_axis]
         soc = True if calc_type == 'ncolsoc' else False
 
-        Ni.calc = GPAWNew(mode={'name': 'pw', 'ecut': 380},
-                          xc='LDA',
-                          nbands='200%',
-                          kpts={'size': (4, 4, 4), 'gamma': True},
-                          parallel={'domain': 1, 'band': 1},
-                          mixer={'beta': 0.5},
-                          symmetry=symmetry,
-                          occupations={'name': 'fermi-dirac', 'width': 0.05},
-                          convergence={'density': 1e-8,
-                                       'bands': 'CBM+10',
-                                       'eigenstates': 1e-12},
-                          magmoms=magmoms,
-                          soc=soc,
-                          txt=self.folder / f'fcc_Ni_{calc_type}.txt')
+        Ni.calc = GPAW(
+            legacy_gpaw=False,
+            mode={'name': 'pw', 'ecut': 380},
+            xc='LDA',
+            nbands='200%',
+            kpts={'size': (4, 4, 4), 'gamma': True},
+            parallel={'domain': 1, 'band': 1},
+            mixer={'beta': 0.5},
+            symmetry=symmetry,
+            occupations={'name': 'fermi-dirac', 'width': 0.05},
+            convergence={'density': 1e-8,
+                         'bands': 'CBM+10',
+                         'eigenstates': 1e-12},
+            magmoms=magmoms,
+            soc=soc,
+            communicator=self.comm,
+            txt=self.folder / f'fcc_Ni_{calc_type}.txt')
         Ni.get_potential_energy()
         return Ni.calc
 
@@ -173,11 +178,17 @@ class GPWFiles(CachedFilesHandler):
     def h2_lcao(self):
         return self.h2({'name': 'lcao'})
 
+    def GPAW(self, *args, communicator=None, **kwargs):
+        if communicator is None:
+            communicator = self.comm
+        return GPAW(*args, communicator=communicator, **kwargs)
+
     def h2(self, mode):
         h2 = Atoms('H2', positions=[[0, 0, 0], [0.74, 0, 0]])
         h2.center(vacuum=2.5)
-        h2.calc = GPAW(mode=mode,
-                       txt=self.folder / f'h2_{mode["name"]}.txt')
+        h2.calc = self.GPAW(
+            mode=mode,
+            txt=self.folder / f'h2_{mode["name"]}.txt')
         h2.get_potential_energy()
         return h2.calc
 
@@ -187,8 +198,9 @@ class GPWFiles(CachedFilesHandler):
                    positions=[[-0.37, 0, 0], [0.37, 0, 0]],
                    cell=[5.74, 5, 5],
                    pbc=True)
-        h2.calc = GPAW(mode={'name': 'pw', 'ecut': 200},
-                       txt=self.folder / 'h2_pw_0.txt')
+        h2.calc = self.GPAW(
+            mode={'name': 'pw', 'ecut': 200},
+            txt=self.folder / 'h2_pw_0.txt')
         h2.get_potential_energy()
         return h2.calc
 
@@ -198,12 +210,13 @@ class GPWFiles(CachedFilesHandler):
         atoms = bulk(name='H', crystalstructure='bcc', a=a, cubic=True)
         atoms.set_initial_magnetic_moments([1., -1.])
 
-        atoms.calc = GPAW(xc='LDA',
-                          txt=self.folder / 'h2_bcc_afm.txt',
-                          mode=PW(250),
-                          nbands=4,
-                          convergence={'bands': 4},
-                          kpts={'density': 2.0, 'gamma': True})
+        atoms.calc = self.GPAW(
+            xc='LDA',
+            txt=self.folder / 'h2_bcc_afm.txt',
+            mode=PW(250),
+            nbands=4,
+            convergence={'bands': 4},
+            kpts={'density': 2.0, 'gamma': True})
         atoms.get_potential_energy()
         return atoms.calc
 
@@ -219,18 +232,19 @@ class GPWFiles(CachedFilesHandler):
                         [1.24409838, 0.93244792, 0.00000112]])
         atm.center(vacuum=4.0)
         atm.set_pbc(False)
-        atm.calc = GPAW(_use_old_gpaw=True,
-                        mode=FD(),
-                        h=0.3,
-                        xc='PBE',
-                        occupations={'name': 'fixed-uniform'},
-                        eigensolver={'name': 'etdm-fdpw',
-                                     'converge_unocc': True},
-                        mixer={'backend': 'no-mixing'},
-                        spinpol=True,
-                        symmetry='off',
-                        nbands=-5,
-                        convergence={'eigenstates': 4.0e-6})
+        atm.calc = self.GPAW(
+            legacy_gpaw=True,
+            mode=FD(),
+            h=0.3,
+            xc='PBE',
+            occupations={'name': 'fixed-uniform'},
+            eigensolver={'name': 'etdm-fdpw',
+                         'converge_unocc': True},
+            mixer={'backend': 'no-mixing'},
+            spinpol=True,
+            symmetry='off',
+            nbands=-5,
+            convergence={'eigenstates': 4.0e-6})
         atm.get_potential_energy()
         return atm.calc
 
@@ -247,8 +261,8 @@ class GPWFiles(CachedFilesHandler):
                 [1.24409838, 0.93244792, 0.00000112]])
         atm.center(vacuum=4.0)
         atm.set_pbc(False)
-        atm.calc = GPAW(
-            _use_old_gpaw=True,
+        atm.calc = self.GPAW(
+            legacy_gpaw=True,
             mode=PW(300, force_complex_dtype=True),
             xc='PBE',
             occupations={'name': 'fixed-uniform'},
@@ -273,19 +287,20 @@ class GPWFiles(CachedFilesHandler):
     @gpwfile
     def h3_do_num_pw_complex(self):
         atoms = self.h3_maker()
-        calc = GPAW(mode=PW(300, force_complex_dtype=True),
-                    basis='sz(dzp)',
-                    h=0.3,
-                    spinpol=False,
-                    convergence={'energy': np.inf,
-                                 'eigenstates': np.inf,
-                                 'density': np.inf,
-                                 'minimum iterations': 1},
-                    eigensolver=FDPWETDM(converge_unocc=True),
-                    occupations={'name': 'fixed-uniform'},
-                    mixer={'backend': 'no-mixing'},
-                    nbands='nao',
-                    symmetry='off')
+        calc = self.GPAW(
+            mode=PW(300, force_complex_dtype=True),
+            basis='sz(dzp)',
+            h=0.3,
+            spinpol=False,
+            convergence={'energy': np.inf,
+                         'eigenstates': np.inf,
+                         'density': np.inf,
+                         'minimum iterations': 1},
+            eigensolver=FDPWETDM(converge_unocc=True),
+            occupations={'name': 'fixed-uniform'},
+            mixer={'backend': 'no-mixing'},
+            nbands='nao',
+            symmetry='off')
         atoms.calc = calc
         atoms.get_potential_energy()
         return atoms.calc
@@ -293,19 +308,20 @@ class GPWFiles(CachedFilesHandler):
     @gpwfile
     def h3_do_num_pw(self):
         atoms = self.h3_maker()
-        calc = GPAW(mode=PW(300, force_complex_dtype=False),
-                    basis='sz(dzp)',
-                    h=0.3,
-                    spinpol=False,
-                    convergence={'energy': np.inf,
-                                 'eigenstates': np.inf,
-                                 'density': np.inf,
-                                 'minimum iterations': 1},
-                    eigensolver=FDPWETDM(converge_unocc=True),
-                    occupations={'name': 'fixed-uniform'},
-                    mixer={'backend': 'no-mixing'},
-                    nbands='nao',
-                    symmetry='off')
+        calc = self.GPAW(
+            mode=PW(300, force_complex_dtype=False),
+            basis='sz(dzp)',
+            h=0.3,
+            spinpol=False,
+            convergence={'energy': np.inf,
+                         'eigenstates': np.inf,
+                         'density': np.inf,
+                         'minimum iterations': 1},
+            eigensolver=FDPWETDM(converge_unocc=True),
+            occupations={'name': 'fixed-uniform'},
+            mixer={'backend': 'no-mixing'},
+            nbands='nao',
+            symmetry='off')
         atoms.calc = calc
         atoms.get_potential_energy()
         return atoms.calc
@@ -314,17 +330,18 @@ class GPWFiles(CachedFilesHandler):
     def h3_do_sd_lcao(self):
         atoms = self.h3_maker(pbc=False)
         atoms.set_initial_magnetic_moments([1, 0, 0])
-        calc = GPAW(mode='lcao',
-                    h=0.3,
-                    spinpol=True,
-                    convergence={'energy': 0.1,
-                                 'eigenstates': 1e-4,
-                                 'density': 1e-4},
-                    eigensolver={'name': 'etdm-lcao'},
-                    occupations={'name': 'fixed-uniform'},
-                    mixer={'backend': 'no-mixing'},
-                    nbands='nao',
-                    symmetry='off')
+        calc = self.GPAW(
+            mode='lcao',
+            h=0.3,
+            spinpol=True,
+            convergence={'energy': 0.1,
+                         'eigenstates': 1e-4,
+                         'density': 1e-4},
+            eigensolver={'name': 'etdm-lcao'},
+            occupations={'name': 'fixed-uniform'},
+            mixer={'backend': 'no-mixing'},
+            nbands='nao',
+            symmetry='off')
         atoms.calc = calc
         atoms.get_potential_energy()
         return atoms.calc
@@ -332,20 +349,21 @@ class GPWFiles(CachedFilesHandler):
     @gpwfile
     def h3_do_num_lcao(self):
         atm = self.h3_maker()
-        atm.calc = GPAW(mode=LCAO(force_complex_dtype=True),
-                        basis='sz(dzp)',
-                        h=0.3,
-                        spinpol=False,
-                        convergence={'eigenstates': 10.0,
-                                     'density': 10.0,
-                                     'energy': 10.0},
-                        occupations={'name': 'fixed-uniform'},
-                        eigensolver={'name': 'etdm-lcao',
-                                     'matrix_exp': 'egdecomp'},
-                        mixer={'backend': 'no-mixing'},
-                        nbands='nao',
-                        symmetry='off',
-                        txt=None)
+        atm.calc = self.GPAW(
+            mode=LCAO(force_complex_dtype=True),
+            basis='sz(dzp)',
+            h=0.3,
+            spinpol=False,
+            convergence={'eigenstates': 10.0,
+                         'density': 10.0,
+                         'energy': 10.0},
+            occupations={'name': 'fixed-uniform'},
+            eigensolver={'name': 'etdm-lcao',
+                         'matrix_exp': 'egdecomp'},
+            mixer={'backend': 'no-mixing'},
+            nbands='nao',
+            symmetry='off',
+            txt=None)
         atm.get_potential_energy()
         return atm.calc
 
@@ -362,7 +380,7 @@ class GPWFiles(CachedFilesHandler):
     @gpwfile
     def h2o_do_gmf_lcao(self):
         atm = self.h2o_maker(vacuum=4.0)
-        atm.calc = GPAW(
+        atm.calc = self.GPAW(
             mode=LCAO(),
             basis='dzp',
             h=0.22,
@@ -380,7 +398,7 @@ class GPWFiles(CachedFilesHandler):
     @gpwfile
     def h2o_do_lcao(self):
         atm = self.h2o_maker(vacuum=5.0)
-        atm.calc = GPAW(
+        atm.calc = self.GPAW(
             mode=LCAO(),
             basis='dzp',
             occupations={'name': 'fixed-uniform'},
@@ -395,7 +413,7 @@ class GPWFiles(CachedFilesHandler):
     @gpwfile
     def h2o_cdo_lcao(self):
         atm = self.h2o_maker(vacuum=4.0)
-        atm.calc = GPAW(
+        atm.calc = self.GPAW(
             mode=LCAO(),
             basis='dzp',
             h=0.22,
@@ -413,7 +431,7 @@ class GPWFiles(CachedFilesHandler):
     @gpwfile
     def h2o_cdo_lcao_sic(self):
         atm = self.h2o_maker(vacuum=4.0)
-        atm.calc = GPAW(
+        atm.calc = self.GPAW(
             mode=LCAO(force_complex_dtype=True),
             h=0.22,
             occupations={'name': 'fixed-uniform'},
@@ -437,7 +455,7 @@ class GPWFiles(CachedFilesHandler):
         atm = self.h2o_maker(vacuum=4.0,
                              t=np.pi / 180 * (104.51 + 2.0),
                              eps=0.02)
-        atm.calc = GPAW(
+        atm.calc = self.GPAW(
             mode=FD(force_complex_dtype=True),
             h=0.25,
             occupations={'name': 'fixed-uniform'},
@@ -460,7 +478,7 @@ class GPWFiles(CachedFilesHandler):
     @gpwfile
     def h2o_lcaosic(self):
         atm = self.h2o_maker(vacuum=4.0)
-        atm.calc = GPAW(
+        atm.calc = self.GPAW(
             mode=LCAO(force_complex_dtype=True),
             h=0.22,
             occupations={'name': 'fixed-uniform'},
@@ -480,7 +498,7 @@ class GPWFiles(CachedFilesHandler):
     @gpwfile
     def h2o_mom_lcaosic(self):
         atm = self.h2o_maker(vacuum=3.0)
-        calc = GPAW(
+        calc = self.GPAW(
             mode=LCAO(force_complex_dtype=True),
             h=0.24,
             basis='sz(dzp)',
@@ -514,7 +532,7 @@ class GPWFiles(CachedFilesHandler):
     @gpwfile
     def h2o_gmf_lcaosic(self):
         atm = self.h2o_maker(vacuum=3.0)
-        calc = GPAW(
+        calc = self.GPAW(
             mode=LCAO(),
             basis='sz(dzp)',
             h=0.24,
@@ -563,7 +581,7 @@ class GPWFiles(CachedFilesHandler):
     @gpwfile
     def h2o_mom_pwsic(self):
         atm = self.h2o_maker(vacuum=3.0)
-        calc = GPAW(
+        calc = self.GPAW(
             mode=PW(300, force_complex_dtype=True),
             spinpol=True,
             symmetry='off',
@@ -600,7 +618,7 @@ class GPWFiles(CachedFilesHandler):
         atm = self.h2o_maker(vacuum=4.0,
                              t=np.pi / 180 * (104.51 + 2.0),
                              eps=0.02)
-        atm.calc = GPAW(
+        atm.calc = self.GPAW(
             mode=PW(300, force_complex_dtype=True),
             occupations={'name': 'fixed-uniform'},
             eigensolver=FDPWETDM(
@@ -622,8 +640,8 @@ class GPWFiles(CachedFilesHandler):
     @gpwfile
     def h2o_mom_do_pw(self):
         atm = self.h2o_maker(vacuum=4.0)
-        calc = GPAW(
-            _use_old_gpaw=True,
+        calc = self.GPAW(
+            legacy_gpaw=True,
             mode=PW(300),
             spinpol=True,
             symmetry='off',
@@ -648,7 +666,7 @@ class GPWFiles(CachedFilesHandler):
         )
         atoms.set_cell([L, L, L])
         atoms.set_pbc(True)
-        calc = GPAW(
+        calc = self.GPAW(
             mode='lcao',
             basis='dzp',
             h=0.22,
@@ -668,7 +686,7 @@ class GPWFiles(CachedFilesHandler):
     @gpwfile
     def h2o_mom_do_lcao(self):
         atm = self.h2o_maker(vacuum=4.0)
-        atm.calc = GPAW(
+        atm.calc = self.GPAW(
             mode=LCAO(),
             basis='dzp',
             h=0.22,
@@ -733,7 +751,7 @@ class GPWFiles(CachedFilesHandler):
             searchdir_algo={'name': 'l-sr1p'},
             linesearch_algo={'name': 'max-step'}
         )
-        calc = GPAW(
+        calc = self.GPAW(
             mode='lcao',
             basis='dzp',
             h=0.24,
@@ -756,7 +774,7 @@ class GPWFiles(CachedFilesHandler):
 
         atoms.center(vacuum=2.0)
         atoms.set_pbc(False)
-        calc = GPAW(
+        calc = self.GPAW(
             mode='lcao',
             basis='sz(dzp)',
             h=0.3,
@@ -783,11 +801,12 @@ class GPWFiles(CachedFilesHandler):
         a = 6.0
         atm = Atoms('H2', positions=[(0, 0, 0), (0, 0, 0.737)], cell=(a, a, a))
         atm.center()
-        calc = GPAW(_use_old_gpaw=True,
-                    mode='fd',
-                    xc='LDA-PZ-SIC',
-                    eigensolver='rmm-diis',
-                    setups='hgh')
+        calc = self.GPAW(
+            legacy_gpaw=True,
+            mode='fd',
+            xc='LDA-PZ-SIC',
+            eigensolver='rmm-diis',
+            setups='hgh')
         atm.calc = calc
         atm.get_potential_energy()
         return atm.calc
@@ -797,18 +816,19 @@ class GPWFiles(CachedFilesHandler):
         a = 6.0
         atm = Atoms('H', magmoms=[1.0], cell=(a, a, a))
         atm.center()
-        calc = GPAW(_use_old_gpaw=True,
-                    mode='fd',
-                    xc='LDA-PZ-SIC',
-                    eigensolver='rmm-diis',
-                    setups='hgh')
+        calc = self.GPAW(
+            legacy_gpaw=True,
+            mode='fd',
+            xc='LDA-PZ-SIC',
+            eigensolver='rmm-diis',
+            setups='hgh')
         atm.calc = calc
         atm.get_potential_energy()
         return atm.calc
 
     @gpwfile
     def h_hess_num_pw(self):
-        calc = GPAW(
+        calc = self.GPAW(
             xc='PBE',
             mode=PW(300, force_complex_dtype=False),
             h=0.25,
@@ -837,36 +857,37 @@ class GPWFiles(CachedFilesHandler):
         atoms = Atoms('H2', positions=[(0, 0, 0), (0, 0, 2.0)])
         atoms.center(vacuum=2.0)
         atoms.set_pbc(False)
-        calc = GPAW(xc='PBE',
-                    mode='lcao',
-                    h=0.24,
-                    basis='sz(dzp)',
-                    spinpol=True,
-                    eigensolver='etdm-lcao',
-                    convergence={'density': 1.0e-2,
-                                 'eigenstates': 1.0e-2},
-                    occupations={'name': 'fixed-uniform'},
-                    mixer={'backend': 'no-mixing'},
-                    nbands='nao',
-                    symmetry='off')
+        calc = self.GPAW(
+            xc='PBE',
+            mode='lcao',
+            h=0.24,
+            basis='sz(dzp)',
+            spinpol=True,
+            eigensolver='etdm-lcao',
+            convergence={'density': 1.0e-2,
+                         'eigenstates': 1.0e-2},
+            occupations={'name': 'fixed-uniform'},
+            mixer={'backend': 'no-mixing'},
+            nbands='nao',
+            symmetry='off')
         atoms.calc = calc
         atoms.get_potential_energy()
         return atoms.calc
 
     @gpwfile
     def h_do_gdavid_lcao(self):
-        calc = GPAW(xc='PBE',
-                    mode=LCAO(force_complex_dtype=True),
-                    h=0.25,
-                    basis='dz(dzp)',
-                    spinpol=False,
-                    eigensolver={'name': 'etdm-lcao',
-                                 'representation': 'u-invar'},
-                    occupations={'name': 'fixed-uniform'},
-                    mixer={'backend': 'no-mixing'},
-                    nbands='nao',
-                    symmetry='off',
-                    )
+        calc = self.GPAW(
+            xc='PBE',
+            mode=LCAO(force_complex_dtype=True),
+            h=0.25,
+            basis='dz(dzp)',
+            spinpol=False,
+            eigensolver={'name': 'etdm-lcao',
+                         'representation': 'u-invar'},
+            occupations={'name': 'fixed-uniform'},
+            mixer={'backend': 'no-mixing'},
+            nbands='nao',
+            symmetry='off')
 
         atoms = Atoms('H', positions=[[0, 0, 0]])
         atoms.center(vacuum=5.0)
@@ -882,35 +903,36 @@ class GPWFiles(CachedFilesHandler):
                    positions=[[-d / 2, 0, 0],
                               [d / 2, 0, 0]])
         h2.center(vacuum=3)
-        calc = GPAW(_use_old_gpaw=True,
-                    mode=PW(300),
-                    # h=0.3,
-                    xc={'name': 'HSE06', 'backend': 'pw'},
-                    eigensolver={'name': 'etdm-fdpw',
-                                 'converge_unocc': True},
-                    mixer={'backend': 'no-mixing'},
-                    occupations={'name': 'fixed-uniform'},
-                    symmetry='off',
-                    nbands=2,
-                    convergence={'eigenstates': 4.0e-6})
+        calc = self.GPAW(
+            legacy_gpaw=True,
+            mode=PW(300),
+            # h=0.3,
+            xc={'name': 'HSE06', 'backend': 'pw'},
+            eigensolver={'name': 'etdm-fdpw',
+                         'converge_unocc': True},
+            mixer={'backend': 'no-mixing'},
+            occupations={'name': 'fixed-uniform'},
+            symmetry='off',
+            nbands=2,
+            convergence={'eigenstates': 4.0e-6})
         h2.calc = calc
         h2.get_potential_energy()
         return h2.calc
 
     @gpwfile
     def h_hess_num_lcao(self):
-        calc = GPAW(xc='PBE',
-                    mode=LCAO(force_complex_dtype=True),
-                    h=0.25,
-                    basis='dz(dzp)',
-                    spinpol=False,
-                    eigensolver={'name': 'etdm-lcao',
-                                 'representation': 'u-invar'},
-                    occupations={'name': 'fixed-uniform'},
-                    mixer={'backend': 'no-mixing'},
-                    nbands='nao',
-                    symmetry='off',
-                    )
+        calc = self.GPAW(
+            xc='PBE',
+            mode=LCAO(force_complex_dtype=True),
+            h=0.25,
+            basis='dz(dzp)',
+            spinpol=False,
+            eigensolver={'name': 'etdm-lcao',
+                         'representation': 'u-invar'},
+            occupations={'name': 'fixed-uniform'},
+            mixer={'backend': 'no-mixing'},
+            nbands='nao',
+            symmetry='off')
         atoms = Atoms('H', positions=[[0, 0, 0]])
         atoms.center(vacuum=5.0)
         atoms.set_pbc(False)
@@ -928,12 +950,13 @@ class GPWFiles(CachedFilesHandler):
         a = 5.431
         atoms = bulk('Si', 'diamond', a=a)
 
-        calc = GPAW(mode=PW(pw),
-                    kpts=(kpts, kpts, kpts),
-                    nbands=nbands,
-                    convergence={'bands': -1},
-                    xc='LDA',
-                    occupations=FermiDirac(0.001))
+        calc = self.GPAW(
+            mode=PW(pw),
+            kpts=(kpts, kpts, kpts),
+            nbands=nbands,
+            convergence={'bands': -1},
+            xc='LDA',
+            occupations=FermiDirac(0.001))
 
         atoms.calc = calc
         atoms.get_potential_energy()
@@ -943,14 +966,14 @@ class GPWFiles(CachedFilesHandler):
     def h_pw(self):
         h = Atoms('H', magmoms=[1])
         h.center(vacuum=4.0)
-        h.calc = GPAW(mode={'name': 'pw', 'ecut': 500},
-                      txt=self.folder / 'h_pw.txt')
+        h.calc = self.GPAW(
+            mode={'name': 'pw', 'ecut': 500},
+            txt=self.folder / 'h_pw.txt')
         h.get_potential_energy()
         return h.calc
 
     @gpwfile
     def h_chain(self):
-        from gpaw.new.ase_interface import GPAW
         a = 2.5
         k = 4
         # Compare 2*H AFM cell with 1*H q=1/2 spin-spiral cell.
@@ -959,13 +982,16 @@ class GPWFiles(CachedFilesHandler):
                   cell=[a, 0, 0],
                   pbc=[1, 0, 0])
         h.center(vacuum=2.0, axis=(1, 2))
-        h.calc = GPAW(mode={'name': 'pw',
-                            'ecut': 400,
-                            'qspiral': [0.5, 0, 0]},
-                      magmoms=[[1, 0, 0]],
-                      symmetry='off',
-                      kpts=(2 * k, 1, 1),
-                      txt=self.folder / 'h_chain.txt')
+        h.calc = GPAW(
+            legacy_gpaw=False,
+            mode={'name': 'pw',
+                  'ecut': 400,
+                  'qspiral': [0.5, 0, 0]},
+            magmoms=[[1, 0, 0]],
+            symmetry='off',
+            kpts=(2 * k, 1, 1),
+            communicator=self.comm,
+            txt=self.folder / 'h_chain.txt')
         h.get_potential_energy()
         return h.calc
 
@@ -975,7 +1001,7 @@ class GPWFiles(CachedFilesHandler):
         atoms = Atoms('H', cell=(3 * np.eye(3)), pbc=True)
 
         # Do a GS and save it
-        calc = GPAW(
+        calc = self.GPAW(
             mode=PW(600), symmetry={'point_group': False},
             kpts={'size': (2, 2, 2)}, nbands=5, txt=None)
         atoms.calc = calc
@@ -993,10 +1019,11 @@ class GPWFiles(CachedFilesHandler):
                    cell=[2 * a, 0, 0],
                    pbc=[1, 0, 0])
         h2.center(vacuum=2.0, axis=(1, 2))
-        h2.calc = GPAW(mode={'name': 'pw',
-                             'ecut': 400},
-                       kpts=(k, 1, 1),
-                       txt=self.folder / 'h2_chain.txt')
+        h2.calc = self.GPAW(
+            mode={'name': 'pw',
+                  'ecut': 400},
+            kpts=(k, 1, 1),
+            txt=self.folder / 'h2_chain.txt')
         h2.get_potential_energy()
         return h2.calc
 
@@ -1006,9 +1033,10 @@ class GPWFiles(CachedFilesHandler):
         atoms.set_cell([6.4, 6.4, 6.4])
         atoms.center()
 
-        atoms.calc = GPAW(mode='lcao', occupations=FermiDirac(0.1),
-                          poissonsolver={'name': 'fd'},
-                          txt=self.folder / 'h2_lcao_pair.txt')
+        atoms.calc = self.GPAW(
+            mode='lcao', occupations=FermiDirac(0.1),
+            poissonsolver={'name': 'fd'},
+            txt=self.folder / 'h2_lcao_pair.txt')
         atoms.get_potential_energy()
         return atoms.calc
 
@@ -1022,11 +1050,12 @@ class GPWFiles(CachedFilesHandler):
         atom.center()
         atoms = atom.repeat((2, 1, 1))
 
-        calc = GPAW(mode=PW(200),
-                    nbands=4,
-                    setups={'Na': '1'},
-                    txt=self.folder / 'na_chain.txt',
-                    kpts=(16, 2, 2))
+        calc = self.GPAW(
+            mode=PW(200),
+            nbands=4,
+            setups={'Na': '1'},
+            txt=self.folder / 'na_chain.txt',
+            kpts=(16, 2, 2))
 
         atoms.calc = calc
         atoms.get_potential_energy()
@@ -1037,11 +1066,12 @@ class GPWFiles(CachedFilesHandler):
         N2 = molecule('N2')
         N2.center(vacuum=2.0)
 
-        N2.calc = GPAW(mode=PW(force_complex_dtype=True),
-                       xc='PBE',
-                       parallel={'domain': 1},
-                       eigensolver='rmm-diis',
-                       txt=self.folder / 'n2_pw.txt')
+        N2.calc = self.GPAW(
+            mode=PW(force_complex_dtype=True),
+            xc='PBE',
+            parallel={'domain': 1},
+            eigensolver='rmm-diis',
+            txt=self.folder / 'n2_pw.txt')
 
         N2.get_potential_energy()
         N2.calc.diagonalize_full_hamiltonian(nbands=104)
@@ -1056,11 +1086,12 @@ class GPWFiles(CachedFilesHandler):
         N.set_cell(N2.cell)
         N.center()
 
-        N.calc = GPAW(mode=PW(force_complex_dtype=True),
-                      xc='PBE',
-                      parallel={'domain': 1},
-                      eigensolver='rmm-diis',
-                      txt=self.folder / 'n_pw.txt')
+        N.calc = self.GPAW(
+            mode=PW(force_complex_dtype=True),
+            xc='PBE',
+            parallel={'domain': 1},
+            eigensolver='rmm-diis',
+            txt=self.folder / 'n_pw.txt')
         N.get_potential_energy()
         N.calc.diagonalize_full_hamiltonian(nbands=104)
         return N.calc
@@ -1070,8 +1101,9 @@ class GPWFiles(CachedFilesHandler):
         d = 1.1
         a = Atoms('O2', positions=[[0, 0, 0], [d, 0, 0]], magmoms=[1, 1])
         a.center(vacuum=4.0)
-        a.calc = GPAW(mode={'name': 'pw', 'ecut': 800},
-                      txt=self.folder / 'o2_pw.txt')
+        a.calc = self.GPAW(
+            mode={'name': 'pw', 'ecut': 800},
+            txt=self.folder / 'o2_pw.txt')
         a.get_potential_energy()
         return a.calc
 
@@ -1090,15 +1122,16 @@ class GPWFiles(CachedFilesHandler):
 
         atoms = L1_2(['Au', 'Cu'], latticeconstant=3.7)
         atoms[0].position[0] += 0.01  # Break symmetry already here
-        calc = GPAW(mode=PW(ecut),
-                    eigensolver=Davidson(2),
-                    nbands='120%',
-                    mixer=Mixer(0.4, 7, 50.0),
-                    parallel=dict(domain=1),
-                    convergence={'density': 1e-4},
-                    xc=QNA,
-                    kpts=kpts,
-                    txt=self.folder / 'Cu3Au_qna.txt')
+        calc = self.GPAW(
+            mode=PW(ecut),
+            eigensolver=Davidson(2),
+            nbands='120%',
+            mixer=Mixer(0.4, 7, 50.0),
+            parallel=dict(domain=1),
+            convergence={'density': 1e-4},
+            xc=QNA,
+            kpts=kpts,
+            txt=self.folder / 'Cu3Au_qna.txt')
         atoms.calc = calc
         atoms.get_potential_energy()
         return atoms.calc
@@ -1108,16 +1141,17 @@ class GPWFiles(CachedFilesHandler):
         atoms = molecule('CO')
         atoms.center(vacuum=2)
 
-        calc = GPAW(mode='lcao',
-                    basis='dzp',
-                    nbands=7,
-                    h=0.24,
-                    xc='PBE',
-                    spinpol=True,
-                    symmetry='off',
-                    convergence={'energy': 100,
-                                 'density': 1e-3},
-                    txt=self.folder / 'co_mom.txt')
+        calc = self.GPAW(
+            mode='lcao',
+            basis='dzp',
+            nbands=7,
+            h=0.24,
+            xc='PBE',
+            spinpol=True,
+            symmetry='off',
+            convergence={'energy': 100,
+                         'density': 1e-3},
+            txt=self.folder / 'co_mom.txt')
 
         atoms.calc = calc
         # Ground-state calculation
@@ -1129,8 +1163,9 @@ class GPWFiles(CachedFilesHandler):
         d = 1.1
         co = Atoms('CO', positions=[[0, 0, 0], [d, 0, 0]])
         co.center(vacuum=4.0)
-        co.calc = GPAW(mode='lcao',
-                       txt=self.folder / 'co_lcao.txt')
+        co.calc = self.GPAW(
+            mode='lcao',
+            txt=self.folder / 'co_lcao.txt')
         co.get_potential_energy()
         return co.calc
 
@@ -1153,10 +1188,11 @@ class GPWFiles(CachedFilesHandler):
 
     def c2h4_pw_nosym(self):
         pe = self._c2h4()
-        pe.calc = GPAW(mode='pw',
-                       kpts=(3, 1, 1),
-                       symmetry='off',
-                       txt=self.folder / 'c2h4_pw_nosym.txt')
+        pe.calc = self.GPAW(
+            mode='pw',
+            kpts=(3, 1, 1),
+            symmetry='off',
+            txt=self.folder / 'c2h4_pw_nosym.txt')
         pe.get_potential_energy()
         return pe.calc
 
@@ -1164,7 +1200,7 @@ class GPWFiles(CachedFilesHandler):
     def c6h12_pw(self):
         pe = self._c2h4()
         pe = pe.repeat((3, 1, 1))
-        pe.calc = GPAW(mode='pw', txt=self.folder / 'c6h12_pw.txt')
+        pe.calc = self.GPAW(mode='pw', txt=self.folder / 'c6h12_pw.txt')
         pe.get_potential_energy()
         return pe.calc
 
@@ -1172,7 +1208,7 @@ class GPWFiles(CachedFilesHandler):
     def h2o_lcao(self):
         atoms = molecule('H2O', cell=[8, 8, 8], pbc=1)
         atoms.center()
-        atoms.calc = GPAW(mode='lcao', txt=self.folder / 'h2o_lcao.txt')
+        atoms.calc = self.GPAW(mode='lcao', txt=self.folder / 'h2o_lcao.txt')
         atoms.get_potential_energy()
         return atoms.calc
 
@@ -1186,7 +1222,7 @@ class GPWFiles(CachedFilesHandler):
 
         a = 5.0
         H2O = self.h2o_maker(vacuum=None, cell=[a, a, a], pbc=False)
-        calc = GPAW(
+        calc = self.GPAW(
             txt=self.folder / 'h2o_xas.txt',
             mode='fd',
             nbands=10,
@@ -1211,8 +1247,9 @@ class GPWFiles(CachedFilesHandler):
         atoms = molecule('H2O')
         atoms.center(vacuum=4)
 
-        calc = GPAW(h=0.4, **params, xc='LDA', mode='lcao',
-                    txt=self.folder / f'h2o_lr2_nbands{params["nbands"]}.out')
+        calc = self.GPAW(
+            h=0.4, **params, xc='LDA', mode='lcao',
+            txt=self.folder / f'h2o_lr2_nbands{params["nbands"]}.out')
         atoms.calc = calc
         atoms.get_potential_energy()
 
@@ -1222,8 +1259,9 @@ class GPWFiles(CachedFilesHandler):
     def si_fd_ibz(self):
         si = bulk('Si', 'diamond', a=5.43)
         k = 3
-        si.calc = GPAW(mode='fd', kpts=(k, k, k),
-                       txt=self.folder / 'si_fd_ibz.txt')
+        si.calc = self.GPAW(
+            mode='fd', kpts=(k, k, k),
+            txt=self.folder / 'si_fd_ibz.txt')
         si.get_potential_energy()
         return si.calc
 
@@ -1231,21 +1269,23 @@ class GPWFiles(CachedFilesHandler):
     def si_fd_bz(self):
         si = bulk('Si', 'diamond', a=5.43)
         k = 3
-        si.calc = GPAW(mode='fd', kpts=(k, k, k,),
-                       symmetry={'point_group': False,
-                                 'time_reversal': False},
-                       txt=self.folder / 'si_fd_bz.txt')
+        si.calc = self.GPAW(
+            mode='fd', kpts=(k, k, k,),
+            symmetry={'point_group': False,
+                      'time_reversal': False},
+            txt=self.folder / 'si_fd_bz.txt')
         si.get_potential_energy()
         return si.calc
 
     @gpwfile
     def si_pw(self):
         si = bulk('Si')
-        calc = GPAW(mode='pw',
-                    xc='LDA',
-                    occupations=FermiDirac(width=0.001),
-                    kpts={'size': (2, 2, 2), 'gamma': True},
-                    txt=self.folder / 'si_pw.txt')
+        calc = self.GPAW(
+            mode='pw',
+            xc='LDA',
+            occupations=FermiDirac(width=0.001),
+            kpts={'size': (2, 2, 2), 'gamma': True},
+            txt=self.folder / 'si_pw.txt')
         si.calc = calc
         si.get_potential_energy()
         return si.calc
@@ -1262,24 +1302,26 @@ class GPWFiles(CachedFilesHandler):
         # even if the underlying implementation changes:
         kpts.kpts += np.linspace(1e-16, 1e-15, 24).reshape(8, 3)
 
-        calc = GPAW(mode='pw',
-                    xc='LDA',
-                    occupations=FermiDirac(width=0.001),
-                    kpts=kpts.kpts,
-                    txt=self.folder / 'si_noisy_kpoints.txt')
+        calc = self.GPAW(
+            mode='pw',
+            xc='LDA',
+            occupations=FermiDirac(width=0.001),
+            kpts=kpts.kpts,
+            txt=self.folder / 'si_noisy_kpoints.txt')
         atoms.calc = calc
         atoms.get_potential_energy()
         return calc
 
     @gpwfile
     def si_pw_nbands10_converged(self):
-        calc = GPAW(mode='pw',
-                    kpts={'size': (2, 2, 2), 'gamma': True},
-                    occupations=FermiDirac(0.01),
-                    nbands=10,
-                    symmetry='off',
-                    convergence={'bands': -4, 'density': 1e-7,
-                                 'eigenstates': 1e-12})
+        calc = self.GPAW(
+            mode='pw',
+            kpts={'size': (2, 2, 2), 'gamma': True},
+            occupations=FermiDirac(0.01),
+            nbands=10,
+            symmetry='off',
+            convergence={'bands': -4, 'density': 1e-7,
+                         'eigenstates': 1e-12})
 
         atoms = bulk('Si', 'diamond', a=5.431)
         atoms.calc = calc
@@ -1324,12 +1366,13 @@ class GPWFiles(CachedFilesHandler):
         a = 2.6
         si = Atoms('Si', cell=(a, a, a), pbc=True)
 
-        calc = GPAW(mode='fd',
-                    txt=self.folder / 'si_corehole_pw.txt',
-                    h=0.25,
-                    occupations=FermiDirac(width=0.05),
-                    setups='si_corehole_pw_hch1s',
-                    convergence={'maximum iterations': 1})
+        calc = self.GPAW(
+            mode='fd',
+            txt=self.folder / 'si_corehole_pw.txt',
+            h=0.25,
+            occupations=FermiDirac(width=0.05),
+            setups='si_corehole_pw_hch1s',
+            convergence={'maximum iterations': 1})
         si.calc = calc
         _ = si.get_potential_energy()
         return si.calc
@@ -1360,7 +1403,7 @@ class GPWFiles(CachedFilesHandler):
             pbc=True,
         )
         # calculation with full symmetry
-        calc = GPAW(
+        calc = self.GPAW(
             mode='fd',
             txt=self.folder / f'si_corehole_{tag}_hch1s.txt',
             nbands=-10,
@@ -1390,7 +1433,7 @@ class GPWFiles(CachedFilesHandler):
         atoms.center()
 
         tag = '_nosym' if symmetry == 'off' else ''
-        atoms.calc = GPAW(
+        atoms.calc = self.GPAW(
             xc=xc,
             mode=PW(pw),
             kpts={'size': (kpts, kpts, kpts), 'gamma': True},
@@ -1427,7 +1470,7 @@ class GPWFiles(CachedFilesHandler):
 
         # Set up calculator
         tag = '_spinpol' if spinpol else ''
-        atoms.calc = GPAW(
+        atoms.calc = self.GPAW(
             mode=PW(400),
             xc='LDA',
             kpts={'size': (4, 4, 4)},
@@ -1461,14 +1504,15 @@ class GPWFiles(CachedFilesHandler):
         return [si1, si2]
 
     def _si_gw(self, atoms, symm, name):
-        atoms.calc = GPAW(mode=PW(250),
-                          eigensolver='rmm-diis',
-                          occupations=FermiDirac(0.01),
-                          symmetry=symm,
-                          kpts={'size': (2, 2, 2), 'gamma': True},
-                          convergence={'density': 1e-7},
-                          parallel={'domain': 1},
-                          txt=self.folder / name)
+        atoms.calc = self.GPAW(
+            mode=PW(250),
+            eigensolver='rmm-diis',
+            occupations=FermiDirac(0.01),
+            symmetry=symm,
+            kpts={'size': (2, 2, 2), 'gamma': True},
+            convergence={'density': 1e-7},
+            parallel={'domain': 1},
+            txt=self.folder / name)
         atoms.get_potential_energy()
         atoms.calc.diagonalize_full_hamiltonian(nbands=8)
         return atoms.calc
@@ -1477,11 +1521,12 @@ class GPWFiles(CachedFilesHandler):
     def c2_gw_more_bands(self):
         a = 3.567
         atoms = bulk('C', 'diamond', a=a)
-        atoms.calc = GPAW(mode=PW(400),
-                          parallel={'domain': 1},
-                          kpts={'size': (2, 2, 2), 'gamma': True},
-                          xc='LDA',
-                          occupations=FermiDirac(0.001))
+        atoms.calc = self.GPAW(
+            mode=PW(400),
+            parallel={'domain': 1},
+            kpts={'size': (2, 2, 2), 'gamma': True},
+            xc='LDA',
+            occupations=FermiDirac(0.001))
         atoms.get_potential_energy()
         atoms.calc.diagonalize_full_hamiltonian(nbands=128)
         return atoms.calc
@@ -1493,14 +1538,15 @@ class GPWFiles(CachedFilesHandler):
         blk = bulk('Na', 'bcc', a=4.23)
 
         ecut = 350
-        blk.calc = GPAW(mode=PW(ecut),
-                        basis='dzp',
-                        kpts={'size': (4, 4, 4), 'gamma': True},
-                        parallel={'domain': 1, 'band': 1},
-                        txt=self.folder / 'na_pw.txt',
-                        nbands=4,
-                        occupations=FermiDirac(0.01),
-                        setups={'Na': '1'})
+        blk.calc = self.GPAW(
+            mode=PW(ecut),
+            basis='dzp',
+            kpts={'size': (4, 4, 4), 'gamma': True},
+            parallel={'domain': 1, 'band': 1},
+            txt=self.folder / 'na_pw.txt',
+            nbands=4,
+            occupations=FermiDirac(0.01),
+            setups={'Na': '1'})
         blk.get_potential_energy()
         blk.calc.diagonalize_full_hamiltonian(nbands=520)
         return blk.calc
@@ -1530,13 +1576,14 @@ class GPWFiles(CachedFilesHandler):
             else None
         symmetry = {'point_group': True if name == 'poisson_sym' else False}
 
-        calc = GPAW(nbands=2, h=0.4, setups=dict(Na='1'),
-                    basis=basis, mode='lcao', xc=xc,
-                    convergence={'density': 1e-8},
-                    poissonsolver=poisson,
-                    communicator=serial_comm if xc == 'oldLDA' else world,
-                    symmetry=symmetry,
-                    txt=self.folder / f'na2_tddft_{name}.out')
+        calc = self.GPAW(
+            nbands=2, h=0.4, setups=dict(Na='1'),
+            basis=basis, mode='lcao', xc=xc,
+            convergence={'density': 1e-8},
+            poissonsolver=poisson,
+            communicator=serial_comm if xc == 'oldLDA' else self.comm,
+            symmetry=symmetry,
+            txt=self.folder / f'na2_tddft_{name}.out')
         atoms.calc = calc
         atoms.get_potential_energy()
 
@@ -1553,11 +1600,12 @@ class GPWFiles(CachedFilesHandler):
 
         atoms.center(vacuum=6.0)
         # Larger grid spacing, LDA is ok
-        gs_calc = GPAW(mode='fd',
-                       txt=self.folder / 'na2_fd.txt',
-                       nbands=1, h=0.35, xc='LDA',
-                       setups={'Na': '1'},
-                       symmetry={'point_group': False})
+        gs_calc = self.GPAW(
+            mode='fd',
+            txt=self.folder / 'na2_fd.txt',
+            nbands=1, h=0.35, xc='LDA',
+            setups={'Na': '1'},
+            symmetry={'point_group': False})
         atoms.calc = gs_calc
         atoms.get_potential_energy()
         return atoms.calc
@@ -1573,9 +1621,10 @@ class GPWFiles(CachedFilesHandler):
 
         atoms.center(vacuum=6.0)
         # Larger grid spacing, LDA is ok
-        gs_calc = GPAW(mode='fd', nbands=1, h=0.35, xc='LDA',
-                       txt=self.folder / 'na2_fd_with_sym.txt',
-                       setups={'Na': '1'})
+        gs_calc = self.GPAW(
+            mode='fd', nbands=1, h=0.35, xc='LDA',
+            txt=self.folder / 'na2_fd_with_sym.txt',
+            setups={'Na': '1'})
         atoms.calc = gs_calc
         atoms.get_potential_energy()
         return atoms.calc
@@ -1614,9 +1663,10 @@ class GPWFiles(CachedFilesHandler):
                       cell=(3.5, 3.5, 4 + 2 / 3),
                       pbc=True)
 
-        atoms.calc = GPAW(nbands=3,
-                          setups={'Na': '1'},
-                          **params)
+        atoms.calc = self.GPAW(
+            nbands=3,
+            setups={'Na': '1'},
+            **params)
         atoms.get_potential_energy()
 
         return atoms.calc
@@ -1634,12 +1684,13 @@ class GPWFiles(CachedFilesHandler):
         atoms.center(vacuum=4.0)
 
         # Ground-state calculation
-        calc = GPAW(mode=mode, nbands=7, h=0.4,
-                    convergence={'density': 1e-8},
-                    xc='GLLBSC',
-                    basis=basis,
-                    symmetry={'point_group': False},
-                    txt=self.folder / f'sih4_xc_gllbsc_{mode}.txt')
+        calc = self.GPAW(
+            mode=mode, nbands=7, h=0.4,
+            convergence={'density': 1e-8},
+            xc='GLLBSC',
+            basis=basis,
+            symmetry={'point_group': False},
+            txt=self.folder / f'sih4_xc_gllbsc_{mode}.txt')
         atoms.calc = calc
         atoms.get_potential_energy()
         return atoms.calc
@@ -1655,16 +1706,17 @@ class GPWFiles(CachedFilesHandler):
     def _nacl_mol(self, spinpol):
         atoms = molecule('NaCl')
         atoms.center(vacuum=4.0)
-        calc = GPAW(nbands=6,
-                    h=0.4,
-                    setups=dict(Na='1'),
-                    basis='dzp',
-                    mode='lcao',
-                    convergence={'density': 1e-8},
-                    spinpol=spinpol,
-                    communicator=world,
-                    symmetry={'point_group': False},
-                    txt=self.folder / 'gs.out')
+        calc = self.GPAW(
+            nbands=6,
+            h=0.4,
+            setups=dict(Na='1'),
+            basis='dzp',
+            mode='lcao',
+            convergence={'density': 1e-8},
+            spinpol=spinpol,
+            communicator=world,
+            symmetry={'point_group': False},
+            txt=self.folder / 'gs.out')
         atoms.calc = calc
         atoms.get_potential_energy()
         return atoms.calc
@@ -1675,7 +1727,7 @@ class GPWFiles(CachedFilesHandler):
         atoms = Atoms('NaCl', [(0, 0, 0), (0, 0, d)])
         atoms.center(vacuum=4.5)
 
-        gs_calc = GPAW(
+        gs_calc = self.GPAW(
             txt=self.folder / 'nacl_fd.txt',
             mode='fd', nbands=4,  # eigensolver='cg',
             gpts=(32, 32, 44), xc='LDA', symmetry={'point_group': False},
@@ -1687,12 +1739,13 @@ class GPWFiles(CachedFilesHandler):
     @gpwfile
     def bn_pw(self):
         atoms = bulk('BN', 'zincblende', a=3.615)
-        atoms.calc = GPAW(mode=PW(400),
-                          kpts={'size': (2, 2, 2), 'gamma': True},
-                          nbands=12,
-                          convergence={'bands': 9},
-                          occupations=FermiDirac(0.001),
-                          txt=self.folder / 'bn_pw.txt')
+        atoms.calc = self.GPAW(
+            mode=PW(400),
+            kpts={'size': (2, 2, 2), 'gamma': True},
+            nbands=12,
+            convergence={'bands': 9},
+            occupations=FermiDirac(0.001),
+            txt=self.folder / 'bn_pw.txt')
         atoms.get_potential_energy()
         return atoms.calc
 
@@ -1703,15 +1756,16 @@ class GPWFiles(CachedFilesHandler):
         atoms[0].symbol = 'N'
         atoms.pbc = (1, 1, 0)
         atoms.center(axis=2, vacuum=3.0)
-        atoms.calc = GPAW(txt=self.folder / 'hbn_pw.txt',
-                          mode=PW(400),
-                          xc='LDA',
-                          nbands=50,
-                          occupations=FermiDirac(0.001),
-                          parallel={'domain': 1},
-                          convergence={'bands': 26},
-                          kpts={'size': (3, 3, 1), 'gamma': True},
-                          symmetry=symmetry)
+        atoms.calc = self.GPAW(
+            txt=self.folder / 'hbn_pw.txt',
+            mode=PW(400),
+            xc='LDA',
+            nbands=50,
+            occupations=FermiDirac(0.001),
+            parallel={'domain': 1},
+            convergence={'bands': 26},
+            kpts={'size': (3, 3, 1), 'gamma': True},
+            symmetry=symmetry)
         atoms.get_potential_energy()
         return atoms.calc
 
@@ -1733,10 +1787,11 @@ class GPWFiles(CachedFilesHandler):
         atoms.center(axis=2, vacuum=4.0)
         ecut = 250
         nkpts = 6
-        atoms.calc = GPAW(mode=PW(ecut),
-                          kpts={'size': (nkpts, nkpts, 1), 'gamma': True},
-                          nbands=len(atoms) * 6,
-                          txt=self.folder / 'graphene_pw.txt')
+        atoms.calc = self.GPAW(
+            mode=PW(ecut),
+            kpts={'size': (nkpts, nkpts, 1), 'gamma': True},
+            nbands=len(atoms) * 6,
+            txt=self.folder / 'graphene_pw.txt')
         atoms.get_potential_energy()
         return atoms.calc
 
@@ -1752,11 +1807,12 @@ class GPWFiles(CachedFilesHandler):
                             [-2.5278211265136266, 4.731999711338355, 0.0],
                             [3.38028806436979e-15, 0.0, 18.85580293064]],
                       pbc=(1, 1, 0))
-        atoms.calc = GPAW(mode=PW(250),
-                          xc='PBE',
-                          kpts={'size': (6, 6, 1), 'gamma': True},
-                          txt=self.folder / 'i2sb2_pw_nosym.txt',
-                          symmetry='off')
+        atoms.calc = self.GPAW(
+            mode=PW(250),
+            xc='PBE',
+            kpts={'size': (6, 6, 1), 'gamma': True},
+            txt=self.folder / 'i2sb2_pw_nosym.txt',
+            symmetry='off')
 
         atoms.get_potential_energy()
         return atoms.calc
@@ -1790,15 +1846,16 @@ class GPWFiles(CachedFilesHandler):
                 'density': 1.e-4}
 
         tag = '_nosym' if symmetry == 'off' else ''
-        atoms.calc = GPAW(mode=PW(ecut),
-                          xc='LDA',
-                          kpts={'size': (nkpts, nkpts, 1), 'gamma': True},
-                          occupations=FermiDirac(0.01),
-                          mixer={'beta': 0.5},
-                          convergence=conv,
-                          nbands=band_cutoff + 9,
-                          txt=self.folder / f'bi2i6_pw{tag}.txt',
-                          symmetry=symmetry)
+        atoms.calc = self.GPAW(
+            mode=PW(ecut),
+            xc='LDA',
+            kpts={'size': (nkpts, nkpts, 1), 'gamma': True},
+            occupations=FermiDirac(0.01),
+            mixer={'beta': 0.5},
+            convergence=conv,
+            nbands=band_cutoff + 9,
+            txt=self.folder / f'bi2i6_pw{tag}.txt',
+            symmetry=symmetry)
 
         atoms.get_potential_energy()
         return atoms.calc
@@ -1821,12 +1878,13 @@ class GPWFiles(CachedFilesHandler):
         ecut = 250
         nkpts = 6
         tag = '_nosym' if symmetry == 'off' else ''
-        atoms.calc = GPAW(mode=PW(ecut),
-                          xc='LDA',
-                          kpts={'size': (nkpts, nkpts, 1), 'gamma': True},
-                          occupations=FermiDirac(0.01),
-                          txt=self.folder / f'mos2_pw{tag}.txt',
-                          symmetry=symmetry)
+        atoms.calc = self.GPAW(
+            mode=PW(ecut),
+            xc='LDA',
+            kpts={'size': (nkpts, nkpts, 1), 'gamma': True},
+            occupations=FermiDirac(0.01),
+            txt=self.folder / f'mos2_pw{tag}.txt',
+            symmetry=symmetry)
 
         atoms.get_potential_energy()
         return atoms.calc
@@ -1841,15 +1899,16 @@ class GPWFiles(CachedFilesHandler):
 
     @gpwfile
     def mos2_5x5_pw(self):
-        calc = GPAW(mode=PW(180),
-                    xc='PBE',
-                    nbands='nao',
-                    setups={'Mo': '6'},
-                    occupations=FermiDirac(0.001),
-                    convergence={'bands': -5,
-                                 'eigenstates': 1e-9,
-                                 'density': 1e-5},
-                    kpts=(5, 5, 1))
+        calc = self.GPAW(
+            mode=PW(180),
+            xc='PBE',
+            nbands='nao',
+            setups={'Mo': '6'},
+            occupations=FermiDirac(0.001),
+            convergence={'bands': -5,
+                         'eigenstates': 1e-9,
+                         'density': 1e-5},
+            kpts=(5, 5, 1))
 
         from ase.build import mx2
         layer = mx2(formula='MoS2', kind='2H', a=3.1604, thickness=3.172,
@@ -1871,13 +1930,14 @@ class GPWFiles(CachedFilesHandler):
         atoms.center(vacuum=1.5, axis=2)
         tag = '_spinpol' if spinpol else ''
         nkpts = 2
-        atoms.calc = GPAW(mode=PW(250),
-                          xc='LDA', spinpol=spinpol,
-                          kpts={'size': (nkpts, nkpts, 1), 'gamma': True},
-                          occupations={'width': 0},
-                          nbands=band_cutoff + 10,
-                          convergence={'bands': band_cutoff + 1},
-                          txt=self.folder / f'p4_pw{tag}.txt')
+        atoms.calc = self.GPAW(
+            mode=PW(250),
+            xc='LDA', spinpol=spinpol,
+            kpts={'size': (nkpts, nkpts, 1), 'gamma': True},
+            occupations={'width': 0},
+            nbands=band_cutoff + 10,
+            convergence={'bands': band_cutoff + 1},
+            txt=self.folder / f'p4_pw{tag}.txt')
         atoms.get_potential_energy()
         return atoms.calc
 
@@ -1898,14 +1958,15 @@ class GPWFiles(CachedFilesHandler):
 
         kpts = monkhorst_pack((3, 3, 3))
 
-        calc = GPAW(mode='pw',
-                    txt=self.folder / 'ni_pw_kpts333.txt',
-                    kpts=kpts,
-                    occupations=FermiDirac(0.001),
-                    setups=setups,
-                    parallel=dict(domain=1),  # >1 fails on 8 cores
-                    # communicator=serial_comm
-                    )
+        calc = self.GPAW(
+            mode='pw',
+            txt=self.folder / 'ni_pw_kpts333.txt',
+            kpts=kpts,
+            occupations=FermiDirac(0.001),
+            setups=setups,
+            parallel=dict(domain=1),  # >1 fails on 8 cores
+            # communicator=serial_comm
+        )
 
         Ni.calc = calc
         Ni.get_potential_energy()
@@ -1924,12 +1985,13 @@ class GPWFiles(CachedFilesHandler):
     def c_pw(self):
         atoms = bulk('C')
         atoms.center()
-        calc = GPAW(mode=PW(150),
-                    txt=self.folder / 'c_pw.txt',
-                    convergence={'bands': 6},
-                    nbands=12,
-                    kpts={'gamma': True, 'size': (2, 2, 2)},
-                    xc='LDA')
+        calc = self.GPAW(
+            mode=PW(150),
+            txt=self.folder / 'c_pw.txt',
+            convergence={'bands': 6},
+            nbands=12,
+            kpts={'gamma': True, 'size': (2, 2, 2)},
+            xc='LDA')
 
         atoms.calc = calc
         atoms.get_potential_energy()
@@ -1955,7 +2017,7 @@ class GPWFiles(CachedFilesHandler):
         atoms.pbc = True
 
         dct = dict(
-            _use_old_gpaw=True,
+            legacy_gpaw=True,
             mixer={'beta': 0.75, 'nmaxold': 8, 'weight': 100.0},
             mode=PW(ecut,
                     interpolation=3),  # interpolate the density in real-space
@@ -1964,7 +2026,7 @@ class GPWFiles(CachedFilesHandler):
             convergence=conv,
             txt=self.folder / f'nicl2_pw{identifier}.txt')
         dct.update(kwargs)
-        atoms.calc = GPAW(**dct)
+        atoms.calc = self.GPAW(**dct)
 
         atoms.get_potential_energy()
 
@@ -1985,7 +2047,8 @@ class GPWFiles(CachedFilesHandler):
                    scaled_positions=[[0.5, 0.5, 0.5]],
                    pbc=False)
 
-        Tl.calc = GPAWNew(
+        Tl.calc = GPAW(
+            legacy_gpaw=False,
             mode={'name': 'pw', 'ecut': 300},
             xc='LDA',
             occupations={'name': 'fermi-dirac', 'width': 0.01},
@@ -1994,6 +2057,7 @@ class GPWFiles(CachedFilesHandler):
             parallel={'domain': 1, 'band': 1},
             magmoms=[[0, 0, 0.5]],
             soc=True,
+            communicator=self.comm,
             txt=self.folder / 'Tl_box_pw.txt')
         Tl.get_potential_energy()
         return Tl.calc
@@ -2029,8 +2093,8 @@ class GPWFiles(CachedFilesHandler):
 
         # Set up calculator
         tag = '_nosym' if symmetry == 'off' else ''
-        atoms.calc = GPAW(
-            _use_old_gpaw=True,
+        atoms.calc = self.GPAW(
+            legacy_gpaw=True,
             xc=xc,
             mode=PW(pw,
                     interpolation=3),  # interpolate the density in real-space
@@ -2077,7 +2141,7 @@ class GPWFiles(CachedFilesHandler):
         atoms.center()
         tag = '_nosym' if symmetry == 'off' else ''
 
-        atoms.calc = GPAW(
+        atoms.calc = self.GPAW(
             xc=xc,
             mode=PW(pw),
             kpts={'size': (kpts, kpts, kpts)},
@@ -2125,14 +2189,15 @@ class GPWFiles(CachedFilesHandler):
         # ---------- Calculation ---------- #
 
         tag = '_nosym' if symmetry == 'off' else ''
-        atoms.calc = GPAW(xc=xc,
-                          mode=PW(pw),
-                          kpts={'size': (4, 4, 4), 'gamma': True},
-                          occupations=FermiDirac(occw),
-                          convergence=conv,
-                          nbands=band_cutoff + ebands,
-                          symmetry=symmetry,
-                          txt=self.folder / f'co_pw{tag}.txt')
+        atoms.calc = self.GPAW(
+            xc=xc,
+            mode=PW(pw),
+            kpts={'size': (4, 4, 4), 'gamma': True},
+            occupations=FermiDirac(occw),
+            convergence=conv,
+            nbands=band_cutoff + ebands,
+            symmetry=symmetry,
+            txt=self.folder / f'co_pw{tag}.txt')
 
         atoms.get_potential_energy()
         return atoms.calc
@@ -2170,14 +2235,15 @@ class GPWFiles(CachedFilesHandler):
         # ---------- Calculation ---------- #
 
         tag = '_nosym' if symmetry == 'off' else ''
-        atoms.calc = GPAW(xc=xc,
-                          mode=PW(pw),
-                          kpts={'size': (nk, nk, nk), 'gamma': True},
-                          occupations=FermiDirac(occw),
-                          convergence=conv,
-                          nbands=band_cutoff + ebands,
-                          symmetry=symmetry,
-                          txt=self.folder / f'srvo3_pw{tag}.txt')
+        atoms.calc = self.GPAW(
+            xc=xc,
+            mode=PW(pw),
+            kpts={'size': (nk, nk, nk), 'gamma': True},
+            occupations=FermiDirac(occw),
+            convergence=conv,
+            nbands=band_cutoff + ebands,
+            symmetry=symmetry,
+            txt=self.folder / f'srvo3_pw{tag}.txt')
 
         atoms.get_potential_energy()
         return atoms.calc
@@ -2206,7 +2272,7 @@ class GPWFiles(CachedFilesHandler):
         atoms.center()
         tag = '_nosym' if symmetry == 'off' else ''
 
-        atoms.calc = GPAW(
+        atoms.calc = self.GPAW(
             xc=xc,
             mode=PW(pw),
             kpts={'size': (kpts, kpts, kpts), 'gamma': True},
@@ -2231,12 +2297,13 @@ class GPWFiles(CachedFilesHandler):
     def bse_al(self):
         a = 4.043
         atoms = bulk('Al', 'fcc', a=a)
-        calc = GPAW(mode='pw',
-                    txt=self.folder / 'bse_al.txt',
-                    kpts={'size': (4, 4, 4), 'gamma': True},
-                    xc='LDA',
-                    nbands=4,
-                    convergence={'bands': 'all'})
+        calc = self.GPAW(
+            mode='pw',
+            txt=self.folder / 'bse_al.txt',
+            kpts={'size': (4, 4, 4), 'gamma': True},
+            xc='LDA',
+            nbands=4,
+            convergence={'bands': 'all'})
 
         atoms.calc = calc
         atoms.get_potential_energy()
@@ -2255,7 +2322,7 @@ class GPWFiles(CachedFilesHandler):
         atoms = bulk('Ag', 'fcc', a=a)
         atoms.center()
 
-        atoms.calc = GPAW(
+        atoms.calc = self.GPAW(
             xc=xc,
             mode=PW(pw),
             kpts={'size': (kpts, kpts, kpts), 'gamma': True},
@@ -2310,14 +2377,15 @@ class GPWFiles(CachedFilesHandler):
         conv = {'bands': band_cutoff + 1,
                 'density': 1.e-8}
 
-        calc = GPAW(mode=PW(400),
-                    xc='LDA',
-                    occupations=FermiDirac(width=0.01),
-                    convergence=conv,
-                    nbands=band_cutoff + 1,
-                    kpts={'size': (nk, nk, nk), 'gamma': True},
-                    txt=self.folder / f'gs_GaAs{tag}.txt',
-                    symmetry=symmetry)
+        calc = self.GPAW(
+            mode=PW(400),
+            xc='LDA',
+            occupations=FermiDirac(width=0.01),
+            convergence=conv,
+            nbands=band_cutoff + 1,
+            kpts={'size': (nk, nk, nk), 'gamma': True},
+            txt=self.folder / f'gs_GaAs{tag}.txt',
+            symmetry=symmetry)
 
         atoms.calc = calc
         atoms.get_potential_energy()
@@ -2342,12 +2410,13 @@ class GPWFiles(CachedFilesHandler):
         if vac_idx is not None:
             atoms.pop(vac_idx)
 
-        calc = GPAW(mode=PW(400),
-                    xc='LDA',
-                    charge=charge,
-                    occupations=FermiDirac(width=0.01),
-                    kpts={'size': (nk, nk, nk), 'gamma': False},
-                    symmetry='off')
+        calc = self.GPAW(
+            mode=PW(400),
+            xc='LDA',
+            charge=charge,
+            occupations=FermiDirac(width=0.01),
+            kpts={'size': (nk, nk, nk), 'gamma': False},
+            symmetry='off')
 
         atoms.calc = calc
         atoms.get_potential_energy()
@@ -2366,13 +2435,14 @@ class GPWFiles(CachedFilesHandler):
         atoms.set_pbc(True)
         atoms.set_cell((2., 2., 3.))
         atoms.center()
-        calc = GPAW(mode=PW(280, force_complex_dtype=True),
-                    txt=self.folder / f'{atoms.symbols}_pw_280_fulldiag.txt',
-                    xc='LDA',
-                    basis='dzp',
-                    parallel={'domain': 1},
-                    convergence={'density': 1.e-6},
-                    **kwargs)
+        calc = self.GPAW(
+            mode=PW(280, force_complex_dtype=True),
+            txt=self.folder / f'{atoms.symbols}_pw_280_fulldiag.txt',
+            xc='LDA',
+            basis='dzp',
+            parallel={'domain': 1},
+            convergence={'density': 1.e-6},
+            **kwargs)
         atoms.calc = calc
         atoms.get_potential_energy()
         calc.diagonalize_full_hamiltonian(nbands=80)
@@ -2385,14 +2455,15 @@ class GPWFiles(CachedFilesHandler):
         fe = bulk('Fe')
         fe.set_initial_magnetic_moments(m)
         k = 3
-        fe.calc = GPAW(mode=PW(800),
-                       h=0.15,
-                       occupations=FermiDirac(width=0.03),
-                       xc=xc,
-                       kpts=(k, k, k),
-                       convergence={'energy': 1e-8},
-                       parallel={'domain': 1, 'augment_grids': True},
-                       txt=self.folder / 'fe_pw_distorted.txt')
+        fe.calc = self.GPAW(
+            mode=PW(800),
+            h=0.15,
+            occupations=FermiDirac(width=0.03),
+            xc=xc,
+            kpts=(k, k, k),
+            convergence={'energy': 1e-8},
+            parallel={'domain': 1, 'augment_grids': True},
+            txt=self.folder / 'fe_pw_distorted.txt')
         fe.set_cell(np.dot(fe.cell,
                            [[1.02, 0, 0.03],
                             [0, 0.99, -0.02],
@@ -2415,11 +2486,12 @@ class GPWFiles(CachedFilesHandler):
                                        (0.75, 0.75, 0.25)],
                      pbc=True, cell=(a, a, a))
         n = 20
-        calc = GPAW(mode='fd',
-                    gpts=(n, n, n),
-                    nbands=8 * 3,
-                    occupations=FermiDirac(width=0.01),
-                    kpts=(1, 1, 1))
+        calc = self.GPAW(
+            mode='fd',
+            gpts=(n, n, n),
+            nbands=8 * 3,
+            occupations=FermiDirac(width=0.01),
+            kpts=(1, 1, 1))
         bulk.calc = calc
         bulk.get_potential_energy()
 
@@ -2430,14 +2502,15 @@ class GPWFiles(CachedFilesHandler):
         xc = 'TPSS'
         si = bulk('Si')
         k = 3
-        si.calc = GPAW(mode=PW(250),
-                       mixer=Mixer(0.7, 5, 50.0),
-                       xc=xc,
-                       occupations=FermiDirac(0.01),
-                       kpts=(k, k, k),
-                       convergence={'energy': 1e-8},
-                       parallel={'domain': min(2, world.size)},
-                       txt=self.folder / 'si_pw_distorted.txt')
+        si.calc = self.GPAW(
+            mode=PW(250),
+            mixer=Mixer(0.7, 5, 50.0),
+            xc=xc,
+            occupations=FermiDirac(0.01),
+            kpts=(k, k, k),
+            convergence={'energy': 1e-8},
+            parallel={'domain': min(2, world.size)},
+            txt=self.folder / 'si_pw_distorted.txt')
         si.set_cell(np.dot(si.cell,
                            [[1.02, 0, 0.03],
                             [0, 0.99, -0.02],
@@ -2459,11 +2532,12 @@ class GPWFiles(CachedFilesHandler):
                          [-2.211, 3.829, 0.0],
                          [0.0, 0.0, 19.5]])
         IBiTe.cell = cell
-        calc = GPAW(mode=PW(200),
-                    xc='LDA',
-                    occupations=FermiDirac(0.01),
-                    kpts={'size': (6, 6, 1), 'gamma': True},
-                    txt=None)
+        calc = self.GPAW(
+            mode=PW(200),
+            xc='LDA',
+            occupations=FermiDirac(0.01),
+            kpts={'size': (6, 6, 1), 'gamma': True},
+            txt=None)
         IBiTe.calc = calc
         IBiTe.get_potential_energy()
         return IBiTe.calc
@@ -2472,10 +2546,11 @@ class GPWFiles(CachedFilesHandler):
         atoms = bulk('Na')
         if spinpol:
             atoms.set_initial_magnetic_moments([[0.1]])
-        atoms.calc = GPAW(mode=PW(300),
-                          kpts={'size': (8, 8, 8), 'gamma': True},
-                          parallel={'band': 1},
-                          txt=None)
+        atoms.calc = self.GPAW(
+            mode=PW(300),
+            kpts={'size': (8, 8, 8), 'gamma': True},
+            parallel={'band': 1},
+            txt=None)
         atoms.get_potential_energy()
         atoms.calc.diagonalize_full_hamiltonian(nbands=20)
         return atoms.calc
@@ -2491,7 +2566,7 @@ class GPWFiles(CachedFilesHandler):
     @gpwfile
     def diamond_lcao(self):
         atoms = bulk('C')
-        atoms.calc = GPAW(
+        atoms.calc = self.GPAW(
             mode='lcao',
             basis='dzp',
             nbands='nao',

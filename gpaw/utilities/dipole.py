@@ -40,7 +40,7 @@ def dipole_matrix_elements_from_calc(calc: ASECalculator,
             basis = calc.dft.scf_loop.hamiltonian.basis
             grid = calc.dft.density.nt_sR.desc
             wfs = wfs.to_uniform_grid_wave_functions(grid, basis)
-        wfs12 = wfs.collect(n1, n2)
+        wfs12 = wfs.collect_bands_and_domain(n1, n2)
         if wfs12 is not None:
             assert isinstance(wfs12, PWFDWaveFunctions)
             d_nnv = wfs12.dipole_matrix_elements() * Bohr

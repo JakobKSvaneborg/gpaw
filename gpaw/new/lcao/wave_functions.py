@@ -216,9 +216,9 @@ class LCAOWaveFunctions(WaveFunctions, XP):
             wfs.eig_n = self.eig_n.copy()
         return wfs
 
-    def collect(self,
-                n1: int = 0,
-                n2: int = 0) -> LCAOWaveFunctions | None:
+    def collect_bands(self,
+                      n1: int = 0,
+                      n2: int = 0) -> LCAOWaveFunctions | None:
         # Quick'n'dirty implementation
         # We should generalize the PW+FD method
         assert self.band_comm.size == 1
@@ -234,7 +234,8 @@ class LCAOWaveFunctions(WaveFunctions, XP):
             T_MM=self.T_MM,
             P_aMi=self.P_aMi,
             relpos_ac=self.relpos_ac,
-            atomdist=self.atomdist.gather(),
+            atomdist=self.atomdist,
+            domain_comm=self.domain_comm,
             kpt_c=self.kpt_c,
             spin=self.spin,
             q=self.q,
@@ -276,30 +277,36 @@ class LCAOWaveFunctions(WaveFunctions, XP):
                  self.spin,
                  self.q,
                  self.k,
+                 self.eig_n,
+                 self._occ_n,
                  self.weight,
                  self.ncomponents)
         send(stuff, rank, comm)
 
     def receive(self, rank, comm):
-        kpt_c, data, spin, q, k, weight, ncomponents = receive(rank, comm)
-        return LCAOWaveFunctions(setups=self.setups,
-                                 tci_derivatives=self.tci_derivatives,
-                                 basis=self.basis,
-                                 C_nM=Matrix(*data.shape, data=data),
-                                 S_MM=None,
-                                 T_MM=None,
-                                 P_aMi=None,
-                                 relpos_ac=self.relpos_ac,
-                                 atomdist=self.atomdist.gather(),
-                                 kpt_c=kpt_c,
-                                 spin=spin,
-                                 q=q,
-                                 k=k,
-                                 weight=weight,
-                                 ncomponents=ncomponents)
+        (kpt_c, data, spin, q, k,
+         eig_n, occ_n, weight, ncomponents) = receive(rank, comm)
+        wfs = LCAOWaveFunctions(setups=self.setups,
+                                tci_derivatives=self.tci_derivatives,
+                                basis=self.basis,
+                                C_nM=Matrix(*data.shape, data=data),
+                                S_MM=None,
+                                T_MM=None,
+                                P_aMi=None,
+                                relpos_ac=self.relpos_ac,
+                                atomdist=self.atomdist.gather(),
+                                kpt_c=kpt_c,
+                                spin=spin,
+                                q=q,
+                                k=k,
+                                weight=weight,
+                                ncomponents=ncomponents)
+        wfs.eig_n = eig_n
+        wfs._occ_n = occ_n
+        return wfs
 
-    def to_pw_expansion(self, nbands, grid, pw):
-        grid = grid.new(kpt=self.kpt_c, dtype=self.dtype)
+    def to_pw_expansion(self, nbands, pw):
+        grid = self.basis.grid.new(kpt=self.kpt_c, dtype=self.dtype)
         pw = pw.new(kpt=self.kpt_c)
 
         if np.issubdtype(self.dtype, np.complexfloating):
@@ -309,6 +316,7 @@ class LCAOWaveFunctions(WaveFunctions, XP):
         if self.ncomponents < 4:
             psit_nG = pw.empty(nbands, self.band_comm)
             psit_R = grid.empty()
+
             if grid.dtype != pw.dtype:
                 psit0_R = grid.new(dtype=pw.dtype).empty()
             for C_M, psit_G in zip(self.C_nM.data, psit_nG, strict=False):
@@ -320,7 +328,7 @@ class LCAOWaveFunctions(WaveFunctions, XP):
                     psit0_R.data[:] = psit_R.data
                     psit0_R.fft(out=psit_G)
                 else:
-                    psit_R.fft(out=psit_G)
+                    psit_R.to_pbc_grid().fft(out=psit_G)
             return psit_nG.to_xp(self.xp)
 
         psit_nsG = pw.empty((nbands, 2), self.band_comm)

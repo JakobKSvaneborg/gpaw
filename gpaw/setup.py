@@ -19,7 +19,6 @@ from gpaw.sphere.gaunt import gaunt, nabla
 from gpaw.spline import Spline
 from gpaw.utilities import pack_density, unpack_hermitian
 from gpaw.xc import XC
-from gpaw.xc.ri.spherical_hse_kernel import RadialHSE
 
 
 class WrongMagmomForHundsRuleError(ValueError):
@@ -519,6 +518,7 @@ class BaseSetup:
     def calculate_erfc_interaction(self, omega):
         """Calculate and return erfc based valence valence
            exchange interactions."""
+        from gpaw.xc.ri.spherical_hse_kernel import RadialHSE
         hse = RadialHSE(self.local_corr.rgd2, omega).screened_coulomb_dv
 
         def erfc_interaction(n_g, l):

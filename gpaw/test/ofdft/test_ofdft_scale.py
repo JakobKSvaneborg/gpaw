@@ -34,7 +34,7 @@ def test_ofdft_ofdft_scale(in_tmp_dir):
 
         mixer = Mixer(0.3, 5, 1)
         eigensolver = CG(tw_coeff=lambda_coeff)
-        calc = GPAW(_use_old_gpaw=True,
+        calc = GPAW(legacy_gpaw=True,
                     mode='fd',
                     h=h,
                     xc=xcname,

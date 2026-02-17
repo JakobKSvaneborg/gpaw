@@ -17,7 +17,8 @@ def test_vdw_H_Hirshfeld():
 
     volumes = []
     for spinpol in [False, True]:
-        calc = GPAW(mode='fd',
+        calc = GPAW(legacy_gpaw=True,
+                    mode='fd',
                     h=h,
                     occupations=FermiDirac(0.1, fixmagmom=spinpol),
                     convergence={'density': 1e-6},

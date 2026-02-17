@@ -21,7 +21,7 @@ def test_corehole_h2o_recursion(in_tmp_dir):
                 cell=(a, a, a), pbc=False)
     H2O.center()
     calc = GPAW(
-        _use_old_gpaw=True,
+        legacy_gpaw=True,
         mode='fd',
         nbands=10,
         h=0.2,

@@ -2235,9 +2235,6 @@ class GPAW(Calculator):
         scf_loop = type('SCF', (), {'niter': self.scf.niter})()
         return type('DFT', (), {'scf_loop': scf_loop})()
 
-    def _to_old(self):
-        return self
-
 
 class DeprecatedParameterWarning(FutureWarning):
     """Warning class for when a parameter or its value is deprecated."""

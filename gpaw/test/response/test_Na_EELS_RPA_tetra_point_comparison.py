@@ -11,7 +11,8 @@ from gpaw.test import findpeak
 @pytest.mark.dielectricfunction
 @pytest.mark.tetrahedron
 @pytest.mark.response
-def test_response_Na_EELS_RPA_tetra_point_comparison(in_tmp_dir, gpw_files):
+def test_response_Na_EELS_RPA_tetra_point_comparison(
+        in_tmp_dir, gpw_files):
     gpwname = gpw_files['na_chain']
 
     calc = GPAW(gpwname)
@@ -36,14 +37,14 @@ def test_response_Na_EELS_RPA_tetra_point_comparison(in_tmp_dir, gpw_files):
 
     # Calculate the eels spectrum using point integration at both q-points
     df1 = DielectricFunction(calc='Na', frequencies=w_w, eta=0.2, ecut=50,
-                             hilbert=False, rate=0.2)
+                             hilbert=False, rate=0.2, world=world)
     df1.get_eels_spectrum(xc='RPA', filename='EELS_Na-PI_q0', q_c=q0_c)
     df1.get_eels_spectrum(xc='RPA', filename='EELS_Na-PI_q1', q_c=q1_c)
 
     # Calculate the eels spectrum using tetrahedron integration at both q
     df2 = DielectricFunction(calc='Na', eta=0.2, ecut=50,
                              integrationmode='tetrahedron integration',
-                             hilbert=True, rate=0.2)
+                             hilbert=True, rate=0.2, world=world)
     df2.get_eels_spectrum(xc='RPA', filename='EELS_Na-TI_q0', q_c=q0_c)
     df2.get_eels_spectrum(xc='RPA', filename='EELS_Na-TI_q1', q_c=q1_c)
 
