@@ -176,7 +176,9 @@ def test_log(in_tmp_dir):
             assert 'Linear response TDDFT calculation' not in string
 
     fname = 'ex0_split.out'
-    calc = GPAW(mode='fd', xc='PBE', h=0.25, nbands=5, txt=fname)
+    calc = GPAW(
+        legacy_gpaw=True,
+        mode='fd', xc='PBE', h=0.25, nbands=5, txt=fname)
     calc.calculate(get_H2(calc))
     exlst = LrTDDFT(calc, restrict={'eps': 0.4, 'jend': 3}, log=calc.log)
     exst = ExcitedState(exlst, 0, log=exlst.log, parallel=2)

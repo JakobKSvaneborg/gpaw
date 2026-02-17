@@ -17,11 +17,17 @@ def test_lcaotddft_lcaotddft_vs_lrtddft2_rpa(in_tmp_dir):
     atoms.center(vacuum=4.0)
 
     # Ground-state calculation
-    calc = GPAW(nbands=2, h=0.4, setups=dict(Na='1'),
-                basis='sz(dzp)', mode='lcao', xc='oldLDA',
-                convergence={'density': 1e-8},
-                symmetry={'point_group': False},
-                txt='gs.out')
+    calc = GPAW(
+        legacy_gpaw=True,
+        nbands=2,
+        h=0.4,
+        setups=dict(Na='1'),
+        basis='sz(dzp)',
+        mode='lcao',
+        xc='oldLDA',
+        convergence={'density': 1e-8},
+        symmetry={'point_group': False},
+        txt='gs.out')
     atoms.calc = calc
     atoms.get_potential_energy()
     calc.write('gs.gpw', mode='all')
@@ -35,7 +41,7 @@ def test_lcaotddft_lcaotddft_vs_lrtddft2_rpa(in_tmp_dir):
                              e_max=10, width=0.5, delta_e=0.1)
 
     # LrTDDFT2 calculation
-    calc = GPAW('gs.gpw', txt='lr.out')
+    calc = GPAW('gs.gpw', txt='lr.out', legacy_gpaw=True)
     # It doesn't matter which fxc is here
     lr = LrTDDFT2('lr2', calc, fxc='LDA')
     lr.K_matrix.fxc_pre = 0.0  # Ignore fxc part

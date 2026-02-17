@@ -21,7 +21,8 @@ def test_lrtddft_3(in_tmp_dir):
     txt = None
     N2 = molecule('N2', vacuum=2.0)
 
-    calc = GPAW(mode='fd',
+    calc = GPAW(legacy_gpaw=True,
+                mode='fd',
                 h=0.25,
                 nbands=-2,
                 spinpol=True,

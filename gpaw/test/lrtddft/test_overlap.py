@@ -37,7 +37,7 @@ def test_overlap(in_tmp_dir):
     H2 = molecule('H2')
     adjust_cell(H2, box, h)
 
-    c1 = GPAW(**get_kwargs(nbands=nbands))
+    c1 = GPAW(**get_kwargs(nbands=nbands), legacy_gpaw=True)
     c1.calculate(H2)
     lr1 = LrTDDFT(c1)
 
