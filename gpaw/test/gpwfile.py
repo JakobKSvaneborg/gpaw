@@ -1844,8 +1844,7 @@ class GPWFiles(CachedFilesHandler):
     @gpwfile
     def mos2_pw_fulldiag(self):
         calc = self._mos2()
-        calc.diagonalize_full_hamiltonian(nbands=20)
-        return calc
+        return calc.fixed_density(nbands=20)
 
     @gpwfile
     def mos2_5x5_pw(self):

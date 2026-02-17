@@ -184,7 +184,7 @@ class GWQEHCorrection:
                 dW_qw = self.calculate_W_QEH(structure, d, layer)
         else:
             self.qqeh = qqeh
-            self.wqeh = None  # wqeh
+            self.wqeh = wqeh
 
         self.dW_qw = self.get_W_on_grid(dW_qw, include_q0=include_q0,
                                         metal=metal)

@@ -162,7 +162,7 @@ def gpw_files(request):
 
     * MoS2 with 6x6x1 k-points: ``mos2_pw`` and ``mos2_pw_nosym``
 
-    * MoS2 with 6x6x1 k-points and full diagonalization (20 bands):
+    * MoS2 with 6x6x1 k-points and 20 bands via fixed-density:
       ``mos2_pw_fulldiag``
 
     * MoS2 with 5x5x1 k-points: ``mos2_5x5_pw``

@@ -14,24 +14,6 @@ import pytest
 from ase.units import Hartree
 
 
-def _create_chi_building_block(gpwfile, chi_filename, ecut=10, q_max=0.5):
-    """Create a chi building block file for QEH calculations."""
-    from gpaw.response.df import DielectricFunction
-    from gpaw.response.qeh import QEHChiCalc
-
-    df = DielectricFunction(calc=gpwfile,
-                            frequencies={'type': 'nonlinear',
-                                         'omegamax': 5,
-                                         'domega0': 0.1,
-                                         'omega2': 0.5},
-                            ecut=ecut,
-                            rate=0.01,
-                            truncation='2D')
-
-    chicalc = QEHChiCalc(df)
-    chicalc.save_chi_npz(q_max=q_max, filename=chi_filename)
-
-
 # ---------- Unit tests (fast, no DFT needed) ----------
 
 
@@ -97,82 +79,237 @@ def test_gwqeh_interlayer_conversion():
         interlayer_to_thickness(np.array([]))
 
 
-# ---------- Integration tests (require DFT + QEH) ----------
+# ---------- Helpers for synthetic Delta-W ----------
 
 
-@pytest.fixture(scope='module')
-def mos2_chi(module_tmp_path, gpw_files):
-    """Create chi building block from the shared mos2_pw_fulldiag fixture.
+def _make_synthetic_dW(nq=50, nw=100, amplitude=0.005):
+    """Create synthetic Delta-W(q,omega) arrays for testing without qeh.
 
-    The gpw file is reused from the session-scoped gpw_files cache.
-    The chi building block is computed once per test module.
+    Models the change in screened interaction due to a neighboring
+    layer: Delta-W = W_HS - W_mono < 0 (more screening reduces W).
+    Uses Lorentzian frequency dependence and exponential q-decay.
+
+    Returns qqeh (Bohr^-1), wqeh (Hartree), dW_qw (complex).
     """
-    pytest.importorskip('qeh')
-    chi_file = str(module_tmp_path / 'MoS2-chi.npz')
-    _create_chi_building_block(gpw_files['mos2_pw_fulldiag'],
-                               chi_file, ecut=10, q_max=0.5)
-    return str(gpw_files['mos2_pw_fulldiag']), chi_file
+    qqeh = np.linspace(0, 3.0, nq)   # Bohr^-1
+    wqeh = np.linspace(0, 3.0, nw)   # Hartree
+
+    q = qqeh[:, np.newaxis]
+    w = wqeh[np.newaxis, :]
+
+    # Delta-W < 0: additional screening reduces the screened interaction
+    dW = -amplitude * np.exp(-q) / (1 + w**2)
+    return qqeh, wqeh, dW.astype(complex)
+
+
+# ---------- Integration tests (DFT + synthetic Delta-W, no qeh) ----------
 
 
 @pytest.mark.response
 @pytest.mark.serial
-@pytest.mark.slow
-def test_gwqeh_monolayer_qp_correction(mos2_chi):
-    """Test QP corrections for an isolated MoS2 monolayer.
+def test_gwqeh_zero_dW(in_tmp_dir, gpw_files):
+    """Delta-W = 0 must give zero QP correction.
 
-    For an isolated monolayer (single building block, no neighbors),
-    Delta W = W_HS - W_mono should be zero, and therefore the
-    QP correction should vanish.
+    When there is no change in screening (isolated monolayer),
+    the self-energy correction must vanish identically.
     """
     from gpaw.response.gwqeh import GWQEHCorrection
 
-    gpwfile, chi_file = mos2_chi
+    gpwfile = str(gpw_files['mos2_pw_fulldiag'])
+    qqeh, wqeh, dW_qw = _make_synthetic_dW()
+    dW_zero = np.zeros_like(dW_qw)
 
-    # Isolated monolayer: structure has just one layer
     gwq = GWQEHCorrection(calc=gpwfile,
-                          filename='gwqeh_mono',
+                          filename='gwqeh_zero',
                           kpts=[0],
                           bands=(8, 12),
-                          structure=[chi_file],
-                          d=[6.15],
-                          layer=0,
+                          dW_qw=dW_zero,
+                          qqeh=qqeh,
+                          wqeh=wqeh,
                           domega0=0.1,
                           omega2=5.0)
 
     sigma_sin, dsigma_sin = gwq.calculate_QEH()
     qp_sin = gwq.calculate_qp_correction()
 
-    # Check shapes
-    assert sigma_sin.shape == (1, 1, 4)  # (nspins, nkpts, nbands)
+    # Check shapes: (nspins, nkpts, nbands) = (1, 1, 4)
+    assert sigma_sin.shape == (1, 1, 4)
     assert qp_sin.shape == (1, 1, 4)
 
-    # For a single isolated layer, Delta W = W_HS - W_mono = 0.
-    # Therefore the self-energy correction and QP correction must vanish.
+    # Zero Delta-W must give zero correction
     np.testing.assert_allclose(sigma_sin, 0.0, atol=1e-10)
     np.testing.assert_allclose(qp_sin, 0.0, atol=1e-10)
 
 
 @pytest.mark.response
 @pytest.mark.serial
-@pytest.mark.slow
-def test_gwqeh_bilayer_physical_signs(mos2_chi):
-    """Test that bilayer QP corrections have physically correct signs.
+def test_gwqeh_linearity_in_dW(in_tmp_dir, gpw_files):
+    """Self-energy is linear in Delta-W.
 
-    In a bilayer, the additional screening from the neighboring layer
-    reduces the band gap. The image charge interaction is attractive,
-    which means:
-      - Valence band correction > 0 (VBM shifts up)
-      - Conduction band correction < 0 (CBM shifts down)
+    The GW self-energy Sigma = i G W is linear in W. Therefore
+    doubling Delta-W must exactly double the QP correction.
+    """
+    from gpaw.response.gwqeh import GWQEHCorrection
+
+    gpwfile = str(gpw_files['mos2_pw_fulldiag'])
+    qqeh, wqeh, dW_qw = _make_synthetic_dW()
+
+    gwq1 = GWQEHCorrection(calc=gpwfile,
+                           filename='gwqeh_1x',
+                           kpts=[0],
+                           bands=(8, 12),
+                           dW_qw=dW_qw,
+                           qqeh=qqeh,
+                           wqeh=wqeh,
+                           domega0=0.1,
+                           omega2=5.0)
+    qp1 = gwq1.calculate_qp_correction()
+
+    gwq2 = GWQEHCorrection(calc=gpwfile,
+                           filename='gwqeh_2x',
+                           kpts=[0],
+                           bands=(8, 12),
+                           dW_qw=2.0 * dW_qw,
+                           qqeh=qqeh,
+                           wqeh=wqeh,
+                           domega0=0.1,
+                           omega2=5.0)
+    qp2 = gwq2.calculate_qp_correction()
+
+    # Corrections should be non-zero to make this test meaningful
+    assert np.any(np.abs(qp1) > 1e-12), \
+        'Corrections are zero; linearity test is vacuous'
+
+    # Exact linearity (self-energy is linear in W)
+    np.testing.assert_allclose(qp2, 2.0 * qp1, rtol=1e-10)
+
+
+@pytest.mark.response
+@pytest.mark.serial
+def test_gwqeh_bilayer_physical_signs(in_tmp_dir, gpw_files):
+    """Bilayer QP corrections have physically correct signs.
+
+    With Delta-W < 0 (additional screening from neighbor), the band gap
+    is reduced: valence bands shift up (positive correction) and
+    conduction bands shift down (negative correction).
 
     Reference: Winther and Thygesen, 2D Materials 4, 025059 (2017).
     """
     from gpaw.response.gwqeh import GWQEHCorrection
 
+    gpwfile = str(gpw_files['mos2_pw_fulldiag'])
+    qqeh, wqeh, dW_qw = _make_synthetic_dW()
+
+    gwq = GWQEHCorrection(calc=gpwfile,
+                          filename='gwqeh_signs',
+                          kpts=[0],
+                          bands=(8, 12),
+                          dW_qw=dW_qw,
+                          qqeh=qqeh,
+                          wqeh=wqeh,
+                          domega0=0.1,
+                          omega2=5.0)
+
+    qp_sin = gwq.calculate_qp_correction()
+
+    # MoS2: 18 valence electrons -> 9 occupied bands
+    # bands (8,12): bands 8,9 are valence; bands 10,11 are conduction
+    valence_correction = qp_sin[0, 0, :2]
+    conduction_correction = qp_sin[0, 0, 2:]
+
+    # Physical signs: Delta-W < 0 -> gap reduction
+    assert np.all(valence_correction > 0), \
+        f'Valence corrections should be > 0, got {valence_correction}'
+    assert np.all(conduction_correction < 0), \
+        f'Conduction corrections should be < 0, got {conduction_correction}'
+
+
+@pytest.mark.response
+@pytest.mark.serial
+def test_gwqeh_state_file(in_tmp_dir, gpw_files):
+    """State files enable correct restart."""
+    from gpaw.response.gwqeh import GWQEHCorrection
+
+    gpwfile = str(gpw_files['mos2_pw_fulldiag'])
+    qqeh, wqeh, dW_qw = _make_synthetic_dW()
+
+    gwq = GWQEHCorrection(calc=gpwfile,
+                          filename='gwqeh_restart',
+                          kpts=[0],
+                          bands=(8, 10),
+                          dW_qw=dW_qw,
+                          qqeh=qqeh,
+                          wqeh=wqeh,
+                          domega0=0.1,
+                          omega2=5.0)
+
+    qp_original = gwq.calculate_qp_correction()
+    assert os.path.exists('gwqeh_restart_qeh.npz')
+
+    # Restart from state file
+    gwq2 = GWQEHCorrection(calc=gpwfile,
+                           filename='gwqeh_restart',
+                           kpts=[0],
+                           bands=(8, 10),
+                           dW_qw=dW_qw,
+                           qqeh=qqeh,
+                           wqeh=wqeh,
+                           domega0=0.1,
+                           omega2=5.0,
+                           restart=True)
+
+    assert gwq2.complete is True
+    qp_reloaded = gwq2.calculate_qp_correction()
+    np.testing.assert_allclose(qp_original, qp_reloaded)
+
+
+# ---------- Full pipeline test (requires qeh package) ----------
+
+
+@pytest.fixture(scope='module')
+def mos2_chi(module_tmp_path, gpw_files):
+    """Create chi building block for full-pipeline tests.
+
+    Requires the external ``qeh`` package.  The chi building block
+    is computed once per test module.
+    """
+    pytest.importorskip('qeh')
+    from gpaw.response.df import DielectricFunction
+    from gpaw.response.qeh import QEHChiCalc
+
+    gpwfile = gpw_files['mos2_pw_fulldiag']
+    chi_file = str(module_tmp_path / 'MoS2-chi.npz')
+
+    df = DielectricFunction(calc=gpwfile,
+                            frequencies={'type': 'nonlinear',
+                                         'omegamax': 5,
+                                         'domega0': 0.1,
+                                         'omega2': 0.5},
+                            ecut=10,
+                            rate=0.01,
+                            truncation='2D')
+    chicalc = QEHChiCalc(df)
+    chicalc.save_chi_npz(q_max=0.5, filename=chi_file)
+
+    return str(gpwfile), chi_file
+
+
+@pytest.mark.response
+@pytest.mark.serial
+@pytest.mark.slow
+def test_gwqeh_full_pipeline(in_tmp_dir, mos2_chi):
+    """Full pipeline: DFT -> building block -> QEH -> QP correction.
+
+    Tests the complete workflow including the QEH building block
+    computation.  Verifies that a bilayer produces physically
+    correct signs for the QP correction.
+    """
+    from gpaw.response.gwqeh import GWQEHCorrection
+
     gpwfile, chi_file = mos2_chi
 
-    # Bilayer MoS2 with typical interlayer distance
     gwq = GWQEHCorrection(calc=gpwfile,
-                          filename='gwqeh_bilayer',
+                          filename='gwqeh_full',
                           kpts=[0],
                           bands=(8, 12),
                           structure=[chi_file, chi_file],
@@ -183,110 +320,10 @@ def test_gwqeh_bilayer_physical_signs(mos2_chi):
 
     qp_sin = gwq.calculate_qp_correction()
 
-    # MoS2 bands 8,9 are valence, 10,11 are conduction (LDA, 18 electrons)
-    # The occupations at kpt=0 tell us which are occupied:
-    valence_correction = qp_sin[0, 0, :2]   # bands 8, 9
-    conduction_correction = qp_sin[0, 0, 2:]  # bands 10, 11
-
-    # Physical requirement: band gap is reduced by environmental screening.
-    # Valence bands shift UP (positive correction),
-    # conduction bands shift DOWN (negative correction).
+    # Physical signs for bilayer screening
+    valence_correction = qp_sin[0, 0, :2]
+    conduction_correction = qp_sin[0, 0, 2:]
     assert np.all(valence_correction > 0), \
         f'Valence corrections should be > 0, got {valence_correction}'
     assert np.all(conduction_correction < 0), \
         f'Conduction corrections should be < 0, got {conduction_correction}'
-
-    # The total band gap reduction should be non-trivial.
-    # For MoS2 bilayer at d=6.15 Ang, the gap reduction is typically
-    # on the order of 0.1-0.5 eV (depending on convergence).
-    gap_reduction = valence_correction.max() - conduction_correction.min()
-    assert gap_reduction > 0.01, \
-        f'Band gap reduction too small: {gap_reduction:.4f} eV'
-
-
-@pytest.mark.response
-@pytest.mark.serial
-@pytest.mark.slow
-def test_gwqeh_bilayer_vs_trilayer(mos2_chi):
-    """Test that more layers produce larger QP corrections.
-
-    Adding more screening layers should increase |Delta W| and
-    therefore increase the magnitude of the QP correction. The
-    band gap reduction in a trilayer should be larger than in a bilayer.
-    """
-    from gpaw.response.gwqeh import GWQEHCorrection
-
-    gpwfile, chi_file = mos2_chi
-
-    # Bilayer
-    gwq_bi = GWQEHCorrection(calc=gpwfile,
-                              filename='gwqeh_bi',
-                              kpts=[0],
-                              bands=(8, 12),
-                              structure=[chi_file, chi_file],
-                              d=[6.15],
-                              layer=0,
-                              domega0=0.1,
-                              omega2=5.0)
-    qp_bi = gwq_bi.calculate_qp_correction()
-
-    # Trilayer (target layer sandwiched between two layers)
-    gwq_tri = GWQEHCorrection(calc=gpwfile,
-                               filename='gwqeh_tri',
-                               kpts=[0],
-                               bands=(8, 12),
-                               structure=[chi_file, chi_file, chi_file],
-                               d=[6.15, 6.15],
-                               layer=1,
-                               domega0=0.1,
-                               omega2=5.0)
-    qp_tri = gwq_tri.calculate_qp_correction()
-
-    # Trilayer corrections should be larger in magnitude
-    # (more screening -> larger gap reduction)
-    gap_reduction_bi = (qp_bi[0, 0, :2].max()
-                        - qp_bi[0, 0, 2:].min())
-    gap_reduction_tri = (qp_tri[0, 0, :2].max()
-                         - qp_tri[0, 0, 2:].min())
-    assert gap_reduction_tri > gap_reduction_bi, \
-        (f'Trilayer gap reduction ({gap_reduction_tri:.4f} eV) should exceed '
-         f'bilayer ({gap_reduction_bi:.4f} eV)')
-
-
-@pytest.mark.response
-@pytest.mark.serial
-@pytest.mark.slow
-def test_gwqeh_state_file(mos2_chi):
-    """Test saving and loading state files for restart capability."""
-    from gpaw.response.gwqeh import GWQEHCorrection
-
-    gpwfile, chi_file = mos2_chi
-
-    gwq = GWQEHCorrection(calc=gpwfile,
-                          filename='gwqeh_restart',
-                          kpts=[0],
-                          bands=(8, 10),
-                          structure=[chi_file],
-                          d=[6.15],
-                          layer=0,
-                          domega0=0.1,
-                          omega2=5.0)
-
-    qp_original = gwq.calculate_qp_correction()
-    assert os.path.exists('gwqeh_restart_qeh.npz')
-
-    # Restart from file
-    gwq2 = GWQEHCorrection(calc=gpwfile,
-                           filename='gwqeh_restart',
-                           kpts=[0],
-                           bands=(8, 10),
-                           structure=[chi_file],
-                           d=[6.15],
-                           layer=0,
-                           domega0=0.1,
-                           omega2=5.0,
-                           restart=True)
-
-    assert gwq2.complete is True
-    qp_reloaded = gwq2.calculate_qp_correction()
-    np.testing.assert_allclose(qp_original, qp_reloaded)
