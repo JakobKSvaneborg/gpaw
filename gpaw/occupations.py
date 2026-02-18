@@ -262,7 +262,13 @@ class FixMagneticMomentOccupationNumberCalculator(OccupationNumberCalculator):
             else:
                 f_un.append(f2_un[u])
 
-        return (np.array(f_un),
+        f_un = np.array(f_un)
+        total = np.sum(f_un)
+        if np.abs(nelectrons - total) > 1e-5:
+            raise ValueError('Could not fix magnetic moment (too few bands?). '
+                             f'Total electrons should be {nelectrons}, '
+                             f'but have {total}.')
+        return (f_un,
                 fermi_levels1 + fermi_levels2,
                 e_entropy1 + e_entropy2)
 
