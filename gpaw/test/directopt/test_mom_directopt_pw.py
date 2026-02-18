@@ -16,7 +16,7 @@ def test_mom_directopt_pw(in_tmp_dir, gpaw_new, gpw_files):
 
     for canonical in [True, False]:
         # Mixed-spin excited state calculation
-        atoms, calc = restart('h2o.gpw', txt='-')
+        atoms, calc = restart('h2o.gpw', txt='-', legacy_gpaw=True)
         mom_after_canonical = False  # Test MOM after canonical only
         if mom_after_canonical:
             momevery = np.inf
