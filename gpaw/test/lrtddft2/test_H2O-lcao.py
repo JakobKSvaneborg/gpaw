@@ -9,8 +9,8 @@ from gpaw.lrtddft2 import LrTDDFT2
 def test_lrtddft2_H2O_lcao(gpw_files, in_tmp_dir):
     name = 'H2O-lcao'
     # LrTDDFT2
-    calc = GPAW(legacy_gpaw=True,
-                gpw_files['h20_lr2_nbands8'],
+    calc = GPAW(gpw_files['h20_lr2_nbands8'],
+                legacy_gpaw=True,
                 txt='%s-lr.out' % name)
     lr = LrTDDFT2(name, calc, fxc='LDA')
     lr.calculate()
