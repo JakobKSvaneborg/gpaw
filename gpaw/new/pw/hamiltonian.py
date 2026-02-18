@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 import numpy as np
 
-from gpaw.core.arrays import DistributedArrays as XArray
+from gpaw.core.arrays import XArray
 from gpaw.core.plane_waves import PWArray
 from gpaw.core.uniform_grid import UGArray
 from gpaw.gpu import cupy as cp

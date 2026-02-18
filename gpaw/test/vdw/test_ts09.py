@@ -5,14 +5,13 @@ from ase.build import molecule
 from ase.calculators.vdwcorrection import vdWTkatchenko09prl
 from ase.parallel import barrier, parprint
 
-from gpaw import GPAW
 from gpaw.analyse.hirshfeld import HirshfeldPartitioning
 from gpaw.analyse.vdwradii import vdWradii
 from gpaw.utilities.adjust_cell import adjust_cell
 
 
 @pytest.mark.old_gpaw_only
-def test_vdw_ts09(in_tmp_dir):
+def test_vdw_ts09(in_tmp_dir, mpi):
     h = 0.4
     s = molecule('LiH')
     adjust_cell(s, 3., h=h)
@@ -29,14 +28,16 @@ def test_vdw_ts09(in_tmp_dir):
         out_traj = 'LiH.traj'
         out_txt = 'LiH.txt'
 
-        cc = GPAW(mode='fd', h=h, xc='PBE', txt=out_txt)
+        cc = mpi.GPAW(legacy_gpaw=True, mode='fd', h=h, xc='PBE', txt=out_txt)
 
         # this is needed to initialize txt output
-        cc.initialize(s)
+        if cc.old:
+            cc.initialize(s)
 
         hp = HirshfeldPartitioning(cc)
-        c = vdWTkatchenko09prl(hp,
-                               vdWradii(s.get_chemical_symbols(), 'PBE'))
+        c = vdWTkatchenko09prl(
+            hp,
+            vdWradii(s.get_chemical_symbols(), 'PBE', world=mpi.comm))
         s.calc = c
         E = s.get_potential_energy()
         F_ac = s.get_forces()
@@ -57,8 +58,8 @@ def test_vdw_ts09(in_tmp_dir):
     # spin polarized
 
     if 0:
-        ccs = GPAW(mode='fd', h=h, xc='PBE', spinpol=True,
-                   txt=None)
+        ccs = mpi.GPAW(mode='fd', h=h, xc='PBE', spinpol=True,
+                       txt=None)
         hps = HirshfeldPartitioning(ccs)
         cs = vdWTkatchenko09prl(hps, vdWradii(s.get_chemical_symbols(), 'PBE'))
         s.calc = cs

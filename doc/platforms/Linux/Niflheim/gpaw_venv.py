@@ -81,6 +81,8 @@ module load libvdwxc/0.5.0-{fullchain}
 module_cmds_gpu = """\
 if [ "$CPU_ARCH" == "icelake" ] && [ {fullchain} == "foss-2025b" ];\
 then module load CuPy/13.6.0-{fullchain}-CUDA-12.9.1;fi
+if [ "$CPU_ARCH" == "sapphirerapids" ] && [ {fullchain} == "foss-2025b" ];\
+then module load CuPy/13.6.0-{fullchain}-CUDA-12.9.1;fi
 if [ "$CPU_ARCH" == "skylake_el8" ] && [ {fullchain} == "foss-2025b" ];\
 then module load CuPy/13.6.0-{fullchain}-CUDA-12.9.1;fi
 if [ "$SLURM_JOB_PARTITION" == "a100" ] \
@@ -298,7 +300,8 @@ def main():
     packages = ['myqueue',
                 'graphviz',
                 'sphinx_rtd_theme',
-                'sphinxcontrib-jquery']
+                'sphinxcontrib-jquery',
+                'pybind11']
     if args.piponly:
         packages += ['matplotlib',
                      'scipy',

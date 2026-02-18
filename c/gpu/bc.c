@@ -1,5 +1,6 @@
-#include "../extensions.h"
-#include "../bc.h"
+#include "python_utils.h" // include first just to be on safe side, in case something else includes it later
+#include "extensions.h"
+#include "bc.h"
 #include "bmgs.h"
 #include "gpu.h"
 #include <stdio.h>

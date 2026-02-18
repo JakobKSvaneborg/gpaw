@@ -2,10 +2,10 @@ import numpy as np
 import pytest
 from ase import Atoms
 
-from gpaw import GPAW, Davidson, FermiDirac
+from gpaw import Davidson, FermiDirac
 
 
-def test_fermilevel(in_tmp_dir):
+def test_fermilevel(in_tmp_dir, mpi):
     atoms = Atoms('He', pbc=True)
     atoms.center(vacuum=3)
     params = dict(mode='fd',
@@ -14,13 +14,13 @@ def test_fermilevel(in_tmp_dir):
                   occupations=FermiDirac(0.0),
                   txt=None)
 
-    atoms.calc = GPAW(**params)
+    atoms.calc = mpi.GPAW(**params)
     atoms.get_potential_energy()
     assert np.isinf(atoms.calc.get_fermi_level())
 
     params['nbands'] = 3
     params['convergence'] = {'bands': 2}
-    atoms.calc = GPAW(**params)
+    atoms.calc = mpi.GPAW(**params)
     atoms.get_potential_energy()
 
     homo, lumo = atoms.calc.get_homo_lumo()
@@ -28,7 +28,7 @@ def test_fermilevel(in_tmp_dir):
     assert lumo == pytest.approx(-0.2566, abs=0.01)
 
     atoms.calc.write('test.gpw')
-    print(GPAW('test.gpw').get_homo_lumo(), homo, lumo)
-    assert np.all(GPAW('test.gpw').get_homo_lumo() == (homo, lumo))
+    print(mpi.GPAW('test.gpw').get_homo_lumo(), homo, lumo)
+    assert np.all(mpi.GPAW('test.gpw').get_homo_lumo() == (homo, lumo))
     ef = atoms.calc.get_fermi_level()
     assert ef == pytest.approx(-7.85196, abs=0.01)

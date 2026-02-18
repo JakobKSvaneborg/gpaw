@@ -1,15 +1,13 @@
+#include "python_utils.h"
+
+#include "gpu/gpu.h"
+#include "gpu/gpu-complex.h"
+#include "gpu/gpu_interface.h"
+
 #include <stdio.h>
 #include <time.h>
 #include <sys/types.h>
 #include <sys/time.h>
-
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
-
-#include "../gpu.h"
-#include "../gpu-complex.h"
 
 #ifndef GPU_USE_COMPLEX
 #define BLOCK_SIZEX 32
@@ -58,7 +56,6 @@ __global__ void Zgpu(add_linear_field_kernel)(
 #define GPU_USE_COMPLEX
 #include "ext-potential.cpp"
 
-extern "C"
 PyObject* add_linear_field_gpu(PyObject *self, PyObject *args)
 {
     void *a_gpu;

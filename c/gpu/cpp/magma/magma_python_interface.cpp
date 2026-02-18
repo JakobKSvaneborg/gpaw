@@ -1,7 +1,7 @@
 #include "magma_python_interface.h"
-#include "../pyarray_utils.hpp"
+#include "gpu/cpp/pyarray_utils.hpp"
 #include "magma_gpaw.hpp"
-#include "../../../gpaw_utils.h"
+#include "gpaw_utils.h"
 
 #include <cassert>
 
@@ -71,7 +71,7 @@ static MagmaPythonContext decide_solver_type(int matrix_numpy_dtype)
     return context;
 }
 
-CLINKAGE void gpaw_magma_init()
+void gpaw_magma_init()
 {
     MAGMA_CHECK(magma_init());
 
@@ -83,12 +83,12 @@ CLINKAGE void gpaw_magma_init()
     gpaw_magma_static_data.num_gpus = ndevices;
 }
 
-CLINKAGE void gpaw_magma_finalize()
+void gpaw_magma_finalize()
 {
     MAGMA_CHECK(magma_finalize());
 }
 
-CLINKAGE PyObject* eigh_magma_numpy(PyObject* self, PyObject* args)
+PyObject* eigh_magma_numpy(PyObject* self, PyObject* args)
 {
     PyObject *inout_matrix;
     PyObject* inout_eigvals;
@@ -163,7 +163,7 @@ CLINKAGE PyObject* eigh_magma_numpy(PyObject* self, PyObject* args)
     Py_RETURN_NONE;
 }
 
-CLINKAGE PyObject* eigh_magma_cupy(PyObject* self, PyObject* args)
+PyObject* eigh_magma_cupy(PyObject* self, PyObject* args)
 {
     // Must be allocated on Python side. Asserts below verify that the dtypes and sizes are OK
     PyObject* inout_matrix_cupy;

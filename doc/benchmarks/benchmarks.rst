@@ -2,6 +2,10 @@
 Benchmarks
 ==========
 
+.. image:: pw-perf-index.svg
+.. image:: lcao-perf-index.svg
+.. image:: fd-perf-index.svg
+
 See :git:`gpaw/benchmark/performance_index.py`.
 
 .. contents::
@@ -19,9 +23,15 @@ Paramaters
 ==========
 
 * PBE
-* 800 eV plane-wave cutoff
+
 * k-point density: 5.0 Å
+
 * 14 electron potential for Cr
+
+  * PW: 800 eV plane-wave cutoff
+  * LCAO: 0.15 Å grid-spacing and ``dzp`` basis sets
+  * FD: 0.15 Å grid-spacing
+
 * default parameters for everything else
 
 
@@ -51,7 +61,7 @@ Figure shows:
 
 .. image:: benchmark.png
 
-Results for latest development version :
+PW-mode results for latest version:
 
 .. csv-table::
     :file: benchmark.csv
@@ -77,7 +87,25 @@ History
 * Switched to :ref:`newgpaw`.
 
 
+2025, November 26
+-----------------
+
+* Changed initial magnetic moments for ``MnVS2-2M`` from ``[2, 2, 0, 0]``
+  to ``[2, -2, 0, 0]`` and rescaled timings.  See :mr:`3032`.
+
+2025, December
+--------------
+
+* Added LCAO and FD results to the graphs.
+
+
+2026, January
+-------------
+
+* Added two more systems (``ErGe-2M``, ``Fe8O8-3M``).
+
+
 The future
 ----------
 
-* Added three more systems (``ErGe-2M``, ``Mn2O2-3M``, ``Fe8O8-3M``).
+* Added one more system: ``Mn2O2-3M``.

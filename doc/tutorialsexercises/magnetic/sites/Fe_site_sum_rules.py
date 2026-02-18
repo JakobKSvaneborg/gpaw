@@ -4,7 +4,7 @@ energy, based on the ground state of Fe(bcc)."""
 import numpy as np
 
 from gpaw import GPAW
-from gpaw.mpi import rank
+from gpaw.mpi import world
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.site_data import AtomicSites
 from gpaw.response.mft import (calculate_single_particle_site_zeeman_energy,
@@ -44,6 +44,6 @@ for n, unocc in enumerate(unocc_n):
     EZ_nr[n] = EZ_abr[0, 0]
 
 # Save site sum rule data
-if rank == 0:
+if world.rank == 0:
     np.save('Fe_sp_EZ_r.npy', sp_EZ_ar[0])
     np.save('Fe_EZ_nr.npy', EZ_nr)

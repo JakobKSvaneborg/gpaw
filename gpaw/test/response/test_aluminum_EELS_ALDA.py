@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from ase.parallel import parprint
 
-from gpaw.mpi import size, world
+from gpaw.mpi import world
 from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.test import findpeak
 
@@ -13,7 +13,7 @@ from gpaw.test import findpeak
 @pytest.mark.response
 @pytest.mark.libxc
 def test_response_aluminum_EELS_ALDA(gpw_files, in_tmp_dir):
-    assert size <= 4**3
+    assert world.size <= 4**3
 
     # Using bse_al fixture, since it was closest to the previous test
     calc = gpw_files['bse_al']

@@ -56,7 +56,7 @@ if cupy:
         gpu_compile_args = ['-O3',
                             '-g',
                             '-gencode', 'arch=compute_80,code=sm_80']
-    elif cpuarch == 'saphirerapids':
+    elif cpuarch == 'sapphirerapids':
         gpu_compile_args = ['-O3',
                             '-g',
                             '-gencode', 'arch=compute_90,code=sm_90']
@@ -70,3 +70,6 @@ if cupy:
         raise RuntimeError(f'CuPy loaded but unknown $CPU_ARCH={cpuarch}')
 else:
     gpu = False
+
+compiler = "mpic++"
+use_cpp = True

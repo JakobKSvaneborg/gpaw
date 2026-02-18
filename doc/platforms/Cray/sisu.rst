@@ -62,7 +62,7 @@ Scalable Python
 
 Standard Python interpreter has serious bottleneck in large scale parallel
 calculations when many MPI tasks perform the same I/O operations during the
-import statetements. Scalable Python `<https://gitorious.org/scalable-python>`_
+import statements. Scalable Python `<https://gitorious.org/scalable-python>`_
 reduces the import time by having only single MPI task to perform import 
 related I/O operations and using then MPI for broadcasting the data.
 

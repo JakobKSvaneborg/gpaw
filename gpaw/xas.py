@@ -4,7 +4,7 @@ from math import ceil, log, pi, sqrt
 import numpy as np
 from ase.units import Hartree
 
-import gpaw.mpi as mpi
+from gpaw.old import assert_legacy_gpaw
 from gpaw.overlap import Overlap
 from gpaw.sphere.gaunt import gaunt
 from gpaw.typing import Array1D, Array2D, Array3D, ArrayND
@@ -81,7 +81,7 @@ class XAS:
             nocc_cor (int, optional): correction for number of occupied states
             used in e.g. XCH XAS simulations. Defaults to 0.
         """
-
+        assert_legacy_gpaw(paw)
         self.log = paw.log
         wfs = paw.wfs
         self.world = paw.world
@@ -491,6 +491,7 @@ class RecursionMethod:
                  proj_xyz=True):
 
         if paw is not None:
+            assert_legacy_gpaw(paw)
             wfs = paw.wfs
             assert wfs.gd.orthogonal
 
@@ -755,7 +756,7 @@ class RecursionMethod:
 
     def get_spectra(self, eps_s, delta=0.1, imax=None, kpoint=None, fwhm=None,
                     linbroad=None, spin=0):
-        assert mpi.size == 1  # XXX use the @parallel decorator instead
+        assert self.wfs.world.size == 1
 
         # the following lines are to stop the user to make mistakes
         # if spin == 1:

@@ -3,13 +3,14 @@ from ase.units import Bohr
 from ase.utils.timing import Timer
 
 from gpaw.lfc import BasisFunctions
-from gpaw.mpi import world
+from gpaw.mpi import normalize_communicator
 from gpaw.old.density import RealSpaceDensity
 from gpaw.old.logger import GPAWLogger
 from gpaw.setup import Setups
 from gpaw.utilities.partition import AtomPartition
 from gpaw.utilities.tools import coordinates
 from gpaw.xc import XC
+from gpaw.old import assert_legacy_gpaw
 
 
 class HirshfeldDensity(RealSpaceDensity):
@@ -17,7 +18,9 @@ class HirshfeldDensity(RealSpaceDensity):
 
     def __init__(self, calculator, log=None):
         self.calculator = calculator
-        dens = calculator.density
+        assert_legacy_gpaw(calculator)
+        world = normalize_communicator(self.calculator.wfs.world)
+        dens = self.calculator.density
         super().__init__(dens.gd, dens.finegd,
                          dens.nspins, collinear=True, charge=0.0,
                          stencil=getattr(dens, 'stencil', 3),
@@ -104,6 +107,7 @@ class HirshfeldPartitioning:
 
     def __init__(self, calculator, density_cutoff=1.e-12):
         self.calculator = calculator
+        assert_legacy_gpaw(calculator)
         self.density_cutoff = density_cutoff
 
         if hasattr(self.calculator, 'timer'):

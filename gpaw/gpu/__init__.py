@@ -218,12 +218,18 @@ if not TYPE_CHECKING:
             cupy.fft.ifftshift = ifftshift_patch
 
 
-def set_device(log):
+def set_device(log, world=None):
     global device_id
-    from gpaw.mpi import rank
+
+    if device_id is not None:
+        return
+
+    from gpaw.mpi import normalize_communicator
+    world = normalize_communicator(world)
+
     if cupy_is_fake:
         device_id = 'CPU emulation of GPU'
-        log(f'mpi rank {rank} has no GPU device!', parallel=True)
+        log(f'mpi rank {world.rank} has no GPU device!', parallel=True)
         return
 
     if device_id is None:
@@ -241,7 +247,7 @@ def set_device(log):
         if device_count > 0:
             # select GPU device (round-robin based on MPI rank)
             # if not set, all MPI ranks will use the same default device
-            runtime.setDevice(rank % device_count)
+            runtime.setDevice(world.rank % device_count)
 
             # initialise C parameters and memory buffers
             import gpaw.cgpaw as cgpaw
@@ -254,7 +260,8 @@ def set_device(log):
             bus_id = runtime.deviceGetPCIBusId(runtime.getDevice())
             device_id = f'{nodename}:{bus_id}'
 
-    log(f'mpi rank {rank} has GPU device {device_id}', parallel=True)
+        log(f'mpi rank {world.rank} has GPU device {device_id}', parallel=True)
+
     if ENVVAR_GPAW_NO_GPU_MPI:
         log('Running without GPU aware MPI because \'GPAW_NO_GPU_MPI\' is'
             ' set in the environment. Comms will be staged through host.')

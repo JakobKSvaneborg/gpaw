@@ -39,7 +39,7 @@ class XArrayWithNoData:
         raise ReuseWaveFunctionsError
 
 
-class DistributedArrays(Generic[DomainType], XP):
+class XArray(Generic[DomainType], XP):
     desc: DomainType
 
     def __init__(self,
@@ -89,10 +89,10 @@ class DistributedArrays(Generic[DomainType], XP):
         else:
             from gpaw.gpu import cupy as cp
             xp = cp
-        XP.__init__(self, xp)
+        super().__init__(xp)
         self._matrix: Matrix | None = None
 
-    def new(self, data=None, dims=None) -> DistributedArrays:
+    def new(self, data=None, dims=None) -> XArray:
         raise NotImplementedError
 
     def create_work_buffer(self, data_buffer: np.ndarray):
@@ -284,7 +284,7 @@ class DistributedArrays(Generic[DomainType], XP):
         raise NotImplementedError
 
     def gathergather(self):
-        a_xX = self.gather()  # gather X
+        a_xX = self.gather()  # gather X (grid-points or plane-waves)
         if a_xX is not None:
             m_xX = a_xX.matrix.gather()  # gather x
             if m_xX.dist.comm.rank == 0:
@@ -298,7 +298,7 @@ class DistributedArrays(Generic[DomainType], XP):
 
     def redist(self,
                domain,
-               comm1: MPIComm, comm2: MPIComm) -> DistributedArrays:
+               comm1: MPIComm, comm2: MPIComm) -> XArray:
         """Redistribute to new domain.
 
         The "world" is spanned by::
@@ -332,9 +332,12 @@ class DistributedArrays(Generic[DomainType], XP):
     def norm2(self, kind: str = 'normal', skip_sum=False) -> np.ndarray:
         raise NotImplementedError
 
+    def trace_inner_product(self, other: Self) -> float:
+        raise NotImplementedError
 
-def _parallel_me(psit1_nX: DistributedArrays,
-                 psit2_nX: DistributedArrays,
+
+def _parallel_me(psit1_nX: XArray,
+                 psit2_nX: XArray,
                  M_nn: Matrix) -> None:
 
     comm = psit2_nX.comm
@@ -383,10 +386,10 @@ def _parallel_me(psit1_nX: DistributedArrays,
         buf1_nX, buf2_nX = buf2_nX, buf1_nX
 
 
-def _parallel_me_sym(psit1_nX: DistributedArrays,
+def _parallel_me_sym(psit1_nX: XArray,
                      M_nn: Matrix,
-                     operator: None | Callable[[DistributedArrays],
-                                               DistributedArrays]
+                     operator: None | Callable[[XArray],
+                                               XArray]
                      ) -> None:
     """..."""
     comm = psit1_nX.comm

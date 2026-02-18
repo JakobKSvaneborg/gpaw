@@ -23,10 +23,11 @@ def write_rttddft(filename: str | Path,
                   dft_params: Parameters,
                   td_params: dict[str, Any],
                   state: RTTDDFTState,
-                  history: RTTDDFTHistory) -> None:
+                  history: RTTDDFTHistory,
+                  comm=None) -> None:
     flags = GPWFlags(include_wfs=True, include_projections=True,
                      precision='double')
-    comm = mpi.world
+    comm = mpi.normalize_communicator(comm)
 
     writer: ulm.Writer | ulm.DummyWriter
     if comm.rank == 0:
@@ -81,7 +82,7 @@ def read_rttddft(filename: str | Path | IO[str],
     parallel = parallel or {}
 
     if not isinstance(log, Logger):
-        log = Logger(log, comm or mpi.world)
+        log = Logger(log, comm)
 
     comm = log.comm
 

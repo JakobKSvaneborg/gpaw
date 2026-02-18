@@ -34,7 +34,7 @@ def make_gd(h, box, pbc):
 
 class MockDielectric(Dielectric):
     def __init__(self, epsinf, nn):
-        Dielectric.__init__(self, epsinf)
+        super().__init__(epsinf)
         self.nn = nn
 
     def update(self, cavity):

@@ -1,12 +1,11 @@
-import numpy as np
 from ase.io.jsonio import write_json
 from gpaw import GPAW
-from gpaw.defects import ElectrostaticCorrections
+from gpaw.defects import charged_defect_corrections
 from pathlib import Path
 
-sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
 charge = -3
 epsilon = 12.7
+def_idx = 0
 corrected = []
 uncorrected = []
 repeats = [1, 2, 3, 4]
@@ -15,20 +14,20 @@ for N in repeats:
     prs_path = Path(f'{label}_prs.gpw')
     def_path = Path(f'{label}_def.gpw')
 
-    pristine = GPAW(prs_path).get_atoms()
+    calc_prs = GPAW(prs_path)
+    calc_def = GPAW(def_path)
 
-    # defect position
-    r0 = pristine.positions[0, :]
+    elc = charged_defect_corrections(calc_pristine=calc_prs,
+                                     calc_defect=calc_def,
+                                     defect_index=def_idx,
+                                     charge=charge,
+                                     epsilon=epsilon)
+    E_fnv = elc.calculate_correction()
 
-    elc = ElectrostaticCorrections(pristine=prs_path,
-                                   defect=def_path,
-                                   r0=r0,
-                                   charge=charge,
-                                   sigma=sigma,
-                                   epsilon=epsilon,
-                                   method='full-planar')
-    E_corr = elc.calculate_corrected_formation_energy()
-    E_uncorr = elc.calculate_uncorrected_formation_energy()
+    E_0 = calc_prs.get_potential_energy()
+    E_X = calc_def.get_potential_energy()
+    E_uncorr = E_X - E_0
+    E_corr = E_uncorr + E_fnv
 
     if N == 2:
         profile = elc.calculate_potential_profile()

@@ -17,6 +17,7 @@ from ase.utils import IOContext
 from scipy.optimize import minimize
 
 from gpaw.external import ExternalPotential
+from gpaw.old import assert_legacy_gpaw
 
 
 class CDFT(Calculator):
@@ -87,7 +88,7 @@ class CDFT(Calculator):
             If True, constrain charge difference between two regions
             Then charge_regions needs two regions and charges needs
             only one item which is the charge difference between
-            the two regions, the first beign donor, the second acceptor
+            the two regions, the first being donor, the second acceptor
 
             If False, each region is treated with the corresponding
             charge constraint
@@ -99,12 +100,13 @@ class CDFT(Calculator):
             scipy hessian approximation
         """
 
-        Calculator.__init__(self)
+        super().__init__()
 
+        assert_legacy_gpaw(calc)
         self.calc = calc
         self.restart = restart
         self.iocontext = IOContext()
-        self.log = self.iocontext.openfile(txt, calc.world)
+        self.log = self.iocontext.openfile(txt, self.calc.world)
         self.method = method
         self.forces = forces
         self.options = minimizer_options
@@ -256,9 +258,9 @@ class CDFT(Calculator):
         if atoms != self.atoms:
             self.atoms = atoms
         if not self.restart:
-            Calculator.calculate(self, self.atoms)
+            super().calculate(self.atoms)
 
-        Calculator.calculate(self, self.atoms)
+        super().calculate(self.atoms)
 
         # update positions and weight functions
         if 'positions' in system_changes or not self.cdft_initialised:

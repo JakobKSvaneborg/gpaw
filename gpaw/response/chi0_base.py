@@ -239,9 +239,9 @@ class Chi0ComponentCalculator:
 
     def check_high_symmetry_ibz_kpts(self):
         """Check that the ground state includes all corners of the IBZ."""
-        ibz_vertices_kc = self.gs.get_ibz_vertices()
+        ibz_vertices_kc = self.gs.get_ibz_vertices(context=self.context)
         # Here we mimic the k-point grid compatibility check of
-        # gpaw.bztools.find_high_symmetry_monkhorst_pack()
+        # gpaw.bztools.contains_ibz_vertices_predicate()
         bzk_kc = self.gs.kd.bzk_kc
         for ibz_vertex_c in ibz_vertices_kc:
             # Relative coordinate difference to the k-point grid
@@ -250,14 +250,15 @@ class Chi0ComponentCalculator:
             # lattice vector, meaning that the relative coordinate difference
             # is allowed to be an integer. Thus, at least one relative k-point
             # difference should vanish, modulo 1
-            mod_diff_kc = np.mod(diff_kc, 1)
+            mod_diff_kc = np.mod(np.mod(diff_kc, 1.), 1.)
             nodiff_k = np.all(mod_diff_kc < 1e-5, axis=1)
             if not np.any(nodiff_k):
                 raise ValueError(
                     'The ground state k-point grid does not include all '
-                    'vertices of the IBZ. '
-                    'Please use find_high_symmetry_monkhorst_pack() from '
-                    'gpaw.bztools to generate your k-point grid.')
+                    'vertices of the IBZ. Please use '
+                    'optimal_monkhorst_pack_grid(..., '
+                    'contains_ibz_vertices=True) from gpaw.bztools '
+                    'to generate your k-point grid.')
 
     def get_integration_domain(self, q_c, spins):
         """Get integrator domain and prefactor for the integral."""
@@ -303,7 +304,8 @@ class Chi0ComponentCalculator:
             k_kc = generator.get_kpt_domain()
         elif integrationmode == 'tetrahedron integration':
             k_kc = generator.get_tetrahedron_kpt_domain(
-                pbc_c=self.pbc, cell_cv=self.gs.gd.cell_cv)
+                pbc_c=self.pbc, cell_cv=self.gs.gd.cell_cv,
+                comm=self.context.comm)
         kpoints = KPointDomain(k_kc, self.gs.gd.icell_cv)
 
         # In the future, we probably want to put enough functionality on the

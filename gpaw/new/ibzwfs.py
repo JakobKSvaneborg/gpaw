@@ -242,7 +242,7 @@ class IBZWaveFunctions(Generic[WFT]):
                                        spin=0,
                                        grid_spacing=0.05,
                                        skip_paw_correction=False):
-        wfs = self.get_wfs(kpt=kpt, spin=spin, n1=band, n2=band + 1)
+        wfs = self.get_wfs_on_master(kpt=kpt, spin=spin, n1=band, n2=band + 1)
         if wfs is None:
             return None
         assert isinstance(wfs, PWFDWaveFunctions)
@@ -262,24 +262,41 @@ class IBZWaveFunctions(Generic[WFT]):
         assert u >= 0, (kpt, spin, self.nspins, self.u0)
         return self._wfs_u[u]
 
-    def get_wfs(self,
-                *,
-                kpt: int = 0,
-                spin: int = 0,
-                n1=0,
-                n2=0):
-        rank = self.rank_ks[kpt][spin]
-        if rank == self.kpt_comm.rank:
+    def get_wfs_on_master(self,
+                          *,
+                          kpt: int = 0,
+                          spin: int = 0,
+                          n1=0,
+                          n2=0):
+        krank = self.rank_ks[kpt][spin]
+        if krank == self.kpt_comm.rank:
             wfs = self._get_wfs(kpt, spin)
-            wfs2 = wfs.collect(n1, n2)
-            if rank == 0:
+            wfs2 = wfs.collect_bands_and_domain(n1, n2)
+            if krank == 0:
                 return wfs2
             if wfs2 is not None:
                 wfs2.send(0, self.kpt_comm)
             return
         if self.comm.rank == 0:
-            return self._wfs_u[0].receive(rank, self.kpt_comm)
+            return self._wfs_u[0].receive(krank, self.kpt_comm)
         return None
+
+    def gather(self):
+        # extract sizes from old wfs
+        ncomponents = self.ncomponents
+        nspins = ncomponents % 3
+        ibz = self.ibz
+
+        # gather wfs on master
+        wfs_u = []
+        for k in range(len(ibz)):
+            for spin in range(nspins):
+                wfs = self.get_wfs_on_master(kpt=k, spin=spin)
+                wfs_u.append(wfs)
+
+        fermi_levels = self.fermi_levels
+
+        return ibz, ncomponents, wfs_u, fermi_levels
 
     def get_eigs_and_occs(self, kpt=0, spin=0):
         if self.domain_comm.rank == 0 and self.band_comm.rank == 0:
@@ -389,10 +406,11 @@ class IBZWaveFunctions(Generic[WFT]):
                         self.kpt_comm.receive(data, rank)
                         writer.fill(data.astype(proj_dtype))
 
-        if flags.include_wfs:
+        if flags.include_wfs and self.has_wave_functions():
             self._write_wave_functions(writer, spin_k_shape, flags)
 
     def _write_wave_functions(self, writer, spin_k_shape, flags):
+        self.make_sure_wfs_are_read_from_gpw_file()
         # We collect all bands to master.  This may have to be changed
         # to only one band at a time XXX
         xshape = self.get_max_shape(global_shape=True)
@@ -559,6 +577,13 @@ class IBZWaveFunctions(Generic[WFT]):
 
         return e_kin + e_kin_paw
 
+    def number_of_occupied_bands(self,
+                                 tolerance: float = 1e-5) -> int:
+        nocc = 0
+        for wfs in self:
+            nocc = max(nocc, int((wfs.occ_n > tolerance).sum()))
+        return int(self.kpt_comm.max_scalar(nocc))
+
 
 def bytes_for_projectors(ibzwfs: IBZWaveFunctions) -> int:
     """Calculate number of bytest used for PAW projectors.
@@ -574,7 +599,7 @@ def bytes_for_projectors(ibzwfs: IBZWaveFunctions) -> int:
     lmax = 0
     for setup in setups.setups.values():
         nunique += len(setup.pt_j)
-        lmax = max(max(pt.l for pt in setup.pt_j), lmax)
+        lmax = max(max((pt.l for pt in setup.pt_j), default=0), lmax)
     return len(ibzwfs.ibz) * wfs.bytes_per_band * (
         (lmax + 1)**2 +  # Y_LG
         nunique +  # f_sG

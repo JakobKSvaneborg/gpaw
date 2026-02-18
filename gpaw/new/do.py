@@ -1,10 +1,15 @@
 from gpaw.dft import Eigensolver
-from gpaw.new.pwfd.etdm import ETDM
+from gpaw.new.pwfd.diropt import DirOptPWFD
 
 
 class DirectOptimization(Eigensolver):
+    name = 'etdm-fdpw'
+
     def __init__(self,
-                 converge_unocc: bool = False):
+                 converge_unocc: bool = False,
+                 **kwargs):
+        if kwargs:
+            raise NotImplementedError
         self.converge_unocc = converge_unocc
 
     def todict(self):
@@ -18,5 +23,7 @@ class DirectOptimization(Eigensolver):
               converge_bands,
               setups,
               atoms):
-        return ETDM(converge_unocc=self.converge_unocc,
-                    hamiltonian=hamiltonian)
+        return DirOptPWFD(
+            converge_unocc=self.converge_unocc,
+            converge_bands=converge_bands,
+            hamiltonian=hamiltonian)

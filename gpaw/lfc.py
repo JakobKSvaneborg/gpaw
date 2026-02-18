@@ -1,4 +1,5 @@
 from math import pi
+from typing import TYPE_CHECKING
 
 import numpy as np
 from ase.units import Bohr
@@ -9,6 +10,9 @@ from gpaw.gpu import as_np, as_numpy, as_xp, cupy_is_fake
 from gpaw.new import trace
 from gpaw.old.grid_descriptor import GridBoundsError, GridDescriptor
 from gpaw.utilities import smallest_safe_grid_spacing
+
+if TYPE_CHECKING:
+    from gpaw.core import UGDesc
 
 """
 
@@ -968,27 +972,26 @@ class LocalizedFunctionsCollection(BaseLFC):
 
 
 class BasisFunctions(LocalizedFunctionsCollection):
-    def __init__(self, gd, spline_aj, kd=None, cut=False, dtype=float,
+    def __init__(self,
+                 gd: GridDescriptor,
+                 spline_aj, kd=None, cut=False, dtype=float,
                  integral=None, forces=None, xp=np,
                  gpu_add_and_integrate=True):
-        LFC = LocalizedFunctionsCollection
-        LFC.__init__(self, gd, spline_aj,
-                     kd, cut,
-                     dtype, integral,
-                     forces, xp=xp,
-                     gpu_add_and_integrate=gpu_add_and_integrate)
+        super().__init__(gd, spline_aj, kd, cut, dtype, integral, forces,
+                         xp=xp, gpu_add_and_integrate=gpu_add_and_integrate)
         self.use_global_indices = True
         self.Mstart = None
         self.Mstop = None
+        self.grid: UGDesc
 
     @trace
     def set_positions(self, spos_ac):
-        LocalizedFunctionsCollection.set_positions(self, spos_ac)
+        super().set_positions(spos_ac)
         self.Mstart = 0
         self.Mstop = self.Mmax
 
     def _update(self, spos_ac):
-        sdisp_Wc = LocalizedFunctionsCollection._update(self, spos_ac)
+        sdisp_Wc = super()._update(spos_ac)
 
         if not self.gamma or self.dtype == complex:
             self.x_W, self.sdisp_xc = self.create_displacement_arrays(sdisp_Wc)
@@ -1162,6 +1165,7 @@ class BasisFunctions(LocalizedFunctionsCollection):
 
         xshape = C_xM.shape[:-1]
         assert psit_xG.shape[:-3] == xshape, (psit_xG.shape, xshape)
+        assert (self.gd.n_c == psit_xG.shape[-3:]).all()
 
         C_xM = C_xM.reshape((-1,) + C_xM.shape[-1:])
         psit_xG = psit_xG.reshape((-1,) + psit_xG.shape[-3:])

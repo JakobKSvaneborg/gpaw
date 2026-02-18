@@ -2,18 +2,15 @@
  *  Copyright (C) 2007-2008  CAMd
  *  Please see the accompanying LICENSE file for further information. */
 
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
-#include <assert.h>
+#include "python_utils.h"
 #include <xc.h>
 #if XC_MAJOR_VERSION >= 7
   #include <xc_funcs.h>
   #include <xc_funcs_removed.h>
 #endif
 #include "xc_gpaw.h"
-#include "../extensions.h"
+#include "extensions.h"
+#include <assert.h>
 
 typedef struct
 {
@@ -600,14 +597,16 @@ lxcXCFunctional_tb09(lxcXCFunctionalObject *self, PyObject *args)
     xc_mgga_x_tb09_set_params(self->functional[0], c);
 #endif
     xc_mgga_vxc(self->functional[0], PyArray_DIM(n_g, 0),
-		PyArray_DATA(n_g),
-		PyArray_DATA(sigma_g),
-		PyArray_DATA(lapl_g),
-		PyArray_DATA(tau_g),
-		PyArray_DATA(v_g),
-		PyArray_DATA(vx_g),
-		PyArray_DATA(vx_g),
-		PyArray_DATA(vx_g));
+      (const double*) PyArray_DATA(n_g),
+      (const double*) PyArray_DATA(sigma_g),
+      (const double*) PyArray_DATA(lapl_g),
+      (const double*) PyArray_DATA(tau_g),
+      (double*) PyArray_DATA(v_g),
+      (double*) PyArray_DATA(vx_g),
+      (double*) PyArray_DATA(vx_g),
+      (double*) PyArray_DATA(vx_g)
+    );
+
     Py_RETURN_NONE;
 }
 

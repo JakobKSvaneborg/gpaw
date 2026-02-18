@@ -33,7 +33,7 @@ class AtomCenteredFunctions(XP):
                  relpos_ac: ArrayLike2D,
                  atomdist: AtomDistribution | None = None,
                  xp=None):
-        XP.__init__(self, xp or np)
+        super().__init__(xp or np)
         self.functions = [[to_spline(*f) if isinstance(f, tuple) else f
                            for f in funcs]
                           for funcs in functions]
@@ -134,10 +134,7 @@ class UGAtomCenteredFunctions(AtomCenteredFunctions):
                  integrals=None,
                  cut=False,
                  xp=np):
-        AtomCenteredFunctions.__init__(self,
-                                       functions,
-                                       relpos_ac,
-                                       atomdist, xp=xp)
+        super().__init__(functions, relpos_ac, atomdist, xp=xp)
         self.grid = grid
         self.integrals = integrals
         self.cut = cut
@@ -173,7 +170,7 @@ class UGAtomCenteredFunctions(AtomCenteredFunctions):
             for sphere, rank in zips(self._lfc.sphere_a,
                                      self._atomdist.rank_a):
                 assert sphere.rank == rank
-            assert self.grid.comm is self._atomdist.comm
+            assert self.grid.comm.size == self._atomdist.comm.size
 
         self._layout = AtomArraysLayout([sum(2 * f.l + 1 for f in funcs)
                                          for funcs in self.functions],

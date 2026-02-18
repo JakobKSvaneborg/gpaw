@@ -7,7 +7,7 @@ from scipy.special import spherical_jn
 
 from gpaw.atom.radialgd import RadialGridDescriptor
 from gpaw.ffbt import rescaled_fourier_bessel_transform
-from gpaw.mpi import parallel
+from gpaw.mpi import normalize_communicator
 from gpaw.response.pw_parallelization import Blocks1D
 from gpaw.sphere.gaunt import gaunt, super_gaunt
 from gpaw.sphere.rshe import RealSphericalHarmonicsExpansion
@@ -260,11 +260,9 @@ def calculate_pair_density_correction(qG_Gv: np.ndarray, *,
     return Qbar_Gii
 
 
-@parallel
 def calculate_matrix_element_correction(qG_Gv, pawdata,
                                         rshe: RealSphericalHarmonicsExpansion,
-                                        *,
-                                        comm):
+                                        comm=None):
     r"""Calculate the atom-centered correction to a generalized matrix element.
 
     For matrix elements corresponding to the expectation value of a plane wave
@@ -309,6 +307,7 @@ def calculate_matrix_element_correction(qG_Gv, pawdata,
     where K=G+q and G_LLLL denotes the super Gaunt coefficients, which yield
     the integrals over four spherical harmonics.
     """
+    comm = normalize_communicator(comm)
     rgd = rshe.rgd
     assert rgd is pawdata.xc_correction.rgd
     ni = pawdata.ni  # Number of partial waves
@@ -389,11 +388,11 @@ def calculate_matrix_element_correction(qG_Gv, pawdata,
     return Fbar_Gii
 
 
-@parallel
-def parallel_fourier_bessel_transform(k_G, *args, comm):
+def parallel_fourier_bessel_transform(k_G, *args, comm=None):
     """Distribute FBT plane-wave components over a given communicator."""
     # NB: If we need to do something similar elsewhere, we can generalize this
     # function to a decorator!
+    comm = normalize_communicator(comm)
     Gblocks = Blocks1D(comm, len(k_G))
     f_myG = fourier_bessel_transform(k_G[Gblocks.myslice], *args)
     return Gblocks.all_gather(f_myG)
@@ -522,8 +521,8 @@ def get_pair_density_paw_corrections(pawdatasets, qpd, spos_ac, atomrotations):
                                atomrotations=atomrotations)
 
 
-@parallel
-def get_matrix_element_paw_corrections(qpd, pawdata_a, rshe_a, spos_ac, comm):
+def get_matrix_element_paw_corrections(qpd, pawdata_a, rshe_a, spos_ac,
+                                       comm=None):
     r"""Calculate the PAW correction to a generalized matrix element.
 
     For a given functional of the electron (spin-)density f[n](r), the PAW
@@ -533,6 +532,7 @@ def get_matrix_element_paw_corrections(qpd, pawdata_a, rshe_a, spos_ac, comm):
           ˍ
     where F_aii'(G+q) is the atom-centered correction (see above).
     """
+    comm = normalize_communicator(comm)
     qG_Gv = qpd.get_reciprocal_vectors(add_q=True)
 
     F_aGii = []

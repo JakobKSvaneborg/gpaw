@@ -10,7 +10,7 @@ from ase.units import Ha
 
 import gpaw.fftw as fftw
 from gpaw import debug
-from gpaw.core.arrays import DistributedArrays
+from gpaw.core.arrays import XArray
 from gpaw.core.domain import Domain
 from gpaw.core.matrix import Matrix
 from gpaw.core.pwacf import PWAtomCenteredFunctions
@@ -66,7 +66,7 @@ class PWDesc(Domain['PWArray']):
             gcut = (2.0 * ecut)**0.5
         self.gcut = gcut
         self.ecut = ecut
-        Domain.__init__(self, cell, (True, True, True), kpt, comm, dtype)
+        super().__init__(cell, (True, True, True), kpt, comm, dtype)
 
         G_plus_k_Gv, ekin_G, self.indices_cG = find_reciprocal_vectors(
             ecut, self.cell_cv, self.kpt_c, self.dtype)
@@ -284,7 +284,7 @@ class PWDesc(Domain['PWArray']):
                            qspiral_v=qspiral_v)
 
 
-class PWArray(DistributedArrays[PWDesc]):
+class PWArray(XArray[PWDesc]):
     def __init__(self,
                  pw: PWDesc,
                  dims: int | tuple[int, ...] = (),
@@ -308,10 +308,10 @@ class PWArray(DistributedArrays[PWDesc]):
         self.real_dtype = as_real_dtype(pw.dtype)
         self.complex_dtype = as_complex_dtype(pw.dtype)
 
-        DistributedArrays. __init__(self, dims, pw.myshape,
-                                    comm, pw.comm,
-                                    data, pw.dv,
-                                    self.complex_dtype, xp)
+        XArray. __init__(self, dims, pw.myshape,
+                         comm, pw.comm,
+                         data, pw.dv,
+                         self.complex_dtype, xp)
         self.desc = pw
         self._matrix: Matrix | None
 
@@ -883,9 +883,10 @@ class PWArray(DistributedArrays[PWDesc]):
                   pw: PWDesc | None = None) -> PWArray:
         """Symmetry-transform data."""
         pw1 = self.desc
+        assert pw1.comm.size == 1
         pw2 = pw
         if complex_conjugate:
-            U_cc = -U_cc
+            U_cc = -np.asarray(U_cc)
         kpt2_c = U_cc @ pw1.kpt_c
         if pw2 is None:
             pw2 = pw1.new(kpt=kpt2_c)
@@ -893,6 +894,8 @@ class PWArray(DistributedArrays[PWDesc]):
             assert np.allclose(pw2.kpt_c, kpt2_c)
 
         size_c = np.ptp(pw1.indices_cG, axis=1) + 1
+        if pw1.dtype == float:
+            size_c[1:] *= 2
         Q1_G = np.ravel_multi_index(U_cc @ pw1.indices_cG,
                                     size_c,
                                     mode='wrap')
@@ -903,11 +906,33 @@ class PWArray(DistributedArrays[PWDesc]):
         G_Q[:] = -1
         G_Q[Q1_G] = np.arange(len(Q1_G), dtype=int)
         G1_G2 = G_Q[Q2_G]
+        if pw1.dtype == float:
+            outside_G2 = G1_G2 == -1
+            Q2_G = np.ravel_multi_index(
+                -pw2.indices_cG[:, outside_G2],  # type: ignore
+                size_c,
+                mode='wrap')
+            G1_G2[outside_G2] = G_Q[Q2_G]
         assert -1 not in G1_G2
         data = np.ascontiguousarray(self.data[..., G1_G2])
+        if pw1.dtype == float:
+            data.imag[..., outside_G2] = -data.imag[..., outside_G2]
         if complex_conjugate:
             np.negative(data.imag, data.imag)
         return PWArray(pw2, self.dims, self.comm, data)
+
+    def trace_inner_product(self, other: PWArray) -> float:
+        assert self.comm.size == 1
+        assert self.desc.dtype == other.desc.dtype
+        result = 0.0
+        for a, b in zip(self._arrays(), other._arrays()):
+            result += np.vdot(a, b)
+        if self.desc.dtype == self.real_dtype and self.desc.comm.rank == 0:
+            result -= 0.5 * np.vdot(self.data[:, 0], other.data[:, 0])
+        result = self.desc.comm.sum_scalar(result.real)
+        if self.desc.dtype == self.real_dtype:
+            result *= 2
+        return result * self.dv
 
 
 def a2a_stuff(comm, N, ng, myng, maxmyng):

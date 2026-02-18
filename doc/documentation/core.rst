@@ -281,7 +281,7 @@ Atoms-arrays
 ============
 
 As an example, here is how to store the PAW atomic density-matrices for
-a water molcule
+a water molecule
 (:math:`D_{\sigma,i_1,i_2}^a`):
 
 .. code-block:: python
@@ -393,7 +393,7 @@ Core
 .. autoclass:: gpaw.core.UGArray
     :members:
     :undoc-members:
-.. autoclass:: gpaw.core.arrays.DistributedArrays
+.. autoclass:: gpaw.core.arrays.XArray
     :members:
     :undoc-members:
 .. autoclass:: gpaw.core.atom_arrays.AtomArrays

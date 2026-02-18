@@ -43,7 +43,6 @@ def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
     # Start the timer
     if timer is None:
         timer = Timer()
-    parprint(f'Calculating momentum matrix elements for spin channel {spin}.')
 
     # Spin input
     assert spin < gs.ns, 'Wrong spin input'
@@ -53,6 +52,9 @@ def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
     master = (ibzwfs.kpt_comm.rank == 0)
     p_qvnn = []
     nq = len(ibzwfs.u_q)
+
+    parprint(f'Calculating momentum matrix elements for spin channel {spin}.',
+             comm=ibzwfs.comm)
 
     # Initial call to print 0 % progress
     if master:
@@ -144,8 +146,8 @@ def make_nlodata(calc: ASECalculator | str | Path,
         if not (isinstance(calc, str) or isinstance(calc, Path)):
             raise TypeError('Input must be a calculator or a string / path'
                             'pointing to a calculator.')
-        from gpaw.new.ase_interface import GPAW
-        calc = GPAW(calc, txt=None, parallel={'domain': 1, 'band': 1})
+        from gpaw.dft import GPAW
+        calc = GPAW(calc, legacy_gpaw=False, parallel={'domain': 1, 'band': 1})
     assert not calc.symmetry.point_group, \
         'Point group symmetry should be off.'
 
@@ -183,7 +185,8 @@ def make_nlodata(calc: ASECalculator | str | Path,
     # Memory estimate
     nk = len(ibzwfs.rank_ks)  # Total number of k-points
     est_mem = 2 * 3 * nk * (nf - ni)**2 * 16 / 2**30
-    parprint(f'At least {est_mem:.2f} GB of memory is required on master.')
+    parprint(f'At least {est_mem:.2f} GB of memory is required on master.',
+             comm=ibzwfs.comm)
 
     # Get the energy and Fermi-Dirac occupations (data is only in master)
     with timer('Get energies and fermi levels'):

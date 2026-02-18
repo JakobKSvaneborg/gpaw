@@ -8,7 +8,7 @@ from gpaw import GPAW_NEW
 
 def workflow():
     run(script='H2Al110.py')
-    if not GPAW_NEW:
+    if not GPAW_NEW == 1:
         run(script='dscf_CO.py')
     run(script='revtpss_tpss_scf.py')
     run(script='ltt.py')

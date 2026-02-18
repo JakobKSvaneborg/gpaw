@@ -6,6 +6,7 @@ from ase.parallel import paropen
 from gpaw.analyse.wignerseitz import wignerseitz
 from gpaw.gauss import Gauss
 from gpaw.io.fmf import FMF
+from gpaw.mpi import normalize_communicator
 from gpaw.setup_data import SetupData
 from gpaw.utilities import pack_density
 from gpaw.utilities.blas import gemmdot
@@ -378,7 +379,8 @@ class RawLDOS:
                 filename,
                 width=None,
                 shift=True,
-                bound=False):
+                bound=False,
+                comm=None):
         """Write the LDOS to a file.
 
         Parameters:
@@ -397,7 +399,9 @@ class RawLDOS:
           by the higher Fermi level. Default: False
         """
 
-        f = paropen(filename, 'w')
+        comm = normalize_communicator(comm)
+
+        f = paropen(filename, 'w', comm=comm)
 
         def append_weight_strings(ldbe, data):
             s = ''
@@ -637,7 +641,7 @@ class RestartLCAODOS(LCAODOS):
     operation will allocate memory to diagonalize the Hamiltonian and
     set coefficients plus positions."""
     def __init__(self, calc):
-        LCAODOS.__init__(self, calc)
+        super().__init__(calc)
         system = calc.get_atoms()
         calc.set_positions(system)
         calc.wfs.eigensolver.iterate(calc.hamiltonian, calc.wfs)

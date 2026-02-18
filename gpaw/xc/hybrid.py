@@ -112,7 +112,7 @@ class HybridXCBase(XCFunctional):
                 self.xc.kernel.set_omega(omega)
                 # Needed to tune omega for RSF
             self.omega = omega
-        XCFunctional.__init__(self, name, xc.type)
+        super().__init__(name, xc.type)
 
     def todict(self):
         return {'name': self.name,
@@ -162,8 +162,8 @@ class HybridXC(HybridXCBase):
         self.unocc = unocc
         self.excitation = excitation
         self.excited = excited
-        HybridXCBase.__init__(self, name, hybrid=hybrid, xc=xc, omega=omega,
-                              stencil=stencil)
+        super().__init__(name, hybrid=hybrid, xc=xc, omega=omega,
+                         stencil=stencil)
 
         # Note: self.omega may not be identical to omega!
         self.yukawa_interactions = CachedYukawaInteractions(self.omega)

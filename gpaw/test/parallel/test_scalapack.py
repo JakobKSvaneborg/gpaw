@@ -12,8 +12,7 @@ import pytest
 from scipy.linalg import cholesky, eigh, inv
 
 from gpaw.blacs import BlacsGrid, Redistributor
-from gpaw.mpi import rank, world
-from gpaw.utilities import compiled_with_sl
+from gpaw.mpi import world
 from gpaw.utilities.blas import rk
 from gpaw.utilities.scalapack import (scalapack_diagonalize_dc,
                                       scalapack_general_diagonalize_dc,
@@ -25,16 +24,13 @@ from gpaw.utilities.tools import tri2full
 from .test_pblas import (calculate_error, initialize_matrix, initialize_random,
                          mnprocs_i)
 
-pytestmark = pytest.mark.skipif(not compiled_with_sl(),
-                                reason='not compiled with scalapack')
-
 
 tol = 1.0e-8
 
 
 @pytest.mark.parametrize('mprocs, nprocs', mnprocs_i)
 @pytest.mark.parametrize('dtype', [float, complex])
-def test_scalapack_diagonalize_inverse(dtype, mprocs, nprocs,
+def test_scalapack_diagonalize_inverse(dtype, mprocs, nprocs, scalapack,
                                        N=72, seed=42):
     gen = np.random.RandomState(seed)
     grid = BlacsGrid(world, mprocs, nprocs)
@@ -52,7 +48,7 @@ def test_scalapack_diagonalize_inverse(dtype, mprocs, nprocs,
     H0 = glob.zeros(dtype=dtype) + gen.rand(*glob.shape)
     S0 = glob.zeros(dtype=dtype) + gen.rand(*glob.shape)
     C0 = glob.empty(dtype=dtype)
-    if rank == 0:
+    if world.rank == 0:
         # Complex case must have real numbers on the diagonal.
         # We make a simple complex Hermitian matrix below.
         H0 = H0 + epsilon * (0.1 * np.tri(N, N, k=-N // nprocs) +
@@ -74,8 +70,8 @@ def test_scalapack_diagonalize_inverse(dtype, mprocs, nprocs,
     W0_g = np.empty((N), dtype=float)
 
     # Calculate eigenvalues / other serial results
-    print(rank, C0.shape, C0.dtype)
-    if rank == 0:
+    print(world.rank, C0.shape, C0.dtype)
+    if world.rank == 0:
         W0 = eigh(H0, eigvals_only=True)
         W0_g = eigh(H0, S0, eigvals_only=True)
         C0 = inv(cholesky(C0, lower=True)).copy()  # result in lower triangle
@@ -83,7 +79,7 @@ def test_scalapack_diagonalize_inverse(dtype, mprocs, nprocs,
         S0_inv = inv(S0_inv)
         # tri2full(C0) # symmetrize
 
-    print(rank, C0.shape, C0.dtype)
+    print(world.rank, C0.shape, C0.dtype)
     assert glob.check(H0)
     assert glob.check(S0)
     assert glob.check(C0)
@@ -136,7 +132,7 @@ def test_scalapack_diagonalize_inverse(dtype, mprocs, nprocs,
     Dist2glob.redistribute(C, C_test)
     Dist2glob.redistribute(Sinv, Sinv_test)
 
-    if rank == 0:
+    if world.rank == 0:
         diag_dc_err = abs(W_dc - W0).max()
         # diag_mr3_err = abs(W_mr3 - W0).max()
         # general_diag_ex_err = abs(W_g - W0_g).max()
@@ -189,7 +185,7 @@ def test_scalapack_diagonalize_inverse(dtype, mprocs, nprocs,
 
 @pytest.mark.parametrize('mprocs, nprocs', mnprocs_i)
 @pytest.mark.parametrize('dtype', [float, complex])
-def test_scalapack_solve(dtype, mprocs, nprocs,
+def test_scalapack_solve(dtype, mprocs, nprocs, scalapack,
                          M=160, K=120, seed=42):
     """Test scalapack_solve()"""
     random = initialize_random(seed, dtype)

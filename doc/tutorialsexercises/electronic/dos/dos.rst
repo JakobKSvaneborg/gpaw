@@ -55,7 +55,7 @@ Total DOS
 ---------
 
 The total density of states can be obtained by the GPAW calculator
-method ``get_dos(spin=0, npts=201, width=None)``. Take a look at the 
+method ``get_dos(spin=0, npts=201, width=None)``. Take a look at the
 :git:`~doc/tutorialsexercises/electronic/dos/dos.py` program and try to
 get a rough idea of what it can do for you.  Use it to plot the
 density of states (DOS) for :ref:`bulk fcc aluminium <aluminium_exercise>`
@@ -279,7 +279,7 @@ DOS can be also be projected onto the LCAO basis functions.
 A subspace of the atomic orbitals is required as an input
 onto which one wants the projected density of states. For
 example, if the p orbitals of a particular atom in have the
-indices 41, 42 and 43, and the PDOS is required on the subpspace
+indices 41, 42 and 43, and the PDOS is required on the subspace
 of these three orbital then an array ``[41, 42, 43]`` has to be given
 as an input for the PDOS calculation.
 
@@ -333,3 +333,4 @@ One can also do this from the :ref:`command line <cli>`::
 
 .. autoclass:: gpaw.dos.DOSCalculator
     :members:
+.. autofunction:: gpaw.dos.get_projector_numbers

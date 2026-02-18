@@ -11,7 +11,7 @@ from ase.units import Ha
 
 from gpaw import __version__
 from gpaw.core import UGArray
-from gpaw.dft import GPAW, Parameters
+from gpaw.dft import GPAW as AnyGPAW, Parameters
 from gpaw.dos import DOSCalculator
 from gpaw.mpi import broadcast, synchronize_atoms
 from gpaw.new import Timer, trace
@@ -33,6 +33,10 @@ LOGO = """\
  |__ |  _|___|_____| - {version}
  |___|_|
 """
+
+
+def GPAW(*args, **kwargs):
+    return AnyGPAW(*args, legacy_gpaw=False, **kwargs)
 
 
 def write_header(log: Logger, params: Parameters) -> None:
@@ -176,8 +180,8 @@ class ASECalculator:
         self.log(f'Converged in {ctx.niter} steps')
 
         # Calculate all the cheap things:
-        self.dft.energy()
-        self.dft.dipole()
+        self.dft.calculate_energy()
+        self.dft.calculate_dipole()
         self.dft.magmoms()
 
         self.dft.write_converged()
@@ -198,15 +202,19 @@ class ASECalculator:
         * magmoms
         * dipole
         """
-        for _ in self.iconverge(atoms, need_wfs=prop in {'forces', 'stress'}):
+        if self._dft is None:
+            need_wfs = True
+        else:
+            need_wfs = prop not in self.dft.results
+        for _ in self.iconverge(atoms, need_wfs=need_wfs):
             pass
 
         if prop == 'forces':
             with self.timer('Forces'):
-                self.dft.forces()
+                self.dft.calculate_forces()
         elif prop == 'stress':
             with self.timer('Stress'):
-                self.dft.stress()
+                self.dft.calculate_stress()
         elif prop not in self.dft.results:
             raise KeyError('Unknown property:', prop)
 
@@ -263,7 +271,6 @@ class ASECalculator:
         return self.dft.results['forces']
 
     def __del__(self):
-        self.log('---')
         self.timer.write(self.log)
         try:
             mib = maxrss() / 1024**2
@@ -355,20 +362,24 @@ class ASECalculator:
         yield from self.iconverge(atoms)
 
     def new(self, **kwargs) -> ASECalculator:
-        kwargs = {**self.params.todict(), **kwargs}
+        kwargs = {
+            'communicator': self.comm,
+            **self.params.todict(),
+            **kwargs}
+
         return GPAW(**kwargs)
 
     def get_pseudo_wave_function(self, band, kpt=0, spin=None,
                                  periodic=False,
                                  broadcast=True,
                                  pad=True) -> Array3D | None:
-        psit_R = self.dft.wave_functions(n1=band, n2=band + 1,
-                                         kpt=kpt, spin=spin,
-                                         periodic=periodic,
-                                         broadcast=broadcast,
-                                         _pad=pad)[0]
-        if psit_R is not None:
-            return psit_R.data
+        psit_1R = self.dft.wave_functions(n1=band, n2=band + 1,
+                                          kpt=kpt, spin=spin,
+                                          periodic=periodic,
+                                          broadcast=broadcast,
+                                          _pad=pad)
+        if psit_1R is not None:
+            return psit_1R[0].data
         return None
 
     def get_atoms(self):
@@ -603,11 +614,15 @@ class ASECalculator:
             assert isinstance(nbands, int)
 
         dft.scf_loop.occ_calc._set_nbands(nbands)
+        from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
+        assert isinstance(dft.ibzwfs, PWFDIBZWaveFunctions)
         ibzwfs = diagonalize(dft.potential,
                              dft.ibzwfs,
                              dft.scf_loop.occ_calc,
                              nbands,
-                             dft.density.nvalence + dft.density.charge)
+                             dft.density.nvalence + dft.density.charge,
+                             scalapack,
+                             self.log)
         dft.ibzwfs = ibzwfs
         self.params.nbands = ibzwfs.nbands
         if 'nbands' not in self.params._non_defaults:
@@ -623,7 +638,25 @@ class ASECalculator:
                       update_fermi_level: bool = False,
                       **kwargs) -> ASECalculator:
         kwargs.pop('communicator', None)  # Ignore silently
-        kwargs = {**self.params.todict(), **kwargs}
+        allowed = {'nbands', 'occupations', 'poissonsolver',
+                   'kpts', 'eigensolver', 'random', 'maxiter',
+                   'basis', 'symmetry', 'convergence', 'verbose',
+                   'parallel', 'mode'}
+        illegal = kwargs.keys() - allowed
+        if illegal:
+            raise TypeError(f'Illegal keyword(s): {illegal}.  '
+                            f'Only {allowed} allowed.')
+
+        mode = kwargs.get('mode', {})
+        if mode.keys() - {'dtype'}:
+            raise TypeError('Only mode={"dtype": dtype} is allowed.')
+
+        old_params = self.params.todict()
+        old_params.pop('h', None)
+        kwargs['gpts'] = self.dft.density.nt_sR.desc.size
+        kwargs = {**old_params, **kwargs,
+                  'mode': {**old_params['mode'], **mode}}
+
         params = Parameters(**kwargs)
         log = Logger(txt, self.comm)
         builder = params.dft_component_builder(self.atoms, log=log)

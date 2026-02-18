@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from gpaw import GPAW
-from gpaw.bztools import find_high_symmetry_monkhorst_pack
+from gpaw.bztools import optimal_monkhorst_pack_grid
 from gpaw.mpi import world
 from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.test import findpeak
@@ -11,14 +11,23 @@ from gpaw.test import findpeak
 @pytest.mark.dielectricfunction
 @pytest.mark.tetrahedron
 @pytest.mark.response
-def test_response_Na_EELS_RPA_tetra_point_comparison(in_tmp_dir, gpw_files):
+def test_response_Na_EELS_RPA_tetra_point_comparison(
+        in_tmp_dir, gpw_files):
     gpwname = gpw_files['na_chain']
 
+    calc = GPAW(gpwname)
+
     # Generate grid compatible with tetrahedron integration
-    kpts = find_high_symmetry_monkhorst_pack(gpwname, 6.0)
+    kpts = optimal_monkhorst_pack_grid(
+        calc.atoms,
+        kptdensity=6.0,
+        force_gamma=True,
+        force_even=True,
+        contains_ibz_vertices=True,
+        nmaxperdim=2)
 
     # Calculate the wave functions on the new kpts grid
-    calc = GPAW(gpwname).fixed_density(kpts=kpts, update_fermi_level=True)
+    calc = calc.fixed_density(kpts=kpts, update_fermi_level=True)
     calc.write('Na', 'all')
 
     # Excited state calculation
@@ -28,14 +37,14 @@ def test_response_Na_EELS_RPA_tetra_point_comparison(in_tmp_dir, gpw_files):
 
     # Calculate the eels spectrum using point integration at both q-points
     df1 = DielectricFunction(calc='Na', frequencies=w_w, eta=0.2, ecut=50,
-                             hilbert=False, rate=0.2)
+                             hilbert=False, rate=0.2, world=world)
     df1.get_eels_spectrum(xc='RPA', filename='EELS_Na-PI_q0', q_c=q0_c)
     df1.get_eels_spectrum(xc='RPA', filename='EELS_Na-PI_q1', q_c=q1_c)
 
     # Calculate the eels spectrum using tetrahedron integration at both q
     df2 = DielectricFunction(calc='Na', eta=0.2, ecut=50,
                              integrationmode='tetrahedron integration',
-                             hilbert=True, rate=0.2)
+                             hilbert=True, rate=0.2, world=world)
     df2.get_eels_spectrum(xc='RPA', filename='EELS_Na-TI_q0', q_c=q0_c)
     df2.get_eels_spectrum(xc='RPA', filename='EELS_Na-TI_q1', q_c=q1_c)
 

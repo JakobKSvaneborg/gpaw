@@ -13,6 +13,7 @@ from gpaw.utilities.adjust_cell import adjust_cell
 
 
 @pytest.mark.hybrids
+@pytest.mark.lrtddft
 def test_rsf_yukawa_lrtddft_short(in_tmp_dir):
     libxc_version = getattr(cgpaw, 'libxc_version', '2.x.y')
     if int(libxc_version.split('.')[0]) < 3:

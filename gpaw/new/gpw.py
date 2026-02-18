@@ -209,7 +209,7 @@ def read_gpw(filename: str | Path | IO[str],
     parallel = parallel or {}
 
     if not isinstance(log, Logger):
-        log = Logger(log, comm or mpi.world)
+        log = Logger(log, mpi.normalize_communicator(comm))
 
     comm = log.comm
 
@@ -429,7 +429,6 @@ def read_dft_state(reader: ulm.Reader,
     energies = DFTEnergies(**ec)
 
     potential = Potential(vt_sR, dH_asp.to_full(), dedtaut_sR, vHt_x, e_stress)
-
     ibzwfs = builder.read_ibz_wave_functions(reader)
 
     return builder, params, (ibzwfs, density, potential, energies)

@@ -2,10 +2,10 @@
  *  Copyright (C) 2007-2009  CAMd
  *  Please see the accompanying LICENSE file for further information. */
 
+#include "python_utils.h"
 #include "extensions.h"
 #include "bmgs/bmgs.h"
 #include "spline.h"
-#include <complex.h>
 
 
 //                    +-----------n

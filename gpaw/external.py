@@ -149,7 +149,7 @@ class ConstantElectricField(ExternalPotential):
         """External constant electric field.
 
         strength: float
-            Field strength in V/Ang.
+            Field strength in V/Å.
         direction: vector
             Polarization direction.
         """
@@ -221,11 +221,11 @@ class PointChargePotential(ExternalPotential):
         charges: list of float
             Charges in units of `|e|`.
         positions: (N, 3)-shaped array-like of float
-            Positions of charges in Angstrom.  Can be set later.
+            Positions of charges in Ångstrøm.  Can be set later.
         rc: float
-            Inner cutoff for Coulomb potential in Angstrom.
+            Inner cutoff for Coulomb potential in Ångstrøm.
         rc2: float
-            Outer cutoff for Coulomb potential in Angstrom.
+            Outer cutoff for Coulomb potential in Ångstrøm.
         width: float
             Width for cutoff function for Coulomb part.
 
@@ -233,7 +233,7 @@ class PointChargePotential(ExternalPotential):
         has matching value, first derivative, second derivative and integral.
 
         For rc2 - width < r < rc2, 1 / r is multiplied by a smooth cutoff
-        function (a third order polynomium in r).
+        function (a third order polynomial in r).
 
         You can also give rc a negative value.  In that case, this formula
         is used::
@@ -339,9 +339,9 @@ class StepPotentialz(ExternalPotential):
         zstep: float
             z-value that splits space into left and right [Angstrom]
         value_left: float
-            Left side (z < zstep) potentential value [eV]. Default: 0
+            Left side (z < zstep) potential value [eV]. Default: 0
         value_right: float
-            Right side (z >= zstep) potentential value [eV]. Default: 0
+            Right side (z >= zstep) potential value [eV]. Default: 0
        """
         self.value_left = value_left
         self.value_right = value_right
@@ -406,21 +406,29 @@ def static_polarizability(atoms, strength=0.01):
     Returns
     -------
     polarizability tensor:
-        Unit (e^2 Angstrom^2 / eV).
+        Unit (e^2 Ångstrom^2 / eV).
         Multiply with Bohr * Ha to get (Angstrom^3)
     """
+    from gpaw.new.external_potential import (
+        ConstantElectricField as NewConstantElectricField)
     atoms.get_potential_energy()
     calc = atoms.calc
-    assert calc.parameters.external is None
+    if calc.old:
+        assert calc.parameters.external is None
     dipole_gs = calc.get_dipole_moment()
+    atoms = atoms.copy()
 
     alpha = np.zeros((3, 3))
     for c in range(3):
         axes = np.zeros(3)
         axes[c] = 1
-        calc.set(external=ConstantElectricField(strength, axes))
-        calc.get_potential_energy()
-        alpha[c] = (calc.get_dipole_moment() - dipole_gs) / strength
-    calc.set(external=None)
+        if calc.old:
+            atoms.calc = calc.new(
+                external=ConstantElectricField(strength, axes))
+        else:
+            atoms.calc = calc.new(
+                extensions=[NewConstantElectricField(strength, axes)])
+        atoms.get_potential_energy()
+        alpha[c] = (atoms.calc.get_dipole_moment() - dipole_gs) / strength
 
     return alpha.T

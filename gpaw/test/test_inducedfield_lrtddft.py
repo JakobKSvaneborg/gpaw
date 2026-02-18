@@ -9,6 +9,7 @@ from gpaw.poisson import FDPoissonSolver
 
 
 @pytest.mark.ci
+@pytest.mark.lrtddft
 @pytest.mark.old_gpaw_only
 def test_inducedfield_lrtddft(in_tmp_dir):
     do_print_values = False  # Use this for printing the reference values
@@ -24,9 +25,14 @@ def test_inducedfield_lrtddft(in_tmp_dir):
                   pbc=False)
     atoms.center(vacuum=3.0)
 
-    calc = GPAW(mode='fd', nbands=20, h=0.6, setups={'Na': '1'},
-                poissonsolver=poissonsolver,
-                convergence={'density': density_eps})
+    calc = GPAW(
+        legacy_gpaw=True,
+        mode='fd',
+        nbands=20,
+        h=0.6,
+        setups={'Na': '1'},
+        poissonsolver=poissonsolver,
+        convergence={'density': density_eps})
     atoms.calc = calc
     atoms.get_potential_energy()
     calc.write('na2_gs_casida.gpw', mode='all')

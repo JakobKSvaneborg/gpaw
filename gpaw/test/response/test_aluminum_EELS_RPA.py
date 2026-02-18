@@ -6,8 +6,8 @@ from ase.build import bulk
 from ase.parallel import parprint
 
 from gpaw import GPAW, PW
-from gpaw.bztools import find_high_symmetry_monkhorst_pack
-from gpaw.mpi import size, world
+from gpaw.bztools import optimal_monkhorst_pack_grid
+from gpaw.mpi import world
 from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.test import findpeak
 
@@ -19,7 +19,7 @@ from gpaw.test import findpeak
 @pytest.mark.tetrahedron
 @pytest.mark.response
 def test_response_aluminum_EELS_RPA(in_tmp_dir):
-    assert size <= 4**3
+    assert world.size <= 4**3
 
     # Ground state calculation
 
@@ -28,21 +28,29 @@ def test_response_aluminum_EELS_RPA(in_tmp_dir):
     a = 4.043
     atoms = bulk('Al', 'fcc', a=a)
     atoms.center()
-    calc = GPAW(mode=PW(200),
-                nbands=4,
-                kpts=(4, 4, 4),
-                parallel={'band': 1},
-                xc='LDA')
+    calc = GPAW(
+        mode=PW(200),
+        nbands=4,
+        kpts=(4, 4, 4),
+        parallel={'band': 1},
+        xc='LDA')
 
     atoms.calc = calc
     atoms.get_potential_energy()
     calc.write('Al_gs.gpw')
 
     # Generate grid compatible with tetrahedron integration
-    kpts = find_high_symmetry_monkhorst_pack('Al_gs.gpw', 2.0)
+    kpts = optimal_monkhorst_pack_grid(
+        atoms,
+        kptdensity=2.0,
+        force_gamma=True,
+        force_even=True,
+        contains_ibz_vertices=True,
+        nmaxperdim=2)
 
     # Calculate the wave functions on the new kpts grid
-    calc = GPAW('Al_gs.gpw').fixed_density(kpts=kpts, update_fermi_level=True)
+    calc = GPAW('Al_gs.gpw').fixed_density(
+        kpts=kpts, update_fermi_level=True)
     calc.write('Al.gpw', 'all')
 
     t2 = time.time()
@@ -55,7 +63,7 @@ def test_response_aluminum_EELS_RPA(in_tmp_dir):
     # Calculate the eels spectrum using point integration at both q-points
     df1 = DielectricFunction(calc='Al.gpw', frequencies=w_w, eta=0.2, ecut=50,
                              integrationmode='point integration',
-                             hilbert=False, rate=0.2)
+                             hilbert=False, rate=0.2, world=world)
     df1.get_eels_spectrum(xc='RPA', filename='EELS_Al-PI_q0', q_c=q0_c)
     df1.get_eels_spectrum(xc='RPA', filename='EELS_Al-PI_q1', q_c=q1_c)
 
@@ -66,7 +74,7 @@ def test_response_aluminum_EELS_RPA(in_tmp_dir):
     # exploration runs excruciatingly slowly at finite q...
     df2 = DielectricFunction(calc='Al.gpw', eta=0.2, ecut=50,
                              integrationmode='tetrahedron integration',
-                             hilbert=True, rate=0.2)
+                             hilbert=True, rate=0.2, world=world)
     df2.get_eels_spectrum(xc='RPA', filename='EELS_Al-TI_q0', q_c=q0_c)
 
     t4 = time.time()

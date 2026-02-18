@@ -87,7 +87,7 @@ Alternatively, you can download it from here:
 GPAW for CPUs (Python 3.9)
 --------------------------
 
-Note: Python 3.9 reached end-of-life in October 2025, and is not offically supported by GPAW anymore either.
+Note: Python 3.9 reached end-of-life in October 2025, and is not officially supported by GPAW anymore either.
 May not work with very recent development versions of GPAW.
 
 Do the following in a new terminal session.

@@ -7,7 +7,7 @@ from gpaw.new.rttddft.dataclasses import RTTDDFTKick, RTTDDFTKickLike
 class RTTDDFTHistory:
 
     """ Representation of the history of a RT-TDDFT calculation.
-    The class stores the curent time and the number of propagation steps,
+    The class stores the current time and the number of propagation steps,
     as well as a list of previous kicks.
     """
 

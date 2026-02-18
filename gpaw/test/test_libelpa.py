@@ -3,7 +3,6 @@ import pytest
 import scipy as sp
 
 from gpaw.blacs import BlacsGrid
-from gpaw.mpi import world
 from gpaw.utilities.elpa import LibElpa
 
 pytestmark = pytest.mark.skipif(not LibElpa.have_elpa(),
@@ -14,8 +13,9 @@ pytestmark = pytest.mark.skipif(not LibElpa.have_elpa(),
 @pytest.mark.parametrize('dtype', [float, complex])
 @pytest.mark.parametrize('eigensolver', ['elpa', 'scalapack'])
 @pytest.mark.parametrize('eigentype', ['normal', 'general'])
-def test_libelpa(dtype, eigensolver, eigentype):
+def test_libelpa(dtype, eigensolver, eigentype, mpi, require_real_mpi):
     rng = np.random.RandomState(87878787)
+    world = mpi.comm
 
     if world.size == 1:
         shape = 1, 1

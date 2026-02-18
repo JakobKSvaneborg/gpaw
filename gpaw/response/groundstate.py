@@ -54,7 +54,6 @@ ResponseGroundStateAdaptable = Union['ResponseGroundStateAdapter',
 
 class ResponseGroundStateAdapter:
     def __init__(self, calc: GPAWCalculator, lazy=False):
-
         wfs = calc.wfs  # wavefunction object from gpaw.old.wavefunctions
         self._wfs = wfs
         self.gs_info = ""
@@ -63,6 +62,8 @@ class ResponseGroundStateAdapter:
             if isinstance(calc, NewGPAW):
                 raise ValueError('LCAO calculations are only '
                                  'supported by old GPAW')
+            # calc = calc._to_old()
+            # self._wfs = wfs = calc.wfs
             calc.initialize_positions()
             for kpt in wfs.kpt_u:
                 assert kpt.C_nM is not None
@@ -385,13 +386,13 @@ class ResponseGroundStateAdapter:
 
         return ibzq_qc
 
-    def get_ibz_vertices(self):
+    def get_ibz_vertices(self, context):
         # For the tetrahedron method in Chi0
         from gpaw.bztools import get_bz
 
         # NB: We are ignoring the pbc_c keyword to get_bz() in order to mimic
         # find_high_symmetry_monkhorst_pack() in gpaw.bztools. XXX
-        _, ibz_vertices_kc, _ = get_bz(self._calc)
+        _, ibz_vertices_kc, _ = get_bz(self._calc, comm=context.comm)
         return ibz_vertices_kc
 
     def get_aug_radii(self):

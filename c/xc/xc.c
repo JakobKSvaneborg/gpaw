@@ -2,12 +2,9 @@
  *  Copyright (C) 2007-2009  CAMd
  *  Please see the accompanying LICENSE file for further information. */
 
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
+#include "python_utils.h"
 #include "xc_gpaw.h"
-#include "../extensions.h"
+#include "extensions.h"
 
 //
 //          __  2

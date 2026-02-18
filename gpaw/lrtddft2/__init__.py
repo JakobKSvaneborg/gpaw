@@ -19,6 +19,8 @@ from gpaw.lrtddft2.lr_communicators import LrCommunicators
 from gpaw.lrtddft2.lr_response import LrResponse
 # a set of linear combinations of KS single determinants
 from gpaw.lrtddft2.lr_transitions import LrtddftTransitions
+from gpaw.mpi import normalize_communicator
+from gpaw.old import assert_legacy_gpaw
 from gpaw.xc import XC
 
 # a KS determinant with a single occ-uncc excitation
@@ -39,7 +41,8 @@ class LrTDDFT2:
                  max_energy_diff=None,
                  recalculate=None,
                  lr_communicators=None,
-                 txt='-'):
+                 txt='-',
+                 world=None):
         """Initialize linear response TDDFT without calculating anything.
 
         Note
@@ -97,6 +100,9 @@ class LrTDDFT2:
         txt
           Filename for text output
         """
+        # XXX Too many communicators around; probably our 'world' can be
+        # inferred from one of them.
+        world = normalize_communicator(world)
 
         # Save input params
         self.basefilename = basefilename
@@ -112,6 +118,7 @@ class LrTDDFT2:
             self.max_energy_diff = None
         self.recalculate = recalculate
         # Don't init calculator yet if it's not needed (to save memory)
+        assert_legacy_gpaw(gs_calc)
         self.calc = gs_calc
         self.calc_ready = False
 
@@ -204,9 +211,12 @@ class LrTDDFT2:
         self.sl_lrtddft = self.calc.parallel['sl_lrtddft']
 
         # LR-TDDFT transitions
+        # This uses a different 'world' than the other parts of this class.
+        # That may not be on purpose.
         self.lr_transitions = LrtddftTransitions(self.ks_singles,
                                                  self.K_matrix,
-                                                 self.sl_lrtddft)
+                                                 self.sl_lrtddft,
+                                                 world=world)
 
         # Response wavefunction
         self.lr_response_wf = None
@@ -306,7 +316,7 @@ class LrTDDFT2:
         Includes population difference.
 
         This method is meant to be used for small number of transitions.
-        It is not suitable for analysing densely packed transitions of
+        It is not suitable for analyzing densely packed transitions of
         large systems. Use transition contribution map (TCM) or similar
         approach for this.
 

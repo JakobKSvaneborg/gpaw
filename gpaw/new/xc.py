@@ -7,7 +7,6 @@ import numpy as np
 
 from gpaw.core import UGArray, UGDesc
 from gpaw.gpu import einsum
-from gpaw.hybrids import HybridXC
 from gpaw.new import zips
 from gpaw.new.c import (add_to_density, add_to_density_gpu, evaluate_lda_gpu,
                         evaluate_pbe_gpu)
@@ -20,16 +19,22 @@ from gpaw.xc.gga import add_gradient_correction
 from gpaw.xc.libvdwxc import VDWXC
 from gpaw.xc.mgga import MGGA
 from gpaw.xc.vdw import VDWFunctionalBase
+from gpaw.xc.hybrid import HybridXC as OldHybridXC
 
 
 def create_functional(xc: OldXCFunctional | str | dict,
                       grid: UGDesc,
                       xp=np) -> Functional:
+    from gpaw.hybrids import HybridXC
+    if isinstance(xc, OldHybridXC):
+        raise NotImplementedError
+
     exx_fraction = 0.0
     exx_omega = 0.0
     exx_yukawa = False
     if isinstance(xc, (str, dict)):
         xc = XC(xc)
+    setup_name = xc.get_setup_name()
 
     if xc.type == 'HYB':
         assert isinstance(xc, HybridXC)
@@ -44,12 +49,16 @@ def create_functional(xc: OldXCFunctional | str | dict,
         functional = GGAFunctional(xc, grid, xp)
     elif xc.type == 'MGGA':
         functional = MGGAFunctional(xc, grid)
+    elif xc.type == 'GLLB':
+        from gpaw.dft import LegacyGPAWError
+        raise LegacyGPAWError
     else:
         raise ValueError(f'{xc.type} not supported')
 
     functional.exx_fraction = exx_fraction
     functional.exx_omega = exx_omega
     functional.exx_yukawa = exx_yukawa
+    functional.setup_name = setup_name
 
     return functional
 
@@ -87,7 +96,7 @@ class Functional:
         return self.xc.calculate_paw_correction(setup, d, h, a=a)
 
     def get_setup_name(self) -> str:
-        return self.name
+        return self.setup_name
 
     def stress_contribution(self,
                             ibzwfs, density,
@@ -224,7 +233,7 @@ class GGAFunctional(LDAFunctional):
               density,
               interpolate: Callable[[UGArray], UGArray]
               ) -> tuple[tuple[UGArray, ...], dict]:
-        args, kwargs = LDAFunctional._args(self, ibzwfs, density, interpolate)
+        args, kwargs = super()._args(ibzwfs, density, interpolate)
         if args:
             e_r, nt_sr, vt_sr = args
             gradn_svr, sigma_xr = gradient_and_sigma(self.grad_v, nt_sr)
@@ -237,7 +246,7 @@ class GGAFunctional(LDAFunctional):
                 e_r, nt_sr, vt_sr, sigma_xr, dedsigma_xr,
                 gradn_svr,
                 ) -> Array2D:
-        stress_vv = LDAFunctional._stress(self, e_r, nt_sr, vt_sr)
+        stress_vv = super()._stress(e_r, nt_sr, vt_sr)
         P = 0.0
         for sigma_r, dedsigma_r in zip(sigma_xr, dedsigma_xr):
             P -= 2 * sigma_r.integrate(dedsigma_r, skip_sum=True)
@@ -344,7 +353,7 @@ class MGGAFunctional(GGAFunctional):
               ibzwfs,
               density,
               interpolate: Callable[[UGArray], UGArray]):
-        args, kwargs = GGAFunctional._args(self, ibzwfs, density, interpolate)
+        args, kwargs = super()._args(ibzwfs, density, interpolate)
         taut_swR = _taut(ibzwfs, density.nt_sR.desc)
 
         if not args:

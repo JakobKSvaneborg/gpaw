@@ -17,6 +17,7 @@ def test_h2():
                pbc=False)
     h2.center(vacuum=2.5)
     h2.calc = GPAW(
+        legacy_gpaw=False,
         mode='lcao',
         basis='dzp',
         parallel={'gpu': True},

@@ -1,6 +1,5 @@
 import json
 from collections import defaultdict
-from io import StringIO
 from pathlib import Path
 from time import time
 
@@ -10,7 +9,7 @@ from ase.geometry.cell import cell_to_cellpar
 from gpaw.benchmark.systems import systems
 from gpaw.calcinfo import get_calculation_info
 from gpaw.dft import GPAW
-from gpaw.mpi import world
+from gpaw.mpi import normalize_communicator
 from gpaw.utilities.memory import maxrss
 
 PARAMS = dict(
@@ -45,20 +44,39 @@ REFERENCES0 = {
     'VI2-2M': (-9.29013, -0.77486, 24, 31.65),
     'Ti2Br6-3': (-32.64699, -0.00286, 24, 155.44)}
 
+RESCALE_FACTOR = 1.0
+
 # New materials for second run
 # (new GPAW, master branch Nov. 11 2025):
 REFERENCES0 |= {
     'MnVS2-2M': (-29.11777, -0.00014, 24, 98.608),
-    'PtLi2O6-2M': (0.0, 0.0, 24, 454.22),
-    'V3Cl6-2N': (0.0, 0.0, 24, 3364.039)}
+    'PtLi2O6-2M': (-40.713, -2.068, 24, 454.22),
+    'V3Cl6-2N': (-51.117, -0.102, 24, 3364.039)}
+
 # Score for the 14 systems was 94.34.
 # Rescaling to 17 systems:
-RESCALE_FACTOR = 17 * 0.9434 / (14 * 0.9434 + 3)
+old = 94.34
+new = (old / 100 * 14 + 3) / 17 * 100
+RESCALE_FACTOR *= old / new
 
+# New initial magmoms for MnVS2-2M (new GPAW, master branch Nov 25 2025).
+# Time for MnVS2-2M system changed from 98.608 to 68.767 seconds:
+REFERENCES0['MnVS2-2M'] = (-29.11777, -0.00014, 24, 68.767)
+
+# New score for 17 systems: 115.80
+old = 115.80
+# Adding two more converged systems:
+REFERENCES0 |= {
+    'ErGe-2M': (-5.557, -0.0578, 24, 72.937),
+    'Fe8O8-3M': (-126.756, 0.000025, 40, 316.031)}
+new = (old / 100 * 17 + 2) / 19 * 100
+RESCALE_FACTOR *= old / new
+
+# Not yet included in benchmark:
 REFERENCES = REFERENCES0 | {
-    'ErGe-2M': (0.0, 0.0, 24, 9999999),
-    'Mn2O2-3M': (0.0, 0.0, 24, 9999999),
-    'Fe8O8-3M': (0.0, 0.0, 40, 9999999)}
+    'Mn2O2-3M': (0.0, 0.0, 24, 9999999)}
+
+NAMES = sorted(REFERENCES, key=lambda name: name.split('-')[::-1])
 
 
 def score(data: dict[str, float]) -> tuple[float, int]:
@@ -87,30 +105,39 @@ def score(data: dict[str, float]) -> tuple[float, int]:
     return 100 * RESCALE_FACTOR * s / len(REFERENCES0), n
 
 
-def workflow():
+def workflow(skip: list[str] | None = None) -> list:
     """MyQueue workflow."""
     from myqueue.workflow import run
+    handles = []
     for name, (_, _, cores, _) in REFERENCES.items():
-        tmax = '1h'
+        if skip and name in skip:
+            continue
+        tmax = '2h'
         if cores == 24:
             nodename = 'xeon24el8'
         if cores == 40:
             nodename = 'xeon40el8_clx'
+            tmax = '3h'
         elif cores == 56:
             nodename = 'xeon56'
-            tmax = '3h'
+            tmax = '7h'
 
-        run(function=work,
-            args=[name],
-            cores=cores,
-            tmax=tmax,
-            nodename=nodename,
-            name=name,
-            creates=[f'{name}.json'])
+        handle = run(function=work,
+                     args=[name],
+                     cores=cores,
+                     tmax=tmax,
+                     nodename=nodename,
+                     name=name,
+                     creates=[f'{name}.json'])
+        handles.append(handle)
+    return handles
 
 
-def work(name: str, params: dict | None = None) -> None:
+def work(name: str,
+         params: dict | None = None,
+         world=None) -> None:
     """Do two steps."""
+    world = normalize_communicator(world)
 
     params = params or PARAMS.copy()
     extra = Path('params.json')
@@ -130,12 +157,13 @@ def work(name: str, params: dict | None = None) -> None:
     atoms.calc = GPAW(
         txt=None,
         convergence={'maximum iterations': 3},
+        communicator=world,
         **params)
     atoms.get_potential_energy()
 
-    output = StringIO()  # don't touch the file system
     atoms.calc = GPAW(
-        txt=output,
+        txt=f'{name}.txt',
+        communicator=world,
         **params)
 
     # First step:
@@ -144,9 +172,19 @@ def work(name: str, params: dict | None = None) -> None:
     f1 = atoms.get_forces()
     i1 = atoms.calc.dft.scf_loop.niter
 
-    if abs(f1).max() < 0.0001:
-        s1 = atoms.get_stress(voigt=False)
-        atoms.set_cell(atoms.cell @ (np.eye(3) - 0.02 * s1), scale_atoms=True)
+    if name in {'C2-3', 'Fe8-3M', 'Mn2O2-3M'}:
+        # These systems have zero forces by symmetry
+        assert abs(f1).max() < 0.0001
+        if atoms.calc.params.mode.name == 'pw':
+            stress = atoms.get_stress(voigt=False)
+        else:
+            # LCAO and FD-mode does not do stress
+            s = {'C2-3': -0.0014,
+                 'Fe8-3M': 0.0364,
+                 'Mn2O2-3M': 0.0382}[name]
+            stress = np.diag([s, s, s])
+        atoms.set_cell(atoms.cell @ (np.eye(3) - 0.02 * stress),
+                       scale_atoms=True)
     else:
         atoms.positions += 0.1 * f1
     t1 = time() - t1
@@ -155,7 +193,7 @@ def work(name: str, params: dict | None = None) -> None:
     # Second step:
     t2 = time()
     e2 = atoms.get_potential_energy()
-    _ = atoms.get_forces()
+    atoms.get_forces()
     i2 = atoms.calc.dft.scf_loop.niter
     t2 = time() - t2
     m2 = maxrss()
@@ -163,7 +201,6 @@ def work(name: str, params: dict | None = None) -> None:
     atoms.calc.__del__()  # make sure we get timing info in log-file
 
     if world.rank == 0:
-        Path(f'{name}.txt').write_text(output.getvalue())
         Path(f'{name}.json').write_text(json.dumps([e1, t1, i1, m1,
                                                     e2, t2, i2, m2]))
 
@@ -241,19 +278,24 @@ def summary(folders: list[Path], mode: int) -> None:
 def average(folders: list[Path]) -> None:
     data: dict[str, np.ndarray] = defaultdict(lambda: np.zeros(8))
     for folder in folders:
-        for path in folder.glob('*.json'):
+        for path in folder.glob('*-*.json'):
             x = json.loads(path.read_text())
             data[path.stem] += np.array(x)
-    for name, x in data.items():
+    for name in NAMES:
+        if name not in data:
+            continue
+        x = data[name]
         e1, t1, i1, m1, e2, t2, i2, m2 = x / len(folders)
         print(
-            f'    {name!r}: ('
+            f'    "{name}": ['
             f'{e1:.6f}, {t1:.3f}, {round(i1):.0f}, {int(m1)}, '
-            f'{e2:.6f}, {t2:.3f}, {round(i2):.0f}, {int(m2)}),')
+            f'{e2:.6f}, {t2:.3f}, {round(i2):.0f}, {int(m2)}],')
 
 
-def main(arguments: list[str] | None = None):
+def main(arguments: list[str] | None = None, world=None):
     from argparse import ArgumentParser
+    world = normalize_communicator(world)
+
     parser = ArgumentParser()
     parser.add_argument(
         '-m', '--mode', type=int, default=3,
@@ -276,7 +318,7 @@ def main(arguments: list[str] | None = None):
           '(lengths)          (angles)')
     for name, (e, de, cores, t) in REFERENCES.items():
         atoms = systems[name]()
-        info = get_calculation_info(atoms, **PARAMS)
+        info = get_calculation_info(atoms, comm=world, **PARAMS)
         print(f'{name:12} {len(atoms):4}    {atoms.pbc.sum()}',
               end=' ')
         print(f'{len(info.ibz):3}    {info.ncomponents}   {info.nbands:3}',

@@ -8,20 +8,26 @@ from gpaw.bztools import get_reduced_bz, unique_rows
 
 class KPointFinder:
     def __init__(self, bzk_kc):
-        self.kdtree = cKDTree(self._round(bzk_kc))
-
-    @staticmethod
-    def _round(bzk_kc):
-        return np.mod(np.mod(bzk_kc, 1).round(6), 1)
+        self.kdtree = cKDTree(self._wrap_to_box(bzk_kc), boxsize=1)
 
     def find(self, kpt_c):
-        distance, k = self.kdtree.query(self._round(kpt_c))
+        distance, k = self.kdtree.query(kpt_c)
         if distance > 1.e-6:
             raise ValueError('Requested k-point is not on the grid. '
                              'Please check that your q-points of interest '
                              'are commensurate with the k-point grid.')
 
         return k
+
+    @staticmethod
+    def _wrap_to_box(k_kc):
+        """
+        Wrap k-points to [0, 1) as required by cKDTree.
+        """
+        k_kc = np.mod(k_kc, 1.0)
+        # maps 1.0 -> 0 using periodic BCs
+        k_kc = np.where(k_kc == 1.0, 0.0, k_kc)
+        return k_kc
 
 
 class ResponseKPointGrid:
@@ -90,7 +96,7 @@ class KPointDomainGenerator:
                          K_K in self.group_kpoints()])
         return k_kc
 
-    def get_tetrahedron_ikpts(self, *, pbc_c, cell_cv):
+    def get_tetrahedron_ikpts(self, *, pbc_c, cell_cv, comm):
         """Find irreducible k-points for tetrahedron integration."""
         U_scc = np.array([  # little group of q
             sign * U_cc for U_cc, sign, _ in self.symmetries])
@@ -99,6 +105,7 @@ class KPointDomainGenerator:
         bzk_kc, ibzk_kc, _ = get_reduced_bz(cell_cv,
                                             U_scc,
                                             False,
+                                            comm,
                                             pbc_c=pbc_c)
 
         n = 3
@@ -117,8 +124,9 @@ class KPointDomainGenerator:
 
         return ik_kc
 
-    def get_tetrahedron_kpt_domain(self, *, pbc_c, cell_cv):
-        ik_kc = self.get_tetrahedron_ikpts(pbc_c=pbc_c, cell_cv=cell_cv)
+    def get_tetrahedron_kpt_domain(self, *, pbc_c, cell_cv, comm):
+        ik_kc = self.get_tetrahedron_ikpts(
+            pbc_c=pbc_c, cell_cv=cell_cv, comm=comm)
         if pbc_c.all():
             k_kc = ik_kc
         else:

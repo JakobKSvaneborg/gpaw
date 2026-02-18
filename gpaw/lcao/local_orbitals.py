@@ -413,6 +413,8 @@ class LocalOrbitals(TightBinding):
     """
 
     def __init__(self, calc: GPAW):
+        from gpaw.old import assert_legacy_gpaw
+        assert_legacy_gpaw(calc)
         self.calc = calc
         self.gamma = calc.wfs.kd.gamma  # Gamma point calculation
         self.subdiag: Subdiagonalization | None = None
@@ -596,7 +598,7 @@ class LocalOrbitals(TightBinding):
         # Broute force hack to restore matrices.
         H_NMM = self.H_NMM
         S_NMM = self.S_NMM
-        ret = TightBinding.band_structure(self, path_kc, blochstates)
+        ret = super().band_structure(path_kc, blochstates)
         self.H_NMM = H_NMM
         self.S_NMM = S_NMM
         return ret

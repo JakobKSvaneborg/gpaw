@@ -37,11 +37,10 @@ import numpy as np
 from ase.build import molecule
 from ase.units import Hartree
 
-from gpaw import GPAW, Mixer
-from gpaw.mpi import rank
+from gpaw import Mixer
 
 
-def test_dipole():
+def test_dipole(mpi):
     system1 = molecule('H2O')
     system1.set_pbc((True, True, False))
     system1.cell = 4.0 * np.array([[1.0, -1.5, 0.0], [1.0, 1.0, 0.0],
@@ -62,13 +61,13 @@ def test_dipole():
                     h=0.25,
                     xc='oldLDA')
 
-    calc1 = GPAW(poissonsolver={'dipolelayer': 'xy'}, **kw())
+    calc1 = mpi.GPAW(poissonsolver={'dipolelayer': 'xy'}, **kw())
 
     system1.calc = calc1
     system1.get_potential_energy()
     v1 = calc1.get_effective_potential()
 
-    calc2 = GPAW(**kw())
+    calc2 = mpi.GPAW(**kw())
 
     system2.calc = calc2
     system2.get_potential_energy()
@@ -80,7 +79,7 @@ def test_dipole():
         vz = vyz.sum(axis=0) / ny
         return vz, vyz
 
-    if rank == 0:
+    if mpi.comm.rank == 0:
         vz1, vyz1 = get_avg(v1)
         vz2, vyz2 = get_avg(v2)
 
