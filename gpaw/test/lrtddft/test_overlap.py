@@ -70,6 +70,7 @@ def test_overlap(in_tmp_dir):
     parprint('spin --------')
     H2.set_initial_magnetic_moments([1, -1])
     c2 = GPAW(
+        legacy_gpaw=True,
         **get_kwargs(
             spinpol=True, nbands=nbands + 1, parallel={'domain': world.size}))
     H2.set_initial_magnetic_moments([0, 0])
