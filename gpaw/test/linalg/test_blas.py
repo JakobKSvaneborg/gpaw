@@ -3,7 +3,6 @@ import pytest
 from gpaw.utilities.blas import no_c_blas, axpy, gemmdot, mmm, mmmx, r2k, rk
 from gpaw.utilities.tools import tri2full
 from gpaw.utilities.blas_purepython import (
-    op as op_purepython,
     rk as rk_purepython,
     r2k as r2k_purepython,
     mmm as mmm_purepython
@@ -144,8 +143,8 @@ def test_purepython_blas(dtype):
     bs = 11
     for i in range(0, (N + bs - 1) // bs):
         r2k(0.5, a_ref[:, i * bs:(i + 1) * bs],
-                b_ref[::, i * bs:(i + 1) * bs],
-                0.2 if (i == 0) else 1.0, c_ref_bu)
+            b_ref[::, i * bs:(i + 1) * bs],
+            0.2 if (i == 0) else 1.0, c_ref_bu)
         r2k(0.5, a[:, i * bs:(i + 1) * bs],
             b[:, i * bs:(i + 1) * bs],
             0.2 if (i == 0) else 1.0, c_bu)

@@ -45,9 +45,9 @@ def r2k(alpha, a, b, beta, c, trans='c'):  # noqa
         c *= beta
     if trans == 'c':
         c += (alpha * a.reshape((len(a), -1))
-                .dot(b.reshape((len(b), -1)).conj().T) +
-                alpha * b.reshape((len(b), -1))
-                .dot(a.reshape((len(a), -1)).conj().T))
+              .dot(b.reshape((len(b), -1)).conj().T) +
+              alpha * b.reshape((len(b), -1))
+              .dot(a.reshape((len(a), -1)).conj().T))
     else:
         c += alpha * (a.conj().T @ b + b.conj().T @ a)
 

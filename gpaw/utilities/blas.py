@@ -523,7 +523,9 @@ def _gemmdot(a, b, alpha=1.0, beta=1.0, out=None, trans='n'):
 
 
 if no_c_blas:
-    from blas_purepython import op, rk, r2k, mmm
+    from gpaw.utilities.blas_purepython import (  # noqa: F401, F811
+        op, rk, r2k, mmm
+    )
     gemmdot = _gemmdot
 
 elif not debug:
