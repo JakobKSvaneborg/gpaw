@@ -64,10 +64,10 @@ class BaseMixer:
         if self.weight == 1:
             self.metric = None
         else:
-            a = 0.125 * (self.weight + 7) / self.weight
-            b = 0.0625 * (self.weight - 1) / self.weight
-            c = 0.03125 * (self.weight - 1) / self.weight
-            d = 0.015625 * (self.weight - 1) / self.weight
+            a = 0.125 * (self.weight + 7) / self.weight**0.5
+            b = 0.0625 * (self.weight - 1) / self.weight**0.5
+            c = 0.03125 * (self.weight - 1) / self.weight**0.5
+            d = 0.015625 * (self.weight - 1) / self.weight**0.5
             self.metric = FDOperator([a,
                                       b, b, b, b, b, b,
                                       c, c, c, c, c, c, c, c, c, c, c, c,
@@ -211,7 +211,7 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = 2.0
+    min_imp = 2
 
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         nt_isG = self.nt_isG
@@ -232,7 +232,7 @@ class MSR1Mixer(BaseMixer):
                 dD_iasp[-1].append(D_sp - D_isp)
 
             while (iold > self.nmaxold and dNt <= self.last_dNt * self.min_imp) \
-                    or iold > self.nmaxold + 2:
+                    or iold > self.nmaxold + 4:
                 # Throw away too old stuff:
                 del nt_isG[0]
                 del R_isG[0]
@@ -247,8 +247,9 @@ class MSR1Mixer(BaseMixer):
         if iold > 1:
             backtracked = False
             if dNt > self.last_dNt * self.min_imp:
+                reduction = dNt / self.last_dNt
                 dNt = self.last_dNt
-                insert_pos = 0
+                insert_pos = 0 if reduction < 2 * self.min_imp else -2
                 tmp = nt_isG.pop()
                 nt_isG.insert(insert_pos, tmp)
                 tmp = R_isG.pop()
@@ -265,9 +266,9 @@ class MSR1Mixer(BaseMixer):
             ntnorm_i = np.sum(np.abs(nt_isG).reshape(iold, -1), axis=(1, )) * self.gd.dv
             self.gd.comm.sum(ntnorm_i)
             ntnorm_i = np.expand_dims(1 / ntnorm_i, axis=tuple(np.arange(1, np.array(nt_isG).ndim)))
-            dampen = 1.5
-            A = np.diag(np.reshape(nt_isG, (iold, -1)) @ np.reshape(nt_isG, (iold, -1)).T) * self.gd.dv
-            B = self.dotprod(nt_isG, nt_isG, D_iasp, D_iasp, self.gd, mode='vecdot')
+
+            dampen = 1.0
+            max_gb = 4.0
 
             # 2nd order norm
             # ntnorm_i = np.vecdot(np.array(nt_isG).reshape(iold, -1),
@@ -278,13 +279,6 @@ class MSR1Mixer(BaseMixer):
             ### 2023 Paper, Eq: 8 + 9:
             s_isG = (nt_isG[:-1] - nt_isG[-1])
             y_isG = -(R_isG[:-1] - R_isG[-1])
-            ### Scale the problem!
-            t_norm = np.sum(y_isG.reshape(iold - 1, -1)**2, axis=1)
-            self.gd.comm.sum(t_norm)
-            t_norm = 1 / np.sqrt(t_norm)
-            t_norm[:] = 1
-            s_isG *= np.expand_dims(t_norm, axis=tuple(np.arange(1, s_isG.ndim)))
-            y_isG *= np.expand_dims(t_norm, axis=tuple(np.arange(1, y_isG.ndim)))
 
             sD_iasp = []
             yD_iasp = []
@@ -292,10 +286,11 @@ class MSR1Mixer(BaseMixer):
                 sD_asp = []
                 yD_asp = []
                 for a1 in range(len(D_iasp[i1])):
-                    sD_asp.append((D_iasp[i1][a1] - D_iasp[-1][a1]) * t_norm[i1])
-                    yD_asp.append(-(dD_iasp[i1][a1] - dD_iasp[-1][a1]) * t_norm[i1])
+                    sD_asp.append((D_iasp[i1][a1] - D_iasp[-1][a1]))
+                    yD_asp.append(-(dD_iasp[i1][a1] - dD_iasp[-1][a1]))
                 sD_iasp.append(sD_asp)
                 yD_iasp.append(yD_asp)
+
             ###
             ts_isG = s_isG.copy()
             ty_isG = y_isG.copy()
@@ -309,19 +304,33 @@ class MSR1Mixer(BaseMixer):
                     ty_sG[:] = np.tensordot(g_ss, ty_sG, axes=(1, 0))
                     ts_sG[:] = np.tensordot(g_ss, ts_sG, axes=(1, 0))
 
+            ### Scale the problem!
+            y_norm = self.dotprod(y_isG, ty_isG, yD_iasp, yD_iasp, self.gd, mode='vecdot')
+            s_norm = self.dotprod(s_isG, ty_isG, sD_iasp, yD_iasp, self.gd, mode='vecdot')
+            t_norm = 1 / np.sqrt(y_norm + max_gb * s_norm)
+            t_norm_expanded = np.expand_dims(t_norm, axis=tuple(np.arange(1, y_isG.ndim)))
+            y_isG *= t_norm_expanded
+            ty_isG *= t_norm_expanded
+            s_isG *= t_norm_expanded
+            ts_isG *= t_norm_expanded
+            for i, (sD_asp, yD_asp) in enumerate(zip(sD_iasp, yD_iasp)):
+                for sD_sp, yD_sp in zip(sD_asp, yD_asp):
+                    yD_sp *= t_norm[i]
+                    sD_sp *= t_norm[i]
+
             ### 2023 paper eq 22 - Limit good_broydenness
             # YY_LIM = y_isG.reshape((iold - 1, -1)) @ ty_isG.reshape((iold - 1, -1)).T
-            YY_LIM = self.dotprod(y_isG, ty_isG, yD_iasp, yD_iasp, self.gd, mode='gemm')
+            YY_LIM = self.dotprod(ty_isG, y_isG, yD_iasp, yD_iasp, self.gd, mode='gemm')
             YY_LIM = np.linalg.norm(YY_LIM, ord='fro')
-            YS_LIM = self.dotprod(y_isG, ts_isG, yD_iasp, sD_iasp, self.gd, mode='gemm')
+            YS_LIM = self.dotprod(ty_isG, s_isG, yD_iasp, sD_iasp, self.gd, mode='gemm')
             YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
-            max_gb = np.clip(YY_LIM / YS_LIM, 1, 10)  # Take care
+            max_gb = np.clip(YY_LIM / YS_LIM, 1, max_gb)  # Take care
             good_broydenness = 0.5 * max_gb
 
             # Choose max good_broydenness s.t. A_ii is positive definite
             # for good_broydenness in good_broydenness_range:
             # binary search 2**(-8) accuracy:
-            for iter in range(2, 12):
+            for iter in range(2, 7):
                 t_isG = ty_isG + good_broydenness * ts_isG
                 tD_iasp = []
                 for i in range(iold - 1):
@@ -342,19 +351,27 @@ class MSR1Mixer(BaseMixer):
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
             good_broydenness -= 2**(-iter) * max_gb
-            # good_broydenness /= dampen
-
-            # Don't increase good-broydeness too quickly:
-            # good_broydenness = min(
-            #     good_broydenness,
-            #     max(1, self.last_good_broydeness) * (1.3 if not backtracked else 1))
-            # self.last_good_broydeness = good_broydenness
-            # good_broydenness *= 1 / trust_factor
 
             # Do not good broyden when density is crap
-            crabiness_mult = -np.log(2 * dNt * ntnorm_i.ravel()[-1]) / 8
-            good_broydenness *= np.clip(crabiness_mult, 0.1, 1)
-            print('good_broydenness: ', good_broydenness, ', mult: ', crabiness_mult)
+            # crabiness_mult = -np.log(2 * dNt * ntnorm_i.ravel()[-1]) / 3
+            # good_broydenness *= np.clip(crabiness_mult, 0.1, 1)
+            #  print('good_broydenness: ', good_broydenness, ', mult: ', crabiness_mult)
+
+            ### Re-Scale the problem!
+            t_norm = self.dotprod(ty_isG, y_isG, yD_iasp, yD_iasp, self.gd, mode='vecdot')
+            t_norm += good_broydenness \
+                * self.dotprod(ts_isG, y_isG, sD_iasp, yD_iasp, self.gd, mode='vecdot')
+            t_norm = 1 / np.sqrt(t_norm)
+            t_norm_expanded = np.expand_dims(t_norm, axis=tuple(np.arange(1, y_isG.ndim)))
+            y_isG *= t_norm_expanded
+            ty_isG *= t_norm_expanded
+            s_isG *= t_norm_expanded
+            ts_isG *= t_norm_expanded
+            for i, (sD_asp, yD_asp) in enumerate(zip(sD_iasp, yD_iasp)):
+                for sD_sp, yD_sp in zip(sD_asp, yD_asp):
+                    sD_sp *= t_norm[i]
+                    yD_sp *= t_norm[i]
+
             t_isG = ty_isG + good_broydenness * ts_isG
             tD_iasp = []
             for i in range(iold - 1):
@@ -368,14 +385,14 @@ class MSR1Mixer(BaseMixer):
 
             # This parameter is surprisingly important for stability
             # 2e-4 seems to work well for most systems
-            weight = 5e-5
+            weight = 2e-4
 
             ### SVD Regularization:
             S, V, D = np.linalg.svd(A_ii)
             V = V / (V**2 + (weight * np.max(V))**2)
             A_ii = D.T @ np.diag(V) @ S.T
             S, V, D = np.linalg.svd(B_ii)
-            V = V / (V**2 + (weight * np.max(V))**2)
+            V = V / (V**2 + (0 * weight * np.max(V))**2)
             B_ii = D.T @ np.diag(V) @ S.T
 
             # 2023 paper eq 14 alpha_i = Inv(Y_n^T @ W) @ W^T @ Res_n part
@@ -410,18 +427,23 @@ class MSR1Mixer(BaseMixer):
             A2 = A3_i @ B_ii @ A2_i * dampen
             B2 = B3_i @ B_ii @ B2_i
 
+            print('ratio: ', np.abs(A1 / A2))
+
             if iold != 2:
                 B0_ratio = (
-                    self.B0 + np.clip(np.abs(B1 / B2) + 0.1, 0.3, 1.2)
+                    self.B0 + np.clip(
+                        np.abs(B1 / B2), # + 0.1,
+                        0.3, 1.3)
                     ) / (2 * self.B0)
                 self.B0 *= np.clip(B0_ratio, 0.67,
                    1.5 if not backtracked else 1.0)
             else:
                 self.B0 = 1
 
-            A0_lims = [0.025, 0.4]
+            A0_lims = [0.04, 0.8]
             A0_ratio = (self.A0 + np.clip(
-                np.log(1 + np.abs(A1 / A2)),
+                np.arctan(np.pi * np.abs(A1 / A2) * 2) / np.pi / 2,
+                # np.abs(A1 / A2),
                 *A0_lims
                 )
             ) / (2 * self.A0)
@@ -437,7 +459,7 @@ class MSR1Mixer(BaseMixer):
                 dstep_asp.append(A0 * uD_sp + B0 * pD_sp)
             trust_radius = self.dotprod(trust_step, trust_step, dstep_asp,
                dstep_asp, self.gd, mode='scalar')
-            trust_radius = 1.25 * (dampen * trust_radius)**0.5
+            trust_radius = 1.3 * dampen * trust_radius**0.5
             if self.trust_radius is not None:
                 trust_radius = (self.trust_radius + trust_radius) / 2
                 if backtracked:
@@ -466,9 +488,8 @@ class MSR1Mixer(BaseMixer):
                 self.pD_asp, self.pD_asp, self.gd, mode='scalar')**0.5
 
             beta_i = alpha_i.copy()
-            scale_factor = 1
 
-            if step_size > self.trust_radius * 1.01:
+            if step_size > self.trust_radius * 1.05:
                 # Time to mix the mixing...
                 print('XXXX: Performing trust region control!!!')
                 print(f'XXXX {step_size} > {self.trust_radius}')
@@ -503,7 +524,7 @@ class MSR1Mixer(BaseMixer):
                 self.pk_sG[:] = 0
                 for pD_sp in self.pD_asp:
                     pD_sp[:] = 0
-                # alpha_i[:] = beta_i
+                alpha_i[:] = beta_i
 
                 for i1, (alpha, beta) in enumerate(zip(alpha_i, beta_i)):
                     self.uk_sG -= y_isG[i1] * alpha
@@ -521,7 +542,6 @@ class MSR1Mixer(BaseMixer):
                 self.A0 = A0
 
                 self.uk_sG += R_sG
-                # self.uk_sG *= scale_factor
                 step_sG = A0 * self.uk_sG + B0 * self.pk_sG
 
             nt_sG[:] = nt_isG[-1] + step_sG
@@ -529,15 +549,15 @@ class MSR1Mixer(BaseMixer):
             self.uD_asp = []
             self.pD_asp = []
             for a1, D_sp in enumerate(D_asp):
-                D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1] # * scale_factor
+                D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1]
                 self.uD_asp.append(dD_iasp[-1][a1].copy())
                 self.pD_asp.append(np.zeros_like(D_sp))
 
             for i1, (alpha, beta) in enumerate(zip(alpha_i, beta_i)):
                 for a1, D_sp in enumerate(D_asp):
-                    D_sp -= A0 * alpha * yD_iasp[i1][a1] # * scale_factor
+                    D_sp -= A0 * alpha * yD_iasp[i1][a1]
                     D_sp += B0 * beta * sD_iasp[i1][a1]
-                    self.uD_asp[a1] -= alpha * yD_iasp[i1][a1] # * scale_facor
+                    self.uD_asp[a1] -= alpha * yD_iasp[i1][a1]
                     self.pD_asp[a1] += beta * sD_iasp[i1][a1]
 
             # Sync the density, because apparantly they cant agree...
@@ -549,7 +569,6 @@ class MSR1Mixer(BaseMixer):
         elif iold == 1:
             # Pratt step
             self.trust_radius = None
-            self.last_good_broydeness = 5
             self.A0 = self.beta
             A0 = self.beta * 0.67
             self.uk_sG = R_sG
