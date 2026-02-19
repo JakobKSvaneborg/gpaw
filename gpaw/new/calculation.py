@@ -450,54 +450,55 @@ class DFTCalculation:
         comm = self.comm
 
         # gather data on master
-        ibz, ncomponents, wfs_u = self.ibzwfs.gather()
+        ibz, ncomponents, wfs_u, fermi_levels = self.ibzwfs.gather()
         dH_asp, vt_sR, dedtaut_sR, vHt_x = self.potential.gather()
         D_asp, nt_sR, taut_sR = self.density.gather()
 
         # only create new dft object on master
-        if comm.rank == 0:
+        if comm.rank != 0:
+            return None
 
-            params.parallel = {'kpt': 1, 'band': 1, 'domain': 1}
-            builder = params.dft_component_builder(atoms, log=txt,
-                                                   comm=serial_comm)
-            # make new wfs on master
-            if mode == 'lcao':
-                from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
-                IBZWFs = LCAOIBZWaveFunctions
-            else:
-                from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
-                IBZWFs = PWFDIBZWaveFunctions   # type: ignore
-
-            ibzwfs = IBZWFs(
-                ibz=ibz,
-                ncomponents=ncomponents,
-                wfs_u=wfs_u,
-                kpt_comm=serial_comm,
-                kpt_band_comm=serial_comm,
-                comm=serial_comm)
-
-            potential = Potential(vt_sR=vt_sR, dH_asii=dH_asp.to_full(),
-                                  dedtaut_sR=dedtaut_sR, vHt_x=vHt_x,
-                                  e_stress=self.potential.e_stress)
-
-            density = Density.from_data_and_setups(
-                nt_sR, taut_sR, D_asp.to_full(),
-                builder.params.charge,
-                builder.setups,
-                builder.get_pseudo_core_densities(),
-                builder.get_pseudo_core_ked())
-
-            dft = DFTCalculation(
-                atoms, ibzwfs, density, potential,
-                builder.setups,
-                builder.create_scf_loop(),
-                builder.create_potential_calculator(),
-                builder.log,
-                params=params,
-                energies=self.energies)
+        params.parallel = {'kpt': 1, 'band': 1, 'domain': 1}
+        builder = params.dft_component_builder(atoms, log=txt,
+                                               comm=serial_comm)
+        # make new wfs on master
+        if mode == 'lcao':
+            from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
+            IBZWFs = LCAOIBZWaveFunctions
         else:
-            dft = None
+            from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
+            IBZWFs = PWFDIBZWaveFunctions   # type: ignore
 
+        ibzwfs = IBZWFs(
+            ibz=ibz,
+            ncomponents=ncomponents,
+            wfs_u=wfs_u,
+            kpt_comm=serial_comm,
+            kpt_band_comm=serial_comm,
+            comm=serial_comm)
+        ibzwfs.fermi_levels = fermi_levels
+
+        potential = Potential(vt_sR=vt_sR, dH_asii=dH_asp.to_full(),
+                              dedtaut_sR=dedtaut_sR, vHt_x=vHt_x,
+                              e_stress=self.potential.e_stress)
+
+        density = Density.from_data_and_setups(
+            nt_sR, taut_sR, D_asp.to_full(),
+            builder.params.charge,
+            builder.setups,
+            builder.get_pseudo_core_densities(),
+            builder.get_pseudo_core_ked())
+
+        dft = DFTCalculation(
+            atoms, ibzwfs, density, potential,
+            builder.setups,
+            builder.create_scf_loop(),
+            builder.create_potential_calculator(),
+            builder.log,
+            params=params,
+            energies=self.energies)
+
+        dft.results = self.results.copy()
         return dft
 
     def change(self,
