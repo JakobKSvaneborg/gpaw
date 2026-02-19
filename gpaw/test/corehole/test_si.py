@@ -41,7 +41,8 @@ def test_corehole_si(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
     # 2p corehole
     s = gen('Si', name='hch2p', corehole=(2, 1, 0.5), gpernode=30)
     calc = GPAW(gpw_files['si_corehole_pw'],
-                setups={0: s})
+                setups={0: s},
+                legacy_gpaw=True)
     si.calc = calc
 
     def stopcalc():
