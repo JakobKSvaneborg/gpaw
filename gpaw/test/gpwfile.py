@@ -16,7 +16,6 @@ from gpaw.directmin.etdm_lcao import LCAOETDM
 from gpaw.directmin.tools import excite
 from gpaw.mom import prepare_mom_calculation
 from gpaw.mpi import serial_comm, world
-from gpaw.new.ase_interface import GPAW as GPAWNew
 from gpaw.poisson import FDPoissonSolver, PoissonSolver
 from gpaw.test.cachedfilehandler import CachedFilesHandler
 
@@ -147,21 +146,23 @@ class GPWFiles(CachedFilesHandler):
         magmoms = None if calc_type == 'col' else [mm * easy_axis]
         soc = True if calc_type == 'ncolsoc' else False
 
-        Ni.calc = GPAWNew(mode={'name': 'pw', 'ecut': 380},
-                          xc='LDA',
-                          nbands='200%',
-                          kpts={'size': (4, 4, 4), 'gamma': True},
-                          parallel={'domain': 1, 'band': 1},
-                          mixer={'beta': 0.5},
-                          symmetry=symmetry,
-                          occupations={'name': 'fermi-dirac', 'width': 0.05},
-                          convergence={'density': 1e-8,
-                                       'bands': 'CBM+10',
-                                       'eigenstates': 1e-12},
-                          magmoms=magmoms,
-                          soc=soc,
-                          communicator=self.comm,
-                          txt=self.folder / f'fcc_Ni_{calc_type}.txt')
+        Ni.calc = GPAW(
+            legacy_gpaw=False,
+            mode={'name': 'pw', 'ecut': 380},
+            xc='LDA',
+            nbands='200%',
+            kpts={'size': (4, 4, 4), 'gamma': True},
+            parallel={'domain': 1, 'band': 1},
+            mixer={'beta': 0.5},
+            symmetry=symmetry,
+            occupations={'name': 'fermi-dirac', 'width': 0.05},
+            convergence={'density': 1e-8,
+                         'bands': 'CBM+10',
+                         'eigenstates': 1e-12},
+            magmoms=magmoms,
+            soc=soc,
+            communicator=self.comm,
+            txt=self.folder / f'fcc_Ni_{calc_type}.txt')
         Ni.get_potential_energy()
         return Ni.calc
 
@@ -232,7 +233,7 @@ class GPWFiles(CachedFilesHandler):
         atm.center(vacuum=4.0)
         atm.set_pbc(False)
         atm.calc = self.GPAW(
-            _use_old_gpaw=True,
+            legacy_gpaw=True,
             mode=FD(),
             h=0.3,
             xc='PBE',
@@ -261,7 +262,7 @@ class GPWFiles(CachedFilesHandler):
         atm.center(vacuum=4.0)
         atm.set_pbc(False)
         atm.calc = self.GPAW(
-            _use_old_gpaw=True,
+            legacy_gpaw=True,
             mode=PW(300, force_complex_dtype=True),
             xc='PBE',
             occupations={'name': 'fixed-uniform'},
@@ -640,7 +641,7 @@ class GPWFiles(CachedFilesHandler):
     def h2o_mom_do_pw(self):
         atm = self.h2o_maker(vacuum=4.0)
         calc = self.GPAW(
-            _use_old_gpaw=True,
+            legacy_gpaw=True,
             mode=PW(300),
             spinpol=True,
             symmetry='off',
@@ -801,7 +802,7 @@ class GPWFiles(CachedFilesHandler):
         atm = Atoms('H2', positions=[(0, 0, 0), (0, 0, 0.737)], cell=(a, a, a))
         atm.center()
         calc = self.GPAW(
-            _use_old_gpaw=True,
+            legacy_gpaw=True,
             mode='fd',
             xc='LDA-PZ-SIC',
             eigensolver='rmm-diis',
@@ -816,7 +817,7 @@ class GPWFiles(CachedFilesHandler):
         atm = Atoms('H', magmoms=[1.0], cell=(a, a, a))
         atm.center()
         calc = self.GPAW(
-            _use_old_gpaw=True,
+            legacy_gpaw=True,
             mode='fd',
             xc='LDA-PZ-SIC',
             eigensolver='rmm-diis',
@@ -903,7 +904,7 @@ class GPWFiles(CachedFilesHandler):
                               [d / 2, 0, 0]])
         h2.center(vacuum=3)
         calc = self.GPAW(
-            _use_old_gpaw=True,
+            legacy_gpaw=True,
             mode=PW(300),
             # h=0.3,
             xc={'name': 'HSE06', 'backend': 'pw'},
@@ -981,7 +982,8 @@ class GPWFiles(CachedFilesHandler):
                   cell=[a, 0, 0],
                   pbc=[1, 0, 0])
         h.center(vacuum=2.0, axis=(1, 2))
-        h.calc = GPAWNew(
+        h.calc = GPAW(
+            legacy_gpaw=False,
             mode={'name': 'pw',
                   'ecut': 400,
                   'qspiral': [0.5, 0, 0]},
@@ -2015,7 +2017,7 @@ class GPWFiles(CachedFilesHandler):
         atoms.pbc = True
 
         dct = dict(
-            _use_old_gpaw=True,
+            legacy_gpaw=True,
             mixer={'beta': 0.75, 'nmaxold': 8, 'weight': 100.0},
             mode=PW(ecut,
                     interpolation=3),  # interpolate the density in real-space
@@ -2045,7 +2047,8 @@ class GPWFiles(CachedFilesHandler):
                    scaled_positions=[[0.5, 0.5, 0.5]],
                    pbc=False)
 
-        Tl.calc = GPAWNew(
+        Tl.calc = GPAW(
+            legacy_gpaw=False,
             mode={'name': 'pw', 'ecut': 300},
             xc='LDA',
             occupations={'name': 'fermi-dirac', 'width': 0.01},
@@ -2091,7 +2094,7 @@ class GPWFiles(CachedFilesHandler):
         # Set up calculator
         tag = '_nosym' if symmetry == 'off' else ''
         atoms.calc = self.GPAW(
-            _use_old_gpaw=True,
+            legacy_gpaw=True,
             xc=xc,
             mode=PW(pw,
                     interpolation=3),  # interpolate the density in real-space

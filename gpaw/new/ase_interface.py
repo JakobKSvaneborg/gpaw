@@ -11,7 +11,7 @@ from ase.units import Ha
 
 from gpaw import __version__
 from gpaw.core import UGArray
-from gpaw.dft import GPAW, Parameters
+from gpaw.dft import GPAW as AnyGPAW, Parameters
 from gpaw.dos import DOSCalculator
 from gpaw.mpi import broadcast, synchronize_atoms
 from gpaw.new import Timer, trace
@@ -33,6 +33,10 @@ LOGO = """\
  |__ |  _|___|_____| - {version}
  |___|_|
 """
+
+
+def GPAW(*args, **kwargs):
+    return AnyGPAW(*args, legacy_gpaw=False, **kwargs)
 
 
 def write_header(log: Logger, params: Parameters) -> None:
@@ -176,8 +180,8 @@ class ASECalculator:
         self.log(f'Converged in {ctx.niter} steps')
 
         # Calculate all the cheap things:
-        self.dft.energy()
-        self.dft.dipole()
+        self.dft.calculate_energy()
+        self.dft.calculate_dipole()
         self.dft.magmoms()
 
         self.dft.write_converged()
@@ -207,10 +211,10 @@ class ASECalculator:
 
         if prop == 'forces':
             with self.timer('Forces'):
-                self.dft.forces()
+                self.dft.calculate_forces()
         elif prop == 'stress':
             with self.timer('Stress'):
-                self.dft.stress()
+                self.dft.calculate_stress()
         elif prop not in self.dft.results:
             raise KeyError('Unknown property:', prop)
 
@@ -779,23 +783,3 @@ class ASECalculator:
     def get_bz_to_ibz_map(self):
         """Return indices from BZ to IBZ."""
         return self.dft.ibzwfs.ibz.bz2ibz_K.copy()
-
-    def _to_old(self):
-        import tempfile
-        from gpaw.old.calculator import GPAW as OldGPAW
-        from gpaw.mpi import broadcast_string
-
-        if self._dft is None:
-            return OldGPAW(**self.params.todict(),
-                           communicator=self.comm,
-                           txt=self.log.fd)
-
-        # Quick hack for now:
-        # write gpw-file and read with old GPAW!
-        if self.comm.rank == 0:
-            gpw = tempfile.mkstemp(suffix='.gpw')[1]
-        else:
-            gpw = None
-        gpw = broadcast_string(gpw, comm=self.comm)
-        self.write(gpw, mode='all')
-        return OldGPAW(gpw, communicator=self.comm)

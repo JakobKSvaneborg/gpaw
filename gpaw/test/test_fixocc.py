@@ -1,7 +1,5 @@
 import pytest
 from ase.build import molecule
-from ase.parallel import parprint
-
 from gpaw.utilities.adjust_cell import adjust_cell
 
 
@@ -34,7 +32,7 @@ def test_fixocc(mpi):
             occupations=dict(name='fixed', numbers=[[1, 0]]))
         H2.calc = c
         E_fo = H2.get_potential_energy()
-        parprint(E_zk, E_fo)
+        print(E_zk, E_fo)
         assert E_zk == pytest.approx(E_fo, abs=1.e-10)
 
     if 1:
@@ -51,5 +49,5 @@ def test_fixocc(mpi):
             occupations={'name': 'fixed', 'numbers': [[0.5, 0.5]] * 2})
         H2.calc = c
         E_sp = H2.get_potential_energy()
-        parprint(E_ns, E_sp)
+        print(E_ns, E_sp)
         assert E_ns == pytest.approx(E_sp, abs=1.e-6)

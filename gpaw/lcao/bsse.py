@@ -56,6 +56,7 @@ class GhostSetup(BaseSetup):
 
         self.Delta0 = 0.0
         self.Delta_pL = np.zeros((1, self.lmax + 1))
+        self.Delta_iiL = np.zeros((1, 1, self.lmax + 1))
 
         self.E = 0.0
         self.Kc = 0.0
@@ -84,7 +85,6 @@ class GhostSetup(BaseSetup):
         self.rgd = None
         self.rcut_j = [0.5]
         self.tauct = None
-        self.Delta_iiL = None
         self.B_ii = None
         self.dC_ii = None
         self.X_p = None

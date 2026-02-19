@@ -1,7 +1,7 @@
 import pytest
 
 from gpaw.elf import elf_from_dft_calculation
-from gpaw.new.ase_interface import GPAW
+from gpaw.dft import GPAW
 
 
 @pytest.mark.parametrize('name', ['h2_fd', 'bcc_li_pw'])

@@ -1,7 +1,8 @@
+import pytest
 import numpy as np
 
 from gpaw import GPAW_MPI_BACKEND, debug
-from gpaw.mpi import SerialCommunicator, _Communicator, serial_comm
+from gpaw.mpi import SerialCommunicator, _Communicator, serial_comm, rank0_call
 from gpaw.mpi4pywrapper import MPI4PYWrapper
 
 
@@ -60,3 +61,19 @@ def test_mpicomm(mpi):
         assert isinstance(world, cgpaw.Communicator)
         assert isinstance(comm, cgpaw.Communicator)
         assert isinstance(subcomm, cgpaw.Communicator)
+
+
+def test_rank0_call(mpi):
+    comm = mpi.comm
+
+    # rank0_call wraps function to be called only on master
+    # then broadcasts the result
+    # and exceptions as RuntimeError to all other ranks
+
+    def inverse(x):
+        return 1 // x
+
+    assert 1 == rank0_call(inverse, comm)(comm.rank + 1)
+
+    with pytest.raises(RuntimeError, match='integer division'):
+        rank0_call(inverse, comm)(comm.rank)

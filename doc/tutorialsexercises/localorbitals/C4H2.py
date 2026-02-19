@@ -54,7 +54,8 @@ gnr = graphene_nanoribbon(2, 1, type='zigzag', saturated=True,
                           C_H=1.1, C_C=1.4, vacuum=5.0)
 
 # LCAO calculation
-calc = GPAW(mode='lcao',
+calc = GPAW(legacy_gpaw=True,
+            mode='lcao',
             xc='LDA',
             basis='szp(dzp)',
             txt=None,

@@ -1,5 +1,5 @@
 from gpaw.dft import Eigensolver
-from gpaw.new.pwfd.dir_opt import DirOptPWFD
+from gpaw.new.pwfd.diropt import DirOptPWFD
 
 
 class DirectOptimization(Eigensolver):
@@ -25,4 +25,5 @@ class DirectOptimization(Eigensolver):
               atoms):
         return DirOptPWFD(
             converge_unocc=self.converge_unocc,
+            converge_bands=converge_bands,
             hamiltonian=hamiltonian)

@@ -236,7 +236,7 @@ class DFTComponentsBuilder:
                     f'GPU calculation is requested via {parallel_source}, '
                     'but the requisite CuPy library is not found; '
                     'please set GPAW_CPUPY=1 if you really want to do "GPU" '
-                    'calculations with GPAW\'s fake CuPy library '
+                    "calculations with GPAW's fake CuPy library "
                     '(gpaw.gpu.cpupy)')
             return True
         return False

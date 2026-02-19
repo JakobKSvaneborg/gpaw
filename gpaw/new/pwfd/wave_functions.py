@@ -446,6 +446,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             wfs = PWFDWaveFunctions.from_wfs(self, psit_nX)
             if self.has_eigs:
                 wfs.eig_n = self.eig_n[n1:n2]
+                if self._occ_n is not None:
+                    wfs._occ_n = self._occ_n[n1:n2]
             return wfs
         else:
             rank = band_comm.rank
@@ -473,6 +475,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                 psit_nX,
                 atomdist=atomdist)
             wfs1._eig_n = wfs._eig_n
+            wfs1._occ_n = wfs._occ_n
             return wfs1
         return None
 
@@ -497,22 +500,27 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                  self.spin,
                  self.q,
                  self.k,
+                 self.eig_n,
+                 self._occ_n,
                  self.weight)
         send(stuff, rank, comm)
 
     def receive(self, rank, comm):
-        kpt_c, data, spin, q, k, weight = receive(rank, comm)
+        kpt_c, data, spin, q, k, eig_n, occ_n, weight = receive(rank, comm)
         psit_nX = self.psit_nX.desc.new(kpt=kpt_c, comm=None).from_data(data)
-        return PWFDWaveFunctions(psit_nX,
-                                 spin=spin,
-                                 q=q,
-                                 k=k,
-                                 setups=self.setups,
-                                 relpos_ac=self.relpos_ac,
-                                 atomdist=self.atomdist.gather(),
-                                 weight=weight,
-                                 ncomponents=self.ncomponents,
-                                 qspiral_v=self.qspiral_v)
+        wfs = PWFDWaveFunctions(psit_nX,
+                                spin=spin,
+                                q=q,
+                                k=k,
+                                setups=self.setups,
+                                relpos_ac=self.relpos_ac,
+                                atomdist=self.atomdist.gather(),
+                                weight=weight,
+                                ncomponents=self.ncomponents,
+                                qspiral_v=self.qspiral_v)
+        wfs.eig_n = eig_n
+        wfs._occ_n = occ_n
+        return wfs
 
     def dipole_matrix_elements(self) -> Array3D:
         """Calculate dipole matrix-elements.

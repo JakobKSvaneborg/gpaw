@@ -4,6 +4,7 @@ from ase.utils.timing import Timer
 from scipy.linalg import eigh
 
 import gpaw.mpi as mpi
+from gpaw.old import assert_legacy_gpaw
 from gpaw.setup import CachedYukawaInteractions
 from gpaw.transformers import Transformer
 from gpaw.utilities import pack_density
@@ -59,7 +60,7 @@ class OmegaMatrix:
         if calculator is None:
             return
 
-        calculator = calculator._to_old()
+        assert_legacy_gpaw(calculator)
         self.paw = calculator
         wfs = self.paw.wfs
 
