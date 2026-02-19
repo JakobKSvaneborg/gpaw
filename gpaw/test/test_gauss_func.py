@@ -9,7 +9,7 @@ from gpaw.utilities.gauss import Gaussian
 from gpaw.utilities.tools import coordinates
 
 
-def test_gauss_func():
+def test_gauss_func(mpi):
     def norm(a):
         return np.sqrt(np.sum(a.ravel()**2)) / len(a.ravel())
 
@@ -17,7 +17,7 @@ def test_gauss_func():
     a = 20  # Size of cell
     N = 48  # Number of grid points
     Nc = (N, N, N)  # Number of grid points along each axis
-    gd = GridDescriptor(Nc, (a, a, a), 0)  # Grid-descriptor object
+    gd = GridDescriptor(Nc, (a, a, a), 0, comm=mpi.comm)
     solver = PoissonSolver(nn=3)  # Numerical poisson solver
     solver.set_grid_descriptor(gd)
     solve = solver.solve

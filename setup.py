@@ -848,6 +848,10 @@ class BuildGPAW(build_ext):
         import numpy as np
         self.include_dirs.append(np.get_include())
 
+        if use_cpp or gpu:
+            import pybind11
+            self.include_dirs.append(pybind11.get_include())
+
         if makefile_build:
             # Set a persistent build directory. We get a more readable
             # Makefile by using relative build paths instead

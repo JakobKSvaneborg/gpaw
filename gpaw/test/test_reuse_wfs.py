@@ -1,7 +1,7 @@
 import pytest
 from ase.build import bulk
 
-from gpaw import GPAW, Mixer
+from gpaw import Mixer
 from gpaw.convergence_criteria import Eigenstates
 
 
@@ -16,7 +16,7 @@ class MyConvergenceCriterion(Eigenstates):
         return value
 
 
-def run(atoms, method, kwargs, gpaw_new):
+def run(atoms, method, kwargs, gpaw_new, mpi):
     conv_tol = 1e-9
     conv = MyConvergenceCriterion(conv_tol)
 
@@ -27,7 +27,7 @@ def run(atoms, method, kwargs, gpaw_new):
     if not gpaw_new:
         kwargs['experimental'] = {'reuse_wfs_method': method}
 
-    calc = GPAW(**kwargs)
+    calc = mpi.GPAW(**kwargs)
 
     atoms.calc = calc
     with pytest.warns(UserWarning,
@@ -59,7 +59,7 @@ def run(atoms, method, kwargs, gpaw_new):
     ('pw', None, 1e-4),
     ('fd', 'paw', 1e-4),
     ('fd', None, 1e-3)])
-def test_reuse_wfs(mode, reuse_type, max_reuse_error, gpaw_new):
+def test_reuse_wfs(mode, reuse_type, max_reuse_error, gpaw_new, mpi):
     """Check that wavefunctions are meaningfully reused.
 
     For a different modes and parameters, this test asserts that the
@@ -77,14 +77,14 @@ def test_reuse_wfs(mode, reuse_type, max_reuse_error, gpaw_new):
         mixer=Mixer(0.4, 5, 20.0))
 
     niter1, niter2, reuse_error = run(
-        atoms, reuse_type, kwargs, gpaw_new)
+        atoms, reuse_type, kwargs, gpaw_new, mpi=mpi)
 
     # It should at the very least be faster to do the second step:
     assert niter2 < niter1
     assert reuse_error < max_reuse_error
 
 
-def test_reuse_sg15(sg15_hydrogen, gpaw_new):
+def test_reuse_sg15(sg15_hydrogen, gpaw_new, mpi):
     """Test wfs reuse with sg15.
 
     As of writing this test, the sg15 pseudopotentials have no pseudo
@@ -100,6 +100,6 @@ def test_reuse_sg15(sg15_hydrogen, gpaw_new):
         setups={'H': sg15_hydrogen},
         xc='PBE')
 
-    niter1, niter2, reuse_error = run(atoms, 'paw', kwargs, gpaw_new)
+    niter1, niter2, reuse_error = run(atoms, 'paw', kwargs, gpaw_new, mpi=mpi)
     assert niter2 < niter1
     assert reuse_error < 1e-5

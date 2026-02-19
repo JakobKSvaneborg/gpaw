@@ -413,6 +413,8 @@ class LocalOrbitals(TightBinding):
     """
 
     def __init__(self, calc: GPAW):
+        from gpaw.old import assert_legacy_gpaw
+        assert_legacy_gpaw(calc)
         self.calc = calc
         self.gamma = calc.wfs.kd.gamma  # Gamma point calculation
         self.subdiag: Subdiagonalization | None = None
