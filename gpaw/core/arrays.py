@@ -114,8 +114,11 @@ class XArray(Generic[DomainType], XP):
         # Choose mybands, s.t. they fit into
         # data_buffer. Hence, datasize divided by nX
         # rounded down.
-        mybands = min(datasize // nX,
-                      self.data.shape[0])
+        if nX == 0:
+            mybands = self.data.shape[0]
+        else:
+            mybands = min(datasize // nX,
+                          self.data.shape[0])
         mybands = self.desc.comm.min_scalar(mybands)
         data = data_buffer[:mybands * nX].reshape(
             (mybands,) + X)
