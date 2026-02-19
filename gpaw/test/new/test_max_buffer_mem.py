@@ -45,5 +45,6 @@ def test_empty_domain_rank(comm):
     atoms.calc = calc
     atoms.get_potential_energy()
 
+
 if __name__ == '__main__':
     test_max_buffer_mem('fd', 'rmm-diis', -50)
