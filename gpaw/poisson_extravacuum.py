@@ -38,7 +38,8 @@ class ExtraVacuumPoissonSolver(_PoissonSolver):
     def __init__(self, gpts, poissonsolver_large,
                  poissonsolver_small=None, coarses=0,
                  nn_coarse=3, nn_refine=3, nn_laplace=3,
-                 use_aux_grid=True):
+                 use_aux_grid=True,
+                 xp=np):
         # TODO: Alternative options: vacuum size and h
         self.N_large_fine_c = np.array(gpts, dtype=int)
         self.Ncoar = coarses  # coar == coarse
@@ -56,6 +57,7 @@ class ExtraVacuumPoissonSolver(_PoissonSolver):
         self.nn_laplace = nn_laplace
         self.use_aux_grid = use_aux_grid
         self._initialized = False
+        self.xp = xp
 
     def set_grid_descriptor(self, gd):
         # If non-periodic boundary conditions is used,
