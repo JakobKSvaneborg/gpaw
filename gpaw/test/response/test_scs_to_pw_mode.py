@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from gpaw.response.df import DielectricFunction
+from gpaw.dft import GPAW
 
 
 def calc_df(gpwfile):
@@ -17,7 +18,9 @@ def calc_df(gpwfile):
 
 def test_si_scs(in_tmp_dir, gpw_files):
     _, eps_w = calc_df(gpw_files['si_pw'])
-    _, eps_scs_w = calc_df(gpw_files['si_scs_lcao'])
+    pw = GPAW(gpw_files['si_scs_lcao']).dft.change_mode('pw')
+    pw.ase_calculator().write('tmp.gpw', 'all')
+    _, eps_scs_w = calc_df('tmp.gpw')
 
     # we use a relatively high tolerance since we wouldn't expect agreement
     # given the unconverged basis sets
