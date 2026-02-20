@@ -190,6 +190,8 @@ class Eigensolver(Parameter):
                     return eigensolvers['davidson'](**kwargs)
                 if name in eigensolvers:
                     return eigensolvers[name](**kwargs)
+                if GPAW_NEW == 147:
+                    raise LegacyGPAWError
                 raise ValueError(f'Unknown name of eigensolver: {name}')
             case {**kwargs}:
                 return DefaultEigensolver(kwargs)
@@ -976,7 +978,7 @@ def GPAW(
     communicator:
         MPI-communicator.  Default is to use ``gpaw.mpi.world``.
     object_hooks:
-        Dictionart of hook-functions to create custom parameter-objects.
+        Dictionary of hook-functions to create custom parameter-objects.
     """
     from gpaw.new.ase_interface import ASECalculator
     from gpaw.new.gpw import read_gpw
@@ -994,12 +996,14 @@ def GPAW(
             legacy_gpaw = True
 
     # Sorry about the following mess, but it will become a lot simpler
-    # in the future!
+    # in the near future!
     params = None
+    _use_old_if_reading_new_fails = False
     if legacy_gpaw is None:
         if GPAW_NEW == 147:
             can, params = _can_use_new(filename, kwargs)
             legacy_gpaw = not can
+            _use_old_if_reading_new_fails = True
         else:
             legacy_gpaw = False
 
@@ -1007,7 +1011,10 @@ def GPAW(
         from gpaw.old.calculator import GPAW as OldGPAW
         kwargs = {key: value
                   for key, value in kwargs.items() if value is not None}
-        return OldGPAW(filename, txt=txt, communicator=communicator, **kwargs)
+        return OldGPAW(filename,
+                       txt=txt,
+                       communicator=communicator,
+                       **kwargs)
 
     if txt == '?':
         txt = '-' if filename is None else None
@@ -1020,11 +1027,21 @@ def GPAW(
             raise ValueError(
                 'Illegal argument(s) when reading from a file: '
                 f'{", ".join(args)}')
-        atoms, dft, params, _ = read_gpw(filename,
-                                         log=log,
-                                         parallel=parallel,
-                                         object_hooks=object_hooks)
-        return ASECalculator(params,
+
+        try:
+            atoms, dft, _ = read_gpw(filename,
+                                     log=log,
+                                     parallel=parallel,
+                                     object_hooks=object_hooks)
+        except LegacyGPAWError:
+            if not _use_old_if_reading_new_fails:
+                raise
+            return GPAW(filename,
+                        legacy_gpaw=True,
+                        txt=txt,
+                        communicator=communicator)
+
+        return ASECalculator(dft.params,
                              log=log, dft=dft, atoms=atoms)
 
     params = params or Parameters(**kwargs)

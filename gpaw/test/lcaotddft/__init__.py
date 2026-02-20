@@ -32,12 +32,17 @@ def parallel_options(*, include_kpt=False, fix_sl_auto=False):
     return parallel_i
 
 
-def calculate_time_propagation(gs_fpath, *, kick,
-                               communicator=world, parallel={},
+def calculate_time_propagation(gs_fpath,
+                               *,
+                               kick,
+                               legacy_gpaw=True,
+                               communicator=world,
+                               parallel={},
                                do_fdm=False):
     td_calc = LCAOTDDFT(gs_fpath,
                         communicator=communicator,
                         parallel=parallel,
+                        legacy_gpaw=legacy_gpaw,
                         txt='td.out')
     if do_fdm:
         dmat = DensityMatrix(td_calc)

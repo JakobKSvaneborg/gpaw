@@ -367,7 +367,7 @@ class ASECalculator:
             **self.params.todict(),
             **kwargs}
 
-        return GPAW(**kwargs)
+        return AnyGPAW(**kwargs)
 
     def get_pseudo_wave_function(self, band, kpt=0, spin=None,
                                  periodic=False,

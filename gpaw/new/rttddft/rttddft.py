@@ -144,10 +144,10 @@ class RTTDDFT:
             Propagation algorithm for the state.
         """
         world = normalize_communicator(world)
-        _, dft, params, builder = read_gpw(filepath,
-                                           log='-',
-                                           comm=world,
-                                           force_complex_dtype=True)
+        _, dft, builder = read_gpw(filepath,
+                                   log='-',
+                                   comm=world,
+                                   force_complex_dtype=True)
 
         state = RTTDDFTState(dft.ibzwfs, dft.density,
                              dft.potential, dft.energies)
@@ -156,7 +156,7 @@ class RTTDDFT:
         history = RTTDDFTHistory()
 
         return cls(state, pot_calc, hamiltonian,
-                   history=history, dft_params=params,
+                   history=history, dft_params=dft.params,
                    td_algorithm=td_algorithm)
 
     @classmethod
