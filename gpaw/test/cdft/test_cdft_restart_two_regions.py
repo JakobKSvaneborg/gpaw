@@ -15,7 +15,8 @@ def test_cdft_restart(in_tmp_dir, not_parallelized, comm):
     sys.set_pbc(False)
     sys.set_initial_magnetic_moments([0.5, 0.5])
 
-    calc_b = GPAW(h=0.2,
+    calc_b = GPAW(legacy_gpaw=True,
+                  h=0.2,
                   mode='fd',
                   basis='dzp',
                   charge=1,

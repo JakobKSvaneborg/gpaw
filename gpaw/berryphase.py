@@ -170,7 +170,9 @@ def get_berry_phases(calc, spin=0, dir=0, check2d=False):
     return indices_kk, phases
 
 
-def polarization_phase(gpw_wfs: Path, comm, cleanup: bool = False):
+def polarization_phase(*, calc=None,
+                       gpw_wfs: Path = None,
+                       comm=serial_comm):
     """
 
     Polarization phase based on evaluation of
@@ -194,14 +196,24 @@ def polarization_phase(gpw_wfs: Path, comm, cleanup: bool = False):
 
     phi_v = 2 * pi * vol * P_v
 
+    NewGPAW: take calculation object and gather on master
+    OldGPAW: read on master from gpw_wfs
+
     """
 
-    return rank0_call(_polarization_phase, comm)(gpw_wfs, cleanup=cleanup)
+    if calc is None:
+        # legacy version: read from gpw_file
+        assert gpw_wfs is not None
+        calc = GPAW(gpw_wfs, communicator=serial_comm, txt=None)
+        return rank0_call(_polarization_phase, comm)(calc)
+    else:
+        # gather dft calculation master, None elsewhere
+        dft_rank0 = calc.dft.gather()
+        calc = dft_rank0.ase_calculator() if dft_rank0 else None
+        return rank0_call(_polarization_phase, comm)(calc)
 
 
-def _polarization_phase(gpw_wfs: Path, cleanup: bool = False):
-    print(f'Reading wfs from {gpw_wfs}')
-    calc = GPAW(gpw_wfs, communicator=serial_comm, txt=None)
+def _polarization_phase(calc):
     atoms = calc.get_atoms()
 
     print('Calculating polarization')
@@ -217,10 +229,6 @@ def _polarization_phase(gpw_wfs: Path, cleanup: bool = False):
     pbc_c = atoms.get_pbc()
     phase_c = electronic_phase_c + atomic_phase_c
     phase_c[~pbc_c] = dipole_phase_c[~pbc_c]
-
-    # remove file gpw_wfs
-    if cleanup:
-        gpw_wfs.unlink()
 
     phases_c = {
         'phase_c': phase_c,

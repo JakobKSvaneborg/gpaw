@@ -481,18 +481,21 @@ class MPIHelper:
         return GPAW(*args, communicator=self.comm, **kwargs)
 
     def NewGPAW(self, *args, **kwargs):
-        from gpaw.new.ase_interface import GPAW
-
-        return GPAW(*args, communicator=self.comm, **kwargs)
+        from gpaw.dft import GPAW
+        return GPAW(*args, communicator=self.comm, legacy_gpaw=False, **kwargs)
 
     def OldGPAW(self, *args, **kwargs):
         from gpaw.dft import GPAW as AnyGPAW
         return AnyGPAW(*args, communicator=self.comm,
-                       _use_old_gpaw=True, **kwargs)
+                       legacy_gpaw=True, **kwargs)
 
     def restart(self, *args, **kwargs):
         from gpaw import restart
         return restart(*args, communicator=self.comm, **kwargs)
+
+    def print(self, *args, **kwargs):
+        if self.comm.rank == 0:
+            print(*args, **kwargs)
 
 
 @pytest.fixture
@@ -500,17 +503,7 @@ def mpi(comm):
     return MPIHelper(comm)
 
 
-if GPAW_NEW == 147:
-    @pytest.fixture(params=[False, True])
-    def gpaw_new(request) -> bool:
-        import gpaw.dft as dft
-        try:
-            dft._USE_OLD_GPAW = not request.param
-            yield request.param
-        finally:
-            dft._USE_OLD_GPAW = None
-else:
-    @pytest.fixture
-    def gpaw_new() -> bool:
-        """Are we testing the new code?"""
-        return GPAW_NEW
+@pytest.fixture
+def gpaw_new() -> bool:
+    """Are we testing the new code?"""
+    return GPAW_NEW

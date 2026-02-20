@@ -124,6 +124,7 @@ class ExcitedState(GPAW):
         """Read ExcitedState from a directory"""
         filename = str(Path(dirname) / 'exst')
         atoms, calculator = restart(filename,
+                                    legacy_gpaw=True,
                                     communicator=communicator, txt=txt)
         if log is not None:
             calculator.log = log

@@ -43,7 +43,7 @@ def test_rsf_yukawa_rsf_general(in_tmp_dir, add_cwd_to_setup_paths):
     energy_075 = calc.get_xc_difference(HybridXC(xc2))
     assert energy_083 - energy_075 == pytest.approx(21.13, abs=0.2)
     calc.write(fname)
-    calc2 = GPAW(fname)
+    calc2 = GPAW(fname, legacy_gpaw=True)
     xc = calc2.hamiltonian.xc
     assert xc.name == 'LCY-PBE', 'wrong name for functional'
     assert xc.omega == 0.83, 'wrong value for RSF omega'

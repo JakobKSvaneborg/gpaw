@@ -35,7 +35,7 @@ def time_propagation_calculation(gpw_files):
 
 @pytest.fixture(scope='module')
 def lrtddft_calculation(gpw_files):
-    calc = GPAW(gpw_files['na2_tddft_sz'], txt=None)
+    calc = GPAW(gpw_files['na2_tddft_sz'], txt=None, legacy_gpaw=True)
     lr = LrTDDFT(calc, xc='LDA', txt='lr.out')
     lr.diagonalize()
     spec_lr(lr, 'spec_lr.dat',
@@ -52,7 +52,7 @@ def lrtddft_calculation(gpw_files):
 
 @pytest.fixture(scope='module')
 def lrtddft2_calculation(gpw_files):
-    calc = GPAW(gpw_files['na2_tddft_sz'], txt='lr2.out')
+    calc = GPAW(gpw_files['na2_tddft_sz'], txt='lr2.out', legacy_gpaw=True)
     lr2 = LrTDDFT2('lr2', calc, fxc='LDA')
     lr2.calculate()
     lr2.get_spectrum('spec_lr2.dat', 0, 10.1, 0.1, width=0.5)

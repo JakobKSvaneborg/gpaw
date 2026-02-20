@@ -464,7 +464,7 @@ test-oldest:
   script:
     - gpaw info
     - >
-      OMP_NUM_THREADS=2 pytest -v -We -k 0-fd gpaw/test/test_fuzz.py
+      OMP_NUM_THREADS=2 pytest -v -We "gpaw/test/test_changes.py::test_lcao_to_x[fd]"
 
     # This is the only test which uses OpenMP.
     # We may want to identify a limited set of tests that must work

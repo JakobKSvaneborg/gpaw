@@ -44,6 +44,8 @@ Git master branch
 
   * eigensolver (:ref:`newgpaw` only): 'davidson' -> 'ppcg'
 
+* :ref:`newgpaw`: Ported the dipole moment writer to the new RT-TDDFT interface.
+
 * :ref:`newgpaw`: Calculations can now be parallelized over
   spins.
 

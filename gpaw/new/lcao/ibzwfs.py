@@ -48,7 +48,7 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
         comp_charge = (4 * pi)**0.5 * sum(float(ccc_L[0])
                                           for ccc_L in ccc_aL.values())
         comp_charge = ccc_aL.layout.atomdist.comm.sum_scalar(comp_charge)
-        density.nt_sR.data *= -comp_charge / pseudo_charge
+        density.nt_sR.data *= (-comp_charge - density.charge) / pseudo_charge
 
     def convert_to(self,
                    mode: str,

@@ -50,7 +50,8 @@ def create_functional(xc: OldXCFunctional | str | dict,
     elif xc.type == 'MGGA':
         functional = MGGAFunctional(xc, grid)
     elif xc.type == 'GLLB':
-        raise NotImplementedError
+        from gpaw.dft import LegacyGPAWError
+        raise LegacyGPAWError
     else:
         raise ValueError(f'{xc.type} not supported')
 

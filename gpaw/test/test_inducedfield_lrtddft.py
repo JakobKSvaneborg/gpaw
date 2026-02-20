@@ -25,15 +25,20 @@ def test_inducedfield_lrtddft(in_tmp_dir):
                   pbc=False)
     atoms.center(vacuum=3.0)
 
-    calc = GPAW(mode='fd', nbands=20, h=0.6, setups={'Na': '1'},
-                poissonsolver=poissonsolver,
-                convergence={'density': density_eps})
+    calc = GPAW(
+        legacy_gpaw=True,
+        mode='fd',
+        nbands=20,
+        h=0.6,
+        setups={'Na': '1'},
+        poissonsolver=poissonsolver,
+        convergence={'density': density_eps})
     atoms.calc = calc
     atoms.get_potential_energy()
     calc.write('na2_gs_casida.gpw', mode='all')
 
     # 2) Casida calculation
-    calc = GPAW('na2_gs_casida.gpw')
+    calc = GPAW('na2_gs_casida.gpw', legacy_gpaw=True)
     istart = 0
     jend = 20
     lr = LrTDDFT(calc, xc='LDA',
@@ -44,7 +49,7 @@ def test_inducedfield_lrtddft(in_tmp_dir):
     # Start from scratch
     del lr
     del calc
-    calc = GPAW('na2_gs_casida.gpw')
+    calc = GPAW('na2_gs_casida.gpw', legacy_gpaw=True)
     # calc.initialize_positions()
     # calc.set_positions()
     lr = LrTDDFT.read('na2_lr.dat.gz')

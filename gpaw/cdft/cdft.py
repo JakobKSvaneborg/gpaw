@@ -17,6 +17,7 @@ from ase.utils import IOContext
 from scipy.optimize import minimize
 
 from gpaw.external import ExternalPotential
+from gpaw.old import assert_legacy_gpaw
 
 
 class CDFT(Calculator):
@@ -101,7 +102,8 @@ class CDFT(Calculator):
 
         super().__init__()
 
-        self.calc = calc._to_old()
+        assert_legacy_gpaw(calc)
+        self.calc = calc
         self.restart = restart
         self.iocontext = IOContext()
         self.log = self.iocontext.openfile(txt, self.calc.world)
