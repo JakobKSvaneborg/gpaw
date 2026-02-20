@@ -122,13 +122,10 @@ def test_purepython_blas(dtype):
     """For rk and r2k we have to compare only the lower triangle of the output
     matrix 'c', because the C-blas functions only fill in this part. Meanwhile
     the Purepython versions don't make any promises like this and might just
-    fill in the entire matrix. Furthermore, BLAS libraries tend to set any
-    imaginary parts on the result diagonal to zero, whereas the Purepython
-    versions do not. So we drop those manually before comparing."""
+    fill in the entire matrix."""
     # rk
     rk(0.5, a_ref, 0.2, c_ref)
     rk_purepython(0.5, a, 0.2, c)
-    np.fill_diagonal(c, c.diagonal().real)
     assert approx(np.tril(c_ref)) == np.tril(c)
 
     # r2k
@@ -136,7 +133,6 @@ def test_purepython_blas(dtype):
     c_bu = c.copy()
     r2k(0.5, a_ref, b_ref, 0.2, c_ref)
     r2k_purepython(0.5, a, b, 0.2, c)
-    np.fill_diagonal(c, c.diagonal().real)
     assert approx(np.tril(c_ref)) == np.tril(c)
 
     # r2k sliced
@@ -149,6 +145,5 @@ def test_purepython_blas(dtype):
             b[:, i * bs:(i + 1) * bs],
             0.2 if (i == 0) else 1.0, c_bu)
 
-    np.fill_diagonal(c, c.diagonal().real)
     assert approx(np.tril(c_ref_bu)) == np.tril(c)
     assert approx(np.tril(c_bu)) == np.tril(c)

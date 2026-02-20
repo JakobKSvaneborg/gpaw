@@ -74,11 +74,9 @@ def test_blas(dtype, set_device):
         rk(0.5, a, 0.2, c)
         gpu_rk(0.5, a_gpu, 0.2, c_gpu)
         if no_c_blas:
-            # Our "purepython" rk() fills in the full matrix and does not
-            # enforce real diagonal. For consistency we need to also drop
-            # the upper triangle of the GPU-side matrix
+            # Our "purepython" rk() fills in the full matrix, unlike refernce
+            # BLAS which only does lower triangle. So compare only lower
             c = np.tril(c)
-            np.fill_diagonal(c, c.diagonal().real)
             c_gpu = cp.tril(c_gpu)
         assert approx(c_gpu.get()) == c
 
@@ -95,7 +93,6 @@ def test_blas(dtype, set_device):
         if no_c_blas:
             # Same caveats as with rk()
             c = np.tril(c)
-            np.fill_diagonal(c, c.diagonal().real)
             c_gpu = cp.tril(c_gpu)
 
         assert approx(c_gpu.get()) == c
@@ -112,7 +109,6 @@ def test_blas(dtype, set_device):
 
         if no_c_blas:
             c_ref = np.tril(c_ref)
-            np.fill_diagonal(c_ref, c_ref.diagonal().real)
             c_gpu_ref = cp.tril(c_gpu_ref)
 
         assert approx(c_gpu_ref.get()) == c

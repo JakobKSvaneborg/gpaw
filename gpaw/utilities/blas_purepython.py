@@ -18,8 +18,7 @@ def op(o, m):
 
 def rk(alpha, a: np.ndarray, beta, c: np.ndarray, trans='c'):  # noqa
     """NOTE: Fills in the entire c matrix, unlike the C-blas version that only
-    fills in the lower triangle. Does NOT remove imaginary parts on the final
-    diagonal (unlike many BLAS libraries)."""
+    fills in the lower triangle."""
     if c.size == 0:
         return
     if beta == 0:
@@ -31,12 +30,12 @@ def rk(alpha, a: np.ndarray, beta, c: np.ndarray, trans='c'):  # noqa
     else:
         a = a.reshape((len(a), -1))
         c += alpha * a.dot(a.conj().T)
-
+    # Drop imaginary parts on the diagonal (adhering to reference BLAS)
+    np.fill_diagonal(c, c.diagonal().real)
 
 def r2k(alpha, a, b, beta, c, trans='c'):  # noqa
     """NOTE: Fills in the entire c matrix, unlike the C-blas version that only
-    fills in the lower triangle. Does NOT remove imaginary parts on the final
-    diagonal (unlike many BLAS libraries)."""
+    fills in the lower triangle."""
     if c.size == 0:
         return
     if beta == 0.0:
@@ -50,6 +49,8 @@ def r2k(alpha, a, b, beta, c, trans='c'):  # noqa
               .dot(a.reshape((len(a), -1)).conj().T))
     else:
         c += alpha * (a.conj().T @ b + b.conj().T @ a)
+    # Drop imaginary parts on the diagonal (adhering to reference BLAS)
+    np.fill_diagonal(c, c.diagonal().real)
 
 
 def mmm(alpha: T, a: np.ndarray, opa: str,  # noqa
