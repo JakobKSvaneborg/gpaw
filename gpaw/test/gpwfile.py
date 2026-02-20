@@ -2586,6 +2586,7 @@ class GPWFiles(CachedFilesHandler):
         atoms = bulk('Si')
         Nk = 2
         calc = self.GPAW(
+            legacy_gpaw=False,
             mode='lcao',
             basis='dzp',
             xc='LDA',

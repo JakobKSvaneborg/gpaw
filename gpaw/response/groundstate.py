@@ -56,14 +56,7 @@ class ResponseGroundStateAdapter:
     def __init__(self, calc: GPAWCalculator, lazy=False):
         self.gs_info = ''
 
-        if isinstance(calc, NewGPAW) and calc.dft.ibzwfs.mode == 'lcao':
-            from gpaw.dft import DefaultEigensolver, PW
-            calc.dft.params.eigensolver = DefaultEigensolver({})
-            grid = calc.dft.density.nt_sR.desc
-            ecut = 0.49 * grid.ekin_max() * Ha
-            calc.dft.change_mode(PW(ecut=ecut))
-            self.gs_info = f'Converting from LCAO to PW: ecut={ecut:.3f} eV'
-        elif calc.old and calc.wfs.mode == 'lcao':
+        if calc.old and calc.wfs.mode == 'lcao':
             calc.initialize_positions()
             for kpt in calc.wfs.kpt_u:
                 assert kpt.C_nM is not None
