@@ -35,7 +35,11 @@ def rk(alpha, a: np.ndarray, beta, c: np.ndarray, trans='c'):  # noqa
 
 def r2k(alpha, a, b, beta, c, trans='c'):  # noqa
     """NOTE: Fills in the entire c matrix, unlike the C-blas version that only
-    fills in the lower triangle."""
+    fills in the lower triangle. Does NOT support complex alpha, unlike the
+    C version of r2k()."""
+    # FIXME make this work with complex alpha.
+    assert np.isreal(alpha)
+
     if c.size == 0:
         return
     if beta == 0.0:

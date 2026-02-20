@@ -125,26 +125,28 @@ def test_purepython_blas(dtype):
     the Purepython versions don't make any promises like this and might just
     fill in the entire matrix."""
     # rk
-    rk(0.5, a_ref, 0.2, c_ref)
-    rk_purepython(0.5, a, 0.2, c)
+    alpha = 0.5
+    beta = 0.2
+    rk(alpha, a_ref, beta, c_ref)
+    rk_purepython(alpha, a, beta, c)
     assert approx(np.tril(c_ref)) == np.tril(c)
 
     # r2k
     c_ref_bu = c_ref.copy()
     c_bu = c.copy()
-    r2k(0.5, a_ref, b_ref, 0.2, c_ref)
-    r2k_purepython(0.5, a, b, 0.2, c)
+    r2k(alpha, a_ref, b_ref, beta, c_ref)
+    r2k_purepython(alpha, a, b, beta, c)
     assert approx(np.tril(c_ref)) == np.tril(c)
 
     # r2k sliced
     bs = 11
     for i in range(0, (N + bs - 1) // bs):
-        r2k(0.5, a_ref[:, i * bs:(i + 1) * bs],
+        r2k(alpha, a_ref[:, i * bs:(i + 1) * bs],
             b_ref[::, i * bs:(i + 1) * bs],
-            0.2 if (i == 0) else 1.0, c_ref_bu)
-        r2k(0.5, a[:, i * bs:(i + 1) * bs],
+            beta if (i == 0) else 1.0, c_ref_bu)
+        r2k(alpha, a[:, i * bs:(i + 1) * bs],
             b[:, i * bs:(i + 1) * bs],
-            0.2 if (i == 0) else 1.0, c_bu)
+            beta if (i == 0) else 1.0, c_bu)
 
     assert approx(np.tril(c_ref_bu)) == np.tril(c)
     assert approx(np.tril(c_bu)) == np.tril(c)
