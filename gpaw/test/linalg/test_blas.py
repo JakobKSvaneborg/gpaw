@@ -84,6 +84,7 @@ def test_linalg_blas():
     assert not c.any()
 
 
+@pytest.mark.ci
 @pytest.mark.skipif(no_c_blas, reason="No C-blas to compare against")
 @pytest.mark.parametrize('dtype', [float, complex])
 def test_purepython_blas(dtype):
