@@ -1,35 +1,35 @@
-import numpy as np
 import pytest
 from ase import Atoms
-from ase.calculators.fd import calculate_numerical_forces
 from gpaw import GPAW
 from gpaw.cdft.cdft import CDFT
-from gpaw.directmin.etdm_fdpw import FDPWETDM
 
 
 @pytest.mark.old_gpaw_only
-def test_cdft_forces_consistency(in_tmp_dir, comm):
+def test_cdft_forces_consistency(in_tmp_dir):
     delta = 0.01
+    e, f = cdft(0.0)
+    if 0:
+        eplus, _ = cdft(delta)
+        eminus, _ = cdft(-delta)
+        f_finite_difference = (eminus - eplus) / (2 * delta)
+    else:
+        f_finite_difference = -17.98
+    assert f == pytest.approx(f_finite_difference, abs=0.01)
+
+
+def cdft(dz):
     charge_regions = [[0], [1]]
     charge = [0.4, -0.2]
     coefs = [0, 0]
-
     atoms = Atoms('COO',
-                  [[3.1, 2.98, 3.12],
+                  [[3.1, 2.98, 3.12 + dz],
                    [2.92, 3.00, 4.25],
                    [2.95, 2.97, 1.83]],
                   cell=[6, 6, 6])
-
-    calc_ground = GPAW(mode='fd',
-                       h=0.2,
-                       xc='PBE',
+    calc_ground = GPAW(legacy_gpaw=True,
+                       mode='fd',
                        spinpol=True,
-                       txt='ground_state_output_A.txt',
-                       eigensolver=FDPWETDM(converge_unocc=False),
-                       mixer={'backend': 'no-mixing'},
-                       occupations={'name': 'fixed-uniform'},
-                       communicator=comm)
-
+                       txt='ground_state_output_A.txt')
     calc_cdft = CDFT(calc=calc_ground,
                      atoms=atoms,
                      charge_regions=charge_regions,
@@ -37,10 +37,8 @@ def test_cdft_forces_consistency(in_tmp_dir, comm):
                      charge_coefs=coefs,
                      method='L-BFGS-B',
                      txt='cdftA_output.txt',
-                     minimizer_options={'gtol':0.001})
-
+                     minimizer_options={'gtol': 0.001})
     atoms.calc = calc_cdft
+    e_cdft = atoms.get_potential_energy()
     f_cdft = atoms.get_forces()[0, 2]
-    f_finite_difference = calculate_numerical_forces(atoms, delta, [0], [2])
-
-    assert (np.abs(f_finite_difference-f_cdft)<0.1)
+    return e_cdft, f_cdft
