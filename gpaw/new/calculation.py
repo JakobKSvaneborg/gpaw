@@ -290,7 +290,8 @@ class DFTCalculation:
         F_av = self.ibzwfs.forces(self.potential, self.scf_loop.hamiltonian,
                                   self.density.D_asii)
 
-        getattr(xc.xc, 'add_forces', lambda F_av: None)(F_av)  # QNA
+        if xc.name == 'QNA':
+            getattr(xc.xc, 'add_forces', lambda F_av: None)(F_av)  # QNA
 
         pot_calc = self.pot_calc
         Q_aL = self.density.calculate_compensation_charge_coefficients()

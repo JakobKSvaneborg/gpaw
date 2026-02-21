@@ -72,8 +72,10 @@ class PotentialCalculator:
     def move(self, relpos_ac, atomdist):
         for ext in self.extensions:
             ext.move_atoms(relpos_ac)
-        # Special case for QNA:
-        getattr(self.xc.xc, 'set_positions', lambda relpos_ac: None)(relpos_ac)
+        
+        if self.xc.name == 'QNA':
+            # Special case for QNA:
+            getattr(self.xc.xc, 'set_positions', lambda relpos_ac: None)(relpos_ac)
 
     def calculate_charges(self, vHt_x):
         raise NotImplementedError
