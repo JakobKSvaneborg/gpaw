@@ -18,7 +18,7 @@ class RMMDIIS(PWFDEigensolver):
                  wf_grid,
                  band_comm,
                  hamiltonian,
-                 converge_bands='occupied',
+                 convergence,
                  niter: int = 1,
                  diis_steps: int = 1,
                  trial_step: float | None = None,
@@ -40,7 +40,7 @@ class RMMDIIS(PWFDEigensolver):
             optimized step lengths.
         """
 
-        super().__init__(hamiltonian, converge_bands,
+        super().__init__(hamiltonian, convergence,
                          max_buffer_mem=max_buffer_mem)
         self.trial_step = trial_step
         self.niter = niter

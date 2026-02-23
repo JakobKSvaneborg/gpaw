@@ -21,13 +21,13 @@ class Davidson(PWFDEigensolver):
                  wf_grid,
                  band_comm,
                  hamiltonian,
-                 converge_bands='occupied',
+                 convergence,
                  niter=2,
                  scalapack_parameters=None,
                  max_buffer_mem: int = 200 * 1024 ** 2):
         super().__init__(
             hamiltonian,
-            converge_bands,
+            convergence,
             max_buffer_mem=max_buffer_mem)
         self.niter = niter
         self.H_NN: Matrix
