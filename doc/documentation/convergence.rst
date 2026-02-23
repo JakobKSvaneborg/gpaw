@@ -53,7 +53,7 @@ encountering convergence problems:
 
 6) Use enough k-points.
 
-   Try something like ``kpts={'density': 3.5, 'even': True}``
+   Try something like ``kpts={'density': 3.5}``
    (see :ref:`manual_kpts`).
 
 7) Don't let your structure optimization algorithm take too large steps.
