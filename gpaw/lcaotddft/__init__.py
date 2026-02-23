@@ -13,8 +13,10 @@ from gpaw.tddft.units import attosec_to_autime
 from gpaw.typing import Any, Vector
 
 
-def LCAOTDDFT(filename: str, **kwargs) -> Any:
-    if GPAW_NEW == 1:
+def LCAOTDDFT(filename: str,
+              legacy_gpaw: bool = True,
+              **kwargs) -> Any:
+    if not legacy_gpaw or GPAW_NEW == 1:
         from gpaw.new.rttddft.backwards_compatibility import RTTDDFTAdapter
         kwargs.pop('txt', None)  # ignore silently
         kwargs.pop('parallel', None)  # ignore silently

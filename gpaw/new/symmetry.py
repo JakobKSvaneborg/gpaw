@@ -394,7 +394,7 @@ class Symmetries:
 
     def lcm(self) -> list[int]:
         """Find lowest common multiple compatible with translations."""
-        return [np.lcm.reduce([frac(t, tol=1e-4)[1] for t in t_s])
+        return [np.lcm.reduce([frac(t)[1] for t in t_s])
                 for t_s in self.translation_sc.T]
 
     @cached_property

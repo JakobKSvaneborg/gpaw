@@ -19,10 +19,8 @@ def test_gradient_numerically_pw(in_tmp_dir, gpw_files):
     tol_between_methods = dict(abs=1.0e-4)
     tol_between_rngs = dict(abs=1.0e-4)
 
-    for calc in [
-        GPAW(gpw_files["h3_do_num_pw_complex"]),
-        GPAW(gpw_files["h3_do_num_pw"]),
-    ]:
+    for name in ['h3_do_num_pw_complex', 'h3_do_num_pw']:
+        calc = GPAW(gpw_files[name], legacy_gpaw=True)
         atoms = calc.atoms
         atoms.calc = calc
         # Repeated for False
