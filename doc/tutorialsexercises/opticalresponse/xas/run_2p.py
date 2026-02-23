@@ -19,7 +19,8 @@ calc = GPAW(mode='fd',
             h=h,
             txt='h2s_xas.txt',
             setups={'S': 'hch2p'},
-            xc=xc)
+            xc=xc,
+            legacy_gpaw=True)
 
 atoms.calc = calc
 atoms.get_potential_energy()
