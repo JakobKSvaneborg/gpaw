@@ -29,13 +29,13 @@ def test_max_buffer_mem(mode, eigensolver, max_mem, comm):
     assert e == pytest.approx(expected_e[f'{mode}-{eigensolver}'], abs=1e-3)
 
 
-def skip_test_empty_domain_rank(comm):  # skipped for now (see #1542)
+def test_empty_domain_rank(comm):
     # This test is mostly for MPI.
     atoms = molecule('H')
     atoms.center(vacuum=2)
     eigensolver = 'ppcg'
     calc = GPAW(mode={'name': 'pw',
-                      'ecut': 1},
+                      'ecut': 10},
                 eigensolver=eigensolver,
                 h=0.2,
                 xc='LDA',
