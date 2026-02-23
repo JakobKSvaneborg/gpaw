@@ -6,12 +6,7 @@ Finding lattice constants
 
 .. seealso::
 
-   * :mod:`ASE EOS tutorial <ase.eos>`_
-   * `ASE Finding lattice constants tutorial
-     <https://ase-lib.org/tutorials/lattice_constant.html>`_
-
-   * `ASE equation of state module
-     <https://ase-lib.org/ase/utils.html#equation-of-state>`_
+   * :mod:`ASE equation of state module <ase.eos`
 
 
 Fcc Aluminium
