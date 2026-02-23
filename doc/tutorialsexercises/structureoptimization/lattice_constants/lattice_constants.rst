@@ -8,6 +8,7 @@ Finding lattice constants
 
    * :mod:`ASE equation of state module <ase.eos>`
    * :ref:`ase:eos_example`
+   * :ref:`ase:lattice_constant_example`
 
 
 Fcc Aluminium
