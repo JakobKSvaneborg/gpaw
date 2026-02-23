@@ -3,7 +3,6 @@ import pytest
 from ase import Atoms
 from ase.units import Bohr, Hartree
 
-from gpaw import GPAW
 from gpaw.defects import (ElectrostaticCorrections,
                           charged_defect_corrections)
 from gpaw.defects.electrostatics import build_ugarray, plot_potentials
@@ -85,7 +84,7 @@ def test_fnv_model(method):
 
 
 @pytest.mark.parametrize('cell', ['cubic', 'skew'])
-def test_fnv_3d(gpw_files, cell):
+def test_fnv_3d(gpw_files, cell, mpi):
 
     E_corr_t = 23.55
     E_uncorr_t = 18.31
@@ -99,8 +98,8 @@ def test_fnv_3d(gpw_files, cell):
     epsilon = 12.7  # dielectric constant
     charge = -3     # defect charge
     def_idx = 0     # defect index in pristine system
-    calc_prs = GPAW(gpw_files[f'gaas_{cell}_pristine'])
-    calc_def = GPAW(gpw_files[f'gaas_{cell}_defect'])
+    calc_prs = mpi.GPAW(gpw_files[f'gaas_{cell}_pristine'])
+    calc_def = mpi.GPAW(gpw_files[f'gaas_{cell}_defect'])
 
     elc = charged_defect_corrections(calc_pristine=calc_prs,
                                      calc_defect=calc_def,

@@ -3,7 +3,7 @@
  *  Copyright (C) 2010  Argonne National Laboratory
  *  Please see the accompanying LICENSE file for further information. */
 
-#ifdef PARALLEL
+#if defined(GPAW_WITH_SL) && defined(PARALLEL)
 
 #include "python_utils.h"
 #include "gpaw_utils.h"
@@ -369,7 +369,7 @@ CLINKAGE_END
 when extracting optimal lwork */
 static inline int get_lwork(double_complex c_work)
 {
-#if GPAW_CPP
+#ifdef GPAW_CPP
   return static_cast<int>(c_work.real());
 #else
   return (int)(c_work);
@@ -1959,4 +1959,4 @@ PyObject* scalapack_solve(PyObject *self, PyObject *args) {
   return returnvalue;
 }
 
-#endif // PARALLEL
+#endif // GPAW_WITH_SL and PARALLEL

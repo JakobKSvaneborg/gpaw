@@ -132,7 +132,8 @@ class SCFLoop:
                 energies.sanity_check()
 
         self.eigensolver.postprocess(
-            ibzwfs, density, potential, self.hamiltonian)
+            ibzwfs, density, potential, self.hamiltonian,
+            maxiter=maxiter, cc=cc, log=log)
 
 
 class SCFContext:

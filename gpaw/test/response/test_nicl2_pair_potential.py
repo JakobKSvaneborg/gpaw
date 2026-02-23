@@ -27,7 +27,7 @@ def test_nicl2_pair_potential(gpw_files):
     # ---------- Script ---------- #
 
     context = ResponseContext()
-    calc = GPAW(gpw_files[wfs], parallel=dict(domain=1))
+    calc = GPAW(gpw_files[wfs], parallel=dict(domain=1), legacy_gpaw=True)
     gs = ResponseGroundStateAdapter(calc)
 
     # Set up extractor and transitions

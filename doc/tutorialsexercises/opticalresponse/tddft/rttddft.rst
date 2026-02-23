@@ -53,8 +53,8 @@ in :ref:`LCAO mode <lcao>`:
 
 Some important points are:
 
-* The grid spacing is only used to calculate the Hamiltonian matrix and
-  therefore a coarser grid than usual can be used.
+* In :ref:`LCAO mode <lcao>`, the grid spacing is only used to calculate
+  the Hamiltonian matrix and therefore a coarser grid than usual can be used.
 * Completely unoccupied bands should be left out of the calculation,
   since they are not needed.
 * The density convergence criterion should be a few orders of magnitude
@@ -64,7 +64,6 @@ Some important points are:
   in order to guarantee the convergence of the potential with respect to
   the vacuum size.
   See the documentation on :ref:`advancedpoisson`.
-  Currently, only the default Poisson solver works.
 * Point group symmetries are disabled in TDDFT, since the symmetry is
   broken by the time-dependent potential.
   The TDDFT calculation will refuse to start if the ground state
@@ -78,6 +77,11 @@ Some important points are:
 Next we kick the system in the z direction and propagate 3000 steps of 0.001 ASE units.
 The ASE unit of time is `Å\sqrt{\mathrm{e/eV}}`, which is about 10.18fs.
 We open a file and write to it the dipole moments.
+
+* It is important to explicitly write the kick to the dipole moment file so that
+  the spectrum calculator knows what kind of kick was used.
+  The convenience property `most_recent_kick` of the history object can be used to
+  obtain the last kick.
 
 .. literalinclude:: rttddft.py
    :start-after: P2
@@ -117,7 +121,7 @@ Code documentation
    :members:
    :undoc-members:
 
-.. autoclass:: gpaw.new.rttddft.state.RTTDDFTState
+.. automodule:: gpaw.new.rttddft.dataclasses
    :members:
 
 .. autoclass:: gpaw.external.ExternalPotential

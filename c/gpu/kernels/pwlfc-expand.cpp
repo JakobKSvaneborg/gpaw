@@ -1,10 +1,10 @@
-#include "../gpu_interface.h"
-#include "../gpu.h"
-#include "../gpu-complex.h"
+#include "gpu/gpu_interface.h"
+#include "gpu/gpu.h"
+#include "gpu/gpu-complex.h"
 
-#include "../cpp/gpu_core.hpp"
-#include "../../gpaw_utils.h"
-#include "../cpp/pwlfc_expand.hpp"
+#include "gpu/cpp/gpu_core.hpp"
+#include "gpaw_utils.h"
+#include "gpu/cpp/pwlfc_expand.hpp"
 
 #include <cassert>
 

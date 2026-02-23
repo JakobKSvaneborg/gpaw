@@ -12,6 +12,7 @@ variables:
   # pipelines on shared runners.
   DEFAULT_RUNNER_TAG: "saas-linux-small-amd64"
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
+  COV: "--cov=gpaw --cov-report= "
 
   # OpenMPI binds processes to specific physical cores (cf. mpiexec
   # manpage) when there are <= 2 cores.  This will cause it to
@@ -85,7 +86,7 @@ stages:
                             '-g',
                             '-fopenmp',
                             '-Wall',
-                            # '-Werror',
+                            '-Werror',
                             ]
       extra_link_args = ['-fopenmp']
 
@@ -269,6 +270,30 @@ build-hip-cuda:
     - pip install -v --user --log build.log --editable .
 
 
+# Like build-cuda but uses the makefile compilation path.
+build-cuda-makefile:
+  image: $IMAGE_CUDA
+  extends:
+    - build-cuda
+  script:
+    - |
+      cat << EOF >> siteconfig.py
+      makefile_build = True
+      gpu = True
+      gpu_target = 'cuda'
+      gpu_compiler = 'nvcc'
+      gpu_compile_args = ['-O3',
+                          '-g']
+      libraries += ['cudart', 'cublas']
+
+      # MAGMA
+      magma = True
+      libraries += ['magma']
+      EOF
+    - cat siteconfig.py
+    - pip install -v --user --log build.log --editable .
+
+
 build-minimal:
   image: $IMAGE_MAIN_OLDEST
   extends:
@@ -408,8 +433,7 @@ gpwfiles:
     - !reference [default, before_script]
   script:
     - >
-      pytest -n 16 -m generate_gpw_files --durations 30 -v
-      --cov=gpaw
+      pytest -n 16 -m generate_gpw_files --durations 30 -v $COV
     - mv .coverage coverage-$CI_JOB_NAME
   artifacts:
     paths:
@@ -440,7 +464,7 @@ test-oldest:
   script:
     - gpaw info
     - >
-      OMP_NUM_THREADS=2 pytest -v -We -k 0-fd gpaw/test/test_fuzz.py
+      OMP_NUM_THREADS=2 pytest -v -We "gpaw/test/test_changes.py::test_lcao_to_x[fd]"
 
     # This is the only test which uses OpenMP.
     # We may want to identify a limited set of tests that must work
@@ -522,6 +546,25 @@ test-cuda-mpi:
     - gpaw info
     - GPAW_DEBUG=1 gpaw -P 2 python -m pytest -v -x -m gpu
     - gpaw -P 4 python -m pytest -v -x -m gpu
+
+
+test-cuda-mpi-makefile-build:
+  image: $IMAGE_CUDA
+  extends:
+    - .test
+    - .gpu-job
+  <<: *build_matrix
+  needs:
+    - job: build-cuda-makefile
+      <<: *needs_corresponding_build
+  tags:
+    - cuda-mpi
+  script:
+    - nvidia-smi
+    # just a very lightweight test as we mainly want to ensure that
+    # runtime linking is OK
+    - GPAW_NEW=1 GPAW_USE_GPUS=1 gpaw -P 2 test
+
 
 test-hip-cuda:
   image: $IMAGE_CUDA
@@ -713,7 +756,7 @@ nightly-all:
       gpaw -P $GPAW_MPI_NPROCS python -m pytest
       --test-group-count $GPAW_TESTGROUPS --test-group=$GPAW_MYTESTGROUP
       --test-group-random-seed=42
-      --cov=gpaw --instafail -r s --durations 30
+      $COV --instafail -r s --durations 30
   after_script:
     - coverage combine gpaw-coverage-*
     - mv .coverage coverage-$CI_JOB_NAME
@@ -735,7 +778,7 @@ nightly-mpi-1-group-1-1:
   script:
     - gpaw info
     - pytest --cache-show
-    - pytest -n 8 --instafail -r s --durations 30 --cov=gpaw
+    - pytest -n 8 --instafail -r s --durations 30 $COV
     - coverage
   after_script:
     - mv .coverage coverage-$CI_JOB_NAME
@@ -784,7 +827,7 @@ nightly-mpi-8-group-2-2:
       gpaw -P $GPAW_MPI_NPROCS python -m pytest
       --test-group-count $GPAW_TESTGROUPS --test-group=$GPAW_MYTESTGROUP
       --test-group-random-seed=42
-      --cov=gpaw --instafail -r s --durations 30
+      $COV --instafail -r s --durations 30
       -m "not (old_gpaw_only_mpi or old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
   extends:
     - .nightly
@@ -799,7 +842,7 @@ nightly-mpi-1-group-1-1-new:
     - >
       pytest -n 8 --instafail -r s --durations 30 -m
       "not (old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
-      --cov=gpaw
+      $COV
   after_script:
     - mv .coverage coverage-$CI_JOB_NAME
 

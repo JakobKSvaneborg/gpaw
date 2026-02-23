@@ -6,6 +6,7 @@ from ase.units import Bohr
 from gpaw.analyse.hirshfeld import HirshfeldDensity
 from gpaw.utilities import pack_density
 from gpaw.utilities.tools import coordinates
+from gpaw.old import assert_legacy_gpaw
 
 
 def wignerseitz(gd, atoms, scale=None):
@@ -35,7 +36,8 @@ class WignerSeitz:
 
         self.atoms = atoms
         self.gd = gd
-        self.calculator = calculator._to_old()
+        self.calculator = calculator
+        assert_legacy_gpaw(calculator)
 
         self.atom_index = wignerseitz(gd, atoms, scale)
 

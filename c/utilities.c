@@ -317,7 +317,7 @@ PyObject* localize(PyObject *self, PyObject *args)
   // Here we attempt to minimize code changes by using custom accessors to index multidimensional arrays.
   // If compiling as C code, the accessors fall back to usual VLA syntax.
 
-#if GPAW_CPP
+#ifdef GPAW_CPP
   double_complex* Z = (double_complex*)PyArray_DATA(Z_nnc);
   double* U = (double*)PyArray_DATA(U_nn);
 

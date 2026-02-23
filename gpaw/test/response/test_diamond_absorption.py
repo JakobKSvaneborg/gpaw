@@ -21,6 +21,7 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
     atoms = bulk('C', 'diamond', a=a)
 
     calc = GPAW(mode=mode,
+                legacy_gpaw=mode != 'pw',
                 kpts=(3, 3, 3),
                 nbands='nao' if mode == 'lcao' else None,
                 basis='dzp' if mode == 'lcao' else {},

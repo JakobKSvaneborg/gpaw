@@ -1,7 +1,10 @@
 from math import pi
 
+import numpy as np
 from gpaw.new.density import Density
 from gpaw.new.ibzwfs import IBZWaveFunctions
+from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
+from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 
 
 class LCAOIBZWaveFunctions(IBZWaveFunctions):
@@ -45,4 +48,58 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
         comp_charge = (4 * pi)**0.5 * sum(float(ccc_L[0])
                                           for ccc_L in ccc_aL.values())
         comp_charge = ccc_aL.layout.atomdist.comm.sum_scalar(comp_charge)
-        density.nt_sR.data *= -comp_charge / pseudo_charge
+        density.nt_sR.data *= (-comp_charge - density.charge) / pseudo_charge
+
+    def convert_to(self,
+                   mode: str,
+                   grid=None,
+                   pw=None,
+                   qspiral_v=None,
+                   nbands: int | None = None) -> PWFDIBZWaveFunctions:
+        nbands = nbands or self.nbands
+
+        def create_wfs(spin, q, k, kpt_c, weight):
+            lcaowfs = self._get_wfs(k, spin)
+            assert lcaowfs.spin == spin
+
+            if mode == 'pw':
+                psit_nX = lcaowfs.to_pw_expansion(nbands, pw)
+            elif mode == 'fd':
+                psit_nX = lcaowfs.to_uniform_grid(nbands, grid)
+            else:
+                raise ValueError(f'Illegal mode: {mode}')
+
+            mylcaonbands, nao = lcaowfs.C_nM.dist.shape
+            mynbands = len(psit_nX.data)
+            eig_n = np.empty(nbands)
+            eig_n[:self.nbands] = lcaowfs.eig_n[:nbands]
+            eig_n[self.nbands:] = 100.0  # set high value for random wfs.
+            if mylcaonbands < mynbands:
+                psit_nX[mylcaonbands:].randomize(
+                    seed=self.comm.rank)
+            wfs = PWFDWaveFunctions(
+                psit_nX=psit_nX,
+                spin=spin,
+                q=q,
+                k=k,
+                weight=weight,
+                setups=lcaowfs.setups,
+                relpos_ac=lcaowfs.relpos_ac,
+                atomdist=lcaowfs.atomdist,
+                ncomponents=self.ncomponents,
+                qspiral_v=qspiral_v)
+            wfs.eig_n = eig_n
+            if lcaowfs.has_occs:
+                wfs._occ_n = np.zeros(nbands)
+                wfs._occ_n[:self.nbands] = lcaowfs._occ_n[:nbands]
+            return wfs
+
+        ibzwfs = PWFDIBZWaveFunctions.create(
+            ibz=self.ibz,
+            ncomponents=self.ncomponents,
+            create_wfs_func=create_wfs,
+            kpt_comm=self.kpt_comm,
+            kpt_band_comm=self.kpt_band_comm,
+            comm=self.comm)
+        ibzwfs.fermi_levels = self.fermi_levels
+        return ibzwfs

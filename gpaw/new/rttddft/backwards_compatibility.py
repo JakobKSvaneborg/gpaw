@@ -5,11 +5,14 @@ from functools import cached_property
 from types import SimpleNamespace
 from typing import Any
 
+import numpy as np
+
+from gpaw.external import ConstantElectricField, create_absorption_kick
+from gpaw.mpi import normalize_communicator
 from gpaw.new.ase_interface import ASECalculator
 from gpaw.new.backwards_compatibility import FakePoisson
 from gpaw.new.rttddft.rttddft import RTTDDFT
 from gpaw.new.rttddft.td_algorithm import TDAlgorithmLike
-from gpaw.mpi import normalize_communicator
 from gpaw.tddft.units import as_to_au, autime_to_asetime
 from gpaw.typing import Vector
 
@@ -173,8 +176,21 @@ class RTTDDFTAdapter:
         # TODO LCAOTDDFT does niter += for absorption_kick, but TDDFT does not
 
         # Kick and store history
-        result = self._rttddft.absorption_kick(kick_strength)
+
+        kw = dict()
+        if self.mode == 'fd':
+            # Different behavior between LCAO and FD. See #1423
+            kw['nkicks'] = int(round(np.linalg.norm(kick_strength) / 1.0e-4))
+            if kw['nkicks'] < 1:
+                kw['nkicks'] = 1
+
+        # Propagate kick
+        potential = create_absorption_kick(kick_strength)
+        result = self._rttddft.kick(potential, **kw)
         print(result)
+
+        # Store kick in history
+        self._rttddft.history.register_kick(potential)
 
         # Call observers after kick
         self.action = 'kick'
@@ -211,7 +227,14 @@ class RTTDDFTAdapter:
             try:
                 # Return last kick
                 kick = self._rttddft.history.kicks[-1]
-                return kick.strength if attr == 'kick_strength' else kick.gauge
+                if attr == 'kick_gauge':
+                    return kick.gauge
+                assert isinstance(kick.potential, ConstantElectricField)
+                # Magnitude in atomic units
+                magnitude = kick.potential.strength
+                # Normalized direction
+                direction_v = kick.potential.direction_v
+                return magnitude * direction_v
             except IndexError:
                 # There have been no kicks
                 return None

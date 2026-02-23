@@ -111,9 +111,9 @@ class WaveFunctions:
         """
         raise NotImplementedError
 
-    def collect(self,
-                n1: int = 0,
-                n2: int = 0) -> WaveFunctions | None:
+    def collect_bands(self,
+                      n1: int = 0,
+                      n2: int = 0) -> WaveFunctions | None:
         raise NotImplementedError
 
     @property

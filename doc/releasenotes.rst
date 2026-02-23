@@ -10,11 +10,20 @@ Git master branch
 
 :git:`master <>`.
 
+* Minimum version requirements: Python 3.10, ASE 3.27.0.
+
+* `pybind11 <https://pybind11.readthedocs.io/en/stable/>`__ is now a required
+  dependency when building GPAW with GPU support. It should be installed
+  automatically by ``pip`` when you install GPAW. If this doesn't happen for
+  whatever reason, you can get it with ``pip install pybind11``.
+
+* Added option for generating a Makefile for building GPAW with ``make`` on
+  Unix-like systems. Convenient for developers who frequently need to modify
+  the C/C++ backend. See :ref:`workflow_c_extension` for details.
+
 * GPAW C-extension can now be built as C++ code. You can enable this
   experimental feature in ``siteconfig.py`` by setting ``use_cpp = True`` and
   choosing a valid C++ compiler.
-
-* Minimum version requirements: Python 3.10, ASE 3.25.0.
 
 * Ongoing work with optimizng the defaults of GPAW, so far the following
   changes have been made:
@@ -22,24 +31,20 @@ Git master branch
   * mixer (with pbc):
 
     * spin-driver: 'difference' -> 'fullspin'
-
     * beta: 0.05 -> 0.08
-
     * nmaxold: 5 -> 16
-
     * weight: 50 -> 70
 
   * mixer (without pbc):
 
     * spin-driver: 'difference' -> 'fullspin'
-
     * beta: 0.25 -> 0.25
-
     * nmaxold: 3 -> 16
-
     * weight: 1 -> 1
 
   * eigensolver (:ref:`newgpaw` only): 'davidson' -> 'ppcg'
+
+* :ref:`newgpaw`: Ported the dipole moment writer to the new RT-TDDFT interface.
 
 * :ref:`newgpaw`: Calculations can now be parallelized over
   spins.
@@ -82,6 +87,11 @@ Git master branch
   please contact the developers.  You will probably need to port the code
   to :ref:`newgpaw` in order to use it in the future.
 
+* We now have a :ref:`ecosystem` page listing projects related to GPAW
+  or using GPAW.
+  If you know of a project which should be listed here, but isn’t,
+  please open a merge request adding link and descriptive paragraph.
+
 
 Version 25.7.0
 ==============
@@ -109,7 +119,7 @@ July 29, 2025: :git:`25.7.0 <../25.7.0>`
 
 * Non self-consistent calculation of HSE06 eigenvalues for arbitrary
   **k**-points has been implemented.  See :ref:`hse06 on lda` and
-  :class:`gpaw.new.pw.nschse.NonSelfConsistentHSE06`.
+  :class:`gpaw.hybrids.NonSelfConsistentHybridXCCalculator`.
 
 * Experimental: Support for using MPI4PY_.
   **Update:** Set GPAW_MPI_BACKEND=mpi4py to use this.

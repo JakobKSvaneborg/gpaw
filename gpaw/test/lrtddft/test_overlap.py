@@ -37,7 +37,7 @@ def test_overlap(in_tmp_dir):
     H2 = molecule('H2')
     adjust_cell(H2, box, h)
 
-    c1 = GPAW(**get_kwargs(nbands=nbands))
+    c1 = GPAW(**get_kwargs(nbands=nbands), legacy_gpaw=True)
     c1.calculate(H2)
     lr1 = LrTDDFT(c1)
 
@@ -70,6 +70,7 @@ def test_overlap(in_tmp_dir):
     parprint('spin --------')
     H2.set_initial_magnetic_moments([1, -1])
     c2 = GPAW(
+        legacy_gpaw=True,
         **get_kwargs(
             spinpol=True, nbands=nbands + 1, parallel={'domain': world.size}))
     H2.set_initial_magnetic_moments([0, 0])

@@ -20,6 +20,7 @@ from gpaw.lrtddft2.lr_response import LrResponse
 # a set of linear combinations of KS single determinants
 from gpaw.lrtddft2.lr_transitions import LrtddftTransitions
 from gpaw.mpi import normalize_communicator
+from gpaw.old import assert_legacy_gpaw
 from gpaw.xc import XC
 
 # a KS determinant with a single occ-uncc excitation
@@ -117,7 +118,7 @@ class LrTDDFT2:
             self.max_energy_diff = None
         self.recalculate = recalculate
         # Don't init calculator yet if it's not needed (to save memory)
-        gs_calc = gs_calc._to_old()
+        assert_legacy_gpaw(gs_calc)
         self.calc = gs_calc
         self.calc_ready = False
 

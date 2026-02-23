@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
-from functools import cached_property
+from functools import cached_property, cache
 from typing import Any
 
 import numpy as np
@@ -344,7 +344,7 @@ class Symmetries:
                             tolerance=tolerance)
         if ids is None:
             ids = atoms.numbers
-        return sym.analyze_positions(atoms.positions,
+        return sym.analyze_positions(atoms.get_scaled_positions(),
                                      ids=ids,
                                      symmorphic=symmorphic)
 
@@ -394,7 +394,7 @@ class Symmetries:
 
     def lcm(self) -> list[int]:
         """Find lowest common multiple compatible with translations."""
-        return [np.lcm.reduce([frac(t, tol=1e-4)[1] for t in t_s])
+        return [np.lcm.reduce([frac(t)[1] for t in t_s])
                 for t_s in self.translation_sc.T]
 
     @cached_property
@@ -461,13 +461,21 @@ class Symmetries:
                         'Sorry!  Try using spglib.standardize_cell(...)')
 
 
-def find_lattice_symmetry(cell_cv, pbc_c, tol, _backwards_compatible=False):
-    """Determine list of symmetry operations."""
+@cache
+def totally_unimodular_matrices() -> np.ndarray:
     # Symmetry operations as matrices in 123 basis.
     # Operation is a 3x3 matrix, with possible elements -1, 0, 1, thus
     # there are 3**9 = 19683 possible matrices:
     combinations = 1 - np.indices([3] * 9)
     U_scc = combinations.reshape((3, 3, 3**9)).transpose((2, 0, 1))
+    U_scc = U_scc.astype(float)
+    U_scc = U_scc[abs(np.linalg.det(U_scc)) == 1.0]  # reduce to 6960
+    return U_scc
+
+
+def find_lattice_symmetry(cell_cv, pbc_c, tol, _backwards_compatible=False):
+    """Determine list of symmetry operations."""
+    U_scc = totally_unimodular_matrices()
 
     # The metric of the cell should be conserved after applying
     # the operation:
@@ -475,11 +483,17 @@ def find_lattice_symmetry(cell_cv, pbc_c, tol, _backwards_compatible=False):
     metric_scc = np.einsum('sij, jk, slk -> sil',
                            U_scc, metric_cc, U_scc,
                            optimize=True)
+
     if _backwards_compatible:
+        # (wrong units)
         mask_s = abs(metric_scc - metric_cc).sum(2).sum(1) <= tol
     else:
-        mask_s = abs(metric_scc - metric_cc).sum(2).sum(1) <= tol**2
-    U_scc = U_scc[mask_s]
+        L_c = metric_cc.diagonal()**0.5
+        tol_cc = np.add.outer(L_c, L_c) * tol
+        err_scc = abs(metric_scc - metric_cc)
+        mask_s = (err_scc <= tol_cc).all(axis=(1, 2))
+
+    U_scc = U_scc[mask_s].astype(int)
 
     # Operation must not swap axes that don't have same PBC:
     pbc_cc = np.logical_xor.outer(pbc_c, pbc_c)
