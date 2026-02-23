@@ -35,7 +35,7 @@ def test_empty_domain_rank(comm):
     atoms.center(vacuum=2)
     eigensolver = 'ppcg'
     calc = GPAW(mode={'name': 'pw',
-                      'ecut': 1},
+                      'ecut': 10},
                 eigensolver=eigensolver,
                 h=0.2,
                 xc='LDA',
