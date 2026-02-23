@@ -21,7 +21,6 @@ from gpaw.utilities.blas import axpy
 class PWFDEigensolver(Eigensolver):
     def __init__(self,
                  hamiltonian,
-                 # converge_bands: int | str = 'occupied',
                  convergence: dict,
                  blocksize: int = 10,
                  max_buffer_mem: int | None = 200 * 1024 ** 2):
