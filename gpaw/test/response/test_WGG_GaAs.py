@@ -3,7 +3,7 @@ import pytest
 from ase import Atoms
 from ase.build import bulk
 
-from gpaw import GPAW, PW, FermiDirac
+from gpaw import PW, FermiDirac
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.chi0 import Chi0Calculator
 from gpaw.response.coulomb_kernels import CoulombKernel
@@ -21,13 +21,13 @@ def test_Wsymm(in_tmp_dir, scalapack, mpi):
                   scaled_positions=((0, 0, 0), (0.25, 0.25, 0.25)))
 
         # First with symmetry off
-        calc = GPAW(mode=PW(400),
-                    xc='LDA',
-                    occupations=FermiDirac(width=0.01),
-                    convergence={'bands': -4},
-                    symmetry=symm,
-                    kpts={'size': (k, k, k), 'gamma': True},
-                    txt='gs_GaAs.txt')
+        calc = mpi.GPAW(mode=PW(400),
+                        xc='LDA',
+                        occupations=FermiDirac(width=0.01),
+                        convergence={'bands': -4},
+                        symmetry=symm,
+                        kpts={'size': (k, k, k), 'gamma': True},
+                        txt='gs_GaAs.txt')
 
         a.calc = calc
         a.get_potential_energy()
@@ -44,14 +44,14 @@ def test_Wsymm(in_tmp_dir, scalapack, mpi):
 
     def calc_W(seed, q_c_list):
         gs = ResponseGroundStateAdapter.from_gpw_file(seed + '.gpw')
-        context = ResponseContext('test.log')
+        context = ResponseContext('test.log', comm=mpi.comm)
         chi0calc = Chi0Calculator(
             gs, context,
             wd=FrequencyDescriptor(np.array([0.])),
             hilbert=False,
             ecut=100,
             intraband=False)
-        wcontext = ResponseContext('out.txt')
+        wcontext = ResponseContext('out.txt', comm=mpi.comm)
         truncation = None
         coulomb = CoulombKernel.from_gs(gs, truncation=truncation)
         gimode = GammaIntegrationMode('sphere')

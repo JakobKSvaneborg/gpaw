@@ -7,7 +7,6 @@ import pytest
 from ase.units import Ha
 
 from gpaw.mpi import serial_comm
-from gpaw import GPAW
 from gpaw.atom.radialgd import AERadialGridDescriptor
 from gpaw.lfc import LFC
 from gpaw.old.grid_descriptor import GridDescriptor
@@ -229,8 +228,7 @@ def test_Fe_bxc(gpw_files, mpi):
     # Bxc calculation
 
     # Set up calculator and plane-wave descriptor
-    calc = GPAW(gpw_files['fe_pw'], parallel=dict(domain=1),
-                communicator=mpi.comm)
+    calc = mpi.GPAW(gpw_files['fe_pw'], parallel=dict(domain=1))
     atoms = calc.atoms
     gs = ResponseGroundStateAdapter(calc)
     context = ResponseContext(comm=mpi.comm)

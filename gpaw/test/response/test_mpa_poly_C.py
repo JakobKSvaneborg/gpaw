@@ -23,7 +23,7 @@ def mpa_py(omega, f, omegat_nGG, W_nGG, eta, factor):
 
 
 @pytest.mark.parametrize('f', [0, 0.4, 1.0])
-def test_residues(f, mpi):
+def test_residues(f):
     factor = 2.0
     eta = 0.1 * Ha
     nG = 5

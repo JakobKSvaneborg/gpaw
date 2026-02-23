@@ -4,7 +4,7 @@ import pytest
 # Script modules
 from ase.build import bulk
 
-from gpaw import GPAW, PW, FermiDirac
+from gpaw import PW, FermiDirac
 from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
 from gpaw.response.context import ResponseContext
@@ -35,13 +35,12 @@ def test_si_update_consistency(in_tmp_dir, mpi):
     # Ground state calculation
     atoms = bulk('Si', 'diamond', a=a)
     atoms.center()
-    calc = GPAW(mode=PW(pw),
-                nbands=nbands,
-                kpts=(kpts, kpts, kpts),
-                parallel={'domain': 1},
-                occupations=FermiDirac(width=occw),
-                xc=xc,
-                communicator=mpi.comm)
+    calc = mpi.GPAW(mode=PW(pw),
+                    nbands=nbands,
+                    kpts=(kpts, kpts, kpts),
+                    parallel={'domain': 1},
+                    occupations=FermiDirac(width=occw),
+                    xc=xc)
 
     atoms.calc = calc
     atoms.get_potential_energy()

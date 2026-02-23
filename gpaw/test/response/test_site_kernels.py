@@ -7,7 +7,7 @@ import scipy.special as sc
 # Script modules
 from ase.build import bulk
 
-from gpaw import GPAW, PW
+from gpaw import PW
 from gpaw.response.pair_functions import get_pw_coordinates
 from gpaw.response.site_kernels import (CylindricalSiteKernels,
                                         ParallelepipedicSiteKernels,
@@ -256,12 +256,11 @@ def test_Co_hcp_site_kernels(mpi):
     atoms = bulk('Co', 'hcp', a=a, c=c)
     atoms.set_initial_magnetic_moments([mm, mm])
 
-    calc = GPAW(xc=xc,
-                spinpol=True,
-                mode=PW(pw),
-                kpts={'size': (kpts, kpts, kpts),
-                      'gamma': True},
-                communicator=mpi.comm)
+    calc = mpi.GPAW(xc=xc,
+                    spinpol=True,
+                    mode=PW(pw),
+                    kpts={'size': (kpts, kpts, kpts),
+                          'gamma': True})
 
     # Perform inexpensive calculator initialization
     calc.initialize(atoms)

@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 
-from gpaw import GPAW
 from gpaw.mpi import world
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator, SelfEnhancementCalculator
@@ -34,8 +33,7 @@ def test_response_iron_sf_pawALDA(in_tmp_dir, gpw_files, scalapack, mpi):
     # ---------- Script ---------- #
 
     context = ResponseContext(txt='iron_susceptibility.txt', comm=mpi.comm)
-    calc = GPAW(gpw_files['fe_pw'], parallel=dict(domain=1),
-                communicator=mpi.comm)
+    calc = mpi.GPAW(gpw_files['fe_pw'], parallel=dict(domain=1))
     nbands = response_band_cutoff['fe_pw']
     gs = ResponseGroundStateAdapter(calc)
 

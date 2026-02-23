@@ -55,7 +55,8 @@ def test_mpa_too_many_nblocks(in_tmp_dir, gpw_files, mpi):
                   mpa=mpa_dict)
     except ValueError as e:
         assert 'Too many nblocks' in str(e)
-        # When mpi.comm.size > 2, the system is supposed to raise, so test passes
+        # When mpi.comm.size > 2, the system is supposed to raise,
+        # so test passes
         if mpi.comm.size > 2:
             return
         else:

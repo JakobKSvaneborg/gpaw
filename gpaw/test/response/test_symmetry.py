@@ -13,7 +13,7 @@ def test_qsymmetries(gpw_files, identifier, gpaw_new, mpi):
         pytest.skip('New-GPAW does not support interpolate=3')
     # Set up basic response code objects
     gs = ResponseGroundStateAdapter.from_gpw_file(gpw_files[identifier])
-    context = ResponseContext()
+    context = ResponseContext(comm=mpi.comm)
     qsymmetry = QSymmetryAnalyzer()
 
     # Count all symmetries:

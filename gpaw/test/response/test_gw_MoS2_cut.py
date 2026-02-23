@@ -2,21 +2,20 @@ import pytest
 from ase import Atoms
 from ase.lattice.hexagonal import Hexagonal
 
-from gpaw import GPAW, FermiDirac
+from gpaw import FermiDirac
 from gpaw.response.g0w0 import G0W0
 
 
 @pytest.fixture
 def gpwfile(in_tmp_dir, mpi):
-    calc = GPAW(
+    calc = mpi.GPAW(
         mode='pw',
         xc='PBE',
         nbands=16,
         convergence={'bands': 15},
         setups={'Mo': '6'},
         occupations=FermiDirac(0.001),
-        kpts={'size': (3, 3, 1), 'gamma': True},
-        communicator=mpi.comm)
+        kpts={'size': (3, 3, 1), 'gamma': True})
 
     a = 3.1604
     c = 10.0

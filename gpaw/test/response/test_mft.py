@@ -10,7 +10,7 @@ import pytest
 # Script modules
 from ase.build import bulk
 
-from gpaw import GPAW, PW, FermiDirac
+from gpaw import PW, FermiDirac
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator
 from gpaw.response.heisenberg import (calculate_fm_magnon_energies,
@@ -55,8 +55,7 @@ def test_Fe_bcc(in_tmp_dir, gpw_files, mpi):
     # ---------- Script ---------- #
 
     # Extract the ground state fixture
-    calc = GPAW(gpw_files['fe_pw'], parallel=dict(domain=1),
-                communicator=mpi.comm)
+    calc = mpi.GPAW(gpw_files['fe_pw'], parallel=dict(domain=1))
     nbands = response_band_cutoff['fe_pw']
     atoms = calc.atoms
 
@@ -152,8 +151,7 @@ def test_Co_hcp(in_tmp_dir, gpw_files, mpi):
     # ---------- Script ---------- #
 
     # Extract the ground state fixture
-    calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1),
-                communicator=mpi.comm)
+    calc = mpi.GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
     nbands = response_band_cutoff['co_pw']
     atoms = calc.get_atoms()
 
@@ -245,17 +243,16 @@ def test_NiO_withU(in_tmp_dir, mpi):
     a = bulk('NiO', 'rocksalt', a=a0)
     a.set_initial_magnetic_moments([2, 0])
 
-    calc = GPAW(mode=PW(400),
-                xc='LDA',
-                setups={'Ni': ':d,4.0'},
-                kpts={'size': (2, 2, 2), 'gamma': True},
-                occupations=FermiDirac(0.001),
-                convergence={'density': 1e-5},
-                mixer={'method': 'difference',
-                       'beta': 0.05,
-                       'weight': 50},
-                parallel=dict(domain=1),
-                communicator=mpi.comm)
+    calc = mpi.GPAW(mode=PW(400),
+                    xc='LDA',
+                    setups={'Ni': ':d,4.0'},
+                    kpts={'size': (2, 2, 2), 'gamma': True},
+                    occupations=FermiDirac(0.001),
+                    convergence={'density': 1e-5},
+                    mixer={'method': 'difference',
+                           'beta': 0.05,
+                           'weight': 50},
+                    parallel=dict(domain=1))
 
     a.calc = calc
     a.get_potential_energy()
@@ -284,8 +281,7 @@ def test_NiO_withU(in_tmp_dir, mpi):
 @pytest.mark.parametrize('qrel', generate_qrel_q())
 def test_Co_site_magnetization_sum_rule(in_tmp_dir, gpw_files, qrel, mpi):
     # Set up ground state adapter and basic parameters
-    calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1),
-                communicator=mpi.comm)
+    calc = mpi.GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
     gs = ResponseGroundStateAdapter(calc)
     sites = get_co_sites(gs)
     context = ResponseContext(txt='Co_sum_rule.txt', comm=mpi.comm)
@@ -350,8 +346,7 @@ def test_Co_site_magnetization_sum_rule(in_tmp_dir, gpw_files, qrel, mpi):
 @pytest.mark.parametrize('qrel', generate_qrel_q())
 def test_Co_site_zeeman_energy_sum_rule(in_tmp_dir, gpw_files, qrel, mpi):
     # Set up ground state adapter and atomic site data
-    calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1),
-                communicator=mpi.comm)
+    calc = mpi.GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
     gs = ResponseGroundStateAdapter(calc)
     sites = get_co_sites(gs)
     context = ResponseContext('Co_sum_rule.txt', comm=mpi.comm)
@@ -426,8 +421,7 @@ def get_Co_exchange_reference(qrel):
 @pytest.mark.parametrize('qrel', generate_qrel_q())
 def test_Co_exchange(in_tmp_dir, gpw_files, qrel, mpi):
     # Set up ground state adapter and atomic site data
-    calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1),
-                communicator=mpi.comm)
+    calc = mpi.GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
     gs = ResponseGroundStateAdapter(calc)
     context = ResponseContext('Co_exchange.txt', comm=mpi.comm)
     sites = get_co_sites(gs)
@@ -484,8 +478,7 @@ def test_Co_exchange(in_tmp_dir, gpw_files, qrel, mpi):
 @pytest.mark.parallel
 def test_heisenberg_distribution_over_transitions(in_tmp_dir, gpw_files, mpi):
     # Set up ground state adapter and atomic site data
-    calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1),
-                communicator=mpi.comm)
+    calc = mpi.GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
     gs = ResponseGroundStateAdapter(calc)
     sites = get_co_sites(gs)
 

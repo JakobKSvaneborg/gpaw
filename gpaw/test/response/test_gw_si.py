@@ -3,7 +3,6 @@
 import pytest
 from ase.build import bulk
 
-from gpaw import GPAW
 from gpaw.mpi import world
 from gpaw.response.g0w0 import G0W0
 from gpaw.response.screened_interaction import GammaIntegrationMode
@@ -18,9 +17,9 @@ def generate_si_systems():
     return [si1, si2]
 
 
-def run(gpw_filename, nblocks, integrate_gamma, qpt=False, comm=None):
+def run(gpw_filename, nblocks, integrate_gamma, qpt=False, mpi=None):
     # This tests checks the actual numerical accuracy which is asserted below
-    calc = GPAW(gpw_filename, communicator=comm)
+    calc = mpi.GPAW(gpw_filename)
     e = calc.get_potential_energy()
 
     integrate_gamma = GammaIntegrationMode(integrate_gamma)
@@ -33,7 +32,7 @@ def run(gpw_filename, nblocks, integrate_gamma, qpt=False, comm=None):
                   frequencies={'type': 'nonlinear',
                                'domega0': 0.1, 'omegamax': None},
                   eta=0.2, relbands=(-1, 2),
-                  world=comm)
+                  world=mpi.comm)
 
     if qpt:
         # This part of the code is testing for separate calculation of qpoints
@@ -78,7 +77,7 @@ reference['1BZ2D'] = reference['1BZ']
 def test_response_gwsi(in_tmp_dir, si, symm, nblocks, integrate_gamma,
                        scalapack, gpw_files, mpi):
     filename = gpw_files[f'si_gw_a{si}_{symm}']
-    assert run(filename, nblocks, integrate_gamma, comm=mpi.comm) ==\
+    assert run(filename, nblocks, integrate_gamma, mpi=mpi) ==\
            reference[integrate_gamma]
 
 
@@ -89,7 +88,7 @@ def test_response_gwsi(in_tmp_dir, si, symm, nblocks, integrate_gamma,
 @pytest.mark.response
 def test_integrate_gamma_modes(in_tmp_dir, integrate_gamma, gpw_files, mpi):
     assert run(gpw_files['si_gw_a0_all'], 1, integrate_gamma,
-               comm=mpi.comm) == \
+               mpi=mpi) == \
            reference[integrate_gamma]
 
 
@@ -100,7 +99,7 @@ def test_integrate_gamma_modes(in_tmp_dir, integrate_gamma, gpw_files, mpi):
 def test_small_response_gwsi(in_tmp_dir, si, symm, scalapack,
                              gpw_files, mpi):
     filename = gpw_files[f'si_gw_a{si}_{symm}']
-    assert run(filename, 1, 'sphere', comm=mpi.comm) == reference['sphere']
+    assert run(filename, 1, 'sphere', mpi=mpi) == reference['sphere']
 
 
 @pytest.mark.response

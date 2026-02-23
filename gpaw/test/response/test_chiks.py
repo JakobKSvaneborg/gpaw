@@ -6,8 +6,6 @@ from itertools import combinations, product
 import numpy as np
 import pytest
 
-from gpaw import GPAW
-from gpaw.mpi import world
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.chi0 import Chi0Calculator
 from gpaw.response.chiks import ChiKSCalculator, SelfEnhancementCalculator
@@ -132,11 +130,14 @@ def generate_gc_g():
     return gc_g
 
 
-def generate_nblocks_n():
+def generate_nblocks_n(comm=None):
+    from gpaw.mpi import world
+    if comm is None:
+        comm = world
     nblocks_n = [1]
-    if world.size % 2 == 0:
+    if comm.size % 2 == 0:
         nblocks_n.append(2)
-    if world.size % 4 == 0:
+    if comm.size % 4 == 0:
         nblocks_n.append(4)
 
     return nblocks_n
@@ -180,7 +181,7 @@ def test_chiks(in_tmp_dir, gpw_files, mpi, system, qrel, gammacentered):
     # Note: None of these should change the actual results.
     disable_syms_s = [True, False]
 
-    nblocks_n = generate_nblocks_n()
+    nblocks_n = generate_nblocks_n(mpi.comm)
     nn = len(nblocks_n)
 
     bandsummation_b = ['double', 'pairwise']
@@ -195,8 +196,7 @@ def test_chiks(in_tmp_dir, gpw_files, mpi, system, qrel, gammacentered):
     # ---------- Script ---------- #
 
     # Part 1: Set up ChiKSTestingFactory
-    calc = GPAW(gpw_files[wfs], parallel=dict(domain=1),
-                communicator=mpi.comm)
+    calc = mpi.GPAW(gpw_files[wfs], parallel=dict(domain=1))
     nbands = response_band_cutoff[wfs]
 
     chiks_testing_factory = ChiKSTestingFactory(calc,
@@ -352,8 +352,7 @@ def test_xi(gpw_files, mpi, system, qrel, gammacentered):
 
     # ---------- Script ---------- #
 
-    calc = GPAW(gpw_files[wfs], parallel=dict(domain=1),
-                communicator=mpi.comm)
+    calc = mpi.GPAW(gpw_files[wfs], parallel=dict(domain=1))
     gs = ResponseGroundStateAdapter(calc)
 
     xi_mzGG = []

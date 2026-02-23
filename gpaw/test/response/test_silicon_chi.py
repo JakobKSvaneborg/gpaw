@@ -6,7 +6,7 @@ from ase.build import bulk
 from ase.parallel import parprint
 from ase.utils.timing import Timer
 
-from gpaw import GPAW, PW, FermiDirac
+from gpaw import PW, FermiDirac
 from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator
 from gpaw.response.df import DielectricFunction, read_response_function
@@ -28,13 +28,12 @@ def test_response_silicon_chi_RPA(in_tmp_dir, mpi):
     a = 5.431
     atoms = bulk('Si', 'diamond', a=a)
     atoms.center()
-    calc = GPAW(mode=PW(200),
-                nbands=8,
-                kpts=(4, 4, 4),
-                parallel={'domain': 1},
-                occupations=FermiDirac(width=0.05),
-                xc='LDA',
-                communicator=mpi.comm)
+    calc = mpi.GPAW(mode=PW(200),
+                    nbands=8,
+                    kpts=(4, 4, 4),
+                    parallel={'domain': 1},
+                    occupations=FermiDirac(width=0.05),
+                    xc='LDA')
 
     atoms.calc = calc
     atoms.get_potential_energy()

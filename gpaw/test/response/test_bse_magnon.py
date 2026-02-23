@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from ase import Atoms
 
-from gpaw import GPAW, FermiDirac
+from gpaw import FermiDirac
 from gpaw.mpi import world
 from gpaw.response.bse import BSE
 from gpaw.test import findpeak
@@ -15,13 +15,12 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.mark.response
 def test_response_bse_magnon(in_tmp_dir, mpi):
-    calc = GPAW(mode='pw',
-                xc='PBE',
-                nbands='nao',
-                occupations=FermiDirac(0.001),
-                convergence={'bands': -5},
-                kpts={'size': (3, 3, 1), 'gamma': True},
-                communicator=mpi.comm)
+    calc = mpi.GPAW(mode='pw',
+                    xc='PBE',
+                    nbands='nao',
+                    occupations=FermiDirac(0.001),
+                    convergence={'bands': -5},
+                    kpts={'size': (3, 3, 1), 'gamma': True})
 
     a = 3.945
     c = 8.0

@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from ase.build import bulk
 
-from gpaw import GPAW, FermiDirac
+from gpaw import FermiDirac
 from gpaw.response.bse import BSE, read_bse_eigenvalues
 from gpaw.response.df import read_response_function
 from gpaw.test import findpeak
@@ -20,12 +20,11 @@ def test_response_bse_silicon(in_tmp_dir, scalapack, mpi):
         a = 5.431  # From PRB 73,045112 (2006)
         atoms = bulk('Si', 'diamond', a=a)
         atoms.positions -= a / 8
-        calc = GPAW(mode='pw',
-                    kpts={'size': (2, 2, 2), 'gamma': True},
-                    occupations=FermiDirac(0.001),
-                    nbands=12,
-                    communicator=comm,
-                    convergence={'bands': -4})
+        calc = mpi.GPAW(mode='pw',
+                        kpts={'size': (2, 2, 2), 'gamma': True},
+                        occupations=FermiDirac(0.001),
+                        nbands=12,
+                        convergence={'bands': -4})
         atoms.calc = calc
         atoms.get_potential_energy()
         calc.write('Si.gpw', 'all')
@@ -51,13 +50,12 @@ def test_response_bse_silicon(in_tmp_dir, scalapack, mpi):
 
     if GS and nosym:
         atoms = bulk('Si', 'diamond', a=a)
-        calc = GPAW(mode='pw',
-                    kpts={'size': (2, 2, 2), 'gamma': True},
-                    occupations=FermiDirac(0.001),
-                    nbands=12,
-                    symmetry='off',
-                    communicator=comm,
-                    convergence={'bands': -4})
+        calc = mpi.GPAW(mode='pw',
+                        kpts={'size': (2, 2, 2), 'gamma': True},
+                        occupations=FermiDirac(0.001),
+                        nbands=12,
+                        symmetry='off',
+                        convergence={'bands': -4})
         atoms.calc = calc
         atoms.get_potential_energy()
         calc.write('Si.gpw', 'all')

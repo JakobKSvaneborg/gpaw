@@ -2,21 +2,20 @@ import numpy as np
 import pytest
 from ase.build import bulk
 
-from gpaw import GPAW, FermiDirac
+from gpaw import FermiDirac
 from gpaw.response.bse import BSE
 
 
 @pytest.mark.response
 @pytest.mark.parametrize('tda', [False, True])
 def test_bse_plus(tda, in_tmp_dir, scalapack, mpi):
-    calc = GPAW(mode='pw',
-                kpts={'size': (2, 2, 2), 'gamma': True},
-                occupations=FermiDirac(0.01),
-                nbands=8,
-                symmetry='off',
-                communicator=mpi.comm,
-                convergence={'bands': -4, 'density': 1e-7,
-                             'eigenstates': 1e-10})
+    calc = mpi.GPAW(mode='pw',
+                    kpts={'size': (2, 2, 2), 'gamma': True},
+                    occupations=FermiDirac(0.01),
+                    nbands=8,
+                    symmetry='off',
+                    convergence={'bands': -4, 'density': 1e-7,
+                                 'eigenstates': 1e-10})
 
     a = 5.431
     atoms = bulk('Si', 'diamond', a=a)

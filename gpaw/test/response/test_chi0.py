@@ -28,7 +28,7 @@ def test_response_chi0(in_tmp_dir, mpi):
             a.center()
         name = 'si.k%d.g%d.c%d.s%d' % (k, gamma, center, bool(sym))
 
-        calc = a.calc = GPAW(
+        calc = a.calc = mpi.GPAW(
             kpts=kpts,
             symmetry={'point_group': sym},
             mode=PW(150),

@@ -1,7 +1,7 @@
 import pytest
 from ase.build import molecule
 
-from gpaw import GPAW, PW
+from gpaw import PW
 from gpaw.response.g0w0 import G0W0
 
 
@@ -15,12 +15,11 @@ def test_gw_sg15(in_tmp_dir, add_cwd_to_setup_paths, mpi):
     sys = molecule('H2', pbc=True)
     sys.center(vacuum=2.5)
 
-    calc = GPAW(setups='sg15',
-                xc='PBE', mode=PW(ecut=300),
-                convergence={'bands': 40,
-                             'density': 1e-6},
-                nbands=50, kpts=(2, 2, 2),
-                communicator=mpi.comm)
+    calc = mpi.GPAW(setups='sg15',
+                    xc='PBE', mode=PW(ecut=300),
+                    convergence={'bands': 40,
+                                 'density': 1e-6},
+                    nbands=50, kpts=(2, 2, 2))
     sys.calc = calc
     sys.get_potential_energy()
     calc.write('gs.gpw', mode='all')

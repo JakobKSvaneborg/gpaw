@@ -5,7 +5,7 @@ import pytest
 from ase.build import bulk
 from ase.parallel import parprint
 
-from gpaw import GPAW, PW
+from gpaw import PW
 from gpaw.bztools import optimal_monkhorst_pack_grid
 from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.test import findpeak
@@ -27,13 +27,12 @@ def test_response_aluminum_EELS_RPA(in_tmp_dir, mpi):
     a = 4.043
     atoms = bulk('Al', 'fcc', a=a)
     atoms.center()
-    calc = GPAW(
+    calc = mpi.GPAW(
         mode=PW(200),
         nbands=4,
         kpts=(4, 4, 4),
         parallel={'band': 1},
-        xc='LDA',
-        communicator=mpi.comm)
+        xc='LDA')
 
     atoms.calc = calc
     atoms.get_potential_energy()
@@ -49,7 +48,7 @@ def test_response_aluminum_EELS_RPA(in_tmp_dir, mpi):
         nmaxperdim=2)
 
     # Calculate the wave functions on the new kpts grid
-    calc = GPAW('Al_gs.gpw', communicator=mpi.comm).fixed_density(
+    calc = mpi.GPAW('Al_gs.gpw').fixed_density(
         kpts=kpts, update_fermi_level=True)
     calc.write('Al.gpw', 'all')
 

@@ -3,7 +3,6 @@ from itertools import product
 import numpy as np
 import pytest
 
-from gpaw import GPAW
 from gpaw.mpi import world
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.kspair import KohnShamKPointPairExtractor
@@ -43,8 +42,7 @@ def test_parallel_extract_kptdata(in_tmp_dir, gpw_files, mpi,
     assert not serial_gs.is_parallelized()
 
     # Initialize parallel ground state adapter
-    calc = GPAW(gpw_files[wfs], parallel=dict(domain=1),
-                communicator=mpi.comm)
+    calc = mpi.GPAW(gpw_files[wfs], parallel=dict(domain=1))
     nbands = response_band_cutoff[wfs]
     parallel_gs = ResponseGroundStateAdapter(calc)
     assert parallel_gs.is_parallelized()

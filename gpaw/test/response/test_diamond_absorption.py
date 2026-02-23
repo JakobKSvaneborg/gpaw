@@ -3,7 +3,7 @@ import pytest
 from ase.build import bulk
 from ase.units import Bohr
 
-from gpaw import GPAW, FermiDirac
+from gpaw import FermiDirac
 from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.test import findpeak
 
@@ -20,14 +20,13 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode, mpi):
     a = 6.75 * Bohr
     atoms = bulk('C', 'diamond', a=a)
 
-    calc = GPAW(mode=mode,
-                legacy_gpaw=mode != 'pw',
-                kpts=(3, 3, 3),
-                nbands='nao' if mode == 'lcao' else None,
-                basis='dzp' if mode == 'lcao' else {},
-                eigensolver='rmm-diis' if mode == 'pw' else None,
-                occupations=FermiDirac(0.001), txt='out.txt',
-                communicator=mpi.comm)
+    calc = mpi.GPAW(mode=mode,
+                    legacy_gpaw=mode != 'pw',
+                    kpts=(3, 3, 3),
+                    nbands='nao' if mode == 'lcao' else None,
+                    basis='dzp' if mode == 'lcao' else {},
+                    eigensolver='rmm-diis' if mode == 'pw' else None,
+                    occupations=FermiDirac(0.001), txt='out.txt')
 
     atoms.calc = calc
     atoms.get_potential_energy()

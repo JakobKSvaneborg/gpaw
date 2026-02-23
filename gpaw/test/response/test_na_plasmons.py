@@ -1,7 +1,7 @@
 import pytest
 from ase import Atoms
 
-from gpaw import GPAW, PW
+from gpaw import PW
 from gpaw.mpi import world
 from gpaw.response.df import DielectricFunction
 from gpaw.test import findpeak
@@ -24,11 +24,10 @@ def test_response_na_plasmons(in_tmp_dir, scalapack, mpi):
                cell=(a, a, a),
                pbc=True)
 
-    a1.calc = GPAW(mode=PW(300),
-                   kpts={'size': (10, 10, 10), 'gamma': True},
-                   parallel={'band': 1},
-                   txt='small.txt',
-                   communicator=mpi.comm)
+    a1.calc = mpi.GPAW(mode=PW(300),
+                       kpts={'size': (10, 10, 10), 'gamma': True},
+                       parallel={'band': 1},
+                       txt='small.txt')
 
     a1.get_potential_energy()
     a1.calc.diagonalize_full_hamiltonian(nbands=20)

@@ -36,7 +36,7 @@ def parabolic_function(lambd: float, *, root: float):
 
 @pytest.mark.response
 @pytest.mark.parametrize('target', np.linspace(0.4, 2.4, 51))
-def test_find_root(target, mpi):
+def test_find_root(target):
     fnct = partial(parabolic_function, root=target)
 
     def is_converged(value):

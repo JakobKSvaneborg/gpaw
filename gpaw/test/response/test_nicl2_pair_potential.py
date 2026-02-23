@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 
-from gpaw import GPAW
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.matrix_elements import TransversePairPotentialCalculator
 from gpaw.response.pw_parallelization import block_partition
@@ -26,8 +25,7 @@ def test_nicl2_pair_potential(gpw_files, mpi):
     # ---------- Script ---------- #
 
     context = ResponseContext(comm=mpi.comm)
-    calc = GPAW(gpw_files[wfs], parallel=dict(domain=1), legacy_gpaw=True,
-                communicator=mpi.comm)
+    calc = mpi.GPAW(gpw_files[wfs], parallel=dict(domain=1), legacy_gpaw=True)
     gs = ResponseGroundStateAdapter(calc)
 
     # Set up extractor and transitions

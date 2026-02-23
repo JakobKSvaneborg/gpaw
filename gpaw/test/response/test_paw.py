@@ -21,7 +21,7 @@ from gpaw.sphere.rshe import calculate_reduced_rshe
     'symbol',
     ['H', 'Li', 'O', 'Si', 'Fe', 'Mo', 'In', 'I', 'Au', 'Hg', 'Pb',
      'La', 'Dy', 'Er'])
-def test_paw_corrections(symbol, mpi):
+def test_paw_corrections(symbol):
     setup = create_setup(symbol)
     radial_points = 2**10
     if setup.symbol in {'I', 'Hg', 'Pb'}:
@@ -36,7 +36,7 @@ def test_paw_corrections(symbol, mpi):
 
 
 @pytest.mark.response
-def test_paw_correction_consistency(gpw_files, mpi):
+def test_paw_correction_consistency(gpw_files):
     """Test consistency of the pair density PAW corrections."""
     gs = ResponseGroundStateAdapter.from_gpw_file(gpw_files['fe_pw'])
 
@@ -64,7 +64,7 @@ def test_paw_correction_consistency(gpw_files, mpi):
 
 @pytest.mark.response
 @pytest.mark.serial
-def test_site_paw_correction_consistency(gpw_files, mpi):
+def test_site_paw_correction_consistency(gpw_files):
     """Test consistency of generalized matrix elements."""
     gs = ResponseGroundStateAdapter.from_gpw_file(gpw_files['fe_pw'])
 

@@ -2,8 +2,7 @@ import numpy as np
 import pytest
 from ase import Atoms
 
-from gpaw import GPAW, PW, FermiDirac, Mixer
-from gpaw.mpi import world
+from gpaw import PW, FermiDirac, Mixer
 from gpaw.response.df import DielectricFunction
 from gpaw.response.symmetry import QSymmetryAnalyzer
 from gpaw.utilities import compiled_with_sl
@@ -45,12 +44,11 @@ def test_response_graphene(in_tmp_dir, mpi):
         DFsettings.append({'qsymmetry': True, 'nblocks': 2})
 
     for GSkwargs in GSsettings:
-        calc = GPAW(mode=PW(200),
-                    occupations=FermiDirac(0.2),
-                    mixer=Mixer(0.4),
-                    convergence={'eigenstates': 1e-4, 'density': 1e-3},
-                    communicator=mpi.comm,
-                    **GSkwargs)
+        calc = mpi.GPAW(mode=PW(200),
+                        occupations=FermiDirac(0.2),
+                        mixer=Mixer(0.4),
+                        convergence={'eigenstates': 1e-4, 'density': 1e-3},
+                        **GSkwargs)
 
         atoms.calc = calc
         atoms.get_potential_energy()

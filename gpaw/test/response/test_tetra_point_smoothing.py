@@ -3,7 +3,7 @@ import pytest
 from ase import Atoms
 from scipy.ndimage import gaussian_filter1d
 
-from gpaw import GPAW, PW, FermiDirac
+from gpaw import PW, FermiDirac
 from gpaw.bztools import optimal_monkhorst_pack_grid
 from gpaw.response.df import DielectricFunction
 from gpaw.test import findpeak
@@ -28,11 +28,10 @@ def test_point_tetra_match(in_tmp_dir, mpi):
 
     atoms.center(axis=2)
 
-    calc = GPAW(
+    calc = mpi.GPAW(
         mode=PW(400),
         kpts={'density': 10.0, 'gamma': True},
-        occupations=FermiDirac(0.1),
-        communicator=mpi.comm)
+        occupations=FermiDirac(0.1))
 
     atoms.calc = calc
     atoms.get_potential_energy()
@@ -46,7 +45,7 @@ def test_point_tetra_match(in_tmp_dir, mpi):
         contains_ibz_vertices=True,
         nmaxperdim=2)
 
-    responseGS = GPAW(gs_file, communicator=mpi.comm).fixed_density(
+    responseGS = mpi.GPAW(gs_file).fixed_density(
         kpts=kpts,
         parallel={'band': 1},
         nbands=20,

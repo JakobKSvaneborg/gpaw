@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from ase import Atoms
 
-from gpaw import GPAW, PW
+from gpaw import PW
 from gpaw.response.df import DielectricFunction
 from gpaw.response.symmetry import QSymmetryAnalyzer
 from gpaw.test import findpeak
@@ -33,22 +33,20 @@ def test_response_na_plasmon(in_tmp_dir, mpi):
                cell=(2 * a, a, a),
                pbc=True)
 
-    a1.calc = GPAW(mode=PW(250),
-                   kpts={'size': (4, 4, 4), 'gamma': True},
-                   parallel=parallel,
-                   convergence={'density': 1e-6},
-                   communicator=mpi.comm,
-                   # txt='small.txt',
-                   )
+    a1.calc = mpi.GPAW(mode=PW(250),
+                       kpts={'size': (4, 4, 4), 'gamma': True},
+                       parallel=parallel,
+                       convergence={'density': 1e-6},
+                       # txt='small.txt',
+                       )
 
     # Kpoint sampling should be halved in the expanded direction.
-    a2.calc = GPAW(mode=PW(250),
-                   kpts={'size': (2, 4, 4), 'gamma': True},
-                   parallel=parallel,
-                   convergence={'density': 1e-6},
-                   communicator=mpi.comm,
-                   # txt='large.txt',
-                   )
+    a2.calc = mpi.GPAW(mode=PW(250),
+                       kpts={'size': (2, 4, 4), 'gamma': True},
+                       parallel=parallel,
+                       convergence={'density': 1e-6},
+                       # txt='large.txt',
+                       )
 
     a1.get_potential_energy()
     a2.get_potential_energy()

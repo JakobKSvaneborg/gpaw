@@ -7,7 +7,7 @@ import pytest
 from ase import Atoms
 from ase.dft.kpoints import monkhorst_pack
 
-from gpaw import GPAW, PW
+from gpaw import PW
 from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator
 from gpaw.response.context import ResponseContext
@@ -70,16 +70,15 @@ def test_response_afm_hchain_gssALDA(in_tmp_dir, from_file, mpi):
     Hchain = Hatom.repeat((2, 1, 1))
     Hchain.set_initial_magnetic_moments([mm, -mm])
 
-    calc = GPAW(xc=xc,
-                mode=PW(pw,
-                        # Interpolate the density in real space
-                        interpolation=3),
-                kpts=monkhorst_pack((kpts, 1, 1)),
-                nbands=nbands + ebands,
-                convergence=conv,
-                symmetry={'point_group': True},
-                parallel={'domain': 1},
-                communicator=mpi.comm)
+    calc = mpi.GPAW(xc=xc,
+                    mode=PW(pw,
+                            # Interpolate the density in real space
+                            interpolation=3),
+                    kpts=monkhorst_pack((kpts, 1, 1)),
+                    nbands=nbands + ebands,
+                    convergence=conv,
+                    symmetry={'point_group': True},
+                    parallel={'domain': 1})
 
     Hchain.calc = calc
     Hchain.get_potential_energy()

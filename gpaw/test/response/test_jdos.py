@@ -42,8 +42,7 @@ def test_jdos(in_tmp_dir, gpw_files, mpi, system, qrel):
     # ---------- Script ---------- #
 
     # Set up the ground state adapter based on the fixture
-    calc = GPAW(gpw_files[wfs], parallel=dict(domain=1),
-                communicator=mpi.comm)
+    calc = mpi.GPAW(gpw_files[wfs], parallel=dict(domain=1))
     nbands = response_band_cutoff[wfs]
     gs = ResponseGroundStateAdapter(calc)
 
@@ -60,13 +59,13 @@ def test_jdos(in_tmp_dir, gpw_files, mpi, system, qrel):
         for bandsummation in bandsummation_b:
             for nblocks in nblocks_n:
                 jdos_calc = JDOSCalculator(
-                                           gs,
-                                           context=ResponseContext(
-                                               comm=mpi.comm),
-                                           nbands=nbands,
-                                           qsymmetry=qsymmetry,
-                                           bandsummation=bandsummation,
-                                           nblocks=nblocks)
+                    gs,
+                    context=ResponseContext(
+                        comm=mpi.comm),
+                    nbands=nbands,
+                    qsymmetry=qsymmetry,
+                    bandsummation=bandsummation,
+                    nblocks=nblocks)
                 jdos = jdos_calc.calculate(spincomponent, q_c, zd)
                 jdos_w = jdos.array
                 assert jdos_w == pytest.approx(jdosref_w)

@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from ase import Atoms
 
-from gpaw import GPAW, PW
+from gpaw import PW
 from gpaw.response.bse import BSE
 
 
@@ -12,10 +12,9 @@ def test_bse_spinpol(in_tmp_dir, scalapack, mpi):
     # Somewhat surprising for a test to be serial *and* require scalapack?
     atoms = Atoms('H', magmoms=[1], pbc=True)
     atoms.center(vacuum=1.5)
-    atoms.calc = GPAW(mode=PW(180, force_complex_dtype=True),
-                      nbands=6,
-                      communicator=mpi.comm,
-                      convergence={'bands': 4})
+    atoms.calc = mpi.GPAW(mode=PW(180, force_complex_dtype=True),
+                          nbands=6,
+                          convergence={'bands': 4})
     atoms.get_potential_energy()
 
     gw_kn = np.zeros((1, 4))

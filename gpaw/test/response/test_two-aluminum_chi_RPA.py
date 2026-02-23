@@ -5,7 +5,7 @@ import pytest
 from ase.build import bulk
 from ase.parallel import parprint
 
-from gpaw import GPAW, PW
+from gpaw import PW
 from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator
 from gpaw.response.context import ResponseContext
@@ -27,32 +27,30 @@ def test_response_two_aluminum_chi_RPA(in_tmp_dir, mpi):
     atoms1 = bulk('Al', 'fcc', a=a)
     atoms2 = atoms1.repeat((2, 1, 1))
 
-    calc1 = GPAW(mode=PW(200),
-                 nbands=12,
-                 gpts=(12, 12, 12),
-                 kpts=(8, 8, 8),
-                 convergence={'density': 1e-5,
-                              'eigenstates': 1e-7,
-                              'bands': 8},
-                 parallel={'domain': 1},
-                 xc='LDA',
-                 communicator=mpi.comm)
+    calc1 = mpi.GPAW(mode=PW(200),
+                     nbands=12,
+                     gpts=(12, 12, 12),
+                     kpts=(8, 8, 8),
+                     convergence={'density': 1e-5,
+                                  'eigenstates': 1e-7,
+                                  'bands': 8},
+                     parallel={'domain': 1},
+                     xc='LDA')
 
     atoms1.calc = calc1
     atoms1.get_potential_energy()
 
     t2 = time.time()
 
-    calc2 = GPAW(mode=PW(200),
-                 nbands=24,
-                 gpts=(24, 12, 12),
-                 kpts=(4, 8, 8),
-                 convergence={'density': 1e-5,
-                              'eigenstates': 1e-7,
-                              'bands': 16},
-                 parallel={'domain': 1},
-                 xc='LDA',
-                 communicator=mpi.comm)
+    calc2 = mpi.GPAW(mode=PW(200),
+                     nbands=24,
+                     gpts=(24, 12, 12),
+                     kpts=(4, 8, 8),
+                     convergence={'density': 1e-5,
+                                  'eigenstates': 1e-7,
+                                  'bands': 16},
+                     parallel={'domain': 1},
+                     xc='LDA')
 
     atoms2.calc = calc2
     atoms2.get_potential_energy()

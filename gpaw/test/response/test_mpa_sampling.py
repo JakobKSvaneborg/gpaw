@@ -4,7 +4,7 @@ from gpaw.response.mpa_sampling import mpa_frequency_sampling
 
 
 @pytest.mark.response
-def test_mpa_sampling_errors(mpi):
+def test_mpa_sampling_errors():
     with pytest.raises(ValueError):
         mpa_frequency_sampling(2, wrange=[0, 0], varpi=1,
                                eta0=0.1, eta_rest=0.1, parallel_lines=3,
@@ -16,7 +16,7 @@ def test_mpa_sampling_errors(mpi):
 
 
 @pytest.mark.response
-def test_mpa_sampling_1pole(mpi):
+def test_mpa_sampling_1pole():
     # print("npol=1, parallel_lines=1, w1=0.1j, w2=1j, alpha=1:")
     with pytest.raises(AssertionError):
         mpa_frequency_sampling(1, wrange=[0, 0], varpi=1,
@@ -31,7 +31,7 @@ def test_mpa_sampling_1pole(mpi):
 
 
 @pytest.mark.response
-def test_mpa_sampling_2poles(mpi):
+def test_mpa_sampling_2poles():
     w_grid = mpa_frequency_sampling(2, wrange=[0, 1], varpi=1,
                                     eta0=0.1, eta_rest=0.1, parallel_lines=2,
                                     alpha=1)
@@ -52,7 +52,7 @@ def test_mpa_sampling_2poles(mpi):
 
 
 @pytest.mark.response
-def test_mpa_sampling_multiple_poles(mpi):
+def test_mpa_sampling_multiple_poles():
     # print("npol=3, parallel_lines=2, w1=0+1j, w2=2+1j, alpha=1:")
     w_grid = mpa_frequency_sampling(3, wrange=[0, 2], varpi=1,
                                     eta0=0.01, eta_rest=0.1)

@@ -8,7 +8,7 @@ from gpaw.response.heisenberg import (calculate_fm_magnon_energies,
 
 
 @pytest.mark.ci
-def test_single_site_magnons(mpi):
+def test_single_site_magnons():
     """Check the single site magnon dispersion functionality."""
     rng = get_rng()
     # ---------- Inputs ---------- #
@@ -44,7 +44,7 @@ def test_single_site_magnons(mpi):
 
 
 @pytest.mark.ci
-def test_single_site_magnons_consistency(mpi):
+def test_single_site_magnons_consistency():
     """Check that the generalized magnon dispersion calculation is consistent
     for a single site system with the simple analytical formula valid in that
     case."""
@@ -78,7 +78,7 @@ def test_single_site_magnons_consistency(mpi):
 
 
 @pytest.mark.ci
-def test_fm_random_magnons(mpi):
+def test_fm_random_magnons():
     """Check that the functionality to calculate the magnon dispersion of a
     ferromagnetic system with multiple sites works for a randomized system with
     three sites."""
@@ -118,7 +118,7 @@ def test_fm_random_magnons(mpi):
 
 
 @pytest.mark.ci
-def test_fm_vectorized_magnons(mpi):
+def test_fm_vectorized_magnons():
     """Check that the functionality to calculate the magnon dispersion of a
     ferromagnetic system with multiple sites works when supplying multiple
     sets of parameters for the same two-site systems."""
