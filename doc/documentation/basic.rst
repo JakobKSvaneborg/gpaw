@@ -919,15 +919,15 @@ Hamiltonian is the PPCG method, (``eigensolver='ppcg'``), which
 seems to perform well in most cases. Sometimes more efficient/stable
 convergence can be obtained with a different eigensolver. One option is the
 RMM-DIIS (Residual minimization method - direct inversion in iterative
-subspace), (``eigensolver='rmm-diis'``), which performs well when only a few
-unoccupied states are calculated.
+subspace), (``eigensolver='rmm-diis'``). This eigensolver is particualarly
+usefull if only a few unoccupied states are calculated.
 
 More control can be obtained by specifying parameters in a dict::
 
   calc = GPAW(...,
               eigensolver={
                   'name': 'rmm-diis',
-                  'diis-steps': 3',
+                  'diis-steps': 3,
                   'niter': 2},
               ...)
 

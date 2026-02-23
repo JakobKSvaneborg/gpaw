@@ -24,10 +24,14 @@ certain systems.
    Example::
 
        mixer={'beta': 0.04,  # Reducing or increasing beta
-              'mixer': 'difference',  # Changing the spin-driver
+              'method': 'difference',  # Changing the spin-driver
               'nmaxold': 8,  # Reducing or increasing the history
               'weight': 100,  # Changing the damping term
        }
+
+Note that the above example show the possible changes to try, however, a
+combination of the above and default parameters is likely to be the
+optimimal choice for your system.
 
 3) Solve the eigenvalue problem more accurately at each scf-step (PW- and
 FD-mode specific). This can be easily achieved by allowing the eigensolver
