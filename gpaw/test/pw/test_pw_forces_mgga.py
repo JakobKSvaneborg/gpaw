@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-from ase.io.ulm import ulmopen
 from ase.parallel import parprint
 from ase import Atom, Atoms
 
@@ -24,7 +23,7 @@ def test_pw_forces_mgga(gpaw_new):
     assert pytest.approx(f_test) != [0., 0., 0.]
     # Pre-calculated forces:
     f_revTPSS = np.array([[-0.10154195, -0.20316854, -0.17164669],
-                          [ 0.10132630,  0.20300123,  0.17154444]])
+                          [0.10132630, 0.20300123, 0.17154444]])
 
     f_err = f_test - f_revTPSS
 
