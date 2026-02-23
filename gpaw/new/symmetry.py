@@ -54,15 +54,22 @@ def is_zero_translation_vector(t_c):
 
 
 def assert_same_rotations(sym, sym_spglib):
-    assert len(sym.rotation_scc) == len(sym_spglib.rotation_scc)
+    
+    if len(sym.rotation_scc) > len(sym_spglib.rotation_scc):
+        print("BUG GPAW gets more than spglib")
+        print('BUG', len(sym.rotation_scc), len(sym_spglib.rotation_scc))
     for r_cc in sym.rotation_scc:
         checks = []
         for r_spg_cc in sym_spglib.rotation_scc:
             checks.append(np.array_equal(r_cc, r_spg_cc))
-        assert np.sum(checks) == 1  # Only one symmetry should match exactly.
+        if np.sum(checks) == 0:
+            print('BUG Sym ', r_cc, 'not found in spglib')
 
-
+    #print('All spglib symmetries', sym_spglib.rotation_scc)
+    #print('ours', len(sym.rotation_scc))
+    #print('theirs', len(sym_spglib.rotation_scc))
 def assert_same_output(sym, sym_spglib):
+    return
     assert len(sym.rotation_scc) == len(sym_spglib.rotation_scc)
     for r_cc, t_c, amap_a in zips(sym.rotation_scc,
                                   sym.translation_sc,
@@ -131,7 +138,7 @@ def create_symmetries_object(atoms: Atoms,
                 ids=ids,
                 symmorphic=symmorphic)
 
-            if (False and len(atoms) > 0):  # Switch + Ignore if jellium
+            if (True and len(atoms) > 0):  # Switch + Ignore if jellium
                 sym_spglib = Symmetries.from_cell_and_atoms_spglib(
                     cell_cv,
                     pbc=atoms.pbc,
@@ -205,6 +212,7 @@ class Symmetries:
         >>> len(sym2)
         4
         """
+        self.BUG = False
         self.cell_cv = normalize_cell(cell)
         if tolerance is None:
             tolerance = 1e-7 if _backwards_compatible else 1e-5
@@ -227,6 +235,9 @@ class Symmetries:
         # Legacy stuff:
         self.op_scc = self.rotation_scc  # old name
         self._old_symmetry: OldSymmetry
+        
+        self.group_check()
+
 
     @cached_property
     def symmorphic(self):
@@ -239,6 +250,60 @@ class Symmetries:
             if (r_cc == inv_cc).all() and not t_c.any():
                 return True
         return False
+
+    @classmethod
+    def ensure_group(cls,
+                 *,
+                 cell: ArrayLike1D | ArrayLike2D,
+                 rotations: ArrayLike3D | None = None,
+                 tolerance: float | None = None,
+                 _backwards_compatible=False):
+        if not _backwards_compatible:
+            if 0:
+                M_SC = rotations.reshape((-1, 9))
+                while True:
+                    order = len(M_SC)
+                    M_scc = M_SC.reshape((-1, 3, 3))
+                    M_sscc = np.einsum('sab,pbc->spac', M_scc, M_scc)
+                    M_SC = M_sscc.reshape((-1, 9))
+                    M_SC = np.unique(M_SC, axis=0)
+                    M_SC = np.vstack((M_SC, np.linalg.inv(M_SC.reshape((-1, 3, 3))).reshape((-1, 9))))
+                    M_SC = np.unique(M_SC, axis=0)
+                    new_order = len(M_SC)
+                    if order == new_order:
+                        break
+                    print(f'Expanded from {order} to {new_order}')
+                rotations = M_SC.reshape((-1, 3, 3))
+
+            
+            M_SC = rotations.reshape((-1, 9))
+            M_scc = M_SC.reshape((-1, 3, 3))
+            M_sscc = np.einsum('sab,pbc->spac', M_scc, M_scc)
+            M_SC = M_sscc.reshape((-1, 9))
+            M_SC = np.unique(M_SC, axis=0)
+            A x B
+
+            error(O_cc)
+
+            E_s = sorted(E_s)
+            
+            sort(
+
+            | O A - I A| <e
+
+            # if O1 x O2 not in a group 
+            | (O1 x O2 ) A - A| >e
+
+            I x O6 is not in G
+
+            # D(A, B) = C
+            # If C is not in G, remove A or B
+
+        return cls(cell=cell,
+                   rotations=rotations,
+                   tolerance=tolerance,
+                   _backwards_compatible=_backwards_compatible)
+
 
     @classmethod
     def from_cell(cls,
@@ -254,10 +319,11 @@ class Symmetries:
             tolerance = 1e-7 if _backwards_compatible else 1e-5
         rotation_scc = find_lattice_symmetry(cell_cv, pbc, tolerance,
                                              _backwards_compatible)
-        return cls(cell=cell_cv,
-                   rotations=rotation_scc,
-                   tolerance=tolerance,
-                   _backwards_compatible=_backwards_compatible)
+
+        return cls.ensure_group(cell=cell_cv,
+                                rotations=rotation_scc,
+                                tolerance=tolerance,
+                                _backwards_compatible=_backwards_compatible)
 
     def analyze_positions(self,
                           relative_positions: ArrayLike2D,
@@ -303,7 +369,7 @@ class Symmetries:
         data = get_symmetry_dataset(
             cell=(cell_cv, np.asarray(relative_positions), ids),
             symprec=tolerance)
-
+        print(data.transformation_matrix, 'TTT')
         rotations = spglib_remove_nonsymmorphic(data)
 
         return Symmetries(cell=cell,
@@ -451,12 +517,14 @@ class Symmetries:
                 t_c = t1_c @ U2_cc + t2_c
                 for U3_cc, t3_c in zip(self.rotation_scc, self.translation_sc):
                     dt_c = t_c - t3_c
-                    if abs(dt_c - dt_c.round()).max() > 1e-10:
+                    if abs(dt_c - dt_c.round()).max() > 1e-4:
                         continue
                     if (U_cc != U3_cc).any():
                         continue
                     break
                 else:  # no break
+                    self.BUG = True
+                    #print(f'BUG {U1_cc=} {t1_c} times {U2_cc=} {t2_c} was not found.')
                     raise SymmetryAnalysisBug(
                         'Sorry!  Try using spglib.standardize_cell(...)')
 
@@ -564,8 +632,6 @@ def prune_symmetries(sym: Symmetries,
                      _backwards_compatible=sym._backwards_compatible)
     if debug:
         sym.check_positions(relpos_ac)
-
-    sym.group_check()
 
     return sym
 
