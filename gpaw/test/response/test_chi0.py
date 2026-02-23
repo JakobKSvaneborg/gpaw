@@ -12,7 +12,7 @@ from gpaw.response.frequencies import FrequencyDescriptor
 
 @pytest.mark.response
 @pytest.mark.slow
-def test_response_chi0(in_tmp_dir):
+def test_response_chi0(in_tmp_dir, mpi):
     # inputs to loop over [k, gamma, center, sym]
     settings = product([2, 3], *[[False, True]] * 3)
 

@@ -5,7 +5,7 @@ from gpaw.response.kpoints import KPointFinder
 
 
 @pytest.mark.parametrize('Nk', [10, 101, 128])
-def test_kpoint_finder_rounding_stability(Nk):
+def test_kpoint_finder_rounding_stability(Nk, mpi):
     """
     Test that KpointFinder is robust against rounding errors.
     Previous version would fail with e.g. Nk = 128

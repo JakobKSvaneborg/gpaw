@@ -7,11 +7,12 @@ from ase.build import bulk
 from gpaw import GPAW, PW, FermiDirac
 from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
+from gpaw.response.context import ResponseContext
 
 
 @pytest.mark.response
 @pytest.mark.serial
-def test_si_update_consistency(in_tmp_dir):
+def test_si_update_consistency(in_tmp_dir, mpi):
     """Test that we get consistent results, when calculating
     chi0 in one or multiple calls to update_chi0."""
 
@@ -39,7 +40,8 @@ def test_si_update_consistency(in_tmp_dir):
                 kpts=(kpts, kpts, kpts),
                 parallel={'domain': 1},
                 occupations=FermiDirac(width=occw),
-                xc=xc)
+                xc=xc,
+                communicator=mpi.comm)
 
     atoms.calc = calc
     atoms.get_potential_energy()
@@ -47,7 +49,9 @@ def test_si_update_consistency(in_tmp_dir):
 
     # Response calculation
     gs = ResponseGroundStateAdapter.from_gpw_file('Si')
-    chi0 = Chi0Calculator(gs, wd=get_frequency_descriptor(gs=gs),
+    chi0 = Chi0Calculator(gs,
+                          context=ResponseContext(comm=mpi.comm),
+                          wd=get_frequency_descriptor(gs=gs),
                           hilbert=True, intraband=False)
 
     chi0_full = chi0.create_chi0(q_c)

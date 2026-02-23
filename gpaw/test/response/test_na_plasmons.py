@@ -17,7 +17,7 @@ pytestmark = pytest.mark.skipif(world.size < 4, reason='world.size < 4')
 @pytest.mark.dielectricfunction
 @pytest.mark.response
 @pytest.mark.slow
-def test_response_na_plasmons(in_tmp_dir, scalapack):
+def test_response_na_plasmons(in_tmp_dir, scalapack, mpi):
     a = 4.23 / 2.0
     a1 = Atoms('Na',
                scaled_positions=[[0, 0, 0]],
@@ -27,7 +27,8 @@ def test_response_na_plasmons(in_tmp_dir, scalapack):
     a1.calc = GPAW(mode=PW(300),
                    kpts={'size': (10, 10, 10), 'gamma': True},
                    parallel={'band': 1},
-                   txt='small.txt')
+                   txt='small.txt',
+                   communicator=mpi.comm)
 
     a1.get_potential_energy()
     a1.calc.diagonalize_full_hamiltonian(nbands=20)
@@ -38,7 +39,8 @@ def test_response_na_plasmons(in_tmp_dir, scalapack):
                              nblocks=1,
                              ecut=40,
                              rate=0.001,
-                             txt='1block.txt')
+                             txt='1block.txt',
+                             world=mpi.comm)
 
     df1NLFCx, df1LFCx = df1.get_dielectric_function(direction='x')
 
@@ -46,7 +48,8 @@ def test_response_na_plasmons(in_tmp_dir, scalapack):
                              nblocks=4,
                              ecut=40,
                              rate=0.001,
-                             txt='4block.txt')
+                             txt='4block.txt',
+                             world=mpi.comm)
 
     df2NLFCx, df2LFCx = df2.get_dielectric_function(direction='x')
 

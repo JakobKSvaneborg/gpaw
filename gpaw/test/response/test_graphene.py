@@ -15,7 +15,7 @@ from gpaw.utilities import compiled_with_sl
 @pytest.mark.dielectricfunction
 @pytest.mark.response
 @pytest.mark.slow
-def test_response_graphene(in_tmp_dir):
+def test_response_graphene(in_tmp_dir, mpi):
     a = 2.5
     c = 3.22
 
@@ -41,7 +41,7 @@ def test_response_graphene(in_tmp_dir):
         for pointgroup in [False, True]
         for timerev in [False, True]]
 
-    if world.size > 1 and compiled_with_sl():
+    if mpi.comm.size > 1 and compiled_with_sl():
         DFsettings.append({'qsymmetry': True, 'nblocks': 2})
 
     for GSkwargs in GSsettings:
@@ -49,6 +49,7 @@ def test_response_graphene(in_tmp_dir):
                     occupations=FermiDirac(0.2),
                     mixer=Mixer(0.4),
                     convergence={'eigenstates': 1e-4, 'density': 1e-3},
+                    communicator=mpi.comm,
                     **GSkwargs)
 
         atoms.calc = calc
@@ -63,9 +64,10 @@ def test_response_graphene(in_tmp_dir):
                                     eta=0.2,
                                     ecut=15.0,
                                     rate=0.001,
+                                    world=mpi.comm,
                                     **kwargs)
             df1, df2 = DF.get_dielectric_function()
-            if world.rank == 0:
+            if mpi.comm.rank == 0:
                 dfs.append(df1)
 
         # Check the calculated dielectric functions against

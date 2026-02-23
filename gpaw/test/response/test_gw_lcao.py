@@ -5,12 +5,13 @@ from gpaw.response.g0w0 import G0W0
 @pytest.mark.ci
 @pytest.mark.response
 @pytest.mark.old_gpaw_only
-def test_lcao_gw(in_tmp_dir, gpw_files):
+def test_lcao_gw(in_tmp_dir, gpw_files, mpi):
     gw = G0W0(gpw_files['diamond_lcao'],
               integrate_gamma='WS',
               ecut=100,
               eta=0.1,
-              bands=(0, 8))
+              bands=(0, 8),
+              world=mpi.comm)
     res = gw.calculate()
 
     qp = res['qp']

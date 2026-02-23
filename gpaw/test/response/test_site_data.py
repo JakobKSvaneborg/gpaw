@@ -15,7 +15,7 @@ from gpaw.sphere.integrate import integrate_lebedev
 
 
 @pytest.mark.response
-def test_Fe_site_magnetization(gpw_files):
+def test_Fe_site_magnetization(gpw_files, mpi):
     # Set up ground state adapter
     calc = GPAW(gpw_files['fe_pw'], parallel=dict(domain=1))
     gs = ResponseGroundStateAdapter(calc)
@@ -83,7 +83,7 @@ def test_Fe_site_magnetization(gpw_files):
 
 
 @pytest.mark.response
-def test_Co_site_data(gpw_files):
+def test_Co_site_data(gpw_files, mpi):
     # Set up ground state adapter
     calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
     gs = ResponseGroundStateAdapter(calc)
@@ -170,7 +170,7 @@ def test_Co_site_data(gpw_files):
 
 
 @pytest.mark.response
-def test_valid_site_radii_symmetry():
+def test_valid_site_radii_symmetry(mpi):
     # Set up Cr2O3 crystal
     cellpar = [4.95721, 4.95721, 13.59170, 90, 90, 120]
     Cr_c = [0, 0, 0.34734]

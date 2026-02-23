@@ -14,6 +14,7 @@ from gpaw import GPAW
 from gpaw.mpi import world
 from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator
+from gpaw.response.context import ResponseContext
 from gpaw.response.fxc_kernels import AdiabaticFXCCalculator
 from gpaw.response.pair_functions import read_pair_function
 from gpaw.response.susceptibility import ChiFactory
@@ -25,7 +26,7 @@ pytestmark = pytest.mark.skipif(world.size < 4, reason='world.size < 4')
 
 @pytest.mark.kspair
 @pytest.mark.response
-def test_response_iron_sf_ALDA(in_tmp_dir, gpw_files, scalapack):
+def test_response_iron_sf_ALDA(in_tmp_dir, gpw_files, scalapack, mpi):
     # ---------- Inputs ---------- #
 
     # Magnetic response calculation
@@ -54,7 +55,8 @@ def test_response_iron_sf_ALDA(in_tmp_dir, gpw_files, scalapack):
 
     # ---------- Script ---------- #
 
-    calc = GPAW(gpw_files['fe_pw'], parallel=dict(domain=1))
+    calc = GPAW(gpw_files['fe_pw'], parallel=dict(domain=1),
+                communicator=mpi.comm)
     nbands = response_band_cutoff['fe_pw']
     gs = ResponseGroundStateAdapter(calc)
 
@@ -62,6 +64,7 @@ def test_response_iron_sf_ALDA(in_tmp_dir, gpw_files, scalapack):
             frq_w) in enumerate(zip(strat_sd, frq_sw)):
         complex_frequencies = frq_w + 1.j * eta
         chiks_calc = ChiKSCalculator(gs,
+                                     context=ResponseContext(comm=mpi.comm),
                                      nbands=nbands,
                                      ecut=ecut,
                                      bandsummation=bandsummation,
@@ -76,7 +79,7 @@ def test_response_iron_sf_ALDA(in_tmp_dir, gpw_files, scalapack):
         chi.write_macroscopic_component('iron_dsus' + '_G%d.csv' % (s + 1))
         chi_factory.context.write_timer()
 
-    world.barrier()
+    mpi.comm.barrier()
 
     # Identify magnon peak in scattering functions
     w1_w, chi1_w = read_pair_function('iron_dsus_G1.csv')

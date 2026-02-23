@@ -8,7 +8,7 @@ from gpaw.response.mpa_sampling import mpa_frequency_sampling
 from .mpa_interpolation_scalar import Xeval, mpa_R_fit, mpa_RE_solver
 
 
-def test_pole_reduction(in_tmp_dir):
+def test_pole_reduction(in_tmp_dir, mpi):
     npols, npol_fit = 1, 2
     rng = np.random.default_rng(seed=42)
     Omega_p = rng.random(npols) * 0.05 + 5.5 - 0.01j
@@ -51,7 +51,7 @@ def test_pole_reduction(in_tmp_dir):
         plt.show()
 
 
-def test_residue_fit_1pole(in_tmp_dir):
+def test_residue_fit_1pole(in_tmp_dir, mpi):
     npols, npr, w, x, E = (
         1,
         1,
@@ -68,7 +68,7 @@ def test_residue_fit_1pole(in_tmp_dir):
     assert np.allclose(R, R_vec)
 
 
-def test_residue_fit(in_tmp_dir):
+def test_residue_fit(in_tmp_dir, mpi):
     npols, npr, w, x, E = (
         2,
         2,
@@ -92,7 +92,7 @@ def test_residue_fit(in_tmp_dir):
     assert np.allclose(R, R_vec[:, 0, 0])
 
 
-def test_ppa(in_tmp_dir):
+def test_ppa(in_tmp_dir, mpi):
     nG = 120
     rng = np.random.default_rng(seed=42)
     X_wGG = (2 * (rng.random((2, nG, nG)) - 0.5) + 1j *
@@ -124,7 +124,7 @@ def test_ppa(in_tmp_dir):
     print('speedup', serial_time / vectorized_time)
 
 
-def test_mpa(in_tmp_dir):
+def test_mpa(in_tmp_dir, mpi):
     nG = 8
     omega_w = np.array([0, 1j, 2. + 0.01j, 2. + 1j])
     nw = len(omega_w)

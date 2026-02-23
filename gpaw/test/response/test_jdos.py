@@ -6,9 +6,10 @@ import pytest
 # Script modules
 from ase.units import Hartree
 
-import gpaw.mpi as mpi
+from gpaw.mpi import serial_comm
 from gpaw import GPAW
 from gpaw.response import ResponseGroundStateAdapter
+from gpaw.response.context import ResponseContext
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.jdos import JDOSCalculator
 from gpaw.response.kpoints import KPointFinder
@@ -21,7 +22,7 @@ from gpaw.test.response.test_chiks import (generate_nblocks_n, generate_qrel_q,
 @pytest.mark.kspair
 @pytest.mark.parametrize('system,qrel',
                          product(generate_system_s(), generate_qrel_q()))
-def test_jdos(in_tmp_dir, gpw_files, system, qrel):
+def test_jdos(in_tmp_dir, gpw_files, mpi, system, qrel):
     # ---------- Inputs ---------- #
 
     # What material, spin-component and q-vector to calculate the jdos for
@@ -41,12 +42,13 @@ def test_jdos(in_tmp_dir, gpw_files, system, qrel):
     # ---------- Script ---------- #
 
     # Set up the ground state adapter based on the fixture
-    calc = GPAW(gpw_files[wfs], parallel=dict(domain=1))
+    calc = GPAW(gpw_files[wfs], parallel=dict(domain=1),
+                communicator=mpi.comm)
     nbands = response_band_cutoff[wfs]
     gs = ResponseGroundStateAdapter(calc)
 
     # Calculate the jdos manually
-    serial_calc = GPAW(gpw_files[wfs], communicator=mpi.serial_comm)
+    serial_calc = GPAW(gpw_files[wfs], communicator=serial_comm)
     jdos_refcalc = MyManualJDOS(serial_calc)
     jdosref_w = jdos_refcalc.calculate(spincomponent, q_c,
                                        omega_w,
@@ -57,7 +59,10 @@ def test_jdos(in_tmp_dir, gpw_files, system, qrel):
     for qsymmetry in qsymmetry_s:
         for bandsummation in bandsummation_b:
             for nblocks in nblocks_n:
-                jdos_calc = JDOSCalculator(gs,
+                jdos_calc = JDOSCalculator(
+                                           gs,
+                                           context=ResponseContext(
+                                               comm=mpi.comm),
                                            nbands=nbands,
                                            qsymmetry=qsymmetry,
                                            bandsummation=bandsummation,

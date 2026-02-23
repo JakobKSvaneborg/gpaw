@@ -13,7 +13,7 @@ from gpaw.response.screened_interaction import (GammaIntegrationMode,
 
 
 @pytest.mark.response
-def test_Wsymm(in_tmp_dir, scalapack):
+def test_Wsymm(in_tmp_dir, scalapack, mpi):
     def calc_gs(symm):
         k = 2
         cell = bulk('Ga', 'fcc', a=5.68).cell

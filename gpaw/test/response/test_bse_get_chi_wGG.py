@@ -8,12 +8,13 @@ from gpaw.response.bse import BSE
 
 @pytest.mark.response
 @pytest.mark.parametrize('tda', [False, True])
-def test_bse_plus(tda, in_tmp_dir, scalapack):
+def test_bse_plus(tda, in_tmp_dir, scalapack, mpi):
     calc = GPAW(mode='pw',
                 kpts={'size': (2, 2, 2), 'gamma': True},
                 occupations=FermiDirac(0.01),
                 nbands=8,
                 symmetry='off',
+                communicator=mpi.comm,
                 convergence={'bands': -4, 'density': 1e-7,
                              'eigenstates': 1e-10})
 
@@ -32,7 +33,8 @@ def test_bse_plus(tda, in_tmp_dir, scalapack):
               eshift=0,
               mode='BSE',
               nbands=8,
-              q_c=[0.0, 0.0, 0.0])
+              q_c=[0.0, 0.0, 0.0],
+              comm=mpi.comm)
 
     chi_irr_bse = bse.get_chi_wGG(eta=0.2, optical=True, irreducible=True,
                                   w_w=np.array([-3, 0, 6]))

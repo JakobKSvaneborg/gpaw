@@ -6,7 +6,7 @@ import pytest
 # Script modules
 from ase.units import Ha
 
-import gpaw.mpi as mpi
+from gpaw.mpi import serial_comm
 from gpaw import GPAW
 from gpaw.atom.radialgd import AERadialGridDescriptor
 from gpaw.lfc import LFC
@@ -54,7 +54,7 @@ def ae_1s_density_plane_waves(pd, R_v, a=1.0):
 
 @pytest.mark.response
 @pytest.mark.parametrize("a", testa_a)
-def test_localft_grid_calculator(a):
+def test_localft_grid_calculator(mpi, a):
     """Test that the LocalGridFTCalculator is able to correctly Fourier
     transform the all-electron density of an 1s orbital."""
     # ---------- Inputs ---------- #
@@ -81,7 +81,7 @@ def test_localft_grid_calculator(a):
                         [0., lattice_constant, 0.],
                         [0., 0., lattice_constant]])
     N_c = np.array([int(N_grid_points**(1 / 3.))] * 3)
-    gd = GridDescriptor(N_c, cell_cv=cell_cv, comm=mpi.serial_comm)
+    gd = GridDescriptor(N_c, cell_cv=cell_cv, comm=serial_comm)
 
     # Set up plane-wave descriptor
     qd = KPointDescriptor(np.array([[0., 0., 0.]]))
@@ -100,7 +100,7 @@ def test_localft_grid_calculator(a):
 
     # Initialize the LocalGridFTCalculator with an empty ground state adapter
     gs = EmptyGSAdapter()  # hack to pass isinstance in constructor
-    context = ResponseContext()
+    context = ResponseContext(comm=mpi.comm)
     localft_calc = LocalFTCalculator.from_rshe_parameters(gs, context,
                                                           rshelmax=None)
 
@@ -113,7 +113,7 @@ def test_localft_grid_calculator(a):
 
 @pytest.mark.response
 @pytest.mark.parametrize("a", testa_a)
-def test_localft_paw_engine(a):
+def test_localft_paw_engine(mpi, a):
     """Test that the LocalPAWFTEngine is able to correctly Fourier
     transform the all-electron density of an 1s orbital."""
     # ---------- Inputs ---------- #
@@ -151,7 +151,7 @@ def test_localft_paw_engine(a):
                         [0., lattice_constant, 0.],
                         [0., 0., lattice_constant]])
     N_c = np.array([int(N_grid_points**(1 / 3.))] * 3)
-    gd = GridDescriptor(N_c, cell_cv=cell_cv, comm=mpi.serial_comm)
+    gd = GridDescriptor(N_c, cell_cv=cell_cv, comm=serial_comm)
 
     # Set up radial grid descriptor extending all the way to the edge of the
     # unit cell
@@ -198,7 +198,7 @@ def test_localft_paw_engine(a):
     micro_setups = [micro_setup]
 
     gs = EmptyGSAdapter()  # hack to pass isinstance in constructor
-    context = ResponseContext()
+    context = ResponseContext(comm=mpi.comm)
     for rshe_params in rshe_params_p:
         # Initialize the LocalPAWFTCalculator with an empty gs adapter
         localft_calc = LocalFTCalculator.from_rshe_parameters(gs, context,
@@ -213,7 +213,7 @@ def test_localft_paw_engine(a):
 
 
 @pytest.mark.response
-def test_Fe_bxc(gpw_files):
+def test_Fe_bxc(gpw_files, mpi):
     """Test the symmetry relation
 
     W_xc^z(G)^* = W_xc^z(-G)
@@ -229,10 +229,11 @@ def test_Fe_bxc(gpw_files):
     # Bxc calculation
 
     # Set up calculator and plane-wave descriptor
-    calc = GPAW(gpw_files['fe_pw'], parallel=dict(domain=1))
+    calc = GPAW(gpw_files['fe_pw'], parallel=dict(domain=1),
+                communicator=mpi.comm)
     atoms = calc.atoms
     gs = ResponseGroundStateAdapter(calc)
-    context = ResponseContext()
+    context = ResponseContext(comm=mpi.comm)
     localft_calc = LocalFTCalculator.from_rshe_parameters(gs, context)
     pd0 = get_pw_descriptor(atoms, calc, [0., 0., 0.],
                             ecut=ecut,

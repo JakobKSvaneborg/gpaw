@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 from ase.parallel import parprint
 
-from gpaw.mpi import world
 from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.test import findpeak
 
@@ -12,8 +11,8 @@ from gpaw.test import findpeak
 @pytest.mark.dielectricfunction
 @pytest.mark.response
 @pytest.mark.libxc
-def test_response_aluminum_EELS_ALDA(gpw_files, in_tmp_dir):
-    assert world.size <= 4**3
+def test_response_aluminum_EELS_ALDA(gpw_files, in_tmp_dir, mpi):
+    assert mpi.comm.size <= 4**3
 
     # Using bse_al fixture, since it was closest to the previous test
     calc = gpw_files['bse_al']
@@ -25,14 +24,14 @@ def test_response_aluminum_EELS_ALDA(gpw_files, in_tmp_dir):
     w = np.linspace(0, 24, 241)
 
     df = DielectricFunction(calc=calc, frequencies=w, eta=0.2, ecut=50,
-                            hilbert=False)
+                            hilbert=False, world=mpi.comm)
     df.get_eels_spectrum(xc='ALDA', filename='EELS_Al_ALDA.csv', q_c=q)
 
     t2 = time.time()
 
     parprint('For excited state calc, it took', (t2 - t1) / 60, 'minutes')
 
-    world.barrier()
+    mpi.comm.barrier()
     omega_w, eels0_w, eels_w = read_response_function('EELS_Al_ALDA.csv')
 
     # New results are compared with test values

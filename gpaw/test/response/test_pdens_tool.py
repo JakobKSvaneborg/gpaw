@@ -7,7 +7,7 @@ from gpaw.response.tool import (get_bz_transitions, get_chi0_integrand,
 
 
 @pytest.mark.response
-def test_response_pdens_tool(in_tmp_dir, gpw_files):
+def test_response_pdens_tool(in_tmp_dir, gpw_files, mpi):
     """Calculate optical transition strengths."""
     spins = 'all'
     q_c = [0., 0., 0.]

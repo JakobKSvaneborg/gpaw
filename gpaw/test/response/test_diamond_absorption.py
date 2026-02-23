@@ -16,7 +16,7 @@ lcao = pytest.param('lcao', marks=pytest.mark.old_gpaw_only)
 @pytest.mark.parametrize('eshift', [None, 4])
 @pytest.mark.parametrize('mode', ['pw', lcao])
 @pytest.mark.libxc
-def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
+def test_response_diamond_absorption(in_tmp_dir, eshift, mode, mpi):
     a = 6.75 * Bohr
     atoms = bulk('C', 'diamond', a=a)
 
@@ -26,7 +26,8 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
                 nbands='nao' if mode == 'lcao' else None,
                 basis='dzp' if mode == 'lcao' else {},
                 eigensolver='rmm-diis' if mode == 'pw' else None,
-                occupations=FermiDirac(0.001), txt='out.txt')
+                occupations=FermiDirac(0.001), txt='out.txt',
+                communicator=mpi.comm)
 
     atoms.calc = calc
     atoms.get_potential_energy()
@@ -59,7 +60,8 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
     df = DielectricFunction('C.gpw', frequencies=(0.,), eta=0.001, ecut=50,
                             **{'nbands': calc.wfs.bd.nbands}
                             if mode == 'lcao' else {},
-                            hilbert=False, eshift=eshift, txt='df.txt')
+                            hilbert=False, eshift=eshift, txt='df.txt',
+                            world=mpi.comm)
     eM1, eM2 = df.get_macroscopic_dielectric_constant()
     assert eM1 == pytest.approx(eM1_, abs=0.015)
     assert eM2 == pytest.approx(eM2_, abs=0.01)
@@ -67,7 +69,8 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
     # ----- RPA dielectric function ----- #
     dfcalc = DielectricFunction(
         'C.gpw', eta=0.25, ecut=50,
-        frequencies=np.linspace(0, 24., 241), hilbert=False, eshift=eshift)
+        frequencies=np.linspace(0, 24., 241), hilbert=False, eshift=eshift,
+        world=mpi.comm)
     eps = dfcalc.get_literal_dielectric_function()
 
     # Test the new interface to the dielectric constant
@@ -114,7 +117,7 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
 
     epsinv = dfcalc.get_inverse_dielectric_function(xc='ALDA', rshelmax=0)
     # Here we base the check on a written results file
-    epsinv.polarizability().write(filename='ALDA_pol.csv')
+    epsinv.polarizability().write(filename='ALDA_pol.csv', comm=mpi.comm)
     dfcalc.context.comm.barrier()
     omega_w, a0alda_w, aalda_w = read_response_function('ALDA_pol.csv')
 

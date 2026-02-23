@@ -3,7 +3,6 @@ import pytest
 
 from gpaw import GPAW
 from gpaw.bztools import optimal_monkhorst_pack_grid
-from gpaw.mpi import world
 from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.test import findpeak
 
@@ -12,10 +11,10 @@ from gpaw.test import findpeak
 @pytest.mark.tetrahedron
 @pytest.mark.response
 def test_response_Na_EELS_RPA_tetra_point_comparison(
-        in_tmp_dir, gpw_files):
+        in_tmp_dir, gpw_files, mpi):
     gpwname = gpw_files['na_chain']
 
-    calc = GPAW(gpwname)
+    calc = GPAW(gpwname, communicator=mpi.comm)
 
     # Generate grid compatible with tetrahedron integration
     kpts = optimal_monkhorst_pack_grid(
@@ -37,18 +36,18 @@ def test_response_Na_EELS_RPA_tetra_point_comparison(
 
     # Calculate the eels spectrum using point integration at both q-points
     df1 = DielectricFunction(calc='Na', frequencies=w_w, eta=0.2, ecut=50,
-                             hilbert=False, rate=0.2, world=world)
+                             hilbert=False, rate=0.2, world=mpi.comm)
     df1.get_eels_spectrum(xc='RPA', filename='EELS_Na-PI_q0', q_c=q0_c)
     df1.get_eels_spectrum(xc='RPA', filename='EELS_Na-PI_q1', q_c=q1_c)
 
     # Calculate the eels spectrum using tetrahedron integration at both q
     df2 = DielectricFunction(calc='Na', eta=0.2, ecut=50,
                              integrationmode='tetrahedron integration',
-                             hilbert=True, rate=0.2, world=world)
+                             hilbert=True, rate=0.2, world=mpi.comm)
     df2.get_eels_spectrum(xc='RPA', filename='EELS_Na-TI_q0', q_c=q0_c)
     df2.get_eels_spectrum(xc='RPA', filename='EELS_Na-TI_q1', q_c=q1_c)
 
-    world.barrier()
+    mpi.comm.barrier()
     omegaP0_w, _, eelsP0_w = read_response_function('EELS_Na-PI_q0')
     omegaP1_w, _, eelsP1_w = read_response_function('EELS_Na-PI_q1')
     omegaT0_w, _, eelsT0_w = read_response_function('EELS_Na-TI_q0')

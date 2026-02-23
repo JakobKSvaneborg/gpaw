@@ -8,12 +8,13 @@ from gpaw.response.bse import BSE
 
 @pytest.mark.response
 @pytest.mark.serial
-def test_bse_spinpol(in_tmp_dir, scalapack):
+def test_bse_spinpol(in_tmp_dir, scalapack, mpi):
     # Somewhat surprising for a test to be serial *and* require scalapack?
     atoms = Atoms('H', magmoms=[1], pbc=True)
     atoms.center(vacuum=1.5)
     atoms.calc = GPAW(mode=PW(180, force_complex_dtype=True),
                       nbands=6,
+                      communicator=mpi.comm,
                       convergence={'bands': 4})
     atoms.get_potential_energy()
 
@@ -25,7 +26,8 @@ def test_bse_spinpol(in_tmp_dir, scalapack):
               nbands=2,
               gw_kn=gw_kn,
               valence_bands=[0],
-              conduction_bands=[1, 2, 3])
+              conduction_bands=[1, 2, 3],
+              comm=mpi.comm)
 
     bsematrix = bse.get_bse_matrix()
     w_T, _, _ = bse.diagonalize_bse_matrix(bsematrix)

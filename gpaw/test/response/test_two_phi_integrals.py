@@ -7,7 +7,7 @@ from gpaw.response.paw import calculate_pair_density_correction
 
 
 @pytest.mark.response
-def test_two_phi_integrals(gpw_files):
+def test_two_phi_integrals(gpw_files, mpi):
     calc = GPAW(gpw_files['bn_pw'])
 
     setup = calc.wfs.setups[0]

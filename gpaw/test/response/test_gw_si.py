@@ -18,9 +18,9 @@ def generate_si_systems():
     return [si1, si2]
 
 
-def run(gpw_filename, nblocks, integrate_gamma, qpt=False):
+def run(gpw_filename, nblocks, integrate_gamma, qpt=False, comm=None):
     # This tests checks the actual numerical accuracy which is asserted below
-    calc = GPAW(gpw_filename)
+    calc = GPAW(gpw_filename, communicator=comm)
     e = calc.get_potential_energy()
 
     integrate_gamma = GammaIntegrationMode(integrate_gamma)
@@ -32,7 +32,8 @@ def run(gpw_filename, nblocks, integrate_gamma, qpt=False):
                   ecut=40, nblocks=nblocks,
                   frequencies={'type': 'nonlinear',
                                'domega0': 0.1, 'omegamax': None},
-                  eta=0.2, relbands=(-1, 2))
+                  eta=0.2, relbands=(-1, 2),
+                  world=comm)
 
     if qpt:
         # This part of the code is testing for separate calculation of qpoints
@@ -75,9 +76,9 @@ reference['1BZ2D'] = reference['1BZ']
 @pytest.mark.parametrize('nblocks',
                          [x for x in [1, 2, 4, 8] if x <= world.size])
 def test_response_gwsi(in_tmp_dir, si, symm, nblocks, integrate_gamma,
-                       scalapack, gpw_files):
+                       scalapack, gpw_files, mpi):
     filename = gpw_files[f'si_gw_a{si}_{symm}']
-    assert run(filename, nblocks, integrate_gamma) ==\
+    assert run(filename, nblocks, integrate_gamma, comm=mpi.comm) ==\
            reference[integrate_gamma]
 
 
@@ -86,8 +87,9 @@ def test_response_gwsi(in_tmp_dir, si, symm, nblocks, integrate_gamma,
                                              'reciprocal2D',
                                              '1BZ2D'])
 @pytest.mark.response
-def test_integrate_gamma_modes(in_tmp_dir, integrate_gamma, gpw_files):
-    assert run(gpw_files['si_gw_a0_all'], 1, integrate_gamma) == \
+def test_integrate_gamma_modes(in_tmp_dir, integrate_gamma, gpw_files, mpi):
+    assert run(gpw_files['si_gw_a0_all'], 1, integrate_gamma,
+               comm=mpi.comm) == \
            reference[integrate_gamma]
 
 
@@ -96,16 +98,16 @@ def test_integrate_gamma_modes(in_tmp_dir, integrate_gamma, gpw_files):
 @pytest.mark.parametrize('si', [0, 1])
 @pytest.mark.parametrize('symm', ['all'])
 def test_small_response_gwsi(in_tmp_dir, si, symm, scalapack,
-                             gpw_files):
+                             gpw_files, mpi):
     filename = gpw_files[f'si_gw_a{si}_{symm}']
-    assert run(filename, 1, 'sphere') == reference['sphere']
+    assert run(filename, 1, 'sphere', comm=mpi.comm) == reference['sphere']
 
 
 @pytest.mark.response
 @pytest.mark.ci
 def test_few_freq_response_gwsi(in_tmp_dir, scalapack,
-                                gpw_files):
-    if world.size > 1:
+                                gpw_files, mpi):
+    if mpi.comm.size > 1:
         nblocks = 2
     else:
         nblocks = 1
@@ -118,5 +120,6 @@ def test_few_freq_response_gwsi(in_tmp_dir, scalapack,
               ecut=40, nblocks=nblocks,
               frequencies={'type': 'nonlinear',
                            'domega0': 0.1, 'omegamax': 0.2},
-              eta=0.2, relbands=(-1, 2))
+              eta=0.2, relbands=(-1, 2),
+              world=mpi.comm)
     gw.calculate()

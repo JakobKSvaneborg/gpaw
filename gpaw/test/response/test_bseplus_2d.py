@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 from ase.units import Bohr
 
-from gpaw.mpi import world
 from gpaw.response.bse import BSE, BSEPlus
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
 from gpaw.response.coulomb_kernels import CoulombKernel
@@ -11,14 +10,15 @@ from gpaw.response.pair import get_gs_and_context
 
 
 @pytest.mark.response
-def test_BSEPlus_2d(in_tmp_dir, gpw_files, scalapack):
+def test_BSEPlus_2d(in_tmp_dir, gpw_files, scalapack, mpi):
     """
     This test makes a BSEPlus calculation with the BSEPlus class and
     manually to test that the BSEPlus code is working. It tests that the
     assertions work.
     """
+    comm = mpi.comm
     gs, context = get_gs_and_context(
-        gpw_files['mos2_5x5_pw'], txt=None, world=world, timer=None)
+        gpw_files['mos2_5x5_pw'], txt=None, world=comm, timer=None)
     ecut = 25
     eshift = 0.2
     eta = 0.1
@@ -35,7 +35,8 @@ def test_BSEPlus_2d(in_tmp_dir, gpw_files, scalapack):
               conduction_bands=bse_conduction_bands,
               eshift=eshift,
               mode='BSE',
-              nbands=bse_nbands)
+              nbands=bse_nbands,
+              comm=comm)
 
     w_w = np.linspace(0, 10, 5)
     wd = get_frequency_descriptor(w_w, gs=gs)
@@ -69,11 +70,12 @@ def test_BSEPlus_2d(in_tmp_dir, gpw_files, scalapack):
                       eta=eta,
                       q_c=q_c,
                       ecut=ecut,
-                      truncation='2D')
+                      truncation='2D',
+                      comm=comm)
 
     bseplus.calculate_chi_wGG(optical=True)
 
-    if world.rank == 0:
+    if comm.rank == 0:
         chi_BSEPlus_WGG = np.load("chi_BSEPlus.npy")
 
     coulomb_kernel = CoulombKernel.from_gs(gs, truncation='2D')
@@ -83,7 +85,7 @@ def test_BSEPlus_2d(in_tmp_dir, gpw_files, scalapack):
                                       irreducible=True,
                                       w_w=w_w)
 
-    if world.rank == 0:
+    if comm.rank == 0:
         chi_irr_BSE_WGG = chi_irr_BSE_wGG
     else:
         chi_irr_BSE_WGG = None
@@ -107,7 +109,7 @@ def test_BSEPlus_2d(in_tmp_dir, gpw_files, scalapack):
     v_G = v_G / v_G_bare
     v_G_bare[0] = 0.0
 
-    if world.rank == 0:
+    if comm.rank == 0:
         chi0_small_WGG = chi0_small_WGG * v_G_bare[np.newaxis, np.newaxis, :]
         chi0_large_WGG = chi0_large_WGG * v_G_bare[np.newaxis, np.newaxis, :]
         chi_irr_BSE_WGG = chi_irr_BSE_WGG * v_G_bare[np.newaxis, np.newaxis, :]

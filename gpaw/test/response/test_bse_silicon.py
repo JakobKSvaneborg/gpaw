@@ -9,7 +9,8 @@ from gpaw.test import findpeak
 
 
 @pytest.mark.response
-def test_response_bse_silicon(in_tmp_dir, scalapack, comm):
+def test_response_bse_silicon(in_tmp_dir, scalapack, mpi):
+    comm = mpi.comm
     GS = 1
     nosym = 1
     bse = 1

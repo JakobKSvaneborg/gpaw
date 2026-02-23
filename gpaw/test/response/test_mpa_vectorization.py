@@ -7,7 +7,7 @@ from .mpa_interpolation_scalar import mpa_R_fit as fit_residue_fortran
 from .mpa_interpolation_scalar import mpa_RE_solver
 
 
-def test_residues(in_tmp_dir):
+def test_residues(in_tmp_dir, mpi):
     nG = 5
     npols = 10
     Omega_GGp = np.empty((nG, nG, npols), dtype=np.complex128)
@@ -54,7 +54,7 @@ def test_residues(in_tmp_dir):
         plt.show()
 
 
-def test_poles(in_tmp_dir):
+def test_poles(in_tmp_dir, mpi):
     nG = 5
     npols = 100
     wmax = 2

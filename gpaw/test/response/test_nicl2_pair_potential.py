@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 
 from gpaw import GPAW
-from gpaw.mpi import world
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.matrix_elements import TransversePairPotentialCalculator
 from gpaw.response.pw_parallelization import block_partition
@@ -13,7 +12,7 @@ from gpaw.test.response.test_parallel_kptpair_extraction import (
 @pytest.mark.response
 @pytest.mark.kspair
 @pytest.mark.old_gpaw_only
-def test_nicl2_pair_potential(gpw_files):
+def test_nicl2_pair_potential(gpw_files, mpi):
     """Test that the transverse pair potential vanishes in vacuum."""
 
     # ---------- Inputs ---------- #
@@ -22,12 +21,13 @@ def test_nicl2_pair_potential(gpw_files):
     q_qc = [[0., 0., 0.],
             [1. / 3., 1. / 3., 0.]]
     rshewmin = 1e-8
-    nblocks = world.size // 2 if world.size % 2 == 0 else 1
+    nblocks = mpi.comm.size // 2 if mpi.comm.size % 2 == 0 else 1
 
     # ---------- Script ---------- #
 
-    context = ResponseContext()
-    calc = GPAW(gpw_files[wfs], parallel=dict(domain=1), legacy_gpaw=True)
+    context = ResponseContext(comm=mpi.comm)
+    calc = GPAW(gpw_files[wfs], parallel=dict(domain=1), legacy_gpaw=True,
+                communicator=mpi.comm)
     gs = ResponseGroundStateAdapter(calc)
 
     # Set up extractor and transitions

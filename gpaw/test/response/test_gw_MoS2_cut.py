@@ -7,7 +7,7 @@ from gpaw.response.g0w0 import G0W0
 
 
 @pytest.fixture
-def gpwfile(in_tmp_dir):
+def gpwfile(in_tmp_dir, mpi):
     calc = GPAW(
         mode='pw',
         xc='PBE',
@@ -15,7 +15,8 @@ def gpwfile(in_tmp_dir):
         convergence={'bands': 15},
         setups={'Mo': '6'},
         occupations=FermiDirac(0.001),
-        kpts={'size': (3, 3, 1), 'gamma': True})
+        kpts={'size': (3, 3, 1), 'gamma': True},
+        communicator=mpi.comm)
 
     a = 3.1604
     c = 10.0
@@ -41,7 +42,7 @@ def gpwfile(in_tmp_dir):
 @pytest.mark.response
 @pytest.mark.parametrize('integrate_gamma', ['sphere', 'reciprocal2D',
                                              '1BZ2D'])
-def test_response_gw_MoS2_cut(scalapack, gpwfile, integrate_gamma):
+def test_response_gw_MoS2_cut(scalapack, gpwfile, integrate_gamma, mpi):
     gw = G0W0(gpwfile,
               'gw-test',
               nbands=15,
@@ -51,7 +52,8 @@ def test_response_gw_MoS2_cut(scalapack, gpwfile, integrate_gamma):
               integrate_gamma=integrate_gamma,
               truncation='2D',
               kpts=[((1 / 3, 1 / 3, 0))],
-              bands=(8, 10))
+              bands=(8, 10),
+              world=mpi.comm)
 
     e_qp = gw.calculate()['qp'][0, 0]
 

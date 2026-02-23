@@ -19,7 +19,7 @@ from gpaw.test.gpwfile import response_band_cutoff
 
 @pytest.mark.kspair
 @pytest.mark.response
-def test_response_cobalt_sf_gssALDA(in_tmp_dir, gpw_files):
+def test_response_cobalt_sf_gssALDA(in_tmp_dir, gpw_files, mpi):
     # ---------- Inputs ---------- #
 
     fxc = 'ALDA'
@@ -40,8 +40,9 @@ def test_response_cobalt_sf_gssALDA(in_tmp_dir, gpw_files):
     # ---------- Script ---------- #
 
     # Initialize objects to calculat Chi
-    context = ResponseContext()
-    calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
+    context = ResponseContext(comm=mpi.comm)
+    calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1),
+                communicator=mpi.comm)
     nbands = response_band_cutoff['co_pw']
     gs = ResponseGroundStateAdapter(calc)
     chiks_calc = ChiKSCalculator(gs, context,
