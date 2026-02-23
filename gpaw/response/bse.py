@@ -938,8 +938,6 @@ class BSEBackend:
         comm = self.context.comm
         nG = rho_RG.shape[-1]
         nR = self.nS - len(exclude_S)
-        nr = -(-nR // comm.size)
-        # nr is the local size of the array
 
         self.context.print('Calculating response function at %s frequency '
                            'points' % len(w_w))
@@ -969,23 +967,8 @@ class BSEBackend:
                C_tGG1 = A_Gt.T.conj()[..., np.newaxis] * B_Gt.T[:, np.newaxis]
                C_tGG = B_Gt.T.conj()[..., np.newaxis] * A_Gt.T[:, np.newaxis]
                '''
-            if comm.size == 1:
-                C_tGG = np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt)
-                C_tGG1 = np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt)
-            else:
-                grid = BlacsGrid(comm, comm.size, 1)
-                desc = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
-                C_tGG = desc.empty(dtype=complex)
-                np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt,
-                          out=C_tGG.reshape((-1, nG, nG)))
-                desc1 = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
-                C_tGG1 = desc1.empty(dtype=complex)
-                np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt,
-                          out=C_tGG1.reshape((-1, nG, nG)))
-                C_tGG = C_tGG[:C_tGG.shape[0]].reshape((C_tGG.shape[0],
-                                                        nG, nG))
-                C_tGG1 = C_tGG1[:C_tGG1.shape[0]].reshape(
-                    (C_tGG1.shape[0], nG, nG))
+            C_tGG = np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt)
+            C_tGG1 = np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt)
 
         eta /= Hartree
 
