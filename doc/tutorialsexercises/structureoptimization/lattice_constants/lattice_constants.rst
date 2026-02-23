@@ -6,8 +6,7 @@ Finding lattice constants
 
 .. seealso::
 
-   * `ASE EOS tutorial
-     <https://ase-lib.org/tutorials/eos/eos.html>`_
+   * :mod:`ASE EOS tutorial <ase.eos>`_
    * `ASE Finding lattice constants tutorial
      <https://ase-lib.org/tutorials/lattice_constant.html>`_
 
