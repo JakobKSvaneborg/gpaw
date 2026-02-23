@@ -28,14 +28,14 @@ class PPCG(PWFDEigensolver):
                  wf_grid,
                  band_comm,
                  hamiltonian,
-                 converge_bands='occupied',
+                 convergence,
                  niter=2,
                  min_niter=1,
                  blocksize=None,
                  rr_modulo=5,
                  include_cg=True,
                  promote_inner_dtype=False,
-                 tolerances: tuple[float, float, float] = (0, 0, 4e-8),
+                 tolerances: tuple[float, float, float] | None = None,
                  scalapack_parameters=None,
                  max_buffer_mem: int = 200 * 1024 ** 2):
         """
@@ -93,7 +93,7 @@ class PPCG(PWFDEigensolver):
 
         super().__init__(
             hamiltonian,
-            converge_bands)
+            convergence)
 
         self.nbands = nbands
         self.wf_grid = wf_grid
@@ -147,6 +147,9 @@ class PPCG(PWFDEigensolver):
         self.nblocksizes = 3 * self.blocksize \
             if self.include_cg else 2 * self.blocksize
         dtype = wfs.psit_nX.desc.dtype
+
+        if self.tolerances is None:
+            self.tolerances = (0, 0, self.residual_target)
 
         assert len(self.tolerances) == 3
         # --------------- Convergence parameters ---------------

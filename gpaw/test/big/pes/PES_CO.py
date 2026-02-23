@@ -25,7 +25,7 @@ calc_params = dict(
     xc='PBE',
     spinpol=True)
 
-m_calc = GPAW(**calc_params, nbands=6, txt='CO-m.txt')
+m_calc = GPAW(**calc_params, nbands=6, txt='CO-m.txt', legacy_gpaw=True)
 
 m = atoms.copy()
 m.set_initial_magnetic_moments([-1, 1])
