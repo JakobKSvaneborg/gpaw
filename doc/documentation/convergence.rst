@@ -18,8 +18,8 @@ encountering convergence problems:
    see :ref:`atomization_energy`.
 
 2) Try tuning the mixer settings, while the defaults are designed
-to work great in many cases, tuning the mixer can improve convergence for
-certain systems.
+   to work great in many cases, tuning the mixer can improve convergence for
+   certain systems.
 
    Example::
 
@@ -29,13 +29,13 @@ certain systems.
               'weight': 100,  # Changing the damping term
        }
 
-Note that the above example show the possible changes to try, however, a
-combination of the above and default parameters is likely to be the
-optimimal choice for your system.
+   Note that the above example show the possible changes to try, however, a
+   combination of the above and default parameters is likely to be the
+   optimimal choice for your system.
 
 3) Solve the eigenvalue problem more accurately at each scf-step (PW- and
-FD-mode specific). This can be easily achieved by allowing the eigensolver
-more iterations per step ``eigensolver={'niter': 5}``.
+   FD-mode specific). This can be easily achieved by allowing the eigensolver
+   more iterations per step ``eigensolver={'niter': 5}``.
 
 4) Use a smoother distribution function for the occupation numbers.
 
