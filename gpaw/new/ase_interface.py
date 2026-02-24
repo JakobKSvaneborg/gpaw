@@ -369,13 +369,17 @@ class ASECalculator:
         atoms, calculation, params, builder
         """
 
-        read_gpw(filename=filename,
-                 log=log,
-                 comm=comm,
-                 parallel=parallel,
-                 dtype=dtype,
-                 force_complex_dtype=force_complex_dtype,
-                 object_hooks=object_hooks)
+        (atoms,
+         calc,
+         builder) = read_gpw(filename=filename,
+                             log=log,
+                             comm=comm,
+                             parallel=parallel,
+                             dtype=dtype,
+                             force_complex_dtype=force_complex_dtype,
+                             object_hooks=object_hooks)
+
+        return atoms, calc, builder
 
     # Old API:
 

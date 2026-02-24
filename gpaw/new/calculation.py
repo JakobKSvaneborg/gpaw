@@ -705,9 +705,13 @@ class DFTCalculation:
         self.comm.barrier()
 
     def from_gpw_file(self, filename):
-        self.ase_calculator().from_gpw_file(filename,
-                                            comm=self.comm)
+        (atoms,
+         calc,
+         builder) = self.ase_calculator().from_gpw_file(filename,
+                                                        comm=self.comm)
         self.comm.barrier
+
+        return atoms, calc, builder
 
     def get_state(self):
         return DFTState(self.ibzwfs, self.density, self.potential)
