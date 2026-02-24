@@ -21,7 +21,6 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
     atoms = bulk('C', 'diamond', a=a)
 
     calc = GPAW(mode=mode,
-                legacy_gpaw=mode != 'pw',
                 kpts=(3, 3, 3),
                 nbands='nao' if mode == 'lcao' else None,
                 basis='dzp' if mode == 'lcao' else {},
@@ -30,7 +29,11 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
 
     atoms.calc = calc
     atoms.get_potential_energy()
-    calc.write('C.gpw', 'all')
+    dft = calc.dft
+    dft.change(eigensolver={})  # remove SCS solver which PW-mode doesn't like
+    if mode != 'pw':
+        dft.change_mode('pw')
+    dft.write_gpw_file('C.gpw', 'all')
 
     if eshift is None:
         eM1_ = 9.727 if mode == 'pw' else 9.3923
