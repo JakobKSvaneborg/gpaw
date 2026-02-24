@@ -25,6 +25,7 @@ from gpaw.typing import Array1D, Array2D
 from gpaw.utilities import (check_atoms_too_close,
                             check_atoms_too_close_to_boundary)
 
+
 if TYPE_CHECKING:
     from gpaw.dft import Mode, Parameters
 
@@ -687,6 +688,26 @@ class DFTCalculation:
             nbands=nbands)
 
         self.results = {}
+
+    def write_gpw_file(self, filename, mode=''):
+        """Write calculator object to a file.
+
+        Parameters
+        ----------
+        filename
+            File to be written
+        mode
+            Write mode. Use ``mode='all'``
+            to include wave functions in the file.
+        """
+        self.log(f'Writing to {filename} (mode={mode!r})\n')
+        self.ase_calculator().write(filename, mode)
+        self.comm.barrier()
+
+    def from_gpw_file(self, filename):
+        self.ase_calculator().from_gpw_file(filename,
+                                            comm=self.comm)
+        self.comm.barrier
 
     def get_state(self):
         return DFTState(self.ibzwfs, self.density, self.potential)

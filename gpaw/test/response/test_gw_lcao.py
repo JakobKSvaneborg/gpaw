@@ -11,7 +11,7 @@ def test_lcao_gw(in_tmp_dir, gpw_files):
     dft = GPAW(gpw_files['diamond_lcao']).dft
     dft.change(eigensolver={})  # remove SCS solver which PW-mode doesn't like
     dft.change_mode('pw')
-    dft.ase_calculator().write('diamond_pw.gpw', 'all')
+    dft.write_gpw_file('diamond_pw.gpw', 'all')
 
     gw = G0W0('diamond_pw.gpw',
               integrate_gamma='WS',
