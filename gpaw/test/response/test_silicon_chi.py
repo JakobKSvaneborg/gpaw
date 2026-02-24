@@ -78,11 +78,15 @@ def test_response_silicon_chi_RPA(in_tmp_dir, mpi):
 
     mpi.comm.barrier()
 
-    parprint('')
-    parprint('For ground  state calc, it took', (t2 - t1) / 60, 'minutes')
-    parprint('For excited state calc 1, it took', (t3 - t2) / 60, 'minutes')
-    parprint('For excited state calc 2, it took', (t4 - t3) / 60, 'minutes')
-    parprint('For excited state calc 3, it took', (t5 - t4) / 60, 'minutes')
+    parprint('', comm=mpi.comm)
+    parprint('For ground  state calc, it took', (t2 - t1) / 60, 'minutes',
+             comm=mpi.comm)
+    parprint('For excited state calc 1, it took', (t3 - t2) / 60, 'minutes',
+             comm=mpi.comm)
+    parprint('For excited state calc 2, it took', (t4 - t3) / 60, 'minutes',
+             comm=mpi.comm)
+    parprint('For excited state calc 3, it took', (t5 - t4) / 60, 'minutes',
+             comm=mpi.comm)
 
     w1_w, _, chi1_w = read_response_function('Si_chi1.csv')
     wpeak1, Ipeak1 = findpeak(w1_w, -chi1_w.imag)

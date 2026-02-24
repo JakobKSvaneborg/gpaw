@@ -29,7 +29,8 @@ def test_response_aluminum_EELS_ALDA(gpw_files, in_tmp_dir, mpi):
 
     t2 = time.time()
 
-    parprint('For excited state calc, it took', (t2 - t1) / 60, 'minutes')
+    parprint('For excited state calc, it took', (t2 - t1) / 60, 'minutes',
+             comm=mpi.comm)
 
     mpi.comm.barrier()
     omega_w, eels0_w, eels_w = read_response_function('EELS_Al_ALDA.csv')

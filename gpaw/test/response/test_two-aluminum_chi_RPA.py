@@ -74,11 +74,15 @@ def test_response_two_aluminum_chi_RPA(in_tmp_dir, mpi):
 
     t5 = time.time()
 
-    parprint('')
-    parprint('Ground state calc 1 took', (t2 - t1), 'seconds')
-    parprint('Ground state calc 2 took', (t3 - t2), 'seconds')
-    parprint('Susceptibility calc 1 took', (t4 - t3), 'seconds')
-    parprint('Susceptibility calc 2 took', (t5 - t4), 'seconds')
+    parprint('', comm=mpi.comm)
+    parprint('Ground state calc 1 took', (t2 - t1), 'seconds',
+             comm=mpi.comm)
+    parprint('Ground state calc 2 took', (t3 - t2), 'seconds',
+             comm=mpi.comm)
+    parprint('Susceptibility calc 1 took', (t4 - t3), 'seconds',
+             comm=mpi.comm)
+    parprint('Susceptibility calc 2 took', (t5 - t4), 'seconds',
+             comm=mpi.comm)
 
     # Check that results are consistent, when structure is simply repeated
 

@@ -78,10 +78,13 @@ def test_response_aluminum_EELS_RPA(in_tmp_dir, mpi):
 
     t4 = time.time()
 
-    parprint('')
-    parprint('For ground  state calc, it took', (t2 - t1) / 60, 'minutes')
-    parprint('For PI excited state calc, it took', (t3 - t2) / 60, 'minutes')
-    parprint('For TI excited state calc, it took', (t4 - t3) / 60, 'minutes')
+    parprint('', comm=mpi.comm)
+    parprint('For ground  state calc, it took', (t2 - t1) / 60, 'minutes',
+             comm=mpi.comm)
+    parprint('For PI excited state calc, it took', (t3 - t2) / 60, 'minutes',
+             comm=mpi.comm)
+    parprint('For TI excited state calc, it took', (t4 - t3) / 60, 'minutes',
+             comm=mpi.comm)
 
     mpi.comm.barrier()
     omegaP0_w, eels0P0_w, eelsP0_w = read_response_function('EELS_Al-PI_q0')
