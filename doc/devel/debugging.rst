@@ -232,14 +232,14 @@ with Python on a GNU/Linux development platform. Prepend the following to your s
 
     import os, sys, time, math
     from gpaw.mpi import world
-    gpaw_python_path = '/your/path/to/gpaw-python'
+    gpaw_path = '/your/path/to/gpaw'
     ndigits = 1 + int(math.log10(world.size))
     assert os.system('screen -S gdb.%0*d -dm gdb %s %d' \
-        % (ndigits, world.rank, gpaw_python_path, os.getpid())) == 0
+        % (ndigits, world.rank, gpaw_path, os.getpid())) == 0
     time.sleep(ndigits)
     world.barrier()
 
-This runs ``gdb /path/to/gpaw-python pid`` from within each instance of the custom Python
+This runs ``gdb /path/to/gpaw pid`` from within each instance of the custom Python
 interpreter and detaches it into a `screen <https://www.gnu.org/software/screen/>`_ session
 called ``gdb.0`` for rank 0 etc. You may now resume control of the debugger instances by
 running ``screen -rd gdb.0``, entering `c` to continue and so forth for all instances.
