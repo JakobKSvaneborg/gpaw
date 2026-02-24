@@ -31,7 +31,8 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
     atoms.get_potential_energy()
     dft = calc.dft
     dft.change(eigensolver={})  # remove SCS solver which PW-mode doesn't like
-    dft.change_mode('pw')
+    if mode != 'pw':
+        dft.change_mode('pw')
     dft.write_gpaw_file('C.gpw', 'all')
 
     if eshift is None:
