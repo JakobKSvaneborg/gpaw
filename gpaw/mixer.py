@@ -267,10 +267,10 @@ class MSR1Mixer(BaseMixer):
             self.gd.comm.sum(ntnorm_i)
             ntnorm_i = np.expand_dims(1 / ntnorm_i, axis=tuple(np.arange(1, np.array(nt_isG).ndim)))
 
-            dampen = 1
-            max_gb = min(5, iold - 1)
+            max_gb = min(10, 2 * (iold - 1))
             regularization = -10  # the exponent for the regularization term
-            A0_lims = [0.03, 0.3]
+            B0_lims = [0.5, 1.2]
+            A0_lims = [0.035, 0.35]
 
             # 2nd order norm
             # ntnorm_i = np.vecdot(np.array(nt_isG).reshape(iold, -1),
@@ -326,7 +326,7 @@ class MSR1Mixer(BaseMixer):
             YY_LIM = np.linalg.norm(YY_LIM, ord='fro')
             YS_LIM = self.dotprod(ty_isG, s_isG, yD_iasp, sD_iasp, self.gd, mode='gemm')
             YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
-            max_gb = np.clip(YY_LIM / YS_LIM, 0, max_gb)  # Take care
+            max_gb = np.clip(YY_LIM / YS_LIM, 1, max_gb)  # Take care
             good_broydenness = 0.5 * max_gb
 
             # Choose max good_broydenness s.t. A_ii is positive definite
@@ -383,7 +383,7 @@ class MSR1Mixer(BaseMixer):
                 tD_iasp.append(tD_asp)
 
             A_ii = self.dotprod(t_isG, y_isG, tD_iasp, yD_iasp, self.gd, mode='gemm')
-            B_ii = self.dotprod(t_isG, s_isG, tD_iasp, sD_iasp, self.gd, mode='gemm')
+            B_ii = self.dotprod(ty_isG, s_isG, sD_iasp, sD_iasp, self.gd, mode='gemm')
 
             # This parameter is surprisingly important for stability
             # 2e-4 seems to work well for most systems
@@ -425,13 +425,13 @@ class MSR1Mixer(BaseMixer):
                 uRnoD_asp, uRnoD_asp, self.gd, mode='scalar')
 
             # For Eq 18 from mixing for dumies:
-            A2_i = self.dotprod(t_isG, [self.uk_sG, ], tD_iasp, [self.uD_asp, ], self.gd, mode='gemm')[:, 0]
+            A2_i = self.dotprod(ty_isG, [self.uk_sG, ], yD_iasp, [self.uD_asp, ], self.gd, mode='gemm')[:, 0]
             A3_i = self.dotprod([self.uk_sG, ], y_isG, [self.uD_asp, ], yD_iasp, self.gd, mode='gemm')[0, :]
 
-            B2_i = self.dotprod(t_isG, [self.pk_sG, ], tD_iasp, [self.pD_asp, ], self.gd, mode='gemm')[:, 0]
+            B2_i = self.dotprod(ty_isG, [self.pk_sG, ], yD_iasp, [self.pD_asp, ], self.gd, mode='gemm')[:, 0]
             B3_i = self.dotprod([self.R_isG[-2] - self.uk_sG, ], y_isG, [uRnoD_asp, ], yD_iasp, self.gd, mode='gemm')[0, :]
 
-            A2 = A3_i @ B_ii @ A2_i * dampen
+            A2 = A3_i @ B_ii @ A2_i
             B2 = B3_i @ B_ii @ B2_i
 
             print('ratio: ', np.abs(A1 / A2))
@@ -439,21 +439,21 @@ class MSR1Mixer(BaseMixer):
             if iold != 2:
                 B0_ratio = (
                     self.B0 + np.clip(
-                        np.abs(B1 / B2),
-                        0.3, 1.3)
+                        np.abs(B1 / B2), # + 0.1,
+                        *B0_lims)
                     ) / (2 * self.B0)
-                self.B0 *= np.clip(B0_ratio, 0.8,
-                   1.2 if not backtracked else 1.0)
+                self.B0 *= np.clip(B0_ratio, 3/5,
+                   5/3 if not backtracked else 1.0)
             else:
                 self.B0 = 1
 
             A0_ratio = (self.A0 + np.clip(
-                np.arctan(np.pi * np.abs(A1 / A2) / A0_lims[1] * 0.5) / np.pi * 2 * A0_lims[1],
-                # np.abs(A1 / A2),
+                # np.arctan(np.pi * np.abs(A1 / A2) / A0_lims[1] * 0.5) / np.pi * 2 * A0_lims[1],
+                np.abs(A1 / A2),
                 *A0_lims
                 )
             ) / (2 * self.A0)
-            self.A0 *= np.clip(A0_ratio, 0.8, 1.2 if not backtracked else 1.0)
+            self.A0 *= np.clip(A0_ratio, 0.75, 1.25 if not backtracked else 1.0)
 
             A0 = self.A0
             B0 = self.B0
@@ -465,7 +465,7 @@ class MSR1Mixer(BaseMixer):
                 dstep_asp.append(A0 * uD_sp + B0 * pD_sp)
             trust_radius = self.dotprod(trust_step, trust_step, dstep_asp,
                dstep_asp, self.gd, mode='scalar')
-            trust_radius = 1.3 * dampen * trust_radius**0.5
+            trust_radius = 1.5 * trust_radius**0.5
             if self.trust_radius is not None:
                 trust_radius = (self.trust_radius + trust_radius) / 2
                 if backtracked:
