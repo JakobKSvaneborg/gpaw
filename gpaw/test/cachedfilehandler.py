@@ -7,13 +7,9 @@ class CachedFilesHandler(ABC):
     """Base class for objects which handle the writing
     and caching of session-scoped pytest fixtures"""
 
-    def __init__(self, folder: Path, outformat: str, comm=None):
+    def __init__(self, folder: Path, outformat: str, comm):
         self.folder = folder
         self.outformat = outformat
-
-        if comm is None:
-            from gpaw.mpi import world
-            comm = world
         self.comm = comm
 
         self.cached_files = {}
