@@ -138,7 +138,7 @@ def create_symmetries_object(atoms: Atoms,
                 ids=ids,
                 symmorphic=symmorphic)
 
-            if (True and len(atoms) > 0):  # Switch + Ignore if jellium
+            if (False and len(atoms) > 0):  # Switch + Ignore if jellium
                 sym_spglib = Symmetries.from_cell_and_atoms_spglib(
                     cell_cv,
                     pbc=atoms.pbc,
@@ -258,51 +258,51 @@ class Symmetries:
                  rotations: ArrayLike3D | None = None,
                  tolerance: float | None = None,
                  _backwards_compatible=False):
-        if not _backwards_compatible:
-            if 0:
-                M_SC = rotations.reshape((-1, 9))
-                while True:
-                    order = len(M_SC)
-                    M_scc = M_SC.reshape((-1, 3, 3))
-                    M_sscc = np.einsum('sab,pbc->spac', M_scc, M_scc)
-                    M_SC = M_sscc.reshape((-1, 9))
-                    M_SC = np.unique(M_SC, axis=0)
-                    M_SC = np.vstack((M_SC, np.linalg.inv(M_SC.reshape((-1, 3, 3))).reshape((-1, 9))))
-                    M_SC = np.unique(M_SC, axis=0)
-                    new_order = len(M_SC)
-                    if order == new_order:
-                        break
-                    print(f'Expanded from {order} to {new_order}')
-                rotations = M_SC.reshape((-1, 3, 3))
+        nsyms = rotations.shape[0]
+        if _backwards_compatible:
+            # Do not do group check for backwards compatible
+            return cls(cell=cell,
+                       rotations=rotations,
+                       tolerance=tolerance,
+                       _backwards_compatible=_backwards_compatible)
 
-            
-            M_SC = rotations.reshape((-1, 9))
-            M_scc = M_SC.reshape((-1, 3, 3))
-            M_sscc = np.einsum('sab,pbc->spac', M_scc, M_scc)
-            M_SC = M_sscc.reshape((-1, 9))
-            M_SC = np.unique(M_SC, axis=0)
-            A x B
+        M_sscc = np.einsum('sab,pbc->spac', rotations, rotations)
+        M_scc = np.unique(M_sscc.reshape((-1, 3, 3)), axis=0)
+        if M_scc.shape[0] == nsyms:
+            print('log succes, group found, etc.')
+            return cls(cell=cell,
+                       rotations=rotations,
+                       tolerance=tolerance,
+                       _backwards_compatible=_backwards_compatible)
 
-            error(O_cc)
+        not_a_group = True
+        new_nsyms = nsyms
+        new_rotations = rotations
+        while not_a_group:
+            badness = np.zeros((new_nsyms, new_nsyms), dtype=int)
+            for s1, M_scc in enumerate(M_sscc):
+                for s2, M_cc in enumerate(M_scc):
+                    contained_operation = any([(M_cc == rotation).all()
+                                               for rotation in rotations])
+                    if not contained_operation:
+                        badness[s1, s2] = 1
+            np.set_printoptions(threshold=np.inf)
+            print(badness)
 
-            E_s = sorted(E_s)
-            
-            sort(
+            badness_measure = badness.sum(axis=0) + badness.sum(axis=1)
+            if sum(badness_measure) == 0:
+                not_a_group = False
+                return cls(cell=cell,
+                           rotations=new_rotations,
+                           tolerance=tolerance,
+                           _backwards_compatible=_backwards_compatible)
 
-            | O A - I A| <e
-
-            # if O1 x O2 not in a group 
-            | (O1 x O2 ) A - A| >e
-
-            I x O6 is not in G
-
-            # D(A, B) = C
-            # If C is not in G, remove A or B
-
-        return cls(cell=cell,
-                   rotations=rotations,
-                   tolerance=tolerance,
-                   _backwards_compatible=_backwards_compatible)
+            bad_operations = np.squeeze(np.argwhere(badness_measure == np.max(badness_measure)))
+            print(bad_operations)
+            new_rotations = np.delete(new_rotations, bad_operations, axis=0)  # Use boolean masking instead?
+            print(new_rotations.shape)
+            new_nsyms = new_rotations.shape[0]
+            M_sscc = np.einsum('sab,pbc->spac', new_rotations, new_rotations)
 
 
     @classmethod
@@ -534,10 +534,9 @@ def totally_unimodular_matrices() -> np.ndarray:
     # Symmetry operations as matrices in 123 basis.
     # Operation is a 3x3 matrix, with possible elements -1, 0, 1, thus
     # there are 3**9 = 19683 possible matrices:
-    combinations = 1 - np.indices([3] * 9)
+    combinations = 1 - np.indices([3] * 9, dtype=np.int8)
     U_scc = combinations.reshape((3, 3, 3**9)).transpose((2, 0, 1))
-    U_scc = U_scc.astype(float)
-    U_scc = U_scc[abs(np.linalg.det(U_scc)) == 1.0]  # reduce to 6960
+    U_scc = U_scc[np.isclose(abs(np.linalg.det(U_scc)), 1.0, atol=1e-10)]  # reduce to 6960
     return U_scc
 
 
@@ -551,7 +550,6 @@ def find_lattice_symmetry(cell_cv, pbc_c, tol, _backwards_compatible=False):
     metric_scc = np.einsum('sij, jk, slk -> sil',
                            U_scc, metric_cc, U_scc,
                            optimize=True)
-
     if _backwards_compatible:
         # (wrong units)
         mask_s = abs(metric_scc - metric_cc).sum(2).sum(1) <= tol
@@ -560,8 +558,7 @@ def find_lattice_symmetry(cell_cv, pbc_c, tol, _backwards_compatible=False):
         tol_cc = np.add.outer(L_c, L_c) * tol
         err_scc = abs(metric_scc - metric_cc)
         mask_s = (err_scc <= tol_cc).all(axis=(1, 2))
-
-    U_scc = U_scc[mask_s].astype(int)
+    U_scc = U_scc[mask_s]
 
     # Operation must not swap axes that don't have same PBC:
     pbc_cc = np.logical_xor.outer(pbc_c, pbc_c)

@@ -112,7 +112,8 @@ def test_5x5():
         sym = Symmetries.from_cell_and_atoms(
             [a, a, 9, 90, 90, 60],
             pbc=(1, 1, 0),
-            _backwards_compatible=True,
+            _backwards_compatible=False,
+            tolerance=1e-5,
             relative_positions=[[0.33333333, 0.3333333, 0.50058348],
                                 [0.66666666, 0.6666666, 0.55294505],
                                 [0.0, 0.0, 0.44741016],
