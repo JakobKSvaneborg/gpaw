@@ -740,7 +740,7 @@ class DielectricFunction(DielectricFunctionCalculator):
             *args, xc=xc, truncation=self.truncation,
             **kwargs).dynamic_susceptibility()
         if filename:
-            dynsus.write(filename)
+            dynsus.write(filename, comm=self.context.comm)
         return dynsus.unpack()
 
     def get_dielectric_function(self, *args, filename='df.csv', **kwargs):
@@ -805,7 +805,7 @@ class DielectricFunction(DielectricFunctionCalculator):
         eps = method(direction=direction)
         pol = eps.polarizability()
         if filename:
-            pol.write(filename)
+            pol.write(filename, comm=self.context.comm)
         return pol.unpack()
 
     def get_macroscopic_dielectric_constant(self, xc='RPA', direction='x'):
