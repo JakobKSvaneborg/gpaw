@@ -4,6 +4,27 @@ Getting started with GPAW
 In this exercise we will calculate structures and binding energies for
 simple molecules.
 
+At first let's have a look at a simple static GPAW calculation:
+
+.. literalinclude:: /documentation/h2.py
+    :start-after: creates
+
+In case this is the first ASE script we have seen so far, a few comments
+are in order:
+
+* At the top is a series of *import statements*.  These load the
+  Python modules we are going to use.
+* An :class:`~ase.Atoms` object is created, specifying an initial
+  (possibly bad) guess for the atomic positions.
+* An :class:`~gpaw.calculator.GPAW` calculator is created.  A
+  *calculator* can evaluate
+  quantities such as energies and forces on a collection of atoms.
+* We create the GPAW calculator in finite difference (``fd``) mode, with 2 bands and output to ``h2.txt``.
+* The calculator is associated with the :class:`~ase.Atoms`
+  object by calling ``atoms.calc = calc``.
+* Calling ``atoms.get_forces()`` triggers the DFT calculation for :mol:`H_2` and forces on the atoms are return (here: printed).
+
+
 Performing a structure optimization
 -----------------------------------
 
@@ -19,19 +40,6 @@ to optimize the structure of :mol:`H_2`.
 
 .. literalinclude:: h2.emt.py
 
-This is the first ASE script we have seen so far, so a few comments
-are in order:
-
-* At the top is a series of *import statements*.  These load the
-  Python modules we are going to use.
-* An :class:`~ase.Atoms` object is created, specifying an initial
-  (possibly bad) guess for the atomic positions.
-* An :class:`~ase.calculators.emt.EMT` calculator is created.  A
-  *calculator* can evaluate
-  quantities such as energies and forces on a collection of atoms.
-  There are different kinds of calculators, and EMT is a particularly
-  simple one.  The calculator is associated with the :class:`~ase.Atoms`
-  object by calling ``atoms.calc = calc``.
 * An :mod:`optimizer <ase.optimize>` is created and
   associated with the
   :class:`~ase.Atoms` object.  It is also given an optional argument,
@@ -40,7 +48,6 @@ are in order:
 * Finally the call ``opt.run(fmax=0.05)`` will run the
   optimization algorithm until all atomic forces are below 0.05 eV per
   Ångström.
-
 
 **Run the above structure optimization.**
 
