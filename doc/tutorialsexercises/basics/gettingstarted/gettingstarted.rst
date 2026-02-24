@@ -35,10 +35,12 @@ system.  This involves multiple calculations of the atomic forces
 respect to the atomic positions `\mathbf R^a` as the atoms
 are moved downhill according to an optimization algorithm.
 
-The following script uses the :mod:`EMT calculator <ase.calculators.emt>`
+The following script uses the :mod:`GPAW calculator <gpaw.calculator.GPAW>`
 to optimize the structure of :mol:`H_2`.
 
-.. literalinclude:: h2.emt.py
+.. literalinclude:: h2_opt.py
+
+Apart from the commands in the static calculation above:
 
 * An :mod:`optimizer <ase.optimize>` is created and
   associated with the
@@ -52,7 +54,7 @@ to optimize the structure of :mol:`H_2`.
 **Run the above structure optimization.**
 
 This will print the (decreasing) total energy for each iteration until
-it converges, leaving the file :file:`h2.emt.traj` in the working
+it converges, leaving the file :file:`h2.gpaw.traj` in the working
 directory.  Use the command :command:`ase gui` to view the
 trajectory file, showing each step of the optimization.
 
