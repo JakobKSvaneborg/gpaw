@@ -9,6 +9,7 @@ from ase.utils.timing import Timer
 from gpaw import PW, FermiDirac
 from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator
+from gpaw.response.context import ResponseContext
 from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.response.pair_functions import read_pair_function
 from gpaw.response.susceptibility import ChiFactory
@@ -57,7 +58,8 @@ def test_response_silicon_chi_RPA(in_tmp_dir, mpi):
 
     # Using the ChiFactory
     gs = ResponseGroundStateAdapter(calc)
-    chiks_calc = ChiKSCalculator(gs, ecut=50)
+    context = ResponseContext(comm=mpi.comm)
+    chiks_calc = ChiKSCalculator(gs, context=context, ecut=50)
     chi_factory = ChiFactory(chiks_calc)
     chiks, chi = chi_factory('00', q, w + 1.j * eta)
     chi.write_macroscopic_component('Si_chi2.csv')
