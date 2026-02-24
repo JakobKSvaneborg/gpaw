@@ -58,48 +58,17 @@ it converges, leaving the file :file:`h2.gpaw.traj` in the working
 directory.  Use the command :command:`ase gui` to view the
 trajectory file, showing each step of the optimization.
 
-Structure optimization of :mol:`H_2O` with EMT and GPAW
+Structure optimization of :mol:`H_2O` with GPAW
 -------------------------------------------------------
 
 Adapt the above script as needed and calculate the structure of a
-:mol:`H_2O` molecule using the EMT calculator.  Note that water is not
+:mol:`H_2O` molecule using the GPAW calculator.  Note that water is not
 a linear molecule.  If you start with a linear molecule, the
 minimization may not be able to break the symmetry.  Be sure to
 visualize the final configuration to check that it is reasonable.
 
-The empirical EMT potential is fast, but not very accurate for
-molecules in particular.  We therefore want to perform this
-calculation in GPAW instead.  GPAW uses real-space grids to represent
-density and wavefunctions, and the grids exist in a cell.  For this
-reason you must set a cell for the :class:`~ase.Atoms` object.  As a
-coarse value let us use a 6 Ångström cell::
-
-  atoms.set_cell((6.0, 6.0, 6.0))
-  atoms.center()
-
-
-.. testcode::
-  :hide:
-
-  from ase import Atoms
-  atoms = Atoms('H2', cell=[2., 2., 2.], positions=[[0, 0, 0], [1, 1, 1]])
-  atoms.set_cell([6.0, 6.0, 6.0])
-  atoms.center()
-
-
 The cell must be centered in order to prevent atoms from lying too
 close to the boundary, as the boundary conditions are zero by default.
-
-Instead of importing and using EMT, we now use GPAW::
-
-  from gpaw import GPAW
-  ...
-  calc = GPAW(mode='fd')
-  ...
-
-Make a copy of your script and adapt it to GPAW, then recalculate the
-structure of :mol:`H_2O` (make sure to choose a new filename for the
-trajectory file).
 
 During the calculation a lot of text is printed to the terminal.  This
 includes the parameters used in the calculation: Atomic positions,
@@ -129,14 +98,14 @@ spin-down densities are assumed to be equal.  As this is not the case
 for isolated atoms, it will be necessary to instruct GPAW to do
 something different::
 
-  calc = GPAW(mode='fd', hund=True)
+  calc = GPAW(mode='pw', hund=True)
 
 
 .. testcode::
   :hide:
 
   import gpaw
-  gpaw.GPAW(mode='fd', hund=True)
+  gpaw.GPAW(mode='pw', hund=True)
 
 
 .. testoutput::
