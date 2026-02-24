@@ -33,7 +33,7 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
     dft.change(eigensolver={})  # remove SCS solver which PW-mode doesn't like
     if mode != 'pw':
         dft.change_mode('pw')
-    dft.write_gpaw_file('C.gpw', 'all')
+    dft.write_gpw_file('C.gpw', 'all')
 
     if eshift is None:
         eM1_ = 9.727 if mode == 'pw' else 9.3923
