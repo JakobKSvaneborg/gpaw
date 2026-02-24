@@ -9,16 +9,13 @@ from gpaw.test import findpeak
 
 
 class Helper:
-    def __init__(self, gpw, integrationmode, world=None):
+    def __init__(self, gpw, integrationmode, world):
         self._gpw = gpw
         self._integrationmode = integrationmode
         self._world = world
 
     @cached_property
     def df(self):
-        kwargs = {}
-        if self._world is not None:
-            kwargs['world'] = self._world
         return DielectricFunction(
             self._gpw,
             frequencies={'type': 'nonlinear',
@@ -27,7 +24,7 @@ class Helper:
             rate=0.1,
             integrationmode=self._integrationmode,
             txt=None,
-            **kwargs)
+            world=self._world)
 
     @cached_property
     def lfc(self):

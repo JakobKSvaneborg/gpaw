@@ -9,8 +9,8 @@ from gpaw.test.gpwfile import GPWFiles, response_band_cutoff
 class MMEFiles(CachedFilesHandler):
     """Create files that store momentum matrix elements."""
 
-    def __init__(self, folder: Path, gpw_files: GPWFiles):
-        super().__init__(folder, '.npz')
+    def __init__(self, folder: Path, gpw_files: GPWFiles, comm):
+        super().__init__(folder, '.npz', comm=comm)
         self.gpw_files = gpw_files
 
     def _calculate_and_write(self, name, work_path):

@@ -3,10 +3,7 @@ import pytest
 from gpaw.response.df import DielectricFunction
 
 
-def calc_df(gpwfile, world=None):
-    kwargs = {}
-    if world is not None:
-        kwargs['world'] = world
+def calc_df(gpwfile, world):
     df = DielectricFunction(
         calc=gpwfile,
         ecut=30,
@@ -14,7 +11,7 @@ def calc_df(gpwfile, world=None):
         eta=0.1,
         hilbert=False,
         frequencies=np.linspace(0, 1, 10),
-        **kwargs)
+        world=world)
     return df.get_dielectric_function()
 
 

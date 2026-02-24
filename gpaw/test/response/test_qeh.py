@@ -7,7 +7,7 @@ from gpaw.response.df import DielectricFunction
 
 
 def dielectric(calc, domega, omega2, rate=0.0,
-               ecut=20, nblocks=1, cyl_pw=False, comm=None):
+               ecut=20, nblocks=1, cyl_pw=False, comm=world):
     if cyl_pw:
         from gpaw.response.qpd import SingleCylQPWDescriptor
         ecut = {
@@ -15,9 +15,6 @@ def dielectric(calc, domega, omega2, rate=0.0,
             'kwargs': {'ecut_xy': ecut / Hartree,
                        'ecut_z': ecut / 2 / Hartree}
         }
-    kwargs = {}
-    if comm is not None:
-        kwargs['world'] = comm
     diel = DielectricFunction(calc=calc,
                               frequencies={'type': 'nonlinear',
                                            'omegamax': 10,
@@ -27,7 +24,7 @@ def dielectric(calc, domega, omega2, rate=0.0,
                               ecut=ecut,
                               rate=rate,
                               truncation='2D',
-                              **kwargs)
+                              world=comm)
     return diel
 
 
