@@ -34,12 +34,6 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                  log=None):
         mode = params.mode
         self.ecut = mode.ecut / Ha
-
-        if mode.dtype == 'single':
-            self.params = params
-            if not (GPAW_NO_C_EXTENSION or self.gpu):
-                raise NotImplementedError(
-                    'Single precision is GPU or pure python only.')
         # mode.dedecut ???
         super().__init__(atoms, params, comm=comm, log=log)
 

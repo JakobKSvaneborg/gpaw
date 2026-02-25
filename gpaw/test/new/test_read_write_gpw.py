@@ -113,7 +113,7 @@ def run_read_write_gpw(dtype, gpu):
     atoms.calc.write(gpw_file, precision=precision)
 
     # Test basic read from GPW file
-    calc_restart = GPAW(gpw_file)
+    calc_restart = GPAW(gpw_file) # , parallel={'gpu': gpu})
     e_pot_restart = calc_restart.get_potential_energy()
 
     assert calc_restart.wfs.dtype == expected_read_dtype
@@ -163,7 +163,7 @@ def run_restart_fixed_density(dtype, gpu):
     # When reading from GPW file, restore original calculation's dtype
     # The stored precision is just for storage efficiency
     expected_dtype = calc_dtype
-    calc_read = GPAW(gpw_file, txt=None)
+    calc_read = GPAW(gpw_file, txt=None) # , parallel={'gpu': gpu})
 
     assert calc_read.wfs.dtype == expected_dtype
 

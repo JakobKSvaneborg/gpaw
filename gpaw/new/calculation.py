@@ -10,7 +10,7 @@ from gpaw.core import UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.densities import Densities
 from gpaw.electrostatic_potential import ElectrostaticPotential
-from gpaw.gpu import as_np
+from gpaw.gpu import as_np, cupy as cp
 from gpaw.mpi import broadcast as bcast
 from gpaw.mpi import broadcast_float, MPIComm, receive, send, serial_comm
 from gpaw.new import trace, zips
@@ -193,6 +193,17 @@ class DFTCalculation:
             calculate_forces = self._calculate_forces
 
         self.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
+
+        if self.params.mode.name == 'pw':
+            mode = self.params.mode
+            if mode.dtype == 'single':
+                breakpoint()
+                from gpaw import GPAW_NO_C_EXTENSION
+                if not (GPAW_NO_C_EXTENSION or self.ibzwfs.xp is cp):
+                    raise NotImplementedError(
+                        'Single precision is GPU or pure python only.')
+
+
         for ctx in self.scf_loop.iterate(self.ibzwfs,
                                          self.density,
                                          self.potential,
