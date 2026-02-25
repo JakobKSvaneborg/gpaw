@@ -7,7 +7,6 @@ from functools import cached_property
 import numpy as np
 from ase.units import Ha
 
-from gpaw import GPAW_NO_C_EXTENSION
 from gpaw.core import PWDesc, UGDesc
 from gpaw.core.domain import Domain
 from gpaw.core.plane_waves import PWArray
