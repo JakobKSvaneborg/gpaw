@@ -37,7 +37,7 @@ def test_hse06(gpaw_new, dtype, eigensolver):
         mode=dict(name='pw',
                   force_complex_dtype=not gpaw_new and dtype is complex),
         xc='HSE06',
-        eigensolver=eigensolver,
+        eigensolver={'name': eigensolver, 'niter': 6},
         convergence={'density': 1e-6},
         parallel={'domain': world.size},
         nbands=4)
