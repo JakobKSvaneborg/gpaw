@@ -283,12 +283,12 @@ class MSR1Mixer(BaseMixer):
             # ntnorm_i = ntnorm_i[:-1] / ntnorm_i[-1]
             # self.gd.comm.sum(ntnorm_i)
 
-            dampen = 1.0  # Dampen the unpredicted greed
-            max_gb = min(10, (iold - 1))  # Max goob Broyden
-            weight = 1e-4  # Weight for regularization
-            B0_lims = [0.2, 1.1]  # Limits for predicted greed
+            dampen = 1  # Dampen the unpredicted greed
+            max_gb = 100 # min(21, 3 * (iold - 1))  # Max goob Broyden
+            weight = 2e-4  # Weight for regularization
+            B0_lims = [0, 1]  # Limits for predicted greed
             A0_lims = [0.04, 0.6]  # Limits for unpredicted greed
-            renormalize = False  # Renormalize t_isG
+            renormalize = True # False  # Renormalize t_isG
 
             # 2nd order norm
             # ntnorm_i = np.vecdot(np.array(nt_isG).reshape(iold, -1),
@@ -343,7 +343,8 @@ class MSR1Mixer(BaseMixer):
             ### Scale the problem!
             y_norm = self.dotprod(ty_isG, y_isG, tyD_iasp, yD_iasp, self.gd, mode='vecdot')
             s_norm = self.dotprod(ts_isG, y_isG, tsD_iasp, yD_iasp, self.gd, mode='vecdot')
-            t_norm = 1 / np.sqrt(y_norm + 0 * max_gb * s_norm)
+            t_norm = 1 / np.sqrt(y_norm + 0.5 * max_gb * s_norm)
+            t_norm[:] = 1
             t_norm_expanded = np.expand_dims(t_norm, axis=tuple(np.arange(1, y_isG.ndim)))
             y_isG *= t_norm_expanded
             ty_isG *= t_norm_expanded
@@ -365,10 +366,16 @@ class MSR1Mixer(BaseMixer):
             max_gb = np.clip(YY_LIM / YS_LIM, 1, max_gb)  # Take care
             good_broydenness = 0.5 * max_gb
 
+            A_ii0 = self.dotprod(ty_isG, y_isG, tyD_iasp, yD_iasp, self.gd, mode='gemm')
+            norm_vec = 1 / np.sqrt(y_norm)
+            A_ii0 *= norm_vec[None, :]
+            A_ii0 *= norm_vec[:, None]
+            eigval0 = np.min(np.linalg.eigvals(A_ii0))
+
             # Choose max good_broydenness s.t. A_ii is positive definite
             # for good_broydenness in good_broydenness_range:
             # binary search 2**(-8) accuracy:
-            for iter in range(2, 8):
+            for iter in range(2, 11):
                 t_isG = ty_isG + good_broydenness * ts_isG
                 tD_iasp = []
                 for i in range(iold - 1):
@@ -377,16 +384,23 @@ class MSR1Mixer(BaseMixer):
                         tD_asp.append(tyD_iasp[i][a] + good_broydenness * tsD_iasp[i][a])
                     tD_iasp.append(tD_asp)
 
+                norm_vec = 1 / np.sqrt(y_norm + s_norm * good_broydenness)
                 A_ii = self.dotprod(t_isG, y_isG, tD_iasp, yD_iasp, self.gd, mode='gemm')
-
+                A_ii *= norm_vec[None, :]
+                A_ii *= norm_vec[:, None]
                 try:
                     eigs = np.linalg.eigvals(A_ii)
+                    min_real = np.min(eigs.real)
+                    max_imag = np.max(np.abs(eigs.imag))
                 except np.linalg.LinAlgError:
                     good_broydenness -= 2**(-iter) * max_gb
                     continue
-                if np.all(eigs.real > 1e-8) and np.all(eigs.imag == 0):
+                if min_real > eigval0 and max_imag == 0:
+                    print('up: ', min_real / eigval0)
+                    eigval0 = min_real
                     good_broydenness += 2**(-iter) * max_gb
                 else:
+                    print('down: ', min_real / eigval0)
                     good_broydenness -= 2**(-iter) * max_gb
             good_broydenness -= 2**(-iter) * max_gb
 
@@ -470,7 +484,7 @@ class MSR1Mixer(BaseMixer):
             if iold != 2:
                 B0_ratio = (
                     self.B0 + np.clip(
-                        np.abs(B1 / B2),
+                        np.abs(B1 / B2) + 0.1,
                         *B0_lims)
                     ) / (2 * self.B0)
                 self.B0 *= np.clip(B0_ratio, 3/5, 5/3)
@@ -495,7 +509,7 @@ class MSR1Mixer(BaseMixer):
                 dstep_asp.append(A0 * uD_sp + B0 * pD_sp)
             trust_radius = self.dotprod(trust_step, trust_step, dstep_asp,
                dstep_asp, self.gd, mode='scalar')
-            trust_radius = 1.4 * trust_radius**0.5
+            trust_radius = trust_radius**0.5
             if self.trust_radius is not None:
                 trust_radius = (self.trust_radius + trust_radius) / 2
                 if backtracked:
