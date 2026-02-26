@@ -4,6 +4,7 @@ import argparse
 import inspect
 from functools import cache
 from io import StringIO
+from pathlib import Path
 from random import Random
 
 from ase import Atoms
@@ -19,15 +20,20 @@ def main(args: str | list[str] = None) -> int:
     parser = argparse.ArgumentParser()
     # parser.add_argument('--check-serial')
     parser.add_argument('-n', '--runs', type=int, default=-1)
-    parser.add_argument('--seed', type=int, default=1)
+    parser.add_argument('-s', '--seed', type=int, default=1)
+    parser.add_argument('-o', '--stdout', action='store_true')
+    parser.add_argument('-r', '--raise-exceptions', action='store_true')
     args = parser.parse_intermixed_args(args)
 
     seed = args.seed
     n = 0
     while n != args.runs:
-        run_random_calculation(seed)
+        run_random_calculation(seed,
+                               use_stdout=args.stdout,
+                               raise_exceptions=args.raise_exceptions)
         n += 1
         seed += 1
+
     return 0
 
 
@@ -36,13 +42,15 @@ def log(*args, **kwargs):
         print(*args, **kwargs)
 
 
-def run_random_calculation(seed):
-    log('Seed:', seed)
+def run_random_calculation(seed: int,
+                           use_stdout: bool,
+                           raise_exceptions: bool) -> None:
+    log(f'seed={seed}:', end=' ')
     rng = Random(seed)
 
     atoms = random_atoms(rng)
 
-    mode = rng.choice(['pw', 'lcao', 'fd'])
+    mode = rng.choice(['pw', 'pw', 'pw', 'lcao', 'lcao', 'fd'])
     if mode == 'pw':
         mode = {'name': 'pw', 'ecut': rng.uniform(25, 800)}
 
@@ -59,25 +67,35 @@ def run_random_calculation(seed):
             'density': rng.uniform(0.1, 4),
             'gamma': rng.random() < 0.5}
 
-    kwargs['parallel'] = rng.choice(parallelizations(world.size))
+    if world.size > 1:
+        kwargs['parallel'] = rng.choice(parallelizations(world.size))
 
-    out = StringIO()
-    log(atoms.symbols.formula)
-    log(kwargs)
+    if use_stdout:
+        out = '-'
+    else:
+        out = StringIO()
+
+    log(f'{atoms.symbols.formula}, {kwargs}')
     try:
         dft = DFT(atoms,
                   **kwargs,
                   txt=out)
         dft.converge(steps=3)
-        dft.calculate_energy()
+        energy = dft.calculate_energy()
         # dft.calculate_forces()
         # dft.calculate_stress()
     except Exception as ex:
-        log(ex)
-        assert not isinstance(ex, AssertionError)
-        assert isinstance(ex.args[0], str)
-        frame = inspect.trace()[-1]
-        assert frame  # ...
+        log(ex.__class__, ex)
+        if isinstance(ex, AssertionError) or not isinstance(ex.args[0], str):
+            log('****** Bad error *******')
+            if world.rank == 0 and not use_stdout:
+                Path(f'{seed}-{world.size}.txt').write_text(out.getvalue())
+            if raise_exceptions:
+                raise
+            frame = inspect.trace()[-1]
+            assert frame  # ...
+    else:
+        log(energy)
 
 
 def completely_random(rnd):
@@ -123,6 +141,7 @@ def parallelizations(n: int) -> list[dict[str, int]]:
 @cache
 def create_atoms_objects() -> list[Atoms]:
     candidates = []
+
     atoms = Atoms('H', magmoms=[1])
     atoms.center(vacuum=2.0)
     candidates.append(atoms)
