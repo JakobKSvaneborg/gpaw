@@ -104,10 +104,11 @@ class BSEMatrix:
         """
         H_sS = self.H_sS
         comm = bse.context.comm
+        grid = BlacsGrid(comm, comm.size, 1)
         nS = bse.nS
         ns = bse.ns
-        H_rr, new_desc = parallel_delete(H_sS, exclude_S,
-                                         comm=comm, N=nS, nlocal=ns)
+        desc = grid.new_descriptor(nS, nS, ns, nS)
+        H_rr, new_desc = parallel_delete(H_sS, exclude_S, desc)
         bse.context.print('  Eliminated %s pair orbitals' % len(
             exclude_S))
         return H_rr, new_desc
@@ -115,11 +116,8 @@ class BSEMatrix:
 
 def parallel_delete(A_nn: np.ndarray,
                     deleteN: np.ndarray,
-                    grid_desc: BlacsDescriptor = None,
-                    new_desc=None,
-                    comm=None,
-                    N=None,
-                    nlocal=None):
+                    grid_desc: BlacsDescriptor,
+                    new_desc=None):
     """
     Removes rows and columns from the distributed square matrix A_nn.
     This is done by redistributing the matrix to first make the second index
@@ -129,11 +127,7 @@ def parallel_delete(A_nn: np.ndarray,
     Parameters:
     A_nn: distributed matrix
     deleteN : list of (global) indices to delete
-    grid_desc: BlacsDescriptor for A_nn (optional)
-    comm: communicator (used if grid_desc is None)
-    N: global matrix size (used if grid_desc is None)
-    nlocal: local row-count for 1D row-distributed A_nn (used if grid_desc
-        is None). Defaults to ceil(N / comm.size).
+    grid_desc: BlacsDescriptor for A_nn
     new_grid: BlacsGrid on which A_nn will be returned; optional.
     If None, the output grid will be determined automatically
     by the gpaw.old.matrix.suggest_blocking function.
@@ -147,30 +141,14 @@ def parallel_delete(A_nn: np.ndarray,
     new_grid is the grid on which it is distributed.
     """
     from gpaw.old.matrix import suggest_blocking
-    if grid_desc is None:
-        assert comm is not None
-        assert N is not None
-        if comm.size > 1:
-            if nlocal is None:
-                nlocal = -((-N) // comm.size)
-            grid = BlacsGrid(comm, comm.size, 1)
-            grid_desc = grid.new_descriptor(N, N, nlocal, N)
-    else:
-        comm = grid_desc.blacsgrid.comm
-        N = grid_desc.N
-        assert N == grid_desc.M, 'Matrix must be square'
+    N = grid_desc.N
+    assert N == grid_desc.M, 'Matrix must be square'
 
     R = N - len(deleteN)  # global matrix dimension after deletion
-    if comm.size == 1:
-        A_nR = np.delete(A_nn, deleteN, axis=1)
-        A_RR = np.delete(A_nR, deleteN, axis=0)
-        if new_desc is None and grid_desc is not None:
-            new_desc = grid_desc.blacsgrid.new_descriptor(R, R, R, R)
-        return np.ascontiguousarray(A_RR), new_desc
-
     dtype = A_nn.dtype
     # redistribute matrix, so it is distributed over first index only.
     # then we can safely delete entries from the second index.
+    comm = grid_desc.blacsgrid.comm
     grid_mN = BlacsGrid(comm, comm.size, 1)
     m = -((-N) // comm.size)
     desc_mN = grid_mN.new_descriptor(N, N, m, N)
@@ -951,6 +929,8 @@ class BSEBackend:
         comm = self.context.comm
         nG = rho_RG.shape[-1]
         nR = self.nS - len(exclude_S)
+        nr = -(-nR // comm.size)
+        # nr is the local size of the array
 
         self.context.print('Calculating response function at %s frequency '
                            'points' % len(w_w))
@@ -980,8 +960,19 @@ class BSEBackend:
                C_tGG1 = A_Gt.T.conj()[..., np.newaxis] * B_Gt.T[:, np.newaxis]
                C_tGG = B_Gt.T.conj()[..., np.newaxis] * A_Gt.T[:, np.newaxis]
                '''
-            C_tGG = np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt)
-            C_tGG1 = np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt)
+            grid = BlacsGrid(comm, comm.size, 1)
+            desc = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
+            C_tGG = desc.empty(dtype=complex)
+            np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt,
+                      out=C_tGG.reshape((-1, nG, nG)))
+            desc1 = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
+            C_tGG1 = desc1.empty(dtype=complex)
+            np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt,
+                      out=C_tGG1.reshape((-1, nG, nG)))
+            print(f'shape is {C_tGG.shape}')
+            C_tGG = C_tGG[:C_tGG.shape[0]].reshape((C_tGG.shape[0], nG, nG))
+            C_tGG1 = C_tGG1[:C_tGG1.shape[0]].reshape(
+                (C_tGG1.shape[0], nG, nG))
 
         eta /= Hartree
 
