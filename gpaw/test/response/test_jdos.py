@@ -37,7 +37,7 @@ def test_jdos(in_tmp_dir, gpw_files, mpi, system, qrel):
     # Calculation parameters (which should not affect the result)
     qsymmetry_s = [True, False]
     bandsummation_b = ['double', 'pairwise']
-    nblocks_n = generate_nblocks_n()
+    nblocks_n = generate_nblocks_n(mpi.comm)
 
     # ---------- Script ---------- #
 
