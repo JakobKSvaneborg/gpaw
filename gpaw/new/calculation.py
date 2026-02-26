@@ -14,6 +14,7 @@ from gpaw.gpu import as_np
 from gpaw.mpi import broadcast as bcast
 from gpaw.mpi import broadcast_float, MPIComm, receive, send, serial_comm
 from gpaw.new import trace, zips
+from gpaw.new.gpw import read_gpw
 from gpaw.new.density import Density
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.ibzwfs import IBZWaveFunctions
@@ -704,14 +705,22 @@ class DFTCalculation:
         self.ase_calculator().write(filename, mode)
         self.comm.barrier()
 
-    def from_gpw_file(self, filename):
-        (atoms,
-         calc,
-         builder) = self.ase_calculator().from_gpw_file(filename,
-                                                        comm=self.comm)
-        self.comm.barrier
+    @classmethod
+    def from_gpw_file(cls, filename, log=None, comm=None,
+                      parallel=None, dtype=None,
+                      force_complex_dtype=False, object_hooks=None):
 
-        return atoms, calc, builder
+        (atoms,
+         dft,
+         builder) = read_gpw(filename=filename,
+                             log=log,
+                             comm=comm,
+                             parallel=parallel,
+                             dtype=dtype,
+                             force_complex_dtype=force_complex_dtype,
+                             object_hooks=object_hooks)
+
+        return dft
 
     def get_state(self):
         return DFTState(self.ibzwfs, self.density, self.potential)

@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from collections.abc import Callable, Generator
 from pathlib import Path
-from typing import Any, IO
+from typing import Any
 
 import numpy as np
 from ase import Atoms
@@ -17,7 +17,7 @@ from gpaw.mpi import broadcast, synchronize_atoms
 from gpaw.new import Timer, trace
 from gpaw.new.calculation import (CalculationModeError, DFTCalculation,
                                   ReuseWaveFunctionsError, units)
-from gpaw.new.gpw import GPWFlags, write_gpw, read_gpw
+from gpaw.new.gpw import GPWFlags, write_gpw
 from gpaw.new.logger import Logger
 from gpaw.new.pw.fulldiag import diagonalize
 from gpaw.new.scf import SCFContext
@@ -351,35 +351,6 @@ class ASECalculator:
         flags = GPWFlags(include_projections=include_projections,
                          precision=precision, include_wfs=mode == 'all')
         write_gpw(filename, self.dft, flags=flags)
-
-    def from_gpw_file(self,
-                      filename: str | Path | IO[str],
-                      log: Logger | str | Path | IO[str] | None = None,
-                      comm=None,
-                      parallel: dict[str, Any] = None,
-                      dtype=None,
-                      force_complex_dtype: bool = False,
-                      object_hooks:
-                      dict[str, Callable[[dict], Any]] | None = None
-                      ):
-        """
-        Read gpw file
-        Returns
-        -------
-        atoms, calculation, params, builder
-        """
-
-        (atoms,
-         calc,
-         builder) = read_gpw(filename=filename,
-                             log=log,
-                             comm=comm,
-                             parallel=parallel,
-                             dtype=dtype,
-                             force_complex_dtype=force_complex_dtype,
-                             object_hooks=object_hooks)
-
-        return atoms, calc, builder
 
     # Old API:
 
