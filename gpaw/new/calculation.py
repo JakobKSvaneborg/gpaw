@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -706,9 +707,15 @@ class DFTCalculation:
         self.comm.barrier()
 
     @classmethod
-    def from_gpw_file(cls, filename, log=None, comm=None,
-                      parallel=None, dtype=None,
-                      force_complex_dtype=False, object_hooks=None):
+    def from_gpw_file(cls,
+                      filename: str | Path | IO[str],
+                      log: Logger | str | Path | IO[str] | None = None,
+                      comm=None,
+                      parallel: dict[str, Any] = None,
+                      dtype=None,
+                      force_complex_dtype: bool = False,
+                      object_hooks: dict[str,
+                                         Callable[[dict], Any]] | None = None) -> DFTCalculation:
 
         (atoms,
          dft,
