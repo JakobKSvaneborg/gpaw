@@ -16,7 +16,7 @@ from gpaw.rotation import rotation
 from gpaw.symmetry import Symmetry as OldSymmetry
 from gpaw.symmetry import frac
 from gpaw.typing import Array2D, Array3D, ArrayLike1D, ArrayLike2D, ArrayLike3D
-
+from gpaw.utilities.symmetry import find_lattice_symmetry, prune_symmetries
 
 class SymmetryBrokenError(Exception):
     """Broken-symmetry error."""
@@ -97,7 +97,7 @@ def create_symmetries_object(atoms: Atoms,
                              tolerance: float | None = None,  # Å
                              point_group: bool = True,
                              symmorphic: bool = True,
-                             _backwards_compatible=False) -> Symmetries:
+                             _backwards_compatible = False) -> Symmetries:
     """Find symmetries from atoms object.
 
     >>> atoms = Atoms('H', cell=[1, 1, 1], pbc=True)
@@ -108,6 +108,13 @@ def create_symmetries_object(atoms: Atoms,
     (48, 3, 3)
     """
     cell_cv = atoms.cell.complete()
+    match atoms.pbc:
+        case True:
+            pbc_c = (1, 1, 1)
+        case False:
+            pbc_c = (0, 0, 0)
+        case tuple:
+            pbc_c = atoms.pbc
 
     if tolerance is None:
         tolerance = 1e-7 if _backwards_compatible else 1e-5
@@ -125,10 +132,24 @@ def create_symmetries_object(atoms: Atoms,
     if extra_ids is not None:
         ids = integer_ids((id, x) for id, x in zips(ids, extra_ids))
 
-    relative_positions = atoms.get_scaled_positions()
+    rel_pos = atoms.get_scaled_positions()
     if rotations is None:
         # Find symmetries from cell, ids and positions:
         if point_group:
+            rotation_scc = find_set_of_lattice_symmetries(
+                cell_cv, pbc_c, tolerance, _backwards_compatible)
+
+            if not _backwards_compatible:
+                # Do not do group check for backwards compatible
+                rotation_scc = ensure_lattice_symmetries_form_a_group(
+                    cell_cv, pbc_c, tolerance, _backwards_compatible)
+                return cls(cell=cell,
+                           rotations=rotations,
+                           tolerance=tolerance,
+                            _backwards_compatible=_backwards_compatible)
+
+            print('here')
+            crash
             sym = Symmetries.from_cell_and_atoms(
                 cell_cv,
                 pbc=atoms.pbc,
@@ -212,7 +233,6 @@ class Symmetries:
         >>> len(sym2)
         4
         """
-        self.BUG = False
         self.cell_cv = normalize_cell(cell)
         if tolerance is None:
             tolerance = 1e-7 if _backwards_compatible else 1e-5
@@ -250,59 +270,6 @@ class Symmetries:
             if (r_cc == inv_cc).all() and not t_c.any():
                 return True
         return False
-
-    @classmethod
-    def ensure_group(cls,
-                 *,
-                 cell: ArrayLike1D | ArrayLike2D,
-                 rotations: ArrayLike3D | None = None,
-                 tolerance: float | None = None,
-                 _backwards_compatible=False):
-        nsyms = rotations.shape[0]
-        if _backwards_compatible:
-            # Do not do group check for backwards compatible
-            return cls(cell=cell,
-                       rotations=rotations,
-                       tolerance=tolerance,
-                       _backwards_compatible=_backwards_compatible)
-
-        M_sscc = np.einsum('sab,pbc->spac', rotations, rotations)
-        M_scc = np.unique(M_sscc.reshape((-1, 3, 3)), axis=0)
-        if M_scc.shape[0] == nsyms:
-            print('log succes, group found, etc.')
-            return cls(cell=cell,
-                       rotations=rotations,
-                       tolerance=tolerance,
-                       _backwards_compatible=_backwards_compatible)
-
-        not_a_group = True
-        new_nsyms = nsyms
-        new_rotations = rotations
-        while not_a_group:
-            badness = np.zeros((new_nsyms, new_nsyms), dtype=int)
-            for s1, M_scc in enumerate(M_sscc):
-                for s2, M_cc in enumerate(M_scc):
-                    contained_operation = any([(M_cc == rotation).all()
-                                               for rotation in rotations])
-                    if not contained_operation:
-                        badness[s1, s2] = 1
-            np.set_printoptions(threshold=np.inf)
-            print(badness)
-
-            badness_measure = badness.sum(axis=0) + badness.sum(axis=1)
-            if sum(badness_measure) == 0:
-                not_a_group = False
-                return cls(cell=cell,
-                           rotations=new_rotations,
-                           tolerance=tolerance,
-                           _backwards_compatible=_backwards_compatible)
-
-            bad_operations = np.squeeze(np.argwhere(badness_measure == np.max(badness_measure)))
-            print(bad_operations)
-            new_rotations = np.delete(new_rotations, bad_operations, axis=0)  # Use boolean masking instead?
-            print(new_rotations.shape)
-            new_nsyms = new_rotations.shape[0]
-            M_sscc = np.einsum('sab,pbc->spac', new_rotations, new_rotations)
 
 
     @classmethod
@@ -369,7 +336,6 @@ class Symmetries:
         data = get_symmetry_dataset(
             cell=(cell_cv, np.asarray(relative_positions), ids),
             symprec=tolerance)
-        print(data.transformation_matrix, 'TTT')
         rotations = spglib_remove_nonsymmorphic(data)
 
         return Symmetries(cell=cell,
@@ -523,114 +489,8 @@ class Symmetries:
                         continue
                     break
                 else:  # no break
-                    self.BUG = True
-                    #print(f'BUG {U1_cc=} {t1_c} times {U2_cc=} {t2_c} was not found.')
                     raise SymmetryAnalysisBug(
                         'Sorry!  Try using spglib.standardize_cell(...)')
-
-
-@cache
-def totally_unimodular_matrices() -> np.ndarray:
-    # Symmetry operations as matrices in 123 basis.
-    # Operation is a 3x3 matrix, with possible elements -1, 0, 1, thus
-    # there are 3**9 = 19683 possible matrices:
-    combinations = 1 - np.indices([3] * 9, dtype=np.int8)
-    U_scc = combinations.reshape((3, 3, 3**9)).transpose((2, 0, 1))
-    U_scc = U_scc[np.isclose(abs(np.linalg.det(U_scc)), 1.0, atol=1e-10)]  # reduce to 6960
-    return U_scc
-
-
-def find_lattice_symmetry(cell_cv, pbc_c, tol, _backwards_compatible=False):
-    """Determine list of symmetry operations."""
-    U_scc = totally_unimodular_matrices()
-
-    # The metric of the cell should be conserved after applying
-    # the operation:
-    metric_cc = cell_cv.dot(cell_cv.T)
-    metric_scc = np.einsum('sij, jk, slk -> sil',
-                           U_scc, metric_cc, U_scc,
-                           optimize=True)
-    if _backwards_compatible:
-        # (wrong units)
-        mask_s = abs(metric_scc - metric_cc).sum(2).sum(1) <= tol
-    else:
-        L_c = metric_cc.diagonal()**0.5
-        tol_cc = np.add.outer(L_c, L_c) * tol
-        err_scc = abs(metric_scc - metric_cc)
-        mask_s = (err_scc <= tol_cc).all(axis=(1, 2))
-    U_scc = U_scc[mask_s]
-
-    # Operation must not swap axes that don't have same PBC:
-    pbc_cc = np.logical_xor.outer(pbc_c, pbc_c)
-    mask_s = ~U_scc[:, pbc_cc].any(axis=1)
-    U_scc = U_scc[mask_s]
-    return U_scc
-
-
-def prune_symmetries(sym: Symmetries,
-                     relpos_ac: Array2D,
-                     id_a: Sequence[int],
-                     symmorphic: bool = True) -> Symmetries:
-    """Remove symmetries that are not satisfied by the atoms."""
-
-    if len(relpos_ac) == 0:
-        return sym
-
-    # Build lists of atom numbers for each type of atom - one
-    # list for each combination of atomic number, setup type,
-    # magnetic moment and basis set:
-    a_ij = defaultdict(list)
-    for a, id in enumerate(id_a):
-        a_ij[id].append(a)
-
-    a_j = a_ij[id_a[0]]  # just pick the first species
-
-    def check(op_cc, ft_c):
-        return sym.check_one_symmetry(relpos_ac, op_cc, ft_c, a_ij)
-
-    # if supercell disable fractional translations:
-    if not symmorphic:
-        op_cc = np.identity(3, int)
-        ftrans_sc = relpos_ac[a_j[1:]] - relpos_ac[a_j[0]]
-        ftrans_sc -= np.rint(ftrans_sc)
-        for ft_c in ftrans_sc:
-            a_a = check(op_cc, ft_c)
-            if a_a is not None:
-                symmorphic = True
-                break
-
-    symmetries = []
-    ftsymmetries = []
-
-    # go through all possible symmetry operations
-    for op_cc in sym.rotation_scc:
-        # first ignore fractional translations
-        a_a = check(op_cc, [0, 0, 0])
-        if a_a is not None:
-            symmetries.append((op_cc, [0, 0, 0], a_a))
-        elif not symmorphic:
-            # check fractional translations
-            sposrot_ac = np.dot(relpos_ac, op_cc)
-            ftrans_jc = sposrot_ac[a_j] - relpos_ac[a_j[0]]
-            ftrans_jc -= np.rint(ftrans_jc)
-            for ft_c in ftrans_jc:
-                a_a = check(op_cc, ft_c)
-                if a_a is not None:
-                    ftsymmetries.append((op_cc, ft_c, a_a))
-
-    # Add symmetry operations with fractional translations at the end:
-    symmetries.extend(ftsymmetries)
-
-    sym = Symmetries(cell=sym.cell_cv,
-                     rotations=[s[0] for s in symmetries],
-                     translations=[s[1] for s in symmetries],
-                     atommaps=[s[2] for s in symmetries],
-                     tolerance=sym.tolerance,
-                     _backwards_compatible=sym._backwards_compatible)
-    if debug:
-        sym.check_positions(relpos_ac)
-
-    return sym
 
 
 class SymmetrizationPlan:
