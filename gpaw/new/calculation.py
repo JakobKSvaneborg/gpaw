@@ -18,6 +18,7 @@ from gpaw.mpi import broadcast as bcast
 from gpaw.mpi import broadcast_float, MPIComm, receive, send, serial_comm
 from gpaw.new import trace, zips
 from gpaw.new.gpw import read_gpw
+
 from gpaw.new.density import Density
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.ibzwfs import IBZWaveFunctions
@@ -693,19 +694,33 @@ class DFTCalculation:
 
         self.results = {}
 
-    def write_gpw_file(self, filename, mode=''):
+    def write_gpw_file(self, filename,
+                       include_wfs: bool = False,
+                       precision: str = 'double',
+                       include_projections: bool = True):
         """Write calculator object to a file.
 
         Parameters
         ----------
-        filename
-            File to be written
-        mode
-            Write mode. Use ``mode='all'``
+        filename:
+            File to be written.
+        include_wfs:
+            Use ``include_wfs=True``
             to include wave functions in the file.
+        precision:
+            'double' (the default) or 'single'.
+        include_projections:
+            Use ``include_projections=False`` to not include
+            the PAW-projections.
         """
+        mode = ''
+        if include_wfs:
+            mode = 'all'
         self.log(f'Writing to {filename} (mode={mode!r})\n')
-        self.ase_calculator().write(filename, mode)
+        self.ase_calculator().write(filename,
+                                    mode=mode,
+                                    precision=precision,
+                                    include_projections=include_projections)
         self.comm.barrier()
 
     @classmethod

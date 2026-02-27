@@ -1,14 +1,14 @@
 import pytest
 from gpaw.response.g0w0 import G0W0
-from gpaw.dft import GPAW
-
+#from gpaw.dft import GPAW
+from gpaw.new.calculation import DFTCalculation
 
 @pytest.mark.ci
 @pytest.mark.response
 @pytest.mark.old_gpaw_only
 def test_lcao_gw(in_tmp_dir, gpw_files):
 
-    dft = GPAW(gpw_files['diamond_lcao']).dft
+    dft = DFTCalculation.from_gpw_file(gpw_files['diamond_lcao'])
     dft.change(eigensolver={})  # remove SCS solver which PW-mode doesn't like
     dft.change_mode('pw')
     dft.write_gpw_file('diamond_pw.gpw', 'all')
