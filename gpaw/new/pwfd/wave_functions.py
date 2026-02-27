@@ -294,7 +294,6 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         blocksize = (
             (self.nbands + self.band_comm.size - 1) // self.band_comm.size,
             self.nbands)
-        print(slcomm.rank, slcomm.size, blocksize, H_nm)
         H0_nn = H_nm.new(dist=(self.domain_band_comm, 1, 1))
         eig_n = H0_nn.eigh(scalapack=(slcomm, r, c, b))
         self.eig_n = as_np(eig_n, dtype=np.float64)

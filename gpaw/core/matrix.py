@@ -295,8 +295,6 @@ class Matrix(XP):
         d2 = other.dist
         n1 = d1.rows * d1.columns
         n2 = d2.rows * d2.columns
-        print(d1, d1.simple, d1.all_data_on_rank_zero)
-        print(d2, d2.simple, d2.all_data_on_rank_zero)
         if n1 == n2 == 1:
             other.data[:] = self.data
             return
@@ -474,7 +472,6 @@ class Matrix(XP):
                   blocksize != self.dist.br or
                   blocksize != self.dist.bc)
 
-        print('H', self.dist.comm.size, self.dist.comm.rank, redist)
         if redist:
             H = self.new(dist=dist)
             self.redist(H)
@@ -533,7 +530,6 @@ class Matrix(XP):
         else:
             eps = self.xp.empty(H.shape[0])
 
-        print('rc', rows, columns)
         if rows * columns == 1:
             if self.dist.comm.rank == 0:
                 if cc and np.issubdtype(H.dtype, np.complexfloating):
