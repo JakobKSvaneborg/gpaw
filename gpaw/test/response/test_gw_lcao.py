@@ -1,7 +1,7 @@
 import pytest
 from gpaw.response.g0w0 import G0W0
-#from gpaw.dft import GPAW
 from gpaw.new.calculation import DFTCalculation
+
 
 @pytest.mark.ci
 @pytest.mark.response
