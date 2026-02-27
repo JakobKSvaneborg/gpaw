@@ -16,7 +16,7 @@ def test_hess_numerically_pw(in_tmp_dir, gpw_files):
     :return:
     """
 
-    calc = GPAW(gpw_files['h_hess_num_pw'])
+    calc = GPAW(gpw_files['h_hess_num_pw'], legacy_gpaw=True)
     atoms = calc.atoms
     atoms.calc = calc
 

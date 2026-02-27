@@ -281,6 +281,23 @@ class IBZWaveFunctions(Generic[WFT]):
             return self._wfs_u[0].receive(krank, self.kpt_comm)
         return None
 
+    def gather(self):
+        # extract sizes from old wfs
+        ncomponents = self.ncomponents
+        nspins = ncomponents % 3
+        ibz = self.ibz
+
+        # gather wfs on master
+        wfs_u = []
+        for k in range(len(ibz)):
+            for spin in range(nspins):
+                wfs = self.get_wfs_on_master(kpt=k, spin=spin)
+                wfs_u.append(wfs)
+
+        fermi_levels = self.fermi_levels
+
+        return ibz, ncomponents, wfs_u, fermi_levels
+
     def get_eigs_and_occs(self, kpt=0, spin=0):
         if self.domain_comm.rank == 0 and self.band_comm.rank == 0:
             rank = self.rank_ks[kpt, spin]

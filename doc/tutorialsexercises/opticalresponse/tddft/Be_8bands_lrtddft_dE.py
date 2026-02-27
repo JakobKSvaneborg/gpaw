@@ -1,7 +1,7 @@
 from gpaw import GPAW
 from gpaw.lrtddft import LrTDDFT
 
-c = GPAW('Be_gs_8bands.gpw')
+c = GPAW('Be_gs_8bands.gpw', legacy_gpaw=True)
 
 dE = 10  # maximal Kohn-Sham transition energy to consider in eV
 lr = LrTDDFT(c, xc='LDA', restrict={'energy_range': dE})

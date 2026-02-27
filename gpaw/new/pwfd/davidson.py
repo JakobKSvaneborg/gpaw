@@ -34,13 +34,13 @@ class Davidson(PWFDEigensolver):
                  band_comm,
                  domain_band_comm,
                  hamiltonian,
-                 converge_bands='occupied',
+                 convergence,
                  niter=2,
                  scalapack_parameters: tuple[int, int, int] | None = None,
                  max_buffer_mem: int = 200 * 1024**2):
         super().__init__(
             hamiltonian,
-            converge_bands,
+            convergence,
             max_buffer_mem=max_buffer_mem)
         self.niter = niter
         if scalapack_parameters is None:

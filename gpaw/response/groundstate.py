@@ -54,26 +54,19 @@ ResponseGroundStateAdaptable = Union['ResponseGroundStateAdapter',
 
 class ResponseGroundStateAdapter:
     def __init__(self, calc: GPAWCalculator, lazy=False):
+        self.gs_info = ''
+
+        if calc.old and calc.wfs.mode == 'lcao':
+            calc.initialize_positions()
+            for kpt in calc.wfs.kpt_u:
+                assert kpt.C_nM is not None
+            ecut = pw_ecut_from_lcao_grid(calc.wfs.gd)
+            calc.wfs.planewavefy(ecut=ecut / Ha, lazy=lazy)
+            assert calc.wfs.pd is not None
+            self.gs_info = f'Converting from LCAO to PW: ecut={ecut:.3f} eV'
+
         wfs = calc.wfs  # wavefunction object from gpaw.old.wavefunctions
         self._wfs = wfs
-        self.gs_info = ""
-
-        if self.is_lcao:
-            if isinstance(calc, NewGPAW):
-                raise ValueError('LCAO calculations are only '
-                                 'supported by old GPAW')
-            # calc = calc._to_old()
-            # self._wfs = wfs = calc.wfs
-            calc.initialize_positions()
-            for kpt in wfs.kpt_u:
-                assert kpt.C_nM is not None
-            ecut_pw = pw_ecut_from_lcao_grid(wfs.gd)
-            wfs.planewavefy(ecut=ecut_pw / Ha, lazy=lazy)
-            assert wfs.pd is not None
-
-            self.gs_info = f"""Converting LCAO wf to PW wf
-                         with cutoff of Ecut={ecut_pw:.3f} eV"""
-            # calc = planewavefy_completed
 
         self.atoms = calc.atoms
         self.kd = wfs.kd  # KPointDescriptor object
@@ -347,8 +340,8 @@ class ResponseGroundStateAdapter:
             assert n1 <= self.nocc1
         else:
             raise ValueError(
-                f"Invalid type for nbands: {type(nbands)}."
-                "Expected None, int, or slice.")
+                f'Invalid type for nbands: {type(nbands)}. '
+                'Expected None, int, or slice.')
 
         n2 = self.nocc2
         m1 = self.nocc1
@@ -441,8 +434,8 @@ class CellDescriptor:
             # nonperiodic cell vectors in different blocks.
             assert np.allclose(cell_cv[~pbc_c][:, pbc_c], 0.) and \
                 np.allclose(cell_cv[pbc_c][:, ~pbc_c], 0.), \
-                "In 1D and 2D, please put the periodic/nonperiodic axis " \
-                "along a cartesian component"
+                'In 1D and 2D, please put the periodic/nonperiodic axis ' \
+                'along a cartesian component'
         L = np.abs(np.linalg.det(cell_cv[~pbc_c][:, ~pbc_c]))
         return L * Bohr**sum(~pbc_c)  # Bohr -> Å
 

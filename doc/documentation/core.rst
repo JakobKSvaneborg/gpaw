@@ -253,7 +253,7 @@ grid:
 >>> pw = PWDesc(ecut=100, cell=grid.cell)
 >>> func_G = pw.empty()
 >>> func_R.fft(out=func_G)
-PWArray(pw=PWDesc(ecut=100 <coefs=1536/1536>, cell=[4.0, 4.0, 4.0], pbc=[True, True, True], comm=0/1, dtype=float64), dims=())
+PWArray(pw=PWDesc(ecut=100 <coefs=1536/1536>, cell=[4.0, 4.0, 4.0], pbc=[1, 1, 1], comm=0/1, dtype=float64), dims=())
 >>> G = pw.reciprocal_vectors()
 >>> G.shape
 (1536, 3)
@@ -262,7 +262,7 @@ array([0., 0., 0.])
 >>> func_G.data[0]
 np.complex128(1+0j)
 >>> func_G.ifft(out=func_R)
-UGArray(grid=UGDesc(size=[20, 20, 20], cell=[4.0, 4.0, 4.0], pbc=[True, True, True], comm=0/1, dtype=float64), dims=())
+UGArray(grid=UGDesc(size=[20, 20, 20], cell=[4.0, 4.0, 4.0], pbc=[1, 1, 1], comm=0/1, dtype=float64), dims=())
 >>> round(func_R.data[0, 0, 0], 15)
 np.float64(1.0)
 

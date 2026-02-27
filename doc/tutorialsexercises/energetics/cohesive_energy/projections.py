@@ -2,7 +2,7 @@ from gpaw import GPAW
 from gpaw.sphere.spherical_harmonics import names
 from ase.units import Ha
 
-calc = GPAW('pt-atom.gpw')
+calc = GPAW('pt-atom.gpw', legacy_gpaw=True)
 setup = calc.setups[0]
 labels = [f'{n}{"spd"[l]}({names[l][m]})'
           for n, l in zip(setup.n_j, setup.l_j)

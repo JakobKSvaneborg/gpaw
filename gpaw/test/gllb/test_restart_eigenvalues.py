@@ -42,7 +42,8 @@ def test_restart_eigenvalues(xc, in_tmp_dir):
     test_kpts = [[0, 0, 0], [1. / 3, 1. / 3, 1. / 3]]
 
     atoms = bulk('Si')
-    calc = GPAW(mode='lcao',
+    calc = GPAW(legacy_gpaw=True,
+                mode='lcao',
                 basis='sz(dzp)',
                 h=0.3,
                 nbands=8,
@@ -58,7 +59,7 @@ def test_restart_eigenvalues(xc, in_tmp_dir):
     kpt_i = [0, 3]
     calc_kpts = calc.get_ibz_k_points()[kpt_i]
     assert np.allclose(calc_kpts, test_kpts, rtol=0, atol=1e-8), \
-        "Wrong kpt indices"
+        'Wrong kpt indices'
     eig_in = [calc.get_eigenvalues(kpt=kpt) for kpt in kpt_i]
     eig_in = np.array(eig_in)
     calc.write('gs.gpw')
@@ -66,21 +67,21 @@ def test_restart_eigenvalues(xc, in_tmp_dir):
     # Check calculation against reference
     ref_eig_in = refs[xc]
     assert np.allclose(eig_in, ref_eig_in, atol=2e-3), \
-        f"{xc} error = {np.max(np.abs(eig_in - ref_eig_in))}"
+        f'{xc} error = {np.max(np.abs(eig_in - ref_eig_in))}'
 
     # Restart
-    calc = GPAW('gs.gpw')
+    calc = GPAW('gs.gpw', legacy_gpaw=True)
     calc = calc.fixed_density(kpts=test_kpts, txt='gs2.out')
     # Check that calculation was triggered
     scf = calc.scf
     assert scf is not None and scf.niter is not None and scf.niter > 0, \
-        "Test error: SCF was not run in restart"
+        'Test error: SCF was not run in restart'
     eig2_in = [calc.get_eigenvalues(kpt=kpt) for kpt in range(len(kpt_i))]
     eig2_in = np.array(eig2_in)
 
     # Check restarted eigenvalues
     assert np.allclose(eig_in, eig2_in, rtol=0, atol=1e-8), \
-        f"{xc} restart error = {np.max(np.abs(eig_in - eig2_in))}"
+        f'{xc} restart error = {np.max(np.abs(eig_in - eig2_in))}'
 
     # Check that reference energy source information is restored
     assert eref_s == calc.hamiltonian.xc.response.eref_s

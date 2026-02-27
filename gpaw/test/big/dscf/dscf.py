@@ -15,7 +15,8 @@ c_mol = GPAW(mode='fd',
              eigensolver='ppcg' if GPAW_NEW else 'cg',
              spinpol=True,
              convergence={'bands': -2},
-             txt='CO.txt')
+             txt='CO.txt',
+             legacy_gpaw=True)
 
 calc = GPAW(mode='fd',
             nbands=120,
@@ -27,7 +28,9 @@ calc = GPAW(mode='fd',
             spinpol=True,
             mixer=MixerSum(nmaxold=5, beta=0.1, weight=100),
             convergence={'eigenstates': 1.0e-4,
-                         'bands': -10}, txt=filename + '.txt')
+                         'bands': -10},
+            txt=filename + '.txt',
+            legacy_gpaw=True)
 
 # Import Slab with relaxed CO
 slab = read('CO_Pt.traj')

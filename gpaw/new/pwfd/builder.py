@@ -34,7 +34,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
             self.communicators['K'],
             self.params.parallel.get('sl_diagonalize'),
             hamiltonian,
-            self.params.convergence.get('bands', 'occupied'),
+            self.params.convergence,
             self.setups,
             self.atoms)
 

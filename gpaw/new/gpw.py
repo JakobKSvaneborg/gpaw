@@ -197,7 +197,6 @@ def read_gpw(filename: str | Path | IO[str],
              object_hooks: dict[str, Callable[[dict], Any]] | None = None
              ) -> tuple[Atoms,
                         DFTCalculation,
-                        Parameters,
                         DFTComponentsBuilder]:
     """
     Read gpw file
@@ -279,7 +278,7 @@ def read_gpw(filename: str | Path | IO[str],
     else:
         reader.close()
 
-    return atoms, dft, params, builder
+    return atoms, dft, builder
 
 
 def read_dft_state(reader: ulm.Reader,

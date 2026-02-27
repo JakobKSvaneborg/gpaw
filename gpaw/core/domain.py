@@ -99,7 +99,7 @@ class Domain(Generic[X]):
         else:
             cell = self.cell_cv.tolist()
         return (f'Domain(cell={cell}, '
-                f'pbc={self.pbc_c.tolist()}, '
+                f'pbc={self.pbc_c.astype(int).tolist()}, '
                 f'comm={comm.rank}/{comm.size}, '
                 f'dtype={self.dtype}{k})')
 

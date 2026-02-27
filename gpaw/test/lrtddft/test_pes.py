@@ -32,10 +32,15 @@ def test_lrtddft_pes(in_tmp_dir, mpi):
     e_H2 = H2.get_potential_energy()
 
     calc_plus = mpi.GPAW(
-        mode='fd', gpts=(12, 12, 12), xc=xc, nbands=2,
+        legacy_gpaw=True,
+        mode='fd',
+        gpts=(12, 12, 12),
+        xc=xc,
+        nbands=2,
         poissonsolver=FDPoissonSolver(),
         parallel={'domain': mpi.comm.size},
-        spinpol=True, txt=txt)
+        spinpol=True,
+        txt=txt)
     calc_plus = calc_plus.new(charge=+1)
     H2_plus.calc = calc_plus
     e_H2_plus = H2_plus.get_potential_energy()

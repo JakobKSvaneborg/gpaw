@@ -634,6 +634,9 @@ class FixedOccupationNumbers(OccupationNumberCalculator):
     def todict(self):
         return {'name': 'fixed', 'numbers': self.f_sn}
 
+    def __str__(self):
+        return f'Fixed occupations:\n{self.f_sn}'
+
 
 class FixedOccupationNumbersUniform(OccupationNumberCalculator):
 
@@ -733,7 +736,7 @@ class FixedOccupationNumbersUniform(OccupationNumberCalculator):
         return {'name': 'fixed-uniform'}
 
     def __str__(self):
-        return '# Uniform distribution of occupation numbers'
+        return f'Fixed-uniform occupations:\n{self.f_sn}'
 
 
 def calc_fixed(bd, f_sn, f_qn, spin_q):

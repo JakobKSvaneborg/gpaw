@@ -1435,12 +1435,13 @@ class EXXVXCCalculator:
 
     def calculate(self, n1, n2, kpt_indices):
         from gpaw.hybrids import NonSelfConsistentHybridXCCalculator
-        from gpaw.dft import GPAW as NewGPAW
-        dft = NewGPAW(self._gpwfile, communicator=self.world).dft
+        dft = GPAW(self._gpwfile,
+                   legacy_gpaw=False,
+                   communicator=self.world).dft
         ibzwfs = dft.ibzwfs
         if dft.params.mode.name == 'lcao':
             grid = dft.density.nt_sR.desc
-            pw = PWDesc(ecut=0.5 * grid.ekin_max(),
+            pw = PWDesc(ecut=0.49 * grid.ekin_max(),
                         cell=grid.cell,
                         comm=grid.comm,
                         dtype=ibzwfs.dtype)

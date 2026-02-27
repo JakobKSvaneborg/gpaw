@@ -11,7 +11,9 @@ dks = 20
 def xas_sym_nosp(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
     comm = world.new_communicator([world.rank])
-    calc1 = GPAW(gpw_files['si_corehole_sym_pw'], communicator=comm)
+    calc1 = GPAW(gpw_files['si_corehole_sym_pw'],
+                 communicator=comm,
+                 legacy_gpaw=True)
     xas1 = XAS(calc1)
     x1, y1 = xas1.get_oscillator_strength(dks=dks)
     return x1, y1
@@ -19,12 +21,14 @@ def xas_sym_nosp(
 
 @pytest.mark.skipif(world.size % 4 != 0,
                     reason='works only for multiples of 4 cores')
-def test_xas_paralell_kpts_and_domian(
+def test_xas_parallel_kpts_and_domian(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files, xas_sym_nosp):
 
     parallel = {'kpt': 2,
                 'band': 1}
-    calc2 = GPAW(gpw_files['si_corehole_sym_pw'], parallel=parallel)
+    calc2 = GPAW(gpw_files['si_corehole_sym_pw'],
+                 parallel=parallel,
+                 legacy_gpaw=True)
     xas2 = XAS(calc2)
     x2, y2 = xas2.get_oscillator_strength(dks=dks)
 
@@ -36,20 +40,22 @@ def test_xas_paralell_kpts_and_domian(
 
 @pytest.mark.skipif(world.size % 2 != 0,
                     reason='works only for multiples of 2 cores')
-def test_xas_paralell_multiple_kpt_pr_rank(
+def test_xas_parallel_multiple_kpt_pr_rank(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
 
     comm = world.new_communicator([world.rank])
 
     parallel = {'kpt': 2}
     calc2 = GPAW(gpw_files['si_corehole_nosym_pw'],
-                 parallel=parallel)
+                 parallel=parallel,
+                 legacy_gpaw=True)
 
     xas2 = XAS(calc2)
     x2, y2 = xas2.get_oscillator_strength(dks=dks)
 
     calc1 = GPAW(gpw_files['si_corehole_nosym_pw'],
-                 communicator=comm)
+                 communicator=comm,
+                 legacy_gpaw=True)
     xas1 = XAS(calc1)
 
     x1, y1 = xas1.get_oscillator_strength(dks=dks)
@@ -66,7 +72,8 @@ def test_xas_band_and_kpts_parallel(
     parallel = {'band': 2,
                 'kpt': 2}
     calc2 = GPAW(gpw_files['si_corehole_sym_pw'],
-                 parallel=parallel)
+                 parallel=parallel,
+                 legacy_gpaw=True)
     xas2 = XAS(calc2)
     x2, y2 = xas2.get_oscillator_strength(dks=dks)
 
@@ -86,7 +93,9 @@ def test_xas_kpts_domian_parallel_spinpol(
                 'band': 1}
 
     calc2 = GPAW(gpw_files['si_corehole_sym_pw'],
-                 spinpol=True, parallel=parallel)
+                 spinpol=True,
+                 parallel=parallel,
+                 legacy_gpaw=True)
     calc2.get_potential_energy()
     xas2 = XAS(calc2, spin=0)
 
@@ -95,7 +104,9 @@ def test_xas_kpts_domian_parallel_spinpol(
     comm = world.new_communicator([world.rank])
 
     calc1 = GPAW(gpw_files['si_corehole_sym_pw'],
-                 communicator=comm, spinpol=True)
+                 communicator=comm,
+                 spinpol=True,
+                 legacy_gpaw=True)
 
     calc1.get_potential_energy()
 
@@ -115,7 +126,8 @@ def test_xes_kpts_and_domain_parallel(
                 'band': 1}
 
     calc2 = GPAW(gpw_files['si_corehole_sym_pw'],
-                 parallel=parallel)
+                 parallel=parallel,
+                 legacy_gpaw=True)
 
     xes2 = XAS(calc2, 'xes')
     x2, y2 = xes2.get_oscillator_strength(dks=dks)
@@ -123,7 +135,8 @@ def test_xes_kpts_and_domain_parallel(
     comm = world.new_communicator([world.rank])
 
     calc1 = GPAW(gpw_files['si_corehole_sym_pw'],
-                 communicator=comm)
+                 communicator=comm,
+                 legacy_gpaw=True)
 
     xes1 = XAS(calc1, 'xes')
 
@@ -142,7 +155,8 @@ def test_all_band_and_kpts_parallel(
                 'kpt': 2}
 
     calc2 = GPAW(gpw_files['si_corehole_sym_pw'],
-                 parallel=parallel)
+                 parallel=parallel,
+                 legacy_gpaw=True)
 
     xas2 = XAS(calc2, 'all')
     x2, y2 = xas2.get_oscillator_strength(dks=dks)
@@ -150,7 +164,8 @@ def test_all_band_and_kpts_parallel(
     comm = world.new_communicator([world.rank])
 
     calc1 = GPAW(gpw_files['si_corehole_sym_pw'],
-                 communicator=comm)
+                 communicator=comm,
+                 legacy_gpaw=True)
 
     xas1 = XAS(calc1, 'all')
 
