@@ -674,18 +674,27 @@ class GWmQEHCorrection(GWQEHCorrection):
                  dW_qw=None, qqeh=None, wqeh=None,
                  txt=sys.stdout, world=mpi.world, domega0=0.025,
                  omega2=10.0, eta=0.1, include_q0=True, metal=False,
-                 restart=False, ecut_mqeh=50.0):
+                 restart=False, ecut_mqeh=50.0,
+                 dW_qw_matrix=None, phi_qiz=None, drho_qzi=None,
+                 z_z_qeh=None, dz_qeh=None):
 
         self.ecut_mqeh = ecut_mqeh / Hartree
 
-        # These will be set by calculate_W_QEH or provided
-        self.dW_qw_matrix = None  # Full matrix Delta-W_{alpha,beta}(q,w)
-        self.phi_qiz = None       # Potential basis functions
-        self.drho_qzi = None      # Density basis functions
-        self.nbasis = None        # Number of basis functions for target layer
+        # These will be set by calculate_W_QEH or provided directly
+        self.dW_qw_matrix = None
+        self.phi_qiz = None
+        self.drho_qzi = None
+        self.nbasis = None
         self.layer_index = layer
         self.qqeh_matrix = None
         self.wqeh_matrix = None
+
+        # Store user-provided mQEH data (if any) for setup after parent init
+        self._init_dW_qw_matrix = dW_qw_matrix
+        self._init_phi_qiz = phi_qiz
+        self._init_drho_qzi = drho_qzi
+        self._init_z_z_qeh = z_z_qeh
+        self._init_dz_qeh = dz_qeh
 
         # Call parent __init__, which will call calculate_W_QEH
         # (or load dW_qw) and set up everything
@@ -696,6 +705,18 @@ class GWmQEHCorrection(GWQEHCorrection):
             txt=txt, world=world, domega0=domega0,
             omega2=omega2, eta=eta, include_q0=include_q0,
             metal=metal, restart=restart)
+
+        # If full mQEH data was provided directly, install it now
+        if self._init_dW_qw_matrix is not None:
+            self.dW_qw_matrix = self._init_dW_qw_matrix
+            self.nbasis = self._init_dW_qw_matrix.shape[2]
+            self.qqeh_matrix = qqeh.copy()
+            self.wqeh_matrix = wqeh.copy()
+            self.phi_qiz_target = self._init_phi_qiz
+            self.drho_qzi_target = self._init_drho_qzi
+            self.z_z_qeh = self._init_z_z_qeh
+            self.dz_qeh = self._init_dz_qeh
+            self._interpolate_mqeh_data()
 
     def calculate_W_QEH(self, structure, d, layer=0):
         """Calculate the full mQEH Delta-W matrix.
