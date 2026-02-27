@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, IO
+
+from pathlib import Path
 
 import numpy as np
 from ase import Atoms
@@ -715,7 +717,8 @@ class DFTCalculation:
                       dtype=None,
                       force_complex_dtype: bool = False,
                       object_hooks: dict[str,
-                                         Callable[[dict], Any]] | None = None) -> DFTCalculation:
+                                         Callable[[dict], Any]] | None = None
+                      ) -> DFTCalculation:
 
         (atoms,
          dft,
