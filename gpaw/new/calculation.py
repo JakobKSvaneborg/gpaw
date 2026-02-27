@@ -695,6 +695,7 @@ class DFTCalculation:
         self.results = {}
 
     def write_gpw_file(self, filename,
+                       *,
                        include_wfs: bool = False,
                        precision: str = 'double',
                        include_projections: bool = True):

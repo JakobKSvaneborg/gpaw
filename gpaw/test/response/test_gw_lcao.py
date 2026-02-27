@@ -9,9 +9,8 @@ from gpaw.new.calculation import DFTCalculation
 def test_lcao_gw(in_tmp_dir, gpw_files):
 
     dft = DFTCalculation.from_gpw_file(gpw_files['diamond_lcao'])
-    dft.change(eigensolver={})  # remove SCS solver which PW-mode doesn't like
     dft.change_mode('pw')
-    dft.write_gpw_file('diamond_pw.gpw', 'all')
+    dft.write_gpw_file('diamond_pw.gpw', include_wfs=True)
 
     gw = G0W0('diamond_pw.gpw',
               integrate_gamma='WS',
