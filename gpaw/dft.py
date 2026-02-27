@@ -854,7 +854,8 @@ def _parse_experimental(experimental: dict | None,
     unknown = experimental.keys() - {'backwards_compatible',
                                      'ccirs',
                                      'fast_pw_init',
-                                     'pw_pot_calc'}
+                                     'pw_pot_calc',
+                                     'paw_corr_mixer'}
     if unknown:
         warnings.warn(f'Unknown experimental keyword(s): {unknown}',
                       stacklevel=3)
