@@ -64,10 +64,10 @@ class BaseMixer:
         if self.weight == 1:
             self.metric = None
         else:
-            a = 0.125 * (self.weight + 7) / self.weight
-            b = 0.0625 * (self.weight - 1) / self.weight
-            c = 0.03125 * (self.weight - 1) / self.weight
-            d = 0.015625 * (self.weight - 1) / self.weight
+            a = 0.125 * (self.weight + 7)
+            b = 0.0625 * (self.weight - 1)
+            c = 0.03125 * (self.weight - 1)
+            d = 0.015625 * (self.weight - 1)
             self.metric = FDOperator([a,
                                       b, b, b, b, b, b,
                                       c, c, c, c, c, c, c, c, c, c, c, c,
@@ -203,7 +203,7 @@ class BaseMixer:
         if mode == 'gemm':
             shape1 = np.array(R1_isG).shape
             shape2 = np.array(R2_isG).shape
-            prod = np.reshape(R1_isG, (shape1[0], -1)) \
+            prod = np.reshape(R1_isG, (shape1[0], -1)).conj() \
                 @ np.reshape(R2_isG, (shape2[0], -1)).T
         elif mode == 'vecdot' or mode == 'scalar':
             assert len(R1_isG) == len(R2_isG)
@@ -212,6 +212,7 @@ class BaseMixer:
                 np.reshape(R2_isG, (len(R2_isG), -1))
             )
         prod *= gd.dv
+        prod = prod.real
         comm.sum(prod)
         return prod[0] if mode == 'scalar' else prod
 
@@ -284,11 +285,12 @@ class MSR1Mixer(BaseMixer):
             # self.gd.comm.sum(ntnorm_i)
 
             dampen = 1  # Dampen the unpredicted greed
-            max_gb = 100 # min(21, 3 * (iold - 1))  # Max goob Broyden
-            weight = 2e-4  # Weight for regularization
+            trust_scalar = 1.3  # Trust scalar for trust radius calculation
+            max_gb = 15 # min(21, 3 * (iold - 1))  # Max goob Broyden
+            weight = 5e-5  # Weight for regularization
             B0_lims = [0, 1]  # Limits for predicted greed
             A0_lims = [0.04, 0.6]  # Limits for unpredicted greed
-            renormalize = True # False  # Renormalize t_isG
+            renormalize = True  # Renormalize t_isG
 
             # 2nd order norm
             # ntnorm_i = np.vecdot(np.array(nt_isG).reshape(iold, -1),
@@ -375,7 +377,7 @@ class MSR1Mixer(BaseMixer):
             # Choose max good_broydenness s.t. A_ii is positive definite
             # for good_broydenness in good_broydenness_range:
             # binary search 2**(-8) accuracy:
-            for iter in range(2, 11):
+            for iter in range(2, 9):
                 t_isG = ty_isG + good_broydenness * ts_isG
                 tD_iasp = []
                 for i in range(iold - 1):
@@ -395,12 +397,11 @@ class MSR1Mixer(BaseMixer):
                 except np.linalg.LinAlgError:
                     good_broydenness -= 2**(-iter) * max_gb
                     continue
-                if min_real > eigval0 and max_imag == 0:
-                    print('up: ', min_real / eigval0)
-                    eigval0 = min_real
+                if min_real > 0.5 * eigval0 and max_imag == 0:
+                    # print('up: ', min_real / eigval0)
                     good_broydenness += 2**(-iter) * max_gb
                 else:
-                    print('down: ', min_real / eigval0)
+                    # print('down: ', min_real / eigval0)
                     good_broydenness -= 2**(-iter) * max_gb
             good_broydenness -= 2**(-iter) * max_gb
 
@@ -452,7 +453,7 @@ class MSR1Mixer(BaseMixer):
             # what paper your read, transposed works best, but most papers
             # say not to, so... rip
             alpha_i = self.dotprod(t_isG, [R_sG, ], tD_iasp, [dD_iasp[-1], ], self.gd, mode='gemm')[:, 0]
-            alpha_i = A_ii @ alpha_i
+            alpha_i = (A_ii @ alpha_i).real
 
             if self.world:
                 self.world.broadcast(alpha_i, 0)
@@ -509,7 +510,7 @@ class MSR1Mixer(BaseMixer):
                 dstep_asp.append(A0 * uD_sp + B0 * pD_sp)
             trust_radius = self.dotprod(trust_step, trust_step, dstep_asp,
                dstep_asp, self.gd, mode='scalar')
-            trust_radius = trust_radius**0.5
+            trust_radius = trust_scalar * trust_radius**0.5
             if self.trust_radius is not None:
                 trust_radius = (self.trust_radius + trust_radius) / 2
                 if backtracked:
@@ -569,7 +570,7 @@ class MSR1Mixer(BaseMixer):
                 # )
                 weight = lamb.root
                 tA_i = V / (V**2 + (weight * np.max(V))**2)
-                beta_i = D.T @ np.diag(tA_i) @ S.T @ BR_i
+                beta_i = (D.T @ np.diag(tA_i) @ S.T @ BR_i).real
                 if self.world:
                     self.world.broadcast(beta_i, 0)
 
@@ -663,7 +664,7 @@ class ExperimentalDotProd:
         if mode == 'gemm':
             shape1 = np.array(R1_isG).shape
             shape2 = np.array(R2_isG).shape
-            prod = np.reshape(R1_isG, (shape1[0], -1)) \
+            prod = np.reshape(R1_isG, (shape1[0], -1)).conj() \
                 @ np.reshape(R2_isG, (shape2[0], -1)).T
         elif mode == 'vecdot' or mode == 'scalar':
             assert len(R1_isG) == len(R2_isG)
@@ -683,20 +684,21 @@ class ExperimentalDotProd:
 
             if mode == 'gemm':
                 for i1, dD1_asp in enumerate(dD1_iasp):
-                    dD1_sp = dD1_asp[a]  # pack_density(dD1_asp[a].reshape(-1, ni, ni))
+                    dD1_sp = dD1_asp[a].conj()  # pack_density(dD1_asp[a].reshape(-1, ni, ni))
                     for i2, dD2_asp in enumerate(dD2_iasp):
                         dD2_sp = dD2_asp[a]  # pack_density(dD2_asp[a].reshape(-1, ni, ni))
                         for dD1_p, dD2_p in zip(dD1_sp, dD2_sp):
                             prod[i1, i2] += dD1_p @ I4_pp @ dD2_p
             elif mode == 'vecdot' or mode == 'scalar':
                 for i, (dD1_asp, dD2_asp) in enumerate(zip(dD1_iasp, dD2_iasp)):
-                    dD1_sp = dD1_asp[a]  # pack_density(dD1_asp[a].reshape(-1, ni, ni))
+                    dD1_sp = dD1_asp[a].conj()  # pack_density(dD1_asp[a].reshape(-1, ni, ni))
                     dD2_sp = dD2_asp[a]  # pack_density(dD2_asp[a].reshape(-1, ni, ni))
                     for dD1_p, dD2_p in zip(dD1_sp, dD2_sp):
                         prod[i] += dD1_p @ I4_pp @ dD2_p
         comm.sum(prod)
         if mode == 'scalar':
             assert prod.size == 1
+        prod = prod.real
         return prod[0] if mode == 'scalar' else prod
 
 
@@ -710,7 +712,7 @@ class ReciprocalMetric:
         mR_Q[:] = R_Q * (1.0 + self.q1 / self.k2_Q)
 
 
-class FFTBaseMixer(BaseMixer):
+class FFTBaseMixer(MSR1Mixer):
     name = 'fft'
 
     """Mix the density in Fourier space"""
@@ -731,7 +733,7 @@ class FFTBaseMixer(BaseMixer):
     def calculate_charge_sloshing(self, R_sQ):
         if self.gd.comm.rank == 0:
             assert R_sQ.ndim == 4  # and len(R_sQ) == 1
-            cs = sum(self.gd1.integrate(np.fabs(ifftn(R_Q).real))
+            cs = sum(self.gd1.integrate(np.abs(ifftn(R_Q, norm='ortho')).real)
                      for R_Q in R_sQ)
         else:
             cs = 0.0
@@ -741,7 +743,7 @@ class FFTBaseMixer(BaseMixer):
         # Transform real-space density to Fourier space
         nt1_sR = [self.gd.collect(nt_R) for nt_R in nt_sR]
         if self.gd.comm.rank == 0:
-            nt1_sG = np.ascontiguousarray([fftn(nt_R, norm='backward') for nt_R in nt1_sR])
+            nt1_sG = np.ascontiguousarray([fftn(nt_R, norm='ortho') for nt_R in nt1_sR])
         else:
             nt1_sG = np.empty((len(nt_sR), 0, 0, 0), dtype=complex)
 
@@ -750,7 +752,7 @@ class FFTBaseMixer(BaseMixer):
         # Return density in real space
         for nt_G, nt_R in zip(nt1_sG, nt_sR):
             if self.gd.comm.rank == 0:
-                nt1_R = ifftn(nt_G, norm='backward').real
+                nt1_R = ifftn(nt_G, norm='ortho').real
             else:
                 nt1_R = None
             self.gd.distribute(nt1_R, nt_R)
