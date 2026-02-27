@@ -4,7 +4,7 @@ import pytest
 from gpaw.response.bse import BSE, BSEPlus
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
 from gpaw.response.coulomb_kernels import CoulombKernel
-from gpaw.response.df import Chi0DysonEquations
+from gpaw.response.df import DielectricResponse
 from gpaw.response.pair import get_gs_and_context
 
 
@@ -93,22 +93,22 @@ def test_BSEPlus(in_tmp_dir, gpw_files, monkeypatch, scalapack, mpi):
                                            w_w=w_w)
 
     chi0_data_small = chi0calc_small.calculate(q_c)
-    dyson_eqs_small = Chi0DysonEquations(chi0_data_small, coulomb_kernel,
-                                         xc_kernel=None, cd=gs.cd)
-    chi0_small_wGG = dyson_eqs_small.get_chi0_wGG(direction='x')
-    chi0_small_WGG = dyson_eqs_small.wblocks.all_gather(chi0_small_wGG)
+    response_small = DielectricResponse(chi0_data_small, coulomb_kernel,
+                                        xc_kernel=None, cd=gs.cd)
+    chi0_small_wGG = response_small.get_chi0_wGG(direction='x')
+    chi0_small_WGG = response_small.wblocks.all_gather(chi0_small_wGG)
 
     chi0_data_large = chi0calc_large.calculate(q_c)
-    dyson_eqs_large = Chi0DysonEquations(chi0_data_large, coulomb_kernel,
-                                         xc_kernel=None, cd=gs.cd)
-    chi0_large_wGG = dyson_eqs_large.get_chi0_wGG(direction='x')
-    chi0_large_WGG = dyson_eqs_large.wblocks.all_gather(chi0_large_wGG)
+    response_large = DielectricResponse(chi0_data_large, coulomb_kernel,
+                                        xc_kernel=None, cd=gs.cd)
+    chi0_large_wGG = response_large.get_chi0_wGG(direction='x')
+    chi0_large_WGG = response_large.wblocks.all_gather(chi0_large_wGG)
 
     v_G = coulomb_kernel.V(chi0_data_large.qpd)
 
-    bare_df = dyson_eqs_large.bare_dielectric_function(direction='x')
-    chi_RPA_wGG_from_df = bare_df.vchibar_symm_wGG
-    chi_RPA_WGG_from_df = dyson_eqs_large.wblocks.all_gather(
+    _, chi_RPA_wGG_from_df = response_large._calculate_vchi_symm(
+        direction='x', modified=True)
+    chi_RPA_WGG_from_df = response_large.wblocks.all_gather(
         chi_RPA_wGG_from_df)
     if comm.rank == 0:
         sqrtV_G = v_G**0.5

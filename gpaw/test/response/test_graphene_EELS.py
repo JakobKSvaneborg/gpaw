@@ -24,8 +24,8 @@ def test_graphene_EELS(in_tmp_dir, gpw_files, mpi):
                                 eta=0.3, ecut=150, rate='eta', hilbert=False,
                                 world=mpi.comm)
     for q_c, refs in zip(q_qc, refs_q):
-        epsinv = dfcalc.get_inverse_dielectric_function(q_c=q_c)
-        omega_w, eels0_w, eels_w = epsinv.eels_spectrum().arrays
+        response = dfcalc.calculate(q_c=q_c, truncation='2D')
+        omega_w, eels0_w, eels_w = response.eels_spectrum().arrays
 
         # import matplotlib.pyplot as plt
         # plt.plot(omega_w, eels0_w)

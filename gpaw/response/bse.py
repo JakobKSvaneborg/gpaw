@@ -15,7 +15,7 @@ from gpaw.response import ResponseContext
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
 from gpaw.response.context import timer
 from gpaw.response.coulomb_kernels import CoulombKernel
-from gpaw.response.df import Chi0DysonEquations, write_response_function
+from gpaw.response.df import DielectricResponse, write_response_function
 from gpaw.response.frequencies import FrequencyDescriptor
 from gpaw.response.groundstate import CellDescriptor
 from gpaw.response.pair import KPointPairFactory, get_gs_and_context
@@ -1389,12 +1389,12 @@ class BSEPlus:
     def get_chi_RPA(self, chi0calc, q_c, coulomb_kernel, xc_kernel,
                     CellDescriptor, direction):
         self.chi0_data = chi0calc.calculate(q_c)
-        dyson_eqs = Chi0DysonEquations(self.chi0_data, coulomb_kernel,
-                                       xc_kernel, CellDescriptor)
+        response = DielectricResponse(self.chi0_data, coulomb_kernel,
+                                      xc_kernel, CellDescriptor)
         self.v_G = coulomb_kernel.V(self.chi0_data.qpd)
-        chi0_wGG = dyson_eqs.get_chi0_wGG(direction)
-        chi0_WGG = dyson_eqs.wblocks.all_gather(chi0_wGG)
-        del chi0calc, dyson_eqs, chi0_wGG
+        chi0_wGG = response.get_chi0_wGG(direction)
+        chi0_WGG = response.wblocks.all_gather(chi0_wGG)
+        del chi0calc, response, chi0_wGG
         return chi0_WGG
 
     def __init__(self,

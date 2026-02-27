@@ -5,7 +5,7 @@ from ase.units import Bohr
 from gpaw.response.bse import BSE, BSEPlus
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
 from gpaw.response.coulomb_kernels import CoulombKernel
-from gpaw.response.df import Chi0DysonEquations
+from gpaw.response.df import DielectricResponse
 from gpaw.response.pair import get_gs_and_context
 
 
@@ -91,16 +91,16 @@ def test_BSEPlus_2d(in_tmp_dir, gpw_files, scalapack, mpi):
         chi_irr_BSE_WGG = None
 
     chi0_data_small = chi0calc_small.calculate(q_c)
-    dyson_eqs_small = Chi0DysonEquations(chi0_data_small, coulomb_kernel,
-                                         xc_kernel=None, cd=gs.cd)
-    chi0_small_wGG = dyson_eqs_small.get_chi0_wGG(direction='x')
-    chi0_small_WGG = dyson_eqs_small.wblocks.all_gather(chi0_small_wGG)
+    response_small = DielectricResponse(chi0_data_small, coulomb_kernel,
+                                        xc_kernel=None, cd=gs.cd)
+    chi0_small_wGG = response_small.get_chi0_wGG(direction='x')
+    chi0_small_WGG = response_small.wblocks.all_gather(chi0_small_wGG)
 
     chi0_data_large = chi0calc_large.calculate(q_c)
-    dyson_eqs_large = Chi0DysonEquations(chi0_data_large, coulomb_kernel,
-                                         xc_kernel=None, cd=gs.cd)
-    chi0_large_wGG = dyson_eqs_large.get_chi0_wGG(direction='x')
-    chi0_large_WGG = dyson_eqs_large.wblocks.all_gather(chi0_large_wGG)
+    response_large = DielectricResponse(chi0_data_large, coulomb_kernel,
+                                        xc_kernel=None, cd=gs.cd)
+    chi0_large_wGG = response_large.get_chi0_wGG(direction='x')
+    chi0_large_WGG = response_large.wblocks.all_gather(chi0_large_wGG)
 
     v_G = coulomb_kernel.V(chi0_data_large.qpd)
 
