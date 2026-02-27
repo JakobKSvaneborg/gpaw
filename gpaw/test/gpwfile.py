@@ -1842,6 +1842,11 @@ class GPWFiles(CachedFilesHandler):
         return self._mos2(symmetry='off')
 
     @gpwfile
+    def mos2_pw_fulldiag(self):
+        calc = self._mos2()
+        return calc.fixed_density(nbands=20)
+
+    @gpwfile
     def mos2_5x5_pw(self):
         calc = GPAW(mode=PW(180),
                     xc='PBE',
