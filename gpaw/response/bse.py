@@ -992,34 +992,108 @@ class BSEBackend:
 
         return np.swapaxes(chi_wGG, -1, -2)
 
-    def get_dielectric_function(self, *args, filename='df_bse.csv', **kwargs):
-        vchi = self.vchi(*args, optical=True, **kwargs)
-        return vchi.dielectric_function(filename=filename)
+    def compute_response(self, w_w, eta=0.1, optical=True,
+                          write_eig='eig.dat', mode_c=None):
+        """Compute the BSE response function.
 
-    def get_eels_spectrum(self, *args, filename='df_bse.csv', **kwargs):
-        vchi = self.vchi(*args, optical=False, **kwargs)
-        return vchi.eels_spectrum(filename=filename)
+        Parameters
+        ----------
+        w_w: array of floats
+            Frequencies in eV at which the response is calculated.
+        eta: float
+            Lorentzian broadening (eV).
+        optical: bool
+            If True, compute optical response (q -> 0 limit).
+            If False, compute at the q-vector specified in the constructor.
+        write_eig: str or None
+            Filename for writing BSE eigenvalues, or None to skip.
+        mode_c: list of 3 ints or None
+            Reciprocal lattice vector for magnon calculations.
 
-    def get_polarizability(self, *args, filename='pol_bse.csv', **kwargs):
-        vchi = self.vchi(*args, optical=True, **kwargs)
-        return vchi.polarizability(filename=filename)
+        Returns
+        -------
+        BSEResponse
+            Result object with methods to derive physical observables:
+            .polarizability(), .dielectric_function(), .eels(),
+            .susceptibility().
+        """
+        vchi_w = self.get_vchi(w_w=w_w, eta=eta, optical=optical,
+                               write_eig=write_eig, mode_c=mode_c)
+        return BSEResponse(w_w, vchi_w, optical,
+                           self.gs.cd.nonperiodic_hypervolume)
 
-    def get_magnetic_susceptibility(self, *args, modes_Gc=[[0, 0, 0]],
+    def get_dielectric_function(self, w_w, eta=0.1, write_eig='eig.dat',
+                                filename='df_bse.csv'):
+        """Calculate the macroscopic dielectric function.
+
+        Returns (w_w, eps_w) and writes to filename (if not None).
+        """
+        response = self.compute_response(w_w, eta, optical=True,
+                                         write_eig=write_eig)
+        eps_w = response.dielectric_function()
+        return self._write_and_return(w_w, eps_w, filename)
+
+    def get_eels_spectrum(self, w_w, eta=0.1, write_eig='eig.dat',
+                          filename='df_bse.csv'):
+        """Calculate the EELS spectrum.
+
+        Returns (w_w, eels_w) and writes to filename (if not None).
+        """
+        response = self.compute_response(w_w, eta, optical=False,
+                                         write_eig=write_eig)
+        eels_w = response.eels()
+        return self._write_and_return(w_w, eels_w, filename)
+
+    def get_polarizability(self, w_w, eta=0.1, write_eig='eig.dat',
+                           filename='pol_bse.csv'):
+        r"""Calculate the polarizability alpha.
+
+        In 3D the imaginary part of the polarizability is related to the
+        dielectric function by Im(eps_M) = 4 pi * Im(alpha). In systems
+        with reduced dimensionality the converged value of alpha is
+        independent of the cell volume. This is not the case for eps_M,
+        which is ill defined. A truncated Coulomb kernel will always give
+        eps_M = 1.0, whereas the polarizability maintains its structure.
+
+        Returns (w_w, alpha_w) and writes to filename (if not None).
+        The dimension of alpha is \AA to the power of non-periodic
+        directions.
+        """
+        response = self.compute_response(w_w, eta, optical=True,
+                                         write_eig=write_eig)
+        alpha_w = response.polarizability()
+        return self._write_and_return(w_w, alpha_w, filename)
+
+    def get_magnetic_susceptibility(self, w_w, eta=0.1,
+                                    modes_Gc=[[0, 0, 0]],
                                     susc_component='+-',
                                     write_eig='eig',
-                                    filename='susc_+-_bse_',
-                                    **kwargs):
-        """Returns and writes real and imaginary part of the magnetic
-        susceptibility.
+                                    filename='susc_+-_bse_'):
+        """Calculate the magnetic susceptibility.
 
-        susc_componenet: str
+        Parameters
+        ----------
+        w_w: array of floats
+            Frequencies in eV.
+        eta: float
+            Lorentzian broadening (eV).
+        susc_component: str
             Component of the susceptibility tensor. '+-' and '-+'
             are supported.
         modes_Gc: list
-            List of reciprocal lattice vectors in reduced on which the
-            susceptibility is calculated. Default is the [0, 0, 0]
-            component which gives the response over the Brillouin zone,
+            List of reciprocal lattice vectors in reduced coordinates on
+            which the susceptibility is calculated. Default is [0, 0, 0]
+            which gives the response over the Brillouin zone,
             but for optical magnons other components are needed.
+        write_eig: str
+            Prefix for eigenvalue output files.
+        filename: str
+            Prefix for susceptibility output files.
+
+        Returns
+        -------
+        list
+            Susceptibility arrays for each mode in modes_Gc.
         """
         self.susc_component = susc_component
         assert susc_component in ['+-', '-+']
@@ -1029,16 +1103,26 @@ class BSEBackend:
             assert all(isinstance(x, int) for x in mode_c)
             file_G = filename + ''.join(str(x) for x in mode_c) + '.csv'
             eig = write_eig + ''.join(str(x) for x in mode_c) + '.dat'
-            vchi = self.vchi(*args, optical=False, mode_c=mode_c,
-                             write_eig=eig, **kwargs)
-            chi_Gw.append(vchi.magnetic_susceptibility(filename=file_G))
+            response = self.compute_response(w_w, eta, optical=False,
+                                             write_eig=eig, mode_c=mode_c)
+            chi_w = response.susceptibility()
+            _, chi_w = self._write_and_return(w_w, chi_w, file_G)
+            chi_Gw.append(chi_w)
         return chi_Gw
 
-    def vchi(self, w_w=None, eta=0.1, write_eig='eig.dat',
-             optical=None, mode_c=None):
-        vchi_w = self.get_vchi(w_w=w_w, eta=eta, optical=optical,
-                               write_eig=write_eig, mode_c=mode_c)
-        return VChi(self.gs.cd, self.context, w_w, vchi_w, optical=optical)
+    def _write_and_return(self, w_w, array, filename):
+        """Write response data to file and return (w_w, array)."""
+        comm = self.context.comm
+        if comm.rank == 0 and filename is not None:
+            if array.dtype == complex:
+                write_response_function(filename, w_w, array.real,
+                                        array.imag)
+            else:
+                write_spectrum(filename, w_w, array)
+        comm.barrier()
+        self.context.print('Calculation completed at:', ctime(), flush=False)
+        self.context.print('')
+        return w_w, array
 
     def collect_A_SS(self, A_sS):
         comm = self.context.comm
@@ -1210,99 +1294,48 @@ def read_spectrum(filename):
 
 
 @dataclass
-class VChi:
-    cd: CellDescriptor
-    context: ResponseContext
+class BSEResponse:
+    """Result of a BSE response calculation.
+
+    Holds the bare-Coulomb-weighted susceptibility v*chi(w) and provides
+    methods to convert to physical observables (polarizability, dielectric
+    function, EELS spectrum, magnetic susceptibility).
+    """
     w_w: np.ndarray
     vchi_w: np.ndarray
     optical: bool
+    nonperiodic_hypervolume: float
 
-    def epsilon(self):
+    def dielectric_function(self):
+        """eps(w) = 1 - v*chi(w)"""
         assert self.optical
         return -self.vchi_w + 1.0
 
     def eels(self):
+        """EELS(w) = -Im[v*chi(w)]"""
         assert not self.optical
         return -self.vchi_w.imag
 
-    def alpha(self):
-        assert self.optical
-        L = self.cd.nonperiodic_hypervolume
-        return -L * self.vchi_w / (4 * np.pi)
+    def polarizability(self):
+        r"""alpha(w) = -L * v*chi(w) / (4*pi)
 
-    def susceptibility(self):
-        assert not self.optical
-        return self.vchi_w
-
-    def dielectric_function(self, filename='df_bse.csv'):
-        """Returns and writes real and imaginary part of the dielectric
-        function.
-
-        w_w: list of frequencies (eV)
-            Dielectric function is calculated at these frequencies
-        eta: float
-            Lorentzian broadening of the spectrum (eV)
-        filename: str
-            data file on which frequencies, real and imaginary part of
-            dielectric function is written
-        write_eig: str
-            File on which the BSE eigenvalues are written
-        """
-
-        return self._hackywrite(self.epsilon(), filename)
-
-    # XXX The default filename clashes with that of dielectric function!
-    def eels_spectrum(self, filename='df_bse.csv'):
-        """Returns and writes real and imaginary part of the dielectric
-        function.
-
-        w_w: list of frequencies (eV)
-            Dielectric function is calculated at these frequencies
-        eta: float
-            Lorentzian broadening of the spectrum (eV)
-        filename: str
-            data file on which frequencies, real and imaginary part of
-            dielectric function is written
-        write_eig: str
-            File on which the BSE eigenvalues are written
-        """
-        return self._hackywrite(self.eels(), filename)
-
-    def polarizability(self, filename='pol_bse.csv'):
-        r"""Calculate the polarizability alpha.
         In 3D the imaginary part of the polarizability is related to the
         dielectric function by Im(eps_M) = 4 pi * Im(alpha). In systems
         with reduced dimensionality the converged value of alpha is
         independent of the cell volume. This is not the case for eps_M,
         which is ill defined. A truncated Coulomb kernel will always give
         eps_M = 1.0, whereas the polarizability maintains its structure.
-        pbs should be a list of booleans giving the periodic directions.
 
-        By default, generate a file 'pol_bse.csv'. The three colomns are:
-        frequency (eV), Real(alpha), Imag(alpha). The dimension of alpha
-        is \AA to the power of non-periodic directions.
+        The dimension of alpha is Angstrom to the power of non-periodic
+        directions.
         """
-        return self._hackywrite(self.alpha(), filename)
+        assert self.optical
+        return -self.nonperiodic_hypervolume * self.vchi_w / (4 * np.pi)
 
-    def magnetic_susceptibility(self, filename='susc_+-_0_bse.csv'):
-        return self._hackywrite(self.susceptibility(), filename)[1]
-
-    def _hackywrite(self, array, filename):
-        comm = self.context.comm
-        if comm.rank == 0 and filename is not None:
-            if array.dtype == complex:
-                write_response_function(filename, self.w_w, array.real,
-                                        array.imag)
-            else:
-                assert array.dtype == float
-                write_spectrum(filename, self.w_w, array)
-
-        comm.barrier()
-
-        self.context.print('Calculation completed at:', ctime(), flush=False)
-        self.context.print('')
-
-        return self.w_w, array
+    def susceptibility(self):
+        """chi(w) = v*chi(w)"""
+        assert not self.optical
+        return self.vchi_w
 
 
 class BSEPlus:
