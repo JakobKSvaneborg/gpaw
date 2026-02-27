@@ -13,7 +13,7 @@ calc_params = dict(
     convergence={'energy': 100,
                  'density': 100,
                  'bands': -1})
-calc_mol = GPAW(**calc_params)
+calc_mol = GPAW(**calc_params, legacy_gpaw=True)
 
 CO = molecule('CO')
 CO.center(vacuum=3)

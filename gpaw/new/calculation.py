@@ -6,11 +6,12 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr, Ha
+from gpaw import GPAW_NO_C_EXTENSION
 from gpaw.core import UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.densities import Densities
 from gpaw.electrostatic_potential import ElectrostaticPotential
-from gpaw.gpu import as_np
+from gpaw.gpu import as_np, cupy as cp
 from gpaw.mpi import broadcast as bcast
 from gpaw.mpi import broadcast_float, MPIComm, receive, send, serial_comm
 from gpaw.new import trace, zips
@@ -193,6 +194,13 @@ class DFTCalculation:
             calculate_forces = self._calculate_forces
 
         self.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
+
+        if self.params.mode.name == 'pw':
+            if self.params.mode.dtype == 'single':
+                if not (GPAW_NO_C_EXTENSION or self.ibzwfs.xp is cp):
+                    raise NotImplementedError(
+                        'Single precision is GPU or pure python only.')
+
         for ctx in self.scf_loop.iterate(self.ibzwfs,
                                          self.density,
                                          self.potential,
@@ -290,7 +298,8 @@ class DFTCalculation:
         F_av = self.ibzwfs.forces(self.potential, self.scf_loop.hamiltonian,
                                   self.density.D_asii)
 
-        getattr(xc.xc, 'add_forces', lambda F_av: None)(F_av)  # QNA
+        if xc.name == 'QNA':
+            getattr(xc.xc, 'add_forces', lambda F_av: None)(F_av)  # QNA
 
         pot_calc = self.pot_calc
         Q_aL = self.density.calculate_compensation_charge_coefficients()
@@ -450,54 +459,55 @@ class DFTCalculation:
         comm = self.comm
 
         # gather data on master
-        ibz, ncomponents, wfs_u = self.ibzwfs.gather()
+        ibz, ncomponents, wfs_u, fermi_levels = self.ibzwfs.gather()
         dH_asp, vt_sR, dedtaut_sR, vHt_x = self.potential.gather()
         D_asp, nt_sR, taut_sR = self.density.gather()
 
         # only create new dft object on master
-        if comm.rank == 0:
+        if comm.rank != 0:
+            return None
 
-            params.parallel = {'kpt': 1, 'band': 1, 'domain': 1}
-            builder = params.dft_component_builder(atoms, log=txt,
-                                                   comm=serial_comm)
-            # make new wfs on master
-            if mode == 'lcao':
-                from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
-                IBZWFs = LCAOIBZWaveFunctions
-            else:
-                from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
-                IBZWFs = PWFDIBZWaveFunctions   # type: ignore
-
-            ibzwfs = IBZWFs(
-                ibz=ibz,
-                ncomponents=ncomponents,
-                wfs_u=wfs_u,
-                kpt_comm=serial_comm,
-                kpt_band_comm=serial_comm,
-                comm=serial_comm)
-
-            potential = Potential(vt_sR=vt_sR, dH_asii=dH_asp.to_full(),
-                                  dedtaut_sR=dedtaut_sR, vHt_x=vHt_x,
-                                  e_stress=self.potential.e_stress)
-
-            density = Density.from_data_and_setups(
-                nt_sR, taut_sR, D_asp.to_full(),
-                builder.params.charge,
-                builder.setups,
-                builder.get_pseudo_core_densities(),
-                builder.get_pseudo_core_ked())
-
-            dft = DFTCalculation(
-                atoms, ibzwfs, density, potential,
-                builder.setups,
-                builder.create_scf_loop(),
-                builder.create_potential_calculator(),
-                builder.log,
-                params=params,
-                energies=self.energies)
+        params.parallel = {'kpt': 1, 'band': 1, 'domain': 1}
+        builder = params.dft_component_builder(atoms, log=txt,
+                                               comm=serial_comm)
+        # make new wfs on master
+        if mode == 'lcao':
+            from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
+            IBZWFs = LCAOIBZWaveFunctions
         else:
-            dft = None
+            from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
+            IBZWFs = PWFDIBZWaveFunctions   # type: ignore
 
+        ibzwfs = IBZWFs(
+            ibz=ibz,
+            ncomponents=ncomponents,
+            wfs_u=wfs_u,
+            kpt_comm=serial_comm,
+            kpt_band_comm=serial_comm,
+            comm=serial_comm)
+        ibzwfs.fermi_levels = fermi_levels
+
+        potential = Potential(vt_sR=vt_sR, dH_asii=dH_asp.to_full(),
+                              dedtaut_sR=dedtaut_sR, vHt_x=vHt_x,
+                              e_stress=self.potential.e_stress)
+
+        density = Density.from_data_and_setups(
+            nt_sR, taut_sR, D_asp.to_full(),
+            builder.params.charge,
+            builder.setups,
+            builder.get_pseudo_core_densities(),
+            builder.get_pseudo_core_ked())
+
+        dft = DFTCalculation(
+            atoms, ibzwfs, density, potential,
+            builder.setups,
+            builder.create_scf_loop(),
+            builder.create_potential_calculator(),
+            builder.log,
+            params=params,
+            energies=self.energies)
+
+        dft.results = self.results.copy()
         return dft
 
     def change(self,

@@ -294,7 +294,9 @@ class IBZWaveFunctions(Generic[WFT]):
                 wfs = self.get_wfs_on_master(kpt=k, spin=spin)
                 wfs_u.append(wfs)
 
-        return ibz, ncomponents, wfs_u
+        fermi_levels = self.fermi_levels
+
+        return ibz, ncomponents, wfs_u, fermi_levels
 
     def get_eigs_and_occs(self, kpt=0, spin=0):
         if self.domain_comm.rank == 0 and self.band_comm.rank == 0:

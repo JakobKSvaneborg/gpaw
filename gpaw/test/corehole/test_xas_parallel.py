@@ -21,7 +21,7 @@ def xas_sym_nosp(
 
 @pytest.mark.skipif(world.size % 4 != 0,
                     reason='works only for multiples of 4 cores')
-def test_xas_paralell_kpts_and_domian(
+def test_xas_parallel_kpts_and_domian(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files, xas_sym_nosp):
 
     parallel = {'kpt': 2,
@@ -40,7 +40,7 @@ def test_xas_paralell_kpts_and_domian(
 
 @pytest.mark.skipif(world.size % 2 != 0,
                     reason='works only for multiples of 2 cores')
-def test_xas_paralell_multiple_kpt_pr_rank(
+def test_xas_parallel_multiple_kpt_pr_rank(
         in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
 
     comm = world.new_communicator([world.rank])

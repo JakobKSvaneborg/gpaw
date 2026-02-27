@@ -21,10 +21,11 @@ from gpaw.utilities.blas import axpy
 class PWFDEigensolver(Eigensolver):
     def __init__(self,
                  hamiltonian,
-                 converge_bands: int | str = 'occupied',
+                 convergence: dict,
                  blocksize: int = 10,
                  max_buffer_mem: int | None = 200 * 1024 ** 2):
-        self.converge_bands = converge_bands
+        self.converge_bands = convergence.get('bands', 'occupied')
+        self.residual_target = convergence.get('eigenstates', 4e-8)
         self.blocksize = blocksize
         self.preconditioner: Callable
         self.preconditioner_factory = hamiltonian.create_preconditioner
@@ -42,7 +43,7 @@ class PWFDEigensolver(Eigensolver):
                                                           xp=ibzwfs.xp)
 
     def _allocate_buffer_arrays(self, ibzwfs, shape):
-        G_max = np.prod(ibzwfs.get_max_shape())
+        G_max = max(1, np.prod(ibzwfs.get_max_shape()))
         b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
         nbands = ibzwfs.nbands
         dtype_size = ibzwfs._wfs_u[0].psit_nX.data.dtype.itemsize

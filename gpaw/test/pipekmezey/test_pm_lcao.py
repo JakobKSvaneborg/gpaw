@@ -11,7 +11,8 @@ def test_pipekmezey_lcao_hirshfeld(in_tmp_dir):
                   positions=[[0, 0, 0],
                              [0, 0, 1.128]])
     atoms.center(vacuum=5)
-    calc = GPAW(mode='lcao',
+    calc = GPAW(legacy_gpaw=True,
+                mode='lcao',
                 h=0.24,
                 convergence={'density': 1e-4})
     atoms.calc = calc

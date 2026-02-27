@@ -40,7 +40,7 @@ def test_rsf_yukawa_rsf_ivo_sing_mg(in_tmp_dir, add_cwd_to_setup_paths):
     assert e_singlet == pytest.approx(e_ex, abs=0.15)
     calc.write('mg.gpw')
 
-    c2 = GPAW('mg.gpw')
+    c2 = GPAW('mg.gpw', legacy_gpaw=True)
     ihomo = int(c2.get_occupation_numbers().sum() / 2 + 0.5) - 1
     assert c2.hamiltonian.xc.excitation == 'singlet'
     lr = LrTDDFT(calc, txt='LCY_TDDFT_Mg.log',

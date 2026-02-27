@@ -32,8 +32,10 @@ __all__ = ['TDDFT', 'photoabsorption_spectrum',
            'RestartFileWriter']
 
 
-def TDDFT(filename: str, **kwargs):
-    if GPAW_NEW == 1:
+def TDDFT(filename: str,
+          legacy_gpaw: bool = True,
+          **kwargs):
+    if not legacy_gpaw or GPAW_NEW == 1:
         from gpaw.new.rttddft.backwards_compatibility import RTTDDFTAdapter
         kwargs.pop('txt', None)  # Ignore silently
         kwargs.pop('parallel', None)  # Ignore silently
