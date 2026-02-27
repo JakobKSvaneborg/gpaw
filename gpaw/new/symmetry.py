@@ -2,21 +2,25 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
-from functools import cached_property, cache
+from functools import cached_property
 from typing import Any
 
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr
 
-from gpaw import debug
 from gpaw.core.domain import normalize_cell
 from gpaw.new import zips
 from gpaw.rotation import rotation
 from gpaw.symmetry import Symmetry as OldSymmetry
 from gpaw.symmetry import frac
 from gpaw.typing import Array2D, Array3D, ArrayLike1D, ArrayLike2D, ArrayLike3D
+<<<<<<< HEAD
 from gpaw.utilities.symmetry import find_set_of_lattice_symmetries, guarantee_lattice_symmetries_form_a_point_group, prune_symmetries
+=======
+from gpaw.utilities.symmetry import find_lattice_symmetry, prune_symmetries
+
+>>>>>>> move-helpful-symmetry-functions
 
 class SymmetryBrokenError(Exception):
     """Broken-symmetry error."""

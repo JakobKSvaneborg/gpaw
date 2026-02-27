@@ -2,8 +2,17 @@ from __future__ import annotations
 
 import numpy as np
 from collections import defaultdict
+from collections.abc import Sequence
 from functools import cache
 from typing import TYPE_CHECKING
+
+import numpy as np
+
+from gpaw import debug
+from gpaw.typing import Array2D
+
+if TYPE_CHECKING:
+    from gpaw.new.symmetry import Symmetries
 
 def find_set_of_lattice_symmetries(cell_cv: Arra,
                                    pbc_c: tuple,
@@ -129,7 +138,7 @@ def guarantee_lattice_symmetries_form_a_point_group(rotation_scc: ArrayLike3D):
 def prune_symmetries(sym: Symmetries,
                      relpos_ac: Array2D,
                      id_a: Sequence[int],
-                     symmorphic: bool = True):
+                     symmorphic: bool = True) -> Symmetries:
     """Remove symmetries that are not satisfied by the atoms."""
 
     if len(relpos_ac) == 0:
@@ -182,6 +191,7 @@ def prune_symmetries(sym: Symmetries,
 
     print([s[0] for s in symmetries])
 
+    from gpaw.new.symmetry import Symmetries
     sym = Symmetries(cell=sym.cell_cv,
                      rotations=[s[0] for s in symmetries],
                      translations=[s[1] for s in symmetries],
