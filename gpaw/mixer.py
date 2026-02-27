@@ -287,11 +287,11 @@ class MSR1Mixer(BaseMixer):
             # self.gd.comm.sum(ntnorm_i)
 
             dampen = 1  # Dampen the unpredicted greed
-            trust_scalar = 1.25 # Trust scalar for trust radius calculation
+            trust_scalar = 1.15 # Trust scalar for trust radius calculation
             max_gb_fact = 0.9
-            weight = 1e-4  # Weight for regularization
+            weight = 5e-4  # Weight for regularization
             B0_lims = [0.5, 1.5]  # Limits for predicted greed
-            A0_lims = [0.04, 0.6]  # Limits for unpredicted greed
+            A0_lims = [0.04, 0.5]  # Limits for unpredicted greed
             rate_ratio = [0.8, 1.2]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
 
@@ -372,11 +372,11 @@ class MSR1Mixer(BaseMixer):
             max_gb = max(YY_LIM / YS_LIM, 1) * max_gb_fact
             good_broydenness = 0.5 * max_gb
 
-            A_ii0 = self.dotprod(ty_isG, y_isG, tyD_iasp, yD_iasp, self.gd, mode='gemm')
-            norm_vec = 1 / np.sqrt(y_norm)
-            A_ii0 *= norm_vec[None, :]
-            A_ii0 *= norm_vec[:, None]
-            eigval0 = np.min(np.linalg.eigvals(A_ii0))
+            # A_ii0 = self.dotprod(ty_isG, y_isG, tyD_iasp, yD_iasp, self.gd, mode='gemm')
+            # norm_vec = 1 / np.sqrt(y_norm)
+            # A_ii0 *= norm_vec[None, :]
+            # A_ii0 *= norm_vec[:, None]
+            # eigval0 = np.min(np.linalg.eigvals(A_ii0))
 
             # Choose max good_broydenness s.t. A_ii is positive definite
             # for good_broydenness in good_broydenness_range:
@@ -402,7 +402,7 @@ class MSR1Mixer(BaseMixer):
                 except np.linalg.LinAlgError:
                     good_broydenness -= 2**(-iter) * max_gb
                     continue
-                if min_real > max(1e-6, 0.75 * eigval0) and max_imag == 0:
+                if min_real > 1e-8 and max_imag == 0:
                     good_broydenness += 2**(-iter) * max_gb
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
@@ -448,10 +448,10 @@ class MSR1Mixer(BaseMixer):
             # B_ii = self.dotprod(ty_isG, s_isG, tyD_iasp, sD_iasp, self.gd, mode='gemm')
 
             ### SVD Regularization:
-            # S, V, D = np.linalg.svd(B_ii)
-            # V = V / (V**2 + (weight * np.max(V))**2)
-            # B_ii = D.T @ np.diag(V) @ S.T
-            B_ii = np.linalg.inv(B_ii)
+            S, V, D = np.linalg.svd(B_ii)
+            V = V / (V**2 + (weight * np.max(V))**2)
+            B_ii = D.T @ np.diag(V) @ S.T
+            # B_ii = np.linalg.inv(B_ii)
 
             S, V, D = np.linalg.svd(A_ii)
             A_i = V / (V**2 + (weight * np.max(V))**2)
@@ -604,8 +604,8 @@ class MSR1Mixer(BaseMixer):
                     self.pD_asp, self.pD_asp, self.gd, mode='scalar')
                 new_step_size = new_step_size**0.5
                 scale_factor = new_step_size / step_size
-                # A0 *= np.clip(scale_factor, 0, 1)
-                # A0 = np.clip(A0, *A0_lims)
+                A0 *= np.clip(scale_factor, 0, 1)
+                A0 = np.clip(A0, *A0_lims)
                 # self.A0 = A0
                 self.uk_sG += R_sG
                 step_sG = A0 * self.uk_sG + B0 * self.pk_sG
