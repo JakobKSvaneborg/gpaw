@@ -16,7 +16,7 @@ from gpaw.rotation import rotation
 from gpaw.symmetry import Symmetry as OldSymmetry
 from gpaw.symmetry import frac
 from gpaw.typing import Array2D, Array3D, ArrayLike1D, ArrayLike2D, ArrayLike3D
-from gpaw.utilities.symmetry import find_lattice_symmetry, prune_symmetries
+from gpaw.utilities.symmetry import find_set_of_lattice_symmetries, guarantee_lattice_symmetries_form_a_point_group, prune_symmetries
 
 class SymmetryBrokenError(Exception):
     """Broken-symmetry error."""
@@ -118,8 +118,8 @@ def create_symmetries_object(atoms: Atoms,
 
     if tolerance is None:
         tolerance = 1e-7 if _backwards_compatible else 1e-5
-    if _backwards_compatible:
-        cell_cv *= 1 / Bohr
+    # if _backwards_compatible:
+    cell_cv *= 1 / Bohr
 
     # Create int atom-ids from setups, magmoms and user-supplied
     # (extra_ids) ids:
@@ -137,19 +137,14 @@ def create_symmetries_object(atoms: Atoms,
         # Find symmetries from cell, ids and positions:
         if point_group:
             rotation_scc = find_set_of_lattice_symmetries(
-                cell_cv, pbc_c, tolerance, _backwards_compatible)
+                cell_cv, pbc_c, tolerance, _backwards_compatible=True)
 
             if not _backwards_compatible:
-                # Do not do group check for backwards compatible
-                rotation_scc = ensure_lattice_symmetries_form_a_group(
-                    cell_cv, pbc_c, tolerance, _backwards_compatible)
-                return cls(cell=cell,
-                           rotations=rotations,
-                           tolerance=tolerance,
-                            _backwards_compatible=_backwards_compatible)
+                # Do not do group check for backwards compatible.
+                rotation_scc = guarantee_lattice_symmetries_form_a_point_group(
+                    rotation_scc)
 
-            print('here')
-            crash
+            print('End of current edits')
             sym = Symmetries.from_cell_and_atoms(
                 cell_cv,
                 pbc=atoms.pbc,

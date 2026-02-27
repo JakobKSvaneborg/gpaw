@@ -5,11 +5,12 @@ from collections import defaultdict
 from functools import cache
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from gpaw.new.symmetry import Symmetries
-
-def find_lattice_symmetry(cell_cv, pbc_c, tol, _backwards_compatible=False):
-    """Determine list of symmetry operations for a given lattice."""
+def find_set_of_lattice_symmetries(cell_cv: Arra,
+                                   pbc_c: tuple,
+                                   tol,
+                                   _backwards_compatible=False):
+    """Determine set of fixed-point symmetry
+    operations compliant with a given lattice."""
     U_scc = generate_all_symmetry_matrices()
 
     # The metric of the cell should be conserved after applying the operation.
@@ -31,59 +32,104 @@ def find_lattice_symmetry(cell_cv, pbc_c, tol, _backwards_compatible=False):
     # kinds of boundary conditions.
     pbc_cc = np.logical_xor.outer(pbc_c, pbc_c)
     mask_s = ~U_scc[:, pbc_cc].any(axis=1)
-    U_scc = U_scc[mask_s]
-    return U_scc
+    return U_scc[mask_s].copy()
 
-def ensure_group(cls,
-                 *,
-                 cell: ArrayLike1D | ArrayLike2D,
-                 rotations: ArrayLike3D | None = None,
-                 tolerance: float | None = None,
-                 _backwards_compatible=False):
-    nsyms = rotations.shape[0]
 
-    M_sscc = np.einsum('sab,pbc->spac', rotations, rotations)
+def guarantee_lattice_symmetries_form_a_point_group(rotation_scc: ArrayLike3D):
+    ns_initial = rotation_scc.shape[0]
+
+    # Cayley table
+    M_sscc = np.einsum('sab,zbc->szac', rotation_scc, rotation_scc)
+
+    has_inverse_operation = np.zeros(ns_initial, dtype=bool)
+    I3 = np.eye(3, dtype=bool)
+    for s, rotation_cc in enumerate(rotation_scc):
+        has_inverse_operation[s] = any(
+            [(M_cc == I3).all() for M_cc in M_sscc[s]])
+
+    rotation_scc = rotation_scc[has_inverse_operation]
+    ns = rotation_scc.shape[0]
+    M_sscc = M_sscc[has_inverse_operation][:, has_inverse_operation]
     M_scc = np.unique(M_sscc.reshape((-1, 3, 3)), axis=0)
-    if M_scc.shape[0] == nsyms:
+
+    print([ns_initial, ns])
+    cc
+    if M_scc.shape[0] == ns:
         print('log succes, group found, etc.')
-        return cls(cell=cell,
-                   rotations=rotations,
-                   tolerance=tolerance,
-                   _backwards_compatible=_backwards_compatible)
+        return rotation_scc
 
     not_a_group = True
-    new_nsyms = nsyms
-    new_rotations = rotations
+
+    new_ns = ns
+    new_rotation_scc = rotation_scc
     while not_a_group:
-        badness = np.zeros((new_nsyms, new_nsyms), dtype=int)
+        badness = np.zeros((new_ns, new_ns), dtype=bool)
         for s1, M_scc in enumerate(M_sscc):
             for s2, M_cc in enumerate(M_scc):
-                contained_operation = any([(M_cc == rotation).all()
-                                           for rotation in rotations])
+                contained_operation = any([(M_cc == rotation_cc).all()
+                                           for rotation_cc in rotation_scc])
                 if not contained_operation:
                     badness[s1, s2] = 1
-        np.set_printoptions(threshold=np.inf)
+   
+        print(badness.astype(int))
 
+        zzz = np.ones(new_rotation_scc.shape[0], dtype=bool)
+        zzz[[2]] = 0
+
+        badness_measure_1 = np.zeros((new_ns - 1), dtype=int)
+        for s1, M_scc in enumerate(M_sscc[zzz][:, zzz]):
+            for s2, M_cc in enumerate(M_scc):
+                contained_operation = any([(M_cc == rotation_cc).all()
+                                           for rotation_cc in rotation_scc])
+                if not contained_operation:
+                    badness_measure_1[s1] += 1
+                    badness_measure_1[s2] += 1
+
+        print([badness_measure_1, sum(badness_measure_1)])
+
+        zzz[[2]] = 1
+        zzz[[8]] = 0
+
+        badness_measure_2 = np.zeros((new_ns - 1), dtype=int)
+        for s1, M_scc in enumerate(M_sscc[zzz][:, zzz]):
+            for s2, M_cc in enumerate(M_scc):
+                contained_operation = any([(M_cc == rotation_cc).all()
+                                           for rotation_cc in rotation_scc])
+                if not contained_operation:
+                    badness_measure_2[s1] += 1
+                    badness_measure_2[s2] += 1
+
+        print([badness_measure_2, sum(badness_measure_2)])
+        cc
+
+        print(badness.astype(int))
+        print(badness[zzz][:, zzz].astype(int))
         badness_measure = badness.sum(axis=0) + badness.sum(axis=1)
+        print(badness_measure)
+        print(type(badness_measure))
+        cc
         if sum(badness_measure) == 0:
+            print('log succes, set of {initial ns} operations reduced '
+                  'to group of {new_ns} elements, etc.')
             not_a_group = False
-            return cls(cell=cell,
-                       rotations=new_rotations,
-                       tolerance=tolerance,
-                       _backwards_compatible=_backwards_compatible)
+            return new_rotations
 
-        bad_operations = np.squeeze(np.argwhere(badness_measure == np.max(badness_measure)))
-        print(bad_operations)
-        new_rotations = np.delete(new_rotations, bad_operations, axis=0)  # Use boolean masking instead?
-        print(new_rotations.shape)
-        new_nsyms = new_rotations.shape[0]
-        M_sscc = np.einsum('sab,pbc->spac', new_rotations, new_rotations)
+        bad_operations = np.squeeze(
+            np.argwhere(badness_measure == np.max(badness_measure)))
+        new_rotation_scc = new_rotation_scc[~bad_operations]
+        new_ns = new_rotation_scc.shape[0]
+        M_sscc = M_sscc[~bad_operations][:, ~bad_operations]
+        M_sscc = np.einsum('sab,pbc->spac', new_rotation_scc, new_rotation_scc)
+
+
+        print(new_ns)
+        cc
 
 
 def prune_symmetries(sym: Symmetries,
                      relpos_ac: Array2D,
                      id_a: Sequence[int],
-                     symmorphic: bool = True) -> Symmetries:
+                     symmorphic: bool = True):
     """Remove symmetries that are not satisfied by the atoms."""
 
     if len(relpos_ac) == 0:
@@ -148,11 +194,7 @@ def prune_symmetries(sym: Symmetries,
     return sym
 
 
-
-
-
-
-# @cache
+@cache
 def generate_all_symmetry_matrices() -> np.ndarray:
     # Symmetry operations as matrices in a basis of lattice vectors.
     # Operation is a 3x3 matrix with possible elements -1, 0, 1, thus
@@ -165,7 +207,7 @@ def generate_all_symmetry_matrices() -> np.ndarray:
     # or reflections and rotoinversions with determinant -1.
 
     U_scc = U_scc[abs(leibniz_determinant_3x3(U_scc)) == 1]  # Reduce to 6960 matrices
-    return U_scc
+    return U_scc.copy()
 
 
 def leibniz_determinant_3x3(M: np.ndarray) -> np.ndarray:
