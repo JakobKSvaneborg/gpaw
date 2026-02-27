@@ -32,7 +32,6 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
     atoms.get_potential_energy()
     dft = calc.dft
     if mode != 'pw':
-        # dft.change(eigensolver={})
         dft.change_mode('pw')
     dft.write_gpw_file('C.gpw', include_wfs=True)
 
