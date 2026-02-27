@@ -22,7 +22,7 @@ def test_si_scs(in_tmp_dir, gpw_files, gpaw_new):
     dft = GPAW(gpw_files['si_scs_lcao']).dft
     dft.change(eigensolver={})  # remove SCS solver which PW-mode doesn't like
     dft.change_mode('pw')
-    dft.ase_calculator().write('si_scs_pw.gpw', 'all')
+    dft.write_gpw_file('si_scs_pw.gpw', include_wfs=True)
     _, eps_scs_w = calc_df('si_scs_pw.gpw')
 
     # we use a relatively high tolerance since we wouldn't expect agreement

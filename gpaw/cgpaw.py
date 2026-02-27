@@ -1,13 +1,15 @@
 from gpaw import GPAW_NO_C_EXTENSION
 
 if GPAW_NO_C_EXTENSION:
-    have_magma = False
     import gpaw.purepython as _gpaw
 else:
     import _gpaw  # type: ignore[no-redef]
 
-    # Do not force users to recompile due to merging magma support to master
-    have_magma = getattr(_gpaw, 'have_magma', False)
+try:
+    import _gpaw.gpu.magma  # type: ignore[no-redef]
+    have_magma = True
+except (ImportError, ModuleNotFoundError):
+    have_magma = False
 
 
 def __getattr__(name):

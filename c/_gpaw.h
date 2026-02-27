@@ -157,9 +157,6 @@ PyObject* calculate_forces_H2O(PyObject *self, PyObject *args);
 
 #ifdef GPAW_GPU
 #include "gpu/gpu_interface.h"
-    #ifdef GPAW_WITH_MAGMA
-        #include "gpu/cpp/magma/magma_python_interface.h"
-    #endif // GPAW_WITH_MAGMA
 #endif // GPAW_GPU
 
 
@@ -321,11 +318,6 @@ static PyMethodDef functions[] = {
     {"evaluate_pbe_gpu", evaluate_pbe_gpu, METH_VARARGS, 0},
     {"calculate_residuals_gpu", calculate_residual_gpu, METH_VARARGS, 0},
 
-    #ifdef GPAW_WITH_MAGMA
-    {"_eigh_magma_numpy", eigh_magma_numpy, METH_VARARGS, 0},
-    {"_eigh_magma_cupy", eigh_magma_cupy, METH_VARARGS, 0},
-    #endif // GPAW_WITH_MAGMA
-
     {"_flush_pending_decrefs", flush_pending_decrefs, METH_NOARGS, 0},
 
 #endif // GPAW_GPU
@@ -437,12 +429,6 @@ static PyObject* moduleinit(void)
     PyObject_SetAttrString(m, "have_openmp", Py_False);
 #endif
 
-#ifdef GPAW_WITH_MAGMA
-    PyObject_SetAttrString(m, "have_magma", Py_True);
-#else
-    PyObject_SetAttrString(m, "have_magma", Py_False);
-#endif
-
 #ifdef GPAW_GPU
     if (!bind_gpu_submodule(m))
     {
@@ -451,7 +437,7 @@ static PyObject* moduleinit(void)
 #endif
 
     // Version number of C-code.  Keep in sync with gpaw/_broadcast_imports.py
-    PyObject_SetAttrString(m, "version", PyLong_FromLong(10));
+    PyObject_SetAttrString(m, "version", PyLong_FromLong(11));
 
     Py_INCREF(&LFCType);
     Py_INCREF(&OperatorType);
