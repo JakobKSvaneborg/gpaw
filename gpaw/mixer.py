@@ -287,11 +287,11 @@ class MSR1Mixer(BaseMixer):
             # self.gd.comm.sum(ntnorm_i)
 
             dampen = 1  # Dampen the unpredicted greed
-            trust_scalar = 1.5 # Trust scalar for trust radius calculation
-            max_gb_fact = 0.8
+            trust_scalar = 1.25 # Trust scalar for trust radius calculation
+            max_gb_fact = 0.9
             weight = 1e-4  # Weight for regularization
-            B0_lims = [0.4, 1.6]  # Limits for predicted greed
-            A0_lims = [0.04, 0.4]  # Limits for unpredicted greed
+            B0_lims = [0.5, 1.5]  # Limits for predicted greed
+            A0_lims = [0.04, 0.6]  # Limits for unpredicted greed
             rate_ratio = [0.8, 1.2]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
 
@@ -444,8 +444,8 @@ class MSR1Mixer(BaseMixer):
                 tD_iasp.append(tD_asp)
 
             A_ii = self.dotprod(t_isG, y_isG, tD_iasp, yD_iasp, self.gd, mode='gemm')
-            # B_ii = self.dotprod(t_isG, s_isG, tD_iasp, sD_iasp, self.gd, mode='gemm')
-            B_ii = self.dotprod(ty_isG, s_isG, tyD_iasp, sD_iasp, self.gd, mode='gemm')
+            B_ii = self.dotprod(t_isG, s_isG, tD_iasp, sD_iasp, self.gd, mode='gemm')
+            # B_ii = self.dotprod(ty_isG, s_isG, tyD_iasp, sD_iasp, self.gd, mode='gemm')
 
             ### SVD Regularization:
             # S, V, D = np.linalg.svd(B_ii)
@@ -480,12 +480,12 @@ class MSR1Mixer(BaseMixer):
                 uRnoD_asp, uRnoD_asp, self.gd, mode='scalar')
 
             # For Eq 18 from mixing for dumies:
-            # A2_i = self.dotprod(t_isG, [self.uk_sG, ], tD_iasp, [self.uD_asp, ], self.gd, mode='gemm')[:, 0]
-            A2_i = self.dotprod(ty_isG, [self.uk_sG, ], tyD_iasp, [self.uD_asp, ], self.gd, mode='gemm')[:, 0]
+            A2_i = self.dotprod(t_isG, [self.uk_sG, ], tD_iasp, [self.uD_asp, ], self.gd, mode='gemm')[:, 0]
+            # A2_i = self.dotprod(ty_isG, [self.uk_sG, ], tyD_iasp, [self.uD_asp, ], self.gd, mode='gemm')[:, 0]
             A3_i = self.dotprod([self.uk_sG, ], y_isG, [self.uD_asp, ], yD_iasp, self.gd, mode='gemm')[0, :]
 
-            # B2_i = self.dotprod(t_isG, [self.pk_sG, ], tD_iasp, [self.pD_asp, ], self.gd, mode='gemm')[:, 0]
-            B2_i = self.dotprod(ty_isG, [self.pk_sG, ], tyD_iasp, [self.pD_asp, ], self.gd, mode='gemm')[:, 0]
+            B2_i = self.dotprod(t_isG, [self.pk_sG, ], tD_iasp, [self.pD_asp, ], self.gd, mode='gemm')[:, 0]
+            # B2_i = self.dotprod(ty_isG, [self.pk_sG, ], tyD_iasp, [self.pD_asp, ], self.gd, mode='gemm')[:, 0]
             B3_i = self.dotprod([self.R_isG[-2] - self.uk_sG, ], y_isG, [uRnoD_asp, ], yD_iasp, self.gd, mode='gemm')[0, :]
 
             A2 = A3_i @ B_ii @ A2_i * dampen
@@ -505,8 +505,8 @@ class MSR1Mixer(BaseMixer):
                 self.B0 = 1
 
             A0_ratio = (self.A0 + np.clip(
-                # np.arctan(np.pi * np.abs(A1 / A2) / A0_lims[1] * 0.5) / np.pi * 2 * A0_lims[1],
-                np.abs(A1 / A2),
+                np.arctan(np.pi * np.abs(A1 / A2) / A0_lims[1] * 0.5) / np.pi * 2 * A0_lims[1],
+                # np.abs(A1 / A2),
                 *A0_lims
                 )
             ) / (2 * self.A0)
@@ -604,8 +604,8 @@ class MSR1Mixer(BaseMixer):
                     self.pD_asp, self.pD_asp, self.gd, mode='scalar')
                 new_step_size = new_step_size**0.5
                 scale_factor = new_step_size / step_size
-                A0 *= np.clip(scale_factor, 0, 1)
-                A0 = np.clip(A0, *A0_lims)
+                # A0 *= np.clip(scale_factor, 0, 1)
+                # A0 = np.clip(A0, *A0_lims)
                 # self.A0 = A0
                 self.uk_sG += R_sG
                 step_sG = A0 * self.uk_sG + B0 * self.pk_sG
