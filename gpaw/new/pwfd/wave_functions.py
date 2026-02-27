@@ -271,21 +271,21 @@ class PWFDWaveFunctions(WaveFunctions, XP):
 
         Ht = partial(Ht, out=psit2_nX, spin=self.spin,
                      calculate_energy=calculate_energy)
-        H_nm = psit_nX.matrix_elements(psit_nX,
+        H_nn = psit_nX.matrix_elements(psit_nX,
                                        function=Ht,
                                        domain_sum=False,
                                        cc=True)
         dH(P_ani, out_ani=P2_ani, spin=self.spin)
         P_ani.matrix.multiply(P2_ani, opb='C', symmetric=True,
-                              out=H_nm, beta=1.0)
-        domain_comm.sum(H_nm.data, 0)
+                              out=H_nn, beta=1.0)
+        domain_comm.sum(H_nn.data, 0)
 
         # XXX correct return?
         # gives correct result only on master
-        return H_nm
+        return H_nn
 
     @trace
-    def subspace_eigenvalues(self, H_nm,
+    def subspace_eigenvalues(self, H_nn,
                              scalapack_params=(None, 1, 1, 0)):
 
         psit_nX = self.psit_nX
@@ -294,14 +294,20 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         blocksize = (
             (self.nbands + self.band_comm.size - 1) // self.band_comm.size,
             self.nbands)
-        H0_nn = H_nm.new(dist=(self.domain_band_comm, 1, 1))
+        print(scalapack_params, H_nn)
+        H0_nn = H_nn.new(
+            dist=(self.domain_band_comm,
+                  self.band_comm.size,
+                  self.domain_comm.size,
+                  *blocksize),
+            data=H_nn.data if self.domain_comm.rank == 0 else None)
         eig_n = H0_nn.eigh(scalapack=(slcomm, r, c, b))
         self.eig_n = as_np(eig_n, dtype=np.float64)
-        H0_nn.redist(H_nm)
-        H_nm.complex_conjugate()
+        H0_nn.redist(H_nn)
+        H_nn.complex_conjugate()
         # H.data[n, :] now contains the nth eigenvector and eps_n[n]
         # the nth eigenvalue
-        domain_comm.broadcast(H_nm.data, 0)
+        domain_comm.broadcast(H_nn.data, 0)
 
     @trace
     def canonical_transformation(self, H_nm, psit2_nX, data_buffer):
@@ -347,17 +353,17 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             m  i   ij  j  n
         """
 
-        H_nm = self.build_hamiltonian(Ht, dH, psit2_nX,
+        H_nn = self.build_hamiltonian(Ht, dH, psit2_nX,
                                       calculate_energy=calculate_energy)
         if nocc is not None:
             # decouple occupied from unoccupied orbitals
-            H_nm.data[:nocc, nocc:] = 0
-            H_nm.data[nocc:, :nocc] = 0
-        self.subspace_eigenvalues(H_nm,
+            H_nn.data[:nocc, nocc:] = 0
+            H_nn.data[nocc:, :nocc] = 0
+        self.subspace_eigenvalues(H_nn,
                                   scalapack_params=scalapack_parameters)
         if eigenvalues_only:
             return
-        self.canonical_transformation(H_nm, psit2_nX, data_buffer)
+        self.canonical_transformation(H_nn, psit2_nX, data_buffer)
 
     def force_contribution(self,
                            potential: Potential,
