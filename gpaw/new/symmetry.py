@@ -15,12 +15,10 @@ from gpaw.rotation import rotation
 from gpaw.symmetry import Symmetry as OldSymmetry
 from gpaw.symmetry import frac
 from gpaw.typing import Array2D, Array3D, ArrayLike1D, ArrayLike2D, ArrayLike3D
-<<<<<<< HEAD
-from gpaw.utilities.symmetry import find_set_of_lattice_symmetries, guarantee_lattice_symmetries_form_a_point_group, prune_symmetries
-=======
-from gpaw.utilities.symmetry import find_lattice_symmetry, prune_symmetries
+from gpaw.utilities.symmetry import (
+    find_set_of_lattice_symmetries,
+    guarantee_lattice_symmetries_form_a_point_group, prune_symmetries)
 
->>>>>>> move-helpful-symmetry-functions
 
 class SymmetryBrokenError(Exception):
     """Broken-symmetry error."""
@@ -58,22 +56,15 @@ def is_zero_translation_vector(t_c):
 
 
 def assert_same_rotations(sym, sym_spglib):
-    
-    if len(sym.rotation_scc) > len(sym_spglib.rotation_scc):
-        print("BUG GPAW gets more than spglib")
-        print('BUG', len(sym.rotation_scc), len(sym_spglib.rotation_scc))
+    assert len(sym.rotation_scc) == len(sym_spglib.rotation_scc):
     for r_cc in sym.rotation_scc:
         checks = []
         for r_spg_cc in sym_spglib.rotation_scc:
             checks.append(np.array_equal(r_cc, r_spg_cc))
-        if np.sum(checks) == 0:
-            print('BUG Sym ', r_cc, 'not found in spglib')
+        assert np.sum(checks) == 1:  # Only one symmetry should match exactly.
 
-    #print('All spglib symmetries', sym_spglib.rotation_scc)
-    #print('ours', len(sym.rotation_scc))
-    #print('theirs', len(sym_spglib.rotation_scc))
+
 def assert_same_output(sym, sym_spglib):
-    return
     assert len(sym.rotation_scc) == len(sym_spglib.rotation_scc)
     for r_cc, t_c, amap_a in zips(sym.rotation_scc,
                                   sym.translation_sc,
@@ -101,7 +92,7 @@ def create_symmetries_object(atoms: Atoms,
                              tolerance: float | None = None,  # Å
                              point_group: bool = True,
                              symmorphic: bool = True,
-                             _backwards_compatible = False) -> Symmetries:
+                             _backwards_compatible: bool = False) -> Symmetries:
     """Find symmetries from atoms object.
 
     >>> atoms = Atoms('H', cell=[1, 1, 1], pbc=True)
@@ -122,8 +113,8 @@ def create_symmetries_object(atoms: Atoms,
 
     if tolerance is None:
         tolerance = 1e-7 if _backwards_compatible else 1e-5
-    # if _backwards_compatible:
-    cell_cv *= 1 / Bohr
+    if _backwards_compatible:
+        cell_cv *= 1 / Bohr
 
     # Create int atom-ids from setups, magmoms and user-supplied
     # (extra_ids) ids:
