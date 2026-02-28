@@ -56,12 +56,12 @@ def is_zero_translation_vector(t_c):
 
 
 def assert_same_rotations(sym, sym_spglib):
-    assert len(sym.rotation_scc) == len(sym_spglib.rotation_scc):
+    assert len(sym.rotation_scc) == len(sym_spglib.rotation_scc)
     for r_cc in sym.rotation_scc:
         checks = []
         for r_spg_cc in sym_spglib.rotation_scc:
             checks.append(np.array_equal(r_cc, r_spg_cc))
-        assert np.sum(checks) == 1:  # Only one symmetry should match exactly.
+        assert np.sum(checks) == 1  # Only one symmetry should match exactly.
 
 
 def assert_same_output(sym, sym_spglib):
@@ -108,7 +108,8 @@ def create_symmetries_object(atoms: Atoms,
             pbc_c = (1, 1, 1)
         case False:
             pbc_c = (0, 0, 0)
-        case tuple:
+        case _:
+            assert len(atoms.pbc) == 3
             pbc_c = atoms.pbc
 
     if tolerance is None:
@@ -127,12 +128,12 @@ def create_symmetries_object(atoms: Atoms,
     if extra_ids is not None:
         ids = integer_ids((id, x) for id, x in zips(ids, extra_ids))
 
-    rel_pos = atoms.get_scaled_positions()
+    relpos_ac = atoms.get_scaled_positions()
     if rotations is None:
         # Find symmetries from cell, ids and positions:
         if point_group:
             rotation_scc = find_set_of_lattice_symmetries(
-                cell_cv, pbc_c, tolerance, _backwards_compatible=True)
+                cell_cv, pbc_c, tolerance, _backwards_compatible=_backwards_compatible)
 
             if not _backwards_compatible:
                 # Do not do group check for backwards compatible.
@@ -140,6 +141,7 @@ def create_symmetries_object(atoms: Atoms,
                     rotation_scc)
 
             print('End of current edits')
+            cc
             sym = Symmetries.from_cell_and_atoms(
                 cell_cv,
                 pbc=atoms.pbc,

@@ -9,15 +9,17 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from gpaw import debug
-from gpaw.typing import Array2D
+from gpaw.new import zips
+from gpaw.typing import Array2D, Array3D
 
 if TYPE_CHECKING:
     from gpaw.new.symmetry import Symmetries
 
-def find_set_of_lattice_symmetries(cell_cv: Arra,
+
+def find_set_of_lattice_symmetries(cell_cv: Array2D,
                                    pbc_c: tuple,
                                    tol,
-                                   _backwards_compatible=False):
+                                   _backwards_compatible=False) -> Array3D:
     """Determine set of fixed-point symmetry
     operations compliant with a given lattice."""
     U_scc = generate_all_symmetry_matrices()
@@ -44,48 +46,64 @@ def find_set_of_lattice_symmetries(cell_cv: Arra,
     return U_scc[mask_s].copy()
 
 
-def guarantee_lattice_symmetries_form_a_point_group(rotation_scc: ArrayLike3D):
-    ns_initial = rotation_scc.shape[0]
-
-    # Cayley table
-    M_sscc = np.einsum('sab,zbc->szac', rotation_scc, rotation_scc)
-
-    has_inverse_operation = np.zeros(ns_initial, dtype=bool)
-    I3 = np.eye(3, dtype=bool)
-    for s, rotation_cc in enumerate(rotation_scc):
-        has_inverse_operation[s] = any(
-            [(M_cc == I3).all() for M_cc in M_sscc[s]])
-
-    rotation_scc = rotation_scc[has_inverse_operation]
-    ns = rotation_scc.shape[0]
-    M_sscc = M_sscc[has_inverse_operation][:, has_inverse_operation]
-    M_scc = np.unique(M_sscc.reshape((-1, 3, 3)), axis=0)
-
-    print([ns_initial, ns])
-    cc
-    if M_scc.shape[0] == ns:
-        print('log succes, group found, etc.')
-        return rotation_scc
+def guarantee_lattice_symmetries_form_a_point_group(
+    initial_rotation_scc: Array3D) -> Array3D:
 
     not_a_group = True
+    initial_ns = initial_rotation_scc.shape[0]
 
-    new_ns = ns
-    new_rotation_scc = rotation_scc
+    # Cayley table
+    M_sscc = np.einsum('sab,zbc->szac',
+        initial_rotation_scc, initial_rotation_scc)
+
+    rotation_scc = initial_rotation_scc
+    ns = initial_ns
+    I3 = np.eye(3, dtype=bool)
+    
+    print('Initial')
     while not_a_group:
-        badness = np.zeros((new_ns, new_ns), dtype=bool)
+        print(str(ns) + '\n')
+
+        has_inverse_operation = np.zeros(ns, dtype=bool)
+        for s, (rotation_cc, M_scc) in enumerate(zips(rotation_scc, M_sscc)):
+            has_inverse_operation[s] = any(
+                [(M_cc == I3).all() for M_cc in M_scc])
+
+        if (~has_inverse_operation).any():
+            rotation_scc = rotation_scc[has_inverse_operation]
+            ns = rotation_scc.shape[0]
+            M_sscc = M_sscc[has_inverse_operation][:, has_inverse_operation]
+            print('Missing inverse operations')
+            continue
+
+        closure_violation = np.zeros((ns, ns), dtype=bool)
         for s1, M_scc in enumerate(M_sscc):
             for s2, M_cc in enumerate(M_scc):
                 contained_operation = any([(M_cc == rotation_cc).all()
                                            for rotation_cc in rotation_scc])
                 if not contained_operation:
-                    badness[s1, s2] = 1
-   
-        print(badness.astype(int))
+                    closure_violation[s1, s2] = True
 
-        zzz = np.ones(new_rotation_scc.shape[0], dtype=bool)
-        zzz[[2]] = 0
+        easy_closure_violators = np.diag(closure_violation)
+        if easy_closure_violators.any():
+            rotation_scc = rotation_scc[~easy_closure_violators]
+            ns = rotation_scc.shape[0]
+            M_sscc = M_sscc[easy_closure_violators][:, easy_closure_violators]
+            print('Easy closure violators')
+            continue
 
-        badness_measure_1 = np.zeros((new_ns - 1), dtype=int)
+        print('Hard mode')
+        print(closure_violation.astype(int))
+        badness_measure = closure_violation.sum(axis=0) + closure_violation.sum(axis=1)
+        print(badness_measure)
+
+        bad_operations = np.squeeze(
+            np.argwhere(badness_measure == np.max(badness_measure)))
+
+        zzz = np.ones(rotation_scc.shape[0], dtype=bool)
+        zzz[[3]] = 0
+
+        badness_measure_1 = np.zeros((ns - 1), dtype=int)
         for s1, M_scc in enumerate(M_sscc[zzz][:, zzz]):
             for s2, M_cc in enumerate(M_scc):
                 contained_operation = any([(M_cc == rotation_cc).all()
@@ -96,10 +114,10 @@ def guarantee_lattice_symmetries_form_a_point_group(rotation_scc: ArrayLike3D):
 
         print([badness_measure_1, sum(badness_measure_1)])
 
-        zzz[[2]] = 1
-        zzz[[8]] = 0
+        zzz[[3]] = 1
+        zzz[[4]] = 0
 
-        badness_measure_2 = np.zeros((new_ns - 1), dtype=int)
+        badness_measure_2 = np.zeros((ns - 1), dtype=int)
         for s1, M_scc in enumerate(M_sscc[zzz][:, zzz]):
             for s2, M_cc in enumerate(M_scc):
                 contained_operation = any([(M_cc == rotation_cc).all()
@@ -109,22 +127,12 @@ def guarantee_lattice_symmetries_form_a_point_group(rotation_scc: ArrayLike3D):
                     badness_measure_2[s2] += 1
 
         print([badness_measure_2, sum(badness_measure_2)])
+
         cc
 
-        print(badness.astype(int))
-        print(badness[zzz][:, zzz].astype(int))
-        badness_measure = badness.sum(axis=0) + badness.sum(axis=1)
-        print(badness_measure)
-        print(type(badness_measure))
+        # print(badness[zzz][:, zzz].astype(int))
         cc
-        if sum(badness_measure) == 0:
-            print('log succes, set of {initial ns} operations reduced '
-                  'to group of {new_ns} elements, etc.')
-            not_a_group = False
-            return new_rotations
 
-        bad_operations = np.squeeze(
-            np.argwhere(badness_measure == np.max(badness_measure)))
         new_rotation_scc = new_rotation_scc[~bad_operations]
         new_ns = new_rotation_scc.shape[0]
         M_sscc = M_sscc[~bad_operations][:, ~bad_operations]
@@ -133,6 +141,14 @@ def guarantee_lattice_symmetries_form_a_point_group(rotation_scc: ArrayLike3D):
 
         print(new_ns)
         cc
+        # M_scc = np.unique(M_sscc.reshape((-1, 3, 3)), axis=0)
+
+        not_a_group = False
+
+    print('log succes, set of {initial_ns} operations reduced '
+          'to point group of {new_ns} elements, etc.')
+    return new_rotations
+
 
 
 def prune_symmetries(sym: Symmetries,
