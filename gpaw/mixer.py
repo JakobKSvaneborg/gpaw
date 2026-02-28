@@ -287,8 +287,8 @@ class MSR1Mixer(BaseMixer):
             # self.gd.comm.sum(ntnorm_i)
 
             dampen = 1  # Dampen the unpredicted greed
-            trust_scalar = 1.25 # Trust scalar for trust radius calculation
-            max_gb_fact = 0.75
+            trust_scalar = 1.1 # Trust scalar for trust radius calculation
+            max_gb_fact = 0.50
             weight = 4e-4  # Weight for regularization
             B0_lims = [0.4, 1.05]  # Limits for predicted greed
             A0_lims = [0.035, 0.5]  # Limits for unpredicted greed
