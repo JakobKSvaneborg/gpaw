@@ -287,11 +287,11 @@ class MSR1Mixer(BaseMixer):
             # self.gd.comm.sum(ntnorm_i)
 
             dampen = 1  # Dampen the unpredicted greed
-            trust_scalar = 1.2 # Trust scalar for trust radius calculation
-            max_gb_fact = 0.67
-            weight = 3e-4  # Weight for regularization
+            trust_scalar = 1.25 # Trust scalar for trust radius calculation
+            max_gb_fact = 0.75
+            weight = 4e-4  # Weight for regularization
             B0_lims = [0.4, 1.05]  # Limits for predicted greed
-            A0_lims = [0.04, 0.5]  # Limits for unpredicted greed
+            A0_lims = [0.035, 0.5]  # Limits for unpredicted greed
             rate_ratio = [0.8, 1.2]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
 
@@ -637,7 +637,7 @@ class MSR1Mixer(BaseMixer):
             self.last_gb = 5
             self.trust_radius = None
             self.A0 = self.beta
-            A0 = self.beta
+            A0 = self.beta * 0.8
             self.uk_sG = R_sG
             self.pk_sG = np.zeros_like(self.uk_sG)
             nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG
