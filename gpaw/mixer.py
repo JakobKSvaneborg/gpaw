@@ -229,7 +229,7 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = 1.5
+    min_imp = 4
 
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         nt_isG = self.nt_isG
@@ -286,13 +286,13 @@ class MSR1Mixer(BaseMixer):
             # ntnorm_i = ntnorm_i[:-1] / ntnorm_i[-1]
             # self.gd.comm.sum(ntnorm_i)
 
-            dampen = 0.9  # Dampen the unpredicted greed
-            trust_scalar = 1.2 # Trust scalar for trust radius calculation
-            max_gb_fact = 0.5
-            weight = 2e-4  #4e-4  # Weight for regularization
+            dampen = 0.95  # Dampen the unpredicted greed
+            trust_scalar = 1.2 # Scaling factor for the trust radius.
+            max_gb_fact = 0.5 # Scaling factor for maximum good Broyden.
+            weight = 1e-4  # Weight for regularization, 1e-4 works well
             B0_lims = [0.4, 1.05]  # Limits for predicted greed
             A0_lims = [0.035, 0.35]  # Limits for unpredicted greed
-            rate_ratio = [0.7, 1.3]  # Rate ratio for clipping
+            rate_ratio = [0.75, 1.25]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
             initial_B0 = 1
 
