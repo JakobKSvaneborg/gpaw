@@ -16,7 +16,7 @@ from gpaw.symmetry import Symmetry as OldSymmetry
 from gpaw.symmetry import frac
 from gpaw.typing import Array2D, Array3D, ArrayLike1D, ArrayLike2D, ArrayLike3D
 from gpaw.utilities.symmetry import (
-    find_set_of_lattice_symmetries,
+    check_one_symmetry, find_set_of_lattice_symmetries,
     guarantee_lattice_symmetries_form_a_point_group, prune_symmetries)
 
 
@@ -140,14 +140,14 @@ def create_symmetries_object(atoms: Atoms,
                 rotation_scc = guarantee_lattice_symmetries_form_a_point_group(
                     rotation_scc)
 
-            print('End of current edits')
-            cc
+            prune_symmetries(rotation_scc, np.asarray(relative_positions), ids, symmorphic)
+
             sym = Symmetries.from_cell_and_atoms(
                 cell_cv,
                 pbc=atoms.pbc,
                 tolerance=tolerance,
                 _backwards_compatible=_backwards_compatible,
-                relative_positions=relative_positions,
+                relative_positions=relpos_ac,
                 ids=ids,
                 symmorphic=symmorphic)
 
@@ -347,7 +347,7 @@ class Symmetries:
         for U_cc, t_c, map_a in zips(self.rotation_scc,
                                      self.translation_sc,
                                      atommap_sa):
-            map_a[:] = self.check_one_symmetry(relative_positions,
+            map_a[:] = check_one_symmetry(relative_positions,
                                                U_cc, t_c, a_ij)
         return Symmetries(cell=self.cell_cv,
                           rotations=self.rotation_scc,
@@ -442,30 +442,10 @@ class Symmetries:
                            op_cc,
                            ft_c,
                            a_ia):
-        """Checks whether atoms satisfy one given symmetry operation."""
 
-        a_a = np.zeros(len(spos_ac), int)
-        for b_a in a_ia.values():
-            spos_jc = spos_ac[b_a]
-            for b in b_a:
-                spos_c = np.dot(spos_ac[b], op_cc)
-                sdiff_jc = spos_c - spos_jc - ft_c
-                sdiff_jc -= sdiff_jc.round()
-                if self._backwards_compatible:
-                    indices = np.where(
-                        abs(sdiff_jc).max(1) < self.tolerance)[0]
-                else:
-                    sdiff_jv = sdiff_jc @ self.cell_cv
-                    indices = np.where(
-                        (sdiff_jv**2).sum(1) < self.tolerance**2)[0]
-                if len(indices) == 1:
-                    a = indices[0]
-                    a_a[b] = b_a[a]
-                else:
-                    assert len(indices) == 0
-                    return None
-
-        return a_a
+        return check_one_symmetry(
+            self.cell_cv, spos_ac, op_cc, ft_c, a_ia,
+            self.tolerance, self._backwards_compatible)
 
     def group_check(self) -> None:
         """Sanity check."""
