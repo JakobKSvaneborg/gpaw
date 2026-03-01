@@ -5,16 +5,8 @@ from collections import defaultdict
 from collections.abc import Sequence
 from functools import cache
 from itertools import chain
-from typing import TYPE_CHECKING
 
-import numpy as np
-
-from gpaw import debug
-from gpaw.new import zips
 from gpaw.typing import Array2D, Array3D
-
-if TYPE_CHECKING:
-    from gpaw.new.symmetry import Symmetries
 
 
 def find_set_of_lattice_symmetries(cell_cv: Array2D,
@@ -44,7 +36,11 @@ def find_set_of_lattice_symmetries(cell_cv: Array2D,
     # kinds of boundary conditions.
     pbc_cc = np.logical_xor.outer(pbc_c, pbc_c)
     mask_s = ~U_scc[:, pbc_cc].any(axis=1)
-    return U_scc[mask_s].copy()
+    U_scc = U_scc[mask_s]
+    if not _backwards_compatible:
+        # Do not do group check for backwards compatible.
+        U_scc = guarantee_lattice_symmetries_form_a_point_group(U_scc)
+    return U_scc.copy()
 
 
 @cache
@@ -59,7 +55,8 @@ def generate_all_symmetry_matrices() -> np.ndarray:
     # Matrices must represent rotations with determinant 1
     # or reflections and rotoinversions with determinant -1.
 
-    U_scc = U_scc[abs(leibniz_determinant_3x3(U_scc)) == 1]  # Reduce to 6960 matrices
+    U_scc = U_scc[abs(leibniz_determinant_3x3(U_scc)) == 1]
+    # Reduced to 6960 matrices
     return U_scc.copy()
 
 
@@ -77,39 +74,38 @@ def leibniz_determinant_3x3(M: np.ndarray) -> np.ndarray:
 
 
 def guarantee_lattice_symmetries_form_a_point_group(
-    initial_rotation_scc: Array3D) -> Array3D:
+        initial_U_scc: Array3D) -> Array3D:
 
     not_a_group = True
-    initial_ns = initial_rotation_scc.shape[0]
+    initial_ns = initial_U_scc.shape[0]
 
     # Cayley table
-    M_sscc = np.einsum('sab,zbc->szac',
-        initial_rotation_scc, initial_rotation_scc)
+    M_sscc = np.einsum('sab,zbc->szac', initial_U_scc, initial_U_scc)
 
-    rotation_scc = initial_rotation_scc
+    U_scc = initial_U_scc
     ns = initial_ns
-    I3 = np.eye(3, dtype=bool)
-    
+    I3 = np.identity(3, dtype=bool)
+
     while not_a_group:
 
         has_inverse_operation = np.zeros(ns, dtype=bool)
-        for s, (rotation_cc, M_scc) in enumerate(zips(rotation_scc, M_sscc)):
+        for s, M_scc in enumerate(M_sscc):
             has_inverse_operation[s] = any(
                 [(M_cc == I3).all() for M_cc in M_scc])
 
         if (~has_inverse_operation).any():
             # We can unambigously remove the elements
             # that are not invertible in the set.
-            rotation_scc = rotation_scc[has_inverse_operation]
-            ns = rotation_scc.shape[0]
+            U_scc = U_scc[has_inverse_operation]
+            ns = U_scc.shape[0]
             M_sscc = M_sscc[has_inverse_operation][:, has_inverse_operation]
             continue
 
         closure_violation = np.zeros((ns, ns), dtype=bool)
         for s1, M_scc in enumerate(M_sscc):
             for s2, M_cc in enumerate(M_scc):
-                contained_operation = any([(M_cc == rotation_cc).all()
-                                           for rotation_cc in rotation_scc])
+                contained_operation = any([(M_cc == U_cc).all()
+                                           for U_cc in U_scc])
                 if not contained_operation:
                     closure_violation[s1, s2] = True
 
@@ -120,9 +116,10 @@ def guarantee_lattice_symmetries_form_a_point_group(
             if easy_closure_violators.any():
                 # We can unambigously remove the elements that
                 # multiply themselves outside of the set.
-                rotation_scc = rotation_scc[~easy_closure_violators]
-                ns = rotation_scc.shape[0]
-                M_sscc = M_sscc[~easy_closure_violators][:, ~easy_closure_violators]
+                U_scc = U_scc[~easy_closure_violators]
+                ns = U_scc.shape[0]
+                M_sscc = (M_sscc[~easy_closure_violators]
+                          )[:, ~easy_closure_violators]
                 continue
 
             badness_measure = (closure_violation.sum(axis=0)
@@ -134,8 +131,8 @@ def guarantee_lattice_symmetries_form_a_point_group(
             if len(worst_elements) == 1:
                 # We can safely remove the worst element.
                 not_worst_element = np.arange(ns) != worst_elements[0]
-                rotation_scc = rotation_scc[not_worst_element]
-                ns = rotation_scc.shape[0]
+                U_scc = U_scc[not_worst_element]
+                ns = U_scc.shape[0]
                 M_sscc = M_sscc[not_worst_element][:, not_worst_element]
                 continue
 
@@ -152,28 +149,37 @@ def guarantee_lattice_symmetries_form_a_point_group(
                         found_two_elements = True
                         two_bad_operations = [s1, s2]
                         break
-                if found_two_elements == True:
+                if found_two_elements:
                     break
 
-            # We can either remove symmetry operation two_bad_operations[0]
-            # or two_bad_operations[1]. In the future, we can calculate how
-            # much each operation violates the metric and remove the worst one.
-            # For now, we will just randomly choose two_bad_operations[0].
-
-            not_worst_element = np.arange(ns) != two_bad_operations[0]
-            rotation_scc = rotation_scc[not_worst_element]
-            ns = rotation_scc.shape[0]
-            M_sscc = M_sscc[not_worst_element][:, not_worst_element]
-            continue
+            if found_two_elements:
+                # We can either remove symmetry operation
+                # two_bad_operations[0] or two_bad_operations[1].
+                # In the future, we can calculate how much each operation
+                # violates the metric and remove the worst one.
+                # For now, we will just randomly choose two_bad_operations[0].
+                not_worst_element = np.arange(ns) != two_bad_operations[0]
+                U_scc = U_scc[not_worst_element]
+                ns = U_scc.shape[0]
+                M_sscc = M_sscc[not_worst_element][:, not_worst_element]
+                continue
+            else:
+                # Here, we just remove the first entry that is
+                # also a "worst element".
+                not_worst_element = np.arange(ns) != worst_elements[0]
+                U_scc = U_scc[not_worst_element]
+                ns = U_scc.shape[0]
+                M_sscc = M_sscc[not_worst_element][:, not_worst_element]
+                continue
 
     print(f'Log succes, set of {initial_ns} operations reduced '
           f'to point group of {ns} elements, etc.')
-    return rotation_scc.copy()
+    return U_scc
 
 
 def prune_symmetries(rotation_scc: Array3D,
+                     cell_cv: Array2D,
                      relpos_ac: Array2D,
-                     cell_cv,
                      id_a: Sequence[int],
                      tol: float,
                      symmorphic: bool = True,
@@ -181,27 +187,29 @@ def prune_symmetries(rotation_scc: Array3D,
     """Remove symmetries that are not satisfied by the atoms."""
 
     if len(relpos_ac) == 0:
-        return rotation_scc, 
+        return rotation_scc, None, None
 
     # Build lists of atom numbers for each type of atom - one
     # list for each combination of atomic number, setup type,
     # magnetic moment and basis set:
-    a_ij = defaultdict(list)
+    a_ib = defaultdict(list)
     for a, id in enumerate(id_a):
-        a_ij[id].append(a)
+        a_ib[id].append(a)
 
-    a_j = a_ij[id_a[0]]  # just pick the first species
+    a_b = a_ib[id_a[0]]  # just pick the first species
 
-    def check(op_cc, ft_c):
-        return check_one_symmetry(relpos_ac, op_cc, ft_c, a_ij)
+    def check(rotation_cc, translation_c):
+        return check_one_symmetry(rotation_cc, translation_c, cell_cv,
+                                  relpos_ac, a_ib,
+                                  tol, _backwards_compatible)
 
     # if supercell disable fractional translations:
     if not symmorphic:
-        op_cc = np.identity(3, int)
-        ftrans_sc = relpos_ac[a_j[1:]] - relpos_ac[a_j[0]]
-        ftrans_sc -= np.rint(ftrans_sc)
-        for ft_c in ftrans_sc:
-            a_a = check(op_cc, ft_c)
+        I3 = np.identity(3, bool)
+        ft_sc = relpos_ac[a_b[1:]] - relpos_ac[a_b[0]]
+        ft_sc -= np.rint(ft_sc)
+        for ft_c in ft_sc:
+            a_a = check(I3, ft_c)
             if a_a is not None:
                 symmorphic = True
                 break
@@ -210,57 +218,50 @@ def prune_symmetries(rotation_scc: Array3D,
     ftsymmetries = []
 
     # go through all possible symmetry operations
-    for op_cc in sym.rotation_scc:
+    for rotation_cc in rotation_scc:
         # first ignore fractional translations
-        a_a = check(op_cc, [0, 0, 0])
+        a_a = check(rotation_cc, [0., 0., 0.])
         if a_a is not None:
-            symmetries.append((op_cc, [0, 0, 0], a_a))
+            symmetries.append((rotation_cc, [0., 0., 0.], a_a))
         elif not symmorphic:
             # check fractional translations
-            sposrot_ac = np.dot(relpos_ac, op_cc)
-            ftrans_jc = sposrot_ac[a_j] - relpos_ac[a_j[0]]
-            ftrans_jc -= np.rint(ftrans_jc)
-            for ft_c in ftrans_jc:
-                a_a = check(op_cc, ft_c)
+            relposrot_ac = np.dot(relpos_ac, rotation_cc)
+            ft_ac = relposrot_ac[a_b] - relpos_ac[a_b[0]]
+            ft_ac -= np.rint(ft_ac)
+            for ft_c in ft_ac:
+                a_a = check(rotation_cc, ft_c)
                 if a_a is not None:
-                    ftsymmetries.append((op_cc, ft_c, a_a))
+                    ftsymmetries.append((rotation_cc, ft_c, a_a))
 
     # Add symmetry operations with fractional translations at the end:
     symmetries.extend(ftsymmetries)
 
-    from gpaw.new.symmetry import Symmetries
-    sym = Symmetries(cell=sym.cell_cv,
-                     rotations=[s[0] for s in symmetries],
-                     translations=[s[1] for s in symmetries],
-                     atommaps=[s[2] for s in symmetries],
-                     tolerance=sym.tolerance,
-                     _backwards_compatible=sym._backwards_compatible)
-    if debug:
-        sym.check_positions(relpos_ac)
+    rotation_scc = np.array([s[0] for s in symmetries])
+    translation_sc = np.array([s[1] for s in symmetries])
+    atommap_sa = np.array([s[2] for s in symmetries])
 
-    return sym
+    return rotation_scc, translation_sc, atommap_sa
 
 
-def check_one_symmetry(cell_cv, spos_ac, op_cc, ft_c, a_ia, tolerance, _backwards_compatible):
+def check_one_symmetry(rotation_cc, translation_c, cell_cv, relpos_ac, a_ib,
+                       tol, _backwards_compatible):
     """Checks whether atoms satisfy one given symmetry operation."""
 
-    a_a = np.zeros(len(spos_ac), int)
-    for b_a in a_ia.values():
-        spos_jc = spos_ac[b_a]
-        for b in b_a:
-            spos_c = np.dot(spos_ac[b], op_cc)
-            sdiff_jc = spos_c - spos_jc - ft_c
-            sdiff_jc -= sdiff_jc.round()
+    a_a = np.zeros(relpos_ac.shape[0], int)
+    for a_b in a_ib.values():
+        relpos_bc = relpos_ac[a_b]
+        for a in a_b:
+            relpos_c = np.dot(relpos_ac[a], rotation_cc)
+            diff_bc = relpos_c - relpos_bc - translation_c
+            diff_bc -= diff_bc.round()
             if _backwards_compatible:
-                indices = np.where(
-                    abs(sdiff_jc).max(1) < tolerance)[0]
+                indices = np.where(abs(diff_bc).max(1) < tol)[0]
             else:
-                sdiff_jv = sdiff_jc @ cell_cv
-                indices = np.where(
-                    (sdiff_jv**2).sum(1) < tolerance**2)[0]
+                diff_bv = diff_bc @ cell_cv
+                indices = np.where((diff_bv**2).sum(1) < tol**2)[0]
             if len(indices) == 1:
-                a = indices[0]
-                a_a[b] = b_a[a]
+                b = indices[0]
+                a_a[a] = a_b[b]
             else:
                 assert len(indices) == 0
                 return None
