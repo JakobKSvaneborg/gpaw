@@ -288,10 +288,10 @@ class MSR1Mixer(BaseMixer):
 
             dampen = 0.95  # Dampen the unpredicted greed
             trust_scalar = 1.5 # Trust scalar for trust radius calculation
-            max_gb_fact = 0.8
-            weight = 3e-4  # Weight for regularization
+            max_gb_fact = 0.67
+            weight = 4e-4  # Weight for regularization
             B0_lims = [0.4, 1.05]  # Limits for predicted greed
-            A0_lims = [0.035, 0.4]  # Limits for unpredicted greed
+            A0_lims = [0.035, 0.35]  # Limits for unpredicted greed
             rate_ratio = [0.75, 1.25]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
 
