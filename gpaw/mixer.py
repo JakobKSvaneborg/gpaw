@@ -229,7 +229,7 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = 5
+    min_imp = 1.5
 
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         nt_isG = self.nt_isG
@@ -286,14 +286,15 @@ class MSR1Mixer(BaseMixer):
             # ntnorm_i = ntnorm_i[:-1] / ntnorm_i[-1]
             # self.gd.comm.sum(ntnorm_i)
 
-            dampen = 0.95  # Dampen the unpredicted greed
-            trust_scalar = 1.5 # Trust scalar for trust radius calculation
-            max_gb_fact = 0.67
-            weight = 4e-4  # Weight for regularization
+            dampen = 0.9  # Dampen the unpredicted greed
+            trust_scalar = 1.2 # Trust scalar for trust radius calculation
+            max_gb_fact = 0.5
+            weight = 2e-4  #4e-4  # Weight for regularization
             B0_lims = [0.4, 1.05]  # Limits for predicted greed
             A0_lims = [0.035, 0.35]  # Limits for unpredicted greed
-            rate_ratio = [0.75, 1.25]  # Rate ratio for clipping
+            rate_ratio = [0.7, 1.3]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
+            initial_B0 = 1
 
             # 2nd order norm
             # ntnorm_i = np.vecdot(np.array(nt_isG).reshape(iold, -1),
@@ -502,7 +503,7 @@ class MSR1Mixer(BaseMixer):
                     ) / (2 * self.B0)
                 self.B0 *= np.clip(B0_ratio, *rate_ratio)
             else:
-                self.B0 = 1
+                self.B0 = initial_B0
 
             A0_ratio = (self.A0 + np.clip(
                 np.arctan(np.pi * np.abs(A1 / A2) / A0_lims[1] * 0.5) / np.pi * 2 * A0_lims[1],
@@ -525,11 +526,11 @@ class MSR1Mixer(BaseMixer):
                dstep_asp, self.gd, mode='scalar')
             trust_radius = trust_scalar * trust_radius**0.5
             if self.trust_radius is not None:
-                trust_radius = (self.trust_radius + trust_radius) / 2
-                if backtracked:
-                    self.trust_radius = min(self.trust_radius, trust_radius)
-                else:
-                    self.trust_radius = trust_radius
+                # trust_radius = (self.trust_radius + trust_radius) / 2
+                # if backtracked:
+                #     self.trust_radius = min(self.trust_radius, trust_radius)
+                # else:
+                self.trust_radius = trust_radius
             else:
                 self.trust_radius = trust_radius
 
@@ -575,7 +576,7 @@ class MSR1Mixer(BaseMixer):
 
                 from scipy.optimize import root_scalar
                 try:
-                    lamb = root_scalar(err_fct, bracket=[weight, 20])
+                    lamb = root_scalar(err_fct, bracket=[weight, 50])
                 except ValueError as e:
                     breakpoint()
                 # beta_i = np.linalg.solve(
@@ -583,7 +584,7 @@ class MSR1Mixer(BaseMixer):
                 # )
                 weight = lamb.root
                 tA_i = V / (V**2 + (weight * np.max(V))**2)
-                beta_i = (D.T @ np.diag(tA_i) @ S.T @ BR_i).real
+                beta_i = D.T @ np.diag(tA_i) @ S.T @ BR_i
                 if self.world:
                     self.world.broadcast(beta_i, 0)
 
@@ -605,7 +606,7 @@ class MSR1Mixer(BaseMixer):
                 new_step_size = new_step_size**0.5
                 scale_factor = new_step_size / step_size
                 A0 *= np.clip(scale_factor, 0, 1)
-                A0 = np.clip(A0, *A0_lims)
+                # A0 = np.clip(A0, *A0_lims)
                 # self.A0 = A0
                 self.uk_sG += R_sG
                 step_sG = A0 * self.uk_sG + B0 * self.pk_sG
@@ -637,7 +638,7 @@ class MSR1Mixer(BaseMixer):
             self.last_gb = 5
             self.trust_radius = None
             self.A0 = self.beta
-            A0 = self.beta * 0.8
+            A0 = self.beta
             self.uk_sG = R_sG
             self.pk_sG = np.zeros_like(self.uk_sG)
             nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG
