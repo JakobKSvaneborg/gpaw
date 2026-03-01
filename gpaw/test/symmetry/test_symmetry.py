@@ -112,8 +112,8 @@ def test_5x5():
         sym = Symmetries.from_cell_and_atoms(
             [a, a, 9, 90, 90, 60],
             pbc=(1, 1, 0),
-            _backwards_compatible=False,
-            tolerance=1e-5,
+            _backwards_compatible=True,
+            tolerance=1e-7,
             relative_positions=[[0.33333333, 0.3333333, 0.50058348],
                                 [0.66666666, 0.6666666, 0.55294505],
                                 [0.0, 0.0, 0.44741016],
@@ -123,6 +123,21 @@ def test_5x5():
                                 [0.0, 0.0, 0.35260054]],
             ids=[0, 1, 1, 1, 1, 2, 2],
             symmorphic=True)
+
+    sym = Symmetries.from_cell_and_atoms(
+        [a, a, 9, 90, 90, 60],
+        pbc=(1, 1, 0),
+        _backwards_compatible=False,
+        tolerance=1e-7,
+        relative_positions=[[0.33333333, 0.3333333, 0.50058348],
+                            [0.66666666, 0.6666666, 0.55294505],
+                            [0.0, 0.0, 0.44741016],
+                            [0.0, 0.0, 0.68013199],
+                            [0.33333333, 0.33333333, 0.31908923],
+                            [0.66666667, 0.66666667, 0.64723956],
+                            [0.0, 0.0, 0.35260054]],
+        ids=[0, 1, 1, 1, 1, 2, 2],
+        symmorphic=True)
 
     if 0:
         mp = MonkhorstPackKPoints((5, 5, 1))

@@ -247,7 +247,7 @@ def check_one_symmetry(rotation_cc, translation_c, cell_cv, relpos_ac, a_ib,
                        tol, _backwards_compatible):
     """Checks whether atoms satisfy one given symmetry operation."""
 
-    a_a = np.zeros(relpos_ac.shape[0], int)
+    a_a = np.zeros(len(relpos_ac), int)
     for a_b in a_ib.values():
         relpos_bc = relpos_ac[a_b]
         for a in a_b:

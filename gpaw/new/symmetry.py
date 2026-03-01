@@ -287,9 +287,17 @@ class Symmetries:
                           ids: Sequence[int],
                           *,
                           symmorphic: bool = True) -> Symmetries:
-        return prune_symmetries(self.rotation_scc, self.cell_cv,
-                                relative_positions, ids, self.tolerance,
-                                symmorphic, self._backwards_compatible)
+
+        rotation_scc, translation_sc, atommap_sa = prune_symmetries(
+            self.rotation_scc, self.cell_cv, np.asarray(relative_positions),
+            ids, self.tolerance, symmorphic, self._backwards_compatible)
+
+        return Symmetries(cell=self.cell_cv,
+                          rotations=rotation_scc,
+                          translations=translation_sc,
+                          atommaps=atommap_sa,
+                          tolerance=self.tolerance,
+                          _backwards_compatible=self._backwards_compatible)
 
     @classmethod
     def from_cell_and_atoms(cls,
