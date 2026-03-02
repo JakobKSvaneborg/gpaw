@@ -82,8 +82,7 @@ class GPWFiles(CachedFilesHandler):
     """Create gpw-files."""
 
     def __init__(self, folder: Path, comm):
-        super().__init__(folder, '.gpw')
-        self.comm = comm
+        super().__init__(folder, '.gpw', comm=comm)
 
     def _calculate_and_write(self, name, work_path):
         calc = getattr(self, name)()

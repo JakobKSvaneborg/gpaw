@@ -20,9 +20,9 @@ class MyIntegrand(Integrand):
 
 @pytest.mark.tetrahedron
 @pytest.mark.response
-def test_tetrahedron_integrator():
+def test_tetrahedron_integrator(mpi):
     cell_cv = np.eye(3)
-    context = ResponseContext()
+    context = ResponseContext(comm=mpi.comm)
     integrator = TetrahedronIntegrator(
         cell_cv, context, *block_partition(context.comm, nblocks=1))
     x_g = np.linspace(-1, 1, 30)

@@ -1,14 +1,13 @@
 import numpy as np
 import pytest
 
-from gpaw import GPAW
 from gpaw.response.groundstate import ResponsePAWDataset
 from gpaw.response.paw import calculate_pair_density_correction
 
 
 @pytest.mark.response
-def test_two_phi_integrals(gpw_files):
-    calc = GPAW(gpw_files['bn_pw'])
+def test_two_phi_integrals(gpw_files, mpi):
+    calc = mpi.GPAW(gpw_files['bn_pw'])
 
     setup = calc.wfs.setups[0]
     pawdata = ResponsePAWDataset(setup)

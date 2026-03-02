@@ -302,12 +302,12 @@ def all_gpw_files(request, gpw_files, pytestconfig):
 
 
 @pytest.fixture(scope='session')
-def mme_files(request, gpw_files):
+def mme_files(request, gpw_files, _not_world):
     """Reuse mme files"""
     cache = request.config.cache
     mme_cachedir = cache.mkdir('gpaw_test_mmefiles')
 
-    return MMEFiles(mme_cachedir, gpw_files)
+    return MMEFiles(mme_cachedir, gpw_files, comm=_not_world)
 
 
 class GPAWPlugin:

@@ -17,11 +17,12 @@ class ExtraVacuum2DPoisson:
     def __init__(self, poisson):
         self.poisson = poisson
 
-    def set_grid_descriptor(self, gd):
+    def set_grid_descriptor(self, gd, comm=None):
         self.N_c = gd.N_c
         self.gd = GridDescriptor(gd.N_c * np.array([1, 1, 9]),
                                  gd.cell_cv @ np.diag([1, 1, 9]),
-                                 pbc_c=gd.pbc_c)
+                                 pbc_c=gd.pbc_c,
+                                 comm=comm)
         self.poisson.set_grid_descriptor(self.gd)
 
     def solve(self, v, n):
@@ -34,7 +35,7 @@ class ExtraVacuum2DPoisson:
 
 
 class Grid:
-    def __init__(self, L, N, q, truncation):
+    def __init__(self, L, N, q, truncation, comm=None):
         if q == 0:
             supercell = 1
         else:
@@ -53,8 +54,8 @@ class Grid:
             raise NotImplementedError
         pbc_c = np.array(pbc_c)
         self.pbc_c = pbc_c
-        gd = GridDescriptor((N, N, N), [L, L, L], pbc_c=pbc_c)
-        self.periodicgd = GridDescriptor((N, N, N), [L, L, L])
+        gd = GridDescriptor((N, N, N), [L, L, L], pbc_c=pbc_c, comm=comm)
+        self.periodicgd = GridDescriptor((N, N, N), [L, L, L], comm=comm)
         kd = KPointDescriptor([[q, 0, 0]])
         # Create some charge distribution to the unit cell
         if truncation == '0D':
@@ -76,7 +77,8 @@ class Grid:
         # solvers which cannot handle Bloch-phases at the moment
         supergd = GridDescriptor((N * supercell, N, N),
                                  [L * supercell, L, L],
-                                 pbc_c=pbc_c)
+                                 pbc_c=pbc_c,
+                                 comm=comm)
 
         # Avoid going over 79 characters
         EVPS = ExtraVacuumPoissonSolver
@@ -94,7 +96,10 @@ class Grid:
             superpoisson = ExtraVacuum2DPoisson(PS(nn=3))
         else:
             raise NotImplementedError(truncation)
-        superpoisson.set_grid_descriptor(supergd)
+        if isinstance(superpoisson, ExtraVacuum2DPoisson):
+            superpoisson.set_grid_descriptor(supergd, comm=comm)
+        else:
+            superpoisson.set_grid_descriptor(supergd)
 
         if q != 0:
             supern_R = supergd.zeros(dtype=complex)
@@ -125,7 +130,7 @@ class Grid:
     (0, None, 20.228908696, 578.42826785),
     (1 / 3, None, 13.5467930334, 214.823201910),
     (0, '0D', 14.3596834829, 206.74182299)])
-def test_coulomb(gridparam, qtrunc):
+def test_coulomb(gridparam, qtrunc, mpi):
     N, maxdev = gridparam
     q, truncation, sqrtV0_dev, V0_dev = qtrunc
     L = 10
@@ -134,7 +139,7 @@ def test_coulomb(gridparam, qtrunc):
     # charges to avoid crosstalk
     if truncation == '0D':
         maxdev *= 1e2
-    grid = Grid(L, N, q, truncation=truncation)
+    grid = Grid(L, N, q, truncation=truncation, comm=mpi.comm)
     # Use maximum ecut
     ecut0 = 0.5 * np.pi**2 / ((L / N)**2)
     qpd = SingleQPWDescriptor.from_q([q, 0, 0], ecut0, grid.periodicgd,

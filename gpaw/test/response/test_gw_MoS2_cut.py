@@ -2,13 +2,13 @@ import pytest
 from ase import Atoms
 from ase.lattice.hexagonal import Hexagonal
 
-from gpaw import GPAW, FermiDirac
+from gpaw import FermiDirac
 from gpaw.response.g0w0 import G0W0
 
 
 @pytest.fixture
-def gpwfile(in_tmp_dir):
-    calc = GPAW(
+def gpwfile(in_tmp_dir, mpi):
+    calc = mpi.GPAW(
         mode='pw',
         xc='PBE',
         nbands=16,
@@ -41,7 +41,7 @@ def gpwfile(in_tmp_dir):
 @pytest.mark.response
 @pytest.mark.parametrize('integrate_gamma', ['sphere', 'reciprocal2D',
                                              '1BZ2D'])
-def test_response_gw_MoS2_cut(scalapack, gpwfile, integrate_gamma):
+def test_response_gw_MoS2_cut(scalapack, gpwfile, integrate_gamma, mpi):
     gw = G0W0(gpwfile,
               'gw-test',
               nbands=15,
@@ -51,7 +51,8 @@ def test_response_gw_MoS2_cut(scalapack, gpwfile, integrate_gamma):
               integrate_gamma=integrate_gamma,
               truncation='2D',
               kpts=[((1 / 3, 1 / 3, 0))],
-              bands=(8, 10))
+              bands=(8, 10),
+              world=mpi.comm)
 
     e_qp = gw.calculate()['qp'][0, 0]
 
