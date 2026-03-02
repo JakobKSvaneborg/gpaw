@@ -266,16 +266,24 @@ class Symmetries:
     def from_cell(cls,
                   cell: ArrayLike1D | ArrayLike2D,
                   *,
-                  pbc: ArrayLike1D = (True, True, True),
+                  pbc: tuple[bool, bool, bool] | bool = (True, True, True),
                   tolerance: float | None = None,
                   _backwards_compatible: bool = False) -> Symmetries:
-        if isinstance(pbc, int):
-            pbc = (pbc,) * 3
+
+        match pbc:
+            case True:
+                pbc_c = (1, 1, 1)
+            case False:
+                pbc_c = (0, 0, 0)
+            case _:
+                assert len(pbc) == 3
+                pbc_c = pbc
+
         cell_cv = normalize_cell(cell)
         if tolerance is None:
             tolerance = 1e-7 if _backwards_compatible else 1e-5
         rotation_scc = find_set_of_lattice_symmetries(
-            cell_cv, pbc, tolerance, _backwards_compatible)
+            cell_cv, pbc_c, tolerance, _backwards_compatible)
 
         return cls(cell=cell_cv,
                    rotations=rotation_scc,
@@ -303,7 +311,8 @@ class Symmetries:
     def from_cell_and_atoms(cls,
                             cell: ArrayLike1D | ArrayLike2D,
                             *,
-                            pbc: ArrayLike1D = (True, True, True),
+                            pbc: (tuple[bool, bool, bool]
+                                  | bool) = (True, True, True),
                             tolerance: float | None = None,
                             _backwards_compatible=False,
                             relative_positions: ArrayLike2D,
@@ -345,16 +354,19 @@ class Symmetries:
                           _backwards_compatible=_backwards_compatible)
 
     def with_atom_maps(self,
-                       relative_positions: Array2D,
-                       ids: Sequence[int]) -> Symmetries:
-        atommap_sa = np.empty((len(self), len(relative_positions)), int)
-        a_ij = defaultdict(list)
-        for a, id in enumerate(ids):
-            a_ij[id].append(a)
+                       relpos_ac: Array2D,
+                       id_a: Sequence[int]) -> Symmetries:
+        atommap_sa = np.empty((len(self), len(relpos_ac)), int)
+        a_ib = defaultdict(list)
+        for a, id in enumerate(id_a):
+            a_ib[id].append(a)
         for U_cc, t_c, map_a in zips(self.rotation_scc,
                                      self.translation_sc,
                                      atommap_sa):
-            map_a[:] = check_one_symmetry(relative_positions, U_cc, t_c, a_ij)
+            map_a[:] = check_one_symmetry(
+                U_cc, t_c, self.cell_cv, relpos_ac, a_ib,
+                self.tolerance, self._backwards_compatible)
+
         return Symmetries(cell=self.cell_cv,
                           rotations=self.rotation_scc,
                           translations=self.translation_sc,
