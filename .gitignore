@@ -10,6 +10,7 @@ _gpaw*.so
 gpaw.egg-info/
 .eggs/
 /siteconfig.py
+
 /siteconfig-*.py
 /venv*/
 .coverage
