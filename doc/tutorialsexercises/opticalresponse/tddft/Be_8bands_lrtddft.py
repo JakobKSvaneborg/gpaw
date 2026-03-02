@@ -1,7 +1,7 @@
 from gpaw import GPAW
 from gpaw.lrtddft import LrTDDFT
 
-c = GPAW('Be_gs_8bands.gpw')
+c = GPAW('Be_gs_8bands.gpw', legacy_gpaw=True)
 
 istart = 0  # band index of the first occ. band to consider
 jend = 8  # band index of the last unocc. band to consider

@@ -20,33 +20,36 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode, mpi):
     a = 6.75 * Bohr
     atoms = bulk('C', 'diamond', a=a)
 
-    calc = mpi.GPAW(mode=mode,
-                    legacy_gpaw=mode != 'pw',
-                    kpts=(3, 3, 3),
-                    nbands='nao' if mode == 'lcao' else None,
-                    basis='dzp' if mode == 'lcao' else {},
-                    eigensolver='rmm-diis' if mode == 'pw' else None,
-                    occupations=FermiDirac(0.001), txt='out.txt')
+    calc = mpi.GPAW(
+        mode=mode,
+        kpts=(3, 3, 3),
+        nbands='nao' if mode == 'lcao' else None,
+        basis='dzp' if mode == 'lcao' else {},
+        eigensolver='rmm-diis' if mode == 'pw' else None,
+        occupations=FermiDirac(0.001), txt='out.txt')
 
     atoms.calc = calc
     atoms.get_potential_energy()
-    calc.write('C.gpw', 'all')
+    dft = calc.dft
+    if mode != 'pw':
+        dft.change_mode('pw')
+    dft.write_gpw_file('C.gpw', include_wfs=True)
 
     if eshift is None:
-        eM1_ = 9.727 if mode == 'pw' else 9.3923
-        eM2_ = 9.548 if mode == 'pw' else 9.1502
+        eM1_ = 9.727 if mode == 'pw' else 9.4319
+        eM2_ = 9.548 if mode == 'pw' else 9.1905
         w0_ = 10.7782 if mode == 'pw' else 10.982
-        I0_ = 5.47 if mode == 'pw' else 4.8188
+        I0_ = 5.47 if mode == 'pw' else 4.8852
         w_ = 10.7532 if mode == 'pw' else 10.967
-        I_ = 5.98 if mode == 'pw' else 4.9859
+        I_ = 5.98 if mode == 'pw' else 5.0459
     else:
         if mode == 'lcao':
-            eM1_ = 6.818
-            eM2_ = 6.681
+            eM1_ = 6.847
+            eM2_ = 6.710
             w0_ = 14.982
-            I0_ = 4.819
+            I0_ = 4.886
             w_ = 14.967
-            I_ = 4.997
+            I_ = 5.057
         else:
             eM1_ = 6.992
             eM2_ = 6.904

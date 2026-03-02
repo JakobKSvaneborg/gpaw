@@ -11,6 +11,7 @@ import numpy as np
 
 from gpaw import ENVVAR_GPAW_NO_GPU_MPI
 from gpaw.new.timer import trace
+from gpaw.cgpaw import have_magma
 
 device_id = None
 """Device id"""
@@ -254,6 +255,11 @@ def set_device(log, world=None):
             cgpaw.gpaw_gpu_init()
             atexit.register(cgpaw.gpaw_gpu_delete)
 
+            # Initialize MAGMA library if available
+            if have_magma:
+                cgpaw.gpu.magma.magma_init()
+                atexit.register(cgpaw.gpu.magma.magma_finalize)
+
             # Generate a device id
             import os
             nodename = os.uname()[1]
@@ -269,7 +275,6 @@ def set_device(log, world=None):
 
 __all__ = ['cupy', 'cupyx', 'as_xp', 'as_np', 'synchronize',
            'flush_pinned_arrays']
-
 
 try:
     from gpaw.cgpaw import _flush_pending_decrefs

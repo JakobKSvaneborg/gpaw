@@ -6,7 +6,7 @@ from gpaw.analyse.hirshfeld import HirshfeldPartitioning
 
 atoms = molecule('H2O')
 atoms.center(vacuum=3.5)
-atoms.calc = GPAW(mode='fd', h=0.17, txt='h2o.txt')
+atoms.calc = GPAW(mode='fd', h=0.17, txt='h2o.txt', legacy_gpaw=True)
 atoms.get_potential_energy()
 
 # write Hirshfeld charges out

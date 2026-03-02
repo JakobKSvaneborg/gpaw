@@ -228,7 +228,7 @@ class PWFDEigensolverParameter(Eigensolver):
               wf_desc,
               band_comm,
               hamiltonian,
-              converge_bands,
+              convergence,
               setups,
               atoms):
         return self.cls(
@@ -236,7 +236,7 @@ class PWFDEigensolverParameter(Eigensolver):
             wf_desc,
             band_comm,
             hamiltonian,
-            converge_bands,
+            convergence,
             niter=self.niter,
             max_buffer_mem=self.max_buffer_mem)
 
@@ -258,7 +258,7 @@ class PPCG(PWFDEigensolverParameter):
                  rr_modulo=5,
                  include_cg=True,
                  promote_inner_dtype=False,
-                 tolerances: tuple[float, float, float] = (0.0, 0.0, 4e-8)):
+                 tolerances: tuple[float, float, float] | None = None):
         self.niter = niter
         self.min_niter = min_niter
         self.max_buffer_mem = max_buffer_mem
@@ -267,10 +267,6 @@ class PPCG(PWFDEigensolverParameter):
         self.include_cg = include_cg
         self.promote_inner_dtype = promote_inner_dtype
         self.tolerances = tolerances
-
-        # Ensure backwards compatibity
-        if self.tolerances is None:
-            self.tolerances = (0.0, 0.0, 4e-8)
 
     def todict(self):
         return {'niter': self.niter,
@@ -287,7 +283,7 @@ class PPCG(PWFDEigensolverParameter):
               wf_desc,
               band_comm,
               hamiltonian,
-              converge_bands,
+              convergence,
               setups,
               atoms):
         return self.cls(
@@ -295,7 +291,7 @@ class PPCG(PWFDEigensolverParameter):
             wf_desc,
             band_comm,
             hamiltonian,
-            converge_bands,
+            convergence,
             niter=self.niter,
             min_niter=self.min_niter,
             max_buffer_mem=self.max_buffer_mem,
@@ -331,7 +327,7 @@ class RMMDIIS(PWFDEigensolverParameter):
               wf_desc,
               band_comm,
               create_preconditioner,
-              converge_bands,
+              convergence,
               setups,
               atoms):
         return self.cls(
@@ -339,7 +335,7 @@ class RMMDIIS(PWFDEigensolverParameter):
             wf_desc,
             band_comm,
             create_preconditioner,
-            converge_bands,
+            convergence,
             niter=self.niter,
             diis_steps=self.diis_steps,
             max_buffer_mem=self.max_buffer_mem,
