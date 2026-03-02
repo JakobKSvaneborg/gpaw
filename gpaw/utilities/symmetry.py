@@ -5,14 +5,16 @@ from collections import defaultdict
 from collections.abc import Sequence
 from functools import cache
 from itertools import chain
+from numpy.typing import NDArray
 
 from gpaw.typing import Array2D, Array3D
 
 
-def find_set_of_lattice_symmetries(cell_cv: Array2D,
-                                   pbc_c: tuple,
-                                   tol,
-                                   _backwards_compatible=False) -> Array3D:
+def find_set_of_lattice_symmetries(
+        cell_cv: Array2D,
+        pbc_c: np.ndarray,
+        tol: float,
+        _backwards_compatible: bool = False) -> Array3D:
     """Determine set of fixed-point symmetry
     operations compliant with a given lattice."""
     U_scc = generate_all_symmetry_matrices()
@@ -40,11 +42,11 @@ def find_set_of_lattice_symmetries(cell_cv: Array2D,
     if not _backwards_compatible:
         # Do not do group check for backwards compatible.
         U_scc = guarantee_lattice_symmetries_form_a_point_group(U_scc)
-    return U_scc.copy()
+    return U_scc
 
 
 @cache
-def generate_all_symmetry_matrices() -> np.ndarray:
+def generate_all_symmetry_matrices() -> NDArray[np.int8]:
     # Symmetry operations as matrices in a basis of lattice vectors.
     # Operation is a 3x3 matrix with possible elements -1, 0, 1, thus
     # there are 3**9 = 19683 possible matrices.
@@ -57,10 +59,10 @@ def generate_all_symmetry_matrices() -> np.ndarray:
 
     U_scc = U_scc[abs(leibniz_determinant_3x3(U_scc)) == 1]
     # Reduced to 6960 matrices
-    return U_scc.copy()
+    return U_scc
 
 
-def leibniz_determinant_3x3(M: np.ndarray) -> np.ndarray:
+def leibniz_determinant_3x3(M: NDArray) -> NDArray:
     """For calculating the determinant of a collection of 3x3 matrices
     while preserving the dtype of the array since np.linalg.det always
     returns a floating-point number for each matrix."""
@@ -74,13 +76,21 @@ def leibniz_determinant_3x3(M: np.ndarray) -> np.ndarray:
 
 
 def guarantee_lattice_symmetries_form_a_point_group(
-        initial_U_scc: Array3D) -> Array3D:
+        initial_U_scc: NDArray[np.int8]) -> NDArray[np.int8]:
 
     not_a_group = True
     initial_ns = initial_U_scc.shape[0]
 
     # Cayley table
     M_sscc = np.einsum('sab,zbc->szac', initial_U_scc, initial_U_scc)
+
+    def pop_symmetry(
+            U_scc: NDArray[np.int8],
+            M_sscc: NDArray[np.int8],
+            mask_s: NDArray) -> tuple[NDArray[np.int8], NDArray[np.int8], int]:
+        U_scc = U_scc[mask_s]
+        M_sscc = M_sscc[mask_s][:, mask_s]
+        return U_scc, M_sscc, len(U_scc)
 
     U_scc = initial_U_scc
     ns = initial_ns
@@ -96,9 +106,8 @@ def guarantee_lattice_symmetries_form_a_point_group(
         if (~has_inverse_operation).any():
             # We can unambigously remove the elements
             # that are not invertible in the set.
-            U_scc = U_scc[has_inverse_operation]
-            ns = U_scc.shape[0]
-            M_sscc = M_sscc[has_inverse_operation][:, has_inverse_operation]
+            U_scc, M_sscc, ns = pop_symmetry(U_scc, M_sscc,
+                                             mask_s=has_inverse_operation)
             continue
 
         closure_violation = np.zeros((ns, ns), dtype=bool)
@@ -110,71 +119,65 @@ def guarantee_lattice_symmetries_form_a_point_group(
                     closure_violation[s1, s2] = True
 
         if closure_violation.sum() == 0:
-            not_a_group = False
-        else:
-            easy_closure_violators = np.diag(closure_violation)
-            if easy_closure_violators.any():
-                # We can unambigously remove the elements that
-                # multiply themselves outside of the set.
-                U_scc = U_scc[~easy_closure_violators]
-                ns = U_scc.shape[0]
-                M_sscc = (M_sscc[~easy_closure_violators]
-                          )[:, ~easy_closure_violators]
+            print(f'Log succes, set of {initial_ns} operations reduced '
+                  f'to point group of {ns} elements, etc.')
+            return U_scc
+
+        easy_closure_violators = np.diag(closure_violation)
+        if easy_closure_violators.any():
+            # We can unambigously remove the elements that
+            # multiply themselves outside of the set.
+            U_scc, M_sscc, ns = pop_symmetry(U_scc, M_sscc,
+                                             mask_s=~easy_closure_violators)
+            continue
+
+        badness_measure = (closure_violation.sum(axis=0)
+                           + closure_violation.sum(axis=1))
+
+        worst_elements = np.argwhere(
+            badness_measure == np.max(badness_measure))[:, 0]
+
+        if len(worst_elements) == 1:
+            # We can safely remove the worst element.
+            not_worst_element = np.arange(ns) != worst_elements[0]
+            U_scc, M_sscc, ns = pop_symmetry(U_scc, M_sscc,
+                                             mask_s=not_worst_element)
+            continue
+
+        # Hard mode. It's not clear how to proceed.
+
+        found_two_elements = False
+        for s1 in range(ns):
+            if s1 not in worst_elements:
                 continue
-
-            badness_measure = (closure_violation.sum(axis=0)
-                               + closure_violation.sum(axis=1))
-
-            worst_elements = np.argwhere(
-                badness_measure == np.max(badness_measure))[:, 0]
-
-            if len(worst_elements) == 1:
-                # We can safely remove the worst element.
-                not_worst_element = np.arange(ns) != worst_elements[0]
-                U_scc = U_scc[not_worst_element]
-                ns = U_scc.shape[0]
-                M_sscc = M_sscc[not_worst_element][:, not_worst_element]
-                continue
-
-            # Hard mode. It's not clear how to proceed.
-
-            found_two_elements = False
-            for s1 in range(ns):
-                if s1 not in worst_elements:
+            for s2 in chain(range(0, s1), range(s1 + 1, ns)):
+                if s2 not in worst_elements:
                     continue
-                for s2 in chain(range(0, s1), range(s1 + 1, ns)):
-                    if s2 not in worst_elements:
-                        continue
-                    if closure_violation[s1, s2] == 1:
-                        found_two_elements = True
-                        two_bad_operations = [s1, s2]
-                        break
-                if found_two_elements:
+                if closure_violation[s1, s2] == 1:
+                    found_two_elements = True
+                    two_bad_operations = [s1, s2]
                     break
-
             if found_two_elements:
-                # We can either remove symmetry operation
-                # two_bad_operations[0] or two_bad_operations[1].
-                # In the future, we can calculate how much each operation
-                # violates the metric and remove the worst one.
-                # For now, we will just randomly choose two_bad_operations[0].
-                not_worst_element = np.arange(ns) != two_bad_operations[0]
-                U_scc = U_scc[not_worst_element]
-                ns = U_scc.shape[0]
-                M_sscc = M_sscc[not_worst_element][:, not_worst_element]
-                continue
-            else:
-                # Here, we just remove the first entry that is
-                # also a "worst element".
-                not_worst_element = np.arange(ns) != worst_elements[0]
-                U_scc = U_scc[not_worst_element]
-                ns = U_scc.shape[0]
-                M_sscc = M_sscc[not_worst_element][:, not_worst_element]
-                continue
+                break
 
-    print(f'Log succes, set of {initial_ns} operations reduced '
-          f'to point group of {ns} elements, etc.')
-    return U_scc
+        if found_two_elements:
+            # We can either remove symmetry operation
+            # two_bad_operations[0] or two_bad_operations[1].
+            # In the future, we can calculate how much each operation
+            # violates the metric and remove the worst one.
+            # For now, we will just randomly choose two_bad_operations[0].
+            not_worst_element = np.arange(ns) != two_bad_operations[0]
+            U_scc, M_sscc, ns = pop_symmetry(U_scc, M_sscc,
+                                             mask_s=not_worst_element)
+            continue
+        else:
+            # Here, we just remove the first entry that is
+            # also a "worst element".
+            not_worst_element = np.arange(ns) != worst_elements[0]
+            U_scc, M_sscc, ns = pop_symmetry(U_scc, M_sscc,
+                                             mask_s=not_worst_element)
+            continue
+    raise RuntimeError()
 
 
 def prune_symmetries(rotation_scc: Array3D,
@@ -206,9 +209,9 @@ def prune_symmetries(rotation_scc: Array3D,
     # if supercell disable fractional translations:
     if not symmorphic:
         I3 = np.identity(3, bool)
-        ft_sc = relpos_ac[a_b[1:]] - relpos_ac[a_b[0]]
-        ft_sc -= np.rint(ft_sc)
-        for ft_c in ft_sc:
+        ft_bc = relpos_ac[a_b[1:]] - relpos_ac[a_b[0]]
+        ft_bc -= np.rint(ft_bc)
+        for ft_c in ft_bc:
             a_a = check(I3, ft_c)
             if a_a is not None:
                 symmorphic = True

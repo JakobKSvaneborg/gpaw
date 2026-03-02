@@ -104,14 +104,7 @@ def create_symmetries_object(atoms: Atoms,
     (48, 3, 3)
     """
     cell_cv = atoms.cell.complete()
-    match atoms.pbc:
-        case True:
-            pbc_c = (1, 1, 1)
-        case False:
-            pbc_c = (0, 0, 0)
-        case _:
-            assert len(atoms.pbc) == 3
-            pbc_c = atoms.pbc
+    pbc_c = atoms.pbc
 
     if tolerance is None:
         tolerance = 1e-7 if _backwards_compatible else 1e-5
@@ -148,7 +141,7 @@ def create_symmetries_object(atoms: Atoms,
                 tolerance=tolerance,
                 _backwards_compatible=_backwards_compatible)
 
-            if (False and len(atoms) > 0):  # Switch + Ignore if jellium
+            if False and len(atoms) > 0:  # Switch + Ignore if jellium
                 sym_spglib = Symmetries.from_cell_and_atoms_spglib(
                     cell_cv,
                     pbc=pbc_c,
@@ -257,7 +250,7 @@ class Symmetries:
     @cached_property
     def has_inversion(self):
         inv_cc = -np.eye(3, dtype=int)
-        for r_cc, t_c in zip(self.rotation_scc, self.translation_sc):
+        for r_cc, t_c in zips(self.rotation_scc, self.translation_sc):
             if (r_cc == inv_cc).all() and not t_c.any():
                 return True
         return False
@@ -266,20 +259,13 @@ class Symmetries:
     def from_cell(cls,
                   cell: ArrayLike1D | ArrayLike2D,
                   *,
-                  pbc: tuple[bool, bool, bool] | bool = (True, True, True),
+                  pbc: ArrayLike1D = (True, True, True),
                   tolerance: float | None = None,
                   _backwards_compatible: bool = False) -> Symmetries:
 
-        match pbc:
-            case True:
-                pbc_c = (1, 1, 1)
-            case False:
-                pbc_c = (0, 0, 0)
-            case _:
-                assert len(pbc) == 3
-                pbc_c = pbc
-
         cell_cv = normalize_cell(cell)
+        pbc_c = np.full(3, pbc, dtype=bool)
+
         if tolerance is None:
             tolerance = 1e-7 if _backwards_compatible else 1e-5
         rotation_scc = find_set_of_lattice_symmetries(
@@ -311,8 +297,7 @@ class Symmetries:
     def from_cell_and_atoms(cls,
                             cell: ArrayLike1D | ArrayLike2D,
                             *,
-                            pbc: (tuple[bool, bool, bool]
-                                  | bool) = (True, True, True),
+                            pbc: ArrayLike1D = (True, True, True),
                             tolerance: float | None = None,
                             _backwards_compatible=False,
                             relative_positions: ArrayLike2D,
