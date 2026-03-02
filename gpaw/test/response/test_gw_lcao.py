@@ -7,7 +7,8 @@ from gpaw.new.calculation import DFTCalculation
 @pytest.mark.response
 @pytest.mark.old_gpaw_only
 def test_lcao_gw(in_tmp_dir, gpw_files, mpi):
-    dft = DFTCalculation.from_gpw_file(gpw_files['diamond_lcao'], comm=mpi.comm)
+    dft = DFTCalculation.from_gpw_file(gpw_files['diamond_lcao'],
+                                       comm=mpi.comm)
     dft.change_mode('pw')
     dft.write_gpw_file('diamond_pw.gpw', include_wfs=True)
 

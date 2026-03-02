@@ -20,7 +20,7 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode, mpi):
     a = 6.75 * Bohr
     atoms = bulk('C', 'diamond', a=a)
 
-    calc = mpi.GPAW(
+    calc = mpi.NewGPAW(
         mode=mode,
         kpts=(3, 3, 3),
         nbands='nao' if mode == 'lcao' else None,
