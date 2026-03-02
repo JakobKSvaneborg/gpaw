@@ -16,8 +16,9 @@ from gpaw.rotation import rotation
 from gpaw.symmetry import Symmetry as OldSymmetry
 from gpaw.symmetry import frac
 from gpaw.typing import Array2D, Array3D, ArrayLike1D, ArrayLike2D, ArrayLike3D
-from gpaw.utilities.symmetry import (
-    check_one_symmetry, find_set_of_lattice_symmetries, prune_symmetries)
+from gpaw.utilities.symmetry import (check_one_symmetry,
+                                     find_set_of_lattice_symmetries,
+                                     prune_symmetries)
 
 
 class SymmetryBrokenError(Exception):
@@ -371,7 +372,7 @@ class Symmetries:
                             tolerance=tolerance)
         if ids is None:
             ids = atoms.numbers
-        return sym.analyze_positions(np.array(atoms.get_scaled_positions()),
+        return sym.analyze_positions(atoms.get_scaled_positions(),
                                      ids=ids,
                                      symmorphic=symmorphic)
 
@@ -440,16 +441,6 @@ class Symmetries:
                 return False
         return True
 
-    def check_one_symmetry(self,
-                           spos_ac,
-                           op_cc,
-                           ft_c,
-                           a_ia):
-
-        return check_one_symmetry(
-            self.cell_cv, spos_ac, op_cc, ft_c, a_ia,
-            self.tolerance, self._backwards_compatible)
-
     def group_check(self) -> None:
         """Sanity check."""
         for U1_cc, t1_c in zip(self.rotation_scc, self.translation_sc):
@@ -458,7 +449,7 @@ class Symmetries:
                 t_c = t1_c @ U2_cc + t2_c
                 for U3_cc, t3_c in zip(self.rotation_scc, self.translation_sc):
                     dt_c = t_c - t3_c
-                    if abs(dt_c - dt_c.round()).max() > 1e-4:
+                    if abs(dt_c - dt_c.round()).max() > 1e-10:
                         continue
                     if (U_cc != U3_cc).any():
                         continue

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import numpy as np
 from collections import defaultdict
 from collections.abc import Sequence
 from functools import cache
-from itertools import chain
+from itertools import product
+
+import numpy as np
 from numpy.typing import NDArray
 
 from gpaw.typing import Array2D, Array3D
@@ -79,7 +80,7 @@ def guarantee_lattice_symmetries_form_a_point_group(
         initial_U_scc: NDArray[np.int8]) -> NDArray[np.int8]:
 
     not_a_group = True
-    initial_ns = initial_U_scc.shape[0]
+    initial_ns = len(initial_U_scc)
 
     # Cayley table
     M_sscc = np.einsum('sab,zbc->szac', initial_U_scc, initial_U_scc)
@@ -119,9 +120,8 @@ def guarantee_lattice_symmetries_form_a_point_group(
                     closure_violation[s1, s2] = True
 
         if closure_violation.sum() == 0:
-            print(f'Log succes, set of {initial_ns} operations reduced '
-                  f'to point group of {ns} elements, etc.')
-            return U_scc
+            not_a_group = False
+            continue
 
         easy_closure_violators = np.diag(closure_violation)
         if easy_closure_violators.any():
@@ -147,17 +147,12 @@ def guarantee_lattice_symmetries_form_a_point_group(
         # Hard mode. It's not clear how to proceed.
 
         found_two_elements = False
-        for s1 in range(ns):
-            if s1 not in worst_elements:
+        for s1, s2 in product(worst_elements, worst_elements):
+            if s1 == s2:
                 continue
-            for s2 in chain(range(0, s1), range(s1 + 1, ns)):
-                if s2 not in worst_elements:
-                    continue
-                if closure_violation[s1, s2] == 1:
-                    found_two_elements = True
-                    two_bad_operations = [s1, s2]
-                    break
-            if found_two_elements:
+            if closure_violation[s1, s2]:
+                found_two_elements = True
+                two_bad_operations = [s1, s2]
                 break
 
         if found_two_elements:
@@ -177,7 +172,10 @@ def guarantee_lattice_symmetries_form_a_point_group(
             U_scc, M_sscc, ns = pop_symmetry(U_scc, M_sscc,
                                              mask_s=not_worst_element)
             continue
-    raise RuntimeError()
+
+    print(f'Log succes, set of {initial_ns} operations reduced '
+          f'to point group of {ns} elements, etc.')
+    return U_scc
 
 
 def prune_symmetries(rotation_scc: Array3D,
