@@ -28,8 +28,8 @@ class LCAOETDMLocalize:
 
         self.log('Perdew-Zunger localization started', flush=True)
         self.log_header()
-
         self.solver.lock_subspace('oo')
+        self.solver.searchdir_algo.reset()
         self.solver.dm_helper.set_reference_orbitals(
             self.wfs, self.solver.n_dim)
 

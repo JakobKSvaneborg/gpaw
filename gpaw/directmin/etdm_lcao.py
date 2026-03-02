@@ -42,6 +42,7 @@ from gpaw import BadParallelization
 from gpaw.directmin import line_search_algorithm, search_direction
 from gpaw.directmin.derivatives import get_approx_analytical_hessian
 from gpaw.directmin.lcao.etdm_helper_lcao import ETDMHelperLCAO
+from gpaw.directmin.locfunc.etdm_localization_lcao import LCAOETDMLocalize
 from gpaw.directmin.locfunc.localize_orbitals import localize_orbitals
 from gpaw.directmin.tools import (expm_ed, expm_ed_unit_inv, get_n_occ,
                                   random_a,
@@ -71,7 +72,9 @@ class LCAOETDM:
                  localizationtype=None,
                  localizationseed=None,
                  constraints=None,
-                 subspace_convergence=5e-4
+                 subspace_convergence=5e-4,
+                 localize_every=None,
+                 _is_subproblem=False
                  ):
         """Class for direct orbital optimization in LCAO mode.
 
@@ -207,6 +210,7 @@ class LCAOETDM:
         assert orthonormalization in ['gramschmidt', 'loewdin', 'diag'], \
             'Value Error'
 
+        self.in_subspace_loop = False
         self.sda = searchdir_algo
         self.lsa = linesearch_algo
         self.partial_diagonalizer = partial_diagonalizer
@@ -271,11 +275,21 @@ class LCAOETDM:
         self.der_phi_2i = [None, None]  # energy gradient w.r.t. alpha
         self.hess = {}  # approximate Hessian
 
+        # for the PZLocalization inner loop
+        self.eg_count_iloop = 0
+        self.total_eg_count_iloop = 0
+        self.eg_count_outer_iloop = 0
+        self.total_eg_count_outer_iloop = 0
+
         # for mom
         self.initial_occupation_numbers = None
 
         # in this attribute we store the object specific to each mode
         self.dm_helper = None
+        self.localize_every = localize_every
+        if _is_subproblem:
+            self.need_localization = False
+            self.localize_every = None
 
         self.initialized = False
 
@@ -402,6 +416,7 @@ class LCAOETDM:
         self.dm_helper = None
 
     def initialize_dm_helper(self, wfs, ham, dens, log):
+        self.log = log
 
         self.dm_helper = ETDMHelperLCAO(
             wfs, dens, ham, self.nkpts, self.func_settings,
@@ -601,6 +616,15 @@ class LCAOETDM:
         :param dens:
         :return:
         """
+        # Periodic PZ-SIC localization (controlled by localize_every)
+        should_localize = (self.localize_every is not None
+                           and self.localizationtype == 'pz'
+                           and self.iters > 1
+                           and self.iters % self.localize_every == 0)
+        if should_localize and not self.in_subspace_loop:
+            with wfs.timer('Periodic PZ-SIC Localization'):
+                self._run_periodic_localization(wfs, ham, dens)
+
         with wfs.timer('Direct Minimisation step'):
             self.update_ref_orbitals(wfs, ham, dens)
 
@@ -615,6 +639,7 @@ class LCAOETDM:
                 phi_2i[0], g_vec_u = \
                     self.get_energy_and_gradients(
                         a_vec_u, ham, wfs, dens, c_ref)
+                self.released_subspace = False
             else:
                 g_vec_u = self.g_vec_u_original if self.gmf \
                     and not self.subspace_optimization else self.g_vec_u
@@ -700,7 +725,6 @@ class LCAOETDM:
         :param c_ref: C_ref
         :return:
         """
-
         self.rotate_wavefunctions(wfs, a_vec_u, c_ref)
 
         e_total = self.update_ks_energy(ham, wfs, dens)
@@ -1059,6 +1083,24 @@ class LCAOETDM:
     @error.setter
     def error(self, e):
         self._error = e
+
+    def _run_periodic_localization(self, wfs, ham, dens):
+        """Run PZ-SIC localization using LCAOETDMLocalize.
+
+        Delegates to the same class used for initial localization,
+        with preconditioning disabled during the inner loop.
+        """
+        original_use_prec = self.use_prec
+        self.use_prec = False
+        self.in_subspace_loop = True
+        try:
+            dm = LCAOETDMLocalize(
+                self, wfs, self.log,
+                tol=self.subspace_convergence)
+            dm.run(ham, dens)
+        finally:
+            self.use_prec = original_use_prec
+            self.in_subspace_loop = False
 
 
 def vec2skewmat(a_vec, dim, ind_up, dtype):
