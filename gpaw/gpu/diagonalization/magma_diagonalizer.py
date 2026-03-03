@@ -3,6 +3,7 @@ from typing import cast
 
 import gpaw.cgpaw as cgpaw
 from gpaw.cgpaw.gpu.magma import have_magma
+from gpaw.cgpaw.gpu import magma
 from gpaw.gpu import cupy as cp
 from gpaw.gpu import cupy_is_fake
 from gpaw.gpu.diagonalization.diagonalizer import (DiagonalizerOptions,
@@ -75,8 +76,7 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
             host_matrix = cp.asnumpy(inout_matrix)
             eigvals = np.empty((shape[0]), dtype=eigval_dtype)
 
-            # FIXME make cgpaw a proper package and just import magma directly
-            cgpaw.gpu.magma.eigh_magma_numpy(
+            magma.eigh_magma_numpy(
                 host_matrix,
                 eigvals,
                 options.uplo,
@@ -89,12 +89,12 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
             eigvals = xp.empty((shape[0]), dtype=eigval_dtype)
             if xp is np:
                 eigvecs = cast(np.ndarray, eigvecs)
-                cgpaw.gpu.magma.eigh_magma_numpy(eigvecs, eigvals,
+                magma.eigh_magma_numpy(eigvecs, eigvals,
                                                  options.uplo,
                                                  options.gpus_per_process)
             else:
                 eigvecs = cast(cp.ndarray, eigvecs)
-                cgpaw.gpu.magma.eigh_magma_cupy(eigvecs, eigvals, options.uplo)
+                magma.eigh_magma_cupy(eigvecs, eigvals, options.uplo)
 
         # Transform to Numpy convention (conjugate transpose)
         xp.conjugate(eigvecs, out=eigvecs.T)
