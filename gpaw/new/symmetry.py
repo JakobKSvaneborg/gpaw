@@ -282,10 +282,11 @@ class Symmetries:
                           ids: Sequence[int],
                           *,
                           symmorphic: bool = True) -> Symmetries:
+        relative_positions = np.asarray(relative_positions)
 
         rotation_scc, translation_sc, atommap_sa = prune_symmetries(
-            self.rotation_scc, self.cell_cv, np.asarray(relative_positions),
-            ids, self.tolerance, symmorphic, self._backwards_compatible)
+            self.rotation_scc, self.cell_cv, relative_positions, ids,
+            self.tolerance, symmorphic, self._backwards_compatible)
 
         return Symmetries(cell=self.cell_cv,
                           rotations=rotation_scc,
