@@ -133,7 +133,7 @@ def test_5x5():
 
     sym = Symmetries.from_cell_and_atoms(
         **kwargs, _backwards_compatible=False)
-    assert len(sym) == 1,  # Strict tolerance yields no symmetries
+    assert len(sym) == 1  # Strict tolerance yields no symmetries
 
     mp = MonkhorstPackKPoints((5, 5, 1))
     ibz = mp.reduce(sym)
