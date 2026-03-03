@@ -289,10 +289,12 @@ build-cuda-makefile:
       # MAGMA
       magma = True
       libraries += ['magma']
+
+      # Disable stub generation in CI, it fails to find mypy even after
+      # explicitly installing it
+      makefile_generate_stubs = False
       EOF
     - cat siteconfig.py
-    # Get mypy for stubgen
-    - pip install mypy
     - pip install -v --user --log build.log --editable .
 
 
