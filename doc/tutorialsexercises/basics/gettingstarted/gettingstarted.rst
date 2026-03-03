@@ -39,6 +39,7 @@ The following script uses the :mod:`GPAW calculator <gpaw.calculator.GPAW>`
 to optimize the structure of :mol:`H_2`.
 
 .. literalinclude:: h2_opt.py
+    :start-after: creates
 
 Apart from the commands in the static calculation above:
 
@@ -83,6 +84,8 @@ Use :command:`ase gui` to visualize the structure and measure
 bond lengths and bond angles.  Bond lengths and angles are shown
 automatically if you select two or three atoms at a time.
 
+The following script performs the structure optimization for :mol:`H_2O`: :download:`h2o_opt.py`.
+
 Atomization energies
 --------------------
 
@@ -119,6 +122,9 @@ atomic states, and the calculation will be made spin-polarized.
 
 Write a script which calculates the total energy of the isolated O and
 H atoms, and calculate the atomization energy of :mol:`H_2O`.
+
+The following script calculates the atomization energy for :mol:`H_2O`:
+:download:`h2o.py</tutorialsexercises/basics/water/h2o.py>`.
 
 Exchange and correlation functionals
 ------------------------------------

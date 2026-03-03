@@ -6,7 +6,7 @@ def test():
     txt = pathlib.Path('results-0.20.txt').read_text()
     last_line = txt.split('\n')[-2]
     atomization_energy = float(last_line)
-    assert np.isclose(atomization_energy, -11.6605)
+    assert np.isclose(atomization_energy, -11.5211)
 
 
 def workflow():

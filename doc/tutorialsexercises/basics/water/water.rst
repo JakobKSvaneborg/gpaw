@@ -27,12 +27,12 @@ Read the script and try to understand what it does.  A few notes:
  * By setting the ``txt`` parameter, we specify a file where GPAW will save
    the calculation log.
 
- * The expression ``'results-%.2f.txt' % h`` inserts the value of ``h``
-   in place of the *substitution code* ``%.2f`` (floating point number
-   with 2 decimals).  Thus the result file name evaluates to
-   ``results-0.20.txt``.  Similarly, ``'gpaw-%s-%.2f.txt' % (name, h)``
-   evaluates to ``gpaw-H2O-0.20.txt`` in the first loop iteration
-   (``%s`` is a substitution code for a string).
+ * The expression ``'results-{ecut:3.0f}.txt'`` inserts the value of ``ecut``
+   in place of the *substitution code* ``3.0f`` (floating point number
+   with no decimals).  Thus the result file name evaluates to
+   ``results-400.txt``.  Similarly, ``'gpaw-{name}-{ecut:3.0f}.txt'``
+   evaluates to ``gpaw-H2O-400.txt`` in the first loop iteration
+   (the format substitution code for the ``name`` string can be left out).
 
  * The call to ``open`` opens a file.  The parameter ``'w'`` signifies that
    the file is opened in write mode (deleting any previous file with that
@@ -43,7 +43,7 @@ Read the script and try to understand what it does.  A few notes:
 Run the script.  You can monitor the progress by opening one of the
 log files (e.g. ``gpaw.H2O.txt``).  The command :samp:`tail -f
 {filename}` can be used to view the output in real-time.  The calculated
-atomization energy can be found in the ``results-0.20.txt`` file.
+atomization energy can be found in the ``results-400.txt`` file.
 
 
 Parallelization
