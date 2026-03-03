@@ -292,7 +292,7 @@ build-cuda-makefile:
       EOF
     - cat siteconfig.py
     # Get mypy for stubgen
-    - pip install --user mypy
+    - pip install mypy
     - pip install -v --user --log build.log --editable .
 
 
