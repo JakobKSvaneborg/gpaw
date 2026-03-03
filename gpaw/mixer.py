@@ -229,7 +229,9 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = 100
+    min_imp = 50
+    panic_threshold = 4.0
+    has_panicked = True
 
     dNt_i = []
     def reset(self):
@@ -257,6 +259,30 @@ class MSR1Mixer(BaseMixer):
             for D_sp, D_isp in zip(D_asp, D_iasp[-1]):
                 dD_iasp[-1].append(D_sp - D_isp)
 
+            if dNt > self.last_dNt * self.panic_threshold or (iold > 1 and not self.has_panicked):
+                if self.world.rank == 0:
+                    print(f'XXXX: PANIC, {dNt} < {self.last_dNt * self.panic_threshold}')
+                self.has_panicked = True
+                self.panic_threshold *= 1.2
+                last_dens = self.nt_isG[-2]
+                last_paw = self.D_iasp[-2]
+                last_res = self.R_isG[-2]
+                last_res_paw = self.dD_iasp[-2]
+                self.reset()
+                iold = 1
+                self.dNt_i = [self.last_dNt, ]
+                self.nt_isG = [last_dens, ]
+                nt_isG = self.nt_isG
+                self.R_isG = [last_res, ]
+                R_isG = self.R_isG
+                self.D_iasp = [last_paw, ]
+                D_iasp = self.D_iasp
+                self.dD_iasp = [last_res_paw, ]
+                dD_iasp = self.dD_iasp
+                R_sG = last_res
+                dNt = self.last_dNt
+
+
             while (iold > self.nmaxold and dNt <= self.last_dNt * self.min_imp) \
                     or iold > self.nmaxold + 4:
                 # Throw away too old stuff:
@@ -282,7 +308,7 @@ class MSR1Mixer(BaseMixer):
             last_step = -2
             if dNt > self.last_dNt * self.min_imp:
                 reduction = dNt / self.last_dNt
-                insert_pos = 0 if reduction > self.min_imp**2 else -2
+                insert_pos = 0 # if reduction > self.min_imp**2 else -2
                 last_step = -1
                 tmp = nt_isG.pop()
                 nt_isG.insert(insert_pos, tmp)
@@ -305,14 +331,14 @@ class MSR1Mixer(BaseMixer):
             # self.gd.comm.sum(ntnorm_i)
 
             dampen = 1  # Dampen the unpredicted greed
-            trust_scalar = 1.25 # Scaling factor for the trust radius.
-            max_gb_fact = 1.0 * min(1, iold / self.nmaxold)**1.5 # Scaling factor for maximum good Broyden.
-            post_gb_fact = 1  # Scaling factor for the final amount of good Broyden
+            trust_scalar = 1 # Scaling factor for the trust radius.
+            max_gb_fact = 0.9 * min(1, (iold / 5)) # Scaling factor for maximum good Broyden.
+            post_gb_fact = 0.9  # Scaling factor for the final amount of good Broyden
             weight = 1e-4  # Weight for regularization, 1e-4 works well
-            B0_lims = [0.4, 1.05]  # Limits for predicted greed
-            A0_lims = [0.04, 0.4]  # Limits for unpredicted greed
+            B0_lims = [0.4, 1.15]  # Limits for predicted greed
+            A0_lims = [0.04, 0.6]  # Limits for unpredicted greed
             rate_ratio = [0.7, 1.3]  # Rate ratio for clipping
-            renormalize = False  # Renormalize t_isG
+            renormalize = True  # Renormalize t_isG
             initial_B0 = 1.0
 
             # 2nd order norm
@@ -519,6 +545,8 @@ class MSR1Mixer(BaseMixer):
                 *A0_lims
                 )
             if iold != 2:
+                if B2 == 0 and B1 == 0:
+                    B2 = 1; B1 = 1
                 B0_ratio = (
                     self.B0 + np.clip(
                         np.abs(B1 / B2),
@@ -530,7 +558,7 @@ class MSR1Mixer(BaseMixer):
                 self.A0 *= np.clip(A0_ratio_GEOM, *rate_ratio)
             else:
                 self.B0 = initial_B0
-                self.A0 = A0_target
+                self.A0 = A0_target * 0.67
 
             A0 = np.clip(self.A0, *A0_lims)
             B0 = self.B0
@@ -611,7 +639,7 @@ class MSR1Mixer(BaseMixer):
                 self.pk_sG[:] = 0
                 for pD_sp in self.pD_asp:
                     pD_sp[:] = 0
-                # alpha_i[:] = beta_i
+                alpha_i[:] = beta_i
 
                 for i1, (alpha, beta) in enumerate(zip(alpha_i, beta_i)):
                     self.uk_sG -= y_isG[i1] * alpha
@@ -623,8 +651,8 @@ class MSR1Mixer(BaseMixer):
                 new_step_size = B0**2 * self.dotprod(self.pk_sG, self.pk_sG,
                     self.pD_asp, self.pD_asp, self.gd, mode='scalar')
                 new_step_size = new_step_size**0.5
-                scale_factor = new_step_size / step_size
-                A0 *= np.clip(scale_factor, 0, 1)
+                # scale_factor = new_step_size / step_size
+                # A0 *= np.clip(scale_factor, 0, 1)
                 # A0 = np.clip(A0, *A0_lims)
                 # self.A0 = np.sqrt(self.A0 * np.clip(A0, *A0_lims))
                 self.uk_sG += R_sG
@@ -652,12 +680,19 @@ class MSR1Mixer(BaseMixer):
                 self.world.broadcast(nt_sR, 0)
                 nt_sG[:] = self.gd.distribute(nt_sR)
 
-        elif iold == 1:
+            if backtracked:
+                del nt_isG[0]
+                del R_isG[0]
+                del D_iasp[0]
+                del dD_iasp[0]
+                del self.dNt_i[0]
+        elif iold > 0:
             # Pratt step
             self.i_update = 0
             self.last_gb = 5
             self.trust_radius = None
             self.A0 = self.beta
+            self.B0 = 1
             A0 = self.beta
             self.uk_sG = R_sG
             self.pk_sG = np.zeros_like(self.uk_sG)
