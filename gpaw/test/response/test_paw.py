@@ -36,7 +36,7 @@ def test_paw_corrections(symbol):
 
 
 @pytest.mark.response
-def test_paw_correction_consistency(gpw_files):
+def test_paw_correction_consistency(gpw_files, mpi):
     """Test consistency of the pair density PAW corrections."""
     gs = ResponseGroundStateAdapter.from_gpw_file(gpw_files['fe_pw'])
 
@@ -57,14 +57,15 @@ def test_paw_correction_consistency(gpw_files):
     f_ng = np.ones((Y_nL.shape[0], rgd.N))
     rshe, _ = calculate_reduced_rshe(rgd, f_ng, Y_nL, lmax=0)
     # Calculate correction
-    Q2_Gii = calculate_matrix_element_correction(qG_Gv, pawdata, rshe)
+    Q2_Gii = calculate_matrix_element_correction(
+        qG_Gv, pawdata, rshe, comm=mpi.comm)
 
     assert Q2_Gii == pytest.approx(Q1_Gii, rel=1e-3, abs=1e-5)
 
 
 @pytest.mark.response
 @pytest.mark.serial
-def test_site_paw_correction_consistency(gpw_files):
+def test_site_paw_correction_consistency(gpw_files, mpi):
     """Test consistency of generalized matrix elements."""
     gs = ResponseGroundStateAdapter.from_gpw_file(gpw_files['fe_pw'])
 
@@ -76,7 +77,8 @@ def test_site_paw_correction_consistency(gpw_files):
 
     # Calculate PAW correction with G + q = 0
     qG_Gv = np.zeros((1, 3))
-    nF_Gii = calculate_matrix_element_correction(qG_Gv, pawdata, rshe)
+    nF_Gii = calculate_matrix_element_correction(
+        qG_Gv, pawdata, rshe, comm=mpi.comm)
 
     # Calculate PAW correction with site cutoff exceeding the augmentation
     # sphere radius

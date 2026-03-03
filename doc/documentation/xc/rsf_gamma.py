@@ -27,7 +27,8 @@ c = {'energy': 0.1, 'eigenstates': 3, 'density': 3}  # Values for test
 calc = GPAW(mode='fd', txt='CO.txt', xc='LCY-PBE:omega=0.81', convergence=c,
             eigensolver=RMMDIIS(), h=h,
             poissonsolver=PoissonSolver(use_charge_center=True),
-            occupations=FermiDirac(width=0.0), spinpol=False)
+            occupations=FermiDirac(width=0.0), spinpol=False,
+            legacy_gpaw=True)
 co.calc = calc
 co.get_potential_energy()
 (eps_homo, eps_lumo) = calc.get_homo_lumo()

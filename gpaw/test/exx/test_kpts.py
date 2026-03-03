@@ -7,7 +7,7 @@ from gpaw import GPAW, PW
 from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
 from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW as NewGPAW
-from gpaw.new.pw.nschse import NonSelfConsistentHSE06
+from gpaw.hybrids import NonSelfConsistentHybridXCCalculator
 
 
 @pytest.fixture(scope='module')
@@ -88,7 +88,8 @@ def test_2d_non_self_consistent():
         e_skn = e0 - v0 + v
         assert e_skn[0] == pytest.approx(eref_kn, rel=1e-5)
 
-    hse = NonSelfConsistentHSE06.from_dft_calculation(a.calc.dft)
+    hse = NonSelfConsistentHybridXCCalculator.from_dft_calculation(
+        a.calc.dft, 'HSE06')
     _, e_skn = hse.calculate(a.calc.dft.ibzwfs)
     assert e_skn[0] == pytest.approx(eref_kn, rel=1e-5)
     _, e_skn = hse.calculate(a.calc.dft.ibzwfs, na=0, nb=1)

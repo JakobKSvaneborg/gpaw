@@ -53,12 +53,12 @@ def non_self_consistent_eigenvalues(
     >>> eig_hyb = eig_dft - vxc_dft + vxc_hyb
     """
 
-    if not isinstance(calc, (GPAWOld, ASECalculator)):
+    if isinstance(calc, (str, Path)):
         if calc == '<gpw-file>':  # for doctest
             return (np.zeros((1, 1, 1)),
                     np.zeros((1, 1, 1)),
                     np.zeros((1, 1, 1)))
-        calc = GPAW(Path(calc),  # type:ignore
+        calc = GPAW(calc,  # type: ignore
                     txt=None,
                     parallel={'band': 1, 'kpt': 1})
 

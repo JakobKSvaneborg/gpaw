@@ -22,12 +22,12 @@
 
 
 // Check error code of a MAGMA function and throw std::runtime_error on failure
-#define MAGMA_CHECK(result) gpaw::gpaw_magma_errcheck(result, __FILE__, __LINE__)
+#define MAGMA_CHECK(result) gpaw::magma_errcheck(result, __FILE__, __LINE__)
 
 namespace gpaw
 {
 
-inline void gpaw_magma_errcheck(magma_int_t result, const char *file, int line)
+inline void magma_errcheck(magma_int_t result, const char *file, int line)
 {
     if (result != MAGMA_SUCCESS)
     {

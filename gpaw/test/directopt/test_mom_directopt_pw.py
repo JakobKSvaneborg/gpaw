@@ -8,15 +8,16 @@ from gpaw.mom import prepare_mom_calculation
 
 @pytest.mark.hmm  # find better api for calc.set() ...
 @pytest.mark.do
-def test_mom_directopt_pw(in_tmp_dir, gpaw_new, gpw_files):
-    calc = GPAW(gpw_files['h2o_mom_do_pw'])
+def test_mom_directopt_pw(in_tmp_dir, gpw_files):
+    gpaw_new = False
+    calc = GPAW(gpw_files['h2o_mom_do_pw'], legacy_gpaw=True)
     atoms = calc.atoms
     atoms.calc = calc
     calc.write('h2o.gpw', mode='all')
 
     for canonical in [True, False]:
         # Mixed-spin excited state calculation
-        atoms, calc = restart('h2o.gpw', txt='-')
+        atoms, calc = restart('h2o.gpw', txt='-', legacy_gpaw=True)
         mom_after_canonical = False  # Test MOM after canonical only
         if mom_after_canonical:
             momevery = np.inf

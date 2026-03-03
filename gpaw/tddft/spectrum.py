@@ -1,9 +1,12 @@
+import json
 import re
 
 import numpy as np
 
 from gpaw import __version__ as version
+from gpaw.external import ConstantElectricField, create_absorption_kick
 from gpaw.mpi import normalize_communicator
+from gpaw.new.rttddft.dataclasses import RTTDDFTKick
 from gpaw.tddft.folding import FoldedFrequencies, Folding
 from gpaw.tddft.units import au_to_as, au_to_eV, au_to_fs, rot_au_to_cgs
 
@@ -81,8 +84,82 @@ def read_td_file_data(fname, remove_duplicates=True):
     return time_t, data_ti
 
 
-def read_td_file_kicks(fname):
-    """Read kicks from time-dependent data file.
+def _parse_kick_line_version_1(line: str) -> RTTDDFTKick:
+    """
+    Parse a kick formatted according to version 1 (old GPAW).
+
+    In this format, the kick is written on one line
+
+        Kick = [{kick}]; Gauge = {gauge}; Time = {time}
+
+    where {kick} are three comma-separated numbers.
+    The Gauge segment is optional and defaults to length gauge.
+    """
+
+    # Kick
+    regexp = (r"Kick = \["
+              r"(?P<k0>[-+0-9\.e\ ]+), "
+              r"(?P<k1>[-+0-9\.e\ ]+), "
+              r"(?P<k2>[-+0-9\.e\ ]+)\]")
+    m = re.search(regexp, line)
+    assert m is not None, 'Kick not found'
+    kick_v = np.array([float(m.group('k%d' % v)) for v in range(3)])
+    # Time
+    regexp = r"Time = (?P<time>[-+0-9\.e\ ]+)"
+    m = re.search(regexp, line)
+    if m is None:
+        print('time not found')
+        time = 0.0
+    else:
+        time = float(m.group('time'))
+    gauge = 'velocity' if 'velocity' in line else 'length'
+    potential = create_absorption_kick(kick_v)
+    kick = RTTDDFTKick(time=time, potential=potential, gauge=gauge)
+    return kick
+
+
+def _parse_kick_line_version_2(line: str) -> RTTDDFTKick:
+    """
+    Parse a kick formatted according to version 2 (new GPAW).
+
+    In this format, the kick is written on one line
+
+        Kick = {kick}
+
+    where {kick} is a JSON formatted dictionary from which an
+    RTTDDFTKick can be created.
+    """
+    data = json.loads(line.removeprefix('# Kick = '))
+    kick = RTTDDFTKick(**data)
+    return kick
+
+
+def parse_kick_line(line: str,
+                    version: int = 1) -> RTTDDFTKick:
+    """
+    Parse a kick formatted according to the specified version.
+
+    Parameters
+    ----------
+    line
+        Line containing the kick
+    version
+        Version of the DipoleMomentWriter used when writing the file.
+
+    Returns
+    -------
+    Parsed kick.
+    """
+    if version == 1:
+        return _parse_kick_line_version_1(line)
+    elif version == 2:
+        return _parse_kick_line_version_2(line)
+    else:
+        raise ValueError(f'Version {version} unknown')
+
+
+def determine_td_file_version(fname):
+    """ Open time-dependent data file and parse header to determine version.
 
     Parameters
     ----------
@@ -91,39 +168,62 @@ def read_td_file_kicks(fname):
 
     Returns
     -------
+    Version of the DipoleMomentWriter used.
+    """
+    regexp = re.compile(r"(?P<writer>[A-Za-z]+)"
+                        r"\[version\=(?P<version>[0-9]+)\]")
+    with open(fname) as f:
+        for line in f:
+            m = regexp.search(line)
+            if m is None:
+                continue
+            assert m['writer'] in ['DipoleMomentWriter', 'VelocityGaugeWriter']
+            version = int(m['version'])
+            if m['writer'] == 'VelocityGaugeWriter' and version == 5:
+                # This is some messy convention..
+                version = 1
+            return version
+
+    # No version header found, raise error
+    raise ValueError('Version could not be determined')
+
+
+def read_td_file_kicks(fname: str,
+                       version: int = 1):
+    """Read kicks from time-dependent data file.
+
+    Parameters
+    ----------
+    fname
+        File path
+    version
+        Version of the DipoleMomentWriter used when writing the file.
+
+    Returns
+    -------
     kick_i
         List of kicks.
         Each kick is a dictionary with keys
         ``strength_v`` and ``time``.
     """
-    def parse_kick_line(line):
-        # Kick
-        regexp = (r"Kick = \["
-                  r"(?P<k0>[-+0-9\.e\ ]+), "
-                  r"(?P<k1>[-+0-9\.e\ ]+), "
-                  r"(?P<k2>[-+0-9\.e\ ]+)\]")
-        m = re.search(regexp, line)
-        assert m is not None, 'Kick not found'
-        kick_v = np.array([float(m.group('k%d' % v)) for v in range(3)])
-        # Time
-        regexp = r"Time = (?P<time>[-+0-9\.e\ ]+)"
-        m = re.search(regexp, line)
-        if m is None:
-            print('time not found')
-            time = 0.0
-        else:
-            time = float(m.group('time'))
-        velocity = 'velocity' in line
-        return kick_v, time, velocity
-
     # Search kicks
     kick_i = []
     with open(fname) as f:
         for line in f:
             if line.startswith('# Kick'):
-                kick_v, time, velocity = parse_kick_line(line)
-                kick_i.append({'strength_v': kick_v, 'time': time,
-                              'velocity': velocity})
+                kick = parse_kick_line(line, version=version)
+                if not isinstance(kick.potential, ConstantElectricField):
+                    raise ValueError('Kick must be constant electric field '
+                                     'for absorption spectrum calculation.')
+
+                # Magnitude in atomic units
+                magnitude = kick.potential.strength
+                # Normalized direction
+                direction_v = kick.potential.direction_v
+
+                kick_i.append({'strength_v': magnitude * direction_v,
+                               'time': kick.time,
+                              'velocity': kick.gauge == 'velocity'})
     return kick_i
 
 
@@ -199,10 +299,16 @@ def read_dipole_moment_file(fname, remove_duplicates=True):
     dm_tv
         Array of dipole moment values
     """
+    version = determine_td_file_version(fname)
     time_t, data_ti = read_td_file_data(fname, remove_duplicates)
-    kick_i = read_td_file_kicks(fname)
-    norm_t = data_ti[:, 0]
-    dm_tv = data_ti[:, 1:]
+    kick_i = read_td_file_kicks(fname, version=version)
+    if version == 1:
+        norm_t = data_ti[:, 0]
+        dm_tv = data_ti[:, 1:]
+    else:
+        # No norm written in version 2
+        norm_t = None
+        dm_tv = data_ti
     return kick_i, time_t, norm_t, dm_tv
 
 

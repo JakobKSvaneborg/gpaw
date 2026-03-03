@@ -90,11 +90,13 @@ class MomentCorrectionPoissonSolver(_PoissonSolver):
     def __init__(self,
                  poissonsolver: _PoissonSolver | dict[str, Any],
                  moment_corrections: MomentCorrectionsType | None,
-                 timer: NullTimer | Timer = nulltimer):
+                 timer: NullTimer | Timer = nulltimer,
+                 xp=np):
 
         self._initialized = False
         self.poissonsolver = create_poisson_solver(poissonsolver)
         self.timer = timer
+        self.xp = xp
 
         if moment_corrections is None:
             self.moment_corrections = []

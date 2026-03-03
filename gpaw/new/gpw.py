@@ -24,7 +24,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Any
+from typing import IO, Any, TYPE_CHECKING
 
 import ase.io.ulm as ulm
 import numpy as np
@@ -35,15 +35,17 @@ from ase.units import Bohr, Ha
 import gpaw
 import gpaw.mpi as mpi
 from gpaw.core.atom_arrays import AtomArraysLayout
-from gpaw.dft import Parameters
 from gpaw.new.builder import DFTComponentsBuilder
-from gpaw.new.calculation import DFTCalculation, units
 from gpaw.new.density import Density
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
 from gpaw.utilities import as_dtype_precision, unpack_density, unpack_hermitian
+
+if TYPE_CHECKING:
+    from gpaw.dft import Parameters
+    from gpaw.new.calculation import DFTCalculation
 
 
 def as_single_precision(array):
@@ -90,7 +92,7 @@ class GPWFlags:
 def write_gpw(filename: str | Path,
               dft: DFTCalculation,
               flags: GPWFlags) -> None:
-
+    from gpaw.new.calculation import units
     comm = dft.comm
 
     writer: ulm.Writer | ulm.DummyWriter
@@ -197,8 +199,9 @@ def read_gpw(filename: str | Path | IO[str],
              object_hooks: dict[str, Callable[[dict], Any]] | None = None
              ) -> tuple[Atoms,
                         DFTCalculation,
-                        Parameters,
                         DFTComponentsBuilder]:
+    from gpaw.dft import Parameters
+    from gpaw.new.calculation import DFTCalculation, units
     """
     Read gpw file
 
@@ -279,7 +282,7 @@ def read_gpw(filename: str | Path | IO[str],
     else:
         reader.close()
 
-    return atoms, dft, params, builder
+    return atoms, dft, builder
 
 
 def read_dft_state(reader: ulm.Reader,
@@ -296,6 +299,7 @@ def read_dft_state(reader: ulm.Reader,
                                     Density,
                                     Potential,
                                     DFTEnergies]]:
+    from gpaw.dft import Parameters
     bohr = reader.bohr
     ha = reader.ha
 

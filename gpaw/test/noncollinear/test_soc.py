@@ -58,12 +58,10 @@ def test_soc_self_consistent(gpaw_new, in_tmp_dir):
     check(eigs, 0.15, 0.002)
 
     a.calc.write(gpw_wfs, 'all')
-    GPAW(gpw_wfs)
 
-    if world.size == 1:
-        phases_c = polarization_phase(gpw_wfs, comm=world)
-        phi_c = phases_c['electronic_phase_c']
-        check_pol(phi_c)
+    phases_c = polarization_phase(gpw_wfs=gpw_wfs, comm=world)
+    phi_c = phases_c['electronic_phase_c']
+    check_pol(phi_c)
 
 
 @pytest.mark.soc

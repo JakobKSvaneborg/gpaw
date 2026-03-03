@@ -21,11 +21,14 @@ def test_lcao_bsse():
     system.center(vacuum=6.0)
 
     def prepare(setups):
-        calc = GPAW(basis={'H': b}, mode='lcao',
-                    setups=setups, h=0.2,
-                    poissonsolver=PoissonSolver(nn='M', relax='GS', eps=1e-5),
-                    spinpol=False,
-                    nbands=1)
+        calc = GPAW(
+            basis={'H': b},
+            mode='lcao',
+            setups=setups,
+            h=0.2,
+            poissonsolver=PoissonSolver(nn='M', relax='GS', eps=1e-5),
+            spinpol=False,
+            nbands=1)
         system.calc = calc
         return calc
 

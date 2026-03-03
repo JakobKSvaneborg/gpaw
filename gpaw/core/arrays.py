@@ -114,8 +114,11 @@ class XArray(Generic[DomainType], XP):
         # Choose mybands, s.t. they fit into
         # data_buffer. Hence, datasize divided by nX
         # rounded down.
-        mybands = min(datasize // nX,
-                      self.data.shape[0])
+        if nX == 0:
+            mybands = self.data.shape[0]
+        else:
+            mybands = min(datasize // nX,
+                          self.data.shape[0])
         mybands = self.desc.comm.min_scalar(mybands)
         data = data_buffer[:mybands * nX].reshape(
             (mybands,) + X)
@@ -284,7 +287,7 @@ class XArray(Generic[DomainType], XP):
         raise NotImplementedError
 
     def gathergather(self):
-        a_xX = self.gather()  # gather X
+        a_xX = self.gather()  # gather X (grid-points or plane-waves)
         if a_xX is not None:
             m_xX = a_xX.matrix.gather()  # gather x
             if m_xX.dist.comm.rank == 0:

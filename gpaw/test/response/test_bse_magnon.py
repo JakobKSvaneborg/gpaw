@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from ase import Atoms
 
-from gpaw import GPAW, FermiDirac
+from gpaw import FermiDirac
 from gpaw.mpi import world
 from gpaw.response.bse import BSE
 from gpaw.test import findpeak
@@ -14,13 +14,13 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest.mark.response
-def test_response_bse_magnon(in_tmp_dir):
-    calc = GPAW(mode='pw',
-                xc='PBE',
-                nbands='nao',
-                occupations=FermiDirac(0.001),
-                convergence={'bands': -5},
-                kpts={'size': (3, 3, 1), 'gamma': True})
+def test_response_bse_magnon(in_tmp_dir, mpi):
+    calc = mpi.GPAW(mode='pw',
+                    xc='PBE',
+                    nbands='nao',
+                    occupations=FermiDirac(0.001),
+                    convergence={'bands': -5},
+                    kpts={'size': (3, 3, 1), 'gamma': True})
 
     a = 3.945
     c = 8.0
@@ -46,7 +46,8 @@ def test_response_bse_magnon(in_tmp_dir):
               eshift=eshift,
               nbands=15,
               mode='BSE',
-              truncation='2D')
+              truncation='2D',
+              comm=mpi.comm)
 
     w_w = np.linspace(-2, 2, 4001)
     chi_Gw = bse.get_magnetic_susceptibility(eta=0.1,
@@ -65,7 +66,8 @@ def test_response_bse_magnon(in_tmp_dir):
               eshift=eshift,
               nbands=15,
               mode='BSE',
-              truncation='2D')
+              truncation='2D',
+              comm=mpi.comm)
 
     w_w = np.linspace(-2, 2, 4001)
     chi_Gw = bse.get_magnetic_susceptibility(eta=0.1,

@@ -44,6 +44,8 @@ Git master branch
 
   * eigensolver (:ref:`newgpaw` only): 'davidson' -> 'ppcg'
 
+* :ref:`newgpaw`: Ported the dipole moment writer to the new RT-TDDFT interface.
+
 * :ref:`newgpaw`: Calculations can now be parallelized over
   spins.
 
@@ -85,6 +87,11 @@ Git master branch
   please contact the developers.  You will probably need to port the code
   to :ref:`newgpaw` in order to use it in the future.
 
+* We now have a :ref:`ecosystem` page listing projects related to GPAW
+  or using GPAW.
+  If you know of a project which should be listed here, but isn’t,
+  please open a merge request adding link and descriptive paragraph.
+
 
 Version 25.7.0
 ==============
@@ -112,7 +119,7 @@ July 29, 2025: :git:`25.7.0 <../25.7.0>`
 
 * Non self-consistent calculation of HSE06 eigenvalues for arbitrary
   **k**-points has been implemented.  See :ref:`hse06 on lda` and
-  :class:`gpaw.new.pw.nschse.NonSelfConsistentHSE06`.
+  :class:`gpaw.hybrids.NonSelfConsistentHybridXCCalculator`.
 
 * Experimental: Support for using MPI4PY_.
   **Update:** Set GPAW_MPI_BACKEND=mpi4py to use this.

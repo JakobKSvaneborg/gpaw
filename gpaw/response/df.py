@@ -740,7 +740,7 @@ class DielectricFunction(DielectricFunctionCalculator):
             *args, xc=xc, truncation=self.truncation,
             **kwargs).dynamic_susceptibility()
         if filename:
-            dynsus.write(filename)
+            dynsus.write(filename, comm=self.context.comm)
         return dynsus.unpack()
 
     def get_dielectric_function(self, *args, filename='df.csv', **kwargs):
@@ -759,7 +759,7 @@ class DielectricFunction(DielectricFunctionCalculator):
             *args, truncation=self.truncation,
             **kwargs).macroscopic_dielectric_function()
         if filename:
-            df.write(filename)
+            df.write(filename, comm=self.context.comm)
         return df.unpack()
 
     def get_eels_spectrum(self, *args, filename='eels.csv', **kwargs):
@@ -777,7 +777,7 @@ class DielectricFunction(DielectricFunctionCalculator):
         eels = self.get_inverse_dielectric_function(
             *args, truncation=self.truncation, **kwargs).eels_spectrum()
         if filename:
-            eels.write(filename)
+            eels.write(filename, comm=self.context.comm)
         return eels.unpack()
 
     def get_polarizability(self, q_c: list | np.ndarray = [0, 0, 0],
@@ -805,7 +805,7 @@ class DielectricFunction(DielectricFunctionCalculator):
         eps = method(direction=direction)
         pol = eps.polarizability()
         if filename:
-            pol.write(filename)
+            pol.write(filename, comm=self.context.comm)
         return pol.unpack()
 
     def get_macroscopic_dielectric_constant(self, xc='RPA', direction='x'):
