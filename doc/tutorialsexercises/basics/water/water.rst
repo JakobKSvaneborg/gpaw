@@ -27,10 +27,10 @@ Read the script and try to understand what it does.  A few notes:
  * By setting the ``txt`` parameter, we specify a file where GPAW will save
    the calculation log.
 
- * The expression ``'results-{ecut:3.0f}.txt'`` inserts the value of ``ecut``
+ * The expression ``f'results-{ecut:3.0f}.txt'`` inserts the value of ``ecut``
    in place of the *substitution code* ``3.0f`` (floating point number
    with no decimals).  Thus the result file name evaluates to
-   ``results-400.txt``.  Similarly, ``'gpaw-{name}-{ecut:3.0f}.txt'``
+   ``results-400.txt``.  Similarly, ``f'gpaw-{name}-{ecut:3.0f}.txt'``
    evaluates to ``gpaw-H2O-400.txt`` in the first loop iteration
    (the format substitution code for the ``name`` string can be left out).
 
@@ -61,18 +61,19 @@ that only one process writes.  ASE provides the handy
 
   from ase.parallel import paropen
   ...
-  resultfile = paropen('results-%.2f.txt' % h, 'w')
+  resultfile = paropen('results-{ecut:3.0f}.txt', 'w')
 
 Apply the above modifications to the script and run it in parallel
 e.g. on four CPUs::
 
-    $ mpiexec -np 4 gpaw python script.py
+    $ gpaw -P 4 python script.py
 
 Verify by checking the log file that GPAW is actually using multiple
 CPUs.  The log file should reveal that the :mol:`H_2O` calculation
 uses domain-decomposed with four domains, while the two atomic
 calculations should parallelize over the two spins and two domains.
 
+.. TODO
 
 .. _convergence_checks:
 
