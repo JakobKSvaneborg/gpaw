@@ -229,8 +229,8 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = 50
-    panic_threshold = 4.0
+    min_imp = 1.5
+    panic_threshold = 10.0
     has_panicked = True
 
     dNt_i = []
@@ -284,7 +284,7 @@ class MSR1Mixer(BaseMixer):
 
 
             while (iold > self.nmaxold and dNt <= self.last_dNt * self.min_imp) \
-                    or iold > self.nmaxold + 4:
+                    or (iold > self.nmaxold + 1):
                 # Throw away too old stuff:
                 # to_del = np.argmax(np.array(self.dNt_i)[:-2])
                 to_del = 0
@@ -306,9 +306,13 @@ class MSR1Mixer(BaseMixer):
         if iold > 1:
             backtracked = False
             last_step = -2
+            del_oldest = False
             if dNt > self.last_dNt * self.min_imp:
                 reduction = dNt / self.last_dNt
-                insert_pos = 0 # if reduction > self.min_imp**2 else -2
+                if self.world.rank == 0:
+                    print(f'XXX: Backtracing due to reduction {reduction}')
+                del_oldest = True if reduction > self.min_imp**2 else False
+                insert_pos = 0 if del_oldest else -2
                 last_step = -1
                 tmp = nt_isG.pop()
                 nt_isG.insert(insert_pos, tmp)
@@ -331,13 +335,13 @@ class MSR1Mixer(BaseMixer):
             # self.gd.comm.sum(ntnorm_i)
 
             dampen = 1  # Dampen the unpredicted greed
-            trust_scalar = 1 # Scaling factor for the trust radius.
+            trust_scalar = 1.2 # Scaling factor for the trust radius.
             max_gb_fact = 0.9 * min(1, (iold / 5)) # Scaling factor for maximum good Broyden.
             post_gb_fact = 0.9  # Scaling factor for the final amount of good Broyden
             weight = 1e-4  # Weight for regularization, 1e-4 works well
             B0_lims = [0.4, 1.15]  # Limits for predicted greed
             A0_lims = [0.04, 0.6]  # Limits for unpredicted greed
-            rate_ratio = [0.7, 1.3]  # Rate ratio for clipping
+            rate_ratio = [0.7, 1.3 if not backtracked else 1.0]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
             initial_B0 = 1.0
 
@@ -574,10 +578,10 @@ class MSR1Mixer(BaseMixer):
             trust_radius = trust_scalar * trust_radius**0.5
             if self.trust_radius is not None:
                 trust_radius = (self.trust_radius + trust_radius) / 2
-                # if backtracked:
-                #     self.trust_radius = min(self.trust_radius, trust_radius)
-                # else:
-                self.trust_radius = trust_radius
+                if backtracked:
+                    self.trust_radius = min(self.trust_radius, trust_radius)
+                else:
+                    self.trust_radius = trust_radius
             else:
                 self.trust_radius = trust_radius
 
@@ -680,12 +684,13 @@ class MSR1Mixer(BaseMixer):
                 self.world.broadcast(nt_sR, 0)
                 nt_sG[:] = self.gd.distribute(nt_sR)
 
-            if backtracked:
+            if del_oldest:
                 del nt_isG[0]
                 del R_isG[0]
-                del D_iasp[0]
                 del dD_iasp[0]
+                del D_iasp[0]
                 del self.dNt_i[0]
+
         elif iold > 0:
             # Pratt step
             self.i_update = 0
