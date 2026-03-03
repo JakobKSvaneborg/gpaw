@@ -107,43 +107,36 @@ def test_5x5():
     # and three mirrors), but our code finds only 4.
     # Following that, k-point reduction of a 5x5 Monkhorst-Pack
     # grid blows up!
+    # XXX This docstring doesn't make sense anymore. With the high tolerance
+    # XXX this system has no symmetries (except time reversal).
     a = 5.6
+
+    kwargs = {'cell': [a, a, 9., 90, 90, 60],
+              'pbc': (1, 1, 0),
+              'tolerance': 1e-5,
+              'relative_positions': [[0.33333333, 0.3333333, 0.50058348],
+                                     [0.66666666, 0.6666666, 0.55294505],
+                                     [0.0, 0.0, 0.44741016],
+                                     [0.0, 0.0, 0.68013199],
+                                     [0.33333333, 0.33333333, 0.31908923],
+                                     [0.66666667, 0.66666667, 0.64723956],
+                                     [0.0, 0.0, 0.35260054]],
+              'ids': [0, 1, 1, 1, 1, 2, 2],
+              'symmorphic': True}
+
     with pytest.raises(SymmetryAnalysisBug):
         sym = Symmetries.from_cell_and_atoms(
-            [a, a, 9, 90, 90, 60],
-            pbc=(1, 1, 0),
-            _backwards_compatible=True,
-            tolerance=1e-7,
-            relative_positions=[[0.33333333, 0.3333333, 0.50058348],
-                                [0.66666666, 0.6666666, 0.55294505],
-                                [0.0, 0.0, 0.44741016],
-                                [0.0, 0.0, 0.68013199],
-                                [0.33333333, 0.33333333, 0.31908923],
-                                [0.66666667, 0.66666667, 0.64723956],
-                                [0.0, 0.0, 0.35260054]],
-            ids=[0, 1, 1, 1, 1, 2, 2],
-            symmorphic=True)
+            **kwargs, _backwards_compatible=True)
+        print(len(sym))
 
     sym = Symmetries.from_cell_and_atoms(
-        [a, a, 9, 90, 90, 60],
-        pbc=(1, 1, 0),
-        _backwards_compatible=False,
-        tolerance=1e-7,
-        relative_positions=[[0.33333333, 0.3333333, 0.50058348],
-                            [0.66666666, 0.6666666, 0.55294505],
-                            [0.0, 0.0, 0.44741016],
-                            [0.0, 0.0, 0.68013199],
-                            [0.33333333, 0.33333333, 0.31908923],
-                            [0.66666667, 0.66666667, 0.64723956],
-                            [0.0, 0.0, 0.35260054]],
-        ids=[0, 1, 1, 1, 1, 2, 2],
-        symmorphic=True)
+        **kwargs, _backwards_compatible=False)
+    assert len(sym) == 1
 
-    if 0:
-        mp = MonkhorstPackKPoints((5, 5, 1))
-        ibz = mp.reduce(sym)
-        print(ibz)
-        assert (ibz.weight_k > 0.0).all()
+    mp = MonkhorstPackKPoints((5, 5, 1))
+    ibz = mp.reduce(sym)
+    assert len(ibz) == 13
+    assert (ibz.weight_k > 0.0).all()
 
 
 @pytest.mark.serial

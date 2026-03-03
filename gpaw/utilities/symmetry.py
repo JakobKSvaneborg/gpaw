@@ -15,6 +15,7 @@ def find_set_of_lattice_symmetries(
         cell_cv: Array2D,
         pbc_c: np.ndarray,
         tol: float,
+        guarantee_group: bool = True,
         _backwards_compatible: bool = False) -> Array3D:
     """Determine set of fixed-point symmetry
     operations compliant with a given lattice."""
@@ -40,7 +41,7 @@ def find_set_of_lattice_symmetries(
     pbc_cc = np.logical_xor.outer(pbc_c, pbc_c)
     mask_s = ~U_scc[:, pbc_cc].any(axis=1)
     U_scc = U_scc[mask_s]
-    if not _backwards_compatible:
+    if guarantee_group and not _backwards_compatible:
         # Do not do group check for backwards compatible.
         U_scc = guarantee_lattice_symmetries_form_a_point_group(U_scc)
     return U_scc

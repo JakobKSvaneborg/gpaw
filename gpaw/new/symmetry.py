@@ -93,6 +93,7 @@ def create_symmetries_object(atoms: Atoms,
                              tolerance: float | None = None,  # Å
                              point_group: bool = True,
                              symmorphic: bool = True,
+                             guarantee_group: bool = True,
                              _backwards_compatible: bool = False
                              ) -> Symmetries:
     """Find symmetries from atoms object.
@@ -128,7 +129,8 @@ def create_symmetries_object(atoms: Atoms,
         # Find symmetries from cell, ids and positions:
         if point_group:
             rotation_scc = find_set_of_lattice_symmetries(
-                cell_cv, pbc_c, tolerance, _backwards_compatible)
+                cell_cv, pbc_c, tolerance,
+                guarantee_group, _backwards_compatible)
 
             rotation_scc, translation_sc, atommap_sa = prune_symmetries(
                 rotation_scc, cell_cv, relpos_ac, id_a,
@@ -262,6 +264,7 @@ class Symmetries:
                   *,
                   pbc: ArrayLike1D = (True, True, True),
                   tolerance: float | None = None,
+                  guarantee_group: bool = True,
                   _backwards_compatible: bool = False) -> Symmetries:
 
         cell_cv = normalize_cell(cell)
@@ -270,7 +273,7 @@ class Symmetries:
         if tolerance is None:
             tolerance = 1e-7 if _backwards_compatible else 1e-5
         rotation_scc = find_set_of_lattice_symmetries(
-            cell_cv, pbc_c, tolerance, _backwards_compatible)
+            cell_cv, pbc_c, tolerance, guarantee_group, _backwards_compatible)
 
         return cls(cell=cell_cv,
                    rotations=rotation_scc,
@@ -304,14 +307,16 @@ class Symmetries:
                             _backwards_compatible=False,
                             relative_positions: ArrayLike2D,
                             ids: Sequence[int],
-                            symmorphic: bool = True) -> Symmetries:
+                            symmorphic: bool = True,
+                            guarantee_group: bool = True) -> Symmetries:
 
         return cls.from_cell(
             cell,
             pbc=pbc,
             tolerance=tolerance,
+            guarantee_group=guarantee_group,
             _backwards_compatible=_backwards_compatible).analyze_positions(
-            relative_positions, ids, symmorphic=symmorphic)
+                relative_positions, ids, symmorphic=symmorphic)
 
     @classmethod
     def from_cell_and_atoms_spglib(cls,
