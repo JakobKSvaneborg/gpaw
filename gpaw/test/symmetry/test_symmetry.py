@@ -2,7 +2,6 @@ from math import sqrt
 
 import numpy as np
 import pytest
-
 from gpaw.new.brillouin import MonkhorstPackKPoints
 from gpaw.new.symmetry import Symmetries, SymmetryAnalysisBug
 
