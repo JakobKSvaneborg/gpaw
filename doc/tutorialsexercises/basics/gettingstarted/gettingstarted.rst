@@ -19,7 +19,7 @@ are in order:
 * An :class:`~gpaw.calculator.GPAW` calculator is created.  A
   *calculator* can evaluate
   quantities such as energies and forces on a collection of atoms.
-* We create the GPAW calculator in finite difference (``fd``) mode, with 2 bands and output to ``h2.txt``.
+* We create the GPAW calculator in plane-wave (``pw``) mode, with output to ``h2.txt``.
 * The calculator is associated with the :class:`~ase.Atoms`
   object by calling ``atoms.calc = calc``.
 * Calling ``atoms.get_forces()`` triggers the DFT calculation for :mol:`H_2` and forces on the atoms are return (here: printed).
@@ -70,7 +70,8 @@ visualize the final configuration to check that it is reasonable.
 The cell must be centered in order to prevent atoms from lying too
 close to the boundary, as the boundary conditions are zero by default.
 
-During the calculation a lot of text is printed to the terminal.  This
+During the calculation a lot of text is printed ot the output file,
+or if we haven't specified any to the terminal (standard output).  This
 includes the parameters used in the calculation: Atomic positions,
 grid spacing, XC functional (GPAW uses LDA by default) and many other
 properties.  For each iteration in the self-consistency cycle one line
