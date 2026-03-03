@@ -1,7 +1,6 @@
 import numpy as np
 from typing import cast
 
-import gpaw.cgpaw as cgpaw
 from gpaw.cgpaw.gpu.magma import have_magma
 from gpaw.cgpaw.gpu import magma
 from gpaw.gpu import cupy as cp
@@ -89,9 +88,10 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
             eigvals = xp.empty((shape[0]), dtype=eigval_dtype)
             if xp is np:
                 eigvecs = cast(np.ndarray, eigvecs)
-                magma.eigh_magma_numpy(eigvecs, eigvals,
-                                                 options.uplo,
-                                                 options.gpus_per_process)
+                magma.eigh_magma_numpy(eigvecs,
+                                       eigvals,
+                                       options.uplo,
+                                       options.gpus_per_process)
             else:
                 eigvecs = cast(cp.ndarray, eigvecs)
                 magma.eigh_magma_cupy(eigvecs, eigvals, options.uplo)
