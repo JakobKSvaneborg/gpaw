@@ -47,12 +47,11 @@ In Python code, it looks like this:
 
 If the above code was executed, a plane-wave (``pw``) calculation
 for a single :mol:`H_2` molecule would be started.
-The calculation would be done using a supercell of size
-`6.0 \times 6.0 \times 6.0` Å with cluster boundary conditions.
+The calculation would be done using a cell of size
+`6.0 \times 6.0 \times 6.0` Å with open boundary conditions.
 
 .. note::
-   For plane-waves mode this is equivalent to periodic boundary conditions.
-   In LCAO mode and finite difference mode this corresponds to zero boundary conditions.
+   For plane-waves mode GPAW will always use periodic boundary conditions.
 
 The other (default) parameters for the PAW calculation are:
 

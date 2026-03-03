@@ -58,8 +58,8 @@ it converges, leaving the file :file:`h2.gpaw.traj` in the working
 directory.  Use the command :command:`ase gui` to view the
 trajectory file, showing each step of the optimization.
 
-Structure optimization of :mol:`H_2O` with GPAW
--------------------------------------------------------
+Structure optimization of :mol:`H_2O`
+-------------------------------------
 
 Adapt the above script as needed and calculate the structure of a
 :mol:`H_2O` molecule using the GPAW calculator.  Note that water is not
