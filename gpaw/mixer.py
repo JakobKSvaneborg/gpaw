@@ -204,7 +204,7 @@ class BaseMixer:
             shape1 = np.array(R1_isG).shape
             shape2 = np.array(R2_isG).shape
             prod = np.reshape(R1_isG, (shape1[0], -1)).conj() \
-                @ np.reshape(R2_isG, (shape2[0], -1)).T
+                 @ np.reshape(R2_isG, (shape2[0], -1)).T
         elif mode == 'vecdot' or mode == 'scalar':
             assert len(R1_isG) == len(R2_isG)
             prod = np.vecdot(
@@ -229,8 +229,8 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = 1.5
-    panic_threshold = 10.0
+    min_imp = np.sqrt(3)
+    panic_threshold = 50.0
     has_panicked = True
 
     dNt_i = []
@@ -341,7 +341,7 @@ class MSR1Mixer(BaseMixer):
             weight = 1e-4  # Weight for regularization, 1e-4 works well
             B0_lims = [0.4, 1.15]  # Limits for predicted greed
             A0_lims = [0.04, 0.6]  # Limits for unpredicted greed
-            rate_ratio = [0.7, 1.3 if not backtracked else 1.0]  # Rate ratio for clipping
+            rate_ratio = [0.7, 1.3 if not backtracked else 0.9]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
             initial_B0 = 1.0
 
@@ -400,16 +400,22 @@ class MSR1Mixer(BaseMixer):
             s_norm = self.dotprod(ts_isG, y_isG, tsD_iasp, yD_iasp, self.gd, mode='vecdot')
             t_norm = 1 / np.sqrt(y_norm) #  + 0.5 * max_gb * s_norm)
             t_norm_expanded = np.expand_dims(t_norm, axis=tuple(np.arange(1, y_isG.ndim)))
+            # XXX:
+            # t_norm = np.sum(ty_isG * y_isG, axis=tuple(np.arange(2, y_isG.ndim)))
+            # self.gd.comm.sum(t_norm)
+            # t_norm = 1 / np.sqrt(t_norm)
+            # t_norm_expanded = np.expand_dims(t_norm, axis=tuple(np.arange(2, y_isG.ndim)))
+            # XXX
             y_isG *= t_norm_expanded
             ty_isG *= t_norm_expanded
             s_isG *= t_norm_expanded
             ts_isG *= t_norm_expanded
             for i, (sD_asp, yD_asp, tsD_asp, tyD_asp) in enumerate(zip(sD_iasp, yD_iasp, tsD_iasp, tyD_iasp)):
-                for sD_sp, yD_sp, tsD_sp, tyD_sp in zip(sD_asp, yD_asp, tsD_asp, tyD_asp):
-                    sD_sp *= t_norm[i]
-                    yD_sp *= t_norm[i]
-                    tsD_sp *= t_norm[i]
-                    tyD_sp *= t_norm[i]
+                for a, (sD_sp, yD_sp, tsD_sp, tyD_sp) in enumerate(zip(sD_asp, yD_asp, tsD_asp, tyD_asp)):
+                    sD_sp *= t_norm[i] # [:, None]
+                    yD_sp *= t_norm[i] # [:, None]
+                    tsD_sp *= t_norm[i] # [:, None]
+                    tyD_sp *= t_norm[i] # [:, None]
             y_norm = self.dotprod(ty_isG, y_isG, tyD_iasp, yD_iasp, self.gd, mode='vecdot')
             s_norm = self.dotprod(ts_isG, y_isG, tsD_iasp, yD_iasp, self.gd, mode='vecdot')
 
@@ -452,7 +458,7 @@ class MSR1Mixer(BaseMixer):
                 except np.linalg.LinAlgError:
                     good_broydenness -= 2**(-iter) * max_gb
                     continue
-                if min_real > 1e-8 and max_imag == 0:
+                if min_real > max(1e-9, max_imag):
                     good_broydenness += 2**(-iter) * max_gb
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
@@ -739,7 +745,7 @@ class ExperimentalDotProd:
             shape1 = np.array(R1_isG).shape
             shape2 = np.array(R2_isG).shape
             prod = np.reshape(R1_isG, (shape1[0], -1)).conj() \
-                @ np.reshape(R2_isG, (shape2[0], -1)).T
+                 @ np.reshape(R2_isG, (shape2[0], -1)).T
         elif mode == 'vecdot' or mode == 'scalar':
             assert len(R1_isG) == len(R2_isG)
             prod = np.vecdot(
