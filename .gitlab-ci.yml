@@ -293,6 +293,8 @@ build-cuda-makefile:
     - cat siteconfig.py
     # Get mypy for stubgen
     - pip install --user mypy
+    # update setuptools etc since with --no-build-isolation we don't get deps
+    - pip install --user --upgrade setuptools packaging
     - pip install -v --user --log build.log --editable . --no-build-isolation
 
 
