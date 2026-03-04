@@ -2,12 +2,11 @@
 See also gpaw/test/gpu/test_diagonalizers.py"""
 
 import pytest
-from gpaw.cgpaw.gpu.magma import have_magma
+from gpaw.cgpaw.gpu import magma
 
-if not have_magma:
+if not magma.available():
     pytest.skip("No MAGMA", allow_module_level=True)
 
-from gpaw.cgpaw.gpu import magma
 from gpaw.gpu import cupy as cp, cupy_is_fake
 from gpaw.utilities import as_real_dtype
 from gpaw.test.gpu import assert_eigenpairs, fill_uplo

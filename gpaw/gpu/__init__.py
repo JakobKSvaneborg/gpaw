@@ -11,7 +11,7 @@ import numpy as np
 
 from gpaw import ENVVAR_GPAW_NO_GPU_MPI
 from gpaw.new.timer import trace
-from gpaw.cgpaw.gpu.magma import have_magma
+from gpaw.cgpaw.gpu import magma
 
 device_id = None
 """Device id"""
@@ -256,9 +256,9 @@ def set_device(log, world=None):
             atexit.register(cgpaw.gpaw_gpu_delete)
 
             # Initialize MAGMA library if available
-            if have_magma:
-                cgpaw.gpu.magma.magma_init()
-                atexit.register(cgpaw.gpu.magma.magma_finalize)
+            if magma.available():
+                magma.magma_init()
+                atexit.register(magma.magma_finalize)
 
             # Generate a device id
             import os

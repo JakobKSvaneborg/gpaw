@@ -2,6 +2,11 @@ import cupy
 import numpy
 import typing
 
+def available() -> bool:
+    """available() -> bool
+
+    Returns true if MAGMA is available, false otherwise.
+    """
 def eigh_magma_cupy(inout_matrix: cupy.ndarray, inout_eigenvalues: cupy.ndarray, uplo: str) -> None:
     """eigh_magma_cupy(inout_matrix: cupy.ndarray, inout_eigenvalues: cupy.ndarray, uplo: str) -> None
 

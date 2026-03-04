@@ -1,7 +1,6 @@
 import numpy as np
 from typing import cast
 
-from gpaw.cgpaw.gpu.magma import have_magma
 from gpaw.cgpaw.gpu import magma
 from gpaw.gpu import cupy as cp
 from gpaw.gpu import cupy_is_fake
@@ -26,7 +25,7 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
         This makes implementation details easier as we don't have to check
         for fake CuPy everywhere.
         """
-        assert have_magma, "Must compile GPAW with MAGMA support"
+        assert magma.available(), "Must compile GPAW with MAGMA support"
         assert not cupy_is_fake, "Can't use MAGMA solvers with fake CuPy"
 
     @trace(gpu=True)
