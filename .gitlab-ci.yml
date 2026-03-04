@@ -291,9 +291,8 @@ build-cuda-makefile:
       libraries += ['magma']
       EOF
     - cat siteconfig.py
-    # Get mypy for stubgen
-    - pip install --user mypy
-    # update setuptools etc since with --no-build-isolation we don't get deps
+    # Get mypy for stubgen, and other deps that we're missing (pip doesn't get them for us with --no-build-isolation)
+    - pip install --user mypy pybind11
     - pip install --user --upgrade setuptools packaging
     - pip install -v --user --log build.log --editable . --no-build-isolation
 
