@@ -1,5 +1,4 @@
 from gpaw import GPAW_NO_C_EXTENSION
-from types import ModuleType
 
 if GPAW_NO_C_EXTENSION:
     from gpaw.purepython import *  # noqa: F401, F403
@@ -7,12 +6,14 @@ else:
     from _gpaw import *  # noqa: F401, F403
 
 
-def _get_extension_module() -> ModuleType | None:
-    """Return direct access to the _gpaw extension module, if available.
-    Internal use only.
+def get_extension_module_path() -> str:
+    """Return path to the _gpaw extension module. If the extension module is
+    not available, returns path to a 'purepython' module that is used in
+    place of the actual extension.
     """
+    from pathlib import Path
     if GPAW_NO_C_EXTENSION:
-        return None
+        import gpaw.purepython as mod
     else:
-        import _gpaw
-        return _gpaw
+        import _gpaw as mod
+    return str(Path(mod.__file__).resolve())
