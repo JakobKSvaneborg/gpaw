@@ -13,7 +13,7 @@ def get_extension_module_path() -> str:
     """
     from pathlib import Path
     if GPAW_NO_C_EXTENSION:
-        import gpaw.purepython as mod
+        import gpaw.purepython as mod  # type:ignore
     else:
-        import _gpaw as mod
+        import _gpaw as mod  # type:ignore
     return str(Path(mod.__file__).resolve())
