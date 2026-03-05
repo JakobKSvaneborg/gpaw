@@ -519,8 +519,10 @@ class GWQEHCorrection:
             sort = sort[1:]
 
         from scipy.interpolate import RectBivariateSpline
-        yr = RectBivariateSpline(qqeh, wqeh, dW_qw.real, s=0)
-        yi = RectBivariateSpline(qqeh, wqeh, dW_qw.imag, s=0)
+        kx = min(3, len(qqeh) - 1)
+        ky = min(3, len(wqeh) - 1)
+        yr = RectBivariateSpline(qqeh, wqeh, dW_qw.real, kx=kx, ky=ky, s=0)
+        yi = RectBivariateSpline(qqeh, wqeh, dW_qw.imag, kx=kx, ky=ky, s=0)
 
         dWgw_qw = yr(q_grid[sort], w_grid) + 1j * yi(q_grid[sort], w_grid)
         dW_qw = yr(qqeh, w_grid) + 1j * yi(qqeh, w_grid)
@@ -574,7 +576,7 @@ class GWQEHCorrection:
             # qmax=qmax / Bohr
         )
 
-        W0_qw = HS0.get_screened_potential()[..., 0, 0]
+        W0_qw = HS0.get_screened_potential(layer=0)
 
         # Full heterostructure
 
@@ -582,8 +584,7 @@ class GWQEHCorrection:
                                  wmax=wmax,
                                  # qmax=qmax / Bohr
                                  )
-        basis_idx = 2 * layer
-        W_qw = HS.get_screened_potential()[..., basis_idx, basis_idx]
+        W_qw = HS.get_screened_potential(layer=layer)
 
         # Difference in screened potential:
         dW_qw = W_qw - W0_qw
