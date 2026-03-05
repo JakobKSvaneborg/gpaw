@@ -588,7 +588,7 @@ class GWQEHCorrection:
         # Difference in screened potential:
         dW_qw = W_qw - W0_qw
         self.wqeh = HS.hs.omega_w
-        self.qqeh = HS.hs.q_q
+        self.qqeh = HS.hs.qcomm.all_gather_qX(HS.hs.q_q)
 
         if self.world.rank == 0:
             data = {'qqeh': self.qqeh,
