@@ -519,8 +519,10 @@ class GWQEHCorrection:
             sort = sort[1:]
 
         from scipy.interpolate import RectBivariateSpline
-        yr = RectBivariateSpline(qqeh, wqeh, dW_qw.real, s=0)
-        yi = RectBivariateSpline(qqeh, wqeh, dW_qw.imag, s=0)
+        kx = min(3, len(qqeh) - 1)
+        ky = min(3, len(wqeh) - 1)
+        yr = RectBivariateSpline(qqeh, wqeh, dW_qw.real, kx=kx, ky=ky, s=0)
+        yi = RectBivariateSpline(qqeh, wqeh, dW_qw.imag, kx=kx, ky=ky, s=0)
 
         dWgw_qw = yr(q_grid[sort], w_grid) + 1j * yi(q_grid[sort], w_grid)
         dW_qw = yr(qqeh, w_grid) + 1j * yi(qqeh, w_grid)
