@@ -229,7 +229,7 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = np.sqrt(3)
+    min_imp = 1.5 # np.sqrt(3)
     panic_threshold = 50.0
     has_panicked = True
 
@@ -325,6 +325,8 @@ class MSR1Mixer(BaseMixer):
                 dNt = self.dNt_i.pop()
                 self.dNt_i.insert(insert_pos, dNt)
                 dNt = self.last_dNt
+                # if self.trust_radius is not None:
+                #     self.trust_radius *= 0.5
 
                 R_sG = R_isG[-1]
                 backtracked = True
@@ -336,12 +338,12 @@ class MSR1Mixer(BaseMixer):
 
             dampen = 1  # Dampen the unpredicted greed
             trust_scalar = 1.2 # Scaling factor for the trust radius.
-            max_gb_fact = 0.9 * min(1, (iold / 5)) # Scaling factor for maximum good Broyden.
+            max_gb_fact = 0.8 * min(1, (iold / 4)) # Scaling factor for maximum good Broyden.
             post_gb_fact = 0.9  # Scaling factor for the final amount of good Broyden
             weight = 1e-4  # Weight for regularization, 1e-4 works well
             B0_lims = [0.4, 1.15]  # Limits for predicted greed
-            A0_lims = [0.04, 0.6]  # Limits for unpredicted greed
-            rate_ratio = [0.7, 1.3 if not backtracked else 0.9]  # Rate ratio for clipping
+            A0_lims = [0.035, 0.35]  # Limits for unpredicted greed
+            rate_ratio = [0.7, 1.4 if not backtracked else 0.7]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
             initial_B0 = 1.0
 
@@ -550,8 +552,8 @@ class MSR1Mixer(BaseMixer):
                 print('ratio: ', np.abs(A1 / A2))
 
             A0_target = np.clip(
-                np.arctan(np.pi * np.abs(A1 / A2) / A0_lims[1] * 0.5) / np.pi * 2 * A0_lims[1],
-                # np.abs(A1 / A2),
+                # np.arctan(np.pi * np.abs(A1 / A2) / A0_lims[1] * 0.5) / np.pi * 2 * A0_lims[1],
+                np.abs(A1 / A2),
                 *A0_lims
                 )
             if iold != 2:
@@ -562,7 +564,7 @@ class MSR1Mixer(BaseMixer):
                         np.abs(B1 / B2),
                         *B0_lims)
                     ) / (2 * self.B0)
-                self.B0 *= np.clip(B0_ratio, *rate_ratio)
+                self.B0 *= np.clip(B0_ratio, 3/5, 5/3)
                 A0_ratio_GEOM = np.sqrt(A0_target * self.A0) / self.A0
                 A0_ratio_ALG = (A0_target + self.A0) / (2 * self.A0)
                 self.A0 *= np.clip(A0_ratio_GEOM, *rate_ratio)
@@ -661,9 +663,9 @@ class MSR1Mixer(BaseMixer):
                 new_step_size = B0**2 * self.dotprod(self.pk_sG, self.pk_sG,
                     self.pD_asp, self.pD_asp, self.gd, mode='scalar')
                 new_step_size = new_step_size**0.5
-                # scale_factor = new_step_size / step_size
-                # A0 *= np.clip(scale_factor, 0, 1)
-                # A0 = np.clip(A0, *A0_lims)
+                scale_factor = new_step_size / step_size
+                A0 *= np.clip(scale_factor, 0, 1)
+                A0 = np.clip(A0, *A0_lims)
                 # self.A0 = np.sqrt(self.A0 * np.clip(A0, *A0_lims))
                 self.uk_sG += R_sG
                 step_sG = A0 * self.uk_sG + B0 * self.pk_sG
@@ -814,12 +816,15 @@ class FFTBaseMixer(MSR1Mixer):
         #     self.metric = lambda R_Q, mR_Q: None
 
     def calculate_charge_sloshing(self, R_sQ):
-        if self.gd.comm.rank == 0:
-            assert R_sQ.ndim == 4  # and len(R_sQ) == 1
-            cs = sum(self.gd1.integrate(np.abs(ifftn(R_Q, norm='ortho')).real)
-                     for R_Q in R_sQ)
-        else:
-            cs = 0.0
+        assert R_sQ.ndim == 4  # and len(R_sQ) == 1
+        cs = 0.0
+        for R_Q in R_sQ:
+            R_X = self.gd.collect(R_Q)
+            if self.gd.comm.rank == 0:
+                cs += self.gd1.integrate(np.abs(ifftn(R_X, norm='ortho')).real)
+            # cs = sum(self.gd1.integrate(np.abs(ifftn(R_Q, norm='ortho')).real)
+            #         for R_Q in R_sQ)
+
         return self.gd.comm.sum_scalar(cs)
 
     def mix_density(self, nt_sR, D_asp, g_ss=None, rhot=None):
