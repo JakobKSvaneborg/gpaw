@@ -107,33 +107,6 @@ def _make_synthetic_dW(nq=50, nw=100, amplitude=0.005):
 
 @pytest.mark.response
 @pytest.mark.serial
-def test_gwqeh_small_qgrid(in_tmp_dir, gpw_files):
-    """Spline interpolation works with few q-points (kx/ky adaptation).
-
-    Building blocks may have as few as 3 q-points. The spline degree
-    must be reduced so that mx > kx is satisfied.
-    """
-    from gpaw.response.gwqeh import GWQEHCorrection
-
-    gpwfile = str(gpw_files['mos2_pw_fulldiag'])
-    qqeh, wqeh, dW_qw = _make_synthetic_dW(nq=3, nw=5)
-
-    gwq = GWQEHCorrection(calc=gpwfile,
-                          filename='gwqeh_smallq',
-                          kpts=[0],
-                          bands=(8, 10),
-                          dW_qw=dW_qw,
-                          qqeh=qqeh,
-                          wqeh=wqeh,
-                          domega0=0.1,
-                          omega2=5.0)
-
-    qp_sin = gwq.calculate_qp_correction()
-    assert qp_sin.shape == (1, 1, 2)
-
-
-@pytest.mark.response
-@pytest.mark.serial
 def test_gwqeh_zero_dW(in_tmp_dir, gpw_files):
     """Delta-W = 0 must give zero QP correction.
 

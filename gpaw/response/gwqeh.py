@@ -519,10 +519,8 @@ class GWQEHCorrection:
             sort = sort[1:]
 
         from scipy.interpolate import RectBivariateSpline
-        kx = min(3, len(qqeh) - 1)
-        ky = min(3, len(wqeh) - 1)
-        yr = RectBivariateSpline(qqeh, wqeh, dW_qw.real, kx=kx, ky=ky, s=0)
-        yi = RectBivariateSpline(qqeh, wqeh, dW_qw.imag, kx=kx, ky=ky, s=0)
+        yr = RectBivariateSpline(qqeh, wqeh, dW_qw.real, s=0)
+        yi = RectBivariateSpline(qqeh, wqeh, dW_qw.imag, s=0)
 
         dWgw_qw = yr(q_grid[sort], w_grid) + 1j * yi(q_grid[sort], w_grid)
         dW_qw = yr(qqeh, w_grid) + 1j * yi(qqeh, w_grid)
@@ -590,7 +588,7 @@ class GWQEHCorrection:
         # Difference in screened potential:
         dW_qw = W_qw - W0_qw
         self.wqeh = HS.hs.omega_w
-        self.qqeh = HS.hs.q_q
+        self.qqeh = HS.hs.qcomm.all_gather_qX(HS.hs.q_q)
 
         if self.world.rank == 0:
             data = {'qqeh': self.qqeh,
