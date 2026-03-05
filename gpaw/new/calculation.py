@@ -12,8 +12,8 @@ from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.densities import Densities
 from gpaw.electrostatic_potential import ElectrostaticPotential
 from gpaw.gpu import as_np
+from gpaw.mpi import MPIComm, broadcast_float
 from gpaw.mpi import broadcast as bcast
-from gpaw.mpi import broadcast_float, MPIComm
 from gpaw.new import trace, zips
 from gpaw.new.density import Density
 from gpaw.new.energies import DFTEnergies
@@ -23,8 +23,7 @@ from gpaw.new.potential import Potential
 from gpaw.new.scf import SCFLoop
 from gpaw.setup import Setups
 from gpaw.typing import Array1D, Array2D
-from gpaw.utilities import (check_atoms_too_close,
-                            check_atoms_too_close_to_boundary)
+from gpaw.utilities import check_atoms_too_close, check_atoms_too_close_to_boundary
 
 if TYPE_CHECKING:
     from gpaw.dft import Parameters
@@ -174,8 +173,9 @@ class DFTCalculation:
             self.density.update(self.ibzwfs)
         self.potential.move(atomdist)
         self.scf_loop.hamiltonian.move(self.relpos_ac)
-        for basemixer in self.scf_loop.mixer.basemixers:
-            basemixer.dotprod.atomdist = atomdist
+        if self.params.experimental.get('paw_corr_mixer', False):
+            for basemixer in self.scf_loop.mixer.basemixers:
+                basemixer.dotprod.atomdist = atomdist
 
         self.potential, self.energies, _ = self.pot_calc.calculate(
             self.density, self.ibzwfs, self.potential.vHt_x)

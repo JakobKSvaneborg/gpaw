@@ -342,7 +342,7 @@ class MSR1Mixer(BaseMixer):
             post_gb_fact = 0.9  # Scaling factor for the final amount of good Broyden
             weight = 1e-4  # Weight for regularization, 1e-4 works well
             B0_lims = [0.4, 1.15]  # Limits for predicted greed
-            A0_lims = [0.035, 0.35]  # Limits for unpredicted greed
+            A0_lims = [0.04, 0.35]  # Limits for unpredicted greed
             rate_ratio = [0.7, 1.4 if not backtracked else 0.7]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
             initial_B0 = 1.0
