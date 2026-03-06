@@ -229,7 +229,7 @@ class BaseMixer:
 
 class MSR1Mixer(BaseMixer):
     name = 'MSR1'
-    min_imp = 1.5 # np.sqrt(3)
+    min_imp = 1.5 # np.sqrt(2)
     panic_threshold = 50.0
     has_panicked = True
 
@@ -325,8 +325,6 @@ class MSR1Mixer(BaseMixer):
                 dNt = self.dNt_i.pop()
                 self.dNt_i.insert(insert_pos, dNt)
                 dNt = self.last_dNt
-                # if self.trust_radius is not None:
-                #     self.trust_radius *= 0.5
 
                 R_sG = R_isG[-1]
                 backtracked = True
@@ -337,13 +335,14 @@ class MSR1Mixer(BaseMixer):
             # self.gd.comm.sum(ntnorm_i)
 
             dampen = 1  # Dampen the unpredicted greed
+            punishment_factor = 0.7 if del_oldest else 0.8 # How much to reduce greed when backtracing
             trust_scalar = 1.2 # Scaling factor for the trust radius.
-            max_gb_fact = 0.8 * min(1, (iold / 4)) # Scaling factor for maximum good Broyden.
-            post_gb_fact = 0.9  # Scaling factor for the final amount of good Broyden
+            max_gb_fact = 0.9 * min(1, (iold - 1) / (self.nmaxold - 1)) # Scaling factor for maximum good Broyden.
+            post_gb_fact = 1  # Scaling factor for the final amount of good Broyden
             weight = 1e-4  # Weight for regularization, 1e-4 works well
-            B0_lims = [0.4, 1.15]  # Limits for predicted greed
-            A0_lims = [0.04, 0.35]  # Limits for unpredicted greed
-            rate_ratio = [0.7, 1.4 if not backtracked else 0.7]  # Rate ratio for clipping
+            B0_lims = [0.4, 1.1]  # Limits for predicted greed
+            A0_lims = [0.04, 0.4]  # Limits for unpredicted greed
+            rate_ratio = [0.7, 1.4 if not backtracked else punishment_factor]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
             initial_B0 = 1.0
 
@@ -552,8 +551,8 @@ class MSR1Mixer(BaseMixer):
                 print('ratio: ', np.abs(A1 / A2))
 
             A0_target = np.clip(
-                # np.arctan(np.pi * np.abs(A1 / A2) / A0_lims[1] * 0.5) / np.pi * 2 * A0_lims[1],
-                np.abs(A1 / A2),
+                np.arctan(np.pi * np.abs(A1 / A2) / A0_lims[1] * 0.5) / np.pi * 2 * A0_lims[1],
+                # np.abs(A1 / A2),
                 *A0_lims
                 )
             if iold != 2:
@@ -572,7 +571,7 @@ class MSR1Mixer(BaseMixer):
                 self.B0 = initial_B0
                 self.A0 = A0_target * 0.67
 
-            A0 = np.clip(self.A0, *A0_lims)
+            A0 = self.A0
             B0 = self.B0
             if self.world.rank == 0:
                 print(f"rank: {self.world.rank}, A0: {A0}, B0: {B0}")
@@ -587,7 +586,7 @@ class MSR1Mixer(BaseMixer):
             if self.trust_radius is not None:
                 trust_radius = (self.trust_radius + trust_radius) / 2
                 if backtracked:
-                    self.trust_radius = min(self.trust_radius, trust_radius)
+                    self.trust_radius = min(self.trust_radius, trust_radius) * punishment_factor
                 else:
                     self.trust_radius = trust_radius
             else:
@@ -624,26 +623,27 @@ class MSR1Mixer(BaseMixer):
                 # f^T f
                 s_ii = self.dotprod(s_isG, s_isG, sD_iasp, sD_iasp, self.gd, mode='gemm') * B0**2
 
+                A_ii = np.linalg.inv(A_ii)
                 # Optimize (ridge regression):
                 def err_fct(lamb):
-                    # beta_i = np.linalg.solve(
-                    #     A_ii + np.exp(lamb) * VA_ii * np.eye(iold - 1), BR_i
-                    # ).real
-                    tA_i = V / (V**2 + (lamb * np.max(V))**2)
-                    beta_i = (D.T @ np.diag(tA_i) @ S.T) @ BR_i
+                    beta_i = np.linalg.solve(
+                        A_ii + np.exp(lamb) * np.eye(iold - 1), BR_i
+                    ).real
+                    # tA_i = V / (V**2 + (lamb * np.max(V))**2)
+                    # beta_i = (D.T @ np.diag(tA_i) @ S.T) @ BR_i
                     return (beta_i @ s_ii @ beta_i) - self.trust_radius**2
 
                 from scipy.optimize import root_scalar
                 try:
-                    lamb = root_scalar(err_fct, bracket=[weight, 50])
+                    lamb = root_scalar(err_fct, bracket=[np.log(weight), 20])
                 except ValueError as e:
                     breakpoint()
-                # beta_i = np.linalg.solve(
-                #     A_ii + np.exp(lamb.root) * np.eye(iold - 1), BR_i
-                # )
-                weight = lamb.root
-                tA_i = V / (V**2 + (weight * np.max(V))**2)
-                beta_i = (D.T @ np.diag(tA_i) @ S.T) @ BR_i
+                beta_i = np.linalg.solve(
+                    A_ii + np.exp(lamb.root) * np.eye(iold - 1), BR_i
+                )
+                # weight = lamb.root
+                # tA_i = V / (V**2 + (weight * np.max(V))**2)
+                # beta_i = (D.T @ np.diag(tA_i) @ S.T) @ BR_i
                 if self.world:
                     self.world.broadcast(beta_i, 0)
 
@@ -665,7 +665,7 @@ class MSR1Mixer(BaseMixer):
                 new_step_size = new_step_size**0.5
                 scale_factor = new_step_size / step_size
                 A0 *= np.clip(scale_factor, 0, 1)
-                A0 = np.clip(A0, *A0_lims)
+                # A0 = np.clip(A0, *A0_lims)
                 # self.A0 = np.sqrt(self.A0 * np.clip(A0, *A0_lims))
                 self.uk_sG += R_sG
                 step_sG = A0 * self.uk_sG + B0 * self.pk_sG
