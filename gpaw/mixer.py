@@ -339,9 +339,9 @@ class MSR1Mixer(BaseMixer):
             trust_scalar = 1.2 # Scaling factor for the trust radius.
             max_gb_fact = 0.9 * min(1, (iold - 1) / (self.nmaxold - 1)) # Scaling factor for maximum good Broyden.
             post_gb_fact = 1  # Scaling factor for the final amount of good Broyden
-            weight = 7e-4  # Weight for regularization, 1e-4 works well
+            weight = 6e-4  # Weight for regularization, 1e-4 works well
             B0_lims = [0.4, 1.1]  # Limits for predicted greed
-            A0_lims = [0.04, 0.4]  # Limits for unpredicted greed
+            A0_lims = [0.04, 0.6]  # Limits for unpredicted greed
             rate_ratio = [0.7, 1.4 if not backtracked else punishment_factor]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
             initial_B0 = 1.0
@@ -505,7 +505,7 @@ class MSR1Mixer(BaseMixer):
 
             ### SVD Regularization:
             S, V, D = np.linalg.svd(B_ii)
-            V = V / (V**2 + (weight * np.max(V))**2)
+            V = V / (V**2 + (weight**2 * np.max(V))**2)
             B_ii = D.T @ np.diag(V) @ S.T
             # B_ii = np.linalg.inv(B_ii)
 
