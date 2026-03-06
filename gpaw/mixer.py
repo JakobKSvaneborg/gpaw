@@ -339,7 +339,7 @@ class MSR1Mixer(BaseMixer):
             trust_scalar = 1.2 # Scaling factor for the trust radius.
             max_gb_fact = 0.9 * min(1, (iold - 1) / (self.nmaxold - 1)) # Scaling factor for maximum good Broyden.
             post_gb_fact = 1  # Scaling factor for the final amount of good Broyden
-            weight = 1e-4  # Weight for regularization, 1e-4 works well
+            weight = 7e-4  # Weight for regularization, 1e-4 works well
             B0_lims = [0.4, 1.1]  # Limits for predicted greed
             A0_lims = [0.04, 0.4]  # Limits for unpredicted greed
             rate_ratio = [0.7, 1.4 if not backtracked else punishment_factor]  # Rate ratio for clipping
@@ -422,9 +422,9 @@ class MSR1Mixer(BaseMixer):
 
             ### 2023 paper eq 22 - Limit good_broydenness
             # YY_LIM = y_isG.reshape((iold - 1, -1)) @ ty_isG.reshape((iold - 1, -1)).T
-            YY_LIM = self.dotprod(y_isG, y_isG, yD_iasp, yD_iasp, self.gd, mode='gemm')
+            YY_LIM = self.dotprod(ty_isG, y_isG, tyD_iasp, yD_iasp, self.gd, mode='gemm')
             YY_LIM = np.linalg.norm(YY_LIM, ord='fro')
-            YS_LIM = self.dotprod(y_isG, s_isG, yD_iasp, sD_iasp, self.gd, mode='gemm')
+            YS_LIM = self.dotprod(ts_isG, y_isG, tsD_iasp, yD_iasp, self.gd, mode='gemm')
             YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
             max_gb = max(YY_LIM / YS_LIM, 1) * max_gb_fact
             good_broydenness = 0.5 * max_gb
@@ -463,7 +463,7 @@ class MSR1Mixer(BaseMixer):
                     good_broydenness += 2**(-iter) * max_gb
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
-            good_broydenness -= 2**(-iter) * max_gb
+            good_broydenness -= 2**(-iter-1) * max_gb
             good_broydenness *= post_gb_fact
 
             # good_broydenness = self.last_gb * min(gb_factor, 2)
@@ -528,21 +528,26 @@ class MSR1Mixer(BaseMixer):
             for uD_sp, R_sp in zip(self.uD_asp, dD_iasp[last_step]):
                 uRnoD_asp.append(R_sp - uD_sp)
 
-            A1 = self.dotprod(self.uk_sG, self.uk_sG, self.uD_asp, self.uD_asp,
+            tuk_sG = self.uk_sG.copy()
+            tuRnoD_sG = self.R_isG[last_step] - self.uk_sG
+            if self.metric is not None:
+                self.metric(tuk_sG, tuk_sG)
+                self.metric(tuRnoD_sG, tuRnoD_sG)
+            A1 = self.dotprod(tuk_sG, self.uk_sG, self.uD_asp, self.uD_asp,
                self.gd, mode='scalar')
 
-            B1 = self.dotprod(self.R_isG[last_step] - self.uk_sG,
+            B1 = self.dotprod(tuRnoD_sG,
                 self.R_isG[last_step] - self.uk_sG,
                 uRnoD_asp, uRnoD_asp, self.gd, mode='scalar')
 
             # For Eq 18 from mixing for dumies:
             A2_i = self.dotprod(t_isG, [self.uk_sG, ], tD_iasp, [self.uD_asp, ], self.gd, mode='gemm')[:, 0]
             # A2_i = self.dotprod(ty_isG, [self.uk_sG, ], tyD_iasp, [self.uD_asp, ], self.gd, mode='gemm')[:, 0]
-            A3_i = self.dotprod([self.uk_sG, ], y_isG, [self.uD_asp, ], yD_iasp, self.gd, mode='gemm')[0, :]
+            A3_i = self.dotprod([tuk_sG, ], y_isG, [self.uD_asp, ], yD_iasp, self.gd, mode='gemm')[0, :]
 
             B2_i = self.dotprod(t_isG, [self.pk_sG, ], tD_iasp, [self.pD_asp, ], self.gd, mode='gemm')[:, 0]
             # B2_i = self.dotprod(ty_isG, [self.pk_sG, ], tyD_iasp, [self.pD_asp, ], self.gd, mode='gemm')[:, 0]
-            B3_i = self.dotprod([self.R_isG[last_step] - self.uk_sG, ], y_isG, [uRnoD_asp, ], yD_iasp, self.gd, mode='gemm')[0, :]
+            B3_i = self.dotprod([tuRnoD_sG, ], y_isG, [uRnoD_asp, ], yD_iasp, self.gd, mode='gemm')[0, :]
 
             A2 = A3_i @ B_ii @ A2_i * dampen
             B2 = B3_i @ B_ii @ B2_i
@@ -627,7 +632,7 @@ class MSR1Mixer(BaseMixer):
                 # Optimize (ridge regression):
                 def err_fct(lamb):
                     beta_i = np.linalg.solve(
-                        A_ii + np.exp(lamb) * np.eye(iold - 1), BR_i
+                        A_ii + lamb * np.eye(iold - 1), BR_i
                     ).real
                     # tA_i = V / (V**2 + (lamb * np.max(V))**2)
                     # beta_i = (D.T @ np.diag(tA_i) @ S.T) @ BR_i
@@ -635,11 +640,11 @@ class MSR1Mixer(BaseMixer):
 
                 from scipy.optimize import root_scalar
                 try:
-                    lamb = root_scalar(err_fct, bracket=[np.log(weight), 20])
+                    lamb = root_scalar(err_fct, bracket=[0,100])
                 except ValueError as e:
                     breakpoint()
                 beta_i = np.linalg.solve(
-                    A_ii + np.exp(lamb.root) * np.eye(iold - 1), BR_i
+                    A_ii + lamb.root * np.eye(iold - 1), BR_i
                 )
                 # weight = lamb.root
                 # tA_i = V / (V**2 + (weight * np.max(V))**2)
