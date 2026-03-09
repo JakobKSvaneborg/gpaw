@@ -133,6 +133,12 @@ class DFTComponentsBuilder:
         self.communicators = create_communicators(
             comm, len(self.ibz) * self.nspins,
             d, k, b, self.xp)
+        k = self.communicators['k'].size
+        if len(self.ibz) * self.nspins < k:
+            raise ValueError(
+                f'Too few spins ({self.nspins}) '
+                f'and IBZ k-points ({len(self.ibz)}) '
+                f'for {k} ranks')
 
         if self.mode == 'fd':
             pass  # filter = create_fourier_filter(grid)
