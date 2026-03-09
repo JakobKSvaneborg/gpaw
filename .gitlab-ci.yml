@@ -227,6 +227,10 @@ build-cuda:
       EOF
     - cat siteconfig.py
     - pip install -v --user --log build.log --editable .
+  cache:
+    key: cache-build-cuda
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-hip-cuda:
@@ -260,6 +264,10 @@ build-hip-cuda:
     # flag to underlying nvcc/cicc... and may default to c++14.
     - export HIPCC_COMPILE_FLAGS_APPEND="-std=c++17"
     - pip install -v --user --log build.log --editable .
+  cache:
+    key: cache-build-cuda
+    paths:
+     - $PIP_CACHE_DIR
 
 
 # Like build-cuda but uses the makefile compilation path.
@@ -284,6 +292,10 @@ build-cuda-makefile:
       EOF
     - cat siteconfig.py
     - pip install -v --user --log build.log --editable .
+  cache:
+    key: cache-build-cuda
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-minimal:
@@ -342,6 +354,10 @@ build-cuda-minimal:
       EOF
     - cat siteconfig.py
     - pip install --user --log build.log --editable . -v
+  cache:
+    key: cache-build-cuda
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-lumi-g:
