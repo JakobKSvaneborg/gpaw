@@ -116,12 +116,6 @@ stages:
     expire_in: 30 mins
 
 
-.gpu-job:
-  rules:
-    - if: $CI_COMMIT_BRANCH == "master"
-    - if: $CI_COMMIT_BRANCH =~ "/^gpu-.*/"
-
-
 .lumi-job:
   tags:
     - lumi
@@ -217,7 +211,6 @@ build-cuda:
   image: $IMAGE_CUDA
   extends:
     - .build
-    - .gpu-job
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -241,7 +234,6 @@ build-hip-cuda:
   when: manual
   extends:
     - .build
-    - .gpu-job
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -326,7 +318,6 @@ build-cuda-minimal:
   image: $IMAGE_CUDA
   extends:
     - .build
-    - .gpu-job
   script:
     - |
       if [ "$LANG" == "c++" ]; then
@@ -553,7 +544,6 @@ test-cuda-minimal:
   image: $IMAGE_CUDA
   extends:
     - .test
-    - .gpu-job
   needs:
     - job: build-cuda-minimal
   tags:
@@ -569,7 +559,6 @@ test-cuda:
   image: $IMAGE_CUDA
   extends:
     - .test
-    - .gpu-job
   needs:
     - job: build-cuda
   tags:
@@ -585,7 +574,6 @@ test-cuda-mpi:
   image: $IMAGE_CUDA
   extends:
     - .test
-    - .gpu-job
   <<: *build_matrix
   needs:
     - job: build-cuda
@@ -603,7 +591,6 @@ test-cuda-mpi-makefile-build:
   image: $IMAGE_CUDA
   extends:
     - .test
-    - .gpu-job
   <<: *build_matrix
   needs:
     - job: build-cuda-makefile
@@ -621,7 +608,6 @@ test-hip-cuda:
   image: $IMAGE_CUDA
   extends:
     - .test
-    - .gpu-job
   needs:
     - job: build-hip-cuda
   tags:
