@@ -7,7 +7,7 @@ import scipy.special as sc
 # Script modules
 from ase.build import bulk
 
-from gpaw import GPAW, PW
+from gpaw import PW
 from gpaw.response.pair_functions import get_pw_coordinates
 from gpaw.response.site_kernels import (CylindricalSiteKernels,
                                         ParallelepipedicSiteKernels,
@@ -23,7 +23,7 @@ pytestmark = pytest.mark.kspair
 
 
 @pytest.mark.ci
-def test_spherical_kernel(rng):
+def test_spherical_kernel(rng, mpi):
     """Check the numerics of the spherical kernel"""
     # ---------- Inputs ---------- #
 
@@ -60,7 +60,7 @@ def test_spherical_kernel(rng):
 
 
 @pytest.mark.ci
-def test_cylindrical_kernel(rng):
+def test_cylindrical_kernel(rng, mpi):
     """Check the numerics of the spherical kernel"""
     # ---------- Inputs ---------- #
 
@@ -150,7 +150,7 @@ def test_cylindrical_kernel(rng):
 
 
 @pytest.mark.ci
-def test_parallelepipedic_kernel(rng):
+def test_parallelepipedic_kernel(rng, mpi):
     """Check the numerics of the parallelepipedic site kernel."""
     # ---------- Inputs ---------- #
 
@@ -218,7 +218,7 @@ def test_parallelepipedic_kernel(rng):
 
 
 @pytest.mark.ci
-def test_Co_hcp_site_kernels():
+def test_Co_hcp_site_kernels(mpi):
     """Check that the site kernel interface works on run-time inputs."""
     # ---------- Inputs ---------- #
 
@@ -256,11 +256,11 @@ def test_Co_hcp_site_kernels():
     atoms = bulk('Co', 'hcp', a=a, c=c)
     atoms.set_initial_magnetic_moments([mm, mm])
 
-    calc = GPAW(xc=xc,
-                spinpol=True,
-                mode=PW(pw),
-                kpts={'size': (kpts, kpts, kpts),
-                      'gamma': True})
+    calc = mpi.GPAW(xc=xc,
+                    spinpol=True,
+                    mode=PW(pw),
+                    kpts={'size': (kpts, kpts, kpts),
+                          'gamma': True})
 
     # Perform inexpensive calculator initialization
     calc.initialize(atoms)
