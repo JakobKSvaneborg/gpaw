@@ -12,8 +12,10 @@ variables:
   # pipelines on shared runners.
   DEFAULT_RUNNER_TAG: "saas-linux-small-amd64"
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
+  # We override the Dockers PIP_NO_CACHE_DIR="1" here so that we
+  # actually use the cache:
+  PIP_NO_CACHE_DIR: ""
   COV: "--cov=gpaw --cov-report= "
-
   # OpenMPI binds processes to specific physical cores (cf. mpiexec
   # manpage) when there are <= 2 cores.  This will cause it to
   # oversubscribe the /same/ physical cores when running simultaneous
