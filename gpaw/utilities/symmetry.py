@@ -197,8 +197,6 @@ def guarantee_lattice_symmetries_form_a_point_group(
                                              mask_s=not_worst_element)
             continue
 
-    print(f'Log succes, set of {initial_ns} operations reduced '
-          f'to point group of {ns} elements, etc.')
     return U_scc
 
 
