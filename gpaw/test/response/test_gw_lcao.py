@@ -6,17 +6,19 @@ from gpaw.new.calculation import DFTCalculation
 @pytest.mark.ci
 @pytest.mark.response
 @pytest.mark.old_gpaw_only
-def test_lcao_gw(in_tmp_dir, gpw_files):
-
-    dft = DFTCalculation.from_gpw_file(gpw_files['diamond_lcao'])
+def test_lcao_gw(in_tmp_dir, gpw_files, mpi):
+    dft = DFTCalculation.from_gpw_file(gpw_files['diamond_lcao'],
+                                       comm=mpi.comm)
     dft.change_mode('pw')
     dft.write_gpw_file('diamond_pw.gpw', include_wfs=True)
 
-    gw = G0W0('diamond_pw.gpw',
-              integrate_gamma='WS',
-              ecut=100,
-              eta=0.1,
-              bands=(0, 8))
+    gw = G0W0(
+        'diamond_pw.gpw',
+        integrate_gamma='WS',
+        ecut=100,
+        eta=0.1,
+        bands=(0, 8),
+        world=mpi.comm)
 
     res = gw.calculate()
 

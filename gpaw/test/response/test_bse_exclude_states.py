@@ -1,11 +1,10 @@
 import pytest
 
-from gpaw import GPAW
 from gpaw.response.bse import BSE
 
 
 @pytest.mark.response
-def test_bse_exclude_states(in_tmp_dir, gpw_files, scalapack):
+def test_bse_exclude_states(in_tmp_dir, gpw_files, scalapack, mpi):
     eshift = 0.8
     bse = BSE(gpw_files['si_gw_a0_all'],
               ecut=50.,
@@ -13,11 +12,12 @@ def test_bse_exclude_states(in_tmp_dir, gpw_files, scalapack):
               conduction_bands=range(4, 7),
               deps_max=6,
               eshift=eshift,
-              nbands=8)
+              nbands=8,
+              comm=mpi.comm)
     bse_matrix = bse.get_bse_matrix()
     w_T, v_Rt, exclude_S = bse.diagonalize_bse_matrix(bse_matrix)
 
-    calc = GPAW(gpw_files['si_gw_a0_all'])
+    calc = mpi.GPAW(gpw_files['si_gw_a0_all'])
     nk = calc.wfs.kd.nbzkpts
     nval = 3
     ncond = 3

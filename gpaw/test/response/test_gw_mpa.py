@@ -7,7 +7,7 @@ from gpaw.response.g0w0 import G0W0
 
 @pytest.mark.response
 @pytest.mark.parametrize('wigner_seitz', [True, False])
-def test_mpa_WS(in_tmp_dir, gpw_files, wigner_seitz, comm):
+def test_mpa_WS(in_tmp_dir, gpw_files, wigner_seitz, mpi):
 
     ref_result = {True: np.array([[[11.37680608, 21.56391991],
                                    [5.40811023, 16.11600678],
@@ -24,10 +24,10 @@ def test_mpa_WS(in_tmp_dir, gpw_files, wigner_seitz, comm):
 
     gw = G0W0(gpw_files['bn_pw'],
               bands=(3, 5),
-              nblocks=min(2, comm.size),
+              nblocks=min(2, mpi.comm.size),
               ecut=40 + 20 * wigner_seitz,
               nbands=9,
-              world=comm,
+              world=mpi.comm,
               integrate_gamma='WS' if wigner_seitz else 'sphere',
               mpa=mpa_dict)
 
@@ -37,7 +37,7 @@ def test_mpa_WS(in_tmp_dir, gpw_files, wigner_seitz, comm):
 
 
 @pytest.mark.response
-def test_mpa_too_many_nblocks(in_tmp_dir, gpw_files, comm):
+def test_mpa_too_many_nblocks(in_tmp_dir, gpw_files, mpi):
     mpa_dict = {'npoles': 2, 'wrange': [0 * Ha, 2 * Ha],
                 'varpi': Ha,
                 'eta0': 0.01 * Ha,
@@ -47,16 +47,17 @@ def test_mpa_too_many_nblocks(in_tmp_dir, gpw_files, comm):
     try:
         gw = G0W0(gpw_files['bn_pw'],
                   bands=(3, 5),
-                  nblocks=comm.size,
+                  nblocks=mpi.comm.size,
                   ecut=60,
                   nbands=9,
-                  world=comm,
+                  world=mpi.comm,
                   integrate_gamma='WS',
                   mpa=mpa_dict)
     except ValueError as e:
         assert 'Too many nblocks' in str(e)
-        # When comm.size > 2, the system is supposed to raise, so test passes
-        if comm.size > 2:
+        # When mpi.comm.size > 2, the system is supposed to raise,
+        # so test passes
+        if mpi.comm.size > 2:
             return
         else:
             # G0W0 incorrectly raissed
