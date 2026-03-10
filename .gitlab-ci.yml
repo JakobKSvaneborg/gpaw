@@ -289,6 +289,8 @@ build-cuda-makefile:
       # MAGMA
       magma = True
       libraries += ['magma']
+
+      makefile_generate_stubs = True
       EOF
     - cat siteconfig.py
     # Get mypy for stubgen, and other deps that we're missing (pip doesn't get them for us with --no-build-isolation)
