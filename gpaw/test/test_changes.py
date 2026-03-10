@@ -119,9 +119,9 @@ def test_lcao_to_x(mode):
     dft = DFT(atoms, mode='lcao', symmetry='off')
     dft.converge()
 
-    dft.change_mode(mode)
+    dft.change_mode(mode,nbands=7)
     dft.converge()
-
+    dft.ase_calculator().write('x.gpw', 'all');sadgf
     atoms.positions[:] += 0.1
     dft.move_atoms(atoms)
     dft.converge()
