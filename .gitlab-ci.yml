@@ -12,8 +12,10 @@ variables:
   # pipelines on shared runners.
   DEFAULT_RUNNER_TAG: "saas-linux-small-amd64"
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
+  # We override the Dockers PIP_NO_CACHE_DIR="1" here so that we
+  # actually use the cache:
+  PIP_NO_CACHE_DIR: ""
   COV: "--cov=gpaw --cov-report= "
-
   # OpenMPI binds processes to specific physical cores (cf. mpiexec
   # manpage) when there are <= 2 cores.  This will cause it to
   # oversubscribe the /same/ physical cores when running simultaneous
@@ -227,6 +229,10 @@ build-cuda:
       EOF
     - cat siteconfig.py
     - pip install -v --user --log build.log --editable .
+  cache:
+    key: cache-build-cuda
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-hip-cuda:
@@ -260,6 +266,10 @@ build-hip-cuda:
     # flag to underlying nvcc/cicc... and may default to c++14.
     - export HIPCC_COMPILE_FLAGS_APPEND="-std=c++17"
     - pip install -v --user --log build.log --editable .
+  cache:
+    key: cache-build-cuda
+    paths:
+     - $PIP_CACHE_DIR
 
 
 # Like build-cuda but uses the makefile compilation path.
@@ -289,6 +299,10 @@ build-cuda-makefile:
     - pip install --user mypy pybind11
     - pip install --user --upgrade setuptools packaging
     - pip install -v --user --log build.log --editable . --no-build-isolation
+  cache:
+    key: cache-build-cuda
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-minimal:
@@ -347,6 +361,10 @@ build-cuda-minimal:
       EOF
     - cat siteconfig.py
     - pip install --user --log build.log --editable . -v
+  cache:
+    key: cache-build-cuda
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-lumi-g:
