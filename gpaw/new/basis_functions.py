@@ -244,7 +244,6 @@ def build_lfc_system(setups: Setups,
     """
 
     atoms = []
-
     num_atoms = len(setups)
 
     relpos_ac = np.asanyarray(relpos_ac)
@@ -381,10 +380,7 @@ class BasisFunctionCollectionBase(ABC):
     _rank_a: list[int]
     """MPI rank of the grid domain for specified atom index."""
 
-    _atom_for_mu: dict[int, int]
-    """Gives index of the atom that contributes to given mu."""
-
-    relpos_ac: np.ndarray
+    _relpos_ac: np.ndarray
     """Grid-relative positions atoms."""
 
     _matrix_distribution_rules: LFCMatrixDistributionRules
@@ -454,7 +450,7 @@ class BasisFunctionCollectionBase(ABC):
         for a, atom in enumerate(system.atoms):
             position_av[a] = atom.position
 
-        self.relpos_ac = position_av @ np.linalg.inv(self.grid.cell_cv)
+        self._relpos_ac = position_av @ np.linalg.inv(self.grid.cell_cv)
 
         self._init_phi_datas(system.atoms)
         self._init_splines()
@@ -462,7 +458,7 @@ class BasisFunctionCollectionBase(ABC):
 
         # set_positions trigger phi instance rebuild and block rebuild
         self._rank_a = [-1] * self.num_atoms
-        self.set_positions(self.relpos_ac, force_update=True)
+        self.set_positions(self._relpos_ac, force_update=True)
 
         # Default is to always compute do the full V_munu matrix
         self.set_matrix_distribution(0, self.Mmax)
@@ -490,9 +486,9 @@ class BasisFunctionCollectionBase(ABC):
     def get_atom_positions(self, grid_relative=False) -> np.ndarray:
         """Returns current atom positions. Either position_av or relpos_ac"""
         if grid_relative:
-            return self.relpos_ac
+            return self._relpos_ac
         else:
-            return self.relpos_ac @ self.grid.cell_cv
+            return self._relpos_ac @ self.grid.cell_cv
 
     def _init_phi_datas(self, atoms: list[LFCAtomDesc]) -> None:
         """Setups self.phi_datas and self.spline_indices_for_a lookups."""
@@ -815,7 +811,7 @@ class BasisFunctionCollectionBase(ABC):
                 res = self._update_atom_position(a, new_relpos)
             except GridBoundsError as e:
                 e.args = (f'Atom {a} too close to edge: {e}',)
-                # FIXME if this happens our self.relpos_ac will go out of sync
+                # FIXME if this happens our self._relpos_ac goes out of sync
                 raise
 
             has_changes = True
@@ -834,7 +830,7 @@ class BasisFunctionCollectionBase(ABC):
             if self.should_precalculate:
                 self.precalculate_on_grid()
 
-        self.relpos_ac = relpos_ac
+        self._relpos_ac = relpos_ac
 
         return has_migrations
 
