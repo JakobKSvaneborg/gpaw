@@ -52,6 +52,11 @@ for i, arg in enumerate(sys.argv):
             '~/.gpaw/siteconfig.py')
 
 # Check whether doing parallel build
+# Usage:
+# - `GPAW_PARALLEL_BUILD=8 pip install -e .` -> triggers `makefile_build = True` and executes `make -j 8`
+# - `GPAW_PARALLEL_BUILD=1 pip install -e .` -> executes normal setuptools build (`makefile_build = False`)
+# - `GPAW_PARALLEL_BUILD=0 pip install -e .` -> executes normal setuptools build (`makefile_build = False`)
+# - `pip install -e .`                       -> executes normal setuptools build (`makefile_build = False`)
 parallel_build_jobs = 1
 GPAW_PARALLEL_BUILD = os.environ.get('GPAW_PARALLEL_BUILD')
 if GPAW_PARALLEL_BUILD not in (None, "", "0"):
