@@ -1,6 +1,8 @@
 #pragma once
 
 #include "python_utils.h"
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
 #include "gpu/gpu_utils.h"
 
 
