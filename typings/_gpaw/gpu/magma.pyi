@@ -2,11 +2,6 @@ import cupy
 import numpy
 import typing
 
-def available() -> bool:
-    """available() -> bool
-
-    Returns true if MAGMA is available, false otherwise.
-    """
 def eigh_magma_cupy(inout_matrix: cupy.ndarray, inout_eigenvalues: cupy.ndarray, uplo: str) -> None:
     """eigh_magma_cupy(inout_matrix: cupy.ndarray, inout_eigenvalues: cupy.ndarray, uplo: str) -> None
 
@@ -29,6 +24,11 @@ def eigh_magma_numpy(inout_matrix: numpy.ndarray, inout_eigenvalues: numpy.ndarr
 
             Passing num_gpus > 1 will instruct the solver to utilize multiple GPUs. This can be beneficial for large matrices (N >= 10k).
             Note though that the GPUs must be directly reachable from the same Cuda/HIP context, ie. this is a single-node solver without Scalapack-like support.
+    """
+def is_available() -> bool:
+    """is_available() -> bool
+
+    Returns true if MAGMA is available, false otherwise.
     """
 def magma_finalize() -> None:
     """magma_finalize() -> None

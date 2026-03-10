@@ -25,7 +25,7 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
         This makes implementation details easier as we don't have to check
         for fake CuPy everywhere.
         """
-        assert magma.available(), "Must compile GPAW with MAGMA support"
+        assert magma.is_available(), "Must compile GPAW with MAGMA support"
         assert not cupy_is_fake, "Can't use MAGMA solvers with fake CuPy"
 
     @trace(gpu=True)

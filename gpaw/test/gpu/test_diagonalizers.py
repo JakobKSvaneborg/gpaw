@@ -66,7 +66,7 @@ def diagonalizer_tester_common(
     if cupy_is_fake and diagonalizer_class is not CPUPYDiagonalizer:
         pytest.skip('CuPy is fake')
 
-    if not magma.available() and diagonalizer_class is MagmaDiagonalizer:
+    if not magma.is_available() and diagonalizer_class is MagmaDiagonalizer:
         pytest.skip('No MAGMA')
 
     matrix_orig = matrix.copy()

@@ -256,7 +256,7 @@ def set_device(log, world=None):
             atexit.register(cgpaw.gpaw_gpu_delete)
 
             # Initialize MAGMA library if available
-            if magma.available():
+            if magma.is_available():
                 magma.magma_init()
                 atexit.register(magma.magma_finalize)
 

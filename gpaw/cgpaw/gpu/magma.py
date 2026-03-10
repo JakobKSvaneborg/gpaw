@@ -1,16 +1,16 @@
 from gpaw import GPAW_NO_C_EXTENSION
 
-_ok = True
-
+_ok = False
 if not GPAW_NO_C_EXTENSION:
 
     try:
         from _gpaw.gpu.magma import *  # noqa: F401, F403
+        _ok = True
     except (ImportError, ModuleNotFoundError):
-        _ok = False
+        pass
 
 
-if GPAW_NO_C_EXTENSION or not _ok:
+if not _ok:
 
-    def available() -> bool:
+    def is_available() -> bool:
         return False

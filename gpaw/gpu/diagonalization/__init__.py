@@ -36,7 +36,7 @@ def suggest_diagonalizer(matrix: "Matrix") -> tuple[GPUDiagonalizer,
     if matrix_size < 400:
         return CPUPYDiagonalizer(), options
 
-    if magma.available():
+    if magma.is_available():
         if device_count > 1:
             # Multi-gpu can be faster for large matrices.
             # The following does some rudimentary GPU count selection.

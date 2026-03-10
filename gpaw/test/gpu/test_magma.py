@@ -4,7 +4,7 @@ See also gpaw/test/gpu/test_diagonalizers.py"""
 import pytest
 from gpaw.cgpaw.gpu import magma
 
-if not magma.available():
+if not magma.is_available():
     pytest.skip("No MAGMA", allow_module_level=True)
 
 from gpaw.gpu import cupy as cp, cupy_is_fake
