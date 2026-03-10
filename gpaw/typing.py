@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from typing import Any, Union
+import sys
 
 import numpy as np
 
@@ -17,9 +18,9 @@ except ImportError:
     DTypeLike = Any  # type: ignore
 
 # New in Python-3.12 ...
-try:
+if sys.version_info >= (3, 12):
     from typing import override
-except ImportError:
+else:
     def override(func):  # type:ignore
         return func
 
