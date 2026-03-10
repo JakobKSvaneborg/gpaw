@@ -335,15 +335,15 @@ class MSR1Mixer(BaseMixer):
             # ntnorm_i = ntnorm_i[:-1] / ntnorm_i[-1]
             # self.gd.comm.sum(ntnorm_i)
 
-            dampen = 1.4  # Dampen the greeds
+            dampen = 1.15  # Dampen the greeds
             punishment_factor = 0.7 if del_oldest else 0.8 # How much to reduce greed when backtracing
-            trust_scalar = 1 # Scaling factor for the trust radius.
-            max_gb_fact = 0.3 # * min(1, (iold - 1) / (self.nmaxold - 1)) # Scaling factor for maximum good Broyden.
-            post_gb_fact = 0.7  # Scaling factor for the final amount of good Broyden
+            trust_scalar = 1.4 # Scaling factor for the trust radius.
+            max_gb_fact = 0.40 # Scaling factor for maximum good Broyden.
+            post_gb_fact = 0.95  # Scaling factor for the final amount of good Broyden
             weight = 2e-4  # Weight for regularization, 2e-4 works well. Strongly depends on the amount of good Broyden.
             boost_B0 = 0.1 * dampen  # Constant offset to the predicted greed
-            B0_lims = [0.4, 1.2]  # Limits for predicted greed
-            A0_lims = [0.04, 0.4]  # Limits for unpredicted greed
+            B0_lims = [0.4, 1.15]  # Limits for predicted greed
+            A0_lims = [0.02, 0.4]  # Limits for unpredicted greed
             rate_ratio = [0.7, 1.4 if not backtracked else punishment_factor]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
             initial_B0 = 1.0
@@ -663,7 +663,7 @@ class MSR1Mixer(BaseMixer):
                 self.pk_sG[:] = 0
                 for pD_sp in self.pD_asp:
                     pD_sp[:] = 0
-                # alpha_i[:] = beta_i
+                alpha_i[:] = beta_i
 
                 for i1, (alpha, beta) in enumerate(zip(alpha_i, beta_i)):
                     self.uk_sG -= y_isG[i1] * alpha
@@ -676,7 +676,7 @@ class MSR1Mixer(BaseMixer):
                     self.pD_asp, self.pD_asp, self.gd, mode='scalar')
                 new_step_size = new_step_size**0.5
                 scale_factor = new_step_size / step_size
-                A0 *= np.clip(scale_factor, 0.5, 1)
+                A0 *= np.clip(scale_factor, 0, 1)
                 A0 = max(A0, min(self.A0, A0_lims[0]))
                 self.A0 = (self.A0 + A0) / 2
                 self.uk_sG += R_sG
