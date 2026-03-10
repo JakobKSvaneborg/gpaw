@@ -39,4 +39,4 @@ def test_eigensolver(k, b, d, s):
 
 
 if __name__ == '__main__':
-    test_eigensolver(1, 1, 2, 2)
+    test_eigensolver(1, 1, 4, 2)

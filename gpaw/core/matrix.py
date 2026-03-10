@@ -299,7 +299,7 @@ class Matrix(XP):
             other.data[:] = self.data
             return
 
-        if d2.all_data_on_rank_zero and d1.simple:
+        if d2.all_data_on_rank_zero and d1.simple and n1 == n2:
             comm = d1.comm
             if comm.rank == 0:
                 M = self.shape[0]
@@ -313,7 +313,7 @@ class Matrix(XP):
                 comm.send(self.data, 0)
             return
 
-        if d1.all_data_on_rank_zero and d2.simple:
+        if d1.all_data_on_rank_zero and d2.simple and n1 == n2:
             comm = d2.comm
             if comm.rank == 0:
                 M = self.shape[0]
@@ -331,6 +331,7 @@ class Matrix(XP):
         c = d1.comm if d1.comm.size > d2.comm.size else d2.comm
         n = max(n1, n2)
         if n < c.size:
+            1 / 0
             c = c.new_communicator(np.arange(n))
         if c is not None:
             M, N = self.shape
@@ -557,7 +558,7 @@ class Matrix(XP):
                     H.data.T[:, :limit] = evecs
             self.dist.comm.broadcast(eps, 0)
         else:
-            if slcomm.rank < rows * columns:
+            if self.dist.comm.rank < rows * columns:
                 array = H.data.copy()
                 if not cc and np.issubdtype(H.dtype, np.complexfloating):
                     np.negative(array.imag, array.imag)
