@@ -204,7 +204,7 @@ GPAW will not override a user-defined standard.
 ``export HIPCC_COMPILE_FLAGS_APPEND="-std=c++17"``.
 However, we generally recommend using `nvcc` and the CUDA toolkit directly if building for Nvidia GPUs.
 
-You can use the ``gpaw.cgpaw.have_magma`` flag to check if MAGMA is available
+You can use the ``gpaw.cgpaw.gpu.magma.is_available()`` function to check if MAGMA is available
 within your GPAW installation. GPAW eigensystem routines will default to the MAGMA implementation
 on AMD GPUs, provided the matrix is large enough to benefit from it. You can
-also call the MAGMA solvers directly from the ``gpaw.new.magma`` module.
+also call the MAGMA solvers directly from the ``gpaw.cgpaw.gpu.magma`` extension module.

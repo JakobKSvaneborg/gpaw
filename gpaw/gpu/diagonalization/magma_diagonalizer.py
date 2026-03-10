@@ -1,7 +1,7 @@
 import numpy as np
+from typing import cast
 
-import gpaw.cgpaw as cgpaw
-from gpaw.cgpaw import have_magma
+from gpaw.cgpaw.gpu import magma
 from gpaw.gpu import cupy as cp
 from gpaw.gpu import cupy_is_fake
 from gpaw.gpu.diagonalization.diagonalizer import (DiagonalizerOptions,
@@ -25,7 +25,7 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
         This makes implementation details easier as we don't have to check
         for fake CuPy everywhere.
         """
-        assert have_magma, "Must compile GPAW with MAGMA support"
+        assert magma.is_available(), "Must compile GPAW with MAGMA support"
         assert not cupy_is_fake, "Can't use MAGMA solvers with fake CuPy"
 
     @trace(gpu=True)
@@ -74,8 +74,7 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
             host_matrix = cp.asnumpy(inout_matrix)
             eigvals = np.empty((shape[0]), dtype=eigval_dtype)
 
-            # FIXME make cgpaw a proper package and just import magma directly
-            cgpaw.gpu.magma.eigh_magma_numpy(
+            magma.eigh_magma_numpy(
                 host_matrix,
                 eigvals,
                 options.uplo,
@@ -87,11 +86,14 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
         else:
             eigvals = xp.empty((shape[0]), dtype=eigval_dtype)
             if xp is np:
-                cgpaw.gpu.magma.eigh_magma_numpy(eigvecs, eigvals,
-                                                 options.uplo,
-                                                 options.gpus_per_process)
+                eigvecs = cast(np.ndarray, eigvecs)
+                magma.eigh_magma_numpy(eigvecs,
+                                       eigvals,
+                                       options.uplo,
+                                       options.gpus_per_process)
             else:
-                cgpaw.gpu.magma.eigh_magma_cupy(eigvecs, eigvals, options.uplo)
+                eigvecs = cast(cp.ndarray, eigvecs)
+                magma.eigh_magma_cupy(eigvecs, eigvals, options.uplo)
 
         # Transform to Numpy convention (conjugate transpose)
         xp.conjugate(eigvecs, out=eigvecs.T)

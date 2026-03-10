@@ -96,8 +96,7 @@ def info(comm=None) -> None:
         githash = ''
 
     results.append(('_gpaw' + githash,
-                    os.path.normpath(getattr(cgpaw._gpaw, '__file__',
-                                             'built-in'))))
+                    os.path.normpath(cgpaw.get_extension_module_path())))
 
     results.append(('MPI enabled', have_mpi))
     results.append(('OpenMP enabled', cgpaw.have_openmp))
@@ -116,7 +115,8 @@ def info(comm=None) -> None:
                                   'environment variable GPAW_CPUPY=1, '
                                   'which uses GPAW\'s fake CuPy '
                                   '(gpaw.gpu.cpupy) for testing purposes')
-    results.append(('MAGMA', cgpaw.have_magma))
+    from gpaw.cgpaw.gpu import magma
+    results.append(('MAGMA', magma.is_available()))
     if have_mpi:
         have_sl = compiled_with_sl()
         have_elpa = LibElpa.have_elpa()

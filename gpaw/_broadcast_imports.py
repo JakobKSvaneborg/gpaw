@@ -30,7 +30,7 @@ from gpaw import (probably_get_mpiexec_implementation, GPAW_INITIALIZE_MPI,
 
 
 cgpaw_version = getattr(cgpaw, 'version', 0)
-if not GPAW_NO_C_EXTENSION and cgpaw_version != 11:
+if not GPAW_NO_C_EXTENSION and cgpaw_version != 12:
     improvement = ''
     if cgpaw_version == 9:
         improvement = ('GPAW has now much reduced memory consumption due to '
