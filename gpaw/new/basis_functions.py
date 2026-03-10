@@ -349,12 +349,6 @@ class BasisFunctionCollectionBase(ABC):
     done to have full separation of spline lookups and spline implementations.
     """
 
-    """The following containers are "global" and "static": they describe the
-    entire system independently of possible domain decomposition, and do not
-    change after being initialized in the constructor. IE: We do not change
-    atom or basis function indexing at any point.
-    """
-
     # Dict instead of list for more versatility if we modify this later:
     phi_datas: dict[int, BasisFunctionDesc]
     """Holds definitions of all basis functions _types_ in the system,
