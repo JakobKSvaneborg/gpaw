@@ -52,7 +52,7 @@ for i, arg in enumerate(sys.argv):
             '~/.gpaw/siteconfig.py')
 
 # Check whether doing parallel build
-parallel_build_jobs = 0
+parallel_build_jobs = 1
 GPAW_PARALLEL_BUILD = os.environ.get('GPAW_PARALLEL_BUILD')
 if GPAW_PARALLEL_BUILD not in (None, "", "0"):
     try:
@@ -114,7 +114,7 @@ linker_so_args = None
 linker_exe_args = None
 
 
-makefile_build: bool = parallel_build_jobs > 0
+makefile_build: bool = parallel_build_jobs > 1
 """EXPERIMENTAL: Flag that enables generation of GPAW Makefiles and compiling
 the C++ through make, instead of going through the usual setuptools build path.
 This is intended for developers that actively modify the C++ code and has much
