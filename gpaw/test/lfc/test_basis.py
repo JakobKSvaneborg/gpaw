@@ -75,6 +75,10 @@ def make_test_system() -> LFCSystemDesc:
     # Grid does automatic domain decomp if running with MPI
     global world
     world = cast(MPIComm, world)
+
+    # test crazy cell shapes
+    #cell = [[0, a, a], [a, 0, a], [a, a, 0]]
+
     grid = UGDesc(cell=[a, a, a], size=(n, n, n), comm=world)
 
     rng = np.random.default_rng(404)

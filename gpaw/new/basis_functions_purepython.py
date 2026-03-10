@@ -9,7 +9,7 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 
 
-class SplinePool_PurePython(SplinePoolBase):
+class SplinePoolPurePython(SplinePoolBase):
     """"""
 
     @override
@@ -24,7 +24,7 @@ class SplinePool_PurePython(SplinePoolBase):
         self.splines.append(spline)
 
 
-class SplinePoolGpu_PurePython(SplinePoolBase):
+class SplinePoolGPUPurePython(SplinePoolBase):
 
     @override
     def add_spline(self, desc: BasisFunctionDesc) -> None:
@@ -59,7 +59,7 @@ class BasisFunctionCollection_PurePython(BasisFunctionCollectionBase):
         on_gpu = self.xp is not np
 
         self.spline_pool = (
-            SplinePoolGpu_PurePython() if on_gpu else SplinePool_PurePython()
+            SplinePoolGPUPurePython() if on_gpu else SplinePoolPurePython()
         )
 
         for phi_desc in self.phi_datas.values():
