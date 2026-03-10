@@ -50,7 +50,7 @@ class Davidson(PWFDEigensolver):
             slcomm = domain_band_comm
             assert r * c <= slcomm.size
             if r * c < slcomm.size:
-                slcomm = slcomm.new_communicator(range(r * c))
+                slcomm = slcomm.new_communicator(range(r * c)) or serial_comm
             self.scalapack_parameters = (slcomm, r, c, b)
         self.H_NN: Matrix
         self.S_NN: Matrix
@@ -77,7 +77,9 @@ class Davidson(PWFDEigensolver):
             self.S_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp)
         elif 1:
             self.H_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp,
-                               dist=(self.domain_band_comm, -1, 1, 2 * B))
+                               dist=(self.domain_band_comm,
+                                     -1, 1,
+                                     2 * B, 2 * B))
             self.S_NN = self.H_NN.new()
         else:
             self.H_NN = self.S_NN = Matrix(0, 0)

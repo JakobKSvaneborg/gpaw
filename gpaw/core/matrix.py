@@ -467,10 +467,13 @@ class Matrix(XP):
         slcomm = slcomm or self.dist.comm
         dist = (slcomm, rows, columns, blocksize)
 
-        redist = (rows != self.dist.rows or
-                  columns != self.dist.columns or
-                  blocksize != self.dist.br or
-                  blocksize != self.dist.bc)
+        if rows * columns == 1:
+            redist = not self.dist.all_data_on_rank_zero
+        else:
+            redist = (rows != self.dist.rows or
+                      columns != self.dist.columns or
+                      blocksize != self.dist.br or
+                      blocksize != self.dist.bc)
 
         if redist:
             H = self.new(dist=dist)
@@ -480,10 +483,6 @@ class Matrix(XP):
                 S = S0.new(dist=dist)
                 S0.redist(S)
         else:
-            assert (
-                self.dist.comm.size == slcomm.size or
-                slcomm.size == 1 and
-                self.dist.rows == 1 and self.dist.columns == 1)
             H = self
 
         if limit == H.shape[0]:
@@ -579,7 +578,7 @@ class Matrix(XP):
             # necessary to broadcast eps when some ranks are not used
             # in current scalapack parameter set
             # eg. (2, 1, 2) with 4 processes
-            if rows * columns < self.dist.comm.size:
+            if 1:#rows * columns < self.dist.comm.size:
                 self.dist.comm.broadcast(eps, 0)
 
         if redist:
