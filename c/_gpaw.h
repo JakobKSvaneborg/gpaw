@@ -318,7 +318,7 @@ static PyMethodDef functions[] = {
     {"evaluate_pbe_gpu", evaluate_pbe_gpu, METH_VARARGS, 0},
     {"calculate_residuals_gpu", calculate_residual_gpu, METH_VARARGS, 0},
 
-    {"_flush_pending_decrefs", flush_pending_decrefs, METH_NOARGS, 0},
+    {"flush_pending_decrefs", flush_pending_decrefs, METH_NOARGS, 0},
 
 #endif // GPAW_GPU
 
@@ -437,7 +437,7 @@ static PyObject* moduleinit(void)
 #endif
 
     // Version number of C-code.  Keep in sync with gpaw/_broadcast_imports.py
-    PyObject_SetAttrString(m, "version", PyLong_FromLong(11));
+    PyObject_SetAttrString(m, "version", PyLong_FromLong(12));
 
     Py_INCREF(&LFCType);
     Py_INCREF(&OperatorType);

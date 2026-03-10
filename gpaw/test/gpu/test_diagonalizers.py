@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from gpaw.cgpaw import have_magma
+from gpaw.cgpaw.gpu import magma
 from gpaw.core.matrix import Matrix
 from gpaw.gpu import cupy as cp
 from gpaw.gpu import cupy_is_fake, device_count
@@ -66,7 +66,7 @@ def diagonalizer_tester_common(
     if cupy_is_fake and diagonalizer_class is not CPUPYDiagonalizer:
         pytest.skip('CuPy is fake')
 
-    if not have_magma and diagonalizer_class is MagmaDiagonalizer:
+    if not magma.is_available() and diagonalizer_class is MagmaDiagonalizer:
         pytest.skip('No MAGMA')
 
     matrix_orig = matrix.copy()
