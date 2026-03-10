@@ -130,7 +130,7 @@ configure_only: bool = False
 """EXPERIMENTAL: If True, will not compile anything. Use with `makefile_build`
 to quickly re-generate the Makefile after changing siteconfig.py."""
 
-makefile_generate_stubs = True
+makefile_generate_stubs = False
 """Whether to instruct the generated Makefile to automatically run Mypy's stub
 generator after building the extension.
 """
