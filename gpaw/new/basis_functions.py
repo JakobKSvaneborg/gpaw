@@ -6,7 +6,6 @@ from gpaw.spline import Spline
 from gpaw.core import UGDesc
 from gpaw.old.grid_descriptor import GridBoundsError
 from gpaw.new.timer import trace
-from gpaw import GPAW_NO_C_EXTENSION
 from gpaw.setup import Setups, Setup
 from typing import cast
 from enum import Enum, auto
@@ -15,18 +14,12 @@ import itertools
 
 from typing import Protocol, runtime_checkable, TypeAlias
 
-# apparently @override requires python >= 3.12 ...
-try:
-    from typing import override
-except ImportError:
-    def override(func):
-        return func
 
 @runtime_checkable
 class SplineLike(Protocol):
     """"""
 
-    def __call__(self, x: np.ndarray) -> np.ndarray:
+    def __call__(self, x: np.ndarray | cp.ndarray) -> np.ndarray | cp.ndarray:
         ...
 
 
@@ -52,12 +45,12 @@ def sphere_overlaps_box(
     center: np.ndarray,   # 3D array, real space pos of sphere center
     box_min: np.ndarray,  # 3D array, box "start" corner in real units
     box_max: np.ndarray,  # 3D array, box "end" corner in real units
-    ) -> bool:
+) -> bool:
     """Exact sphere-box overlap check."""
     # closest point in the box to sphere center
     closest = np.maximum(box_min, np.minimum(center, box_max))
     dist2 = np.sum((closest - center)**2)
-    return dist2 <= radius*radius
+    return dist2 <= radius * radius
 
 
 @dataclass
@@ -85,7 +78,6 @@ class BasisFunctionDesc:
         if self.f_r[-1] != 0.0:
             raise ValueError("Last value in f_r must be 0")
 
-
     @staticmethod
     def from_legacy_spline(spline: Spline) -> "BasisFunctionDesc":
         """"""
@@ -93,7 +85,7 @@ class BasisFunctionDesc:
                                   spline.get_cutoff(),
                                   spline.get_npoints())
         f_r = spline.map(breakpoints)
-        assert(f_r[-1] == 0.0)
+        assert f_r[-1] == 0.0
         return BasisFunctionDesc(spline.get_angular_momentum_number(),
                                  spline.get_cutoff(),
                                  f_r)
@@ -118,6 +110,7 @@ class LFCSystemDesc:
 
 
 BlockCoords: TypeAlias = tuple[int, int, int]
+
 
 @dataclass
 class GridBlock:
@@ -494,7 +487,7 @@ class BasisFunctionCollectionBase(ABC):
         """Total number of atoms in the system (not just in this MPI rank)."""
         return len(self.spline_indices_for_a.keys())
 
-    def get_atom_positions(self, grid_relative = False) -> np.ndarray:
+    def get_atom_positions(self, grid_relative=False) -> np.ndarray:
         """Returns current atom positions. Either position_av or relpos_ac"""
         if grid_relative:
             return self.relpos_ac
@@ -514,9 +507,9 @@ class BasisFunctionCollectionBase(ABC):
                 # avoid creating duplicate phi data (OK in principle)
                 existing_spline_idx = -1
                 for spline_idx, phi_data in self.phi_datas.items():
-                        if phi is phi_data:
-                            existing_spline_idx = spline_idx
-                            break
+                    if phi is phi_data:
+                        existing_spline_idx = spline_idx
+                        break
 
                 if existing_spline_idx >= 0:
                     self.spline_indices_for_a[a].append(existing_spline_idx)
@@ -643,7 +636,7 @@ class BasisFunctionCollectionBase(ABC):
         # Construct mapping for block-local phi_m => global phi_mu
         for block in self._block_map.values():
             block.M_m = []
-            block.phi_j = sorted(block.phi_j, key=lambda x : x.first_mu)
+            block.phi_j = sorted(block.phi_j, key=lambda x: x.first_mu)
             block.phi_idx_j = []
             for phi in block.phi_j:
                 mu = phi.first_mu
@@ -653,7 +646,6 @@ class BasisFunctionCollectionBase(ABC):
                 block.phi_idx_j.append(phi.index)
             #
         #
-
 
     def get_relevant_blocks(self) -> list[GridBlock]:
         """Returns list of grid blocks that contribute, ie. have overlap with
@@ -846,9 +838,10 @@ class BasisFunctionCollectionBase(ABC):
 
         return has_migrations
 
-    def _update_atom_position(self, atom_idx: int,
-                              new_relpos_c: np.ndarray) \
-        -> AtomUpdateResult:
+    def _update_atom_position(
+            self,
+            atom_idx: int,
+            new_relpos_c: np.ndarray) -> AtomUpdateResult:
         """"""
 
         new_rank = self.grid._gd.get_rank_from_position(new_relpos_c)

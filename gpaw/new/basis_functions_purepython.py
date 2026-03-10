@@ -3,16 +3,10 @@ from gpaw.new.basis_functions import (BasisFunctionCollectionBase,
                                       BasisFunctionDesc)
 from gpaw.gpu import cupy as cp
 from gpaw.sphere.spherical_harmonics import Y
+from gpaw.typing import override
 
 import numpy as np
 from scipy.interpolate import CubicSpline
-
-
-try:
-    from typing import override
-except ImportError:
-    def override(func):
-        return func
 
 
 class SplinePool_PurePython(SplinePoolBase):
@@ -64,8 +58,9 @@ class BasisFunctionCollection_PurePython(BasisFunctionCollectionBase):
         assert self.phi_datas
         on_gpu = self.xp is not np
 
-        self.spline_pool = SplinePoolGpu_PurePython() if on_gpu \
-                           else SplinePool_PurePython()
+        self.spline_pool = (
+            SplinePoolGpu_PurePython() if on_gpu else SplinePool_PurePython()
+        )
 
         for phi_desc in self.phi_datas.values():
             self.spline_pool.add_spline(phi_desc)
@@ -73,7 +68,7 @@ class BasisFunctionCollection_PurePython(BasisFunctionCollectionBase):
         assert self.spline_pool.num_splines() == len(self.phi_datas.keys())
 
     def evaluate_spline(self, spline_idx: int, x: np.ndarray | cp.ndarray) \
-        -> np.ndarray | cp.ndarray:
+            -> np.ndarray | cp.ndarray:
         """"""
         spline = self.get_spline(spline_idx)
         y = spline(x)
@@ -115,18 +110,17 @@ class BasisFunctionCollection_PurePython(BasisFunctionCollectionBase):
 
             assert np.all(np.isfinite(block.evaluated_phi_mg))
 
-
     @override
     def has_precalculated_phi(self) -> bool:
         """"""
-        #return self.phi_MG_cache is not None
         return True
 
     @override
     def add_to_density(
         self,
         nt_sG: np.ndarray | cp.ndarray,
-        f_asi: dict[int, np.ndarray] | dict[int, cp.ndarray]) -> None:
+        f_asi: dict[int, np.ndarray] | dict[int, cp.ndarray]
+    ) -> None:
         r"""Add linear combination of squared localized basis functions to
         density:
 
@@ -168,7 +162,7 @@ class BasisFunctionCollection_PurePython(BasisFunctionCollectionBase):
                 assert block.evaluated_phi_mg is not None
 
                 # XYZ indices to the nt_sG array for this block (domain aware)
-                start_offset_c = block.start_c- self.grid.start_c
+                start_offset_c = block.start_c - self.grid.start_c
                 sx, sy, sz = start_offset_c
                 ex, ey, ez = start_offset_c + block.get_block_shape()
 
@@ -191,13 +185,12 @@ class BasisFunctionCollection_PurePython(BasisFunctionCollectionBase):
             raise NotImplementedError(
                 "PurePython BasisFunctions without precalculation")
 
-
     @override
     def calculate_potential_matrix(
         self,
         vt_G: np.ndarray | cp.ndarray,
-        out: np.ndarray | cp.ndarray | None = None) \
-        -> np.ndarray | cp.ndarray:
+        out: np.ndarray | cp.ndarray | None = None
+    ) -> np.ndarray | cp.ndarray:
         """"""
         xp = cp if isinstance(vt_G, cp.ndarray) else np
 
@@ -224,7 +217,9 @@ class BasisFunctionCollection_PurePython(BasisFunctionCollectionBase):
         res = out or xp.zeros((num_work_rows, M))
 
         if self.has_precalculated_phi():
-            self._potential_matrix_with_precalculation(vt_G, res,
+            self._potential_matrix_with_precalculation(
+                vt_G,
+                res,
                 self._matrix_distribution_rules.mu_start,
                 self._matrix_distribution_rules.mu_end)
             return res
@@ -232,13 +227,13 @@ class BasisFunctionCollection_PurePython(BasisFunctionCollectionBase):
             raise NotImplementedError(
                 "PurePython BasisFunctions without precalculation")
 
-
     def _potential_matrix_with_precalculation(
         self,
         vt_G: np.ndarray | cp.ndarray,
         out: np.ndarray | cp.ndarray,
         mu_start: int,
-        mu_end: int) -> None:
+        mu_end: int
+    ) -> None:
         """"""
 
         for block in self.get_relevant_blocks():

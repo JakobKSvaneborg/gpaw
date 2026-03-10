@@ -16,6 +16,14 @@ except ImportError:
     ArrayLike = Any  # type: ignore
     DTypeLike = Any  # type: ignore
 
+# New in Python-3.12 ...
+try:
+    from typing import override
+except ImportError:
+    def override(func):  # type:ignore
+        return func
+
+
 ArrayLike1D = ArrayLike
 ArrayLike2D = ArrayLike
 ArrayLike3D = ArrayLike

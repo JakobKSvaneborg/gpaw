@@ -8,7 +8,6 @@ from gpaw.new.basis_functions import (BasisFunctionDesc,
 
 from gpaw.new.basis_functions_purepython \
     import BasisFunctionCollection_PurePython
-from gpaw.sphere.spherical_harmonics import Y
 from gpaw.spline import Spline
 from gpaw.gpu import cupy as cp, as_np, cupy_is_fake
 from gpaw import GPAW_NO_C_EXTENSION
@@ -37,6 +36,7 @@ def xp_params_no_cpupy():
         ),
     ]
 
+
 def parametrize_purepython():
     """Use as @pytest.mark.parametrize("purepython", parametrize_purepython())
     to run both purepython and non-purepython versions, skipping the latter if
@@ -47,14 +47,12 @@ def parametrize_purepython():
                 False,
                 marks=[pytest.mark.skipif(GPAW_NO_C_EXTENSION,
                                           reason="No C extension")]
-            )
-        ]
+            )]
 
 
 def parametrize_blocksize():
-    """C++ is currently hardcoded to only accept 8"""
-    #return [None, 8]
-    return [8]
+    """"""
+    return [None, 8]
 
 
 def make_random_phi(
@@ -89,7 +87,6 @@ def make_test_system() -> LFCSystemDesc:
         p = make_random_phi(1, 1.35 * a, rng, num_points=100)
         d = make_random_phi(2, 0.1 * a, rng, num_points=100)
 
-
         funcs = [s, p, d] if i == 0 else [s, d]
         phi_lists.append(funcs)
 
@@ -110,7 +107,8 @@ def fixt_lfc_system() -> LFCSystemDesc:
     return make_test_system()
 
 
-def make_legacy_basis_functions(lfc: BasisFunctionCollectionBase, xp) -> BasisFunctions:
+def make_legacy_basis_functions(lfc: BasisFunctionCollectionBase, xp) \
+        -> BasisFunctions:
     """Build legacy basis functions (Spline objects) and the actual
     BasisFunctions class, for comparison with new code."""
 
@@ -118,11 +116,8 @@ def make_legacy_basis_functions(lfc: BasisFunctionCollectionBase, xp) -> BasisFu
 
     for a in range(lfc.num_atoms):
         phi_datas = lfc.get_phi_data_for_atom(a)
-        splines = [ Spline.from_data(phi.l,
-                                     phi.cutoff,
-                                     phi.f_r)
-                    for phi in phi_datas
-                  ]
+        splines = [Spline.from_data(phi.l, phi.cutoff, phi.f_r)
+                   for phi in phi_datas]
         phi_aj.append(splines)
 
     basis = BasisFunctions(
@@ -143,16 +138,16 @@ def make_basis(system: LFCSystemDesc,
     if purepython:
         basis = BasisFunctionCollection_PurePython(
             system,
-            use_gpu = (xp is not np),
-            block_size=block_size
-            )
+            use_gpu=(xp is not np),
+            block_size=block_size)
     else:
-        from gpaw.new.basis_functions_cpp import BasisFunctionCollection
-        basis = BasisFunctionCollection(
-            system,
-            use_gpu = (xp is not np),
-            block_size=block_size
-        )
+        raise NotImplementedError("WIP")
+        # from gpaw.new.basis_functions_cpp import BasisFunctionCollection
+        # basis = BasisFunctionCollection(
+        #     system,
+        #     use_gpu = (xp is not np),
+        #     block_size=block_size
+        # )
 
     return basis
 
@@ -189,12 +184,10 @@ def test_basis_creation(fixt_lfc_system: LFCSystemDesc, xp, purepython: bool,
 
     # TODO check that each phi overlaps with at least one block. But this
     # will need to be domain aware: the overlap may happen in other MPI domain
-
     # for phi in all_phi:
     #     overlaps = phi.find_overlapping_points(basis.grid.xyz())
     #     if overlaps.size == 0:
     #         assert np.all(phi.phi_mG == 0.0)
-
 
     # Each grid point should appear at most in one block. Blocks that don't
     # overlap with any basis functions are ignored, so it's OK for a point
@@ -205,7 +198,7 @@ def test_basis_creation(fixt_lfc_system: LFCSystemDesc, xp, purepython: bool,
             range(block.start_c[0], block.end_c[0]),
             range(block.start_c[1], block.end_c[1]),
             range(block.start_c[2], block.end_c[2])
-            ):
+        ):
             assert xyz not in seen_points
             seen_points.append(xyz)
 
@@ -216,7 +209,6 @@ def test_no_blocking(fixt_lfc_system: LFCSystemDesc, xp):
     """Some tests that blocking = None makes sense. Useful because under the
     hood the same blocking logic is still ran but with block_size == grid_size
     """
-
 
     basis = make_basis(fixt_lfc_system, xp, purepython=True, block_size=None)
     blocks = basis.get_relevant_blocks()
@@ -240,8 +232,13 @@ def test_no_blocking(fixt_lfc_system: LFCSystemDesc, xp):
 @pytest.mark.parametrize("xp", xp_params_no_cpupy())
 @pytest.mark.parametrize("purepython", parametrize_purepython())
 @pytest.mark.parametrize("row_range", [None, range(1, 4), range(0, 100000)])
-def test_potential_matrix(fixt_lfc_system: LFCSystemDesc, xp, purepython: bool,
-    block_size: int, row_range: range | None):
+def test_potential_matrix(
+    fixt_lfc_system: LFCSystemDesc,
+    xp,
+    purepython: bool,
+    block_size: int,
+    row_range: range | None
+):
     """"""
     if not purepython and xp is np:
         pytest.skip(reason="CPU + C++ is WIP")
@@ -299,11 +296,13 @@ def test_potential_matrix(fixt_lfc_system: LFCSystemDesc, xp, purepython: bool,
 @pytest.mark.parametrize("xp", xp_params_no_cpupy())
 @pytest.mark.parametrize("purepython", parametrize_purepython())
 @pytest.mark.parametrize("num_spins", [1, 2])
-def test_add_to_density(fixt_lfc_system: LFCSystemDesc,
-                        xp,
-                        purepython: bool,
-                        num_spins: int,
-                        block_size: int):
+def test_add_to_density(
+    fixt_lfc_system: LFCSystemDesc,
+    xp,
+    purepython: bool,
+    num_spins: int,
+    block_size: int
+):
     """"""
 
     if not purepython and xp is np:
@@ -353,7 +352,8 @@ def test_domain_decomposition(
     xp,
     purepython: bool,
     num_spins: int,
-    block_size: int):
+    block_size: int
+):
     """"""
     if not purepython and xp is np:
         pytest.skip(reason="CPU + C++ is WIP")
@@ -411,8 +411,7 @@ def test_domain_decomposition(
         decomp_nt_sG[:] = full_nt_sG[:,
                                      start_c[0]:end_c[0],
                                      start_c[1]:end_c[1],
-                                     start_c[2]:end_c[2]
-                                    ]
+                                     start_c[2]:end_c[2]]
 
     manual_scatter(nt_sG_serial, nt_sG)
 
