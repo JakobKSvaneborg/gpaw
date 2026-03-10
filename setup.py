@@ -51,6 +51,21 @@ for i, arg in enumerate(sys.argv):
             f'Please set GPAW_CONFIG={custom} or place {custom} in ' +
             '~/.gpaw/siteconfig.py')
 
+# Check whether doing parallel build
+parallel_build_jobs = 0
+GPAW_PARALLEL_BUILD = os.environ.get('GPAW_PARALLEL_BUILD')
+if GPAW_PARALLEL_BUILD not in (None, "", "0"):
+    try:
+        parallel_build_jobs = int(GPAW_PARALLEL_BUILD)
+    except (TypeError, ValueError):
+        parallel_build_jobs = -1
+
+    if parallel_build_jobs < 1:
+        msg = ('\nGPAW_PARALLEL_BUILD environment variable has '
+               f'an invalid value: "{GPAW_PARALLEL_BUILD}".\n'
+               'Please set the variable to a non-negative integer.')
+        raise_error(msg)
+
 # Globals that can be replaced by values in user siteconfig.py
 
 # temp flag for choosing different options for C/C++ builds.
@@ -98,7 +113,8 @@ compiler_args = None
 linker_so_args = None
 linker_exe_args = None
 
-makefile_build: bool = False
+
+makefile_build: bool = parallel_build_jobs > 0
 """EXPERIMENTAL: Flag that enables generation of GPAW Makefiles and compiling
 the C++ through make, instead of going through the usual setuptools build path.
 This is intended for developers that actively modify the C++ code and has much
@@ -129,6 +145,9 @@ See also the `configure_only` flag.
 configure_only: bool = False
 """EXPERIMENTAL: If True, will not compile anything. Use with `makefile_build`
 to quickly re-generate the Makefile after changing siteconfig.py."""
+
+makefile_build_jobs: int = parallel_build_jobs
+"""EXPERIMENTAL: The number of jobs used for make."""
 
 makefile_generate_stubs = False
 """Whether to instruct the generated Makefile to automatically run Mypy's stub
@@ -906,8 +925,10 @@ class BuildGPAW(build_ext):
         self.generate_makefile()
         if not configure_only:
             # run make
-            print("Running `make`", flush=True)
-            p = subprocess.run(["make"], check=False, shell=False)
+            run_args = ["make"]
+            run_args += ["-j", str(makefile_build_jobs)]
+            print(shlex.join(run_args), flush=True)
+            p = subprocess.run(run_args, check=False, shell=False)
 
             if p.returncode != 0:
                 print(f'error: command make failed '
