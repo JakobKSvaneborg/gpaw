@@ -18,15 +18,15 @@ def create_basis(ibz: IBZ,
                  kpt_comm=serial_comm,
                  band_comm=serial_comm,
                  xp=np,
-                 gpu_add_and_integrate=True):
+                 gpu_add_and_integrate=True,
+                 new_basis=False):
     kd = ibz._old_kd(nspins, kpt_comm)
     if GPAW_NO_C_EXTENSION:
         return SimpleBasis(grid, setups, relpos_ac, xp)
     basis_dtype = complex if \
         np.issubdtype(dtype, np.complexfloating) else float
 
-    use_old_lfc = False
-    if use_old_lfc:
+    if not new_basis:
         basis = BasisFunctions(
             grid._gd,
             [setup.basis_functions_J for setup in setups],
@@ -45,8 +45,10 @@ def create_basis(ibz: IBZ,
         # Only the purepython version is implemented for now
         basis = BasisFunctionCollectionPurePython(
             system,
-            use_gpu=(xp is not np)
-        )
+            use_gpu=(xp is not np))
+
+        assert grid.comm.size == 1
+        basis.my_atom_indices = np.arange(len(relpos_ac))
 
     myM = (basis.Mmax + band_comm.size - 1) // band_comm.size
     basis.set_matrix_distribution(
