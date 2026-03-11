@@ -693,7 +693,7 @@ class BuildGPU:
         inout_makefile.append("GPU_DEPS := $(GPU_OBJECTS:.o=.d)")
 
         inout_makefile.append("GPU_PREBUILD_DIRS := $(sort $(dir $(GPU_OBJECTS)))")
-        inout_makefile.append("$(GPU_PREBUILD_DIRS):\n\t mkdir -p $(GPU_PREBUILD_DIRS)")
+        inout_makefile.append("$(GPU_PREBUILD_DIRS):\n\t mkdir -p $@")
         inout_makefile.append("\n$(GPU_OBJECTS): | $(GPU_PREBUILD_DIRS)")
 
         inout_makefile.append(f"\nCC_GPU := {self.compiler}\n")
@@ -701,7 +701,7 @@ class BuildGPU:
 
         for src in self.sources:
             obj = self.build_dir / src.with_suffix('.o')
-            inout_makefile.append(f"{obj}: {src}\n\t$(CC_GPU) $(CFLAGS_GPU) -c {src} -o {obj}\n")
+            inout_makefile.append(f"{obj}: {src}\n\t$(CC_GPU) $(CFLAGS_GPU) -c $< -o $@\n")
 
         inout_makefile.append("-include $(GPU_DEPS)")
         inout_makefile.append("# END GPU SECTION\n")
@@ -815,7 +815,7 @@ class BuildGPAW(build_ext):
         makefile_lines.append("DEPS := $(OBJECTS:.o=.d)")
 
         makefile_lines.append("PREBUILD_DIRS := $(sort $(dir $(OBJECTS)))")
-        makefile_lines.append("$(PREBUILD_DIRS):\n\t mkdir -p $(PREBUILD_DIRS)")
+        makefile_lines.append("$(PREBUILD_DIRS):\n\t mkdir -p $@")
         makefile_lines.append("\n$(OBJECTS): | $(PREBUILD_DIRS)")
 
         makefile_lines.append(f"\nCC := {self.compiler.compiler_so[0]}")
@@ -880,7 +880,7 @@ class BuildGPAW(build_ext):
 
             # Compile rules
             for src, obj in zip(ext.sources, objs):
-                makefile_lines.append(f"{obj}: {src}\n\t$(CC) $(CFLAGS_BASE) -c {src} -o {obj} $(CFLAGS_EXTRA)\n")
+                makefile_lines.append(f"{obj}: {src}\n\t$(CC) $(CFLAGS_BASE) -c $< -o $@ $(CFLAGS_EXTRA)\n")
 
         makefile_lines.append("\n-include $(DEPS)")
         with open("Makefile", "w") as mf:
