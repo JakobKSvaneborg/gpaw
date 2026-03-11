@@ -337,13 +337,13 @@ class MSR1Mixer(BaseMixer):
             # self.gd.comm.sum(ntnorm_i)
 
             dampen = 1.15  # Dampen the greeds
-            punishment_factor = 0.7 if del_oldest else 0.8 # How much to reduce greed when backtracing
-            trust_scalar = 1.5 # Scaling factor for the trust radius.
-            abs_gb_lim = 12  # Maximum value of good Broyden.
-            max_gb_fact = 0.75  # Scaling factor for maximum good Broyden.
-            post_gb_fact = 0.6 if backtracked else 0.9 # Scaling factor for the final amount of good Broyden
+            punishment_factor = 0.75 if del_oldest else 0.85 # How much to reduce greed when backtracing
+            trust_scalar = 1.1 # Scaling factor for the trust radius.
+            abs_gb_lim = 10  # Maximum value of good Broyden.
+            max_gb_fact = 0.8  # Scaling factor for maximum good Broyden.
+            post_gb_fact = 0.6 if backtracked else 0.95 # Scaling factor for the final amount of good Broyden
             weight = 2e-4  # Weight for regularization, 2e-4 works well. Strongly depends on the amount of good Broyden.
-            boost_B0 = 0.1 * dampen  # Constant offset to the predicted greed
+            boost_B0 = 1e-1  # Constant offset to the predicted greed
             B0_lims = [0.4, 1.05]  # Limits for predicted greed
             A0_lims = [0.02, 0.4]  # Limits for unpredicted greed
             rate_ratio = [0.7, 1.4 if not backtracked else punishment_factor]  # Rate ratio for clipping
@@ -432,7 +432,7 @@ class MSR1Mixer(BaseMixer):
             YY_LIM = np.linalg.norm(YY_LIM, ord='fro')
             YS_LIM = self.dotprod(s_isG, y_isG, sD_iasp, yD_iasp, self.gd, mode='gemm')
             YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
-            max_gb = min(max(YY_LIM / YS_LIM, 1) * max_gb_fact, abs_gb_lim)
+            max_gb = min(max(YY_LIM / YS_LIM * max_gb_fact, 1), abs_gb_lim)
             good_broydenness = 0.5 * max_gb
 
             # A_ii0 = self.dotprod(ty_isG, y_isG, tyD_iasp, yD_iasp, self.gd, mode='gemm')
