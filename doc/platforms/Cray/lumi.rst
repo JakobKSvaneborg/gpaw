@@ -160,7 +160,7 @@ Then, the following steps build GPAW in a Python virtual environment:
   source venv-gpaw-gpu/bin/activate
 
   # Update build tools
-  pip install --upgrade pip setuptools packaging
+  pip install --upgrade pip setuptools packaging pybind11
 
   # Freeze the system-provided packages
   pip list --format=freeze | tee $(dirname $(which pip))/../constraints.txt
@@ -277,7 +277,7 @@ Then, the following steps build GPAW in a Python virtual environment:
   source venv-gpaw-cpu/bin/activate
 
   # Update build tools
-  pip install --upgrade pip setuptools packaging
+  pip install --upgrade pip setuptools packaging pybind11
 
   # Freeze the system-provided packages
   pip list --format=freeze | tee $(dirname $(which pip))/../constraints.txt
