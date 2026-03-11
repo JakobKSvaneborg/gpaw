@@ -51,26 +51,6 @@ for i, arg in enumerate(sys.argv):
             f'Please set GPAW_CONFIG={custom} or place {custom} in ' +
             '~/.gpaw/siteconfig.py')
 
-# Check whether doing parallel build
-# Usage:
-# - `GPAW_PARALLEL_BUILD=8 pip install -e .` -> triggers `makefile_build = True` and executes `make -j 8`
-# - `GPAW_PARALLEL_BUILD=1 pip install -e .` -> executes normal setuptools build (`makefile_build = False`)
-# - `GPAW_PARALLEL_BUILD=0 pip install -e .` -> executes normal setuptools build (`makefile_build = False`)
-# - `pip install -e .`                       -> executes normal setuptools build (`makefile_build = False`)
-parallel_build_jobs = 1
-GPAW_PARALLEL_BUILD = os.environ.get('GPAW_PARALLEL_BUILD')
-if GPAW_PARALLEL_BUILD not in (None, "", "0"):
-    try:
-        parallel_build_jobs = int(GPAW_PARALLEL_BUILD)
-    except (TypeError, ValueError):
-        parallel_build_jobs = -1
-
-    if parallel_build_jobs < 1:
-        msg = ('\nGPAW_PARALLEL_BUILD environment variable has '
-               f'an invalid value: "{GPAW_PARALLEL_BUILD}".\n'
-               'Please set the variable to a non-negative integer.')
-        raise_error(msg)
-
 # Globals that can be replaced by values in user siteconfig.py
 
 # temp flag for choosing different options for C/C++ builds.
@@ -119,7 +99,7 @@ linker_so_args = None
 linker_exe_args = None
 
 
-makefile_build: bool = parallel_build_jobs > 1
+makefile_build: bool = False
 """EXPERIMENTAL: Flag that enables generation of GPAW Makefiles and compiling
 the C++ through make, instead of going through the usual setuptools build path.
 This is intended for developers that actively modify the C++ code and has much
@@ -151,13 +131,11 @@ configure_only: bool = False
 """EXPERIMENTAL: If True, will not compile anything. Use with `makefile_build`
 to quickly re-generate the Makefile after changing siteconfig.py."""
 
-makefile_build_jobs: int = parallel_build_jobs
-"""EXPERIMENTAL: The number of jobs used for make."""
-
 makefile_generate_stubs = False
 """Whether to instruct the generated Makefile to automatically run Mypy's stub
 generator after building the extension.
 """
+
 
 def ensure_cpp_standard(compile_args: list):
     """GPAW C++ code requires -std=c++17. This adds it to the input compile
@@ -190,7 +168,8 @@ try:
 except ImportError:
     print('ASE not found. GPAW git hash not written.')
 
-# User provided customizations:
+
+# ########### READ USER SITECONFIG ###########
 gpaw_config = os.environ.get('GPAW_CONFIG')
 if gpaw_config and not Path(gpaw_config).is_file():
     raise FileNotFoundError(gpaw_config)
@@ -206,6 +185,34 @@ for siteconfig in [gpaw_config,
 else:  # no break
     if not noblas:
         libraries.append('blas')
+# ########### USER SITECONFIG DONE ###########
+
+GPAW_BUILD_JOBS = os.environ.get('GPAW_BUILD_JOBS')
+"""
+Check whether doing parallel build
+Usage:
+- `GPAW_BUILD_JOBS=8 pip install -e .` -> triggers `makefile_build = True` and executes `make -j 8`
+- `GPAW_BUILD_JOBS=1 pip install -e .` -> executes normal setuptools build (`makefile_build = False`)
+- `GPAW_BUILD_JOBS=0 pip install -e .` -> executes normal setuptools build (`makefile_build = False`)
+- `pip install -e .`                   -> executes normal setuptools build (`makefile_build = False`)
+"""
+_num_build_jobs = 1
+
+if GPAW_BUILD_JOBS not in (None, "", "0"):
+    try:
+        _num_build_jobs = int(GPAW_BUILD_JOBS)
+    except (TypeError, ValueError):
+        _num_build_jobs = -1
+
+    if _num_build_jobs < 1:
+        msg = ('\nGPAW_BUILD_JOBS environment variable has '
+               f'an invalid value: "{GPAW_BUILD_JOBS}".\n'
+               'Please set the variable to a non-negative integer.')
+        raise_error(msg)
+
+if _num_build_jobs > 1:
+    print(f"Detected envvar GPAW_BUILD_JOBS={_num_build_jobs}. This feature requires Makefile build, it will be enabled now.")
+    makefile_build = True
 
 if use_cpp:
     print("EXPERIMENTAL: Compiling entire GPAW as C++.")
@@ -931,7 +938,7 @@ class BuildGPAW(build_ext):
         if not configure_only:
             # run make
             run_args = ["make"]
-            run_args += ["-j", str(makefile_build_jobs)]
+            run_args += ["-j", str(_num_build_jobs)]
             print(shlex.join(run_args), flush=True)
             p = subprocess.run(run_args, check=False, shell=False)
 
