@@ -1,7 +1,7 @@
 from gpaw.new.basis_functions import (BasisFunctionCollectionBase,
                                       SplinePoolBase,
                                       BasisFunctionDesc)
-from gpaw.gpu import cupy as cp
+from gpaw.gpu import cupy as cp, cupy_is_fake, cupyx
 from gpaw.sphere.spherical_harmonics import Y
 from gpaw.typing import override
 
@@ -39,15 +39,15 @@ class SplinePoolGPUPurePython(SplinePoolBase):
             bc_type='clamped',  # first derivatives are zero at boundaries
             extrapolate=False)
 
-        from cupyx.scipy.interpolate import PPoly
-        spline = PPoly(cp.asarray(spline.c),
-                       cp.asarray(spline.x),
-                       extrapolate=False)
+        spline = cupyx.scipy.interpolate.PPoly(
+            cp.asarray(spline.c),
+            cp.asarray(spline.x),
+            extrapolate=False)
 
         self.splines.append(spline)
 
 
-class BasisFunctionCollection_PurePython(BasisFunctionCollectionBase):
+class BasisFunctionCollectionPurePython(BasisFunctionCollectionBase):
     """Pure Python implementation of BasisFunctionCollection.
     Not very optimized.
     """
