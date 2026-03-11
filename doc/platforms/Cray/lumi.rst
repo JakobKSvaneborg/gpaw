@@ -175,8 +175,8 @@ Then, the following steps build GPAW in a Python virtual environment:
 
   # Install GPAW, with a constraint to ensure we use system-provided packages.
   # Leave the '-e' out if you don't want an editable install
-  rm -rf build _gpaw.*.so gpaw.egg-info
-  pip install --no-build-isolation --constraint $(dirname $(which pip))/../constraints.txt -v --log build-gpu.log -e .
+  rm -rf _build build _gpaw.*.so gpaw.egg-info
+  GPAW_BUILD_JOBS=16 pip install --no-build-isolation --constraint $(dirname $(which pip))/../constraints.txt -v --log build-gpu.log -e .
   cd ..
 
 Note that above the siteconfig file is taken from the git clone.
@@ -290,8 +290,8 @@ Then, the following steps build GPAW in a Python virtual environment:
 
   # Install GPAW, with a constraint to ensure we use system-provided packages.
   # Leave the '-e' out if you don't want an editable install
-  rm -rf build _gpaw.*.so gpaw.egg-info
-  pip install --no-build-isolation --constraint $(dirname $(which pip))/../constraints.txt -v --log build-cpu.log -e .
+  rm -rf _build build _gpaw.*.so gpaw.egg-info
+  GPAW_BUILD_JOBS=16 pip install --no-build-isolation --constraint $(dirname $(which pip))/../constraints.txt -v --log build-cpu.log -e .
   cd ..
 
 Note that above the siteconfig file is taken from the git clone.
