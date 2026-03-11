@@ -199,12 +199,16 @@ Interactive jobs can be run like this::
 
 To run GPU tests::
 
-  # Find GPAW python files
-  GPAW_HOME=$(dirname $(gpaw python -c 'import gpaw; print(gpaw.__file__)' | head -n 1))
+  # Run in an empty directory
+  mkdir run
+  cd run
 
-  n=1; srun -p small-g --nodes=1 --ntasks-per-node=$n --gpus-per-node=$n -t 00:10:00 gpaw python -m pytest $GPAW_HOME/test/ -v -m gpu --basetemp=$PWD/tmp-pytest-gpu-$n --disable-pytest-warnings
+  # Find GPAW python files
+  GPAW_HOME=$(dirname $(python -c 'import gpaw; print(gpaw.__file__)' | head -n 1))
+
+  n=1; srun -p small-g --nodes=1 --ntasks-per-node=$n --gpus-per-node=$n -t 00:10:00 python -m pytest $GPAW_HOME/test/ -v -m gpu --basetemp=$PWD/tmp-pytest-gpu-$n --disable-pytest-warnings
   # or:
-  n=1; sbatch -p small-g --nodes=1 --ntasks-per-node=$n --gpus-per-node=$n -t 00:10:00 -J pytest-gpu-$n -o %x.out --wrap="srun gpaw python -m pytest $GPAW_HOME/test/ -v -m gpu --basetemp=$PWD/tmp-pytest-gpu-$n --disable-pytest-warnings"
+  n=1; sbatch -p small-g --nodes=1 --ntasks-per-node=$n --gpus-per-node=$n -t 00:10:00 -J pytest-gpu-$n -o %x.out --wrap="srun python -m pytest $GPAW_HOME/test/ -v -m gpu --basetemp=$PWD/tmp-pytest-gpu-$n --disable-pytest-warnings"
 
 
 Omnitrace
@@ -313,14 +317,18 @@ Interactive jobs can be run like this::
 
 To run tests::
 
+  # Run in an empty directory
+  mkdir run
+  cd run
+
   # Find GPAW python files
-  GPAW_HOME=$(dirname $(gpaw python -c 'import gpaw; print(gpaw.__file__)' | head -n 1))
+  GPAW_HOME=$(dirname $(python -c 'import gpaw; print(gpaw.__file__)' | head -n 1))
 
   # Generate gpw files to cache
-  srun -p small --nodes=1 --ntasks-per-node=1 --mem-per-cpu=4G -t 01:00:00 gpaw python -m pytest $GPAW_HOME/test/test_generate_gpwfiles.py -v -o cache_dir=$PWD/pytest_cache --disable-pytest-warnings
+  srun -p small --nodes=1 --ntasks-per-node=1 --mem-per-cpu=4G -t 01:00:00 python -m pytest $GPAW_HOME/test/test_generate_gpwfiles.py -v -o cache_dir=$PWD/pytest_cache --disable-pytest-warnings
 
   # Wait and then submit tests
-  for n in 1 2 4 8; do sbatch -p small --nodes=1 --ntasks-per-node=$n --mem-per-cpu=4G -t 04:00:00 -J pytest-cpu-$n -o %x.out --wrap="srun gpaw python -m pytest $GPAW_HOME/test/ -v -o cache_dir=$PWD/pytest_cache --basetemp=$PWD/tmp-pytest-cpu-$n --disable-pytest-warnings"; done
+  for n in 1 2 4 8; do sbatch -p small --nodes=1 --ntasks-per-node=$n --mem-per-cpu=4G -t 04:00:00 -J pytest-cpu-$n -o %x.out --wrap="srun python -m pytest $GPAW_HOME/test/ -v -o cache_dir=$PWD/pytest_cache --basetemp=$PWD/tmp-pytest-cpu-$n --disable-pytest-warnings"; done
 
 
 Configuring MyQueue
