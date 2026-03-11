@@ -961,7 +961,8 @@ class BasisFunctionCollectionBase(ABC):
             self,
             vt_G: np.ndarray | cp.ndarray) -> np.ndarray | cp.ndarray:
         """Alias for calculate_potential_matrix"""
-        return self.calculate_potential_matrix(vt_G)
+        V_MM = self.calculate_potential_matrix(vt_G)
+        return V_MM[np.newaxis]
 
     def get_cache_size_estimate(self) -> int:
         """Estimate of how many bytes are needed to precalculate and cache the
