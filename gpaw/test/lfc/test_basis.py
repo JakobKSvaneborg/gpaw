@@ -7,7 +7,7 @@ from gpaw.new.basis_functions import (BasisFunctionDesc,
 
 
 from gpaw.new.basis_functions_purepython \
-    import BasisFunctionCollection_PurePython
+    import BasisFunctionCollectionPurePython
 from gpaw.spline import Spline
 from gpaw.gpu import cupy as cp, as_np, cupy_is_fake
 from gpaw import GPAW_NO_C_EXTENSION
@@ -31,7 +31,7 @@ def xp_params_no_cpupy():
             id="cupy",
             marks=[
                 pytest.mark.gpu,
-                pytest.mark.skipif(cupy_is_fake, reason="Fake Cupy"),
+                #pytest.mark.skipif(cupy_is_fake, reason="Fake Cupy"),
             ],
         ),
     ]
@@ -140,7 +140,7 @@ def make_basis(system: LFCSystemDesc,
                block_size: int | None) -> BasisFunctionCollectionBase:
     """"""
     if purepython:
-        basis = BasisFunctionCollection_PurePython(
+        basis = BasisFunctionCollectionPurePython(
             system,
             use_gpu=(xp is not np),
             block_size=block_size)
@@ -165,12 +165,10 @@ def test_basis_creation(fixt_lfc_system: LFCSystemDesc, xp, purepython: bool,
     if not purepython and xp is np:
         pytest.skip(reason="CPU + C++ is WIP")
 
-    if purepython and xp is cp:
-        pytest.skip(reason="Purepython + Cupy is WIP")
-
     system = fixt_lfc_system
     basis = make_basis(system, xp, purepython, block_size)
 
+    assert basis.uses_gpu() == (xp is not np)
     assert basis.num_atoms == len(system.atoms)
 
     # TODO check index range if using multiple MPI ranks?
@@ -247,9 +245,6 @@ def test_potential_matrix(
     if not purepython and xp is np:
         pytest.skip(reason="CPU + C++ is WIP")
 
-    if purepython and xp is cp:
-        pytest.skip(reason="Purepython + Cupy is WIP")
-
     system = fixt_lfc_system
     basis = make_basis(system, xp, purepython, block_size)
 
@@ -312,9 +307,6 @@ def test_add_to_density(
     if not purepython and xp is np:
         pytest.skip(reason="CPU + C++ is WIP")
 
-    if purepython and xp is cp:
-        pytest.skip(reason="Purepython + Cupy is WIP")
-
     system = fixt_lfc_system
     basis = make_basis(system, xp, purepython, block_size)
     # Matrix distribution does not matter here.
@@ -361,9 +353,6 @@ def test_domain_decomposition(
     """"""
     if not purepython and xp is np:
         pytest.skip(reason="CPU + C++ is WIP")
-
-    if purepython and xp is cp:
-        pytest.skip(reason="Purepython + Cupy is WIP")
 
     system = fixt_lfc_system
     basis = make_basis(system, xp, purepython, block_size)

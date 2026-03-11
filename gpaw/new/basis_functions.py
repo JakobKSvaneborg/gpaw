@@ -424,10 +424,6 @@ class BasisFunctionCollectionBase(ABC):
         if len(system.atoms) == 0:
             raise RuntimeError("No atoms?!")
 
-        # if use_gpu and cupy_is_fake:
-        #     raise RuntimeError(
-        #         "Can't use GPU BasisFunctionCollection with fake CuPy")
-
         self.xp = cp if use_gpu else np
 
         # TODO let caller choose dtype (32 or 64bit float)
@@ -460,6 +456,11 @@ class BasisFunctionCollectionBase(ABC):
         # This happens now inside block rebuild...
         # if self.should_precalculate:
         #    self.precalculate_on_grid()
+
+    def uses_gpu(self) -> bool:
+        """Returns True if the basis functions and splines are allocated in
+        GPU memory."""
+        return self.xp is not np
 
     def get_phi_data_for_atom(self, atom_idx: int) -> list[BasisFunctionDesc]:
         """"""
@@ -965,9 +966,10 @@ class BasisFunctionCollectionBase(ABC):
     def get_cache_size_estimate(self) -> int:
         """Estimate of how many bytes are needed to precalculate and cache the
         basis functions on the grid.
-        FIXME: not correct atm.
         """
-        # FIXME does not include periodic copies
-        num_sites = int(np.prod(self.grid.size))
-        # TODO single precision. Do we need to allow complex phi?
-        return num_sites * self.num_basis_functions() * 8
+        num_sites = 0
+        for block in self.get_relevant_blocks():
+            num_sites += int(np.prod(block.shape))
+
+        dummy = np.empty((1), dtype=self.dtype)
+        return num_sites * self.num_basis_functions() * dummy.itemsize
