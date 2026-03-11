@@ -585,7 +585,8 @@ class BuildGPU:
             gpu_include_dirs_: list[str],
             define_macros_: list[tuple[str, str]],
             undef_macros_: list[str],
-            build_dir: str):
+            build_dir: str,
+            makefile_name: str):
         """"""
         # underscores because we have global vars with same names...
         self.compiler = gpu_compiler_
@@ -593,6 +594,7 @@ class BuildGPU:
         self.define_macros = define_macros_
         self.undef_macros = undef_macros_
         self.build_dir = build_dir
+        self.makefile_name = makefile_name
 
         self.sources = BuildGPU.get_sources()
 
@@ -695,7 +697,7 @@ class BuildGPU:
         inout_makefile.append("GPU_PREBUILD_DIRS := $(sort $(dir $(GPU_OBJECTS)))")
         inout_makefile.append("$(GPU_PREBUILD_DIRS):\n\t mkdir -p $@")
         # Add Makefile as dep for the .o files so that changing Makefile forces full recompilation
-        inout_makefile.append("\n$(GPU_OBJECTS): Makefile | $(GPU_PREBUILD_DIRS)")
+        inout_makefile.append(f"\n$(GPU_OBJECTS): {self.makefile_name} | $(GPU_PREBUILD_DIRS)")
 
         inout_makefile.append(f"\nCC_GPU := {self.compiler}\n")
         inout_makefile.append(f"CFLAGS_GPU := {cflags_str} -MMD -MP\n")
@@ -731,6 +733,11 @@ class BuildGPAW(build_ext):
         This is relative to the Makefile (project root).
         """
         return "_build"
+
+    @property
+    def makefile_name(self) -> str:
+        """Name of the makefile to be generated."""
+        return "Makefile"
 
     def parse_ldflags(self,
                       libraries: list[str] | None,
@@ -817,7 +824,7 @@ class BuildGPAW(build_ext):
 
         makefile_lines.append("PREBUILD_DIRS := $(sort $(dir $(OBJECTS)))")
         makefile_lines.append("$(PREBUILD_DIRS):\n\t mkdir -p $@")
-        makefile_lines.append("\n$(OBJECTS): Makefile | $(PREBUILD_DIRS)")
+        makefile_lines.append(f"\n$(OBJECTS): {self.makefile_name} | $(PREBUILD_DIRS)")
 
         makefile_lines.append(f"\nCC := {self.compiler.compiler_so[0]}")
 
@@ -884,9 +891,9 @@ class BuildGPAW(build_ext):
                 makefile_lines.append(f"{obj}: {src}\n\t$(CC) $(CFLAGS_BASE) -c $< -o $@ $(CFLAGS_EXTRA)\n")
 
         makefile_lines.append("\n-include $(DEPS)")
-        with open("Makefile", "w") as mf:
+        with open(self.makefile_name, "w") as mf:
             mf.write("\n".join(makefile_lines))
-            print("Generated Makefile")
+            print(f"Generated Makefile: {self.makefile_name}")
 
     def run(self):
         """"""
@@ -916,7 +923,8 @@ class BuildGPAW(build_ext):
                                    define_macros,
                                    undef_macros,
                                    # For makefiles, prefer relative path (shorter)
-                                   self.build_temp if not makefile_build else self.makefile_build_dir)
+                                   self.build_temp if not makefile_build else self.makefile_build_dir,
+                                   self.makefile_name)
 
             if not makefile_build:
                self.link_objects += self.gpu_builder.build()
@@ -940,6 +948,7 @@ class BuildGPAW(build_ext):
             # run make
             run_args = ["make"]
             run_args += ["-j", str(_num_build_jobs)]
+            run_args += ["-f", str(self.makefile_name)]
             print(shlex.join(run_args), flush=True)
             p = subprocess.run(run_args, check=False, shell=False)
 
