@@ -410,11 +410,11 @@ class Symmetries:
             error_ac = fracpos_ac @ U_cc - t_c - fracpos_ac[b_a]
             error_ac -= error_ac.round()
             if self._backwards_compatible:
-                if abs(error_ac).max() > self.tolerance:
+                if abs(error_ac).max(initial=0.0) > self.tolerance:
                     raise SymmetryBrokenError
             else:
                 error_av = error_ac @ self.cell_cv
-                if (error_av**2).sum(1).max() > self.tolerance**2:
+                if (error_av**2).sum(1).max(initial=0.0) > self.tolerance**2:
                     raise SymmetryBrokenError
 
     def symmetrize_forces(self, F0_av):
