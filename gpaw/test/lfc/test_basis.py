@@ -10,7 +10,7 @@ from gpaw.new.basis_functions_purepython \
     import BasisFunctionCollectionPurePython
 from gpaw.spline import Spline
 from gpaw.gpu import cupy as cp, as_np, cupy_is_fake
-from gpaw import GPAW_NO_C_EXTENSION
+#from gpaw import GPAW_NO_C_EXTENSION
 from gpaw.mpi import world, MPIComm
 
 import numpy as np
