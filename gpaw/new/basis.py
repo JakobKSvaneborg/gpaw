@@ -47,9 +47,6 @@ def create_basis(ibz: IBZ,
             system,
             use_gpu=(xp is not np))
 
-        assert grid.comm.size == 1
-        basis.my_atom_indices = np.arange(len(relpos_ac))
-
     myM = (basis.Mmax + band_comm.size - 1) // band_comm.size
     basis.set_matrix_distribution(
         min(band_comm.rank * myM, basis.Mmax),
