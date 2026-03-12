@@ -1,9 +1,11 @@
 import numpy as np
-
 from gpaw import GPAW_NO_C_EXTENSION
 from gpaw.core import PWDesc, UGDesc
 from gpaw.lfc import BasisFunctions
 from gpaw.mpi import serial_comm
+from gpaw.new.basis_functions import build_lfc_system
+from gpaw.new.basis_functions_purepython import \
+    BasisFunctionCollectionPurePython
 from gpaw.new.brillouin import IBZ
 
 
@@ -26,6 +28,7 @@ def create_basis(ibz: IBZ,
     basis_dtype = complex if \
         np.issubdtype(dtype, np.complexfloating) else float
 
+    basis: BasisFunctions | BasisFunctionCollectionPurePython
     if not new_basis:
         basis = BasisFunctions(
             grid._gd,
@@ -38,9 +41,6 @@ def create_basis(ibz: IBZ,
         basis.set_positions(relpos_ac)
 
     else:
-        from gpaw.new.basis_functions import build_lfc_system
-        from gpaw.new.basis_functions_purepython \
-            import BasisFunctionCollectionPurePython
         system = build_lfc_system(setups, grid, relpos_ac)
         # Only the purepython version is implemented for now
         basis = BasisFunctionCollectionPurePython(
