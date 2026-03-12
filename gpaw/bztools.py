@@ -20,6 +20,7 @@ from gpaw.utilities.symmetry import (find_set_of_lattice_symmetries,
                                      prune_symmetries)
 
 if TYPE_CHECKING:
+    from numpy.typing import NDArray
     from gpaw.new.ase_interface import ASECalculator as NewGPAW
     from gpaw.old.calculator import GPAW as OldGPAW
 
@@ -197,7 +198,7 @@ def get_mp_grid_from_min_distance_criteria(atoms: Atoms,
     return np.array(best_grid)
 
 
-def contains_ibz_vertices_predicate(mp_grids,
+def contains_ibz_vertices_predicate(mp_grids: NDArray,
                                     atoms: Atoms,
                                     gamma: bool,
                                     tolerance: float):
@@ -268,7 +269,7 @@ def contains_ibz_vertices_predicate(mp_grids,
     return bools
 
 
-def is_symmetric_mp_grid_predicate(mp_grids,
+def is_symmetric_mp_grid_predicate(mp_grids: NDArray,
                                    atoms: Atoms,
                                    gamma: bool,
                                    tolerance: float):
@@ -313,7 +314,7 @@ def is_symmetric_mp_grid_predicate(mp_grids,
     return bools
 
 
-def get_nk_ibz(mp_grids,
+def get_nk_ibz(mp_grids: NDArray,
                atoms: Atoms,
                gamma: bool,
                tolerance: float):
@@ -497,13 +498,14 @@ def get_bz(calc: OldGPAW | NewGPAW, comm):
 
     Parameters
     ----------
-    calc : str, GPAW calc instance
+    calc:
+        Instance of GPAW calculator
 
     Returns
     -------
-    bzk_kc : ndarray
+    bzk_kc:
         Vertices of BZ in crystal coordinates
-    ibzk_kc : ndarray
+    ibzk_kc:
         Vertices of IBZ in crystal coordinates
 
     """
@@ -530,10 +532,12 @@ def get_bz(calc: OldGPAW | NewGPAW, comm):
         id_a=atoms.numbers, tolerance=tolerance, symmorphic=True,
         _backwards_compatible=_backwards_compatible)
 
-    return get_reduced_bz(cell_cv, lU_scc, cU_scc, pbc_c, tolerance, comm)
+    return get_reduced_bz(cell_cv, pbc_c,
+                          lU_scc=lU_scc, cU_scc=cU_scc,
+                          tolerance=tolerance, comm=comm)
 
 
-def get_reduced_bz(cell_cv, lU_scc, cU_scc, pbc_c, tolerance, comm):
+def get_reduced_bz(cell_cv, pbc_c, *, lU_scc, cU_scc, tolerance, comm):
     """
     Reduce the BZ using the crystal symmetries to obtain the IBZ.
 
