@@ -286,7 +286,7 @@ class MSR1Mixer(BaseMixer):
 
 
             while (iold > self.nmaxold and dNt <= self.last_dNt * self.soft_bad_lim) \
-                    or (iold > self.nmaxold + 1):
+                    or (iold > self.nmaxold):
                 # Throw away too old stuff:
                 # to_del = np.argmax(np.array(self.dNt_i)[:-2])
                 to_del = 0
@@ -326,7 +326,7 @@ class MSR1Mixer(BaseMixer):
                 dD_iasp.insert(insert_pos, tmp)
                 dNt = self.dNt_i.pop()
                 self.dNt_i.insert(insert_pos, dNt)
-                dNt = self.last_dNt
+                dNt = self.last_dNt * 1.1  # Avoid infinite loop
 
                 R_sG = R_isG[-1]
                 backtracked = True
@@ -336,17 +336,19 @@ class MSR1Mixer(BaseMixer):
             # ntnorm_i = ntnorm_i[:-1] / ntnorm_i[-1]
             # self.gd.comm.sum(ntnorm_i)
 
-            dampen = 1.15  # Dampen the greeds
-            punishment_factor = 0.75 if del_oldest else 0.85 # How much to reduce greed when backtracing
-            trust_scalar = 1.1 # Scaling factor for the trust radius.
-            abs_gb_lim = 10  # Maximum value of good Broyden.
-            max_gb_fact = 0.8  # Scaling factor for maximum good Broyden.
-            post_gb_fact = 0.6 if backtracked else 0.95 # Scaling factor for the final amount of good Broyden
-            weight = 2e-4  # Weight for regularization, 2e-4 works well. Strongly depends on the amount of good Broyden.
-            boost_B0 = 1e-1  # Constant offset to the predicted greed
-            B0_lims = [0.4, 1.05]  # Limits for predicted greed
-            A0_lims = [0.02, 0.4]  # Limits for unpredicted greed
-            rate_ratio = [0.7, 1.4 if not backtracked else punishment_factor]  # Rate ratio for clipping
+            dampen = 1.0  # Dampen the greeds
+            punishment_factor = 0.8 if del_oldest else 1  # How much to reduce greed when backtracing
+            trust_scalar = 1.1 * punishment_factor # Scaling factor for the trust radius.
+            if self.trust_radius is not None:
+                self.trust_radius *= punishment_factor
+            abs_gb_lim = 10 # Maximum value of good Broyden.
+            max_gb_fact = 0.5 # Scaling factor for maximum good Broyden.
+            post_gb_fact = 0.4 if del_oldest else (0.9 if backtracked else 0.9)  # Scaling factor for the final amount of good Broyden
+            weight = 2e-4   # Weight for regularization, 2e-4 works well. Strongly depends on the amount of good Broyden.
+            boost_B0 = 1e-1   # Constant offset to the predicted greed
+            B0_lims = [0.4, 1.2]   # Limits for predicted greed
+            A0_lims = [0.03, 0.4]   # Limits for unpredicted greed
+            rate_ratio = [0.7, 1.3 if not backtracked else punishment_factor]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
             initial_B0 = 1.0
 
@@ -428,9 +430,9 @@ class MSR1Mixer(BaseMixer):
 
             ### 2023 paper eq 22 - Limit good_broydenness
             # YY_LIM = y_isG.reshape((iold - 1, -1)) @ ty_isG.reshape((iold - 1, -1)).T
-            YY_LIM = self.dotprod(y_isG, y_isG, yD_iasp, yD_iasp, self.gd, mode='gemm')
+            YY_LIM = self.dotprod(ty_isG, y_isG, tyD_iasp, yD_iasp, self.gd, mode='gemm')
             YY_LIM = np.linalg.norm(YY_LIM, ord='fro')
-            YS_LIM = self.dotprod(s_isG, y_isG, sD_iasp, yD_iasp, self.gd, mode='gemm')
+            YS_LIM = self.dotprod(ts_isG, y_isG, tsD_iasp, yD_iasp, self.gd, mode='gemm')
             YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
             max_gb = min(max(YY_LIM / YS_LIM * max_gb_fact, 1), abs_gb_lim)
             good_broydenness = 0.5 * max_gb
@@ -445,12 +447,12 @@ class MSR1Mixer(BaseMixer):
             # for good_broydenness in good_broydenness_range:
             # binary search 2**(-8) accuracy:
             for iter in range(2, 9):
-                t_isG = y_isG + good_broydenness * s_isG
+                t_isG = ty_isG + good_broydenness * ts_isG
                 tD_iasp = []
                 for i in range(iold - 1):
                     tD_asp = []
                     for a in range(len(D_iasp[0])):
-                        tD_asp.append(yD_iasp[i][a] + good_broydenness * sD_iasp[i][a])
+                        tD_asp.append(tyD_iasp[i][a] + good_broydenness * tsD_iasp[i][a])
                     tD_iasp.append(tD_asp)
 
                 norm_vec = 1 / np.sqrt(np.abs(y_norm + s_norm * good_broydenness))
@@ -512,7 +514,7 @@ class MSR1Mixer(BaseMixer):
 
             ### SVD Regularization:
             S, V, D = np.linalg.svd(B_ii)
-            V = V / (V**2 + (weight**2 * np.max(V))**2)
+            V = V / (V**2 + (1e-10 * np.max(V))**2)
             B_ii = D.T @ np.diag(V) @ S.T
             # B_ii = np.linalg.inv(B_ii)
 
@@ -541,6 +543,7 @@ class MSR1Mixer(BaseMixer):
             if False and metric is not None:
                 self.metric(tuk_sG, tuk_sG)
                 self.metric(tuRnoD_sG, tuRnoD_sG)
+
             A1 = self.dotprod(tuk_sG, self.uk_sG, self.uD_asp, self.uD_asp,
                self.gd, mode='scalar')
 
@@ -548,7 +551,7 @@ class MSR1Mixer(BaseMixer):
                 self.R_isG[last_step] - self.uk_sG,
                 uRnoD_asp, uRnoD_asp, self.gd, mode='scalar')
 
-            # For Eq 18 from mixing for dumies:
+            # From Eq 18 from mixing for dumies:
             A2_i = self.dotprod(t_isG, [self.uk_sG, ], tD_iasp, [self.uD_asp, ], self.gd, mode='gemm')[:, 0]
             # A2_i = self.dotprod(ty_isG, [self.uk_sG, ], tyD_iasp, [self.uD_asp, ], self.gd, mode='gemm')[:, 0]
             A3_i = self.dotprod([tuk_sG, ], y_isG, [self.uD_asp, ], yD_iasp, self.gd, mode='gemm')[0, :]
@@ -557,8 +560,9 @@ class MSR1Mixer(BaseMixer):
             # B2_i = self.dotprod(ty_isG, [self.pk_sG, ], tyD_iasp, [self.pD_asp, ], self.gd, mode='gemm')[:, 0]
             B3_i = self.dotprod([tuRnoD_sG, ], y_isG, [uRnoD_asp, ], yD_iasp, self.gd, mode='gemm')[0, :]
 
+
             A2 = A3_i @ B_ii @ A2_i * dampen
-            B2 = B3_i @ B_ii @ B2_i * dampen
+            B2 = B3_i @ B_ii @ B2_i
 
             if self.world.rank == 0:
                 print('ratio: ', np.abs(A1 / A2))
@@ -568,21 +572,23 @@ class MSR1Mixer(BaseMixer):
                 # np.abs(A1 / A2),
                 *A0_lims
                 )
-            if iold != 2:
+            if self.A0 is not None:
                 if B2 == 0 and B1 == 0:
                     B2 = 1; B1 = 1
                 B0_ratio = (
-                    self.B0 + np.clip(
-                        np.abs(B1 / B2) + boost_B0,
-                        *B0_lims)
+                    self.B0 + np.clip(np.abs(B1 / B2) + boost_B0, *B0_lims)
                     ) / (2 * self.B0)
                 self.B0 *= np.clip(B0_ratio, 3/5, 5/3)
+                self.B0 = np.clip(self.B0, *B0_lims)
                 A0_ratio_GEOM = np.sqrt(A0_target * self.A0) / self.A0
                 A0_ratio_ALG = (A0_target + self.A0) / (2 * self.A0)
-                self.A0 *= np.clip(A0_ratio_GEOM, *rate_ratio)
+                self.last_A0_rate = np.clip(A0_ratio_GEOM, *rate_ratio)
+                self.A0 *= self.last_A0_rate
             else:
-                self.B0 = initial_B0
-                self.A0 = A0_target * min(1, 0.67 * dampen)
+                self.B0 = initial_B0 * punishment_factor
+                self.A0 = A0_target * 0.67
+                self.last_A0_rate = np.clip((self.A0 / self.beta)**0.5, *rate_ratio)
+                self.last_B0_rate = 1.0
 
             A0 = self.A0
             B0 = self.B0
@@ -598,9 +604,9 @@ class MSR1Mixer(BaseMixer):
             trust_radius = trust_scalar * trust_radius**0.5
 
             if self.trust_radius is not None:
-                trust_radius = (self.trust_radius * trust_radius) ** 0.5
+                trust_radius = (self.trust_radius + trust_radius) / 2
                 if backtracked:
-                    self.trust_radius = min(self.trust_radius, trust_radius) * punishment_factor
+                    self.trust_radius = min(self.trust_radius, trust_radius)
                 else:
                     self.trust_radius = trust_radius
             else:
@@ -649,11 +655,12 @@ class MSR1Mixer(BaseMixer):
 
                 from scipy.optimize import root_scalar
                 try:
-                    lamb = root_scalar(err_fct, bracket=[0,100])
+                    lamb = root_scalar(err_fct, bracket=[0, 100 * np.max(V)])
+                    root = lamb.root
                 except ValueError as e:
-                    breakpoint()
+                    root = 100 * np.max(V)
                 beta_i = np.linalg.solve(
-                    A_ii + lamb.root * np.eye(iold - 1), BR_i
+                    A_ii + root * np.eye(iold - 1), BR_i
                 )
                 # weight = lamb.root
                 # tA_i = V / (V**2 + (weight * np.max(V))**2)
@@ -718,8 +725,7 @@ class MSR1Mixer(BaseMixer):
             self.i_update = 0
             self.last_gb = 5
             self.trust_radius = None
-            self.A0 = self.beta
-            self.B0 = 1
+            self.A0 = None
             A0 = self.beta
             self.uk_sG = R_sG
             self.pk_sG = np.zeros_like(self.uk_sG)
