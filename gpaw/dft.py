@@ -852,7 +852,8 @@ def _parse_experimental(experimental: dict | None,
         magmoms = experimental.pop('magmoms')
     unknown = experimental.keys() - {'backwards_compatible',
                                      'ccirs',
-                                     'pw_pot_calc'}
+                                     'pw_pot_calc',
+                                     'new_basis'}
     if unknown:
         warnings.warn(f'Unknown experimental keyword(s): {unknown}',
                       stacklevel=3)
