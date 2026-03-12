@@ -404,6 +404,13 @@ class BasisFunctionCollectionBase(ABC):
         """
         self.grid = system.grid
 
+        # WIP: only easy grid shape is supported
+        if np.count_nonzero(
+            self.grid.cell_cv - np.diag(np.diagonal(self.grid.cell_cv))
+        ) > 0:
+            raise NotImplementedError(
+                "Only simple grid shape is supported for now")
+
         if block_size is not None:
             self.block_size = min(block_size, np.min(self.grid.mysize_c))
         else:
