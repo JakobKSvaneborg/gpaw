@@ -1,27 +1,17 @@
-import numpy as np
-from gpaw.gpu import cupy as cp
-from functools import cached_property
-from dataclasses import dataclass, field
-from gpaw.spline import Spline
-from gpaw.core import UGDesc
-from gpaw.old.grid_descriptor import GridBoundsError
-from gpaw.new.timer import trace
-from gpaw.setup import Setups, Setup
-from typing import cast
-from enum import Enum, auto
-from abc import ABC, abstractmethod
 import itertools
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from enum import Enum, auto
+from functools import cached_property
+from typing import TypeAlias, cast
 
-from typing import Protocol, runtime_checkable, TypeAlias
-
-
-@runtime_checkable
-class SplineLike(Protocol):
-    """"""
-
-    def __call__(self, x: np.ndarray | cp.ndarray) -> np.ndarray | cp.ndarray:
-        ...
-
+import numpy as np
+from gpaw.core import UGDesc
+from gpaw.gpu import cupy as cp
+from gpaw.new.timer import trace
+from gpaw.old.grid_descriptor import GridBoundsError
+from gpaw.setup import Setup, Setups
+from gpaw.spline import Spline
 
 """
 Each atom has list of basis functions. A basis function is defined by its
@@ -317,8 +307,6 @@ class PhiSphereData:
 
 class SplinePoolBase(ABC):
     """"""
-    splines: list[SplineLike]
-
     def __init__(self):
         """"""
         self.splines = []
@@ -332,7 +320,7 @@ class SplinePoolBase(ABC):
         """"""
         return len(self.splines)
 
-    def get_spline(self, spline_idx: int) -> SplineLike:
+    def get_spline(self, spline_idx: int):
         """"""
         return self.splines[spline_idx]
 
@@ -469,7 +457,7 @@ class BasisFunctionCollectionBase(ABC):
             out.append(self.phi_datas[spline_idx])
         return out
 
-    def get_spline(self, spline_idx: int) -> SplineLike:
+    def get_spline(self, spline_idx: int):
         """"""
         return self.spline_pool.get_spline(spline_idx)
 
@@ -714,6 +702,13 @@ class BasisFunctionCollectionBase(ABC):
         - The returned array type (CPU or GPU) matches the input vt_G type.
         """
 
+        raise NotImplementedError
+
+    @abstractmethod
+    def construct_density(self,
+                          rho_MM,
+                          nt_G: np.ndarray | cp.ndarray,
+                          q):
         raise NotImplementedError
 
     @abstractmethod

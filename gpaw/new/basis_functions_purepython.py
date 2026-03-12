@@ -33,15 +33,15 @@ class SplinePoolGPUPurePython(SplinePoolBase):
         # Cupyx does not have a direct CubicSpline replacement, so we use
         # a PPoly object (generic piecewise polynomial).
         # TODO handle fake cupy?
-        spline = CubicSpline(
+        cspline = CubicSpline(
             np.linspace(0.0, desc.cutoff, len(desc.f_r), endpoint=True),
             desc.f_r,
             bc_type='clamped',  # first derivatives are zero at boundaries
             extrapolate=False)
 
         spline = cupyx.scipy.interpolate.PPoly(
-            cp.asarray(spline.c),
-            cp.asarray(spline.x),
+            cp.asarray(cspline.c),
+            cp.asarray(cspline.x),
             extrapolate=False)
 
         self.splines.append(spline)
