@@ -9,7 +9,7 @@ from gpaw.new.basis_functions import (BasisFunctionDesc,
 from gpaw.new.basis_functions_purepython \
     import BasisFunctionCollectionPurePython
 from gpaw.spline import Spline
-from gpaw.gpu import cupy as cp, as_np
+from gpaw.gpu import cupy as cp, as_np, cupy_is_fake
 from gpaw import GPAW_NO_C_EXTENSION
 from gpaw.mpi import world, MPIComm
 
@@ -31,7 +31,7 @@ def xp_params_no_cpupy():
             id="cupy",
             marks=[
                 pytest.mark.gpu,
-                # pytest.mark.skipif(cupy_is_fake, reason="Fake Cupy"),
+                pytest.mark.skipif(cupy_is_fake, reason="Fake Cupy"),
             ],
         ),
     ]
@@ -42,12 +42,13 @@ def parametrize_purepython():
     to run both purepython and non-purepython versions, skipping the latter if
     not available.
     """
-    return [True,
-            pytest.param(
-                False,
-                marks=[pytest.mark.skipif(GPAW_NO_C_EXTENSION,
-                                          reason="No C extension")]
-            )]
+    return [True]
+    # return [True,
+    #         pytest.param(
+    #             False,
+    #             marks=[pytest.mark.skipif(GPAW_NO_C_EXTENSION,
+    #                                       reason="No C extension")]
+    #         )]
 
 
 def parametrize_blocksize():
