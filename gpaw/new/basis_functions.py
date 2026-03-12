@@ -473,6 +473,12 @@ class BasisFunctionCollectionBase(ABC):
         """Total number of atoms in the system (not just in this MPI rank)."""
         return len(self.spline_indices_for_a.keys())
 
+    @property
+    def my_atom_indices(self) -> list[int]:
+        """Indices of atoms in this MPI domain"""
+        myrank = self.grid.comm.rank
+        return [a for a, r in enumerate(self._rank_a) if r == myrank]
+
     def get_atom_positions(self, grid_relative=False) -> np.ndarray:
         """Returns current atom positions. Either position_av or relpos_ac"""
         if grid_relative:
