@@ -72,4 +72,3 @@ if cupy:
         raise RuntimeError(f'CuPy loaded but unknown $CPU_ARCH={cpuarch}')
 else:
     gpu = False
-
