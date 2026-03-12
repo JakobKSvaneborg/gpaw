@@ -2,11 +2,13 @@ import os
 
 scalapack = True
 fftw = True
+mpi = True
+compiler = "mpic++"
+use_cpp = True
 
 # Clean out any autodetected things, we only want the EasyBuild
 # definitions to be used.
 libraries = ['openblas', 'fftw3', 'readline', 'gfortran']
-mpi_libraries = []
 include_dirs = []
 undef_macros = []
 
@@ -71,5 +73,3 @@ if cupy:
 else:
     gpu = False
 
-compiler = "mpic++"
-use_cpp = True
