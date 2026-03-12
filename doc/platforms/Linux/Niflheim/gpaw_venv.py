@@ -96,7 +96,7 @@ then export GPAW_USE_GPUS=1;export GPAW_NEW=1;fi
 
 
 activate_extra = """
-export GPAW_SETUP_PATH=$GPAW_SETUP_PATH:{venv}/gpaw-basis-pvalence-0.9.20000
+export GPAW_SETUP_PATH={{$GPAW_SETUP_PATH:+$GPAW_SETUP_PATH:}}{venv}/gpaw-basis-pvalence-0.9.20000
 
 # Set matplotlib backend:
 if [[ $SLURM_SUBMIT_DIR ]]; then
