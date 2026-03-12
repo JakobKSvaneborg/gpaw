@@ -1,6 +1,7 @@
 import gpaw.gpu.cpupy as cp
 from scipy.interpolate import PPoly as ScipyPPoly
 
+
 class PPoly:
     """"""
 

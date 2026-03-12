@@ -184,10 +184,12 @@ def isfinite(a):
 def isnan(a):
     return ndarray(np.isnan(a._data))
 
+
 def nan_to_num(a: ndarray, copy=True, nan=0.0, posinf=None, neginf=None):
     """"""
     return ndarray(np.nan_to_num(a._data, copy=copy, nan=nan, posinf=posinf,
                                  neginf=neginf))
+
 
 def real(a: ndarray) -> ndarray:
     return ndarray(np.real(a._data))

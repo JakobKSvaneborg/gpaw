@@ -9,7 +9,7 @@ from gpaw.new.basis_functions import (BasisFunctionDesc,
 from gpaw.new.basis_functions_purepython \
     import BasisFunctionCollectionPurePython
 from gpaw.spline import Spline
-from gpaw.gpu import cupy as cp, as_np, cupy_is_fake
+from gpaw.gpu import cupy as cp, as_np
 from gpaw import GPAW_NO_C_EXTENSION
 from gpaw.mpi import world, MPIComm
 
@@ -31,7 +31,7 @@ def xp_params_no_cpupy():
             id="cupy",
             marks=[
                 pytest.mark.gpu,
-                #pytest.mark.skipif(cupy_is_fake, reason="Fake Cupy"),
+                # pytest.mark.skipif(cupy_is_fake, reason="Fake Cupy"),
             ],
         ),
     ]
@@ -77,7 +77,7 @@ def make_test_system() -> LFCSystemDesc:
     world = cast(MPIComm, world)
 
     # test crazy cell shapes
-    #cell = [[0, a, a], [a, 0, a], [a, a, 0]]
+    # cell = [[0, a, a], [a, 0, a], [a, a, 0]]
 
     grid = UGDesc(cell=[a, a, a], size=(n, n, n), comm=world)
 
