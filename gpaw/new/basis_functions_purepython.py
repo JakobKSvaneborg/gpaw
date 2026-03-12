@@ -1,7 +1,7 @@
 from gpaw.new.basis_functions import (BasisFunctionCollectionBase,
                                       SplinePoolBase,
                                       BasisFunctionDesc)
-from gpaw.gpu import cupy as cp, cupy_is_fake, cupyx
+from gpaw.gpu import cupy as cp, cupyx
 from gpaw.sphere.spherical_harmonics import Y
 from gpaw.typing import override
 
@@ -249,7 +249,7 @@ class BasisFunctionCollectionPurePython(BasisFunctionCollectionBase):
             phi_mg = block.evaluated_phi_mg
             phi_mu_vt_g = phi_mg * vt_g
             # Integrate, ie. contract grid indices. Dense block-sized matrix
-            V_mn = np.einsum("mxyz, nxyz -> mn", phi_mu_vt_g, phi_mg,
+            V_mn = np.einsum('mxyz, nxyz -> mn', phi_mu_vt_g, phi_mg,
                              optimize=True)
 
             for m, mu in enumerate(block.M_m):
@@ -274,8 +274,6 @@ class BasisFunctionCollectionPurePython(BasisFunctionCollectionBase):
         if num_work_rows <= 0:
             # nothing to do
             return
-
-        M = self.num_basis_functions()
 
         if self.has_precalculated_phi():
             self._construct_density_with_precalculation(
@@ -304,5 +302,5 @@ class BasisFunctionCollectionPurePython(BasisFunctionCollectionBase):
                         start_c[2]:end_c[2]]
 
             rho_mm = rho_MM[block.M_m][:, block.M_m]
-            nt_g += np.einsum("mxyz, nxyz, mn -> xyz", phi_mg, phi_mg, rho_mm,
+            nt_g += np.einsum('mxyz, nxyz, mn -> xyz', phi_mg, phi_mg, rho_mm,
                               optimize=True)
