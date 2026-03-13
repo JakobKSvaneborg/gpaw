@@ -579,7 +579,9 @@ class Matrix(XP):
             # necessary to broadcast eps when some ranks are not used
             # in current scalapack parameter set
             # eg. (2, 1, 2) with 4 processes
-            if 1:#rows * columns < self.dist.comm.size:
+            if 1:  # rows * columns < self.dist.comm.size:
+                # looks like scalapack_general_diagonalize_dc needs this
+                # always!  Not sure about scalapack_diagonalize_dc?
                 self.dist.comm.broadcast(eps, 0)
 
         if redist:

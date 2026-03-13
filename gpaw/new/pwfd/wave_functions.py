@@ -302,7 +302,6 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             data=H_nn.data if self.domain_comm.rank == 0 else None)
         eig_n = H0_nn.eigh(scalapack=(slcomm, r, c, b))
         self.eig_n = as_np(eig_n, dtype=np.float64)
-        #H0_nn.redist(H_nn)
         H0_nn.complex_conjugate()
         # H.data[n, :] now contains the nth eigenvector and eps_n[n]
         # the nth eigenvalue
