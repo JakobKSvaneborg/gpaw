@@ -31,7 +31,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                  setups: Setups,
                  relpos_ac: Array2D,
                  atomdist: AtomDistribution,
-                 domain_band_comm: MPIComm = serial_comm,
+                 domain_band_comm: MPIComm,
                  weight: float = 1.0,
                  ncomponents: int = 1,
                  qspiral_v: Vector | None = None):
@@ -64,7 +64,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                  wfs: PWFDWaveFunctions,
                  psit_nX: XArray,
                  relpos_ac=None,
-                 atomdist=None) -> PWFDWaveFunctions:
+                 atomdist=None,
+                 domain_band_comm=None) -> PWFDWaveFunctions:
         return cls(
             psit_nX,
             spin=wfs.spin,
@@ -75,6 +76,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             atomdist=atomdist or wfs.atomdist,
             weight=wfs.weight,
             ncomponents=wfs.ncomponents,
+            domain_band_comm=domain_band_comm or wfs.domain_band_comm,
             qspiral_v=wfs.qspiral_v)
 
     def __del__(self):
@@ -418,13 +420,14 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         n2 = n2 if n2 > 0 else self.nbands + n2
         spinors = (2,) if self.ncomponents == 4 else ()
         band_comm = self.psit_nX.comm
+        grid = self.psit_nX.desc
+        domain_comm = grid.comm
         nbands = self.nbands
         mynbands = (nbands + band_comm.size - 1) // band_comm.size
         rank1, b1 = divmod(n1, mynbands)
         rank2, b2 = divmod(n2, mynbands)
         if band_comm.rank == 0:
-            psit_nX = self.psit_nX.desc.empty(
-                (n2 - n1, *spinors), xp=self.psit_nX.xp)
+            psit_nX = grid.empty((n2 - n1, *spinors), xp=self.psit_nX.xp)
             rank = rank1
             ba = b1
             na = n1
@@ -444,7 +447,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                 ba = 0
                 na = nb
 
-            wfs = PWFDWaveFunctions.from_wfs(self, psit_nX)
+            wfs = PWFDWaveFunctions.from_wfs(self, psit_nX,
+                                             domain_band_comm=domain_comm)
             if self.has_eigs:
                 wfs.eig_n = self.eig_n[n1:n2]
                 if self._occ_n is not None:
@@ -474,7 +478,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             wfs1 = PWFDWaveFunctions.from_wfs(
                 wfs,
                 psit_nX,
-                atomdist=atomdist)
+                atomdist=atomdist,
+                domain_band_comm=serial_comm)
             wfs1._eig_n = wfs._eig_n
             wfs1._occ_n = wfs._occ_n
             return wfs1
