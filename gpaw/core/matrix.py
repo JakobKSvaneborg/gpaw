@@ -286,7 +286,7 @@ class Matrix(XP):
         dist.multiply(alpha, A, opa, B, opb, beta, out, symmetric=symmetric)
         return out
 
-    def redist(self, other: Matrix) -> None:
+    def redist(self, other: Matrix, *, use_blacs=False) -> None:
         """Redistribute to other BLACS layout.
         `other` is the output, newly distributed matrix."""
         if self is other:
@@ -299,9 +299,7 @@ class Matrix(XP):
             other.data[:] = self.data
             return
 
-        #print(d1.all_data_on_rank_zero, d1.simple, n1)
-        #print(d2.all_data_on_rank_zero, d2.simple, n2)
-        if d2.all_data_on_rank_zero and d1.simple:# and n1 == n2:
+        if d2.all_data_on_rank_zero and d1.simple and not use_blacs:
             comm = d1.comm
             if comm.rank == 0:
                 M = self.shape[0]
@@ -315,7 +313,7 @@ class Matrix(XP):
                 comm.send(self.data, 0)
             return
 
-        if d1.all_data_on_rank_zero and d2.simple:# and n1 == n2:
+        if d1.all_data_on_rank_zero and d2.simple and not use_blacs:
             comm = d2.comm
             if comm.rank == 0:
                 M = self.shape[0]
@@ -480,11 +478,11 @@ class Matrix(XP):
 
         if redist:
             H = self.new(dist=dist)
-            self.redist(H)
+            self.redist(H, use_blacs=True)
             if S is not None:
                 S0 = S
                 S = S0.new(dist=dist)
-                S0.redist(S)
+                S0.redist(S, use_blacs=True)
         else:
             H = self
 
@@ -521,7 +519,7 @@ class Matrix(XP):
 
             # Back to original layout
             if redist:
-                H.redist(self)
+                H.redist(self, use_blacs=True)
 
             # GPU case done, return here for clarity
             return eigvals
@@ -587,7 +585,7 @@ class Matrix(XP):
                 self.dist.comm.broadcast(eps, 0)
 
         if redist:
-            H.redist(self)
+            H.redist(self, use_blacs=True)
 
         return eps
 
@@ -981,7 +979,6 @@ class CuPyDistribution(MatrixDistribution):
         self.rows = r
         self.columns = c
         self.full_shape = (M, N)
-        assert c == 1
         self.br = br
         self.bc = bc
         assert bc == max(1, N)
