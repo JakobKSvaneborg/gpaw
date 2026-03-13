@@ -126,5 +126,7 @@ def test_mul(shape1, shape2, op1, op2, beta, sym, same, dtype, xp, rng,
 
 
 if __name__ == '__main__':
-    test_mul((1, 1), (1, 19), 'N', 'N', 0.0, 0, 0,
-             complex, cp, np.random.default_rng(42))
+    # test_mul((1, 1), (1, 19), 'N', 'N', 0.0, 0, 0,
+    #          complex, cp, np.random.default_rng(42))
+    test_mul((5, 9), (5, 9), 'N', 'C', 0.0, 0, 0,
+             float, cp, np.random.default_rng(42), None)

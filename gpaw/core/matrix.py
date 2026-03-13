@@ -299,7 +299,9 @@ class Matrix(XP):
             other.data[:] = self.data
             return
 
-        if d2.all_data_on_rank_zero and d1.simple and n1 == n2:
+        #print(d1.all_data_on_rank_zero, d1.simple, n1)
+        #print(d2.all_data_on_rank_zero, d2.simple, n2)
+        if d2.all_data_on_rank_zero and d1.simple:# and n1 == n2:
             comm = d1.comm
             if comm.rank == 0:
                 M = self.shape[0]
@@ -313,7 +315,7 @@ class Matrix(XP):
                 comm.send(self.data, 0)
             return
 
-        if d1.all_data_on_rank_zero and d2.simple and n1 == n2:
+        if d1.all_data_on_rank_zero and d2.simple:# and n1 == n2:
             comm = d2.comm
             if comm.rank == 0:
                 M = self.shape[0]
