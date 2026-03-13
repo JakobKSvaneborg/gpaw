@@ -3,8 +3,8 @@ from typing import Any
 
 import numpy as np
 from ase import Atoms
-from ase.dft.kpoints import monkhorst_pack
 from ase.calculators.calculator import kptdensity2monkhorstpack
+from ase.dft.kpoints import monkhorst_pack
 from ase.neighborlist import NeighborList
 from scipy.spatial import ConvexHull, Delaunay, Voronoi
 
@@ -17,9 +17,10 @@ from gpaw import GPAW
 from gpaw.mpi import SerialCommunicator
 from gpaw.new import zips
 from gpaw.new.brillouin import BZPoints
-from gpaw.new.symmetry import create_symmetries_object, find_lattice_symmetry
+from gpaw.new.symmetry import create_symmetries_object
 from gpaw.old.kpt_descriptor import to1bz
 from gpaw.symmetry import Symmetry, aglomerate_points
+from gpaw.utilities.symmetry import find_set_of_lattice_symmetries
 
 
 def get_lattice_symmetry(cell_cv, tolerance=1e-7):
@@ -250,7 +251,7 @@ def contains_ibz_vertices_predicate(mp_grids,
                          'IBZ vertices without an even k-point sampling.')
 
     # Get IBZ vertices in lattice group.
-    lU_scc = find_lattice_symmetry(cell_cv, pbc_c, tol=1e-5)
+    lU_scc = find_set_of_lattice_symmetries(cell_cv, pbc_c, tol=1e-5)
     latibz_vert_kc = get_ibz_vertices(cell_cv, U_scc=lU_scc,
                                       time_reversal=False)
 

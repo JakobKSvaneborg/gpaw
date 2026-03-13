@@ -4,6 +4,10 @@
 #include "gpu/cpp/pyarray_utils.hpp"
 #include "gpu/cpp/pybind_cupy_type_caster.hpp"
 
+#ifdef GPAW_WITH_MAGMA
+    #include "gpu/cpp/magma/magma_python.h"
+#endif
+
 namespace py = pybind11;
 
 namespace gpaw
@@ -102,5 +106,11 @@ bool bind_gpu_submodule(PyObject* module)
         R"(Tests that the array type caster correctly copies metadata from cupy ndarray. Use by passing the same array as both inputs. Raises RuntimeError on failure.)"
     );
 
-    return true;
+    bool submodules_ok = true;
+#ifdef GPAW_WITH_MAGMA
+    // creates gpaw.gpu.magma
+    submodules_ok &= bind_magma_submodule(submodule);
+#endif
+
+    return submodules_ok;
 }

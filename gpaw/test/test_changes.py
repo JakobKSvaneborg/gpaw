@@ -121,7 +121,6 @@ def test_lcao_to_x(mode):
 
     dft.change_mode(mode)
     dft.converge()
-
     atoms.positions[:] += 0.1
     dft.move_atoms(atoms)
     dft.converge()

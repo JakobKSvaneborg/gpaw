@@ -11,6 +11,7 @@ import numpy as np
 
 from gpaw import ENVVAR_GPAW_NO_GPU_MPI
 from gpaw.new.timer import trace
+from gpaw.cgpaw.gpu import magma
 
 device_id = None
 """Device id"""
@@ -254,6 +255,11 @@ def set_device(log, world=None):
             cgpaw.gpaw_gpu_init()
             atexit.register(cgpaw.gpaw_gpu_delete)
 
+            # Initialize MAGMA library if available
+            if magma.is_available():
+                magma.magma_init()
+                atexit.register(magma.magma_finalize)
+
             # Generate a device id
             import os
             nodename = os.uname()[1]
@@ -270,15 +276,14 @@ def set_device(log, world=None):
 __all__ = ['cupy', 'cupyx', 'as_xp', 'as_np', 'synchronize',
            'flush_pinned_arrays']
 
-
 try:
-    from gpaw.cgpaw import _flush_pending_decrefs
+    from gpaw.cgpaw import flush_pending_decrefs
 
     def flush_pinned_arrays() -> None:
         """Flushes the list of arrays that are currently pinned by GPAW's
         'GPU array life support' system.
         """
-        _flush_pending_decrefs()
+        flush_pending_decrefs()
 
     # Hook the above to garbage collector
     import gc
@@ -290,7 +295,7 @@ try:
     gc.callbacks.append(gpaw_gc_flush_pinned_arrays)
 
 except ImportError:
-    def _flush_pending_decrefs() -> None:
+    def flush_pending_decrefs() -> None:  # type:ignore
         # no-op
         pass
 

@@ -6,7 +6,7 @@ from gpaw.response.g0w0 import G0W0
 
 
 @pytest.mark.flaky
-def test_diamond_mpa(in_tmp_dir, gpw_files):
+def test_diamond_mpa(in_tmp_dir, gpw_files, mpi):
     ref_results_mp1 = np.array([[[11.48389, 18.685187]]])
     ref_results_mp8 = np.array([[[11.239777, 18.591851]]])
     ref_results = {1: ref_results_mp1, 8: ref_results_mp8}
@@ -21,7 +21,8 @@ def test_diamond_mpa(in_tmp_dir, gpw_files):
                   mpa={'npoles': npols, 'wrange': [0, 200 if npols > 1 else 0],
                        'varpi': Ha, 'eta0': 1e-10, 'eta_rest': 0.1 * Ha,
                        'alpha': 1},
-                  filename=f'C-g0w0_mp{npols}')
+                  filename=f'C-g0w0_mp{npols}',
+                  world=mpi.comm)
 
         results = gw.calculate()
         direct_gap = results['qp'][0, 0, 1] - results['qp'][0, 0, 0]
