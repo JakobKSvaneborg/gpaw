@@ -291,15 +291,32 @@ class Matrix(XP):
         `other` is the output, newly distributed matrix."""
         if self is other:
             return
+
         d1 = self.dist
         d2 = other.dist
         n1 = d1.rows * d1.columns
         n2 = d2.rows * d2.columns
+
         if n1 == n2 == 1:
             other.data[:] = self.data
             return
 
-        if d2.all_data_on_rank_zero and d1.simple and not use_blacs:
+        if self.xp is np:
+            c = d1.comm if d1.comm.size > d2.comm.size else d2.comm
+            n = max(n1, n2)
+            M, N = self.shape
+            d1 = create_distribution(M, N, c,
+                                     d1.rows, d1.columns, d1.br, d1.bc)
+            d2 = create_distribution(M, N, c,
+                                     d2.rows, d2.columns, d2.br, d2.bc)
+            if n1 == n:
+                ctx = d1.desc[1]
+            else:
+                ctx = d2.desc[1]
+            redist(d1, self.data, d2, other.data, ctx)
+            return
+
+        if d2.all_data_on_rank_zero and d1.simple:
             comm = d1.comm
             if comm.rank == 0:
                 M = self.shape[0]
@@ -313,7 +330,7 @@ class Matrix(XP):
                 comm.send(self.data, 0)
             return
 
-        if d1.all_data_on_rank_zero and d2.simple and not use_blacs:
+        if d1.all_data_on_rank_zero and d2.simple:
             comm = d2.comm
             if comm.rank == 0:
                 M = self.shape[0]
@@ -326,24 +343,7 @@ class Matrix(XP):
             else:
                 comm.receive(other.data, 0)
             return
-
-        assert self.xp is np
-        c = d1.comm if d1.comm.size > d2.comm.size else d2.comm
-        n = max(n1, n2)
-        if n < c.size:
-            1 / 0
-            c = c.new_communicator(np.arange(n))
-        if c is not None:
-            M, N = self.shape
-            d1 = create_distribution(M, N, c,
-                                     d1.rows, d1.columns, d1.br, d1.bc)
-            d2 = create_distribution(M, N, c,
-                                     d2.rows, d2.columns, d2.br, d2.bc)
-            if n1 == n:
-                ctx = d1.desc[1]
-            else:
-                ctx = d2.desc[1]
-            redist(d1, self.data, d2, other.data, ctx)
+        1 / 0
 
     def gather(self, root: int = 0, *, broadcast=False) -> Matrix:
         """Gather the Matrix on the root rank.
