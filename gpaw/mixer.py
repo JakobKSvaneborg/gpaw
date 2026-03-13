@@ -347,7 +347,7 @@ class MSR1Mixer(BaseMixer):
             weight = 2e-4   # Weight for regularization, 2e-4 works well. Strongly depends on the amount of good Broyden.
             boost_B0 = 1e-1   # Constant offset to the predicted greed
             B0_lims = [0.4, 1.2]   # Limits for predicted greed
-            A0_lims = [0.03, 0.4]   # Limits for unpredicted greed
+            A0_lims = [0.02, 0.4]   # Limits for unpredicted greed
             rate_ratio = [0.7, 1.3 if not backtracked else punishment_factor]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
             initial_B0 = 1.0
@@ -430,9 +430,9 @@ class MSR1Mixer(BaseMixer):
 
             ### 2023 paper eq 22 - Limit good_broydenness
             # YY_LIM = y_isG.reshape((iold - 1, -1)) @ ty_isG.reshape((iold - 1, -1)).T
-            YY_LIM = self.dotprod(ty_isG, y_isG, tyD_iasp, yD_iasp, self.gd, mode='gemm')
+            YY_LIM = self.dotprod(y_isG, y_isG, yD_iasp, yD_iasp, self.gd, mode='gemm')
             YY_LIM = np.linalg.norm(YY_LIM, ord='fro')
-            YS_LIM = self.dotprod(ts_isG, y_isG, tsD_iasp, yD_iasp, self.gd, mode='gemm')
+            YS_LIM = self.dotprod(s_isG, y_isG, sD_iasp, yD_iasp, self.gd, mode='gemm')
             YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
             max_gb = min(max(YY_LIM / YS_LIM * max_gb_fact, 1), abs_gb_lim)
             good_broydenness = 0.5 * max_gb
@@ -447,12 +447,12 @@ class MSR1Mixer(BaseMixer):
             # for good_broydenness in good_broydenness_range:
             # binary search 2**(-8) accuracy:
             for iter in range(2, 9):
-                t_isG = ty_isG + good_broydenness * ts_isG
+                t_isG = y_isG + good_broydenness * s_isG
                 tD_iasp = []
                 for i in range(iold - 1):
                     tD_asp = []
                     for a in range(len(D_iasp[0])):
-                        tD_asp.append(tyD_iasp[i][a] + good_broydenness * tsD_iasp[i][a])
+                        tD_asp.append(yD_iasp[i][a] + good_broydenness * sD_iasp[i][a])
                     tD_iasp.append(tD_asp)
 
                 norm_vec = 1 / np.sqrt(np.abs(y_norm + s_norm * good_broydenness))
@@ -483,9 +483,9 @@ class MSR1Mixer(BaseMixer):
 
             ### Re-Scale the problem!
             if renormalize:
-                t_norm = self.dotprod(ty_isG, y_isG, tyD_iasp, yD_iasp, self.gd, mode='vecdot')
+                t_norm = self.dotprod(y_isG, y_isG, yD_iasp, yD_iasp, self.gd, mode='vecdot')
                 t_norm += good_broydenness \
-                    * self.dotprod(ts_isG, y_isG, tsD_iasp, yD_iasp, self.gd, mode='vecdot')
+                    * self.dotprod(s_isG, y_isG, sD_iasp, yD_iasp, self.gd, mode='vecdot')
                 t_norm = 1 / np.sqrt(t_norm)
                 t_norm_expanded = np.expand_dims(t_norm, axis=tuple(np.arange(1, y_isG.ndim)))
                 y_isG *= t_norm_expanded
@@ -586,7 +586,7 @@ class MSR1Mixer(BaseMixer):
                 self.A0 *= self.last_A0_rate
             else:
                 self.B0 = initial_B0 * punishment_factor
-                self.A0 = A0_target * 0.67
+                self.A0 = A0_target * 0.7
                 self.last_A0_rate = np.clip((self.A0 / self.beta)**0.5, *rate_ratio)
                 self.last_B0_rate = 1.0
 
