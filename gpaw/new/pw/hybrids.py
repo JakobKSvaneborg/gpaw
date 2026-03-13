@@ -12,8 +12,6 @@ from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
 from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.pwacf import PWAtomCenteredFunctions
-from gpaw.hybrids.paw import pawexxvv
-from gpaw.hybrids.wstc import WignerSeitzTruncatedCoulomb
 from gpaw.mpi import broadcast
 from gpaw.new import zips as zip
 from gpaw.new.ibzwfs import IBZWaveFunctions
@@ -58,6 +56,8 @@ def truncated_coulomb(cell_cv,
 
     (G+k=0 limit is pi/ω^2).
     """
+    from gpaw.hybrids.wstc import WignerSeitzTruncatedCoulomb
+
     if yukawa:
         return lambda pw: 2 * pi / (pw.ekin_G + 0.5 * omega**2)
 
@@ -251,6 +251,8 @@ class PWHybridHamiltonian(PWHamiltonian):
                                 Htpsit2_nG: XArray | None = None,
                                 calculate_energy: bool = False,
                                 F_av: np.ndarray | None = None) -> None:
+        from gpaw.hybrids.paw import pawexxvv
+
         assert isinstance(psit2_nG, PWArray)
         assert Htpsit2_nG is None or isinstance(Htpsit2_nG, PWArray)
         assert isinstance(ibzwfs, PWFDIBZWaveFunctions)

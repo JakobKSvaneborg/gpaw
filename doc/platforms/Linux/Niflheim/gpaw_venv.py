@@ -137,7 +137,7 @@ def compile_gpaw_c_code(gpaw: Path, activate: Path, intel_only: bool) -> None:
     for host in nifllogin:
         if host == 'fjorm' and intel_only:
             continue
-        run(f'ssh {host} ". {activate} && pip install -q --no-build-isolation -e {gpaw}"')
+        run(f'time ssh {host} ". {activate} && GPAW_BUILD_JOBS=16 pip install -q --no-build-isolation -e {gpaw}"')
         # Save compiled file
         remote_arch = run(f"ssh {host} 'echo $CPU_ARCH'", capture_output=True).stdout.decode().strip()  # Single quote needed in command
         paths = list(gpaw.glob('_gpaw.*.so'))
@@ -147,12 +147,10 @@ def compile_gpaw_c_code(gpaw: Path, activate: Path, intel_only: bool) -> None:
         print(f'Moving {path} to {targetpath}')
         targetpath.mkdir(parents=True, exist_ok=True)
         path.rename(targetpath / path.name)
-
     # Clean up:
     for path in gpaw.glob('_gpaw.*.so'):
         raise RuntimeError(f'Found unexpected {path}')
-    for path in gpaw.glob('build/temp.linux-x86_64-*'):
-        shutil.rmtree(path)
+    run(f'cd {gpaw} && make clean')
 
 
 def fix_installed_scripts(venvdir: Path,

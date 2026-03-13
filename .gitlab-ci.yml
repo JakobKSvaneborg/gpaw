@@ -12,8 +12,10 @@ variables:
   # pipelines on shared runners.
   DEFAULT_RUNNER_TAG: "saas-linux-small-amd64"
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
+  # We override the Dockers PIP_NO_CACHE_DIR="1" here so that we
+  # actually use the cache:
+  PIP_NO_CACHE_DIR: ""
   COV: "--cov=gpaw --cov-report= "
-
   # OpenMPI binds processes to specific physical cores (cf. mpiexec
   # manpage) when there are <= 2 cores.  This will cause it to
   # oversubscribe the /same/ physical cores when running simultaneous
@@ -89,12 +91,6 @@ stages:
                             '-Werror',
                             ]
       extra_link_args = ['-fopenmp']
-
-      # TODO: PySys_SetArgv() etc deprecated in Python 3.11
-      import sys
-      if sys.version_info >= (3, 11):
-          extra_compile_args += ['-Wno-deprecated-declarations']
-      # end TODO
 
       libraries += ['blas']
 
@@ -227,6 +223,10 @@ build-cuda:
       EOF
     - cat siteconfig.py
     - pip install -v --user --log build.log --editable .
+  cache:
+    key: cache-build-cuda
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-hip-cuda:
@@ -260,6 +260,10 @@ build-hip-cuda:
     # flag to underlying nvcc/cicc... and may default to c++14.
     - export HIPCC_COMPILE_FLAGS_APPEND="-std=c++17"
     - pip install -v --user --log build.log --editable .
+  cache:
+    key: cache-build-cuda
+    paths:
+     - $PIP_CACHE_DIR
 
 
 # Like build-cuda but uses the makefile compilation path.
@@ -281,9 +285,18 @@ build-cuda-makefile:
       # MAGMA
       magma = True
       libraries += ['magma']
+
+      makefile_generate_stubs = True
       EOF
     - cat siteconfig.py
-    - pip install -v --user --log build.log --editable .
+    # Get mypy for stubgen, and other deps that we're missing (pip doesn't get them for us with --no-build-isolation)
+    - pip install --user mypy pybind11
+    - pip install --user --upgrade setuptools packaging
+    - pip install -v --user --log build.log --editable . --no-build-isolation
+  cache:
+    key: cache-build-cuda
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-minimal:
@@ -342,6 +355,10 @@ build-cuda-minimal:
       EOF
     - cat siteconfig.py
     - pip install --user --log build.log --editable . -v
+  cache:
+    key: cache-build-cuda
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-lumi-g:
@@ -366,7 +383,6 @@ build-lumi-g:
           '-fPIC',
           '-Wall',
           '-Wno-stringop-overflow',  # suppress warnings from MPI_STATUSES_IGNORE
-          '-Wno-deprecated-declarations',  # PySys_SetArgv() etc deprecated in Python 3.11
           #'-Werror',
           ]
       extra_link_args = ['-fopenmp']

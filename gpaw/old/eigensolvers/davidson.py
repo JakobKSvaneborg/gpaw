@@ -8,7 +8,6 @@ from gpaw.old.eigensolvers.diagonalizerbackend import (ElpaDiagonalizer,
                                                        ScalapackDiagonalizer,
                                                        ScipyDiagonalizer)
 from gpaw.old.eigensolvers.eigensolver import Eigensolver
-from gpaw.hybrids import HybridXC
 from gpaw.old.matrix import matrix_matrix_multiply as mmm
 
 
@@ -92,6 +91,8 @@ class Davidson(Eigensolver):
     @timer('Davidson')
     def iterate_one_k_point(self, ham, wfs, kpt, weights):
         """Do Davidson iterations for the kpoint"""
+        from gpaw.hybrids import HybridXC
+
         if isinstance(ham.xc, HybridXC):
             niter = 1
         else:

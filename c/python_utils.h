@@ -22,11 +22,6 @@
 #define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
 #include <numpy/arrayobject.h>
 
-#if defined(__cplusplus)
-    #include <pybind11/pybind11.h>
-    #include <pybind11/numpy.h>
-#endif
-
 /* NOTE: Numpy 2.0 dev version had a bug for a short period where its public headers
 * literally did "#undef I" after including complex.h. This is obviously horrible since `I` is defined in the C99 standard.
 * See https://github.com/numpy/numpy/pull/26789.
