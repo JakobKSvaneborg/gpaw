@@ -994,29 +994,7 @@ class BSEBackend:
 
     def compute_response(self, w_w, eta=0.1, optical=True,
                           write_eig='eig.dat', mode_c=None):
-        """Compute the BSE response function.
-
-        Parameters
-        ----------
-        w_w: array of floats
-            Frequencies in eV at which the response is calculated.
-        eta: float
-            Lorentzian broadening (eV).
-        optical: bool
-            If True, compute optical response (q -> 0 limit).
-            If False, compute at the q-vector specified in the constructor.
-        write_eig: str or None
-            Filename for writing BSE eigenvalues, or None to skip.
-        mode_c: list of 3 ints or None
-            Reciprocal lattice vector for magnon calculations.
-
-        Returns
-        -------
-        BSEResponse
-            Result object with methods to derive physical observables:
-            .polarizability(), .dielectric_function(), .eels(),
-            .susceptibility().
-        """
+        """Compute the BSE response, returning a BSEResponse object."""
         vchi_w = self.get_vchi(w_w=w_w, eta=eta, optical=optical,
                                write_eig=write_eig, mode_c=mode_c)
         return BSEResponse(w_w, vchi_w, optical,
@@ -1024,10 +1002,7 @@ class BSEBackend:
 
     def get_dielectric_function(self, w_w, eta=0.1, write_eig='eig.dat',
                                 filename='df_bse.csv'):
-        """Calculate the macroscopic dielectric function.
-
-        Returns (w_w, eps_w) and writes to filename (if not None).
-        """
+        """Calculate the macroscopic dielectric function."""
         response = self.compute_response(w_w, eta, optical=True,
                                          write_eig=write_eig)
         eps_w = response.dielectric_function()
@@ -1035,10 +1010,7 @@ class BSEBackend:
 
     def get_eels_spectrum(self, w_w, eta=0.1, write_eig='eig.dat',
                           filename='df_bse.csv'):
-        """Calculate the EELS spectrum.
-
-        Returns (w_w, eels_w) and writes to filename (if not None).
-        """
+        """Calculate the EELS spectrum."""
         response = self.compute_response(w_w, eta, optical=False,
                                          write_eig=write_eig)
         eels_w = response.eels()
@@ -1046,19 +1018,7 @@ class BSEBackend:
 
     def get_polarizability(self, w_w, eta=0.1, write_eig='eig.dat',
                            filename='pol_bse.csv'):
-        r"""Calculate the polarizability alpha.
-
-        In 3D the imaginary part of the polarizability is related to the
-        dielectric function by Im(eps_M) = 4 pi * Im(alpha). In systems
-        with reduced dimensionality the converged value of alpha is
-        independent of the cell volume. This is not the case for eps_M,
-        which is ill defined. A truncated Coulomb kernel will always give
-        eps_M = 1.0, whereas the polarizability maintains its structure.
-
-        Returns (w_w, alpha_w) and writes to filename (if not None).
-        The dimension of alpha is \AA to the power of non-periodic
-        directions.
-        """
+        """Calculate the polarizability."""
         response = self.compute_response(w_w, eta, optical=True,
                                          write_eig=write_eig)
         alpha_w = response.polarizability()
@@ -1069,32 +1029,7 @@ class BSEBackend:
                                     susc_component='+-',
                                     write_eig='eig',
                                     filename='susc_+-_bse_'):
-        """Calculate the magnetic susceptibility.
-
-        Parameters
-        ----------
-        w_w: array of floats
-            Frequencies in eV.
-        eta: float
-            Lorentzian broadening (eV).
-        susc_component: str
-            Component of the susceptibility tensor. '+-' and '-+'
-            are supported.
-        modes_Gc: list
-            List of reciprocal lattice vectors in reduced coordinates on
-            which the susceptibility is calculated. Default is [0, 0, 0]
-            which gives the response over the Brillouin zone,
-            but for optical magnons other components are needed.
-        write_eig: str
-            Prefix for eigenvalue output files.
-        filename: str
-            Prefix for susceptibility output files.
-
-        Returns
-        -------
-        list
-            Susceptibility arrays for each mode in modes_Gc.
-        """
+        """Calculate the magnetic susceptibility."""
         self.susc_component = susc_component
         assert susc_component in ['+-', '-+']
         chi_Gw = []
@@ -1317,18 +1252,7 @@ class BSEResponse:
         return -self.vchi_w.imag
 
     def polarizability(self):
-        r"""alpha(w) = -L * v*chi(w) / (4*pi)
-
-        In 3D the imaginary part of the polarizability is related to the
-        dielectric function by Im(eps_M) = 4 pi * Im(alpha). In systems
-        with reduced dimensionality the converged value of alpha is
-        independent of the cell volume. This is not the case for eps_M,
-        which is ill defined. A truncated Coulomb kernel will always give
-        eps_M = 1.0, whereas the polarizability maintains its structure.
-
-        The dimension of alpha is Angstrom to the power of non-periodic
-        directions.
-        """
+        """alpha(w) = -L * v*chi(w) / (4*pi)"""
         assert self.optical
         return -self.nonperiodic_hypervolume * self.vchi_w / (4 * np.pi)
 
