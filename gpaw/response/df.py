@@ -124,24 +124,24 @@ class DielectricResponse:
     def polarizability(self, direction='x'):
         """Get the macroscopic polarizability α_M(q,ω).
 
-        The macroscopic polarizability is defined as
-
         α_M(q,ω) = Λ/(4π) (ε_M(q,ω) - 1),
 
         where Λ is the nonperiodic hypervolume of the unit cell.
-
         When using a truncated Coulomb kernel, the bare dielectric function
-        path is used:
-
-        α_M(q,ω) = Λ/(4π) (ε̄_M(q,ω) - 1).
-
-        This is especially useful in systems of reduced dimensionality, where
-        the response needs to be calculated using a truncated Coulomb kernel
-        in order to achieve convergence in a feasible way.
+        path is used instead.
         """
         if self.coulomb is not self.bare_coulomb:
             # Truncated Coulomb: use bare DF path
-            _, eps0_W, eps_W = self._bare_macroscopic_df(direction).arrays
+            if self.xc_kernel:
+                raise NotImplementedError(
+                    'Bare dielectric function within TDDFT has not yet been '
+                    'implemented. For TDDFT, calculate the inverse DF.')
+            vP_symm_wGG, vchibar_symm_wGG = self._calculate_vchi_symm(
+                direction=direction, modified=True)
+            vP_W = self.wblocks.all_gather(vP_symm_wGG[:, 0, 0])
+            vchibar_W = self.wblocks.all_gather(vchibar_symm_wGG[:, 0, 0])
+            eps0_W = 1. - vP_W
+            eps_W = 1. - vchibar_W
         else:
             # No truncation: use inverse DF path
             _, eps0_W, eps_W = self.dielectric_function(direction).arrays
@@ -328,32 +328,6 @@ class DielectricResponse:
         vchi_W = self.wblocks.all_gather(vchi_symm_wGG[:, 0, 0])
         return vchi0_W, vchi_W
 
-    def _bare_macroscopic_df(self, direction='x'):
-        """Compute the macroscopic bare dielectric function ε̄_M(q,ω).
-
-        The bare dielectric function is defined in terms of the unscreened
-        susceptibility,
-        ˍ                 ˍ
-        ϵ(q,ω) = 1 - v(q) χ(q,ω).
-
-        In the special case of RPA, where P(q,ω) = χ₀(q,ω), the Dyson-like
-        equation for the unscreened susceptibility is solved by replacing the
-                                   ˍ
-        Hxc kernel with K_Hxc → V(q) (the modified Coulomb interaction).
-        """
-        if self.xc_kernel:
-            raise NotImplementedError(
-                'Calculation of the bare dielectric function within TDDFT has '
-                'not yet been implemented. For TDDFT dielectric properties, '
-                'please calculate the inverse dielectric function.')
-        vP_symm_wGG, vchibar_symm_wGG = self._calculate_vchi_symm(
-            direction=direction, modified=True)
-        vP_W = self.wblocks.all_gather(vP_symm_wGG[:, 0, 0])
-        vchibar_W = self.wblocks.all_gather(vchibar_symm_wGG[:, 0, 0])
-        eps0_W = 1. - vP_W
-        eps_W = 1. - vchibar_W
-        return ScalarResponseFunctionSet(self.chi0.wd, eps0_W, eps_W)
-
     def _polarizability_operator(self, direction='x'):
         """Calculate the polarizability operator P(q,ω).
 
@@ -380,22 +354,7 @@ class DielectricResponse:
         Kxc_GG = self.xc_kernel(self.chi0.qpd, chi0_wGG=chi0_wGG)
         return self._invert_dyson_like_equation(chi0_wGG, Kxc_GG)
 
-    def _literal_macroscopic_df(self, direction='x'):
-        """Compute the macroscopic DF via the literal ε = 1 - vP path.
-
-        This is mathematically equivalent to the inverse DF path when
-        V(q) = v(q), but uses a different computation. Useful for testing
-        path equivalence.
-        """
-        eps_wGG = self._customized_eps_wGG(direction)
-        eps0_W = self.wblocks.all_gather(eps_wGG[:, 0, 0])
-        eps_w = np.zeros((self.wblocks.nlocal,), complex)
-        for w, eps_GG in enumerate(eps_wGG):
-            eps_w[w] = 1 / np.linalg.inv(eps_GG)[0, 0]
-        eps_W = self.wblocks.all_gather(eps_w)
-        return ScalarResponseFunctionSet(self.chi0.wd, eps0_W, eps_W)
-
-    def _customized_eps_wGG(self, direction='x'):
+    def dielectric_matrix(self, direction='x'):
         """Compute the full dielectric matrix Ε(q,ω) = 1 - V(q) P(q,ω)."""
         V_GG = self.coulomb.kernel(self.chi0.qpd)
         P_wGG = self._polarizability_operator(direction=direction)
@@ -557,27 +516,7 @@ class DielectricFunction:
                                 **xckwargs):
         """Calculate the dielectric function.
 
-        Generates a file 'df.csv', unless filename is set to None.
-
-        Parameters
-        ----------
-        q_c : list or np.ndarray
-            Wave vector in scaled coordinates.
-        direction : str or array_like
-            Polarization direction ('x', 'y', 'z' or a vector).
-        xc : str
-            Exchange-correlation kernel.
-        filename : str or None
-            Output filename.
-        **xckwargs
-            Additional parameters for the chosen xc kernel.
-
-        Returns
-        -------
-        df_NLFC_w: np.ndarray
-            Dielectric function without local field corrections.
-        df_LFC_w: np.ndarray
-            Dielectric function with local field corrections.
+        Returns (df_NLFC_w, df_LFC_w) and writes to filename.
         """
         response = self.calculate(
             q_c, truncation=self.truncation, xc=xc, **xckwargs)
@@ -594,27 +533,7 @@ class DielectricFunction:
                           **xckwargs):
         """Calculate the macroscopic EELS spectrum.
 
-        Generates a file 'eels.csv', unless filename is set to None.
-
-        Parameters
-        ----------
-        q_c : list or np.ndarray
-            Wave vector in scaled coordinates.
-        direction : str or array_like
-            Polarization direction ('x', 'y', 'z' or a vector).
-        xc : str
-            Exchange-correlation kernel.
-        filename : str or None
-            Output filename.
-        **xckwargs
-            Additional parameters for the chosen xc kernel.
-
-        Returns
-        -------
-        eels0_w: np.ndarray
-            Spectrum in the independent-particle random-phase approximation.
-        eels_w: np.ndarray
-            Fully screened EELS spectrum.
+        Returns (eels0_w, eels_w) and writes to filename.
         """
         response = self.calculate(
             q_c, truncation=self.truncation, xc=xc, **xckwargs)
@@ -629,21 +548,7 @@ class DielectricFunction:
                                    xc='ALDA',
                                    filename='chiM_w.csv',
                                    **xckwargs):
-        """Calculate the dynamic susceptibility.
-
-        Parameters
-        ----------
-        q_c : list or np.ndarray
-            Wave vector in scaled coordinates.
-        direction : str or array_like
-            Polarization direction.
-        xc : str
-            Exchange-correlation kernel.
-        filename : str or None
-            Output filename.
-        **xckwargs
-            Additional parameters for the chosen xc kernel.
-        """
+        """Calculate the dynamic susceptibility."""
         response = self.calculate(
             q_c, truncation=self.truncation, xc=xc, **xckwargs)
         dynsus = response.dynamic_susceptibility(direction=direction)
@@ -656,25 +561,7 @@ class DielectricFunction:
                            **xckwargs):
         """Calculate the macroscopic polarizability.
 
-        Generate a file 'polarizability.csv', unless filename is set to None.
-
-        Parameters
-        ----------
-        q_c : list or np.ndarray
-            Wave vector in scaled coordinates.
-        direction : str or array_like
-            Polarization direction.
-        filename : str or None
-            Output filename.
-        **xckwargs
-            Additional parameters for the chosen xc kernel.
-
-        Returns:
-        --------
-        alpha0_w: np.ndarray
-            Polarizability calculated without local-field corrections
-        alpha_w: np.ndarray
-            Polarizability calculated with local-field corrections.
+        Returns (alpha0_w, alpha_w) and writes to filename.
         """
         response = self.calculate(
             q_c, truncation=self.truncation, **xckwargs)
