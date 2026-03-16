@@ -320,13 +320,13 @@ class Matrix(XP):
             comm = d1.comm
             if comm.rank == 0:
                 M = self.shape[0]
-                m = (M + comm.size - 1) // comm.size
+                m = (M + d1.rows - 1) // d1.rows
                 other.data[:m] = self.data
-                for r in range(1, comm.size):
+                for r in range(1, d1.rows):
                     m1 = min(r * m, M)
                     m2 = min(m1 + m, M)
-                    comm.receive(other.data[m1:m2], r)
-            else:
+                    comm.receive(other.data[m1:m2], r * d1.columns)
+            elif comm.rank % d1.columns == 0:
                 comm.send(self.data, 0)
             return
 
@@ -334,13 +334,13 @@ class Matrix(XP):
             comm = d2.comm
             if comm.rank == 0:
                 M = self.shape[0]
-                m = (M + comm.size - 1) // comm.size
+                m = (M + d2.rows - 1) // d2.rows
                 other.data[:] = self.data[:m]
-                for r in range(1, comm.size):
+                for r in range(1, d2.rows):
                     m1 = min(r * m, M)
                     m2 = min(m1 + m, M)
-                    comm.send(self.data[m1:m2], r)
-            else:
+                    comm.send(self.data[m1:m2], r * d2.columns)
+            elif comm.rank % d2.columns == 0:
                 comm.receive(other.data, 0)
             return
         1 / 0
@@ -982,10 +982,11 @@ class CuPyDistribution(MatrixDistribution):
         self.br = br
         self.bc = bc
         assert bc == max(1, N)
+        row = comm.rank // c
         if br >= M:
-            m = M if comm.rank == 0 else 0
+            m = M if row == 0 else 0
         elif br == (M + r - 1) // r:
-            m = min((comm.rank + 1) * br, M) - min(comm.rank * br, M)
+            m = min((row + 1) * br, M) - min(row * br, M)
             self.all_data_on_rank_zero = False
         else:
             raise ValueError
