@@ -2,6 +2,7 @@
  *  Please see the accompanying LICENSE file for further information. */
 
 #include "python_utils.h"
+#include "array.h"
 #include "extensions.h"
 
 
@@ -148,6 +149,7 @@ PyObject* symmetrize(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+
 PyObject* symmetrize_ft(PyObject *self, PyObject *args)
 {
     PyArrayObject* a_g_obj;
@@ -160,6 +162,12 @@ PyObject* symmetrize_ft(PyObject *self, PyObject *args)
                           &a_g_obj, &b_g_obj, &op_cc_obj, &t_c_obj,
                           &offset_c_obj))
         return NULL;
+
+    CHK_ARRAY(a_g_obj);
+    CHK_ARRAY(b_g_obj);
+    CHK_ARRAY(op_cc_obj);
+    CHK_ARRAY(t_c_obj);
+    CHK_ARRAY(offset_c_obj);
 
     const long* t_c = (const long*)PyArray_DATA(t_c_obj);
     const long* C = (const long*)PyArray_DATA(op_cc_obj);
