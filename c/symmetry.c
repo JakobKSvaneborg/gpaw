@@ -2,6 +2,7 @@
  *  Please see the accompanying LICENSE file for further information. */
 
 #include "python_utils.h"
+#include "array.h"
 #include "extensions.h"
 
 
@@ -162,11 +163,11 @@ PyObject* symmetrize_ft(PyObject *self, PyObject *args)
                           &offset_c_obj))
         return NULL;
 
-    assert(PyArray_IS_C_CONTIGUOUS(a_g_obj));
-    assert(PyArray_IS_C_CONTIGUOUS(b_g_obj));
-    assert(PyArray_IS_C_CONTIGUOUS(op_cc_obj));
-    assert(PyArray_IS_C_CONTIGUOUS(t_c_obj));
-    assert(PyArray_IS_C_CONTIGUOUS(offset_c_obj));
+    CHK_ARRAY(a_g_obj);
+    CHK_ARRAY(b_g_obj);
+    CHK_ARRAY(op_cc_obj);
+    CHK_ARRAY(t_c_obj);
+    CHK_ARRAY(offset_c_obj);
 
     const long* t_c = (const long*)PyArray_DATA(t_c_obj);
     const long* C = (const long*)PyArray_DATA(op_cc_obj);
