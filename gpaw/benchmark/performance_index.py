@@ -235,43 +235,43 @@ def read(folder: Path,
 
 
 def summary(folders: list[Path], mode: int) -> None:
-    from gpaw.new.logger import GREEN, RESET
+    from gpaw.new.logger import GREEN, RED, RESET
     alldata = [read(folder, mode) for folder in folders]
     for i, folder in enumerate(folders):
         print(i + 1, folder)
-    print('-----------------' + '+---------------------' * len(folders))
+    print('-----------------' + '+-----------------------' * len(folders))
     scores = [0.0] * len(folders)
     N = 0
     for r, name in enumerate(REFERENCES):
         print(f'{r + 1:2} {name:12} ', end='')
         times = [data[name][0] for data in alldata]
         iters = [data[name][1] for data in alldata]
-        t0 = min(times)
-        if t0 == np.inf:
-            print()
-            continue
+        t0 = times[0]
         if max(times) < np.inf:
             N += 1
         for n, (t, i) in enumerate(zip(times, iters)):
             if t == np.inf:
-                line = ' | ------(---) ------%'
+                line = ' | -------(---) -------%'
             else:
-                percent = f'{(t / t0 - 1) * 100:+6.1f}%'
-                if t == t0:
+                percent = f'{(t / t0 - 1) * 100:+7.1f}%'
+                if t < t0:
                     percent = GREEN + percent + RESET
-                line = f' | {t:6.1f}({i:3}) {percent}'
+                elif t > t0:
+                    percent = RED + percent + RESET
+                line = f' | {t:7.1f}({i:3}) {percent}'
             print(line, end='')
             if max(times) < np.inf:
                 scores[n] += t / t0
         print()
-    print('-----------------' + '+---------------------' * len(folders) +
+    print('-----------------' + '+-----------------------' * len(folders) +
           '\n           ', end='')
     for s in scores:
         print(f'{(s / N - 1) * 100:+21.1f}%', end='')
-    print('\n           ', end='')
-    for data in alldata:
-        s, _ = score({name: t for name, (t, i) in data.items()})
-        print(f'{s:22.2f}', end='')
+    if mode == 3:
+        print('\n           ', end='')
+        for data in alldata:
+            s, _ = score({name: t for name, (t, i) in data.items()})
+            print(f'{s:22.2f}', end='')
     print()
 
 
