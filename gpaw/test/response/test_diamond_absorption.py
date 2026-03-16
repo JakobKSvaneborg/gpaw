@@ -98,10 +98,12 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode, mpi):
     assert w == pytest.approx(w_, abs=0.01)
     assert I == pytest.approx(I_, abs=0.01)
 
-    # Test that different computation paths give the same macroscopic DF
-    _, _, epsM_literal_w = response._literal_macroscopic_df().arrays
-    assert epsM_literal_w == pytest.approx(epsM_w, rel=1e-6)
-    _, _, epsM_bare_w = response._bare_macroscopic_df().arrays
+    # Test that the bare DF path gives the same macroscopic DF
+    # (for untruncated RPA, the bare and inverse paths are equivalent)
+    vP_wGG, vchibar_wGG = response._calculate_vchi_symm(
+        direction='x', modified=True)
+    vchibar_W = response.wblocks.all_gather(vchibar_wGG[:, 0, 0])
+    epsM_bare_w = 1. - vchibar_W
     assert epsM_bare_w == pytest.approx(epsM_w, rel=1e-6)
 
     # ----- TDDFT absorption spectra ----- #

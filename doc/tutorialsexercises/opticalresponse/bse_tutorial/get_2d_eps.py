@@ -13,11 +13,11 @@ for iq in range(22):
 
     # Dielectric function (using the bare Coulomb)
     response = df.calculate(q_c=q_c)
-    eps_wGG = response._customized_eps_wGG()
+    eps_wGG = response.dielectric_matrix()
     epsinv_GG = np.linalg.inv(eps_wGG[0])
     # Customized dielectric function (using the truncated Coulomb)
     response_t = df.calculate(q_c=q_c, truncation='2D')
-    eps_t_wGG = response_t._customized_eps_wGG()
+    eps_t_wGG = response_t.dielectric_matrix()
     epsinv_t_GG = np.linalg.inv(eps_t_wGG[0])
 
     # Periodic degrees of freedom
