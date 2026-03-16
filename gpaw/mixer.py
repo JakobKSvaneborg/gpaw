@@ -331,23 +331,25 @@ class MSR1Mixer(BaseMixer):
                 backtracked = True
 
             # 1st order norm
-            # ntnorm_i = np.sum(np.abs(nt_isG).reshape(iold, -1), axis=(1, )) * self.gd.dv
-            # ntnorm_i = ntnorm_i[:-1] / ntnorm_i[-1]
-            # self.gd.comm.sum(ntnorm_i)
+            ntnorm = self.calculate_charge_sloshing(nt_isG[-1])
+            dNt_normed = dNt / ntnorm
+            if self.world.rank == 0:
+            #     print(f"Normed dNt: {np.log(dNt_normed)}")
+                print(f"Max broyden: {4e-1 / dNt_normed}")
 
-            dampen = 1.1  # Dampen the greeds
+            dampen = 1.0  # Dampen the greeds
             punishment_factor = 0.85 if del_oldest else 1  # How much to reduce greed when backtracing
-            trust_scalar = 1.0 # Scaling factor for the trust radius.
+            trust_scalar = 1.15 # Scaling factor for the trust radius.
             # if self.trust_radius is not None:
             #     self.trust_radius *= punishment_factor
-            abs_gb_lim = 5 # Maximum value of good Broyden.
+            abs_gb_lim = min(8, 2e-1 / dNt_normed) # Maximum value of good Broyden.
             max_gb_fact = 0.3 # Scaling factor for maximum good Broyden.
-            post_gb_fact = 0.9 if del_oldest else (0.9 if backtracked else 0.9)  # Scaling factor for the final amount of good Broyden
-            weight = 1e-4   # Weight for regularization, 2e-4 works well. Strongly depends on the amount of good Broyden.
-            B0_boost = 5e-1   # Favor the predicted greed towards 1
+            post_gb_fact = 0.95 if del_oldest else (0.95 if backtracked else 0.95)  # Scaling factor for the final amount of good Broyden
+            weight = 2e-4  # Weight for regularization, 2e-4 works well. Strongly depends on the amount of good Broyden.
+            B0_boost = 2e-1  # Favor the predicted greed towards 1
             B0_lims = [0.5, 1.1]   # Limits for predicted greed
             A0_lims = [0.02, 0.4]   # Limits for unpredicted greed
-            rate_ratio = [0.7, 1.4 if not backtracked else punishment_factor]  # Rate ratio for clipping
+            rate_ratio = [0.7, 1.3 if not backtracked else punishment_factor]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
             initial_B0 = 1.0
 
@@ -512,11 +514,12 @@ class MSR1Mixer(BaseMixer):
             # B_ii = self.dotprod(ty_isG, s_isG, tyD_iasp, sD_iasp, self.gd, mode='gemm')
 
             A_diag = np.mean(np.diag(A_ii))
+            B_diag = np.mean(np.diag(B_ii))
 
             ### SVD Regularization:
             S, V, D = np.linalg.svd(B_ii)
             # V = V / (V**2 + (1e-10 * np.max(V))**2)
-            V = V / (V**2 + weight**2)
+            V = V / (V**2 + B_diag**2 * weight**2)
             B_ii = D.T @ np.diag(V) @ S.T
             # B_ii = np.linalg.inv(B_ii)
 
@@ -610,7 +613,7 @@ class MSR1Mixer(BaseMixer):
                 trust_radius_factor = (self.trust_radius * trust_radius) ** 0.5 / self.trust_radius
                 self.trust_radius *= np.clip(trust_radius_factor, *rate_ratio)
             else:
-                self.trust_radius = trust_radius * 0.5  # No trust!
+                self.trust_radius = trust_radius * 0.7
 
             self.uk_sG = np.zeros_like(nt_sG)
             self.pk_sG = np.zeros_like(nt_sG)
@@ -632,6 +635,9 @@ class MSR1Mixer(BaseMixer):
 
             beta_i = alpha_i.copy()
 
+            # if self.world.rank == 0:
+            #     print(f"Step size: {step_size}, trust_radius: {self.trust_radius}")
+
             if step_size > self.trust_radius * 1.02:
                 # Time to mix the mixing...
                 if self.world.rank == 0:
@@ -646,25 +652,27 @@ class MSR1Mixer(BaseMixer):
                 A_ii = np.linalg.inv(A_ii)
                 # Optimize (ridge regression):
                 def err_fct(lamb):
-                    beta_i = np.linalg.solve(
-                        A_ii + lamb * np.eye(iold - 1), BR_i
-                    )
-                    # tA_i = V / (V**2 + (lamb * np.max(V))**2)
-                    # beta_i = (D.T @ np.diag(tA_i) @ S.T) @ BR_i
+                    # beta_i = np.linalg.solve(
+                    #     A_ii + lamb * np.eye(iold - 1), BR_i
+                    # )
+                    tA_i = V / (V**2 + A_diag**2 * lamb**2)
+                    beta_i = (D.T @ np.diag(tA_i) @ S.T) @ BR_i
                     return (beta_i @ s_ii @ beta_i) - self.trust_radius**2
 
                 from scipy.optimize import root_scalar
                 try:
-                    lamb = root_scalar(err_fct, bracket=[0, 100 * np.max(V)])
+                    # lamb = root_scalar(err_fct, bracket=[0, 100 * np.max(V)])
+                    lamb = root_scalar(err_fct, bracket=[weight, 10])
                     root = lamb.root
                 except ValueError as e:
-                    root = 100 * np.max(V)
-                beta_i = np.linalg.solve(
-                    A_ii + root * np.eye(iold - 1), BR_i
-                )
+                    print('XXX: Failed to match trust region!!')
+                    root = 10
+                # beta_i = np.linalg.solve(
+                #     A_ii + root * np.eye(iold - 1), BR_i
+                # )
                 # weight = lamb.root
-                # tA_i = V / (V**2 + (weight * np.max(V))**2)
-                # beta_i = (D.T @ np.diag(tA_i) @ S.T) @ BR_i
+                tA_i = V / (V**2 + root**2 * A_diag**2)
+                beta_i = (D.T @ np.diag(tA_i) @ S.T) @ BR_i
                 if self.world:
                     self.world.broadcast(beta_i, 0)
 
@@ -681,13 +689,14 @@ class MSR1Mixer(BaseMixer):
                     for a1, sD_sp in enumerate(sD_iasp[i1]):
                         self.pD_asp[a1] += beta * sD_sp
 
-                new_step_size = B0**2 * self.dotprod(self.pk_sG, self.pk_sG,
-                    self.pD_asp, self.pD_asp, self.gd, mode='scalar')
-                new_step_size = new_step_size**0.5
-                scale_factor = new_step_size / step_size
+                # new_step_size = B0**2 * self.dotprod(self.pk_sG, self.pk_sG,
+                #     self.pD_asp, self.pD_asp, self.gd, mode='scalar')
+                # new_step_size = new_step_size**0.5
+                new_step_size = self.trust_radius
+                scale_factor = (new_step_size / step_size)**2
                 A0 *= np.clip(scale_factor, 0, 1)
                 A0 = max(A0, min(self.A0, A0_lims[0]))
-                self.A0 = (2 * self.A0 + A0) / 3
+                self.A0 = A0  # (self.A0 + A0) / 2
                 self.uk_sG += R_sG
                 step_sG = A0 * self.uk_sG + B0 * self.pk_sG
 
