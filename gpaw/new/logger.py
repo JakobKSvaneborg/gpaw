@@ -14,6 +14,7 @@ RED = '\x1b[91m'
 GREEN = '\x1b[32m'
 RESET = '\x1b[0m'
 
+
 def indent(text: Any, indentation='  ') -> str:
     r"""Indent text blob.
 
