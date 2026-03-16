@@ -199,6 +199,9 @@ class LCAOETDM:
         subspace_convergence: float
             Tolerance on the norm of the gradient for convergence of the
             subspace optimization with PZ-SIC.
+        localize_every: int
+            If specified, a PZ-SIC inner loop localization is performed
+            every 'localize_every' SCF iterations.
         """
 
         assert representation in ['sparse', 'u-invar', 'full'], 'Value Error'
