@@ -6,14 +6,15 @@ from gpaw.dft import Symmetry
 
 def noncontiguous_symmetries(atoms):
     symm = Symmetry().build(atoms)
-    symm.rotation_scc = symm.rotation_scc.transpose(0, 2, 1)
     return Symmetry(
-        rotations=symm.rotation_scc,
+        rotations=symm.rotation_scc.transpose(0, 2, 1),
         translations=symm.translation_sc,
         atommaps=symm.atommap_sa)
 
 
 def test_noncontiguous(mpi):
+    """Test that we raise an error if rotation array is not contiguous."""
+
     atoms = bulk('Au')
 
     atoms.calc = mpi.NewGPAW(
