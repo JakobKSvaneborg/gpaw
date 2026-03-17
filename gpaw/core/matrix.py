@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from types import ModuleType
-from typing import overload
+from typing import overload, Literal
 
 import numpy as np
 import scipy.linalg as sla
@@ -345,6 +345,14 @@ class Matrix(XP):
                 comm.receive(other.data, 0)
             return
         1 / 0
+
+    @overload
+    def gather(self, broadcast: Literal[True] = True) -> Matrix:
+        ...
+
+    @overload
+    def gather(self, broadcast: Literal[False] = False) -> Matrix | None:
+        ...
 
     def gather(self, broadcast: bool = False) -> Matrix | None:
         """Gather the Matrix on rank zero."""

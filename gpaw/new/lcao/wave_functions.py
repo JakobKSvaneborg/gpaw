@@ -160,7 +160,7 @@ class LCAOWaveFunctions(WaveFunctions, XP):
         f_n = self.weight * self.spin_degeneracy * self.myocc_n
         self.add_to_atomic_density_matrices(f_n, D_asii)
 
-    def gather_wave_function_coefficients(self) -> np.ndarray:
+    def gather_wave_function_coefficients(self) -> np.ndarray | None:
         C_nM = self.C_nM.gather()
         if C_nM is not None:
             return C_nM.data
