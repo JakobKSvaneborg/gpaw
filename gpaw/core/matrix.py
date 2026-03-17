@@ -286,7 +286,7 @@ class Matrix(XP):
         dist.multiply(alpha, A, opa, B, opb, beta, out, symmetric=symmetric)
         return out
 
-    def redist(self, other: Matrix, *, use_blacs=False) -> None:
+    def redist(self, other: Matrix) -> None:
         """Redistribute to other BLACS layout.
         `other` is the output, newly distributed matrix."""
         if self is other:
@@ -352,7 +352,7 @@ class Matrix(XP):
         """
         assert root == 0
 
-        if self.dist.all_data_on_rank_zero:#comm.size == 1:
+        if self.dist.all_data_on_rank_zero:
             return self
 
         S = self.new(dist=(self.dist.comm, 1, 1, *self.shape))
@@ -383,7 +383,7 @@ class Matrix(XP):
         non_distributed_matrix.redist(matrix)
         return matrix
 
-    def inv(self, uplo='L'):
+    def inv(self, uplo='L') -> None:
         """Inplace inversion."""
         assert uplo == 'L'
         M, N = self.shape
@@ -460,7 +460,7 @@ class Matrix(XP):
             Number of eigenvector and values to find.  Defaults to all.
         """
 
-        if limit == H.shape[0]:
+        if limit == self.shape[0]:
             limit = None
 
         if limit:
@@ -475,7 +475,7 @@ class Matrix(XP):
                 H = self
             else:
                 H = self.gather()
-                if S is None:
+                if S is not None:
                     S = S.gather()
             if self.dist.comm.rank == 0:
                 self.dist.eigh_serial(H, S, eigs, cc, limit)
@@ -492,7 +492,7 @@ class Matrix(XP):
             S0.redist(S)
 
         if self.dist.comm.rank < rows * columns:
-            self.dist.eigh_parallel(H, S, eigs, cc, limit)
+            eigh_parallel(H, S, eigs, cc, limit)
 
         # necessary to broadcast eps when some ranks are not used
         # in current scalapack parameter set
@@ -719,7 +719,12 @@ class MatrixDistribution:
                                 scale: float) -> None:
         raise NotImplementedError
 
-    def eigh_serial(self, H, S, eigs, cc, limit):
+    def eigh_serial(self,
+                    H: Matrix,
+                    S: Matrix | None,
+                    eigs: np.ndarray,
+                    cc: bool = False,
+                    limit: int | None = None) -> None:
         if cc and np.issubdtype(H.dtype, np.complexfloating):
             np.negative(H.data.imag, H.data.imag)
         if debug:
@@ -733,8 +738,8 @@ class MatrixDistribution:
                 driver='evx' if H.data.size == 1 else 'evd')
         else:
             if debug:
-                S.data[self.xp.triu_indices(H.shape[0], 1)] = 42.0
-            eigs, evecs = sla.eigh(
+                S.data[np.triu_indices(H.shape[0], 1)] = 42.0
+            eigs[:], evecs = sla.eigh(
                 H.data,
                 S.data,
                 lower=True,
@@ -905,23 +910,28 @@ class BLACSDistribution(MatrixDistribution):
             *self.full_shape,
             self.comm, self.rows, self.columns, self.br, self.bc)
 
-    def eigh_parallel(self, H, S, eigs, cc, limit):
-        array = H.data.copy()
+
+def eigh_parallel(H: Matrix,
+                  S: Matrix | None,
+                  eigs: np.ndarray,
+                  cc: bool = False,
+                  limit: int | None = None) -> None:
+    array = H.data.copy()
+    if not cc and np.issubdtype(H.dtype, np.complexfloating):
+        np.negative(array.imag, array.imag)
+    eigs0 = np.empty(H.shape[0]) if limit else eigs
+    if S is None:
+        info = cgpaw.scalapack_diagonalize_dc(
+            array, H.dist.desc, 'U', H.data, eigs0)
+    else:
+        sarray = S.data
         if not cc and np.issubdtype(H.dtype, np.complexfloating):
-            np.negative(array.imag, array.imag)
-        eigs0 = np.empty(H.shape[0]) if limit else eigs
-        if S is None:
-            info = cgpaw.scalapack_diagonalize_dc(
-                array, H.dist.desc, 'U', H.data, eigs0)
-        else:
-            sarray = S.data
-            if not cc and np.issubdtype(H.dtype, np.complexfloating):
-                np.negative(sarray.imag, sarray.imag)
-            info = cgpaw.scalapack_general_diagonalize_dc(
-                array, H.dist.desc, 'U', sarray, H.data, eigs0)
-        if limit:
-            eigs[:] = eigs0[:limit]
-        assert info == 0, info
+            np.negative(sarray.imag, sarray.imag)
+        info = cgpaw.scalapack_general_diagonalize_dc(
+            array, H.dist.desc, 'U', sarray, H.data, eigs0)
+    if limit:
+        eigs[:] = eigs0[:limit]
+    assert info == 0, info
 
 
 def cublas_mmm(alpha, a, opa, b, opb, beta, c):
@@ -1035,7 +1045,12 @@ class CuPyDistribution(MatrixDistribution):
         b.add_hermitian_conjugate(scale)
         a.data[:] = b.to_xp(cp).data
 
-    def eigh_serial(self, H, S, eigs, cc, limit):
+    def eigh_serial(self,
+                    H: Matrix,
+                    S: Matrix | None,
+                    eigs: np.ndarray,
+                    cc: bool = False,
+                    limit: int | None = None) -> None:
         assert isinstance(H.data, cp.ndarray)
         if cc and np.issubdtype(H.dtype, np.complexfloating):
             cp.negative(H.data.imag, H.data.imag)
@@ -1043,16 +1058,16 @@ class CuPyDistribution(MatrixDistribution):
         if S is not None:
             S.invcholesky()
             H.tril2full()
-            eigs = self.eighl(H, S)
-            H.data[:] = H.data.T.copy()
-            return H, eigs if limit is None else eigs[:limit]
+            limit = limit or self.shape[0]
+            eigs[:] = self.eighl(H, S)[:limit]
+            H.data[:limit] = H.data.T[:limit].copy()
+            return
 
         # TODO some way for the caller to specify options/backend
         diagonalizer, options = suggest_diagonalizer(H)
         options.uplo = 'L'
         options.inplace = True
-        eigs, H = diagonalizer.eigh(H, options)
-        return H, eigs
+        eigs[:], _ = diagonalizer.eigh(H, options)
 
     def eighl(self, H, L):
         """
