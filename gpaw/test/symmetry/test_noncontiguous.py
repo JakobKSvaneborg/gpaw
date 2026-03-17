@@ -12,6 +12,7 @@ def noncontiguous_symmetries(atoms):
         atommaps=symm.atommap_sa)
 
 
+@pytest.mark.serial  # will only raise on rank-0
 def test_noncontiguous(mpi):
     """Test that we raise an error if rotation array is not contiguous."""
 
