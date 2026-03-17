@@ -13,8 +13,8 @@ if TYPE_CHECKING:
     from gpaw.core.matrix import Matrix
 
 
-def suggest_diagonalizer(matrix: "Matrix") -> tuple[GPUDiagonalizer,
-                                                    DiagonalizerOptions]:
+def suggest_diagonalizer(matrix: Matrix) -> tuple[GPUDiagonalizer,
+                                                  DiagonalizerOptions]:
     """Attempts to choose a good GPU diagonalizer backend and options for the
     given matrix.
     """

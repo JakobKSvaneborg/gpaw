@@ -524,6 +524,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                                 atomdist=self.atomdist.gather(),
                                 weight=weight,
                                 ncomponents=self.ncomponents,
+                                domain_band_comm=serial_comm,
                                 qspiral_v=self.qspiral_v)
         wfs.eig_n = eig_n
         wfs._occ_n = occ_n
