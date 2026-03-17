@@ -333,23 +333,20 @@ class MSR1Mixer(BaseMixer):
             # 1st order norm
             ntnorm = self.calculate_charge_sloshing(nt_isG[-1])
             dNt_normed = dNt / ntnorm
-            if self.world.rank == 0:
-            #     print(f"Normed dNt: {np.log(dNt_normed)}")
-                print(f"Max broyden: {1e-2 / dNt_normed}")
 
-            dampen = 1.0  # Dampen the greeds
-            punishment_factor = 0.85 if del_oldest else 1  # How much to reduce greed when backtracing
-            trust_scalar = 1.1 # Scaling factor for the trust radius.
+            dampen = 1.15  # Dampen the greeds
+            punishment_factor = 0.8 if del_oldest else 0.9  # How much to reduce greed when backtracing
+            trust_scalar = 1.15 # Scaling factor for the trust radius.
             # if self.trust_radius is not None:
             #     self.trust_radius *= punishment_factor
             abs_gb_lim = 1000 # Maximum value of good Broyden.
-            max_gb_fact = 0.3 * np.clip(1e-2 / dNt_normed, 0.05, 1) # Scaling factor for maximum good Broyden.
+            max_gb_fact = 1.0 * np.clip(2e-2 / dNt_normed, 0.10, 1) # Scaling factor for maximum good Broyden.
             post_gb_fact = 0.9 if del_oldest else (0.9 if backtracked else 0.9)  # Scaling factor for the final amount of good Broyden
-            weight = 5e-5  # Weight for regularization, 2e-4 works well. Strongly depends on the amount of good Broyden.
-            B0_boost = 2e-1  # Favor the predicted greed towards 1
-            B0_lims = [0.2, 1.1]   # Limits for predicted greed
+            weight = 1e-4  # Weight for regularization, 2e-4 works well. Strongly depends on the amount of good Broyden.
+            B0_boost = 1e-1  # Favor the predicted greed towards 1
+            B0_lims = [0.2, 1.2]   # Limits for predicted greed
             A0_lims = [0.02, 0.4]   # Limits for unpredicted greed
-            rate_ratio = [0.7, 1.3 if not backtracked else punishment_factor]  # Rate ratio for clipping
+            rate_ratio = [0.6, 1.3 if not backtracked else punishment_factor]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
             initial_B0 = 1.0
 
@@ -591,7 +588,7 @@ class MSR1Mixer(BaseMixer):
                 self.A0 *= self.last_A0_rate
             else:
                 self.B0 = initial_B0
-                self.A0 = np.clip(A0_target, *A0_lims)
+                self.A0 = np.clip(A0_target * 0.67, *A0_lims)
                 self.last_A0_rate = np.clip((self.A0 / self.beta)**0.5, *rate_ratio)
                 self.last_B0_rate = 1.0
 
@@ -612,7 +609,7 @@ class MSR1Mixer(BaseMixer):
                 trust_radius_factor = (self.trust_radius * trust_radius) ** 0.5 / self.trust_radius
                 self.trust_radius *= np.clip(trust_radius_factor, *rate_ratio)
             else:
-                self.trust_radius = trust_radius * 0.7
+                self.trust_radius = trust_radius
 
             self.uk_sG = np.zeros_like(nt_sG)
             self.pk_sG = np.zeros_like(nt_sG)
@@ -675,15 +672,16 @@ class MSR1Mixer(BaseMixer):
                 if self.world:
                     self.world.broadcast(beta_i, 0)
 
-                self.uk_sG[:] = 0
-                self.pk_sG[:] = 0
+                uk_sG = np.zeros_like(self.uk_sG)
+                pk_sG = np.zeros_like(self.pk_sG)
+
                 for pD_sp in self.pD_asp:
                     pD_sp[:] = 0
-                alpha_i[:] = beta_i
+                # alpha_i[:] = beta_i
 
                 for i1, (alpha, beta) in enumerate(zip(alpha_i, beta_i)):
-                    self.uk_sG -= y_isG[i1] * alpha
-                    self.pk_sG += s_isG[i1] * beta
+                    uk_sG -= y_isG[i1] * beta
+                    pk_sG += s_isG[i1] * beta
 
                     for a1, sD_sp in enumerate(sD_iasp[i1]):
                         self.pD_asp[a1] += beta * sD_sp
@@ -695,9 +693,9 @@ class MSR1Mixer(BaseMixer):
                 scale_factor = (new_step_size / step_size)
                 A0 *= np.clip(scale_factor, 0, 1)
                 A0 = max(A0, min(self.A0, A0_lims[0]))
-                self.A0 = A0  # (self.A0 + A0) / 2
-                self.uk_sG += R_sG
-                step_sG = A0 * self.uk_sG + B0 * self.pk_sG
+                # self.A0 = (self.A0 * A0) ** 0.5
+                uk_sG += R_sG
+                step_sG = A0 * uk_sG + B0 * pk_sG
 
             nt_sG[:] = nt_isG[-1] + step_sG
 
@@ -710,10 +708,10 @@ class MSR1Mixer(BaseMixer):
 
             for i1, (alpha, beta) in enumerate(zip(alpha_i, beta_i)):
                 for a1, D_sp in enumerate(D_asp):
-                    D_sp -= A0 * alpha * yD_iasp[i1][a1]
+                    D_sp -= A0 * beta * yD_iasp[i1][a1]
                     D_sp += B0 * beta * sD_iasp[i1][a1]
                     self.uD_asp[a1] -= alpha * yD_iasp[i1][a1]
-                    self.pD_asp[a1] += beta * sD_iasp[i1][a1]
+                    self.pD_asp[a1] += alpha * sD_iasp[i1][a1]
 
             # Sync the density, because apparantly they cant agree...
             if self.world:
@@ -734,7 +732,7 @@ class MSR1Mixer(BaseMixer):
             self.last_gb = 5
             self.trust_radius = None
             self.A0 = None
-            A0 = self.beta
+            A0 = self.beta / 2
             self.uk_sG = R_sG
             self.pk_sG = np.zeros_like(self.uk_sG)
             nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG
