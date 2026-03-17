@@ -293,6 +293,16 @@ def test_potential_matrix(
                                rtol=1e-10,
                                atol=1e-12)
 
+    # Test also using the optional 'out' argument
+    V_MN_out = xp.empty_like(V_MN)
+    dummy_out = basis.calculate_potential_matrix(vt_G.data, out=V_MN_out)
+    assert dummy_out is V_MN_out
+
+    xp.testing.assert_allclose(V_MN,
+                               V_MN_out,
+                               rtol=1e-10,
+                               atol=1e-12)
+
 
 @pytest.mark.parametrize("block_size", parametrize_blocksize())
 @pytest.mark.parametrize("xp", xp_params_no_cpupy())

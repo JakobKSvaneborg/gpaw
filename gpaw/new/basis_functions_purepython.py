@@ -205,16 +205,17 @@ class BasisFunctionCollectionPurePython(BasisFunctionCollectionBase):
             else:
                 return xp.empty((0))
 
-        if out:
+        M = self.num_basis_functions()
+        if out is not None:
             if out.ndim != 2:
                 raise ValueError("out array must be 2D and have enough rows")
             rows, cols = out.shape
-            if rows < num_work_rows or cols != self.num_basis_functions():
+            if rows < num_work_rows or cols != M:
                 raise ValueError("Not enough rows or columns in out array")
             out[:] = 0
-
-        M = self.num_basis_functions()
-        res = out or xp.zeros((num_work_rows, M))
+            res = out
+        else:
+            res = xp.zeros((num_work_rows, M))
 
         if self.has_precalculated_phi():
             self._potential_matrix_with_precalculation(
