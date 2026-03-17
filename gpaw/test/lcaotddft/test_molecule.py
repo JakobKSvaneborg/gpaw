@@ -32,7 +32,7 @@ def nacl_nospin(gpw_files):
 @only_on_master(world)
 def initialize_system(nacl_nospin):
     comm = serial_comm
-    calc = GPAW(nacl_nospin, communicator=comm)
+    calc = GPAW(nacl_nospin, communicator=comm, legacy_gpaw=True)
     fdm = calculate_time_propagation(nacl_nospin,
                                      kick=np.ones(3) * 1e-5,
                                      communicator=comm,
