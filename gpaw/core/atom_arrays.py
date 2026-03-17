@@ -400,7 +400,7 @@ class AtomArrays:
         a_axi = self.gather()  # gather a (atoms)
         if a_axi is not None:
             m_xI = a_axi.matrix.gather()  # gather x
-            if m_xI.dist.comm.rank == 0:
+            if m_xI is not None:
                 return AtomArrays(a_axi.layout, self.dims, data=m_xI.data)
         return None
 

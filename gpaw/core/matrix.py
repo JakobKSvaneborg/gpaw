@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from types import ModuleType
+from typing import overload
 
 import numpy as np
 import scipy.linalg as sla
@@ -345,23 +346,33 @@ class Matrix(XP):
             return
         1 / 0
 
-    def gather(self, root: int = 0, *, broadcast=False) -> Matrix:
-        """Gather the Matrix on the root rank.
-
-        Returns a new Matrix distributed so that all data is on the root rank
-        """
-        assert root == 0
-
-        if self.dist.all_data_on_rank_zero:
+    def gather(self, broadcast: bool = False) -> Matrix | None:
+        """Gather the Matrix on rank zero."""
+        comm = self.dist.comm
+        if comm.size == 1:
             return self
-
-        S = self.new(dist=(self.dist.comm, 1, 1, *self.shape))
-        self.redist(S)
+        if self.dist.all_data_on_rank_zero:
+            M = self
+        else:
+            M = self.new(dist=(comm, 1, 1, *self.shape))
+            self.redist(M)
+        if comm.rank == 0:
+            M = self.new(dist=None, data=M.data)
+            if broadcast:
+                comm.broadcast(M.data, root=0)
+            return M
         if broadcast:
-            if self.dist.comm.rank != 0:
-                S = self.new(dist=None)
-            self.dist.comm.broadcast(S.data, 0)
-        return S
+            M = self.new(dist=None)
+            comm.broadcast(M.data, root=0)
+            return M
+        return None
+
+    def scatter_from(self, other: Matrix | None) -> None:
+        if other is self:
+            return
+        M = self.new(dist=(self.dist.comm, 1, 1, *self.shape),
+                     data=other.data if other is not None else None)
+        M.redist(self)
 
     @staticmethod
     def scatter(data: Array2D,
@@ -419,7 +430,7 @@ class Matrix(XP):
                [-0.10050378,  1.00503782]])
         """
         S = self.gather()
-        if self.dist.comm.rank == 0:
+        if S is not None:
             if isinstance(S.data, np.ndarray):
                 if debug:
                     S.data[np.triu_indices(S.shape[0], 1)] = 42.0
@@ -435,8 +446,7 @@ class Matrix(XP):
                 L_nn = cp.linalg.cholesky(S.data)
                 S.data[:] = cp.linalg.inv(L_nn)
 
-        if S is not self:
-            S.redist(self)
+        self.scatter_from(S)
 
     def eigh(self,
              S: Matrix | None = None,
@@ -471,17 +481,13 @@ class Matrix(XP):
         slcomm, rows, columns, blocksize = scalapack
 
         if rows * columns == 1:
-            if self.dist.all_data_on_rank_zero:
-                H = self
-            else:
-                H = self.gather()
-                if S is not None:
-                    S = S.gather()
-            if self.dist.comm.rank == 0:
-                self.dist.eigh_serial(H, S, eigs, cc, limit)
+            H = self.gather()
+            if S is not None:
+                S = S.gather()
+            if H is not None:
+                H.dist.eigh_serial(H, S, eigs, cc, limit)
             self.dist.comm.broadcast(eigs, 0)
-            if not self.dist.all_data_on_rank_zero:
-                H.redist(self)
+            self.scatter_from(H)
             return eigs
 
         H = self.new(dist=scalapack)
@@ -1076,10 +1082,11 @@ class CuPyDistribution(MatrixDistribution):
            ~      †   ~~   ~         †~
            H = LHL ,  HC = CΛ,  C = L C.
         """
-        assert self.comm.size == 1
+        dist = CuPyDistribution(*self.full_shape,
+                                serial_comm, 1, 1, self.br, self.bc)
         tmp = H.new()
-        self.multiply(1.0, L, 'N', H, 'N', 0.0, tmp)
-        self.multiply(1.0, tmp, 'N', L, 'C', 0.0, H, symmetric=True)
+        dist.multiply(1.0, L, 'N', H, 'N', 0.0, tmp)
+        dist.multiply(1.0, tmp, 'N', L, 'C', 0.0, H, symmetric=True)
 
         diagonalizer, options = suggest_diagonalizer(H)
         options.inplace = False
@@ -1089,7 +1096,7 @@ class CuPyDistribution(MatrixDistribution):
 
         assert Ct_MM.flags.f_contiguous
         Ct = H.new(data=Ct_MM.T)
-        self.multiply(1.0, L, 'C', Ct, 'T', 0.0, H)
+        dist.multiply(1.0, L, 'C', Ct, 'T', 0.0, H)
         # H.complex_conjugate()
         return eig_M
 
