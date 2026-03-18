@@ -666,17 +666,17 @@ class BSEBackend:
                                                        self.ci, self.cf)
                            for s in range(self.nspins)]
 
-                rho3_nnG, iq = self.get_density_matrix(
+                rho3_nnG, iq, sign = self.get_density_matrix(
                     pair_calc, screened_potential, kptv1_s[0], kptv2_s[0])
 
-                rho4_nnG, iq = self.get_density_matrix(
+                rho4_nnG, iq, sign = self.get_density_matrix(
                     pair_calc, screened_potential, kptc1_s[0], kptc2_s[0])
 
                 if self.nspins == 2:
-                    rho3s1_nnG, iq = self.get_density_matrix(
+                    rho3s1_nnG, iq, sign = self.get_density_matrix(
                         pair_calc, screened_potential, kptv1_s[1], kptv2_s[1])
 
-                    rho4s1_nnG, iq = self.get_density_matrix(
+                    rho4s1_nnG, iq, sign = self.get_density_matrix(
                         pair_calc, screened_potential, kptc1_s[1], kptc2_s[1])
                 else:
                     rho3s1_nnG = None
@@ -690,11 +690,19 @@ class BSEBackend:
                     rho4_nnG = self.spinors_data.rho_conduction_conduction(
                         kptc1_s[0].K, kptc2_s[0].K, rho4_nnG, rho4s1_nnG)
 
+                # When the symmetry operation involves time-reversal
+                # (sign == -1), the physical W at the BZ q-point is the
+                # complex conjugate of W at the IBZ q-point:
+                # W(Q+G_BZ, Q+G_BZ') = conj(W_ibz[G, G'])
+                W_GG = screened_potential.W_qGG[iq]
+                if sign == -1:
+                    W_GG = W_GG.conj()
+
                 self.context.timer.start('Screened exchange')
                 W_mmmm = np.einsum(
                     'ijk,km,pqm->ipjq',
                     rho3_nnG.conj(),
-                    screened_potential.W_qGG[iq],
+                    W_GG,
                     rho4_nnG,
                     optimize='optimal')
                 # Only include 0.5*W for spinpaired calculations without soc
@@ -736,7 +744,7 @@ class BSEBackend:
             rho_nnG[n] = get_nmG(kpt1, kpt2, pawcorr, n, qpd, I_G,
                                  pair_calc, timer=self.context.timer)
 
-        return rho_nnG, iq
+        return rho_nnG, iq, symop.sign
 
     @cached_property
     def _chi0calc(self):
