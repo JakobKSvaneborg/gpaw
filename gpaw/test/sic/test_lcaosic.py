@@ -15,7 +15,12 @@ from gpaw.test.sic._utils import (MockWorld, extract_lagrange_section,
 @pytest.mark.old_gpaw_only
 @pytest.mark.sic
 def test_lcaosic_innerloop(in_tmp_dir, gpw_files):
-    """Test that inner loop PZ localization gives same energy as without."""
+    """Compare energies with and without periodic PZ inner loop.
+
+    The inner loop runs during fixture generation (h2o_lcaosic_innerloop
+    in gpwfile.py). This test loads the pre-converged .gpw files and
+    checks that both paths converge to the same energy.
+    """
     calc_no_inner = GPAW(gpw_files['h2o_lcaosic'])
     atoms_no_inner = calc_no_inner.atoms
     atoms_no_inner.calc = calc_no_inner

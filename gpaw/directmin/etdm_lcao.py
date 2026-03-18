@@ -75,7 +75,6 @@ class LCAOETDM:
                  subspace_convergence=5e-4,
                  localize_every=None,
                  printinnerloop=False,
-                 _is_subproblem=False
                  ):
         """Class for direct orbital optimization in LCAO mode.
 
@@ -293,11 +292,13 @@ class LCAOETDM:
 
         # in this attribute we store the object specific to each mode
         self.dm_helper = None
+        self.log = None
         self.localize_every = localize_every
+        if self.localize_every is not None and self.localize_every < 1:
+            raise ValueError(
+                'localize_every must be a positive integer, '
+                f'got {self.localize_every}')
         self.printinnerloop = printinnerloop
-        if _is_subproblem:
-            self.need_localization = False
-            self.localize_every = None
 
         self.initialized = False
 
@@ -1101,11 +1102,14 @@ class LCAOETDM:
         self.use_prec = False
         self.in_subspace_loop = True
         log = self.log if self.printinnerloop else None
+        original_eg = self.eg_count
         try:
             dm = LCAOETDMLocalize(
                 self, wfs, log,
                 tol=self.subspace_convergence)
             dm.run(ham, dens)
+            self.eg_count_iloop = self.eg_count - original_eg
+            self.total_eg_count_iloop += self.eg_count_iloop
         finally:
             self.use_prec = original_use_prec
             self.in_subspace_loop = False
