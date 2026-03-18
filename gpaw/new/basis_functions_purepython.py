@@ -81,7 +81,7 @@ class BasisFunctionCollectionPurePython(BasisFunctionCollectionBase):
         """
 
         # TODO precalculation on GPU
-        for block in self._block_map.values():
+        for block in self.get_relevant_blocks():
             num_m = len(block.M_m)
 
             phi_mg_shape = (num_m, *block.shape)
@@ -158,7 +158,7 @@ class BasisFunctionCollectionPurePython(BasisFunctionCollectionBase):
                     f_asi[atom_idx]
                 )
 
-            for block in self._block_map.values():
+            for block in self.get_relevant_blocks():
                 assert block.evaluated_phi_mg is not None
 
                 # XYZ indices to the nt_sG array for this block (domain aware)

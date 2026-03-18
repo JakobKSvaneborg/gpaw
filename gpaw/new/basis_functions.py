@@ -43,6 +43,79 @@ def sphere_overlaps_box(
     return dist2 <= radius * radius
 
 
+def find_sphere_images(
+        grid: UGDesc,
+        sphere_pos_v: np.ndarray,
+        radius: float) -> tuple[list[np.ndarray], list[np.ndarray]]:
+    """Finds all periodic copies of a sphere that overlap with the main cell.
+    The original sphere is assumed to be inside the main cell.
+    "Image" refers to a copy of the sphere in other cells.
+
+    Returns
+    -------
+    cells  : list of ndarray shape (3,) int
+        Integer indices of all cells that contain an image of the sphere.
+        IE: cell (0, 0, 0) is the main cell, (-1, 0, 0) is the next cell in
+        the negative 0-direction, etc.
+    positions : list of ndarray shape (3,) float
+        Real-space positions of the sphere images.
+
+    Notes
+    -----
+    - Works with non-periodic grid directions (no images in those dirs)
+    - Works with generic parallelepiped-shaped grids
+    """
+
+    # The unit cell is aligned along the real-space Cartesian vectors given
+    # by grid.cell_cv[c] for c=0,1,2. Conversion between real-space vector
+    # pos_v and fractional "grid-aligned" vector pos_c happens as:
+    #   pos_v = pos_c @ cell_cv.
+    icell_cv = grid.icell  # inverse of cell_cv
+    pos_c = sphere_pos_v @ icell_cv
+
+    # We want to "stack" unit cells in all directions until the sphere no
+    # longer reaches new cells. Do this by finding the "perpedincular
+    # heights" of the unit cell, ie. face normals times appropriate length.
+    # These give the minimum possible spacing between spheres.
+    # But icell_cv[b] @ cell_cv[c] == delta_(bc) means that icell_cv[c] is
+    # normal to the face spanned by the other two cell_cv vectors, and its
+    # length gives the perpedicular height h_c.
+    h_c = 1.0 / np.linalg.norm(icell_cv, axis=1)
+
+    # How many cells can the sphere extend at max, in a given direction
+    n_max_c = np.ceil(radius / h_c).astype(int) + 1
+    # Handle non-periodic boundaries: can't have images in non-periodic dirs
+    n_max_c = np.where(grid.pbc_c, n_max_c, 0)
+
+    # Build a 3D grid of sphere shifts. This Numpy magic is equivalent to:
+    # for nx, ny, nz in itertools.product(
+    #     range(-n_max_c[0], n_max_c[0] + 1),
+    #     range(-n_max_c[1], n_max_c[1] + 1),
+    #     range(-n_max_c[2], n_max_c[2] + 1),
+    # ):
+    #     shift = np.array([nx, ny, nz])
+    #     ...
+    ranges = [np.arange(-n, n + 1) for n in n_max_c]
+    cells = np.meshgrid(*ranges, indexing="ij")
+    shifts = np.stack(cells, axis=-1)
+    # includes (0, 0, 0), ie. the main cell
+    # assert shifts.size > 0
+
+    # Place image sphere candidates
+    image_pos_c = pos_c + shifts
+    # Find closest point to the image within the main cell
+    image_closest_c = np.clip(image_pos_c, 0.0, 1.0)
+
+    # The actual overlap check:
+    image_pos_v = image_pos_c @ grid.cell_cv
+    closest_v = image_closest_c @ grid.cell_cv
+    dist2 = np.sum((image_pos_v - closest_v)**2, axis=-1)
+    shifts = shifts[dist2 <= radius**2]
+
+    positions = sphere_pos_v + (shifts @ grid.cell_cv)
+    return list(shifts), list(positions)
+
+
 @dataclass
 class BasisFunctionDesc:
     """Data for defining a basis function phi(x)."""
@@ -205,6 +278,9 @@ class BasisFunctionInstance:
     first_mu: int
     position: np.ndarray
     """Real-space position"""
+    cell_coords: np.ndarray
+    """Coords of the cell containing the center of this phi. 3D array of ints.
+    These are relative to the main unit cell which has coords (0, 0, 0)."""
 
     blocks_with_overlap: list[GridBlock] = field(default_factory=list)
 
@@ -329,6 +405,9 @@ class PhiSphereData:
     parent_atom_idx: int
     first_mu: int
     phi_desc: BasisFunctionDesc
+    cell_coords: np.ndarray
+    """Length-3 array of int. Coords of the cell that this sphere resides in.
+    """
 
 
 class SplinePoolBase(ABC):
@@ -429,13 +508,6 @@ class BasisFunctionCollectionBase(ABC):
             Size of each grid block. None means no blocking.
         """
         self.grid = system.grid
-
-        # WIP: only easy grid shape is supported
-        if np.count_nonzero(
-            self.grid.cell_cv - np.diag(np.diagonal(self.grid.cell_cv))
-        ) > 0:
-            raise NotImplementedError(
-                "Only simple grid shape is supported for now")
 
         if block_size is not None:
             self.block_size = min(block_size, np.min(self.grid.mysize_c))
@@ -568,67 +640,69 @@ class BasisFunctionCollectionBase(ABC):
     def _update_grid_blocks(self) -> None:
         """Actually just fully rebuilds block info."""
 
-        self.blocks = []
-        grid_spacing_v = np.diag(self.grid._gd.h_cv)
-
-        """For each phi, find which blocks they overlap. We start with an AABB
-        (Axis Aligned Bounding Box) overlap test to find nearby boxes with
-        possible overlap, then remove false positives by a proper spherical
-        overlap test. The AABB check is done against boxes of size
-        block_size^3, which can be too large if the grid domain doesn't divide
-        evenly into blocks of this size. We compute real block shapes in the
-        latter overlap test.
+        """For each phi, find which blocks they overlap. This is very similar
+        to the "image sphere search" in _update_atom_position(), but instead
+        of unit cell overlaps we work with smaller parallelepipids within
+        the main unit cell.
         """
+
+        self.blocks = []
 
         # sanity check for domain decomp
         assert self.grid.mysize_c.size > 0
 
+        # Get grid spacings and the "perpendicular height" per grid step
+        h_cv = self.grid._gd.h_cv
+        ih_cv = np.linalg.inv(h_cv)
+        h_perp_c = 1.0 / np.linalg.norm(ih_cv, axis=1)
+
+        # Number of blocks along each grid axis. The last block is allowed to
+        # be smaller (fancy upwards rounding):
+        num_blocks_c = -(self.grid.mysize_c // -self.block_size).astype(int)
+
         block_map: dict[BlockCoords, GridBlock] = {}
 
-        # Round division up. The last block is allowed to be smaller
-        num_blocks_c = -(self.grid.mysize_c // -self.block_size).astype(int)
-        real_block_size_v = self.block_size * grid_spacing_v
-
         for phi in self.get_phi_instances():
-            # Compute AABB extents for the phi-sphere (real space units)
             radius = phi.get_cutoff()
-            aabb_min = phi.position - radius
-            aabb_max = phi.position + radius
 
-            # Convert to be relative to origin of this grid domain
-            rel_min_v = aabb_min - self.grid.start_c * grid_spacing_v
-            rel_max_v = aabb_max - self.grid.start_c * grid_spacing_v
+            # Express sphere position in grid-domain coords. Not necessarily
+            # integers.
+            pos_h_c = phi.position @ ih_cv - self.grid.start_c
 
-            # Compute block indices that the AABB overlaps
-            min_block = np.floor(rel_min_v / real_block_size_v)
-            max_block = np.floor(rel_max_v / real_block_size_v)
+            # The sphere extends this many blocks:
+            n_blocks_reach_c = radius / (h_perp_c * self.block_size)
+            # and has its center in this block (block coords are domain aware)
+            block_coords_of_center_c = pos_h_c / self.block_size
 
-            min_block = np.maximum(min_block, 0).astype(int)
-            max_block = np.minimum(max_block, num_blocks_c - 1).astype(int)
+            # Min and max block indices, clamped to stay in our grid domain:
+            min_block_c = np.floor(
+                block_coords_of_center_c - n_blocks_reach_c).astype(int)
+            max_block_c = np.floor(
+                block_coords_of_center_c + n_blocks_reach_c).astype(int)
+
+            min_block_c = np.maximum(min_block_c, 0)
+            max_block_c = np.minimum(max_block_c, num_blocks_c - 1)
 
             for bx, by, bz in itertools.product(
-                range(min_block[0], max_block[0] + 1),
-                range(min_block[1], max_block[1] + 1),
-                range(min_block[2], max_block[2] + 1),
+                range(min_block_c[0], max_block_c[0] + 1),
+                range(min_block_c[1], max_block_c[1] + 1),
+                range(min_block_c[2], max_block_c[2] + 1),
             ):
-                # Exact overlap test with real blocks: get block corners
+                # Block spans grid-domain indices [block_start_c, block_end_c]
                 block_start_c = (self.grid.start_c
                                  + self.block_size * np.asarray([bx, by, bz]))
-
                 # Clip end corner so that it stays within the MPI domain
                 block_end_c = block_start_c + self.block_size
                 block_end_c = np.minimum(block_end_c, self.grid.end_c)
 
-                # FIXME can happen that a sphere DOES overlap the box,
-                # but NOT any grid points in the box => not needed.
-                # Happens already in update_atom_position()...
-                if sphere_overlaps_box(
-                    radius,
-                    phi.position,
-                    block_start_c * grid_spacing_v,
-                    block_end_c * grid_spacing_v
-                ):
+                # Find closest point inside the block to the sphere center
+                clamped_pos_h_c = np.clip(pos_h_c, block_start_c, block_end_c)
+                closest_v = clamped_pos_h_c @ h_cv
 
+                # FIXME can happen that a sphere DOES overlap the block,
+                # but NOT any grid points in the block => not needed.
+                # Happens already in update_atom_position()...
+                if np.sum((phi.position - closest_v)**2 < radius**2):
                     block_coords = (bx, by, bz)
                     if block_coords in block_map:
                         block = block_map[block_coords]
@@ -879,26 +953,9 @@ class BasisFunctionCollectionBase(ABC):
         to construct the "periodic images" of spheres, then perform
         sphere-box overlap checks.
         """
-        position_v = new_relpos_c @ self.grid.cell_cv
-        L = np.diag(self.grid.cell_cv)  # shape = (3,)
-
-        # Main cell "min" and "max" points. In principle just (0, 0, 0) and
-        # (L, L, L), but in practice the last grid point can be one spacing
-        # earlier, and that is the last point we need for overlap checks.
-        # FIXME: (L, L, L) is safer because it also sees possible phi that
-        # have radius smaller than the grid spacing. So go with L for now.
-        # TODO: 1. Warn about small-radius phi
-        #       2. Drop such phi from computations. More optimal and allows
-        #          assertions checks like "did we only include phi that
-        #          contribute"
-
-        main_cell_start_v = np.asarray([0, 0, 0])
-        main_cell_end_v = main_cell_start_v + L
-
-        # Enforce no overlap in directions without periodic b.c.
-        pbc_mask = ~np.array(self.grid.pbc_c)
-
         phi_spheres = []
+
+        position_v = new_relpos_c @ self.grid.cell_cv
 
         spline_indices = self.spline_indices_for_a[atom_idx]
         mu = self._mu_range_a[atom_idx].start
@@ -910,48 +967,14 @@ class BasisFunctionCollectionBase(ABC):
             # NOTE: there is a helper function in GridDescriptor called
             # get_boxes(), but it seems to give false positives. The following
             # tries to do better.
-            r = phi.cutoff
-            center = position_v
+            cells, positions_v = find_sphere_images(self.grid,
+                                                    position_v,
+                                                    phi.cutoff)
 
-            # How many cells does the sphere overlap in given direction
-            n_min = np.floor((center - r) / L).astype(int)
-            n_max = np.floor((center + r) / L).astype(int)
-
-            # TODO test if this actually works with non-pbc
-            n_min = np.where(pbc_mask, 0, n_min)
-            n_max = np.where(pbc_mask, 0, n_max)
-
-            """Build a 3D shift grid. This Numpy magic is equivalent to:
-            for nx, ny, nz in itertools.product(
-                range(n_min[0], n_max[0] + 1),
-                range(n_min[1], n_max[1] + 1),
-                range(n_min[2], n_max[2] + 1),
-            ):
-                shift = np.array([nx, ny, nz])
-                ...
-            """
-            ranges = [np.arange(n_min[d], n_max[d] + 1) for d in range(3)]
-            grids = np.meshgrid(*ranges, indexing="ij")
-            shifts = np.stack(grids, axis=-1).reshape(-1, 3)
-            # includes (0, 0, 0), ie. the main cell
-            assert shifts.size > 0
-
-            # Where the periodic copy sphere would be
-            translated_centers = center - shifts * L
-
-            # Which shifted sphere actually overlap with the (0,0,0) cell.
-
-            mask = np.asarray(
-                [sphere_overlaps_box(r, sphere_pos,
-                                     main_cell_start_v,
-                                     main_cell_end_v)
-                 for sphere_pos in translated_centers]
-            )
-            assert np.any(mask)
-
-            for atom_pos in translated_centers[mask]:
+            for j, atom_pos in enumerate(positions_v):
                 phi_spheres.append(
-                    PhiSphereData(atom_pos, spline_idx, atom_idx, mu, phi))
+                    PhiSphereData(atom_pos, spline_idx, atom_idx, mu, phi,
+                                  cell_coords=cells[j]))
 
             mu += (2 * phi.l + 1)
 
@@ -973,7 +996,8 @@ class BasisFunctionCollectionBase(ABC):
                 sphere.spline_idx,
                 sphere.parent_atom_idx,
                 sphere.first_mu,
-                sphere.pos_v)
+                sphere.pos_v,
+                sphere.cell_coords)
 
             self.phi_i.append(new_phi)
 
