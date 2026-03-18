@@ -74,6 +74,7 @@ class LCAOETDM:
                  constraints=None,
                  subspace_convergence=5e-4,
                  localize_every=None,
+                 printinnerloop=False,
                  _is_subproblem=False
                  ):
         """Class for direct orbital optimization in LCAO mode.
@@ -202,6 +203,9 @@ class LCAOETDM:
         localize_every: int
             If specified, a PZ-SIC inner loop localization is performed
             every 'localize_every' SCF iterations.
+        printinnerloop: bool
+            If True, print the iterations of the inner loop optimization
+            for PZ-SIC localization to standard output. Default is False.
         """
 
         assert representation in ['sparse', 'u-invar', 'full'], 'Value Error'
@@ -290,6 +294,7 @@ class LCAOETDM:
         # in this attribute we store the object specific to each mode
         self.dm_helper = None
         self.localize_every = localize_every
+        self.printinnerloop = printinnerloop
         if _is_subproblem:
             self.need_localization = False
             self.localize_every = None
@@ -621,7 +626,6 @@ class LCAOETDM:
         """
         # Periodic PZ-SIC localization (controlled by localize_every)
         should_localize = (self.localize_every is not None
-                           and self.localizationtype == 'pz'
                            and self.iters > 1
                            and self.iters % self.localize_every == 0)
         if should_localize and not self.in_subspace_loop:
@@ -1096,9 +1100,10 @@ class LCAOETDM:
         original_use_prec = self.use_prec
         self.use_prec = False
         self.in_subspace_loop = True
+        log = self.log if self.printinnerloop else None
         try:
             dm = LCAOETDMLocalize(
-                self, wfs, self.log,
+                self, wfs, log,
                 tol=self.subspace_convergence)
             dm.run(ham, dens)
         finally:
