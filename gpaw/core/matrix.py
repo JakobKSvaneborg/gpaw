@@ -371,7 +371,7 @@ class Matrix(XP):
             return M
         if broadcast:
             M = self.new(dist=None)
-            comm.broadcast(M.data, root=0)
+            comm.broadcast(M.data, 0)
             return M
         return None
 

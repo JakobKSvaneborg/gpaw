@@ -593,7 +593,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         psit_nX = self.psit_nX.gather()  # gather X
         if psit_nX is not None:
             data_nX = psit_nX.matrix.gather()  # gather n
-            if data_nX.dist.comm.rank == 0:
+            if data_nX is not None:
                 # XXX PW-gamma-point mode: float or complex matrix.dtype?
                 return data_nX.data.view(
                     psit_nX.data.dtype).reshape((-1,) + psit_nX.data.shape[1:])
