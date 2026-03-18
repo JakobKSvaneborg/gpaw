@@ -1,0 +1,276 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{physics}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+% Code listing style for Python
+\lstdefinestyle{python}{
+    language=Python,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue!70!black}\bfseries,
+    stringstyle=\color{red!60!black},
+    commentstyle=\color{green!50!black}\itshape,
+    numberstyle=\tiny\color{gray},
+    numbers=left,
+    numbersep=8pt,
+    frame=single,
+    framerule=0.4pt,
+    rulecolor=\color{gray!50},
+    backgroundcolor=\color{gray!5},
+    breaklines=true,
+    showstringspaces=false,
+    tabsize=4,
+    xleftmargin=2em,
+    framexleftmargin=1.5em,
+}
+
+\title{Missing Time-Reversal Conjugation of $W_{\vb{GG}'}(\vb{q})$
+       in the BSE Direct Kernel}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+%----------------------------------------------------------------------
+\section{Summary}
+%----------------------------------------------------------------------
+
+The Bethe--Salpeter equation (BSE) direct kernel in GPAW contracts the
+screened Coulomb interaction $W_{\vb{GG}'}(\vb{q})$ with pair densities
+for valence--valence and conduction--conduction transitions.  When
+the Brillouin-zone (BZ) momentum transfer $\vb{Q}$ is mapped to its
+irreducible representative $\vb{q}_\text{IBZ}$ via a symmetry operation
+that includes time reversal, the stored $W_{\vb{GG}'}(\vb{q}_\text{IBZ})$
+must be complex-conjugated before contraction.  This conjugation was
+missing, leading to a non-Hermitian BSE Hamiltonian for systems lacking
+inversion symmetry (e.g.\ monolayer MoS\textsubscript{2}).
+
+%----------------------------------------------------------------------
+\section{Origin of the symmetry operation}
+%----------------------------------------------------------------------
+
+GPAW computes $W_{\vb{GG}'}(\vb{q})$ only at the irreducible
+$\vb{q}$-points.  When the BSE kernel loops over all $(K_1, K_2)$
+pairs, the momentum transfer
+\begin{equation}
+  \vb{Q} = \vb{K}_2 - \vb{K}_1
+\end{equation}
+is a general BZ $\vb{q}$-point that may not lie in the IBZ.  The code
+therefore finds a symmetry operation $\hat{S}$ (possibly combined with
+time reversal $\hat{T}$) such that
+\begin{equation}\label{eq:qmap}
+  \vb{Q} = s\, U \,\vb{q}_\text{IBZ},
+  \qquad
+  s = \begin{cases} +1 & \text{(pure rotation)}, \\
+                     -1 & \text{(rotation + time reversal)}.
+  \end{cases}
+\end{equation}
+This mapping is performed in the class method
+\texttt{QSymmetryOp.get\_symop\_from\_kpair}:
+
+\begin{lstlisting}[style=python,firstnumber=263,
+  caption={\texttt{gpaw/response/g0w0.py}: Determination of the
+           symmetry operation mapping $\vb{Q}$ to $\vb{q}_\text{IBZ}$.}]
+def get_symop_from_kpair(cls, kd, qd, kpt1, kpt2):
+    Q_c = kd.bzk_kc[kpt2.K] - kd.bzk_kc[kpt1.K]
+    iQ = qd.where_is_q(Q_c, qd.bzk_kc)
+    iq = qd.bz2ibz_k[iQ]
+    q_c = qd.ibzk_kc[iq]
+
+    sym = qd.sym_k[iQ]
+    U_cc = qd.symmetry.op_scc[sym]
+    time_reversal = qd.time_reversal_k[iQ]
+    sign = 1 - 2 * time_reversal
+    symop = cls(sym, U_cc, sign)
+    symop.check_q_Q_symmetry(Q_c, q_c)
+
+    return symop, iq
+\end{lstlisting}
+
+The sign $s$ propagates into the pair-density calculation via the
+\texttt{apply} method (line~228), which maps reciprocal-lattice vectors
+as $\vb{G} \to s\,U\,\vb{G}$, and via the PAW correction
+\texttt{remap} method, which conjugates the PAW tensor when $s = -1$
+(line~456 of \texttt{gpaw/response/paw.py}).
+
+%----------------------------------------------------------------------
+\section{Why time reversal is needed for MoS\textsubscript{2}}
+%----------------------------------------------------------------------
+
+Monolayer MoS\textsubscript{2} has point group $D_{3h}$
+($\bar{6}m2$): three-fold rotations and mirror planes, but
+\emph{no inversion center}.  For a centrosymmetric crystal, the
+spatial inversion maps $\vb{q} \to -\vb{q}$, so every BZ
+$\vb{q}$-point can be folded to the IBZ using spatial symmetry alone
+($s = +1$ always).  Without inversion, some $\vb{q}$-points require
+time reversal ($\vb{q} \to -\vb{q}$) to reach the IBZ, giving
+$s = -1$.
+
+%----------------------------------------------------------------------
+\section{Transformation of $W_{\vb{GG}'}$ under time reversal}
+%----------------------------------------------------------------------
+
+Since $W(\vb{r}, \vb{r}')$ is real in real space, its Fourier
+components satisfy
+\begin{equation}\label{eq:reality}
+  W_{\vb{GG}'}(\vb{q})^*
+  = W_{-\vb{G},-\vb{G}'}(-\vb{q}).
+\end{equation}
+For a \emph{pure rotation} ($s = +1$), the BZ reciprocal-lattice
+vectors are $\vb{G}_\text{BZ} = U\,\vb{G}_\text{IBZ}$.  The
+rotational invariance of $W$ gives
+\begin{equation}
+  W(U\vb{x},\, U\vb{y}) = W(\vb{x},\, \vb{y}),
+\end{equation}
+so the stored IBZ matrix can be used directly.  For a
+\emph{time-reversed} operation ($s = -1$), the BZ vectors are
+$\vb{G}_\text{BZ} = -U\,\vb{G}_\text{IBZ}$, and combining rotational
+invariance with Eq.~\eqref{eq:reality}:
+\begin{equation}\label{eq:conjugation}
+  W(-U\vb{x},\, -U\vb{y})
+  = W(-\vb{x},\, -\vb{y})
+  = W_{\vb{GG}'}(\vb{q}_\text{IBZ})^*.
+\end{equation}
+Hence, when $s = -1$, the stored $W_{\vb{GG}'}(\vb{q}_\text{IBZ})$
+must be \textbf{complex-conjugated} before use.
+
+%----------------------------------------------------------------------
+\section{The bug: missing conjugation in the BSE kernel}
+%----------------------------------------------------------------------
+
+The direct kernel is assembled in \texttt{add\_direct\_kernel}.  After
+computing the pair densities $\rho^{(3)}_{nn'\vb{G}}$ (valence) and
+$\rho^{(4)}_{nn'\vb{G}}$ (conduction), the kernel matrix element is
+\begin{equation}
+  W_{mm'MM'} = \sum_{\vb{G},\vb{G}'}
+    \rho^{(3)*}_{mm'\vb{G}}\;
+    W_{\vb{GG}'}\;
+    \rho^{(4)}_{MM'\vb{G}'}.
+\end{equation}
+In the code:
+
+\begin{lstlisting}[style=python,firstnumber=702,
+  caption={\texttt{gpaw/response/bse.py}: Contraction of pair densities
+           with $W$ in \texttt{add\_direct\_kernel}.}]
+W_mmmm = np.einsum(
+    'ijk,km,pqm->ipjq',
+    rho3_nnG.conj(),
+    W_GG,
+    rho4_nnG,
+    optimize='optimal')
+\end{lstlisting}
+
+The matrix \verb|W_GG| was taken directly from the IBZ storage with no
+conjugation applied when $s = -1$.  The fix adds a single conjugation:
+
+\begin{lstlisting}[style=python,firstnumber=698,
+  caption={\texttt{gpaw/response/bse.py}: The fix --- conjugate $W$
+           when the symmetry operation includes time reversal.}]
+if symop.sign == -1:
+    W_GG = W_GG.conj()
+\end{lstlisting}
+
+%----------------------------------------------------------------------
+\section{Why the error is small ($\sim10^{-5}$)}
+%----------------------------------------------------------------------
+
+The error per matrix element is
+\begin{equation}
+  W_{\vb{GG}'}(\vb{q}) - W_{\vb{GG}'}(\vb{q})^*
+  = 2i\,\operatorname{Im} W_{\vb{GG}'}(\vb{q}).
+\end{equation}
+As shown in the next section, $\operatorname{Im} W_{\vb{GG}'}$ is
+nonzero only for $\vb{G} \neq \vb{G}'$ and only when inversion
+symmetry is absent.  These off-diagonal imaginary parts are typically
+much smaller than $\operatorname{Re} W_{\vb{GG}'}$, which explains the
+modest magnitude of the error ($\sim 10^{-5}$\,Ha).
+
+%----------------------------------------------------------------------
+\section{Why $\operatorname{Im} W_{\vb{GG}'} = 0$ for
+         centrosymmetric systems}
+\label{sec:imW}
+%----------------------------------------------------------------------
+
+\subsection{Centrosymmetric case: all elements are real}
+
+For a crystal with spatial inversion, $W(\vb{r},\vb{r}') =
+W(-\vb{r},-\vb{r}')$.  Taking the complex conjugate of the Fourier
+transform and substituting $\vb{r} \to -\vb{r}$,
+$\vb{r}' \to -\vb{r}'$:
+\begin{align}
+  W_{\vb{GG}'}(\vb{q})^*
+  &= \frac{1}{\Omega}\int\!\!\int
+     e^{i(\vb{q}+\vb{G})\cdot\vb{r}}\,
+     W(\vb{r},\vb{r}')\,
+     e^{-i(\vb{q}+\vb{G}')\cdot\vb{r}'}\,
+     \dd{\vb{r}}\,\dd{\vb{r}'}
+  \notag\\
+  &= \frac{1}{\Omega}\int\!\!\int
+     e^{-i(\vb{q}+\vb{G})\cdot\vb{r}}\,
+     W(-\vb{r},-\vb{r}')\,
+     e^{i(\vb{q}+\vb{G}')\cdot\vb{r}'}\,
+     \dd{\vb{r}}\,\dd{\vb{r}'}
+  \notag\\
+  &= \frac{1}{\Omega}\int\!\!\int
+     e^{-i(\vb{q}+\vb{G})\cdot\vb{r}}\,
+     W(\vb{r},\vb{r}')\,
+     e^{i(\vb{q}+\vb{G}')\cdot\vb{r}'}\,
+     \dd{\vb{r}}\,\dd{\vb{r}'}
+  \notag\\
+  &= W_{\vb{GG}'}(\vb{q}).
+\end{align}
+Hence $W_{\vb{GG}'}(\vb{q})$ is real for \emph{all} $\vb{G}$,
+$\vb{G}'$, and the bug has no effect.
+
+\subsection{Non-centrosymmetric case: only off-diagonal elements can
+            be complex}
+
+Without inversion symmetry, the argument above fails and
+$W_{\vb{GG}'}(\vb{q})$ can be complex.  However, the static screened
+interaction is Hermitian in reciprocal space:
+\begin{equation}
+  W_{\vb{GG}'}(\vb{q}) = W_{\vb{G}'\vb{G}}(\vb{q})^*.
+\end{equation}
+For diagonal elements this immediately gives
+\begin{equation}
+  W_{\vb{GG}}(\vb{q}) = W_{\vb{GG}}(\vb{q})^*
+  \qquad\Longrightarrow\qquad
+  \operatorname{Im} W_{\vb{GG}}(\vb{q}) = 0
+  \quad \forall\;\vb{G},\,\vb{q}.
+\end{equation}
+The \textbf{diagonal elements are always real}, regardless of crystal
+symmetry.  It is only the \textbf{off-diagonal} elements
+($\vb{G} \neq \vb{G}'$) that can acquire a nonzero imaginary part when
+inversion symmetry is broken.
+
+%----------------------------------------------------------------------
+\section{Why GW is unaffected}
+%----------------------------------------------------------------------
+
+The GW self-energy involves a \emph{quadratic form}:
+\begin{equation}
+  \Sigma \;\sim\; \sum_{\vb{G},\vb{G}'}
+    \rho^*_{\vb{G}}\, W_{\vb{GG}'}\, \rho_{\vb{G}'},
+\end{equation}
+with the \emph{same} pair density $\rho$ on both sides.  For Hermitian
+$W$:
+\begin{equation}
+  \qty(\rho^\dagger W \rho)^*
+  = \sum_{\vb{G},\vb{G}'}
+    \rho_{\vb{G}}\, W^*_{\vb{GG}'}\, \rho^*_{\vb{G}'}
+  = \sum_{\vb{G},\vb{G}'}
+    \rho^*_{\vb{G}'}\, W_{\vb{G}'\vb{G}}\, \rho_{\vb{G}}
+  = \rho^\dagger W \rho.
+\end{equation}
+The result is always real, so replacing $W$ by $W^*$ yields the same
+value.  The BSE kernel, by contrast, uses a \emph{bilinear form}
+$\rho^{(3)\dagger} W\, \rho^{(4)}$ with two different pair densities, so
+the conjugation of $W$ produces a genuinely different result.
+
+\end{document}
