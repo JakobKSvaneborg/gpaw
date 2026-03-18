@@ -17,6 +17,7 @@ import numpy as np
 import pytest
 import copy
 import itertools
+from collections import namedtuple
 from typing import cast
 
 
@@ -70,10 +71,36 @@ def make_random_phi(
     return BasisFunctionDesc(l, cutoff, values)
 
 
-def make_test_system() -> LFCSystemDesc:
+# Generate a bunch of different grid fixtures:
+GridShape = namedtuple("GridShape", ["cell", "size"])
+# Can (must?) separately specify periodic and zero-boundaries
+BoundaryConds = namedtuple("BoundaryConds", ["pbc", "zerobc"])
+
+@pytest.fixture(params=[
+    GridShape(cell=[3, 3, 3], size=(18, 18, 18)),
+    GridShape(cell=[1, 2, 3], size=(16, 12, 13)),
+    GridShape(cell=[3, 2, 3], size=(6, 8, 7))],
+    ids=["UniformOrthorhombic", "NonUniformOrthorombic", "SmallOrthorhombic"],
+    scope="module")
+def fixt_grid_shape(request) -> GridShape:
+    """Parametrized grid shape fixture, generates grids of different shapes
+    and sizes."""
+    return request.param
+
+
+@pytest.fixture(params=[
+    BoundaryConds(pbc=[True, True, True], zerobc=[False, False, False]),
+    BoundaryConds(pbc=[False, True, False], zerobc=[False, False, False])],
+    ids=["AllPeriodic", "SomePeriodic"],
+    scope="module")
+def fixt_bc(request) -> BoundaryConds:
+    """Generates bunch of different boundary conditions for grids"""
+    return request.param
+
+
+@pytest.fixture(scope="module")
+def fixt_lfc_system(fixt_grid_shape, fixt_bc) -> LFCSystemDesc:
     """"""
-    n = 22
-    a = 3.0  # grid size in Bohr units ("unit cell"). NOT the lattice spacing
 
     # Grid does automatic domain decomp if running with MPI
     global world
@@ -82,7 +109,13 @@ def make_test_system() -> LFCSystemDesc:
     # test crazy cell shapes
     # cell = [[0, a, a], [a, 0, a], [a, a, 0]]
 
-    grid = UGDesc(cell=[a, a, a], size=(n, n, n), comm=world)
+    grid_def: GridShape = fixt_grid_shape
+
+    # bc list needs to go here:
+    grid = UGDesc(cell=grid_def.cell, size=grid_def.size, comm=world,
+                  pbc=fixt_bc.pbc, zerobc=fixt_bc.zerobc)
+    # helper for scaling radial cutoffs
+    a = max(grid_def.cell)
 
     rng = np.random.default_rng(404)
 
@@ -106,12 +139,6 @@ def make_test_system() -> LFCSystemDesc:
         atom_instances.append(LFCAtomDesc(phi_list, pos_av[a]))
 
     return LFCSystemDesc(grid, atom_instances)
-
-
-@pytest.fixture(scope="module")
-def fixt_lfc_system() -> LFCSystemDesc:
-    """"""
-    return make_test_system()
 
 
 def make_legacy_basis_functions(lfc: BasisFunctionCollectionBase, xp) \
