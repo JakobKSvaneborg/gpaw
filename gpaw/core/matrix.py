@@ -487,8 +487,9 @@ class Matrix(XP):
             eigs = self.xp.empty(self.shape[0])
 
         slcomm, rows, columns, blocksize = scalapack
+        serial = rows * columns == 1 or self.xp is cp
 
-        if rows * columns == 1:
+        if serial:
             H = self.gather()
             if S is not None:
                 S = S.gather()
@@ -1013,10 +1014,12 @@ class CuPyDistribution(MatrixDistribution):
                 # Quick'n'dirty hack:
                 a = a.gather()
                 b = b.gather()
-                c0 = b.new()
                 if self.comm.rank == 0:
+                    c0 = b.new()
                     cublas_mmm(alpha, a.data, opa, b.data, opb, beta, c0.data)
-                c0.redist(c)
+                else:
+                    c0 = None
+                c.scatter_from(c0)
                 return c
             1 / 0
 
