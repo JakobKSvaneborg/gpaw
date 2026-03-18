@@ -68,6 +68,16 @@ class BasisFunctionDesc:
         if self.f_r[-1] != 0.0:
             raise ValueError("Last value in f_r must be 0")
 
+    def __eq__(self, other: object) -> bool:
+        """"""
+        if not isinstance(other, BasisFunctionDesc):
+            return False
+        return (
+            self.l == other.l
+            and self.cutoff == other.cutoff
+            and np.array_equal(self.f_r, other.f_r)
+        )
+
     @staticmethod
     def from_legacy_spline(spline: Spline) -> "BasisFunctionDesc":
         """"""
@@ -197,6 +207,22 @@ class BasisFunctionInstance:
     """Real-space position"""
 
     blocks_with_overlap: list[GridBlock] = field(default_factory=list)
+
+    def __repr__(self) -> str:
+        """Make this class printable. Default __repr__ would do infinite
+        recursion into blocks_with_overlap. Change that to only show block
+        count."""
+        return (
+            f"BasisFunctionInstance("
+            f"index={self.index}, "
+            f"desc={self.desc!r}, "
+            f"spline_index={self.spline_index}, "
+            f"parent_atom={self.parent_atom}, "
+            f"first_mu={self.first_mu}, "
+            f"position={self.position}, "
+            f"blocks_with_overlap=<{len(self.blocks_with_overlap)} blocks>"
+            f")"
+        )
 
     def get_cutoff(self) -> float:
         """Get the radial cutoff"""
@@ -415,6 +441,7 @@ class BasisFunctionCollectionBase(ABC):
             self.block_size = min(block_size, np.min(self.grid.mysize_c))
         else:
             self.block_size = np.max(self.grid.mysize_c)
+        self.block_size = int(self.block_size)
 
         if len(system.atoms) == 0:
             raise RuntimeError("No atoms?!")
@@ -553,11 +580,10 @@ class BasisFunctionCollectionBase(ABC):
         latter overlap test.
         """
 
-        self._block_map: dict[BlockCoords, GridBlock] = {}
+        # sanity check for domain decomp
+        assert self.grid.mysize_c.size > 0
 
-        # Can happen with domain decomposition, I guess? Nothing to block
-        if self.grid.mysize_c.size == 0:
-            return
+        block_map: dict[BlockCoords, GridBlock] = {}
 
         # Round division up. The last block is allowed to be smaller
         num_blocks_c = -(self.grid.mysize_c // -self.block_size).astype(int)
@@ -595,7 +621,7 @@ class BasisFunctionCollectionBase(ABC):
 
                 # FIXME can happen that a sphere DOES overlap the box,
                 # but NOT any grid points in the box => not needed.
-                # Happens already in LFCAtom.set_positions...
+                # Happens already in update_atom_position()...
                 if sphere_overlaps_box(
                     radius,
                     phi.position,
@@ -604,8 +630,8 @@ class BasisFunctionCollectionBase(ABC):
                 ):
 
                     block_coords = (bx, by, bz)
-                    if block_coords in self._block_map:
-                        block = self._block_map[block_coords]
+                    if block_coords in block_map:
+                        block = block_map[block_coords]
                     else:
                         # first time in this block
                         block = GridBlock(
@@ -613,7 +639,7 @@ class BasisFunctionCollectionBase(ABC):
                             block_coords,
                             block_start_c,
                             block_end_c)
-                        self._block_map[block_coords] = block
+                        block_map[block_coords] = block
 
                     block.phi_j.append(phi)
                     phi.blocks_with_overlap.append(block)
@@ -626,7 +652,7 @@ class BasisFunctionCollectionBase(ABC):
         # end phi loop
 
         # Construct mapping for block-local phi_m => global phi_mu
-        for block in self._block_map.values():
+        for block in block_map.values():
             block.M_m = []
             block.phi_j = sorted(block.phi_j, key=lambda x: x.first_mu)
             block.phi_idx_j = []
@@ -637,12 +663,13 @@ class BasisFunctionCollectionBase(ABC):
 
                 block.phi_idx_j.append(phi.index)
             #
+            self.blocks.append(block)
         #
 
     def get_relevant_blocks(self) -> list[GridBlock]:
         """Returns list of grid blocks that contribute, ie. have overlap with
         some phi."""
-        return list(self._block_map.values())
+        return self.blocks
 
     @trace
     @abstractmethod
@@ -939,8 +966,7 @@ class BasisFunctionCollectionBase(ABC):
         """"""
         self.phi_i = []
 
-        i = 0
-        for sphere in phi_spheres:
+        for i, sphere in enumerate(phi_spheres):
             new_phi = BasisFunctionInstance(
                 i,
                 sphere.phi_desc,
