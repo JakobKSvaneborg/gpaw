@@ -3,8 +3,8 @@ from gpaw.lfc import BasisFunctions
 from gpaw.new.basis_functions import (BasisFunctionDesc,
                                       BasisFunctionCollectionBase,
                                       LFCAtomDesc,
-                                      LFCSystemDesc)
-
+                                      LFCSystemDesc,
+                                      PrecalculationMode)
 
 from gpaw.new.basis_functions_purepython \
     import BasisFunctionCollectionPurePython
@@ -76,11 +76,14 @@ GridShape = namedtuple("GridShape", ["cell", "size"])
 # Can (must?) separately specify periodic and zero-boundaries
 BoundaryConds = namedtuple("BoundaryConds", ["pbc", "zerobc"])
 
+
 @pytest.fixture(params=[
-    GridShape(cell=[3, 3, 3], size=(18, 18, 18)),
-    GridShape(cell=[1, 2, 3], size=(16, 12, 13)),
-    GridShape(cell=[3, 2, 3], size=(6, 8, 7))],
-    ids=["UniformOrthorhombic", "NonUniformOrthorombic", "SmallOrthorhombic"],
+    GridShape(cell=[3, 3, 3], size=(14, 14, 14)),
+    GridShape(cell=[1, 2, 3], size=(16, 10, 11)),
+    GridShape(cell=[3, 2, 3], size=(5, 8, 9)),
+    GridShape(cell=[[1, 2, 3], [0, 0, 3], [2, 2, 0]], size=(16, 10, 7))],
+    ids=["UniformOrthorhombic", "NonUniformOrthorombic", "SmallOrthorhombic",
+         "WeirdShape"],
     scope="module")
 def fixt_grid_shape(request) -> GridShape:
     """Parametrized grid shape fixture, generates grids of different shapes
@@ -106,16 +109,13 @@ def fixt_lfc_system(fixt_grid_shape, fixt_bc) -> LFCSystemDesc:
     global world
     world = cast(MPIComm, world)
 
-    # test crazy cell shapes
-    # cell = [[0, a, a], [a, 0, a], [a, a, 0]]
-
     grid_def: GridShape = fixt_grid_shape
 
-    # bc list needs to go here:
     grid = UGDesc(cell=grid_def.cell, size=grid_def.size, comm=world,
                   pbc=fixt_bc.pbc, zerobc=fixt_bc.zerobc)
-    # helper for scaling radial cutoffs
-    a = max(grid_def.cell)
+
+    # helper for scaling radial cutoffs: length of the longest cell vector
+    a = float(np.max(np.linalg.norm([grid.cell_cv[c] for c in range(3)])))
 
     rng = np.random.default_rng(404)
 
@@ -123,8 +123,8 @@ def fixt_lfc_system(fixt_grid_shape, fixt_bc) -> LFCSystemDesc:
     # Also give the other atom type a different number of basis funcs
     phi_lists = []
     for i in range(2):
-        s = make_random_phi(0, 0.98 * a, rng, num_points=100)
-        p = make_random_phi(1, 1.35 * a, rng, num_points=100)
+        s = make_random_phi(0, 0.78 * a, rng, num_points=100)
+        p = make_random_phi(1, 1.15 * a, rng, num_points=100)
         d = make_random_phi(2, 0.1 * a, rng, num_points=100)
 
         funcs = [s, p, d] if i == 0 else [s, d]
@@ -186,6 +186,62 @@ def make_basis(system: LFCSystemDesc,
     return basis
 
 
+@pytest.mark.parametrize("block_size", [None, 8])
+@pytest.mark.parametrize("radius_scale", [0.49, 0.75])
+def test_overlaps(fixt_grid_shape, fixt_bc, block_size: int,
+                  radius_scale: float):
+    """Prepares a very simple system and tests that our sphere/grid/block
+    overlap calculations make sense"""
+
+    global world
+    world = cast(MPIComm, world)
+
+    grid = UGDesc(cell=fixt_grid_shape.cell, size=fixt_grid_shape.size,
+                  comm=world, pbc=fixt_bc.pbc, zerobc=fixt_bc.zerobc)
+
+    # helper for scaling radial cutoffs: length of the longest cell vector
+    a = float(np.max(np.linalg.norm([grid.cell_cv[c] for c in range(3)])))
+
+    # One basis func at center of the main cell. With radius_scale < 0.5 it
+    # should not overlap with any other cells (at least on orthorhombic)
+    radius = radius_scale * a
+    s = BasisFunctionDesc(0, radius,
+                          np.asarray([1.0, 0.5, 0.0]))
+
+    relpos_c = np.asarray([0.5, 0.5, 0.5])
+    pos_v_intended = relpos_c @ grid.cell_cv
+
+    atoms = [LFCAtomDesc([s], pos_v_intended)]
+    system_desc = LFCSystemDesc(grid, atoms)
+
+    # Overlap computations are done in the base class so doesn't matter which
+    # implementation we use:
+    basis = BasisFunctionCollectionPurePython(
+        system_desc, use_gpu=False, block_size=block_size,
+        mode=PrecalculationMode.eNever)
+
+    # Check atom placement
+    relpos_ac = basis.get_atom_positions(grid_relative=True)
+    pos_av = basis.get_atom_positions(grid_relative=False)
+
+    assert relpos_ac.shape[0] == 1
+    assert pos_av.shape[0] == 1
+    np.testing.assert_allclose(relpos_ac[0], relpos_c)
+    np.testing.assert_allclose(pos_av[0], pos_v_intended)
+
+    # if radius_scale < 0.5:
+    #     # Can't overlap with other cells
+    #     assert len(basis.get_phi_instances()) == 1
+
+    # Check that cell coordinates make sense: phi in the main unit cell have
+    # coords (0, 0, 0) and periodic copies have something else.
+    # We actually test that shifting the phi according to its cell coords
+    # gives back the original phi
+    for phi in basis.get_phi_instances():
+        unshifted_pos_v = phi.position - phi.cell_coords @ grid.cell_cv
+        np.testing.assert_allclose(unshifted_pos_v, pos_v_intended)
+
+
 @pytest.mark.parametrize("block_size", parametrize_blocksize())
 @pytest.mark.parametrize("xp", xp_params_no_cpupy())
 @pytest.mark.parametrize("purepython", parametrize_purepython())
@@ -208,6 +264,12 @@ def test_basis_creation(fixt_lfc_system: LFCSystemDesc, xp, purepython: bool,
     all_phi = basis.get_phi_instances()
     has_duplicate_phi = len({id(phi) for phi in all_phi}) != len(all_phi)
     assert not has_duplicate_phi
+
+    # check that all phi have a unique index
+    seen_indices = []
+    for phi in all_phi:
+        assert phi.index not in seen_indices
+        seen_indices.append(phi.index)
 
     for block in basis.get_relevant_blocks():
         assert np.prod(block.shape) > 0
