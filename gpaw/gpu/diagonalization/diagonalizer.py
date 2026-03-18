@@ -98,7 +98,7 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
                 warn("Matrix may be too large to gather over MPI! "
                      "If you crash here, try running with more MPI processes")
 
-            matrix_non_distributed = inout_matrix.gather(0, broadcast=False)
+            matrix_non_distributed = inout_matrix.gather(broadcast=False)
             # Can always do in-place for the internal eigh
             options_non_distributed = copy(options)
             options_non_distributed.inplace = True
