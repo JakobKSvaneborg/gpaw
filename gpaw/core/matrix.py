@@ -1093,11 +1093,12 @@ class CuPyDistribution(MatrixDistribution):
            ~      †   ~~   ~         †~
            H = LHL ,  HC = CΛ,  C = L C.
         """
-        dist = CuPyDistribution(*self.full_shape,
-                                serial_comm, 1, 1, self.br, self.bc)
+        assert self.comm.size == 1
+        # dist = CuPyDistribution(*self.full_shape,
+        #                         serial_comm, 1, 1, self.br, self.bc)
         tmp = H.new()
-        dist.multiply(1.0, L, 'N', H, 'N', 0.0, tmp)
-        dist.multiply(1.0, tmp, 'N', L, 'C', 0.0, H, symmetric=True)
+        self.multiply(1.0, L, 'N', H, 'N', 0.0, tmp)
+        self.multiply(1.0, tmp, 'N', L, 'C', 0.0, H, symmetric=True)
 
         diagonalizer, options = suggest_diagonalizer(H)
         options.inplace = False
@@ -1107,7 +1108,7 @@ class CuPyDistribution(MatrixDistribution):
 
         assert Ct_MM.flags.f_contiguous
         Ct = H.new(data=Ct_MM.T)
-        dist.multiply(1.0, L, 'C', Ct, 'T', 0.0, H)
+        self.multiply(1.0, L, 'C', Ct, 'T', 0.0, H)
         # H.complex_conjugate()
         return eig_M
 

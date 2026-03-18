@@ -6,25 +6,13 @@ from pprint import pformat
 import numpy as np
 
 from gpaw import debug
-from gpaw.core.matrix import Matrix, suggest_blocking
+from gpaw.core.matrix import Matrix
 from gpaw.gpu import as_np
 from gpaw.new import tracectx
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D
-from gpaw.mpi import serial_comm, MPIComm
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
-
-
-def slparams(nbands: int, comm: MPIComm) -> tuple[MPIComm, int, int, int]:
-    if nbands < 1000:
-        return serial_comm, 1, 1, 0
-    # How much of comm should we use?
-    # At least 30,000 numbers per core:
-    ncores = 2**int(np.log2(nbands**2 / 30_000))
-    if ncores < comm.size:
-        comm = comm.new_communicator(range(ncores))
-    return (comm, *suggest_blocking(nbands, comm.size))
 
 
 class Davidson(PWFDEigensolver):
@@ -39,23 +27,16 @@ class Davidson(PWFDEigensolver):
                  scalapack_parameters: tuple[int, int, int] | None = None,
                  max_buffer_mem: int = 200 * 1024**2):
         super().__init__(
-            hamiltonian,
-            convergence,
-            max_buffer_mem=max_buffer_mem)
+            hamiltonian=hamiltonian,
+            convergence=convergence,
+            nbands=nbands,
+            domain_band_comm=domain_band_comm,
+            max_buffer_mem=max_buffer_mem,
+            scalapack_parameters=scalapack_parameters)
         self.niter = niter
-        if scalapack_parameters is None:
-            self.scalapack_parameters = slparams(nbands, domain_band_comm)
-        else:
-            r, c, b = scalapack_parameters
-            slcomm = domain_band_comm
-            assert r * c <= slcomm.size
-            if r * c < slcomm.size:
-                slcomm = slcomm.new_communicator(range(r * c)) or serial_comm
-            self.scalapack_parameters = (slcomm, r, c, b)
         self.H_NN: Matrix
         self.S_NN: Matrix
         self.M_nn: Matrix
-        self.domain_band_comm = domain_band_comm
 
     def __str__(self):
         return pformat(dict(name='Davidson',

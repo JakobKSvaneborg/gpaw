@@ -7,7 +7,8 @@ import numpy as np
 
 from gpaw.core.arrays import XArray
 from gpaw.core.atom_centered_functions import AtomArrays
-from gpaw.mpi import broadcast_exception
+from gpaw.core.matrix import suggest_blocking
+from gpaw.mpi import broadcast_exception, MPIComm, serial_comm
 from gpaw.new import trace, zips
 from gpaw.new.c import calculate_residuals_gpu
 from gpaw.new.eigensolver import Eigensolver, calculate_weights
@@ -18,12 +19,27 @@ from gpaw.utilities import as_real_dtype
 from gpaw.utilities.blas import axpy
 
 
+def slparams(nbands: int, comm: MPIComm) -> tuple[MPIComm, int, int, int]:
+    if nbands < 1000:
+        return serial_comm, 1, 1, 0
+    # How much of comm should we use?
+    # At least 30,000 numbers per core:
+    ncores = 2**int(np.log2(nbands**2 / 30_000))
+    if ncores < comm.size:
+        comm = comm.new_communicator(range(ncores))
+    return (comm, *suggest_blocking(nbands, comm.size))
+
+
 class PWFDEigensolver(Eigensolver):
     def __init__(self,
+                 *,
                  hamiltonian,
                  convergence: dict,
+                 nbands: int,
+                 domain_band_comm,
                  blocksize: int = 10,
-                 max_buffer_mem: int | None = 200 * 1024 ** 2):
+                 max_buffer_mem: int | None = 200 * 1024 ** 2,
+                 scalapack_parameters: tuple[int, int, int] | None = None):
         self.converge_bands = convergence.get('bands', 'occupied')
         self.residual_target = convergence.get('eigenstates', 4e-8)
         self.blocksize = blocksize
@@ -32,10 +48,22 @@ class PWFDEigensolver(Eigensolver):
         self.work_arrays: np.ndarray
         self.data_buffers: np.ndarray
 
+        self.domain_band_comm = domain_band_comm
+
         # Maximal memory to be used for the eigensolver
         # should be infinite if hamiltonian is not band-local (hybrids)
         self.max_buffer_mem = (
             max_buffer_mem if hamiltonian.band_local else None)
+
+        if scalapack_parameters is None:
+            self.scalapack_parameters = slparams(nbands, domain_band_comm)
+        else:
+            r, c, b = scalapack_parameters
+            slcomm = domain_band_comm
+            assert r * c <= slcomm.size
+            if r * c < slcomm.size:
+                slcomm = slcomm.new_communicator(range(r * c)) or serial_comm
+            self.scalapack_parameters = (slcomm, r, c, b)
 
     def _initialize(self, ibzwfs):
         # First time: allocate work-arrays

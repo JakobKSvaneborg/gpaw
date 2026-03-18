@@ -29,6 +29,7 @@ class PPCG(PWFDEigensolver):
                  band_comm,
                  hamiltonian,
                  convergence,
+                 domain_band_comm,
                  niter=2,
                  min_niter=1,
                  blocksize=None,
@@ -92,8 +93,11 @@ class PPCG(PWFDEigensolver):
         """
 
         super().__init__(
-            hamiltonian,
-            convergence)
+            hamiltonian=hamiltonian,
+            convergence=convergence,
+            scalapack_parameters=scalapack_parameters,
+            nbands=nbands,
+            domain_band_comm=domain_band_comm)
 
         self.nbands = nbands
         self.wf_grid = wf_grid
@@ -213,9 +217,11 @@ class PPCG(PWFDEigensolver):
             if self.include_cg:
                 P_nX = psit_nX.new(data=self.work_arrays[1, :b])
 
-            wfs.subspace_diagonalize(Ht, dH,
-                                     psit2_nX=residual_nX,
-                                     data_buffer=self.data_buffers[0])
+            wfs.subspace_diagonalize(
+                Ht, dH,
+                psit2_nX=residual_nX,
+                data_buffer=self.data_buffers[0],
+                scalapack_parameters=self.scalapack_parameters)
 
             P_ani = wfs.P_ani
             P2_ani = P_ani.new()
@@ -480,10 +486,12 @@ class PPCG(PWFDEigensolver):
             with tracectx('Residual'):
                 # Subspace diagonialization needed every once in a while
                 if (i + 1) % self.rr_modulo == 0:
-                    wfs.subspace_diagonalize(Ht, dH,
-                                             psit2_nX=residual_nX,
-                                             data_buffer=self.data_buffers[0],
-                                             calculate_energy=False)
+                    wfs.subspace_diagonalize(
+                        Ht, dH,
+                        psit2_nX=residual_nX,
+                        data_buffer=self.data_buffers[0],
+                        calculate_energy=False,
+                        scalapack_parameters=self.scalapack_parameters)
                 else:
                     wfs.orthonormalize(residual_nX)
                     Ht(psit_nX, out=residual_nX)

@@ -19,6 +19,7 @@ class RMMDIIS(PWFDEigensolver):
                  band_comm,
                  hamiltonian,
                  convergence,
+                 domain_band_comm,
                  niter: int = 1,
                  diis_steps: int = 1,
                  trial_step: float | None = None,
@@ -40,8 +41,13 @@ class RMMDIIS(PWFDEigensolver):
             optimized step lengths.
         """
 
-        super().__init__(hamiltonian, convergence,
-                         max_buffer_mem=max_buffer_mem)
+        super().__init__(
+            hamiltonian=hamiltonian,
+            convergence=convergence,
+            max_buffer_mem=max_buffer_mem,
+            nbands=nbands,
+            scalapack_parameters=scalapack_parameters,
+            domain_band_comm=domain_band_comm)
         self.trial_step = trial_step
         self.niter = niter
         self.diis_steps = diis_steps
