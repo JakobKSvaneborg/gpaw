@@ -335,7 +335,7 @@ class MSR1Mixer(BaseMixer):
             dNt_normed = dNt / ntnorm
 
             dampen = 1  # Dampen the greeds
-            punishment_factor = 0.7 if del_oldest else 1.0  # How much to reduce greed when backtracing
+            punishment_factor = 0.8 if del_oldest else 1.0  # How much to reduce greed when backtracing
             trust_scalar = 2 # Scaling factor for the trust radius.
             abs_max_trust = 1000
             # if self.trust_radius is not None:
@@ -344,9 +344,9 @@ class MSR1Mixer(BaseMixer):
             max_gb_fact = 0.9 * np.clip((1e-2 / dNt_normed), 0.05, 1) # Scaling factor for maximum good Broyden.
             post_gb_fact = 0.9 if del_oldest else (0.9 if backtracked else 0.9)  # Scaling factor for the final amount of good Broyden
             weight = 8e-4  # Weight for regularization, 2e-4 works well. Strongly depends on the amount of good Broyden.
-            B0_boost = 5e-2  # Favor the predicted greed towards 1
-            B0_lims = [0.4, 1]   # Limits for predicted greed
-            A0_lims = [0.02, 0.60]   # Limits for unpredicted greed
+            B0_boost = 1e-1  # Favor the predicted greed towards 1
+            B0_lims = [0.2, 1]   # Limits for predicted greed
+            A0_lims = [0.015, 0.3]   # Limits for unpredicted greed
             rate_ratio = [0.7, 1.3 if not backtracked else punishment_factor]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
             initial_B0 = 1.0
@@ -581,8 +581,8 @@ class MSR1Mixer(BaseMixer):
                 print('ratio: ', np.abs(A1 / A2))
 
             A0_target = np.clip(
-                np.arctan(np.pi * np.abs(A1 / A2) / A0_lims[1] * 0.5) / np.pi * 2 * A0_lims[1],
-                # np.abs(A1 / A2),
+                # np.arctan(np.pi * np.abs(A1 / A2) / A0_lims[1] * 0.5) / np.pi * 2 * A0_lims[1],
+                np.abs(A1 / A2),
                 *A0_lims
                 )
             if self.A0 is not None:
