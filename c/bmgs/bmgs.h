@@ -3,7 +3,7 @@
  *  Copyright (C) 2005       CSC - IT Center for Science Ltd.
  *  Please see the accompanying LICENSE file for further information. */
 
-#include "../gpaw_complex.h"
+#include "gpaw_complex.h"
 
 // !!!!!!!!!!!  FIXME: defines like these are very prone to break stuff when including other headers (esp. C++).
 // For now, renamed T -> TGPAW to avoid breaking pretty much all C++ template code.

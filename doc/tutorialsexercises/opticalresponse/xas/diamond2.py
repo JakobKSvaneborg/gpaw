@@ -7,7 +7,8 @@ name = 'diamond333_hch'
 
 calc = GPAW(name + '.gpw',
             kpts=(6, 6, 6),
-            txt=name + '_rec.txt')
+            txt=name + '_rec.txt',
+            legacy_gpaw=True)
 calc.initialize()
 calc.set_positions()
 

@@ -3,7 +3,7 @@ import pytest
 from ase.build import bulk
 from ase.units import Bohr
 
-from gpaw import GPAW, FermiDirac
+from gpaw import FermiDirac
 from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.test import findpeak
 
@@ -16,36 +16,40 @@ lcao = pytest.param('lcao', marks=pytest.mark.old_gpaw_only)
 @pytest.mark.parametrize('eshift', [None, 4])
 @pytest.mark.parametrize('mode', ['pw', lcao])
 @pytest.mark.libxc
-def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
+def test_response_diamond_absorption(in_tmp_dir, eshift, mode, mpi):
     a = 6.75 * Bohr
     atoms = bulk('C', 'diamond', a=a)
 
-    calc = GPAW(mode=mode,
-                kpts=(3, 3, 3),
-                nbands='nao' if mode == 'lcao' else None,
-                basis='dzp' if mode == 'lcao' else {},
-                eigensolver='rmm-diis' if mode == 'pw' else None,
-                occupations=FermiDirac(0.001), txt='out.txt')
+    calc = mpi.NewGPAW(
+        mode=mode,
+        kpts=(3, 3, 3),
+        nbands='nao' if mode == 'lcao' else None,
+        basis='dzp' if mode == 'lcao' else {},
+        eigensolver='rmm-diis' if mode == 'pw' else None,
+        occupations=FermiDirac(0.001), txt='out.txt')
 
     atoms.calc = calc
     atoms.get_potential_energy()
-    calc.write('C.gpw', 'all')
+    dft = calc.dft
+    if mode != 'pw':
+        dft.change_mode('pw')
+    dft.write_gpw_file('C.gpw', include_wfs=True)
 
     if eshift is None:
-        eM1_ = 9.727 if mode == 'pw' else 9.3923
-        eM2_ = 9.548 if mode == 'pw' else 9.1502
+        eM1_ = 9.727 if mode == 'pw' else 9.4319
+        eM2_ = 9.548 if mode == 'pw' else 9.1905
         w0_ = 10.7782 if mode == 'pw' else 10.982
-        I0_ = 5.47 if mode == 'pw' else 4.8188
+        I0_ = 5.47 if mode == 'pw' else 4.8852
         w_ = 10.7532 if mode == 'pw' else 10.967
-        I_ = 5.98 if mode == 'pw' else 4.9859
+        I_ = 5.98 if mode == 'pw' else 5.0459
     else:
         if mode == 'lcao':
-            eM1_ = 6.818
-            eM2_ = 6.681
+            eM1_ = 6.847
+            eM2_ = 6.710
             w0_ = 14.982
-            I0_ = 4.819
+            I0_ = 4.886
             w_ = 14.967
-            I_ = 4.997
+            I_ = 5.057
         else:
             eM1_ = 6.992
             eM2_ = 6.904
@@ -58,7 +62,8 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
     df = DielectricFunction('C.gpw', frequencies=(0.,), eta=0.001, ecut=50,
                             **{'nbands': calc.wfs.bd.nbands}
                             if mode == 'lcao' else {},
-                            hilbert=False, eshift=eshift, txt='df.txt')
+                            hilbert=False, eshift=eshift, txt='df.txt',
+                            world=mpi.comm)
     eM1, eM2 = df.get_macroscopic_dielectric_constant()
     assert eM1 == pytest.approx(eM1_, abs=0.015)
     assert eM2 == pytest.approx(eM2_, abs=0.01)
@@ -66,7 +71,8 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
     # ----- RPA dielectric function ----- #
     dfcalc = DielectricFunction(
         'C.gpw', eta=0.25, ecut=50,
-        frequencies=np.linspace(0, 24., 241), hilbert=False, eshift=eshift)
+        frequencies=np.linspace(0, 24., 241), hilbert=False, eshift=eshift,
+        world=mpi.comm)
     eps = dfcalc.get_literal_dielectric_function()
 
     # Test the new interface to the dielectric constant
@@ -113,7 +119,7 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode):
 
     epsinv = dfcalc.get_inverse_dielectric_function(xc='ALDA', rshelmax=0)
     # Here we base the check on a written results file
-    epsinv.polarizability().write(filename='ALDA_pol.csv')
+    epsinv.polarizability().write(filename='ALDA_pol.csv', comm=mpi.comm)
     dfcalc.context.comm.barrier()
     omega_w, a0alda_w, aalda_w = read_response_function('ALDA_pol.csv')
 

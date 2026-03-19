@@ -9,9 +9,10 @@ from gpaw.test import findpeak
 
 
 class Helper:
-    def __init__(self, gpw, integrationmode):
+    def __init__(self, gpw, integrationmode, world):
         self._gpw = gpw
         self._integrationmode = integrationmode
+        self._world = world
 
     @cached_property
     def df(self):
@@ -22,7 +23,8 @@ class Helper:
             ecut=10,
             rate=0.1,
             integrationmode=self._integrationmode,
-            txt=None)
+            txt=None,
+            world=self._world)
 
     @cached_property
     def lfc(self):
@@ -57,17 +59,21 @@ class Helper:
 @pytest.mark.dielectricfunction
 @pytest.mark.tetrahedron
 @pytest.mark.response
-def test_chi0_intraband(in_tmp_dir, gpw_files):
+def test_chi0_intraband(in_tmp_dir, gpw_files, mpi):
     """Comparing the plasmon peaks found in bulk sodium for two different
     atomic structures. Testing for idential plasmon peaks. Not using
     physical sodium cell."""
     intraband_spinpaired = gpw_files['intraband_spinpaired_fulldiag']
     intraband_spinpolarized = gpw_files['intraband_spinpolarized_fulldiag']
 
-    calc1 = Helper(intraband_spinpaired, 'tetrahedron integration')
-    calc2 = Helper(intraband_spinpaired, 'point integration')
-    calc3 = Helper(intraband_spinpolarized, 'tetrahedron integration')
-    calc4 = Helper(intraband_spinpolarized, 'point integration')
+    calc1 = Helper(intraband_spinpaired, 'tetrahedron integration',
+                   world=mpi.comm)
+    calc2 = Helper(intraband_spinpaired, 'point integration',
+                   world=mpi.comm)
+    calc3 = Helper(intraband_spinpolarized, 'tetrahedron integration',
+                   world=mpi.comm)
+    calc4 = Helper(intraband_spinpolarized, 'point integration',
+                   world=mpi.comm)
 
     # Compare plasmon frequencies and intensities
     w_w = calc1.w_w

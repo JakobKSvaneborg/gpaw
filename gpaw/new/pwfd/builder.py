@@ -32,7 +32,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
             self.wf_desc,
             self.communicators['b'],
             hamiltonian,
-            self.params.convergence.get('bands', 'occupied'),
+            self.params.convergence,
             self.setups,
             self.atoms)
 
@@ -100,45 +100,12 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
         LCAOEigensolver(basis).iterate(
             lcao_ibzwfs, None, potential, hamiltonian)
 
-        self.log('Converting LCAO to grid', flush=True)
-
-        def create_wfs(spin, q, k, kpt_c, weight):
-            lcaowfs = lcao_ibzwfs._get_wfs(k, spin)
-            assert lcaowfs.spin == spin
-
-            # Convert to PW-coefs in PW-mode:
-            psit_nX = self.convert_wave_functions_from_uniform_grid(
-                lcaowfs.C_nM, basis, kpt_c, q)
-
-            mylcaonbands, nao = lcaowfs.C_nM.dist.shape
-            mynbands = len(psit_nX.data)
-            eig_n = np.empty(self.nbands)
-            eig_n[:lcaonbands] = lcaowfs.eig_n
-            eig_n[lcaonbands:] = 100.0  # set high value for random wfs.
-            if mylcaonbands < mynbands:
-                psit_nX[mylcaonbands:].randomize(
-                    seed=self.communicators['w'].rank)
-            wfs = PWFDWaveFunctions(
-                psit_nX=psit_nX,
-                spin=spin,
-                q=q,
-                k=k,
-                weight=weight,
-                setups=self.setups,
-                relpos_ac=self.relpos_ac,
-                atomdist=self.atomdist,
-                ncomponents=self.ncomponents,
-                qspiral_v=self.qspiral_v)
-            wfs.eig_n = eig_n
-            return wfs
-
-        return PWFDIBZWaveFunctions.create(
-            ibz=self.ibz,
-            ncomponents=self.ncomponents,
-            create_wfs_func=create_wfs,
-            kpt_comm=self.communicators['k'],
-            kpt_band_comm=self.communicators['D'],
-            comm=self.communicators['w'])
+        self.log(f'Converting LCAO to {self.mode} mode', flush=True)
+        return lcao_ibzwfs.convert_to(mode=self.mode,
+                                      grid=self.grid,
+                                      pw=self.wf_desc,
+                                      qspiral_v=self.qspiral_v,
+                                      nbands=self.nbands)
 
     def create_random_ibz_wave_functions(self):
         self.log('Initializing wave functions with random numbers')

@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 
-from gpaw import GPAW
 from gpaw.mpi import world
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator, SelfEnhancementCalculator
@@ -16,7 +15,7 @@ from gpaw.test.gpwfile import response_band_cutoff
 
 @pytest.mark.kspair
 @pytest.mark.response
-def test_response_iron_sf_pawALDA(in_tmp_dir, gpw_files, scalapack):
+def test_response_iron_sf_pawALDA(in_tmp_dir, gpw_files, scalapack, mpi):
     # ---------- Inputs ---------- #
 
     # Magnetic response calculation
@@ -26,15 +25,15 @@ def test_response_iron_sf_pawALDA(in_tmp_dir, gpw_files, scalapack):
     eta = 0.5
     rshewmin = 1e-8
 
-    if world.size > 1:
+    if mpi.comm.size > 1:
         nblocks = 2
     else:
         nblocks = 1
 
     # ---------- Script ---------- #
 
-    context = ResponseContext(txt='iron_susceptibility.txt')
-    calc = GPAW(gpw_files['fe_pw'], parallel=dict(domain=1))
+    context = ResponseContext(txt='iron_susceptibility.txt', comm=mpi.comm)
+    calc = mpi.GPAW(gpw_files['fe_pw'], parallel=dict(domain=1))
     nbands = response_band_cutoff['fe_pw']
     gs = ResponseGroundStateAdapter(calc)
 
@@ -78,7 +77,7 @@ def test_response_iron_sf_pawALDA(in_tmp_dir, gpw_files, scalapack):
         (0.001, 0.476, 3.104),
         (0.165, 0.428, 2.816)]
 
-    world.barrier()  # wait for csv-file written above ...
+    mpi.comm.barrier()  # wait for csv-file written above ...
     for q, refs in enumerate(refs_q):
         w_w, chiM_w, a_w = extract_data(q)
         wpeak1, Ipeak = findpeak(w_w, -chiM_w.imag / np.pi)

@@ -75,7 +75,8 @@ def test_apply3(a=5.0, N=10, dtype=float, calculate_energy=True):
         V2_ani,
         f2_n=np.ones(n2),
         calculate_energy=calculate_energy,
-        F1_av=None)
+        F1_av=None,
+        w=1.0)
     t = time() - t
     print(e)
     print(t)

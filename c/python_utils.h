@@ -5,7 +5,7 @@
 * Therefore: this header should ALWAYS be the first header to include in files
 * that use Python stuff.
 * See https://docs.python.org/3/c-api/intro.html#include-files.
-*/  
+*/
 
 /* Includes Python.h and Numpy headers with correct defines.
 * Other files that need Python stuff should include this file instead of manually including Python or Numpy.

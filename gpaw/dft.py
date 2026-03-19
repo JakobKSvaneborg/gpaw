@@ -78,7 +78,7 @@ class Mode(Parameter):
         self.force_complex_dtype = force_complex_dtype
         self.name = self.__class__.__name__.lower()
         if interpolation != 117:
-            raise NotImplementedError
+            raise LegacyGPAWError
 
     def todict(self) -> dict:
         dct: Dict[str, Any] = {}
@@ -125,7 +125,7 @@ class PW(Mode):
             Plane-wave cutoff energy in eV.
         """
         if 'interpolation' in kwargs:
-            raise NotImplementedError
+            raise LegacyGPAWError
 
         self.ecut = ecut
         self.qspiral = qspiral
@@ -188,11 +188,10 @@ class Eigensolver(Parameter):
                 if name == 'dav':
                     warnings.warn('Please use "davidson" instead of "dav"')
                     return eigensolvers['davidson'](**kwargs)
-                if GPAW_NEW == 147 and name in {'etdm-lcao', 'etdm-fdpw',
-                                                'etdm', 'direct'}:
-                    raise NotImplementedError
                 if name in eigensolvers:
                     return eigensolvers[name](**kwargs)
+                if GPAW_NEW == 147:
+                    raise LegacyGPAWError
                 raise ValueError(f'Unknown name of eigensolver: {name}')
             case {**kwargs}:
                 return DefaultEigensolver(kwargs)
@@ -202,7 +201,7 @@ class Eigensolver(Parameter):
                 return cls.from_param(eigensolver.todict())
             case _:
                 if GPAW_NEW == 147:
-                    raise NotImplementedError
+                    raise LegacyGPAWError
                 raise ValueError(f'Unknown eigensolver input: {eigensolver}')
 
 
@@ -229,7 +228,7 @@ class PWFDEigensolverParameter(Eigensolver):
               wf_desc,
               band_comm,
               hamiltonian,
-              converge_bands,
+              convergence,
               setups,
               atoms):
         return self.cls(
@@ -237,7 +236,7 @@ class PWFDEigensolverParameter(Eigensolver):
             wf_desc,
             band_comm,
             hamiltonian,
-            converge_bands,
+            convergence,
             niter=self.niter,
             max_buffer_mem=self.max_buffer_mem)
 
@@ -259,7 +258,7 @@ class PPCG(PWFDEigensolverParameter):
                  rr_modulo=5,
                  include_cg=True,
                  promote_inner_dtype=False,
-                 tolerances: tuple[float, ...] = (0.0, 0.0, 4e-8)):
+                 tolerances: tuple[float, float, float] | None = None):
         self.niter = niter
         self.min_niter = min_niter
         self.max_buffer_mem = max_buffer_mem
@@ -284,7 +283,7 @@ class PPCG(PWFDEigensolverParameter):
               wf_desc,
               band_comm,
               hamiltonian,
-              converge_bands,
+              convergence,
               setups,
               atoms):
         return self.cls(
@@ -292,7 +291,7 @@ class PPCG(PWFDEigensolverParameter):
             wf_desc,
             band_comm,
             hamiltonian,
-            converge_bands,
+            convergence,
             niter=self.niter,
             min_niter=self.min_niter,
             max_buffer_mem=self.max_buffer_mem,
@@ -328,7 +327,7 @@ class RMMDIIS(PWFDEigensolverParameter):
               wf_desc,
               band_comm,
               create_preconditioner,
-              converge_bands,
+              convergence,
               setups,
               atoms):
         return self.cls(
@@ -336,7 +335,7 @@ class RMMDIIS(PWFDEigensolverParameter):
             wf_desc,
             band_comm,
             create_preconditioner,
-            converge_bands,
+            convergence,
             niter=self.niter,
             diis_steps=self.diis_steps,
             max_buffer_mem=self.max_buffer_mem,
@@ -499,9 +498,9 @@ class Symmetry(Parameter):
             atoms,
             setup_ids=setup_ids,
             magmoms=magmoms,
-            rotations=self.rotations,
-            translations=self.translations,
-            atommaps=self.atommaps,
+            rotation_scc=self.rotations,
+            translation_sc=self.translations,
+            atommap_sa=self.atommaps,
             extra_ids=self.extra_ids,
             tolerance=self.tolerance,
             point_group=self.point_group,
@@ -614,7 +613,7 @@ class XC(Parameter):
         if isinstance(xc, str):
             xc = {'name': xc}
         if not isinstance(xc, dict):
-            raise NotImplementedError
+            raise LegacyGPAWError
         return XC(**xc)
 
 
@@ -738,7 +737,7 @@ class Parameters:
             XC-functional.  Default is PZ-LDA.
         """
         if external is not None:
-            raise NotImplementedError
+            raise LegacyGPAWError
         soc, magmoms = _parse_experimental(experimental, soc, magmoms)
         self._non_defaults = [
             key for key, value in locals().items()
@@ -853,9 +852,9 @@ def _parse_experimental(experimental: dict | None,
         magmoms = experimental.pop('magmoms')
     unknown = experimental.keys() - {'backwards_compatible',
                                      'ccirs',
-                                     'fast_pw_init',
                                      'pw_pot_calc',
-                                     'paw_corr_mixer'}
+                                     'paw_corr_mixer',
+                                     'new_basis'}
     if unknown:
         warnings.warn(f'Unknown experimental keyword(s): {unknown}',
                       stacklevel=3)
@@ -925,7 +924,8 @@ def DFT(
     return params.dft_calculation(atoms, txt, communicator)
 
 
-_USE_OLD_GPAW = None  # used py the "gpaw_newp" parametrized fixture
+class LegacyGPAWError(Exception):
+    """Something not quite working with new GPAW - try old ..."""
 
 
 def GPAW(
@@ -959,7 +959,7 @@ def GPAW(
     txt: str | Path | IO[str] | None = '?',
     communicator: MPIComm | None = None,
     object_hooks=None,
-    _use_old_gpaw: bool | None = False,
+    legacy_gpaw: bool | None = None,
     external=None,
     background_charge=None) -> ASECalculator:
     """Create ASE-compatible GPAW calculator.
@@ -976,7 +976,7 @@ def GPAW(
     communicator:
         MPI-communicator.  Default is to use ``gpaw.mpi.world``.
     object_hooks:
-        Dictionart of hook-functions to create custom parameter-objects.
+        Dictionary of hook-functions to create custom parameter-objects.
     """
     from gpaw.new.ase_interface import ASECalculator
     from gpaw.new.gpw import read_gpw
@@ -991,29 +991,28 @@ def GPAW(
         if value is None:
             del kwargs[key]
         else:
-            _use_old_gpaw = True
+            legacy_gpaw = True
 
     # Sorry about the following mess, but it will become a lot simpler
     # in the near future!
     params = None
-    use_old_if_reading_fails = False
-    if _use_old_gpaw is None:
-        if _USE_OLD_GPAW is None:
-            if GPAW_NEW == 147:
-                can, params = _can_use_new(filename, kwargs)
-                _use_old_gpaw = not can
-                if not _use_old_gpaw and filename:
-                    use_old_if_reading_fails = True
-            else:
-                _use_old_gpaw = GPAW_NEW == 0
+    _use_old_if_reading_new_fails = False
+    if legacy_gpaw is None:
+        if GPAW_NEW == 147:
+            can, params = _can_use_new(filename, kwargs)
+            legacy_gpaw = not can
+            _use_old_if_reading_new_fails = True
         else:
-            _use_old_gpaw = _USE_OLD_GPAW
+            legacy_gpaw = False
 
-    if _use_old_gpaw:
+    if legacy_gpaw:
         from gpaw.old.calculator import GPAW as OldGPAW
         kwargs = {key: value
                   for key, value in kwargs.items() if value is not None}
-        return OldGPAW(filename, txt=txt, communicator=communicator, **kwargs)
+        return OldGPAW(filename,
+                       txt=txt,
+                       communicator=communicator,
+                       **kwargs)
 
     if txt == '?':
         txt = '-' if filename is None else None
@@ -1026,17 +1025,21 @@ def GPAW(
             raise ValueError(
                 'Illegal argument(s) when reading from a file: '
                 f'{", ".join(args)}')
+
         try:
-            atoms, dft, params, _ = read_gpw(filename,
-                                             log=log,
-                                             parallel=parallel,
-                                             object_hooks=object_hooks)
-        except NotImplementedError:
-            if use_old_if_reading_fails:
-                from gpaw.old.calculator import GPAW as OldGPAW
-                return OldGPAW(filename, txt=txt, communicator=communicator)
-            raise
-        return ASECalculator(params,
+            atoms, dft, _ = read_gpw(filename,
+                                     log=log,
+                                     parallel=parallel,
+                                     object_hooks=object_hooks)
+        except LegacyGPAWError:
+            if not _use_old_if_reading_new_fails:
+                raise
+            return GPAW(filename,
+                        legacy_gpaw=True,
+                        txt=txt,
+                        communicator=communicator)
+
+        return ASECalculator(dft.params,
                              log=log, dft=dft, atoms=atoms)
 
     params = params or Parameters(**kwargs)
@@ -1046,29 +1049,17 @@ def GPAW(
 def _can_use_new(filename, kwargs) -> tuple[bool, Parameters | None]:
     """Decide if the parameters are compatible with new-GPAW."""
     if filename is not None:
-        from ase.io.ulm import ulmopen
-        from gpaw.mpi import world, broadcast
-        version = None
-        if world.rank == 0:
-            with ulmopen(filename) as reader:
-                version = reader.version
-        version = broadcast(version, comm=world)
-        return version >= 4, None
+        return True, None
 
     try:
         params = Parameters(**kwargs)
-    except NotImplementedError:
+    except LegacyGPAWError:
         return False, None
-    if params.mode.name == 'lcao':
+    if params.mode.name == 'lcaooooooooooooo':
         return False, None
     xcname = params.xc.name
-    if xcname.startswith(('GLLB', 'TB09')):
+    if xcname.startswith(('GLLB', 'TB09', 'LCY', 'CAMY')):
         return False, None
-    FD_HYBRIDS = {'EXX', 'PBE0', 'B3LYP',
-                  'CAMY-BLYP', 'CAMY-B3LYP',
-                  'LCY-BLYP', 'LCY-PBE'}
-    if params.mode.name == 'fd' and xcname in FD_HYBRIDS:
-        return False, None
-    if xcname.startswith('LCY-PBE:'):
+    if params.mode.name == 'fd' and xcname in ['EXX', 'PBE0', 'B3LYP']:
         return False, None
     return True, params

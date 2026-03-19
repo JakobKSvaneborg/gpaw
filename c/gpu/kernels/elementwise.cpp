@@ -1,8 +1,8 @@
-#include "../../python_utils.h"
+#include "python_utils.h"
 
-#include "../gpu.h"
-#include "../gpu-complex.h"
-#include "../gpu_interface.h"
+#include "gpu/gpu.h"
+#include "gpu/gpu-complex.h"
+#include "gpu/gpu_interface.h"
 
 #ifndef GPU_USE_COMPLEX
 #  define BLOCK_X  128

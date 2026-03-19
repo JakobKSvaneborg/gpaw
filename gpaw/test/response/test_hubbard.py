@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 
-from gpaw.mpi import world
 from gpaw.response.g0w0 import G0W0
 
 reference_kn = [[0.69806561, 2.58472004, 2.58472066,
@@ -13,9 +12,9 @@ reference_kn = [[0.69806561, 2.58472004, 2.58472066,
 
 
 @pytest.mark.response
-def test_hubbard_GW(in_tmp_dir, gpw_files, gpaw_new):
+def test_hubbard_GW(in_tmp_dir, gpw_files, gpaw_new, mpi):
     # This tests checks the actual numerical accuracy which is asserted below
-    if gpaw_new and world.size > 1:
+    if gpaw_new and mpi.comm.size > 1:
         pytest.skip('Parallelization bug for new-gpaw')
     gw = G0W0(gpw_files['ag_plusU_pw'], 'gw',
               integrate_gamma='sphere',
@@ -23,7 +22,8 @@ def test_hubbard_GW(in_tmp_dir, gpw_files, gpaw_new):
                            'domega0': 0.1, 'omegamax': None},
               nbands=19,  # Carefully selected to avoid slicing degenerate band
               ecut=52.8,  # This too
-              eta=0.2)
+              eta=0.2,
+              world=mpi.comm)
     results = gw.calculate()
 
     qp_kn = results['qp'][0]

@@ -1,30 +1,25 @@
 import pytest
+from gpaw.response.g0w0 import G0W0
+from gpaw.new.calculation import DFTCalculation
 
 
 @pytest.mark.ci
 @pytest.mark.response
 @pytest.mark.old_gpaw_only
-def test_lcao_gw(in_tmp_dir):
-    from ase.build import bulk
+def test_lcao_gw(in_tmp_dir, gpw_files, mpi):
+    dft = DFTCalculation.from_gpw_file(gpw_files['diamond_lcao'],
+                                       comm=mpi.comm)
+    dft.change_mode('pw')
+    dft.write_gpw_file('diamond_pw.gpw', include_wfs=True)
 
-    from gpaw import GPAW
-    from gpaw.response.g0w0 import G0W0
+    gw = G0W0(
+        'diamond_pw.gpw',
+        integrate_gamma='WS',
+        ecut=100,
+        eta=0.1,
+        bands=(0, 8),
+        world=mpi.comm)
 
-    atoms = bulk('C')
-    atoms.calc = GPAW(
-        mode="lcao",
-        basis="dzp",
-        nbands="nao",
-        convergence={'density': 1e-6},
-        kpts={
-            "gamma": True,
-            "size": (2, 2, 2), }, )
-    atoms.get_potential_energy()
-    atoms.calc.write('gs.gpw', mode='all')
-    gw = G0W0('gs.gpw',
-              integrate_gamma='WS',
-              ecut=100,
-              eta=0.1, bands=(0, 8))
     res = gw.calculate()
 
     qp = res['qp']
@@ -49,9 +44,5 @@ def test_lcao_gw(in_tmp_dir):
 
     assert eps[0][0][4] == pytest.approx(17.5784, abs=0.01)
     assert f[0][0][4] == pytest.approx(0.0, abs=0.01)
-    assert qp[0][0][4] == pytest.approx(21.510, abs=0.01)
-    assert Z[0][0][4] == pytest.approx(2.046, abs=0.01)
-
-
-if __name__ == "__main__":
-    test_lcao_gw(None)
+    assert qp[0][0][4] == pytest.approx(20.370, abs=0.01)
+    assert Z[0][0][4] == pytest.approx(1.339, abs=0.01)

@@ -29,8 +29,8 @@ for molecule in ['Adenine-thymine_complex_stack']:
     assert len(ss) == len(s1) + len(s2)
     calc_params = dict(mode='fd', h=h, nbands=-6,
                        occupations=FermiDirac(width=0.1), txt=None)
-    c = GPAW(**calc_params, xc='PBE')
-    cdf = GPAW(**calc_params, xc='vdW-DF')
+    c = GPAW(**calc_params, xc='PBE', legacy_gpaw=True)
+    cdf = GPAW(**calc_params, xc='vdW-DF', legacy_gpaw=True)
 
     for s in [s1, s2, ss]:
         s.calc = c

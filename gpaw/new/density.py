@@ -153,17 +153,19 @@ class Density:
                                           scale=1.0 / (self.ncomponents % 3))
         return self._tauct_R
 
-    def new(self, new_grid, pw, relpos_ac, atomdist):
-        self.move(relpos_ac, atomdist)
+    def new(self, new_grid, pw, relpos_ac=None, atomdist=None):
+        if relpos_ac is not None:
+            self.move(relpos_ac, atomdist)
         new_pw = PWDesc(ecut=0.99 * new_grid.ekin_max(),
                         cell=new_grid.cell,
                         comm=new_grid.comm)
-        old_grid = self.nt_sR.desc
+        old_nt_sR = self.nt_sR.to_pbc_grid()
+        old_grid = old_nt_sR.desc
         old_pw = PWDesc(ecut=0.99 * old_grid.ekin_max(),
                         cell=old_grid.cell,
                         comm=new_grid.comm)
         new_nt_sR = new_grid.empty(self.ncomponents, xp=self.nt_sR.xp)
-        for new_nt_R, old_nt_R in zips(new_nt_sR, self.nt_sR):
+        for new_nt_R, old_nt_R in zips(new_nt_sR, old_nt_sR):
             old_nt_R.fft(pw=old_pw).morph(new_pw).ifft(out=new_nt_R)
 
         self.nct_aX.change_cell(pw)
@@ -365,12 +367,18 @@ class Density:
 
         return magmom_v, magmom_av
 
-    @trace
-    def write_to_gpw(self, writer, flags):
+    def gather(self):
         D_asp = self.D_asii.to_cpu().to_lower_triangle().gather()
         nt_sR = self.nt_sR.to_xp(np).gather()
+        taut_sR = None
         if self.taut_sR is not None:
             taut_sR = self.taut_sR.to_xp(np).gather()
+        return D_asp, nt_sR, taut_sR
+
+    @trace
+    def write_to_gpw(self, writer, flags):
+        D_asp, nt_sR, taut_sR = self.gather()
+
         if D_asp is None:
             return  # let master do the writing
         writer.write(

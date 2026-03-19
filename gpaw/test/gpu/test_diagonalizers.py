@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from gpaw.cgpaw import have_magma
+from gpaw.cgpaw.gpu import magma
 from gpaw.core.matrix import Matrix
 from gpaw.gpu import cupy as cp
 from gpaw.gpu import cupy_is_fake, device_count
@@ -11,27 +11,63 @@ from gpaw.gpu.diagonalization import (CPUPYDiagonalizer, CuPyDiagonalizer,
                                       DiagonalizerOptions)
 from gpaw.gpu.diagonalization.magma_diagonalizer import MagmaDiagonalizer
 from gpaw.gpu.mpi import CuPyMPI
-from gpaw.mpi import world
+from gpaw.mpi import world, MPIComm
 from gpaw.new.c import GPU_AWARE_MPI
 from gpaw.test.gpu import assert_eigenpairs, fill_uplo
 
 if TYPE_CHECKING:
     from gpaw.gpu.diagonalization import GPUDiagonalizer
-    from gpaw.mpi import MPIComm
+
+
+def eigh_test_matrix(n: int,
+                     dtype: np.dtype = np.float64,
+                     backend: str = 'numpy',
+                     seed: int = 42):
+    """Generates a random n-by-n matrix. NOT symmetric/hermitian:
+    eigh() solvers read only upper/lower half of the matrix, so by passing
+    a non-Hermitian matrix we can test that our wrappers correctly interpret
+    the input (ie. test the 'uplo' argument).
+    """
+    assert backend in ['numpy', 'cupy']
+
+    if backend == 'cupy':
+        xp = cp
+    else:
+        xp = np
+
+    rng = xp.random.default_rng(seed)
+
+    if not np.issubdtype(dtype, np.complexfloating):
+        A = rng.random((n, n), dtype=dtype)
+        return A
+    else:
+        # Only 32/64 bit precision implemented
+        assert dtype == np.complex64 or dtype == np.complex128
+        dtype_real = np.float32 if dtype == np.complex64 else np.float64
+        A = (
+            rng.random((n, n), dtype=dtype_real)
+            + 1j * rng.random((n, n), dtype=dtype_real)
+        )
+        # Set imaginary parts to zero on the diagonal. Most Hermitian
+        # solvers seem to ignore them, but at least old Cupy-11 gives
+        # different eigenvalues if the diagonal is not real.
+        xp.fill_diagonal(A.imag, 0)
+
+        return A
 
 
 def diagonalizer_tester_common(
         raw_matrix: cp.ndarray,
         matrix: Matrix,
-        diagonalizer_class: type["GPUDiagonalizer"],
+        diagonalizer_class: type['GPUDiagonalizer'],
         options: DiagonalizerOptions) -> None:
     """"""
 
     if cupy_is_fake and diagonalizer_class is not CPUPYDiagonalizer:
-        pytest.skip("CuPy is fake")
+        pytest.skip('CuPy is fake')
 
-    if not have_magma and diagonalizer_class is MagmaDiagonalizer:
-        pytest.skip("No MAGMA")
+    if not magma.is_available() and diagonalizer_class is MagmaDiagonalizer:
+        pytest.skip('No MAGMA')
 
     matrix_orig = matrix.copy()
 
@@ -75,65 +111,58 @@ def diagonalizer_tester_common(
 
 # Currently GPU distribution works only with blocksize = None, columns = 1
 @pytest.mark.gpu
-@pytest.mark.parametrize("dtype", [np.float32, np.float64,
+@pytest.mark.parametrize('dtype', [np.float32, np.float64,
                                    np.complex64, np.complex128])
-@pytest.mark.parametrize("matrix_size", [4])
-@pytest.mark.parametrize("uplo", ['L', 'U'])
-@pytest.mark.parametrize("inplace", [False, True])
-@pytest.mark.parametrize("diagonalizer_class",
+@pytest.mark.parametrize('matrix_size', [4])
+@pytest.mark.parametrize('uplo', ['L', 'U'])
+@pytest.mark.parametrize('inplace', [False, True])
+@pytest.mark.parametrize('diagonalizer_class',
                          [CPUPYDiagonalizer,
                           CuPyDiagonalizer,
                           MagmaDiagonalizer])
 # Test both the "safe" CuPyMPI communicator and direct GPU-aware MPI (world)
-@pytest.mark.parametrize("distribution",
-                         [(CuPyMPI(world), -1, 1, None),
-                          (world, -1, 1, None)])
-def test_gpu_diagonalizer(fixt_eigh_test_matrix: cp.ndarray,
-                          diagonalizer_class: type["GPUDiagonalizer"],
+@pytest.mark.parametrize('comm', [CuPyMPI(world), world])
+def test_gpu_diagonalizer(diagonalizer_class: type['GPUDiagonalizer'],
                           matrix_size: int,
-                          # dist as in Matrix class: (comm, rows, cols, block)
-                          distribution: tuple["MPIComm", int, int,
-                                              int | None],
+                          comm: MPIComm,
                           dtype: np.dtype,
                           uplo: str,
                           inplace: bool):
     """Test GPU eigensystem solvers."""
 
-    comm = distribution[0]
     if not GPU_AWARE_MPI and not isinstance(comm, CuPyMPI):
-        pytest.skip("No GPU-aware MPI")
+        pytest.skip('No GPU-aware MPI')
 
     # Matrix data to be wrapped in a distributed Matrix class
-    raw_matrix: cp.ndarray = fixt_eigh_test_matrix(matrix_size,
-                                                   dtype=dtype,
-                                                   backend='cupy')
+    raw_matrix: cp.ndarray = eigh_test_matrix(matrix_size,
+                                              dtype=dtype,
+                                              backend='cupy')
 
-    matrix = Matrix.scatter(raw_matrix, distribution, 0)
+    matrix = Matrix.scatter(raw_matrix, dist=comm)
 
     options = DiagonalizerOptions(uplo=uplo, inplace=inplace)
 
-    diagonalizer_tester_common(raw_matrix,
+    diagonalizer_tester_common(cp.asarray(raw_matrix),
                                matrix,
                                diagonalizer_class,
                                options)
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize("dtype", [np.float32, np.float64,
+@pytest.mark.parametrize('dtype', [np.float32, np.float64,
                                    np.complex64, np.complex128])
-@pytest.mark.parametrize("matrix_size", [4, 156,])
-@pytest.mark.parametrize("uplo", ['L', 'U'])
-@pytest.mark.parametrize("inplace", [False, True])
-@pytest.mark.parametrize("diagonalizer_class",
+@pytest.mark.parametrize('matrix_size', [4, 156,])
+@pytest.mark.parametrize('uplo', ['L', 'U'])
+@pytest.mark.parametrize('inplace', [False, True])
+@pytest.mark.parametrize('diagonalizer_class',
                          [MagmaDiagonalizer])
-@pytest.mark.parametrize("distribution",
+@pytest.mark.parametrize('distribution',
                          [(CuPyMPI(world), -1, 1, None),
                           (world, -1, 1, None)])
-def test_multigpu(fixt_eigh_test_matrix: cp.ndarray,
-                  diagonalizer_class: type["GPUDiagonalizer"],
+def test_multigpu(diagonalizer_class: type['GPUDiagonalizer'],
                   matrix_size: int,
                   # dist as in Matrix class: (comm, rows, cols, blocksize)
-                  distribution: tuple["MPIComm", int, int, int | None],
+                  distribution: tuple['MPIComm', int, int, int | None],
                   dtype: np.dtype,
                   uplo: str,
                   inplace: bool):
@@ -143,15 +172,15 @@ def test_multigpu(fixt_eigh_test_matrix: cp.ndarray,
     num_gpus = device_count
 
     if num_gpus < 2:
-        pytest.skip("Not enough GPUs available")
+        pytest.skip('Not enough GPUs available')
 
     comm = distribution[0]
     if not GPU_AWARE_MPI and not isinstance(comm, CuPyMPI):
-        pytest.skip("No GPU-aware MPI")
+        pytest.skip('No GPU-aware MPI')
 
-    raw_matrix: cp.ndarray = fixt_eigh_test_matrix(matrix_size,
-                                                   dtype=dtype,
-                                                   backend='cupy')
+    raw_matrix: cp.ndarray = eigh_test_matrix(matrix_size,
+                                              dtype=dtype,
+                                              backend='cupy')
 
     matrix = Matrix.scatter(raw_matrix, distribution, 0)
 
@@ -163,3 +192,13 @@ def test_multigpu(fixt_eigh_test_matrix: cp.ndarray,
                                matrix,
                                diagonalizer_class,
                                options)
+
+
+if __name__ == '__main__':
+    test_gpu_diagonalizer(
+        CPUPYDiagonalizer,
+        4,
+        CuPyMPI(world),
+        np.float64,
+        'L',
+        False)

@@ -116,7 +116,7 @@ def use_fftw_estimate_flag(sessionscoped_monkeypatch):
 
 
 @pytest.fixture(scope='session')
-def gpw_files(request):
+def gpw_files(request, _not_world):
     """Reuse gpw-files.
 
     Returns a dict mapping names to paths to gpw-files.
@@ -274,7 +274,7 @@ def gpw_files(request):
     cache = request.config.cache
     gpaw_cachedir = cache.mkdir('gpaw_test_gpwfiles')
 
-    gpwfiles = GPWFiles(gpaw_cachedir)
+    gpwfiles = GPWFiles(gpaw_cachedir, _not_world)
 
     try:
         setup_paths.append(gpwfiles.testing_setup_path)
@@ -302,12 +302,12 @@ def all_gpw_files(request, gpw_files, pytestconfig):
 
 
 @pytest.fixture(scope='session')
-def mme_files(request, gpw_files):
+def mme_files(request, gpw_files, _not_world):
     """Reuse mme files"""
     cache = request.config.cache
     mme_cachedir = cache.mkdir('gpaw_test_mmefiles')
 
-    return MMEFiles(mme_cachedir, gpw_files)
+    return MMEFiles(mme_cachedir, gpw_files, comm=_not_world)
 
 
 class GPAWPlugin:
@@ -481,14 +481,21 @@ class MPIHelper:
         return GPAW(*args, communicator=self.comm, **kwargs)
 
     def NewGPAW(self, *args, **kwargs):
-        from gpaw.new.ase_interface import GPAW
-
-        return GPAW(*args, communicator=self.comm, **kwargs)
+        from gpaw.dft import GPAW
+        return GPAW(*args, communicator=self.comm, legacy_gpaw=False, **kwargs)
 
     def OldGPAW(self, *args, **kwargs):
         from gpaw.dft import GPAW as AnyGPAW
         return AnyGPAW(*args, communicator=self.comm,
-                       _use_old_gpaw=True, **kwargs)
+                       legacy_gpaw=True, **kwargs)
+
+    def restart(self, *args, **kwargs):
+        from gpaw import restart
+        return restart(*args, communicator=self.comm, **kwargs)
+
+    def print(self, *args, **kwargs):
+        if self.comm.rank == 0:
+            print(*args, **kwargs)
 
 
 @pytest.fixture
@@ -496,17 +503,7 @@ def mpi(comm):
     return MPIHelper(comm)
 
 
-if GPAW_NEW == 147:
-    @pytest.fixture(params=[False, True])
-    def gpaw_new(request) -> bool:
-        import gpaw.dft as dft
-        try:
-            dft._USE_OLD_GPAW = not request.param
-            yield request.param
-        finally:
-            dft._USE_OLD_GPAW = None
-else:
-    @pytest.fixture
-    def gpaw_new() -> bool:
-        """Are we testing the new code?"""
-        return GPAW_NEW
+@pytest.fixture
+def gpaw_new() -> bool:
+    """Are we testing the new code?"""
+    return GPAW_NEW

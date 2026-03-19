@@ -16,6 +16,7 @@ from gpaw.utilities import packed_index
 from gpaw.utilities.tools import coordinates
 
 from .kssrestrictor import KSSRestrictor
+from gpaw.old import assert_legacy_gpaw
 
 
 class KSSingles(ExcitationList):
@@ -51,7 +52,8 @@ class KSSingles(ExcitationList):
         self.restrict.update(restrict)
 
     def calculate(self, atoms, nspins=None):
-        calculator = atoms.calc._to_old()
+        calculator = atoms.calc
+        assert_legacy_gpaw(calculator)
         self.calculator = calculator
 
         # LCAO calculation requires special actions

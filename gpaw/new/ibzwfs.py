@@ -242,7 +242,7 @@ class IBZWaveFunctions(Generic[WFT]):
                                        spin=0,
                                        grid_spacing=0.05,
                                        skip_paw_correction=False):
-        wfs = self.get_wfs(kpt=kpt, spin=spin, n1=band, n2=band + 1)
+        wfs = self.get_wfs_on_master(kpt=kpt, spin=spin, n1=band, n2=band + 1)
         if wfs is None:
             return None
         assert isinstance(wfs, PWFDWaveFunctions)
@@ -262,24 +262,41 @@ class IBZWaveFunctions(Generic[WFT]):
         assert u >= 0, (kpt, spin, self.nspins, self.u0)
         return self._wfs_u[u]
 
-    def get_wfs(self,
-                *,
-                kpt: int = 0,
-                spin: int = 0,
-                n1=0,
-                n2=0):
-        rank = self.rank_ks[kpt][spin]
-        if rank == self.kpt_comm.rank:
+    def get_wfs_on_master(self,
+                          *,
+                          kpt: int = 0,
+                          spin: int = 0,
+                          n1=0,
+                          n2=0):
+        krank = self.rank_ks[kpt][spin]
+        if krank == self.kpt_comm.rank:
             wfs = self._get_wfs(kpt, spin)
-            wfs2 = wfs.collect(n1, n2)
-            if rank == 0:
+            wfs2 = wfs.collect_bands_and_domain(n1, n2)
+            if krank == 0:
                 return wfs2
             if wfs2 is not None:
                 wfs2.send(0, self.kpt_comm)
             return
         if self.comm.rank == 0:
-            return self._wfs_u[0].receive(rank, self.kpt_comm)
+            return self._wfs_u[0].receive(krank, self.kpt_comm)
         return None
+
+    def gather(self):
+        # extract sizes from old wfs
+        ncomponents = self.ncomponents
+        nspins = ncomponents % 3
+        ibz = self.ibz
+
+        # gather wfs on master
+        wfs_u = []
+        for k in range(len(ibz)):
+            for spin in range(nspins):
+                wfs = self.get_wfs_on_master(kpt=k, spin=spin)
+                wfs_u.append(wfs)
+
+        fermi_levels = self.fermi_levels
+
+        return ibz, ncomponents, wfs_u, fermi_levels
 
     def get_eigs_and_occs(self, kpt=0, spin=0):
         if self.domain_comm.rank == 0 and self.band_comm.rank == 0:
@@ -559,6 +576,13 @@ class IBZWaveFunctions(Generic[WFT]):
         e_kin_paw = density.grid.comm.sum_scalar(e_kin_paw)
 
         return e_kin + e_kin_paw
+
+    def number_of_occupied_bands(self,
+                                 tolerance: float = 1e-5) -> int:
+        nocc = 0
+        for wfs in self:
+            nocc = max(nocc, int((wfs.occ_n > tolerance).sum()))
+        return int(self.kpt_comm.max_scalar(nocc))
 
 
 def bytes_for_projectors(ibzwfs: IBZWaveFunctions) -> int:

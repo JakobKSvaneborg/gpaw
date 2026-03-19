@@ -6,7 +6,7 @@ from gpaw.response.groundstate import ResponseGroundStateAdapter
 
 
 @pytest.mark.response
-def test_response_bse_parse_bands(in_tmp_dir, gpw_files):
+def test_response_bse_parse_bands(in_tmp_dir, gpw_files, mpi):
     gs = ResponseGroundStateAdapter.from_gpw_file(gpw_files['mos2_pw'])
     val_m = BSE.parse_bands(bands=4, gs=gs, band_type='valence', add_soc=False)
     con_m = BSE.parse_bands(bands=3, gs=gs, band_type='conduction',
@@ -26,7 +26,8 @@ def test_response_bse_parse_bands(in_tmp_dir, gpw_files):
               valence_bands=8,
               conduction_bands=6,
               eshift=0.8,
-              nbands=15)
+              nbands=15,
+              comm=mpi.comm)
 
     # Check consistency with written results
     val_m = BSE.parse_bands(bands=8, gs=gs, band_type='valence', add_soc=True)

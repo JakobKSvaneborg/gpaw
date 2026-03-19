@@ -15,7 +15,7 @@ from gpaw.new.builder import DFTComponentsBuilder
 from gpaw.new.gpw import GPWFlags, read_dft_state, write_dft_state
 from gpaw.new.logger import Logger
 from gpaw.new.rttddft.history import RTTDDFTHistory
-from gpaw.new.rttddft.state import RTTDDFTState
+from gpaw.new.rttddft.dataclasses import RTTDDFTState
 
 
 def write_rttddft(filename: str | Path,

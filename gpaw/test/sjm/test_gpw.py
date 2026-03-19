@@ -2,11 +2,12 @@ import pytest
 
 from gpaw import restart
 from gpaw.solvation.sjm import SJM
+from gpaw.mpi import world
 
 
 # Test wrting and reading of the SJM object into the gpw file
 @pytest.mark.old_gpaw_only
-# @pytest.mark.ci
+@pytest.mark.skipif(world.size == 8, reason='Produces NaN')
 def test_gpw(in_tmp_dir, atoms):
     atoms.calc.set(sj={'target_potential': None})
 

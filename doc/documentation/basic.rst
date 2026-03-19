@@ -107,8 +107,8 @@ given in the following sections.
       -
       - :ref:`manual_convergence`
     * - ``eigensolver``
-      - ``str``
-      - ``'dav'``
+      - ``str`` or ``dict``
+      - ``'ppcg'``
       - :ref:`manual_eigensolver`
     * - ``external``
       - Object
@@ -915,25 +915,25 @@ Eigensolver
 -----------
 
 The default solver for iterative diagonalization of the Kohn-Sham
-Hamiltonian is a simple Davidson method, (``eigensolver='dav'``), which
+Hamiltonian is the PPCG method, (``eigensolver='ppcg'``), which
 seems to perform well in most cases. Sometimes more efficient/stable
 convergence can be obtained with a different eigensolver. One option is the
 RMM-DIIS (Residual minimization method - direct inversion in iterative
-subspace), (``eigensolver='rmm-diis'``), which performs well when only a few
-unoccupied states are calculated. Another option is the conjugate gradient
-method (``eigensolver='cg'``), which is stable but slower.
+subspace), (``eigensolver='rmm-diis'``). This eigensolver is particularly
+useful if only a few unoccupied states are calculated.
 
-If parallelization over bands is necessary, then Davidson or RMM-DIIS must
-be used.
+More control can be obtained by specifying parameters in a dict::
 
-More control can be obtained by using directly the eigensolver objects::
+  calc = GPAW(...,
+              eigensolver={
+                  'name': 'rmm-diis',
+                  'diis-steps': 3,
+                  'niter': 2},
+              ...)
 
-  from gpaw.eigensolvers import CG
-  calc = GPAW(..., eigensolver=CG(niter=5, rtol=0.20), ...)
-
-Here, ``niter`` specifies the maximum number of conjugate gradient iterations
-for each band (within a single SCF step), and if the relative change
-in residual is less than ``rtol``, the iteration for the band is not continued.
+Here, ``niter`` specifies the maximum number of eigensolver iterations
+(within a single SCF step), and ``diis-steps`` the number of diis steps per
+eigensolver iteration.
 
 LCAO mode has its own eigensolvers. ``DirectLCAO`` eigensolver directly
 diagonalizes the Hamiltonian matrix instead of using an iterative method.
