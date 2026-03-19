@@ -365,6 +365,42 @@ def scalapack_inverse_cholesky(desca, a, uplo):
         raise RuntimeError('scalapack_inverse_cholesky error: %d' % info)
 
 
+def scalapack_cholesky(desca, a, uplo='L'):
+    """Cholesky factorization of a distributed Hermitian PD matrix.
+
+    On exit, the lower (uplo='L') or upper (uplo='U') triangle of a
+    contains the Cholesky factor L (or U).  The other triangle is zeroed.
+    """
+    desca.checkassert(a)
+    assert desca.gshape[0] == desca.gshape[1]
+    assert uplo in ['L', 'U']
+    if not desca.blacsgrid.is_active():
+        return
+    info = cgpaw.scalapack_cholesky(a, desca.asarray(), switch_lu[uplo])
+    if info != 0:
+        raise RuntimeError('scalapack_cholesky error: %d' % info)
+
+
+def scalapack_trsm(desca, descb, a, b, uplo='L', trans='N'):
+    """Distributed triangular solve: op(A) * X = B.
+
+    Solves for X and overwrites B with the result.
+    A is a triangular matrix (lower or upper as specified by uplo).
+    trans controls the operation on A:
+      'N': A * X = B
+      'T': A^T * X = B
+      'C': A^H * X = B  (conjugate transpose)
+    """
+    desca.checkassert(a)
+    descb.checkassert(b)
+    assert uplo in ['L', 'U']
+    assert trans in ['N', 'T', 'C']
+    if not desca.blacsgrid.is_active():
+        return
+    cgpaw.scalapack_trsm(a, b, desca.asarray(), descb.asarray(),
+                          switch_lu[uplo], trans)
+
+
 def scalapack_inverse(desca, a, uplo):
     """Perform a hermitian matrix inversion.
 

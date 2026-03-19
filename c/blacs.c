@@ -1833,6 +1833,98 @@ PyObject* scalapack_inverse_cholesky(PyObject *self, PyObject *args)
   return returnvalue;
 }
 
+PyObject* scalapack_cholesky(PyObject *self, PyObject *args)
+{
+  // Cholesky factorization only (without triangular inversion).
+  // On exit, the lower (or upper) triangle of a contains L (or U).
+  // The other triangle is zeroed out.
+
+  PyArrayObject* a;
+  PyArrayObject* desca;
+  int info;
+  double d_zero = 0.0;
+  double_complex c_zero = 0.0;
+  int one = 1;
+  int two = 2;
+  char* uplo;
+
+  if (!PyArg_ParseTuple(args, "OOs", &a, &desca, &uplo))
+    return NULL;
+
+  int n = INTP(desca)[2];
+  assert(n == INTP(desca)[3]);
+  int p = n - 1;
+
+  if (PyArray_DESCR(a)->type_num == NPY_DOUBLE)
+    {
+      pdpotrf_(uplo, &n, DOUBLEP(a), &one, &one, INTP(desca), &info);
+      if (info == 0)
+        {
+          if (*uplo == 'L')
+            pdlaset_("U", &p, &p, &d_zero, &d_zero, DOUBLEP(a),
+                     &one, &two, INTP(desca));
+          else
+            pdlaset_("L", &p, &p, &d_zero, &d_zero, DOUBLEP(a),
+                     &two, &one, INTP(desca));
+        }
+    }
+  else
+    {
+      pzpotrf_(uplo, &n, (void*)COMPLEXP(a), &one, &one,
+               INTP(desca), &info);
+      if (info == 0)
+        {
+          if (*uplo == 'L')
+            pzlaset_("U", &p, &p, (void*)&c_zero, (void*)&c_zero,
+                     (void*)COMPLEXP(a), &one, &two, INTP(desca));
+          else
+            pzlaset_("L", &p, &p, (void*)&c_zero, (void*)&c_zero,
+                     (void*)COMPLEXP(a), &two, &one, INTP(desca));
+        }
+    }
+
+  return Py_BuildValue("i", info);
+}
+
+PyObject* scalapack_trsm(PyObject *self, PyObject *args)
+{
+  // Distributed triangular solve: solve op(A) * X = B for X.
+  // A is triangular (lower or upper), B is overwritten with X.
+  // op(A) = A, A^T, or A^H depending on trans.
+
+  PyArrayObject* a;     // triangular matrix
+  PyArrayObject* b;     // right-hand side, overwritten with solution
+  PyArrayObject* desca;
+  PyArrayObject* descb;
+  char* uplo;   // 'L' or 'U'
+  char* trans;  // 'N', 'T', or 'C'
+
+  if (!PyArg_ParseTuple(args, "OOOOss", &a, &b, &desca, &descb,
+                         &uplo, &trans))
+    return NULL;
+
+  int n = INTP(desca)[2];
+  int nrhs = INTP(descb)[3];
+  int one = 1;
+  double d_one = 1.0;
+  double_complex c_one = 1.0;
+
+  if (PyArray_DESCR(a)->type_num == NPY_DOUBLE)
+    {
+      pdtrsm_("L", uplo, trans, "N", &n, &nrhs, &d_one,
+              DOUBLEP(a), &one, &one, INTP(desca),
+              DOUBLEP(b), &one, &one, INTP(descb));
+    }
+  else
+    {
+      pztrsm_("L", uplo, trans, "N", &n, &nrhs, (void*)&c_one,
+              (void*)COMPLEXP(a), &one, &one, INTP(desca),
+              (void*)COMPLEXP(b), &one, &one, INTP(descb));
+    }
+
+  Py_RETURN_NONE;
+}
+
 PyObject* scalapack_inverse(PyObject *self, PyObject *args)
 {
   // Inverse of an hermitean matrix

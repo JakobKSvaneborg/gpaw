@@ -7,9 +7,9 @@ import warnings
 import numpy as np
 from ase.dft import monkhorst_pack
 from ase.units import Bohr, Hartree
-from scipy.linalg import cho_factor, eigh, solve_triangular
+from scipy.linalg import eigh
 
-from gpaw.blacs import BlacsDescriptor, BlacsGrid, Redistributor
+from gpaw.blacs import BlacsGrid, Redistributor
 from gpaw.mpi import normalize_communicator, serial_comm
 from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.response import ResponseContext
@@ -26,7 +26,10 @@ from gpaw.response.screened_interaction import (GammaIntegrationMode,
                                                 initialize_w_calculator)
 from gpaw.utilities.elpa import LibElpa
 from gpaw.utilities.scalapack import (have_mkl,
-                                      mkl_scalapack_diagonalize_non_symmetric)
+                                      mkl_scalapack_diagonalize_non_symmetric,
+                                      pblas_simple_gemm,
+                                      scalapack_cholesky,
+                                      scalapack_trsm)
 
 
 def decide_whether_tammdancoff(val_m, con_m):
@@ -43,7 +46,19 @@ class BSEMatrix:
     deps_S: np.ndarray
     deps_max: float
 
-    def diagonalize_nontammdancoff(self, bse, deps_max=None):
+    def diagonalize_nontammdancoff(self, bse, deps_max=None,
+                                    backend='elpa'):
+        """Diagonalize the non-Tamm-Dancoff BSE Hamiltonian.
+
+        Backends:
+          'elpa': Structure-preserving via Hermitian reduction K = L†SL.
+                  Uses ELPA's Hermitian eigensolver on K, with distributed
+                  Cholesky and triangular solve for eigenvector recovery.
+                  Exploits BSE pseudo-Hermitian structure; eigenvalues
+                  come in ±ω pairs.
+          'mkl':  MKL ScaLAPACK non-symmetric eigensolver (pzgeevx).
+          'numpy': Serial numpy.linalg.eig fallback.
+        """
         df_S = self.df_S
         if deps_max is None:
             deps_max = self.deps_max
@@ -53,23 +68,103 @@ class BSEMatrix:
         H_rr, desc = self.exclude_states(bse, exclude_S)
         comm = bse.context.comm
         nR = bse.nS - len(exclude_S)
-        if comm.size > 1 and have_mkl():
-            bse.context.print('  Using mkl...')
-            v_rt = desc.empty(dtype=complex)
-            vl_rt = desc.empty(dtype=complex)
-            w_T = np.empty(nR, dtype=complex)
-            mkl_scalapack_diagonalize_non_symmetric(
-                desc, H_rr, v_rt, w_T, zl=vl_rt)
-            grid_Rt = BlacsGrid(comm, 1, comm.size)
-            nt = -((-nR) // comm.size)
-            desc_Rt = grid_Rt.new_descriptor(nR, nR, nR, nt)
-            v_Rt = desc_Rt.zeros(dtype=complex)
-            vl_Rt = desc_Rt.zeros(dtype=complex)
-            redist = Redistributor(comm, desc, desc_Rt)
-            redist.redistribute(v_rt, v_Rt)
-            redist.redistribute(vl_rt, vl_Rt)
-            return w_T, v_Rt, exclude_S, vl_Rt
 
+        if backend == 'elpa' and comm.size > 1 and LibElpa.have_elpa():
+            return self._diag_nontd_elpa(bse, H_rr, desc, exclude_S, nR)
+
+        if backend == 'mkl' or (backend == 'elpa' and not
+                                 LibElpa.have_elpa()):
+            if comm.size > 1 and have_mkl():
+                return self._diag_nontd_mkl(
+                    bse, H_rr, desc, exclude_S, nR)
+
+        return self._diag_nontd_numpy(bse, H_rr, desc, exclude_S, nR)
+
+    def _diag_nontd_elpa(self, bse, H_rr, desc, exclude_S, nR):
+        """Structure-preserving BSE diagonalization using ELPA.
+
+        Exploits the pseudo-Hermitian structure H = S·Ĥ to reduce the
+        non-Hermitian BSE eigenproblem to a standard Hermitian one:
+
+        1. Form Ĥ = S·H  (Hermitian PD companion)
+        2. Cholesky: Ĥ = LL†
+        3. Form K = L†·S·L  (Hermitian, same eigenvalues as H)
+        4. ELPA Hermitian diagonalize: K·y = ω·y
+        5. Back-transform: x = L^{-†}·y  (BSE right eigenvector)
+        6. Left eigenvectors: w = S·x
+        """
+        comm = bse.context.comm
+        bse.context.print('  Using ELPA (Hermitian reduction)...')
+        deps_R = np.delete(self.deps_S, exclude_S)
+        sign_R = np.sign(deps_R)
+
+        # 1. Form Ĥ = S·H: scale each row by sign(deps)
+        Hhat_rr = H_rr.copy()
+        _scale_distributed_rows(Hhat_rr, sign_R, desc)
+
+        # 2. Distributed Cholesky: Ĥ = LL†
+        #    L stored in lower triangle of Hhat_rr
+        scalapack_cholesky(desc, Hhat_rr, 'L')
+        L_rr = Hhat_rr  # L in lower triangle, zeros in upper
+
+        # 3. Form K = L†·(S·L):
+        #    First compute SL = S·L (scale rows of L by sign)
+        SL_rr = L_rr.copy()
+        _scale_distributed_rows(SL_rr, sign_R, desc)
+        #    Then K = L†·SL via distributed matrix multiply
+        K_rr = desc.empty(dtype=complex)
+        pblas_simple_gemm(desc, desc, desc, L_rr, SL_rr, K_rr,
+                          transa='C')
+
+        # 4. ELPA Hermitian diagonalization of K
+        w_T = np.empty(nR, dtype=float)
+        v_rr = desc.empty(dtype=complex)
+        elpa = LibElpa(desc)
+        elpa.diagonalize(K_rr, v_rr, w_T)
+
+        # 5. Back-transform: solve L†·x = y for x
+        scalapack_trsm(desc, desc, L_rr, v_rr, 'L', 'C')
+
+        # 6. Left eigenvectors: w = S·x (scale rows by sign)
+        vl_rr = v_rr.copy()
+        _scale_distributed_rows(vl_rr, sign_R, desc)
+
+        # Redistribute eigenvectors for output
+        grid_Rt = BlacsGrid(comm, 1, comm.size)
+        nt = -((-nR) // comm.size)
+        desc_Rt = grid_Rt.new_descriptor(nR, nR, nR, nt)
+        v_Rt = desc_Rt.zeros(dtype=complex)
+        vl_Rt = desc_Rt.zeros(dtype=complex)
+        redist = Redistributor(comm, desc, desc_Rt)
+        redist.redistribute(v_rr, v_Rt)
+        redist.redistribute(vl_rr, vl_Rt)
+
+        # Convert eigenvalues to complex for interface compatibility
+        w_T_complex = w_T.astype(complex)
+        return w_T_complex, v_Rt, exclude_S, vl_Rt
+
+    def _diag_nontd_mkl(self, bse, H_rr, desc, exclude_S, nR):
+        """Non-symmetric eigensolver via MKL ScaLAPACK (pzgeevx)."""
+        comm = bse.context.comm
+        bse.context.print('  Using mkl...')
+        v_rt = desc.empty(dtype=complex)
+        vl_rt = desc.empty(dtype=complex)
+        w_T = np.empty(nR, dtype=complex)
+        mkl_scalapack_diagonalize_non_symmetric(
+            desc, H_rr, v_rt, w_T, zl=vl_rt)
+        grid_Rt = BlacsGrid(comm, 1, comm.size)
+        nt = -((-nR) // comm.size)
+        desc_Rt = grid_Rt.new_descriptor(nR, nR, nR, nt)
+        v_Rt = desc_Rt.zeros(dtype=complex)
+        vl_Rt = desc_Rt.zeros(dtype=complex)
+        redist = Redistributor(comm, desc, desc_Rt)
+        redist.redistribute(v_rt, v_Rt)
+        redist.redistribute(vl_rt, vl_Rt)
+        return w_T, v_Rt, exclude_S, vl_Rt
+
+    def _diag_nontd_numpy(self, bse, H_rr, desc, exclude_S, nR):
+        """Serial numpy eigensolver fallback."""
+        comm = bse.context.comm
         bse.context.print('  Using numpy.linalg.eig...')
         H_RR = desc.collect_on_master(H_rr)
         w_T = np.zeros(nR, complex)
@@ -77,344 +172,11 @@ class BSEMatrix:
         vl_RT = np.zeros((nR, nR), complex)
         if comm.rank == 0:
             w_T, v_RT = np.linalg.eig(H_RR)
-            # Left eigenvectors: eigenvectors of H^H
             _, vl_RT = np.linalg.eig(H_RR.conj().T)
         comm.broadcast(v_RT, 0)
         comm.broadcast(vl_RT, 0)
         comm.broadcast(w_T, 0)
         return w_T, v_RT, exclude_S, vl_RT
-
-    def diagonalize_nontammdancoff_structured(self, bse, deps_max=None,
-                                               backend='elpa_skew'):
-        """Structure-preserving BSE diagonalization.
-
-        Exploits the pseudo-Hermitian structure of the BSE Hamiltonian
-        H = S Hhat, where Hhat is Hermitian positive definite and
-        S = diag(sign(deps)).
-
-        Two backends are supported:
-
-        backend='hermitian':
-            Reduces to a standard Hermitian eigenvalue problem
-            K = L^dag S L, where Hhat = L L^dag (Cholesky).
-            Works for both real and complex BSE matrices.
-
-        backend='elpa_skew':
-            For real BSE matrices (time-reversal symmetry), reduces to
-            a real skew-symmetric eigenvalue problem K_J = L^T J L,
-            where J = [[0, I], [-I, 0]].  Uses ELPA's specialized
-            skew-symmetric eigensolver when available (parallel), or
-            falls back to scipy for the serial case.  Factor-of-2
-            savings: only n eigenvalues computed for a 2n x 2n matrix.
-
-        Falls back to diagonalize_nontammdancoff if the Hermitian
-        companion is not positive definite (indefinite BSE).
-
-        Reference: C. Penke, A. Marek, C. Vorwerk, C. Draxl, P. Benner,
-            Parallel Computing 96, 102639 (2020).
-        See also: M. Shao, F. H. da Jornada, C. Yang, J. Deslippe,
-            S. G. Louie, Linear Algebra Appl. 488, 148-167 (2016).
-        """
-        if backend == 'elpa_skew':
-            return self._diag_nontd_skew(bse, deps_max)
-        elif backend == 'hermitian':
-            return self._diag_nontd_hermitian(bse, deps_max)
-        else:
-            raise ValueError(f"backend must be 'hermitian' or 'elpa_skew', "
-                             f"got {backend!r}")
-
-    def _exclude_nontd_states(self, bse, deps_max):
-        """Common state-exclusion logic for non-Tamm-Dancoff methods."""
-        df_S = self.df_S
-        if deps_max is None:
-            deps_max = self.deps_max
-        excludef_S = np.where(np.abs(df_S) < 0.001)[0]
-        excludedeps_S = np.where(np.abs(self.deps_S) > deps_max)[0]
-        exclude_S = np.unique(np.concatenate((excludef_S, excludedeps_S)))
-        H_rr, desc = self.exclude_states(bse, exclude_S)
-        nR = bse.nS - len(exclude_S)
-        return H_rr, desc, exclude_S, nR
-
-    def _diag_nontd_hermitian(self, bse, deps_max):
-        """Hermitian reduction: K = L^dag S L (works for complex BSE)."""
-        H_rr, desc, exclude_S, nR = self._exclude_nontd_states(bse, deps_max)
-        comm = bse.context.comm
-
-        H_RR = desc.collect_on_master(H_rr)
-
-        w_T = np.zeros(nR, complex)
-        v_RT = np.zeros((nR, nR), complex)
-        vl_RT = np.zeros((nR, nR), complex)
-
-        if comm.rank == 0:
-            deps_R = np.delete(self.deps_S, exclude_S)
-            sign_R = np.sign(deps_R)
-            assert np.all(sign_R != 0), \
-                'Zero transition energies remain after exclusion'
-
-            Hhat = sign_R[:, np.newaxis] * H_RR
-            herm_err = np.linalg.norm(Hhat - Hhat.conj().T) / (
-                np.linalg.norm(Hhat) + 1e-30)
-            if herm_err > 1e-8:
-                raise RuntimeError(
-                    'Hermitian companion is not Hermitian '
-                    f'(relative error: {herm_err:.2e}).')
-            Hhat = 0.5 * (Hhat + Hhat.conj().T)
-
-            try:
-                L, lower = cho_factor(Hhat, lower=True)
-            except np.linalg.LinAlgError:
-                bse.context.print(
-                    '  WARNING: Hermitian companion not positive definite. '
-                    'Falling back to general eigensolver.')
-                w_T, v_RT = np.linalg.eig(H_RR)
-                _, vl_RT = np.linalg.eig(H_RR.conj().T)
-                comm.broadcast(v_RT, 0)
-                comm.broadcast(vl_RT, 0)
-                comm.broadcast(w_T, 0)
-                return w_T, v_RT, exclude_S, vl_RT
-
-            bse.context.print('  Using Hermitian BSE reduction...')
-            SL = sign_R[:, np.newaxis] * L
-            K = L.conj().T @ SL
-            K = 0.5 * (K + K.conj().T)
-
-            w_T_real, y_RT = eigh(K)
-            w_T[:] = w_T_real
-            v_RT[:] = solve_triangular(L.conj().T, y_RT, lower=False)
-            vl_RT[:] = sign_R[:, np.newaxis] * v_RT
-
-        comm.broadcast(v_RT, 0)
-        comm.broadcast(vl_RT, 0)
-        comm.broadcast(w_T, 0)
-        return w_T, v_RT, exclude_S, vl_RT
-
-    def _diag_nontd_skew(self, bse, deps_max):
-        """Skew-symmetric reduction: K_J = L^T J L (real BSE only).
-
-        For real BSE matrices (time-reversal symmetric, non-magnetic),
-        reduces to a real skew-symmetric eigenvalue problem whose
-        eigenvalues are ±i*sigma_k, where sigma_k are the BSE
-        excitation energies.
-
-        Uses ELPA's skew-symmetric eigensolver for the parallel case,
-        with a scipy fallback for serial execution.
-
-        The eigenvector recovery uses the identity:
-            If K_J z_k = +i*sigma_k * z_k  and  v_k = L^{-T} z_k,
-            then the BSE right eigenvector for eigenvalue +sigma_k is
-                x_k = v_k - i * Sigma_1 @ v_k
-            where Sigma_1 = [[0, I_n], [I_n, 0]] swaps the resonant
-            and anti-resonant blocks.  Left eigenvectors follow from
-                w_k = S @ x_k.
-        """
-        H_rr, desc, exclude_S, nR = self._exclude_nontd_states(bse, deps_max)
-        comm = bse.context.comm
-
-        # --- Collect and transform on master ---
-        H_RR = desc.collect_on_master(H_rr)
-
-        w_T = np.zeros(nR, complex)
-        v_RT = np.zeros((nR, nR), complex)
-        vl_RT = np.zeros((nR, nR), complex)
-
-        # Quantities computed on master, needed by all ranks for ELPA path
-        K_J_full = None
-        L_factor = None
-        n = None
-        perm = None
-        inv_perm = None
-
-        if comm.rank == 0:
-            deps_R = np.delete(self.deps_S, exclude_S)
-            sign_R = np.sign(deps_R)
-            assert np.all(sign_R != 0), \
-                'Zero transition energies remain after exclusion'
-
-            # Check that BSE matrix is real
-            real_err = np.linalg.norm(H_RR.imag) / (
-                np.linalg.norm(H_RR) + 1e-30)
-            if real_err > 1e-8:
-                raise RuntimeError(
-                    f'BSE matrix has significant imaginary part '
-                    f'(ratio: {real_err:.2e}). Skew-symmetric '
-                    'reduction requires time-reversal symmetry.')
-            H_real = H_RR.real
-
-            # Sort: resonant (positive deps) first, anti-resonant second
-            pos_idx = np.where(sign_R > 0)[0]
-            neg_idx = np.where(sign_R < 0)[0]
-            n = len(pos_idx)
-            if len(neg_idx) != n:
-                raise RuntimeError(
-                    f'Unequal resonant ({len(pos_idx)}) and anti-resonant '
-                    f'({len(neg_idx)}) transitions. Skew-symmetric '
-                    'reduction requires equal counts.')
-
-            perm = np.concatenate([pos_idx, neg_idx])
-            inv_perm = np.argsort(perm)
-            H_sorted = H_real[np.ix_(perm, perm)]
-
-            # Hermitian companion: Hhat = S_sorted @ H_sorted
-            # S_sorted = diag(+1...+1, -1...-1)
-            Hhat = H_sorted.copy()
-            Hhat[n:, :] *= -1
-
-            sym_err = np.linalg.norm(Hhat - Hhat.T) / (
-                np.linalg.norm(Hhat) + 1e-30)
-            if sym_err > 1e-8:
-                raise RuntimeError(
-                    'Hermitian companion not symmetric '
-                    f'(error: {sym_err:.2e}).')
-            Hhat = 0.5 * (Hhat + Hhat.T)
-
-            # Cholesky: Hhat = L L^T
-            try:
-                L, lower = cho_factor(Hhat, lower=True)
-            except np.linalg.LinAlgError:
-                raise RuntimeError(
-                    'Hermitian companion not positive definite. '
-                    'BSE may have excitonic instabilities.')
-
-            bse.context.print(
-                '  Using skew-symmetric BSE diagonalization...')
-
-            # K_J = L^T J L  where J = [[0, I_n], [-I_n, 0]]
-            # JL[i,:] = L[n+i,:] for i < n;  JL[n+i,:] = -L[i,:]
-            JL = np.empty_like(L)
-            JL[:n, :] = L[n:, :]
-            JL[n:, :] = -L[:n, :]
-            K_J_full = L.T @ JL
-            K_J_full = 0.5 * (K_J_full - K_J_full.T)  # enforce skew-symm
-
-            L_factor = L
-
-        # Broadcast metadata needed for eigenvector recovery
-        n_arr = np.zeros(1, dtype=int)
-        if comm.rank == 0:
-            n_arr[0] = n
-        comm.broadcast(n_arr, 0)
-        n = int(n_arr[0])
-        N = 2 * n  # = nR
-
-        # --- Eigenvalue computation ---
-        use_elpa = (comm.size > 1 and LibElpa.have_elpa())
-
-        if use_elpa:
-            sigma, Q_full = self._skew_solve_elpa(
-                bse, comm, K_J_full, N, n)
-        else:
-            sigma, Q_full = self._skew_solve_scipy(
-                bse, comm, K_J_full, N, n)
-
-        # --- Eigenvector recovery (on master) ---
-        if comm.rank == 0:
-            # Complex eigenvectors of K_J with eigenvalue +i*sigma_k:
-            #   z_k = Q[:, k] + i * Q[:, n+k]    (ELPA convention)
-            # For scipy path, Q_full already contains these columns.
-            if use_elpa:
-                z_k = Q_full[:, :n] + 1j * Q_full[:, n:]
-            else:
-                z_k = Q_full  # already complex, shape (N, n)
-
-            # Back-transform: v_k = L^{-T} z_k
-            v_k = solve_triangular(L_factor.T, z_k, lower=False)
-
-            # BSE eigenvectors from skew eigenvectors:
-            # Sigma_1 = [[0, I_n], [I_n, 0]]  swaps blocks
-            Sigma1_v = np.vstack([v_k[n:, :], v_k[:n, :]])
-
-            # For eigenvalue +sigma_k:  x_k = v_k - i * Sigma_1 @ v_k
-            x_pos = v_k - 1j * Sigma1_v
-            # For eigenvalue -sigma_k:  x_k = v_k + i * Sigma_1 @ v_k
-            x_neg = v_k + 1j * Sigma1_v
-
-            # Left eigenvectors: w = S @ x
-            # S_sorted = diag(+1...+1, -1...-1) in sorted order
-            S_diag = np.ones(N)
-            S_diag[n:] = -1.0
-            w_pos = S_diag[:, np.newaxis] * x_pos
-            w_neg = S_diag[:, np.newaxis] * x_neg
-
-            # Combine: eigenvalues [+sigma_1,...,+sigma_n, -sigma_1,...,-sigma_n]
-            all_w = np.concatenate([sigma, -sigma])
-            all_v = np.hstack([x_pos, x_neg])
-            all_vl = np.hstack([w_pos, w_neg])
-
-            # Unsort rows back to original ordering
-            all_v = all_v[inv_perm, :]
-            all_vl = all_vl[inv_perm, :]
-
-            w_T[:] = all_w
-            v_RT[:] = all_v
-            vl_RT[:] = all_vl
-
-        comm.broadcast(v_RT, 0)
-        comm.broadcast(vl_RT, 0)
-        comm.broadcast(w_T, 0)
-        return w_T, v_RT, exclude_S, vl_RT
-
-    def _skew_solve_elpa(self, bse, comm, K_J_full, N, n):
-        """Solve skew-symmetric eigenproblem using ELPA (parallel)."""
-        from gpaw.old.matrix import suggest_blocking
-
-        bse.context.print('  Using ELPA skew-symmetric eigensolver...')
-
-        # Distribute K_J from master to block-cyclic ScaLAPACK grid
-        nrows, ncols, bs = suggest_blocking(N, comm.size)
-        grid = BlacsGrid(comm, nrows, ncols)
-
-        # Local descriptor: full matrix on rank 0 only
-        local_desc = grid.new_descriptor(N, N, N, N)
-        # Block-cyclic descriptor for ELPA
-        bc_desc = grid.new_descriptor(N, N, bs, bs)
-
-        K_J_master = local_desc.empty(dtype=float)
-        if comm.rank == 0:
-            K_J_master[:, :] = K_J_full
-
-        K_J_bc = bc_desc.empty(dtype=float)
-        Redistributor(comm, local_desc, bc_desc).redistribute(
-            K_J_master, K_J_bc)
-
-        # ELPA skew-symmetric eigensolver
-        Q_bc = bc_desc.empty(dtype=float)
-        ev = np.empty(n, dtype=float)
-        elpa = LibElpa(bc_desc)
-        elpa.skew_diagonalize(K_J_bc, Q_bc, ev)
-
-        # Collect Q on master
-        Q_master = local_desc.empty(dtype=float)
-        Redistributor(comm, bc_desc, local_desc).redistribute(
-            Q_bc, Q_master)
-
-        sigma = ev  # BSE eigenvalues = ELPA skew eigenvalues
-        Q_full = None
-        if comm.rank == 0:
-            Q_full = Q_master
-        comm.broadcast(sigma, 0)
-
-        return sigma, Q_full
-
-    def _skew_solve_scipy(self, bse, comm, K_J_full, N, n):
-        """Solve skew-symmetric eigenproblem using scipy (serial)."""
-        bse.context.print('  Using scipy (serial) skew eigensolver...')
-
-        sigma = np.empty(n, dtype=float)
-        z_k = None  # complex eigenvectors, shape (N, n)
-
-        if comm.rank == 0:
-            # i*K_J is Hermitian; eigenvalues of i*K_J are ±sigma_k
-            # eigh returns ascending order: -sigma_n,...,-sigma_1, +sigma_1,...
-            iK_J = 1j * K_J_full
-            sigma_all, Y_all = eigh(iK_J)
-
-            # First n eigenvalues are negative: correspond to K_J eig +i*sigma
-            sigma[:] = -sigma_all[:n][::-1]  # positive, ascending
-            z_k = Y_all[:, :n][:, ::-1]      # corresponding eigenvectors
-
-        comm.broadcast(sigma, 0)
-        return sigma, z_k
 
     def diagonalize_tammdancoff(self, bse, deps_max=None,
                                backend='scalapack'):
@@ -471,6 +233,27 @@ class BSEMatrix:
         bse.context.print('  Eliminated %s pair orbitals' % len(
             exclude_S))
         return H_rr, new_desc
+
+
+def _scale_distributed_rows(A_rr, scale_R, desc):
+    """Scale rows of a block-cyclic distributed matrix by a global vector.
+
+    For each global row i, multiply A[i, :] by scale_R[i].
+    """
+    if not desc.blacsgrid.is_active():
+        return
+    M = desc.gshape[0]
+    mb = desc.bshape[0]
+    myrow = desc.blacsgrid.myrow
+    nprow = desc.blacsgrid.nprow
+    local_rows = A_rr.shape[0]
+
+    # Build global row indices for all local rows
+    block_indices = np.arange(local_rows) // mb
+    offsets = np.arange(local_rows) % mb
+    global_rows = (block_indices * nprow + myrow) * mb + offsets
+    valid = global_rows < M
+    A_rr[valid] *= scale_R[global_rows[valid], np.newaxis]
 
 
 def parallel_delete(A_nn: np.ndarray,
@@ -1158,27 +941,21 @@ class BSEBackend:
         return ScreenedPotential(pawcorr_q, W_qGG, qpd_q)
 
     @timer('diagonalize')
-    def diagonalize_bse_matrix(self, bsematrix, structured=True,
-                                backend='elpa_skew'):
+    def diagonalize_bse_matrix(self, bsematrix, backend='elpa'):
         """Diagonalize the BSE Hamiltonian.
 
         Parameters
         ----------
-        structured : bool
-            Use structure-preserving diagonalization (non-TDA only).
         backend : str
-            Backend for structured non-TDA diagonalization:
-            'elpa_skew': Real skew-symmetric reduction with ELPA solver.
-            'hermitian': Hermitian reduction with scipy eigh.
+            For non-TDA: 'elpa' (Hermitian reduction with ELPA),
+            'mkl' (MKL non-symmetric), or 'numpy' (serial fallback).
         """
         self.context.print('Diagonalizing Hamiltonian')
         if self.use_tammdancoff:
             return bsematrix.diagonalize_tammdancoff(self)
-        elif structured:
-            return bsematrix.diagonalize_nontammdancoff_structured(
-                self, backend=backend)
         else:
-            return bsematrix.diagonalize_nontammdancoff(self)
+            return bsematrix.diagonalize_nontammdancoff(
+                self, backend=backend)
 
     @timer('get_bse_matrix')
     def get_bse_matrix(self, optical=True, irreducible=False):
