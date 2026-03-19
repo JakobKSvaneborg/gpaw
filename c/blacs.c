@@ -693,12 +693,14 @@ PyObject* blacs_destroy(PyObject *self, PyObject *args)
 #ifdef GPAW_WITH_INTEL_MKL
 PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
 {
-  PyArrayObject* a_obj; // matrix;
-  PyArrayObject* U_obj; // matrix;
-  PyArrayObject* eps_obj; // matrix;
+  PyArrayObject* a_obj; // matrix
+  PyArrayObject* U_obj; // right eigenvectors
+  PyArrayObject* eps_obj; // eigenvalues
   PyArrayObject* desca_obj; // descriptor
+  PyObject* VL_pyobj = NULL; // optional left eigenvectors
 
-  if (!PyArg_ParseTuple(args, "OOOO", &a_obj, &U_obj, &eps_obj, &desca_obj))
+  if (!PyArg_ParseTuple(args, "OOOO|O", &a_obj, &U_obj, &eps_obj,
+                         &desca_obj, &VL_pyobj))
     return NULL;
 
    char balanc = 'N';
@@ -711,12 +713,21 @@ PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
 
    double_complex* w = (double_complex*) PyArray_BYTES(eps_obj);
    double_complex* vl = NULL;
-   int descvl = 0;
-   double_complex* vr = (double_complex*) PyArray_BYTES(U_obj);;
+   int descvl_dummy = 0;
+   int* descvl = &descvl_dummy;
+   double_complex* vr = (double_complex*) PyArray_BYTES(U_obj);
    int* descvr = (int*) PyArray_BYTES(desca_obj);
+
+   // If left eigenvector array is provided, compute left eigenvectors
+   if (VL_pyobj != NULL && VL_pyobj != Py_None) {
+       jobvl = 'V';
+       vl = (double_complex*) PyArray_BYTES((PyArrayObject*) VL_pyobj);
+       descvl = (int*) PyArray_BYTES(desca_obj);
+   }
+
    int ilo = 1;
    int ihi = n;
-   double* scale = (double*) malloc( sizeof(double) * n);
+   double* scale = (double*) malloc(sizeof(double) * n);
    double abnrm = 0;
    double* rconde = (double*) malloc(sizeof(double) * n);
    double* rcondv = NULL;
@@ -734,7 +745,7 @@ PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
            desca,
            w,
            vl,
-           &descvl,
+           descvl,
            vr,
            descvr,
            &ilo,
@@ -760,7 +771,7 @@ PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
            desca,
            w,
            vl,
-           &descvl,
+           descvl,
            vr,
            descvr,
            &ilo,

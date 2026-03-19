@@ -26,8 +26,7 @@ from gpaw.response.screened_interaction import (GammaIntegrationMode,
                                                 initialize_w_calculator)
 from gpaw.utilities.elpa import LibElpa
 from gpaw.utilities.scalapack import (have_mkl,
-                                      mkl_scalapack_diagonalize_non_symmetric,
-                                      pblas_gemm, scalapack_solve)
+                                      mkl_scalapack_diagonalize_non_symmetric)
 
 
 def decide_whether_tammdancoff(val_m, con_m):
@@ -57,24 +56,33 @@ class BSEMatrix:
         if comm.size > 1 and have_mkl():
             bse.context.print('  Using mkl...')
             v_rt = desc.empty(dtype=complex)
+            vl_rt = desc.empty(dtype=complex)
             w_T = np.empty(nR, dtype=complex)
-            mkl_scalapack_diagonalize_non_symmetric(desc, H_rr, v_rt, w_T)
+            mkl_scalapack_diagonalize_non_symmetric(
+                desc, H_rr, v_rt, w_T, zl=vl_rt)
             grid_Rt = BlacsGrid(comm, 1, comm.size)
             nt = -((-nR) // comm.size)
             desc_Rt = grid_Rt.new_descriptor(nR, nR, nR, nt)
             v_Rt = desc_Rt.zeros(dtype=complex)
-            Redistributor(comm, desc, desc_Rt).redistribute(v_rt, v_Rt)
-            return w_T, v_Rt, exclude_S
+            vl_Rt = desc_Rt.zeros(dtype=complex)
+            redist = Redistributor(comm, desc, desc_Rt)
+            redist.redistribute(v_rt, v_Rt)
+            redist.redistribute(vl_rt, vl_Rt)
+            return w_T, v_Rt, exclude_S, vl_Rt
 
         bse.context.print('  Using numpy.linalg.eig...')
         H_RR = desc.collect_on_master(H_rr)
         w_T = np.zeros(nR, complex)
         v_RT = np.zeros((nR, nR), complex)
+        vl_RT = np.zeros((nR, nR), complex)
         if comm.rank == 0:
             w_T, v_RT = np.linalg.eig(H_RR)
+            # Left eigenvectors: eigenvectors of H^H
+            _, vl_RT = np.linalg.eig(H_RR.conj().T)
         comm.broadcast(v_RT, 0)
+        comm.broadcast(vl_RT, 0)
         comm.broadcast(w_T, 0)
-        return w_T, v_RT, exclude_S
+        return w_T, v_RT, exclude_S, vl_RT
 
     def diagonalize_tammdancoff(self, bse, deps_max=None,
                                backend='scalapack'):
@@ -832,7 +840,6 @@ class BSEBackend:
 
     @timer('get_spectral_weights')
     def get_spectral_weights(self, eig_data, df_S, mode_c):
-        from gpaw.old.matrix import suggest_blocking
         if mode_c is None:
             rho_S = self.rhoG0_S
         else:
@@ -842,12 +849,13 @@ class BSEBackend:
 
         w_T, v_Rt = eig_data[0], eig_data[1]
         exclude_S = eig_data[2]
+        # Left eigenvectors (only available for non-tamm-dancoff)
+        vl_Rt = eig_data[3] if len(eig_data) > 3 else None
         comm = self.context.comm
         nR = self.nS - len(exclude_S)
         nt = -(-nR // comm.size)
         dft_R = np.delete(df_S, exclude_S)
         rhot_R = np.delete(rho_S, exclude_S)
-        C_T = np.zeros(nR, complex)  # spectral weights
 
         if self.use_tammdancoff:
             if comm.size == 1:
@@ -872,66 +880,35 @@ class BSEBackend:
             C_T = C_T.flatten()
             return w_T, C_T
 
-        # not tamm-dancoff
-        if comm.size == 1 or not have_mkl():
+        # Non-tamm-dancoff spectral weights.
+        # With left eigenvectors W (where W^H V = I), the spectral
+        # weights are simply C_t = (rho @ V) * conj((rho*df) @ W).
+        # Without left eigenvectors, we must compute the overlap
+        # N = V^H V and solve N^T x = B, which costs O(N^3).
+        if vl_Rt is not None:
+            # Use left eigenvectors — avoids O(N^3) overlap computation
             A_t = np.dot(rhot_R, v_Rt)
-            B_t = np.dot(rhot_R * dft_R, v_Rt)
-            N_tt = np.dot(v_Rt.conj().T, v_Rt)
-            B_t = np.linalg.solve(N_tt.T, B_t)
+            B_t = np.dot(rhot_R * dft_R, vl_Rt)
             C_t = A_t * B_t.conj()
-            return w_T, C_t
+            if comm.size == 1:
+                return w_T, C_t
+            grid_Rt = BlacsGrid(comm, 1, comm.size)
+            desc_t = grid_Rt.new_descriptor(1, nR, 1, nt)
+            C_1t = desc_t.zeros(dtype=complex)
+            C_1t[0, :] = C_t
+            C_T = desc_t.collect_on_master(C_1t)
+            if comm.rank != 0:
+                C_T = np.empty((1, nR), dtype=complex)
+            comm.broadcast(C_T, 0)
+            return w_T, C_T.flatten()
 
-        # create blacs grid on which A_t and B_t are distributed
-        grid_Rt = BlacsGrid(comm, 1, comm.size)
-
-        # get descriptors for existing blacs grid
-        desc1_t = grid_Rt.new_descriptor(1, nR, 1, nt)
-        desc_Rt = grid_Rt.new_descriptor(nR, nR, nR, nt)
-
-        A1_t = desc1_t.zeros(dtype=complex)
-        B1_t = desc1_t.zeros(dtype=complex)
-        A1_t[0, :] = np.dot(rhot_R, v_Rt)
-        B1_t[0, :] = np.dot(rhot_R * dft_R, v_Rt)
-
-        # new blacs grid. this must be created because scalapack_solve
-        # requires that the row and columns have the same blocksize
-        nrows, ncols, blocksize = suggest_blocking(nR, comm.size)
-        grid_tt = BlacsGrid(comm, nrows, ncols)
-        desc_tt = grid_tt.new_descriptor(nR, nR, blocksize, blocksize)
-        desc_t = grid_tt.new_descriptor(1, nR, blocksize, blocksize)
-        vector_redistributor = Redistributor(comm, desc1_t, desc_t)
-
-        A_t = desc_t.zeros(dtype=complex)
-        vector_redistributor.redistribute(A1_t, A_t)
-
-        B_t = desc_t.zeros(dtype=complex)
-        vector_redistributor.redistribute(B1_t, B_t)
-
-        # eigenvectors of BSE Hamiltonian
-        v_rt = desc_tt.zeros(dtype=complex)
-        Redistributor(comm, desc_Rt,
-                      desc_tt).redistribute(v_Rt, v_rt)
-
-        # compute overlap matrix N_tt = V^H V
-        # (right eigenvectors of non-symmetric matrix are not orthogonal)
-        N_tt = desc_tt.zeros(dtype=complex)
-        pblas_gemm(1.0, v_rt, v_rt, 0.0,
-                   N_tt, desc_tt, desc_tt, desc_tt,
-                   transa='C')
-
-        # Find B_t including the inverse of overlap
-        # Note that scalapack automatically transposes N_tt,
-        # so we don't do this explicitly here (unlike in the serial case)
-
-        scalapack_solve(desc_tt, desc_t, N_tt, B_t)
-
+        # Fallback: no left eigenvectors available (serial or no MKL)
+        A_t = np.dot(rhot_R, v_Rt)
+        B_t = np.dot(rhot_R * dft_R, v_Rt)
+        N_tt = np.dot(v_Rt.conj().T, v_Rt)
+        B_t = np.linalg.solve(N_tt.T, B_t)
         C_t = A_t * B_t.conj()
-        C_T = desc_t.collect_on_master(C_t)
-        if comm.rank != 0:
-            C_T = np.empty((1, nR), dtype=complex)
-        comm.broadcast(C_T, 0)
-        C_T = C_T.flatten()
-        return w_T, C_T
+        return w_T, C_t
 
     def _cache_eig_data(self, irreducible, optical, w_w):
         if (not hasattr(self, 'eig_data')
@@ -1017,14 +994,19 @@ class BSEBackend:
         w_t = w_T[self.blocks.myslice]
 
         if not self.use_tammdancoff:
+            vl_Rt = self.eig_data[3] if len(self.eig_data) > 3 else None
             if comm.rank == 0:
-                v_RT = v_Rt
-                A_GT = rho_RG.T @ v_RT
-                B_GT = rho_RG.T * df_R[np.newaxis] @ v_RT
-                tmp = v_RT.conj().T @ v_RT
-                overlap_tt = np.linalg.inv(tmp)
-                C_tGG = ((B_GT.conj() @ overlap_tt.T).T)[..., np.newaxis] *\
-                    A_GT.T[:, np.newaxis]
+                A_GT = rho_RG.T @ v_Rt
+                if vl_Rt is not None:
+                    B_GT = rho_RG.T * df_R[np.newaxis] @ vl_Rt
+                    C_tGG = (B_GT.conj().T)[..., np.newaxis] *\
+                        A_GT.T[:, np.newaxis]
+                else:
+                    B_GT = rho_RG.T * df_R[np.newaxis] @ v_Rt
+                    tmp = v_Rt.conj().T @ v_Rt
+                    overlap_tt = np.linalg.inv(tmp)
+                    C_tGG = ((B_GT.conj() @ overlap_tt.T).T)[..., np.newaxis]\
+                        * A_GT.T[:, np.newaxis]
                 C_tGG = C_tGG[:nR].reshape((nR, nG, nG))
                 flat_C_tGG = C_tGG.ravel()
             else:

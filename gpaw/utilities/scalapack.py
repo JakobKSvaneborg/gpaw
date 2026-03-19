@@ -297,15 +297,24 @@ def have_mkl():
     return hasattr(cgpaw, 'mklscalapack_diagonalize_geev')
 
 
-def mkl_scalapack_diagonalize_non_symmetric(desca, a, z, w, transpose=True):
+def mkl_scalapack_diagonalize_non_symmetric(desca, a, z, w, transpose=True,
+                                             zl=None):
     """ Diagonalize non symmetric matrix.
 
     Requires mkl scalapack to function.
-    Transpose is true by default (in order to match Fortran array ordering)
+    Transpose is true by default (in order to match Fortran array ordering).
     Disable this if you want more control and reduced overhead.
+
+    If zl is provided (a distributed matrix compatible with desca),
+    the left eigenvectors will be computed and stored in zl.
+    Left eigenvectors satisfy W^H A = diag(w) W^H, i.e. they are
+    computed such that W^H V = I (bi-orthogonal to right eigenvectors).
+    This avoids computing the overlap V^H V when both are needed.
     """
     desca.checkassert(a)
     desca.checkassert(z)
+    if zl is not None:
+        desca.checkassert(zl)
 
     assert desca.gshape[0] == desca.gshape[1]
     assert all([bsize >= 6 for bsize in desca.bshape]), \
@@ -319,11 +328,15 @@ def mkl_scalapack_diagonalize_non_symmetric(desca, a, z, w, transpose=True):
         pblas_tran(1, a, 0, a2, desca, desca, conj=False)
     else:
         a2 = a
-    info = cgpaw.mklscalapack_diagonalize_geev(a2, z, w, desca.asarray())
+    info = cgpaw.mklscalapack_diagonalize_geev(a2, z, w, desca.asarray(), zl)
     if transpose:
         z2 = desca.empty(dtype=complex)
         pblas_tran(1, z, 0, z2, desca, desca, conj=False)
         z[:] = z2
+        if zl is not None:
+            zl2 = desca.empty(dtype=complex)
+            pblas_tran(1, zl, 0, zl2, desca, desca, conj=False)
+            zl[:] = zl2
 
     if info != 0:
         raise RuntimeError('mkl_non_symmetric_diagonalize_geevx error: %d'
