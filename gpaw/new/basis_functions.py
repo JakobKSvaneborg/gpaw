@@ -103,10 +103,15 @@ def find_sphere_images(
     shifts = np.stack(cells, axis=-1)
     # includes (0, 0, 0), ie. the main cell
 
+    # Can happen that a sphere overlaps the cell but not any grid points in
+    # it, because of how boundary points are treated. We only care about grid
+    # point overlaps, so do overlap checks against a slightly shrinked cell.
+    last_frac_c = (grid.size_c - 1) / grid.size_c
+
     # Place image sphere candidates
     image_pos_c = pos_c + shifts
     # Find closest point to the image within the main cell
-    image_closest_c = np.clip(image_pos_c, 0.0, 1.0)
+    image_closest_c = np.clip(image_pos_c, 0.0, last_frac_c)
 
     # The actual overlap check:
     image_pos_v = image_pos_c @ grid.cell_cv
@@ -714,9 +719,8 @@ class BasisFunctionCollectionBase(ABC):
 
                 closest_v = closest_frac_c @ self.grid.cell_cv
 
-                # FIXME can happen that a sphere DOES overlap the block,
-                # but NOT any grid points in the block => not needed.
-                # Happens already in update_atom_position()...
+                # FIXME same issue with block being "too large" as in
+                # find_sphere_images()
                 if np.sum((phi.position - closest_v)**2) < radius**2:
                     block_coords = (bx, by, bz)
                     if block_coords in block_map:
