@@ -25,9 +25,7 @@ from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.response.screened_interaction import (GammaIntegrationMode,
                                                 initialize_w_calculator)
 from gpaw.utilities.elpa import LibElpa
-from gpaw.utilities.scalapack import (have_mkl,
-                                      mkl_scalapack_diagonalize_non_symmetric,
-                                      pblas_simple_gemm,
+from gpaw.utilities.scalapack import (pblas_simple_gemm,
                                       scalapack_cholesky,
                                       scalapack_trsm)
 
@@ -56,7 +54,6 @@ class BSEMatrix:
                   Cholesky and triangular solve for eigenvector recovery.
                   Exploits BSE pseudo-Hermitian structure; eigenvalues
                   come in ±ω pairs.
-          'mkl':  MKL ScaLAPACK non-symmetric eigensolver (pzgeevx).
           'numpy': Serial numpy.linalg.eig fallback.
         """
         df_S = self.df_S
@@ -71,12 +68,6 @@ class BSEMatrix:
 
         if backend == 'elpa' and comm.size > 1 and LibElpa.have_elpa():
             return self._diag_nontd_elpa(bse, H_rr, desc, exclude_S, nR)
-
-        if backend == 'mkl' or (backend == 'elpa' and not
-                                 LibElpa.have_elpa()):
-            if comm.size > 1 and have_mkl():
-                return self._diag_nontd_mkl(
-                    bse, H_rr, desc, exclude_S, nR)
 
         return self._diag_nontd_numpy(bse, H_rr, desc, exclude_S, nR)
 
@@ -142,25 +133,6 @@ class BSEMatrix:
         # Convert eigenvalues to complex for interface compatibility
         w_T_complex = w_T.astype(complex)
         return w_T_complex, v_Rt, exclude_S, vl_Rt
-
-    def _diag_nontd_mkl(self, bse, H_rr, desc, exclude_S, nR):
-        """Non-symmetric eigensolver via MKL ScaLAPACK (pzgeevx)."""
-        comm = bse.context.comm
-        bse.context.print('  Using mkl...')
-        v_rt = desc.empty(dtype=complex)
-        vl_rt = desc.empty(dtype=complex)
-        w_T = np.empty(nR, dtype=complex)
-        mkl_scalapack_diagonalize_non_symmetric(
-            desc, H_rr, v_rt, w_T, zl=vl_rt)
-        grid_Rt = BlacsGrid(comm, 1, comm.size)
-        nt = -((-nR) // comm.size)
-        desc_Rt = grid_Rt.new_descriptor(nR, nR, nR, nt)
-        v_Rt = desc_Rt.zeros(dtype=complex)
-        vl_Rt = desc_Rt.zeros(dtype=complex)
-        redist = Redistributor(comm, desc, desc_Rt)
-        redist.redistribute(v_rt, v_Rt)
-        redist.redistribute(vl_rt, vl_Rt)
-        return w_T, v_Rt, exclude_S, vl_Rt
 
     def _diag_nontd_numpy(self, bse, H_rr, desc, exclude_S, nR):
         """Serial numpy eigensolver fallback."""
@@ -947,8 +919,8 @@ class BSEBackend:
         Parameters
         ----------
         backend : str
-            For non-TDA: 'elpa' (Hermitian reduction with ELPA),
-            'mkl' (MKL non-symmetric), or 'numpy' (serial fallback).
+            For non-TDA: 'elpa' (Hermitian reduction with ELPA)
+            or 'numpy' (serial fallback).
         """
         self.context.print('Diagonalizing Hamiltonian')
         if self.use_tammdancoff:
