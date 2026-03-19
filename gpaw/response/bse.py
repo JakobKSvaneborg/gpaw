@@ -27,7 +27,7 @@ from gpaw.response.screened_interaction import (GammaIntegrationMode,
 from gpaw.utilities.elpa import LibElpa
 from gpaw.utilities.scalapack import (have_mkl,
                                       mkl_scalapack_diagonalize_non_symmetric,
-                                      pblas_gemm, pblas_tran, scalapack_solve)
+                                      pblas_gemm, scalapack_solve)
 
 
 def decide_whether_tammdancoff(val_m, con_m):
@@ -912,14 +912,12 @@ class BSEBackend:
         Redistributor(comm, desc_Rt,
                       desc_tt).redistribute(v_Rt, v_rt)
 
-        # conjugate transpose eigenvectors
-        vc_tr = desc_tt.zeros(dtype=complex)
-        pblas_tran(1.0, v_rt, 0.0, vc_tr, desc_tt, desc_tt, conj=True)
-
-        # compute overlap matrix N_tt
+        # compute overlap matrix N_tt = V^H V
+        # (right eigenvectors of non-symmetric matrix are not orthogonal)
         N_tt = desc_tt.zeros(dtype=complex)
-        pblas_gemm(1.0, vc_tr, v_rt, 0.0,
-                   N_tt, desc_tt, desc_tt, desc_tt)
+        pblas_gemm(1.0, v_rt, v_rt, 0.0,
+                   N_tt, desc_tt, desc_tt, desc_tt,
+                   transa='C')
 
         # Find B_t including the inverse of overlap
         # Note that scalapack automatically transposes N_tt,
@@ -1050,10 +1048,8 @@ class BSEBackend:
             C_tGG1 = desc1.empty(dtype=complex)
             np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt,
                       out=C_tGG1.reshape((-1, nG, nG)))
-            print(f'shape is {C_tGG.shape}')
-            C_tGG = C_tGG[:C_tGG.shape[0]].reshape((C_tGG.shape[0], nG, nG))
-            C_tGG1 = C_tGG1[:C_tGG1.shape[0]].reshape(
-                (C_tGG1.shape[0], nG, nG))
+            C_tGG = C_tGG.reshape((-1, nG, nG))
+            C_tGG1 = C_tGG1.reshape((-1, nG, nG))
 
         eta /= Hartree
 

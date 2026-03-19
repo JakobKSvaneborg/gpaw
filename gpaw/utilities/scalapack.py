@@ -317,6 +317,8 @@ def mkl_scalapack_diagonalize_non_symmetric(desca, a, z, w, transpose=True):
     if transpose:
         a2 = desca.empty(dtype=complex)
         pblas_tran(1, a, 0, a2, desca, desca, conj=False)
+    else:
+        a2 = a
     info = cgpaw.mklscalapack_diagonalize_geev(a2, z, w, desca.asarray())
     if transpose:
         z2 = desca.empty(dtype=complex)
