@@ -116,8 +116,8 @@ $s = -1$.
 \section{Transformation of $W_{\vb{GG}'}$ under time reversal}
 %----------------------------------------------------------------------
 
-Since $W(\vb{r}, \vb{r}')$ is real in real space, its Fourier
-components satisfy
+Since $W(\vb{r}, \vb{r}', \omega = 0)$ is real in real space, its
+plane-wave matrix elements satisfy
 \begin{equation}\label{eq:reality}
   W_{\vb{GG}'}(\vb{q})^*
   = W_{-\vb{G},-\vb{G}'}(-\vb{q}).
@@ -159,6 +159,120 @@ Hence, when $s = -1$, the stored $W_{\vb{GG}'}(\vb{q}_\text{IBZ})$
 must be \textbf{complex-conjugated} before use.
 
 %----------------------------------------------------------------------
+\section{Why $W_{\vb{GG}'}(\vb{q})$ is complex for non-centrosymmetric
+         crystals}
+\label{sec:imW}
+%----------------------------------------------------------------------
+
+Since the conjugation has no effect on a real matrix, the bug is only
+relevant when $W_{\vb{GG}'}(\vb{q})$ has a nonzero imaginary part.
+In this section we show that this imaginary part is a genuine physical
+property of non-centrosymmetric crystals, not a numerical artifact.
+
+\subsection{Reality in real space does not imply reality in reciprocal
+            space}
+
+The static screened interaction $W(\vb{r}, \vb{r}', \omega = 0)$ is
+real for all $\vb{r}$, $\vb{r}'$.  However, reality in real space and
+reality in reciprocal space are not simultaneously achievable unless the
+crystal has inversion symmetry.  This is a standard property of Fourier
+transforms, analogous to the fact that the structure factor $S(\vb{G})$
+of a non-centrosymmetric crystal is complex even though the electron
+density $n(\vb{r})$ is real.
+
+\subsection{Centrosymmetric case: $W_{\vb{GG}'}$ is real}
+
+For a crystal with spatial inversion, $W(\vb{r},\vb{r}') =
+W(-\vb{r},-\vb{r}')$.  Taking the complex conjugate of the Fourier
+transform and substituting $\vb{r} \to -\vb{r}$,
+$\vb{r}' \to -\vb{r}'$:
+\begin{align}
+  W_{\vb{GG}'}(\vb{q})^*
+  &= \frac{1}{\Omega}\int\!\!\int
+     e^{i(\vb{q}+\vb{G})\cdot\vb{r}}\,
+     W(\vb{r},\vb{r}')\,
+     e^{-i(\vb{q}+\vb{G}')\cdot\vb{r}'}\,
+     \dd{\vb{r}}\,\dd{\vb{r}'}
+  \notag\\
+  &= \frac{1}{\Omega}\int\!\!\int
+     e^{-i(\vb{q}+\vb{G})\cdot\vb{r}}\,
+     W(-\vb{r},-\vb{r}')\,
+     e^{i(\vb{q}+\vb{G}')\cdot\vb{r}'}\,
+     \dd{\vb{r}}\,\dd{\vb{r}'}
+  \notag\\
+  &= \frac{1}{\Omega}\int\!\!\int
+     e^{-i(\vb{q}+\vb{G})\cdot\vb{r}}\,
+     W(\vb{r},\vb{r}')\,
+     e^{i(\vb{q}+\vb{G}')\cdot\vb{r}'}\,
+     \dd{\vb{r}}\,\dd{\vb{r}'}
+  \notag\\
+  &= W_{\vb{GG}'}(\vb{q}).
+\end{align}
+Hence $W_{\vb{GG}'}(\vb{q})$ is real for \emph{all} $\vb{G}$,
+$\vb{G}'$, and the bug has no effect.
+
+\subsection{Non-centrosymmetric case: $W_{\vb{GG}'}$ is genuinely
+            complex}
+
+Without inversion symmetry, the substitution
+$W(-\vb{r},-\vb{r}') = W(\vb{r},\vb{r}')$ is not valid, so
+$W_{\vb{GG}'}(\vb{q})^* \neq W_{\vb{GG}'}(\vb{q})$ in general.
+The imaginary part is a real physical property of the crystal,
+entirely independent of any numerical broadening parameter~$\eta$.
+
+We can verify this at the level of the irreducible polarizability.  In
+GPAW, the static $\chi^0$ is computed as
+\begin{equation}\label{eq:chi0}
+  \chi^0_{\vb{GG}'}(\vb{q}, \omega = 0) = \sum_{nn'\vb{k}}
+  \frac{f_{n\vb{k}} - f_{n'\vb{k}+\vb{q}}}
+       {\varepsilon_{n\vb{k}} - \varepsilon_{n'\vb{k}+\vb{q}} + i\eta}
+  \;\rho^*_{nn'\vb{G}}(\vb{k},\vb{q})\;
+  \rho_{nn'\vb{G}'}(\vb{k},\vb{q}),
+\end{equation}
+where
+$\rho_{nn'\vb{G}}(\vb{k},\vb{q})
+= \langle \psi_{n\vb{k}} | e^{i(\vb{q}+\vb{G})\cdot\vb{r}} |
+  \psi_{n'\vb{k}+\vb{q}} \rangle$
+are pair densities.  In the code (class \texttt{GenericUpdate} in
+\texttt{gpaw/response/integrators.py}), the actual formula evaluated at
+$\omega = 0$ is
+\begin{equation}\label{eq:xm}
+  x_m = \frac{1}{0 + \Delta\varepsilon_m + i\eta}
+       - \frac{1}{0 - \Delta\varepsilon_m + i\eta}
+       = \frac{2\Delta\varepsilon_m}{\Delta\varepsilon_m^2 + \eta^2},
+\end{equation}
+which is \emph{real}.  The imaginary part of $\chi^0$ therefore does
+\emph{not} come from the energy denominator (which cancels at $\omega =
+0$ regardless of $\eta$).  It comes from the pair-density outer product
+$\rho^*_{nn'\vb{G}}\,\rho_{nn'\vb{G}'}$, which is a complex matrix
+whenever $\vb{G} \neq \vb{G}'$ (it equals $|\rho|^2 \in \mathbb{R}$
+only on the diagonal).
+
+With inversion symmetry, Bloch states can be chosen such that the pair
+densities satisfy
+$\rho_{nn'\vb{G}}(\vb{k},\vb{q})
+= \rho^*_{nn',-\vb{G}}(\vb{k},\vb{q})$,
+which makes the full $\chi^0_{\vb{GG}'}$ real.  Without inversion
+symmetry, no such gauge choice is possible, and
+$\operatorname{Im}\chi^0_{\vb{GG}'} \neq 0$, propagating through
+$\varepsilon^{-1}$ to give a genuinely complex $W_{\vb{GG}'}$.
+
+%----------------------------------------------------------------------
+\section{The error introduced by the missing conjugation}
+%----------------------------------------------------------------------
+
+The error per matrix element is
+\begin{equation}
+  W_{\vb{GG}'}(\vb{q}) - W_{\vb{GG}'}(\vb{q})^*
+  = 2i\,\operatorname{Im} W_{\vb{GG}'}(\vb{q}).
+\end{equation}
+While the imaginary parts are nonzero, they are typically much smaller
+in magnitude than the real parts (recall that $W$ is dominated by the
+real bare Coulomb interaction).  This explains why the error is modest
+($\sim 10^{-5}$\,Ha per BSE matrix element), while still being large
+enough to break the Hermiticity of the BSE Hamiltonian.
+
+%----------------------------------------------------------------------
 \section{The bug: missing conjugation in the BSE kernel}
 %----------------------------------------------------------------------
 
@@ -193,79 +307,6 @@ conjugation applied when $s = -1$.  The fix adds a single conjugation:
 if symop.sign == -1:
     W_GG = W_GG.conj()
 \end{lstlisting}
-
-%----------------------------------------------------------------------
-\section{Why the error is small ($\sim10^{-5}$)}
-%----------------------------------------------------------------------
-
-The error per matrix element is
-\begin{equation}
-  W_{\vb{GG}'}(\vb{q}) - W_{\vb{GG}'}(\vb{q})^*
-  = 2i\,\operatorname{Im} W_{\vb{GG}'}(\vb{q}).
-\end{equation}
-As shown in the next section, $\operatorname{Im} W_{\vb{GG}'}$ is
-nonzero only for $\vb{G} \neq \vb{G}'$ and only when inversion
-symmetry is absent.  These off-diagonal imaginary parts are typically
-much smaller than $\operatorname{Re} W_{\vb{GG}'}$, which explains the
-modest magnitude of the error ($\sim 10^{-5}$\,Ha).
-
-%----------------------------------------------------------------------
-\section{Why $\operatorname{Im} W_{\vb{GG}'} = 0$ for
-         centrosymmetric systems}
-\label{sec:imW}
-%----------------------------------------------------------------------
-
-\subsection{Centrosymmetric case: all elements are real}
-
-For a crystal with spatial inversion, $W(\vb{r},\vb{r}') =
-W(-\vb{r},-\vb{r}')$.  Taking the complex conjugate of the Fourier
-transform and substituting $\vb{r} \to -\vb{r}$,
-$\vb{r}' \to -\vb{r}'$:
-\begin{align}
-  W_{\vb{GG}'}(\vb{q})^*
-  &= \frac{1}{\Omega}\int\!\!\int
-     e^{i(\vb{q}+\vb{G})\cdot\vb{r}}\,
-     W(\vb{r},\vb{r}')\,
-     e^{-i(\vb{q}+\vb{G}')\cdot\vb{r}'}\,
-     \dd{\vb{r}}\,\dd{\vb{r}'}
-  \notag\\
-  &= \frac{1}{\Omega}\int\!\!\int
-     e^{-i(\vb{q}+\vb{G})\cdot\vb{r}}\,
-     W(-\vb{r},-\vb{r}')\,
-     e^{i(\vb{q}+\vb{G}')\cdot\vb{r}'}\,
-     \dd{\vb{r}}\,\dd{\vb{r}'}
-  \notag\\
-  &= \frac{1}{\Omega}\int\!\!\int
-     e^{-i(\vb{q}+\vb{G})\cdot\vb{r}}\,
-     W(\vb{r},\vb{r}')\,
-     e^{i(\vb{q}+\vb{G}')\cdot\vb{r}'}\,
-     \dd{\vb{r}}\,\dd{\vb{r}'}
-  \notag\\
-  &= W_{\vb{GG}'}(\vb{q}).
-\end{align}
-Hence $W_{\vb{GG}'}(\vb{q})$ is real for \emph{all} $\vb{G}$,
-$\vb{G}'$, and the bug has no effect.
-
-\subsection{Non-centrosymmetric case: only off-diagonal elements can
-            be complex}
-
-Without inversion symmetry, the argument above fails and
-$W_{\vb{GG}'}(\vb{q})$ can be complex.  However, the static screened
-interaction is Hermitian in reciprocal space:
-\begin{equation}
-  W_{\vb{GG}'}(\vb{q}) = W_{\vb{G}'\vb{G}}(\vb{q})^*.
-\end{equation}
-For diagonal elements this immediately gives
-\begin{equation}
-  W_{\vb{GG}}(\vb{q}) = W_{\vb{GG}}(\vb{q})^*
-  \qquad\Longrightarrow\qquad
-  \operatorname{Im} W_{\vb{GG}}(\vb{q}) = 0
-  \quad \forall\;\vb{G},\,\vb{q}.
-\end{equation}
-The \textbf{diagonal elements are always real}, regardless of crystal
-symmetry.  It is only the \textbf{off-diagonal} elements
-($\vb{G} \neq \vb{G}'$) that can acquire a nonzero imaginary part when
-inversion symmetry is broken.
 
 %----------------------------------------------------------------------
 \section{Why GW is unaffected}
