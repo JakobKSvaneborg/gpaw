@@ -303,6 +303,7 @@ class Matrix(XP):
             return
 
         if self.xp is np:
+            # Use BLACS-redist:
             c = d1.comm if d1.comm.size > d2.comm.size else d2.comm
             n = max(n1, n2)
             M, N = self.shape
@@ -317,6 +318,7 @@ class Matrix(XP):
             redist(d1, self.data, d2, other.data, ctx)
             return
 
+        # For cupy arrays, we try to do it our-self!
         if d2.all_data_on_rank_zero and d1.simple:
             comm = d1.comm
             if comm.rank == 0:
@@ -344,7 +346,8 @@ class Matrix(XP):
             elif comm.rank % d2.columns == 0:
                 comm.receive(other.data, 0)
             return
-        1 / 0
+
+        assert False, (self, other)
 
     @overload
     def gather(self, broadcast: Literal[True] = True) -> Matrix:
@@ -376,6 +379,7 @@ class Matrix(XP):
         return None
 
     def scatter_from(self, other: Matrix | None) -> None:
+        """Scatter from rank-0."""
         if other is self:
             return
         M = self.new(dist=(self.dist.comm, 1, 1, *self.shape),

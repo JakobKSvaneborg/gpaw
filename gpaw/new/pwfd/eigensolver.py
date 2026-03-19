@@ -20,6 +20,7 @@ from gpaw.utilities.blas import axpy
 
 
 def slparams(nbands: int, comm: MPIComm) -> tuple[MPIComm, int, int, int]:
+    """Decide on scalapack parameters."""
     if nbands < 1000:
         return serial_comm, 1, 1, 0
     # How much of comm should we use?

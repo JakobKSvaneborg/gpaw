@@ -53,17 +53,13 @@ class Davidson(PWFDEigensolver):
         B = ibzwfs.nbands
         xp = ibzwfs.xp
         dtype = ibzwfs.dtype
-        if 0:  # domain_comm.rank == 0 and band_comm.rank == 0:
-            self.H_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp)
-            self.S_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp)
-        elif 1:
-            self.H_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp,
-                               dist=(self.domain_band_comm,
-                                     -1, 1,
-                                     2 * B, 2 * B))
-            self.S_NN = self.H_NN.new()
-        else:
-            self.H_NN = self.S_NN = Matrix(0, 0)
+
+        # H and S have everything on rank-0 of domain-band comm:
+        self.H_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp,
+                           dist=(self.domain_band_comm,
+                                 -1, 1,
+                                 2 * B, 2 * B))
+        self.S_NN = self.H_NN.new()
 
         self.M_nn = Matrix(B, B, dtype=dtype,
                            dist=(band_comm, band_comm.size),
