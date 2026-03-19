@@ -153,12 +153,9 @@ def work(name: str,
             symmetry='off',
             xc='LDA')
 
-    params['eigensolver'] = 'davidson'
-    params['parallel'] = {'sl_diagonalize': (4, 2, 64)}
-
     # Warmup:
     atoms.calc = GPAW(
-        #txt=None,
+        txt=None,
         convergence={'maximum iterations': 3},
         communicator=world,
         **params)
@@ -333,5 +330,5 @@ def main(arguments: list[str] | None = None, world=None):
 
 
 if __name__ == '__main__':
-    work('H2-0')
-    # main()
+    main()
+    # work('H2-0')
