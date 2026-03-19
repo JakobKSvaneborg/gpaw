@@ -9,7 +9,6 @@ to account for this produces a non-Hermitian BSE matrix.
 import numpy as np
 import pytest
 
-from gpaw.mpi import broadcast_float
 from gpaw.response.bse import BSE
 
 
@@ -46,59 +45,39 @@ def _build_bse_matrix(gpwfile, conjugate_W_for_time_reversal):
     return bse, bse_matrix.H_sS
 
 
-def _hermiticity_deviation(bse, H_sS):
-    """Compute max|H - H†| for a distributed BSE matrix.
-
-    H_sS is distributed over axis 0 (rows) across MPI ranks.
-    Gathers to rank 0 for the check, then broadcasts the result.
-    """
-    comm = bse.context.comm
-    H_SS = bse.collect_A_SS(H_sS)
-
-    if comm.rank == 0:
-        deviation = np.abs(H_SS - H_SS.conj().T).max()
-    else:
-        deviation = 0.0
-
-    return broadcast_float(deviation, comm)
-
-
 @pytest.mark.response
 def test_bse_hermiticity(in_tmp_dir, gpw_files):
     """Check that the TDA BSE matrix H_sS is Hermitian for MoS2."""
     gpwfile = gpw_files['mos2_5x5_pw']
 
-    # --- 1. With the fix: matrix must be Hermitian ---
-    bse_fixed, H_fixed = _build_bse_matrix(
+    # Build both matrices and gather from distributed to full on rank 0
+    bse_fixed, H_fixed_sS = _build_bse_matrix(
         gpwfile, conjugate_W_for_time_reversal=True)
+    bse_broken, H_broken_sS = _build_bse_matrix(
+        gpwfile, conjugate_W_for_time_reversal=False)
 
-    deviation_fixed = _hermiticity_deviation(bse_fixed, H_fixed)
+    comm = bse_fixed.context.comm
+    H_fixed = bse_fixed.collect_A_SS(H_fixed_sS)
+    H_broken = bse_broken.collect_A_SS(H_broken_sS)
+
+    if comm.rank != 0:
+        return
+
+    # --- 1. With the fix: matrix must be Hermitian ---
+    deviation_fixed = np.abs(H_fixed - H_fixed.conj().T).max()
     assert deviation_fixed < 1e-12, (
         f'BSE matrix is not Hermitian with fix: '
         f'max|H - H†| = {deviation_fixed:.2e}')
 
     # --- 2. Without the fix: matrix must NOT be Hermitian ---
-    bse_broken, H_broken = _build_bse_matrix(
-        gpwfile, conjugate_W_for_time_reversal=False)
-
-    deviation_broken = _hermiticity_deviation(bse_broken, H_broken)
+    deviation_broken = np.abs(H_broken - H_broken.conj().T).max()
     assert deviation_broken > 1e-6, (
         f'Expected non-Hermitian matrix without fix, but '
         f'max|H - H†| = {deviation_broken:.2e} is too small. '
         f'The test may not be exercising time-reversed q-points.')
 
     # --- 3. The fix and the broken version should differ ---
-    # Gather both matrices to rank 0 for comparison
-    comm = bse_fixed.context.comm
-    H_fixed_full = bse_fixed.collect_A_SS(H_fixed)
-    H_broken_full = bse_broken.collect_A_SS(H_broken)
-
-    if comm.rank == 0:
-        diff = np.abs(H_fixed_full - H_broken_full).max()
-    else:
-        diff = 0.0
-    diff = broadcast_float(diff, comm)
-
+    diff = np.abs(H_fixed - H_broken).max()
     assert diff > 1e-6, (
         f'Fixed and broken matrices are identical (diff={diff:.2e}). '
         f'The fix may not be active for this system.')
