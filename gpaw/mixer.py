@@ -335,9 +335,9 @@ class MSR1Mixer(BaseMixer):
             dNt_normed = dNt / ntnorm
 
             dampen = 1  # Dampen the greeds
-            punishment_factor = 0.6 if del_oldest else 0.8  # How much to reduce greed when backtracing
-            trust_scalar = 1 # Scaling factor for the trust radius.
-            abs_max_trust = 10
+            punishment_factor = 0.7 if del_oldest else 1.0  # How much to reduce greed when backtracing
+            trust_scalar = 2 # Scaling factor for the trust radius.
+            abs_max_trust = 1000
             # if self.trust_radius is not None:
             #     self.trust_radius *= punishment_factor
             abs_gb_lim = 12 # Maximum value of good Broyden.
@@ -345,9 +345,9 @@ class MSR1Mixer(BaseMixer):
             post_gb_fact = 0.9 if del_oldest else (0.9 if backtracked else 0.9)  # Scaling factor for the final amount of good Broyden
             weight = 8e-4  # Weight for regularization, 2e-4 works well. Strongly depends on the amount of good Broyden.
             B0_boost = 5e-2  # Favor the predicted greed towards 1
-            B0_lims = [0.4, 1.0]   # Limits for predicted greed
-            A0_lims = [0.02, 0.4]   # Limits for unpredicted greed
-            rate_ratio = [0.6, 1.3 if not backtracked else punishment_factor]  # Rate ratio for clipping
+            B0_lims = [0.4, 1]   # Limits for predicted greed
+            A0_lims = [0.02, 0.60]   # Limits for unpredicted greed
+            rate_ratio = [0.7, 1.3 if not backtracked else punishment_factor]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
             initial_B0 = 1.0
 
@@ -638,7 +638,8 @@ class MSR1Mixer(BaseMixer):
 
             self.uk_sG += R_sG
             step_sG = A0 * self.uk_sG + B0 * self.pk_sG
-            step_size = B0 * self.dotprod(self.pk_sG, self.pk_sG,
+
+            predicted_size = B0 * self.dotprod(self.pk_sG, self.pk_sG,
                 self.pD_asp, self.pD_asp, self.gd, mode='scalar')**0.5
 
             beta_i = alpha_i.copy()
@@ -646,10 +647,10 @@ class MSR1Mixer(BaseMixer):
             # if self.world.rank == 0:
             #     print(f"Step size: {step_size}, trust_radius: {self.trust_radius}")
 
-            if step_size > self.trust_radius * 1.02:
+            if predicted_size > self.trust_radius * 1.02:
                 # Time to mix the mixing...
                 if self.world.rank == 0:
-                    print(f'XXXX {step_size} > {self.trust_radius}')
+                    print(f'XXXX {predicted_size} > {self.trust_radius}')
                 ### Perform lsq squares with lagrange multiplier
                 # B^T R:
                 BR_i = self.dotprod(t_isG, [mR_sG, ], tD_iasp, [dD_iasp[-1]], self.gd, mode='gemm')[:, 0]
@@ -684,7 +685,7 @@ class MSR1Mixer(BaseMixer):
                 if self.world:
                     self.world.broadcast(beta_i, 0)
 
-                uk_sG = np.zeros_like(self.uk_sG)
+                uk_sG = R_sG.copy()
                 pk_sG = np.zeros_like(self.pk_sG)
 
                 for pD_sp in self.pD_asp:
@@ -702,16 +703,19 @@ class MSR1Mixer(BaseMixer):
                 #     self.pD_asp, self.pD_asp, self.gd, mode='scalar')
                 # new_step_size = new_step_size**0.5
                 new_step_size = self.trust_radius
-                scale_factor = (new_step_size / step_size)
+                scale_factor = (new_step_size / predicted_size)
                 A0 *= np.clip(scale_factor, 0, 1)
-                tmp = max(A0, min(self.A0, A0_lims[0]))
-                A0 = (self.A0 * tmp) ** 0.5
+                A0 = max(A0, min(self.A0, A0_lims[0]))
+                # A0 = (self.A0 * A0) ** 0.5
                 # A0 = self.A0
-                uk_sG += R_sG
-                step_sG = A0 * uk_sG + B0 * pk_sG
+            else:
+                # XXX: PAW corrections!!!
+                uk_sG = self.uk_sG
+                pk_sG = self.pk_sG
 
-                # self.uk_sG = uk_sG
-                # self.pk_sG = pk_sG
+            step_sG = A0 * uk_sG + B0 * pk_sG
+            # self.uk_sG = uk_sG
+            # self.pk_sG = pk_sG
 
             nt_sG[:] = nt_isG[-1] + step_sG
 
