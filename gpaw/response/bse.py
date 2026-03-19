@@ -9,7 +9,7 @@ from ase.dft import monkhorst_pack
 from ase.units import Bohr, Hartree
 from scipy.linalg import eigh
 
-from gpaw.blacs import BlacsDescriptor, BlacsGrid, Redistributor
+from gpaw.blacs import BlacsGrid, Redistributor
 from gpaw.mpi import normalize_communicator, serial_comm
 from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.response import ResponseContext
@@ -25,9 +25,9 @@ from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.response.screened_interaction import (GammaIntegrationMode,
                                                 initialize_w_calculator)
 from gpaw.utilities.elpa import LibElpa
-from gpaw.utilities.scalapack import (have_mkl,
-                                      mkl_scalapack_diagonalize_non_symmetric,
-                                      pblas_gemm, pblas_tran, scalapack_solve)
+from gpaw.utilities.scalapack import (pblas_simple_gemm,
+                                      scalapack_cholesky,
+                                      scalapack_trsm)
 
 
 def decide_whether_tammdancoff(val_m, con_m):
@@ -44,7 +44,18 @@ class BSEMatrix:
     deps_S: np.ndarray
     deps_max: float
 
-    def diagonalize_nontammdancoff(self, bse, deps_max=None):
+    def diagonalize_nontammdancoff(self, bse, deps_max=None,
+                                    backend='elpa'):
+        """Diagonalize the non-Tamm-Dancoff BSE Hamiltonian.
+
+        Backends:
+          'elpa': Structure-preserving via Hermitian reduction K = L†SL.
+                  Uses ELPA's Hermitian eigensolver on K, with distributed
+                  Cholesky and triangular solve for eigenvector recovery.
+                  Exploits BSE pseudo-Hermitian structure; eigenvalues
+                  come in ±ω pairs.
+          'numpy': Serial numpy.linalg.eig fallback.
+        """
         df_S = self.df_S
         if deps_max is None:
             deps_max = self.deps_max
@@ -54,27 +65,90 @@ class BSEMatrix:
         H_rr, desc = self.exclude_states(bse, exclude_S)
         comm = bse.context.comm
         nR = bse.nS - len(exclude_S)
-        if comm.size > 1 and have_mkl():
-            bse.context.print('  Using mkl...')
-            v_rt = desc.empty(dtype=complex)
-            w_T = np.empty(nR, dtype=complex)
-            mkl_scalapack_diagonalize_non_symmetric(desc, H_rr, v_rt, w_T)
-            grid_Rt = BlacsGrid(comm, 1, comm.size)
-            nt = -((-nR) // comm.size)
-            desc_Rt = grid_Rt.new_descriptor(nR, nR, nR, nt)
-            v_Rt = desc_Rt.zeros(dtype=complex)
-            Redistributor(comm, desc, desc_Rt).redistribute(v_rt, v_Rt)
-            return w_T, v_Rt, exclude_S
 
+        if backend == 'elpa' and comm.size > 1 and LibElpa.have_elpa():
+            return self._diag_nontd_elpa(bse, H_rr, desc, exclude_S, nR)
+
+        return self._diag_nontd_numpy(bse, H_rr, desc, exclude_S, nR)
+
+    def _diag_nontd_elpa(self, bse, H_rr, desc, exclude_S, nR):
+        """Structure-preserving BSE diagonalization using ELPA.
+
+        Exploits the pseudo-Hermitian structure H = S·Ĥ to reduce the
+        non-Hermitian BSE eigenproblem to a standard Hermitian one:
+
+        1. Form Ĥ = S·H  (Hermitian PD companion)
+        2. Cholesky: Ĥ = LL†
+        3. Form K = L†·S·L  (Hermitian, same eigenvalues as H)
+        4. ELPA Hermitian diagonalize: K·y = ω·y
+        5. Back-transform: x = L^{-†}·y  (BSE right eigenvector)
+        6. Left eigenvectors: w = S·x
+        """
+        comm = bse.context.comm
+        bse.context.print('  Using ELPA (Hermitian reduction)...')
+        deps_R = np.delete(self.deps_S, exclude_S)
+        sign_R = np.sign(deps_R)
+
+        # 1. Form Ĥ = S·H: scale each row by sign(deps)
+        Hhat_rr = H_rr.copy()
+        _scale_distributed_rows(Hhat_rr, sign_R, desc)
+
+        # 2. Distributed Cholesky: Ĥ = LL†
+        #    L stored in lower triangle of Hhat_rr
+        scalapack_cholesky(desc, Hhat_rr, 'L')
+        L_rr = Hhat_rr  # L in lower triangle, zeros in upper
+
+        # 3. Form K = L†·(S·L):
+        #    First compute SL = S·L (scale rows of L by sign)
+        SL_rr = L_rr.copy()
+        _scale_distributed_rows(SL_rr, sign_R, desc)
+        #    Then K = L†·SL via distributed matrix multiply
+        K_rr = desc.empty(dtype=complex)
+        pblas_simple_gemm(desc, desc, desc, L_rr, SL_rr, K_rr,
+                          transa='C')
+
+        # 4. ELPA Hermitian diagonalization of K
+        w_T = np.empty(nR, dtype=float)
+        v_rr = desc.empty(dtype=complex)
+        elpa = LibElpa(desc)
+        elpa.diagonalize(K_rr, v_rr, w_T)
+
+        # 5. Back-transform: solve L†·x = y for x
+        scalapack_trsm(desc, desc, L_rr, v_rr, 'L', 'C')
+
+        # 6. Left eigenvectors: w = S·x (scale rows by sign)
+        vl_rr = v_rr.copy()
+        _scale_distributed_rows(vl_rr, sign_R, desc)
+
+        # Redistribute eigenvectors for output
+        grid_Rt = BlacsGrid(comm, 1, comm.size)
+        nt = -((-nR) // comm.size)
+        desc_Rt = grid_Rt.new_descriptor(nR, nR, nR, nt)
+        v_Rt = desc_Rt.zeros(dtype=complex)
+        vl_Rt = desc_Rt.zeros(dtype=complex)
+        redist = Redistributor(comm, desc, desc_Rt)
+        redist.redistribute(v_rr, v_Rt)
+        redist.redistribute(vl_rr, vl_Rt)
+
+        # Convert eigenvalues to complex for interface compatibility
+        w_T_complex = w_T.astype(complex)
+        return w_T_complex, v_Rt, exclude_S, vl_Rt
+
+    def _diag_nontd_numpy(self, bse, H_rr, desc, exclude_S, nR):
+        """Serial numpy eigensolver fallback."""
+        comm = bse.context.comm
         bse.context.print('  Using numpy.linalg.eig...')
         H_RR = desc.collect_on_master(H_rr)
         w_T = np.zeros(nR, complex)
         v_RT = np.zeros((nR, nR), complex)
+        vl_RT = np.zeros((nR, nR), complex)
         if comm.rank == 0:
             w_T, v_RT = np.linalg.eig(H_RR)
+            _, vl_RT = np.linalg.eig(H_RR.conj().T)
         comm.broadcast(v_RT, 0)
+        comm.broadcast(vl_RT, 0)
         comm.broadcast(w_T, 0)
-        return w_T, v_RT, exclude_S
+        return w_T, v_RT, exclude_S, vl_RT
 
     def diagonalize_tammdancoff(self, bse, deps_max=None,
                                backend='scalapack'):
@@ -131,6 +205,27 @@ class BSEMatrix:
         bse.context.print('  Eliminated %s pair orbitals' % len(
             exclude_S))
         return H_rr, new_desc
+
+
+def _scale_distributed_rows(A_rr, scale_R, desc):
+    """Scale rows of a block-cyclic distributed matrix by a global vector.
+
+    For each global row i, multiply A[i, :] by scale_R[i].
+    """
+    if not desc.blacsgrid.is_active():
+        return
+    M = desc.gshape[0]
+    mb = desc.bshape[0]
+    myrow = desc.blacsgrid.myrow
+    nprow = desc.blacsgrid.nprow
+    local_rows = A_rr.shape[0]
+
+    # Build global row indices for all local rows
+    block_indices = np.arange(local_rows) // mb
+    offsets = np.arange(local_rows) % mb
+    global_rows = (block_indices * nprow + myrow) * mb + offsets
+    valid = global_rows < M
+    A_rr[valid] *= scale_R[global_rows[valid], np.newaxis]
 
 
 def parallel_delete(A_nn: np.ndarray,
@@ -818,12 +913,21 @@ class BSEBackend:
         return ScreenedPotential(pawcorr_q, W_qGG, qpd_q)
 
     @timer('diagonalize')
-    def diagonalize_bse_matrix(self, bsematrix):
+    def diagonalize_bse_matrix(self, bsematrix, backend='elpa'):
+        """Diagonalize the BSE Hamiltonian.
+
+        Parameters
+        ----------
+        backend : str
+            For non-TDA: 'elpa' (Hermitian reduction with ELPA)
+            or 'numpy' (serial fallback).
+        """
         self.context.print('Diagonalizing Hamiltonian')
         if self.use_tammdancoff:
             return bsematrix.diagonalize_tammdancoff(self)
         else:
-            return bsematrix.diagonalize_nontammdancoff(self)
+            return bsematrix.diagonalize_nontammdancoff(
+                self, backend=backend)
 
     @timer('get_bse_matrix')
     def get_bse_matrix(self, optical=True, irreducible=False):
@@ -832,7 +936,6 @@ class BSEBackend:
 
     @timer('get_spectral_weights')
     def get_spectral_weights(self, eig_data, df_S, mode_c):
-        from gpaw.old.matrix import suggest_blocking
         if mode_c is None:
             rho_S = self.rhoG0_S
         else:
@@ -842,12 +945,13 @@ class BSEBackend:
 
         w_T, v_Rt = eig_data[0], eig_data[1]
         exclude_S = eig_data[2]
+        # Left eigenvectors (only available for non-tamm-dancoff)
+        vl_Rt = eig_data[3] if len(eig_data) > 3 else None
         comm = self.context.comm
         nR = self.nS - len(exclude_S)
         nt = -(-nR // comm.size)
         dft_R = np.delete(df_S, exclude_S)
         rhot_R = np.delete(rho_S, exclude_S)
-        C_T = np.zeros(nR, complex)  # spectral weights
 
         if self.use_tammdancoff:
             if comm.size == 1:
@@ -872,68 +976,35 @@ class BSEBackend:
             C_T = C_T.flatten()
             return w_T, C_T
 
-        # not tamm-dancoff
-        if comm.size == 1 or not have_mkl():
+        # Non-tamm-dancoff spectral weights.
+        # With left eigenvectors W (where W^H V = I), the spectral
+        # weights are simply C_t = (rho @ V) * conj((rho*df) @ W).
+        # Without left eigenvectors, we must compute the overlap
+        # N = V^H V and solve N^T x = B, which costs O(N^3).
+        if vl_Rt is not None:
+            # Use left eigenvectors — avoids O(N^3) overlap computation
             A_t = np.dot(rhot_R, v_Rt)
-            B_t = np.dot(rhot_R * dft_R, v_Rt)
-            N_tt = np.dot(v_Rt.conj().T, v_Rt)
-            B_t = np.linalg.solve(N_tt.T, B_t)
+            B_t = np.dot(rhot_R * dft_R, vl_Rt)
             C_t = A_t * B_t.conj()
-            return w_T, C_t
+            if comm.size == 1:
+                return w_T, C_t
+            grid_Rt = BlacsGrid(comm, 1, comm.size)
+            desc_t = grid_Rt.new_descriptor(1, nR, 1, nt)
+            C_1t = desc_t.zeros(dtype=complex)
+            C_1t[0, :] = C_t
+            C_T = desc_t.collect_on_master(C_1t)
+            if comm.rank != 0:
+                C_T = np.empty((1, nR), dtype=complex)
+            comm.broadcast(C_T, 0)
+            return w_T, C_T.flatten()
 
-        # create blacs grid on which A_t and B_t are distributed
-        grid_Rt = BlacsGrid(comm, 1, comm.size)
-
-        # get descriptors for existing blacs grid
-        desc1_t = grid_Rt.new_descriptor(1, nR, 1, nt)
-        desc_Rt = grid_Rt.new_descriptor(nR, nR, nR, nt)
-
-        A1_t = desc1_t.zeros(dtype=complex)
-        B1_t = desc1_t.zeros(dtype=complex)
-        A1_t[0, :] = np.dot(rhot_R, v_Rt)
-        B1_t[0, :] = np.dot(rhot_R * dft_R, v_Rt)
-
-        # new blacs grid. this must be created because scalapack_solve
-        # requires that the row and columns have the same blocksize
-        nrows, ncols, blocksize = suggest_blocking(nR, comm.size)
-        grid_tt = BlacsGrid(comm, nrows, ncols)
-        desc_tt = grid_tt.new_descriptor(nR, nR, blocksize, blocksize)
-        desc_t = grid_tt.new_descriptor(1, nR, blocksize, blocksize)
-        vector_redistributor = Redistributor(comm, desc1_t, desc_t)
-
-        A_t = desc_t.zeros(dtype=complex)
-        vector_redistributor.redistribute(A1_t, A_t)
-
-        B_t = desc_t.zeros(dtype=complex)
-        vector_redistributor.redistribute(B1_t, B_t)
-
-        # eigenvectors of BSE Hamiltonian
-        v_rt = desc_tt.zeros(dtype=complex)
-        Redistributor(comm, desc_Rt,
-                      desc_tt).redistribute(v_Rt, v_rt)
-
-        # conjugate transpose eigenvectors
-        vc_tr = desc_tt.zeros(dtype=complex)
-        pblas_tran(1.0, v_rt, 0.0, vc_tr, desc_tt, desc_tt, conj=True)
-
-        # compute overlap matrix N_tt
-        N_tt = desc_tt.zeros(dtype=complex)
-        pblas_gemm(1.0, vc_tr, v_rt, 0.0,
-                   N_tt, desc_tt, desc_tt, desc_tt)
-
-        # Find B_t including the inverse of overlap
-        # Note that scalapack automatically transposes N_tt,
-        # so we don't do this explicitly here (unlike in the serial case)
-
-        scalapack_solve(desc_tt, desc_t, N_tt, B_t)
-
+        # Fallback: no left eigenvectors available (serial or no MKL)
+        A_t = np.dot(rhot_R, v_Rt)
+        B_t = np.dot(rhot_R * dft_R, v_Rt)
+        N_tt = np.dot(v_Rt.conj().T, v_Rt)
+        B_t = np.linalg.solve(N_tt.T, B_t)
         C_t = A_t * B_t.conj()
-        C_T = desc_t.collect_on_master(C_t)
-        if comm.rank != 0:
-            C_T = np.empty((1, nR), dtype=complex)
-        comm.broadcast(C_T, 0)
-        C_T = C_T.flatten()
-        return w_T, C_T
+        return w_T, C_t
 
     def _cache_eig_data(self, irreducible, optical, w_w):
         if (not hasattr(self, 'eig_data')
@@ -1019,14 +1090,19 @@ class BSEBackend:
         w_t = w_T[self.blocks.myslice]
 
         if not self.use_tammdancoff:
+            vl_Rt = self.eig_data[3] if len(self.eig_data) > 3 else None
             if comm.rank == 0:
-                v_RT = v_Rt
-                A_GT = rho_RG.T @ v_RT
-                B_GT = rho_RG.T * df_R[np.newaxis] @ v_RT
-                tmp = v_RT.conj().T @ v_RT
-                overlap_tt = np.linalg.inv(tmp)
-                C_tGG = ((B_GT.conj() @ overlap_tt.T).T)[..., np.newaxis] *\
-                    A_GT.T[:, np.newaxis]
+                A_GT = rho_RG.T @ v_Rt
+                if vl_Rt is not None:
+                    B_GT = rho_RG.T * df_R[np.newaxis] @ vl_Rt
+                    C_tGG = (B_GT.conj().T)[..., np.newaxis] *\
+                        A_GT.T[:, np.newaxis]
+                else:
+                    B_GT = rho_RG.T * df_R[np.newaxis] @ v_Rt
+                    tmp = v_Rt.conj().T @ v_Rt
+                    overlap_tt = np.linalg.inv(tmp)
+                    C_tGG = ((B_GT.conj() @ overlap_tt.T).T)[..., np.newaxis]\
+                        * A_GT.T[:, np.newaxis]
                 C_tGG = C_tGG[:nR].reshape((nR, nG, nG))
                 flat_C_tGG = C_tGG.ravel()
             else:
@@ -1050,10 +1126,8 @@ class BSEBackend:
             C_tGG1 = desc1.empty(dtype=complex)
             np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt,
                       out=C_tGG1.reshape((-1, nG, nG)))
-            print(f'shape is {C_tGG.shape}')
-            C_tGG = C_tGG[:C_tGG.shape[0]].reshape((C_tGG.shape[0], nG, nG))
-            C_tGG1 = C_tGG1[:C_tGG1.shape[0]].reshape(
-                (C_tGG1.shape[0], nG, nG))
+            C_tGG = C_tGG.reshape((-1, nG, nG))
+            C_tGG1 = C_tGG1.reshape((-1, nG, nG))
 
         eta /= Hartree
 

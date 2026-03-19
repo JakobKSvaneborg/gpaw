@@ -1,0 +1,422 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newcommand{\bmat}[1]{\begin{pmatrix}#1\end{pmatrix}}
+\newcommand{\conj}[1]{\overline{#1}}
+\newcommand{\hc}{\dagger}
+\newcommand{\Hhat}{\widehat{H}}
+\newcommand{\reals}{\mathbb{R}}
+\newcommand{\complexes}{\mathbb{C}}
+
+\title{Structure-Preserving Diagonalization of the BSE Hamiltonian:\\
+  Reduction to Hermitian and Skew-Symmetric Eigenvalue Problems}
+\author{GPAW Technical Notes}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+  We present a self-contained derivation of the structure-preserving
+  diagonalization method for the Bethe--Salpeter equation (BSE)
+  Hamiltonian, as implemented in GPAW.  The pseudo-Hermitian structure
+  of the BSE matrix is exploited to reduce the eigenvalue problem to a
+  standard Hermitian eigenproblem (complex case) or a real
+  skew-symmetric eigenproblem (real case), both of which can be solved
+  more efficiently than the original non-Hermitian problem.  We prove
+  the equivalence of eigenvalues, derive the eigenvector
+  back-transformation, and show how left eigenvectors are obtained
+  directly from right eigenvectors via the BSE structure.
+\end{abstract}
+
+\tableofcontents
+
+%======================================================================
+\section{The BSE Hamiltonian and its structure}
+%======================================================================
+
+The discretized Bethe--Salpeter equation gives rise to an eigenvalue
+problem
+\begin{equation}\label{eq:bse}
+  H x = \omega x
+\end{equation}
+where the BSE Hamiltonian $H \in \complexes^{2n \times 2n}$ has the
+block structure
+\begin{equation}\label{eq:H}
+  H = \bmat{A & B \\ -B^* & -A^*}
+\end{equation}
+with the following symmetry properties:
+\begin{itemize}
+  \item $A \in \complexes^{n\times n}$ is \textbf{Hermitian}: $A^\hc = A$,
+  \item $B \in \complexes^{n\times n}$ is \textbf{complex symmetric}: $B^T = B$.
+\end{itemize}
+Here $A$ is the resonant block (containing single-particle transition
+energies and direct/exchange interactions between resonant
+electron--hole pairs), and $B$ is the coupling block between resonant
+and anti-resonant transitions.
+
+The indices range over pairs of electron--hole states $(k, v, c)$
+comprising a crystal momentum $k$, a valence band $v$, and a
+conduction band $c$. For a system with $n$ resonant pairs, the matrix
+is $2n \times 2n$.
+
+\medskip
+
+\noindent\textbf{Key property:} The matrix $H$ is
+\emph{pseudo-Hermitian}; there exists a Hermitian involutory matrix
+$S$ such that $H^\hc = S H S^{-1}$, where
+\begin{equation}\label{eq:S}
+  S = \bmat{I_n & 0 \\ 0 & -I_n}, \qquad S = S^\hc = S^{-1}.
+\end{equation}
+
+This is easily verified:
+\[
+  SHS = \bmat{I & 0 \\ 0 & -I}\bmat{A & B \\ -B^* & -A^*}\bmat{I & 0 \\ 0 & -I}
+  = \bmat{A & -B \\ B^* & -A^*} = H^\hc.
+\]
+
+%======================================================================
+\section{The Hermitian companion matrix}
+%======================================================================
+
+Define the \emph{Hermitian companion} of $H$ by
+\begin{equation}\label{eq:Hhat}
+  \Hhat := S H = \bmat{A & B \\ B^* & A^*}.
+\end{equation}
+We verify that $\Hhat$ is Hermitian:
+\begin{align*}
+  \Hhat^\hc
+  &= \bmat{A^\hc & (B^*)^\hc \\ B^\hc & (A^*)^\hc} \\
+  &= \bmat{A & \conj{B^*}^T \\ \conj{B}^T & \conj{A^*}^T}.
+\end{align*}
+Using $A^\hc = A$ (Hermitian) and $B^T = B$ (symmetric):
+\begin{itemize}
+  \item $\conj{B^*}^T = B^T = B$, so the $(1,2)$ block is $B$. \checkmark
+  \item $\conj{B}^T = \conj{B^T} = \conj{B} = B^*$, so the $(2,1)$
+    block is $B^*$. \checkmark
+  \item For the $(2,2)$ block: since $A^\hc = A$ implies $A^T = \conj{A}$,
+    we have $\conj{A^*}^T = A^T = \conj{A} = A^*$. \checkmark
+\end{itemize}
+Hence $\Hhat^\hc = \Hhat$.
+
+\begin{equation}
+  \boxed{H = S \Hhat, \qquad \Hhat = \Hhat^\hc.}
+\end{equation}
+
+\medskip
+
+\noindent\textbf{Definition (Definite BSE).}
+The BSE eigenvalue problem~\eqref{eq:bse} is called \emph{definite}
+if $\Hhat$ is positive definite.  This holds when the Tamm--Dancoff
+approximation gives all-positive eigenvalues (physically, when the
+system is stable against excitonic instabilities).  We assume the
+definite case in what follows.
+
+
+%======================================================================
+\section{Reduction to a Hermitian eigenvalue problem}
+\label{sec:hermitian}
+%======================================================================
+
+Since $\Hhat$ is Hermitian positive definite, it admits a Cholesky
+factorization
+\begin{equation}\label{eq:cholesky}
+  \Hhat = L L^\hc
+\end{equation}
+where $L$ is lower triangular with positive diagonal entries.
+
+\begin{theorem}[Hermitian reduction]\label{thm:hermitian}
+  Define
+  \begin{equation}\label{eq:K}
+    K := L^\hc S L.
+  \end{equation}
+  Then $K$ is Hermitian and has the same eigenvalues as the BSE
+  Hamiltonian $H$.
+\end{theorem}
+
+\begin{proof}
+  \textbf{Hermiticity:}
+  \[
+    K^\hc = (L^\hc S L)^\hc = L^\hc S^\hc L = L^\hc S L = K,
+  \]
+  since $S$ is Hermitian.
+
+  \textbf{Same eigenvalues as $H$:} We show that $K$ and $H$ are
+  similar.  Since $L$ is invertible:
+  \begin{align*}
+    L^{-\hc} K L^\hc
+    &= L^{-\hc} (L^\hc S L) L^\hc \\
+    &= S L L^\hc \\
+    &= S \Hhat \\
+    &= H.
+  \end{align*}
+  Therefore $K = L^\hc H L^{-\hc}$, so $K$ and $H$ are related by a
+  similarity transformation via $L^\hc$.  In particular, they have
+  identical eigenvalues.
+\end{proof}
+
+\medskip
+
+Since $K$ is Hermitian, its eigenvalues are real.  But $H$ has the
+spectral symmetry that eigenvalues come in pairs $\pm\omega_k$
+(see Section~\ref{sec:spectral}), so the eigenvalues of $K$ are
+$\omega_1, -\omega_1, \omega_2, -\omega_2, \ldots, \omega_n, -\omega_n$
+with $\omega_k > 0$.
+
+\subsection{Eigenvector back-transformation}
+If $K y = \omega y$, then the corresponding BSE eigenvector is
+\begin{equation}\label{eq:backtransform}
+  \boxed{x = L^{-\hc} y.}
+\end{equation}
+This follows because $H x = L^{-\hc} K L^\hc x = L^{-\hc} K y
+= \omega L^{-\hc} y = \omega x$.  In practice, $x$ is obtained by
+solving the triangular system $L^\hc x = y$.
+
+
+%======================================================================
+\section{Spectral symmetry and left eigenvectors}
+\label{sec:spectral}
+%======================================================================
+
+\begin{theorem}[Spectral symmetry]\label{thm:spectral}
+  If $\omega$ is an eigenvalue of $H$ with right eigenvector
+  $x = (x_1, x_2)^T$, then $-\omega$ is also an eigenvalue with
+  right eigenvector $(\conj{x}_2, \conj{x}_1)^T$.
+\end{theorem}
+
+\begin{proof}
+  Let $Hx = \omega x$ with $x = (x_1, x_2)^T$.  Then:
+  \begin{align*}
+    Ax_1 + Bx_2 &= \omega x_1, \\
+    -B^*x_1 - A^*x_2 &= \omega x_2.
+  \end{align*}
+  Take the complex conjugate of both equations:
+  \begin{align*}
+    A^* \conj{x}_1 + B^* \conj{x}_2 &= \conj{\omega}\, \conj{x}_1, \\
+    -B \conj{x}_1 - A \conj{x}_2 &= \conj{\omega}\, \conj{x}_2.
+  \end{align*}
+  (We used $\conj{A} = A^T = A^{*T}$ and $\conj{B} = B^*$.)
+  Interchanging the two equations and relabeling
+  $\tilde{x}_1 = \conj{x}_2$ and $\tilde{x}_2 = \conj{x}_1$:
+  \begin{align*}
+    A \tilde{x}_1 + B \tilde{x}_2 &= -\conj{\omega}\, \tilde{x}_1, \\
+    -B^* \tilde{x}_1 - A^* \tilde{x}_2 &= -\conj{\omega}\, \tilde{x}_2.
+  \end{align*}
+  This says $H \tilde{x} = -\conj{\omega}\, \tilde{x}$.  For the
+  definite case, all eigenvalues are real ($\omega = \conj{\omega}$),
+  so $-\conj{\omega} = -\omega$.
+\end{proof}
+
+\begin{theorem}[Left eigenvectors from right eigenvectors]%
+  \label{thm:left}
+  Let $Hx = \omega x$ with $x = (x_1, x_2)^T$.  Then
+  $w = Sx = (x_1, -x_2)^T$ is a \textbf{left eigenvector} of $H$
+  for the same eigenvalue $\omega$:
+  \begin{equation}\label{eq:left}
+    \boxed{w^\hc H = \omega w^\hc.}
+  \end{equation}
+\end{theorem}
+
+\begin{proof}
+  Since $H = S\Hhat$ and $S^2 = I$:
+  \[
+    w^\hc H = x^\hc S \cdot S \Hhat = x^\hc \Hhat.
+  \]
+  Also, from $Hx = \omega x$, i.e.\ $S\Hhat x = \omega x$, we get
+  $\Hhat x = \omega S x$ (multiply by $S$).  Therefore:
+  \[
+    x^\hc \Hhat = (\Hhat x)^\hc = (\omega S x)^\hc = \omega x^\hc S = \omega w^\hc.
+  \]
+  (We used the fact that $\Hhat$ is Hermitian: $x^\hc \Hhat
+  = (\Hhat x)^\hc$, and that $\omega$ is real in the definite case.)
+\end{proof}
+
+\begin{corollary}
+  Left eigenvectors are obtained from right eigenvectors at no
+  additional computational cost.  If the BSE states are ordered so
+  that the first $n$ are resonant (transition energy $\Delta\epsilon > 0$)
+  and the last $n$ are anti-resonant ($\Delta\epsilon < 0$), then the
+  left eigenvector is obtained by negating the anti-resonant
+  components.
+
+  In GPAW's implementation, where states are ordered by
+  $(k, v, c)$ indices, this generalizes to: multiply each component of
+  the right eigenvector by $\operatorname{sign}(\Delta\epsilon_i)$.
+\end{corollary}
+
+
+%======================================================================
+\section{Reduction to a real skew-symmetric eigenvalue problem}
+\label{sec:skewsymm}
+%======================================================================
+
+When the BSE matrices $A$ and $B$ are \emph{real} (which occurs under
+time-reversal symmetry for non-magnetic systems), a further reduction
+is possible.
+
+\begin{theorem}[Skew-symmetric reduction]\label{thm:skew}
+  Let $H$ be a real BSE matrix ($A$, $B$ real symmetric).
+  Let $\Hhat = LL^T$ be the (real) Cholesky factorization.  Define
+  \begin{equation}
+    K_J := L^T J L, \qquad J = \bmat{0 & I_n \\ -I_n & 0}.
+  \end{equation}
+  Then:
+  \begin{enumerate}
+    \item $K_J$ is real and skew-symmetric: $K_J^T = -K_J$.
+    \item The eigenvalues of $K_J$ are $\pm i\omega_k$, where
+      $\pm\omega_k$ are the eigenvalues of $H$.
+  \end{enumerate}
+\end{theorem}
+
+\begin{proof}\leavevmode
+  \begin{enumerate}
+    \item Skew-symmetry:
+      \[
+        K_J^T = (L^T J L)^T = L^T J^T L = -L^T J L = -K_J.
+      \]
+
+    \item For the eigenvalue relation, we show that $K_J$ is similar
+      to $J\Hhat$.  Since $L$ is invertible:
+      \[
+        L^{-T} K_J L^T = L^{-T}(L^T J L) L^T = J L L^T = J \Hhat.
+      \]
+      So $K_J$ and $J\Hhat$ have the same eigenvalues.
+
+      Now we relate the eigenvalues of $J\Hhat$ to those of $H = S\Hhat$.
+      Consider a simple case to establish the pattern: for $n = 1$
+      with $A = a$ and $B = b$ (scalars),
+      \[
+        H = \bmat{a & b \\ -b & -a}, \quad
+        J\Hhat = \bmat{0 & 1 \\ -1 & 0}\bmat{a & b \\ b & a}
+        = \bmat{b & a \\ -a & -b}.
+      \]
+      The eigenvalues of $H$ are $\pm\sqrt{a^2 - b^2}$ and those of
+      $J\Hhat$ are $\pm i\sqrt{a^2 - b^2}$.
+
+      For the general case, note that both $H^2 = S\Hhat S\Hhat$ and
+      $(J\Hhat)^2 = J\Hhat J\Hhat$ share a common structure.  Using
+      $J\Hhat J = -S\Hhat S$ (which follows from direct computation),
+      we obtain
+      \[
+        (J\Hhat)^2 = J \Hhat J \Hhat = -(S\Hhat S)\Hhat = -S\Hhat(S\Hhat) = -H^2.
+      \]
+      (The last step uses $S\Hhat = H$.)
+
+      Therefore, if $\omega^2$ is an eigenvalue of $H^2$, then
+      $-\omega^2$ is an eigenvalue of $(J\Hhat)^2$, which means
+      $\pm i\omega$ are eigenvalues of $J\Hhat$ (and hence of $K_J$).
+      \qedhere
+  \end{enumerate}
+\end{proof}
+
+\medskip
+
+\noindent\textbf{Verification of} $J\Hhat J = -S\Hhat S$:
+\begin{align*}
+  J\Hhat J
+  &= \bmat{0 & I \\ -I & 0}\bmat{A & B \\ B & A}\bmat{0 & I \\ -I & 0}
+  = \bmat{B & A \\ -A & -B}\bmat{0 & I \\ -I & 0} \\
+  &= \bmat{-A & B \\ B & -A}.
+\end{align*}
+\begin{align*}
+  S\Hhat S
+  &= \bmat{I & 0 \\ 0 & -I}\bmat{A & B \\ B & A}\bmat{I & 0 \\ 0 & -I}
+  = \bmat{A & -B \\ -B & A}.
+\end{align*}
+Indeed $J\Hhat J = -S\Hhat S$. \checkmark
+
+\subsection{Advantages of the skew-symmetric formulation}
+
+For a $2n \times 2n$ real skew-symmetric matrix:
+\begin{itemize}
+  \item Eigenvalues come in pairs $\pm i\sigma_k$, so only $n$ values
+    need to be computed (factor-of-2 savings over a general solver).
+  \item ELPA provides an efficient parallel solver
+    (\texttt{elpa\_skew\_eigenvectors\_double}) that exploits a
+    connection between skew-symmetric and symmetric tridiagonal forms,
+    achieving up to $3.67\times$ speedup over reference ScaLAPACK
+    implementations~\cite{Penke2020}.
+  \item Memory usage is halved compared to a general complex solver.
+\end{itemize}
+
+
+%======================================================================
+\section{Summary of the algorithm}
+\label{sec:algorithm}
+%======================================================================
+
+\subsection{Complex BSE (general case)}
+Given the BSE Hamiltonian $H = \bmat{A & B \\ -B^* & -A^*}$:
+
+\begin{enumerate}
+  \item Let $s_i = \operatorname{sign}(\Delta\epsilon_i)$ for each
+    pair state $i$.  Form $S = \operatorname{diag}(s_1, \ldots, s_{2n})$.
+  \item Compute the Hermitian companion $\Hhat = S H$.
+  \item Cholesky factorize: $\Hhat = L L^\hc$.
+  \item Form $K = L^\hc S L$ (Hermitian).
+  \item Diagonalize: $K y_k = \omega_k y_k$ using a Hermitian
+    eigensolver (ELPA or LAPACK).
+  \item Back-transform right eigenvectors: $x_k = L^{-\hc} y_k$
+    (solve $L^\hc x_k = y_k$).
+  \item Left eigenvectors: $w_k = S x_k$ (negate anti-resonant
+    components).
+\end{enumerate}
+
+Cost: $O(n^3)$ for Cholesky + $O(n^3)$ for eigensolver + $O(n^2)$ for
+back-transformation.  The eigenvalues are guaranteed real and come in
+$\pm\omega_k$ pairs.
+
+\subsection{Real BSE (time-reversal symmetric case)}
+When $A$ and $B$ are real symmetric:
+
+\begin{enumerate}
+  \item Compute $\Hhat = \bmat{A & B \\ B & A}$ (real symmetric
+    positive definite).
+  \item Real Cholesky: $\Hhat = L L^T$.
+  \item Form $K_J = L^T J L$ (real skew-symmetric).
+  \item Diagonalize with ELPA's skew-symmetric solver:
+    eigenvalues $\sigma_k$ (the $\omega_k = \sigma_k$).
+  \item Recover BSE eigenvectors from skew-symmetric eigenvectors:
+    if $K_J z_k = +i\sigma_k z_k$ and $v_k = L^{-T} z_k$, then
+    the right eigenvector of $H$ for eigenvalue $+\sigma_k$ is
+    $x_k = v_k - i\,\Sigma_1 v_k$, where
+    $\Sigma_1 = \bigl(\begin{smallmatrix}0 & I_n \\ I_n & 0\end{smallmatrix}\bigr)$.
+    Left eigenvectors: $w_k = S\,x_k$.
+\end{enumerate}
+
+This gives a factor-of-2 savings over the complex Hermitian approach
+because only $n$ eigenvalues (not $2n$) are computed.
+
+
+\begin{thebibliography}{9}
+\bibitem{Penke2020}
+  C.~Penke, A.~Marek, C.~Vorwerk, C.~Draxl, and P.~Benner,
+  ``High performance solution of skew-symmetric eigenvalue problems
+  with applications in solving the Bethe--Salpeter eigenvalue problem,''
+  \emph{Parallel Computing} \textbf{96}, 102639 (2020).
+  \href{https://doi.org/10.1016/j.parco.2020.102639}%
+  {DOI: 10.1016/j.parco.2020.102639}.
+
+\bibitem{Shao2016}
+  M.~Shao, F.~H.~da~Jornada, C.~Yang, J.~Deslippe, and S.~G.~Louie,
+  ``Structure preserving parallel algorithms for solving the
+  Bethe--Salpeter eigenvalue problem,''
+  \emph{Linear Algebra Appl.} \textbf{488}, 148--167 (2016).
+  \href{https://doi.org/10.1016/j.laa.2015.09.036}%
+  {DOI: 10.1016/j.laa.2015.09.036}.
+
+\bibitem{Benner2020}
+  P.~Benner and C.~Penke,
+  ``Efficient and accurate algorithms for solving the Bethe--Salpeter
+  eigenvalue problem for crystalline systems,''
+  \emph{J.\ Comput.\ Appl.\ Math.} \textbf{400}, 113650 (2022).
+  \href{https://doi.org/10.1016/j.cam.2021.113650}%
+  {DOI: 10.1016/j.cam.2021.113650}.
+\end{thebibliography}
+
+\end{document}
