@@ -220,6 +220,49 @@ PyObject* pyelpa_general_diagonalize(PyObject *self, PyObject *args)
     return checkerr(err);
 }
 
+PyObject* pyelpa_skew_diagonalize(PyObject *self, PyObject *args)
+{
+    /* Interface to ELPA's skew-symmetric eigensolver.
+     *
+     * Solves the eigenvalue problem for a real skew-symmetric matrix K = -K^T.
+     * Eigenvalues of K are purely imaginary, ±i*sigma_k with sigma_k >= 0.
+     * ELPA returns the non-negative sigma_k values and the corresponding
+     * real orthogonal eigenvector matrix.
+     *
+     * This is used for structure-preserving BSE diagonalization via
+     * the reduction K = L^T J L, where L is the Cholesky factor of the
+     * Hermitian companion matrix.
+     *
+     * Reference: C. Penke, A. Marek, C. Vorwerk, C. Draxl, P. Benner,
+     *   "High Performance Solution of Skew-symmetric Eigenvalue Problems
+     *    with Applications in Solving the Bethe-Salpeter Eigenvalue
+     *    Problem", Parallel Computing 96, 102639 (2020).
+     *    DOI: 10.1016/j.parco.2020.102639
+     *
+     * Only real (double precision) matrices are supported.
+     */
+    PyObject *handle_obj;
+    PyArrayObject *A_obj, *Q_obj, *ev_obj;
+
+    if (!PyArg_ParseTuple(args,
+                          "OOOO",
+                          &handle_obj,
+                          &A_obj,
+                          &Q_obj,
+                          &ev_obj))
+        return NULL;
+
+    elpa_t handle = unpack_handle(handle_obj);
+
+    double *a = (double*)PyArray_DATA(A_obj);
+    double *ev = (double*)PyArray_DATA(ev_obj);
+    double *q = (double*)PyArray_DATA(Q_obj);
+
+    int err;
+    elpa_skew_eigenvectors_double(handle, a, ev, q, &err);
+    return checkerr(err);
+}
+
 PyObject *pyelpa_deallocate(PyObject *self, PyObject *args)
 {
     PyObject *handle_obj;

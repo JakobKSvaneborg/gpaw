@@ -7,7 +7,7 @@ import warnings
 import numpy as np
 from ase.dft import monkhorst_pack
 from ase.units import Bohr, Hartree
-from scipy.linalg import eigh
+from scipy.linalg import cho_factor, eigh, solve_triangular
 
 from gpaw.blacs import BlacsDescriptor, BlacsGrid, Redistributor
 from gpaw.mpi import normalize_communicator, serial_comm
@@ -79,6 +79,109 @@ class BSEMatrix:
             w_T, v_RT = np.linalg.eig(H_RR)
             # Left eigenvectors: eigenvectors of H^H
             _, vl_RT = np.linalg.eig(H_RR.conj().T)
+        comm.broadcast(v_RT, 0)
+        comm.broadcast(vl_RT, 0)
+        comm.broadcast(w_T, 0)
+        return w_T, v_RT, exclude_S, vl_RT
+
+    def diagonalize_nontammdancoff_structured(self, bse, deps_max=None):
+        """Structure-preserving BSE diagonalization via Hermitian reduction.
+
+        Exploits the pseudo-Hermitian structure of the BSE Hamiltonian
+        H = S @ Hhat, where Hhat is Hermitian positive definite and
+        S = diag(sign(deps)).  The BSE eigenvalue problem is reduced to
+        a standard Hermitian eigenvalue problem for K = L^dag S L,
+        where Hhat = L L^dag (Cholesky).
+
+        Right eigenvectors are obtained by back-substitution x = L^{-dag} y,
+        and left eigenvectors follow from the BSE eigenvector structure:
+        w_left = S @ x_right (negate anti-resonant components).
+
+        Falls back to diagonalize_nontammdancoff if the Hermitian companion
+        is not positive definite (indefinite BSE).
+
+        Reference: C. Penke, A. Marek, C. Vorwerk, C. Draxl, P. Benner,
+            Parallel Computing 96, 102639 (2020).
+
+        See also: M. Shao, F. H. da Jornada, C. Yang, J. Deslippe,
+            S. G. Louie, Linear Algebra Appl. 488, 148-167 (2016).
+        """
+        df_S = self.df_S
+        if deps_max is None:
+            deps_max = self.deps_max
+        excludef_S = np.where(np.abs(df_S) < 0.001)[0]
+        excludedeps_S = np.where(np.abs(self.deps_S) > deps_max)[0]
+        exclude_S = np.unique(np.concatenate((excludef_S, excludedeps_S)))
+        H_rr, desc = self.exclude_states(bse, exclude_S)
+        comm = bse.context.comm
+        nR = bse.nS - len(exclude_S)
+
+        # Collect on master for serial structured diagonalization
+        H_RR = desc.collect_on_master(H_rr)
+
+        w_T = np.zeros(nR, complex)
+        v_RT = np.zeros((nR, nR), complex)
+        vl_RT = np.zeros((nR, nR), complex)
+
+        if comm.rank == 0:
+            # Determine sign vector from transition energies
+            deps_R = np.delete(self.deps_S, exclude_S)
+            sign_R = np.sign(deps_R)
+            # States with zero deps should have been excluded
+            assert np.all(sign_R != 0), \
+                'Zero transition energies remain after exclusion'
+
+            # Form Hermitian companion: Hhat = S @ H
+            # where S = diag(sign_R)
+            Hhat = sign_R[:, np.newaxis] * H_RR
+
+            # Verify Hermiticity (should hold if BSE structure is correct)
+            herm_err = np.linalg.norm(Hhat - Hhat.conj().T) / (
+                np.linalg.norm(Hhat) + 1e-30)
+            if herm_err > 1e-8:
+                raise RuntimeError(
+                    'Hermitian companion is not Hermitian '
+                    f'(relative error: {herm_err:.2e}). '
+                    'BSE matrix may not have the expected structure.')
+            # Symmetrize to remove numerical noise
+            Hhat = 0.5 * (Hhat + Hhat.conj().T)
+
+            # Cholesky factorization: Hhat = L @ L^dag
+            try:
+                L, lower = cho_factor(Hhat, lower=True)
+            except np.linalg.LinAlgError:
+                bse.context.print(
+                    '  WARNING: Hermitian companion is not positive '
+                    'definite. Falling back to general eigensolver.')
+                w_T, v_RT = np.linalg.eig(H_RR)
+                _, vl_RT = np.linalg.eig(H_RR.conj().T)
+                comm.broadcast(v_RT, 0)
+                comm.broadcast(vl_RT, 0)
+                comm.broadcast(w_T, 0)
+                return w_T, v_RT, exclude_S, vl_RT
+
+            bse.context.print('  Using structured BSE diagonalization...')
+
+            # Form K = L^dag @ S @ L (Hermitian matrix)
+            # K has the same eigenvalues as H = S @ Hhat
+            SL = sign_R[:, np.newaxis] * L
+            K = L.conj().T @ SL
+
+            # Symmetrize K to remove numerical noise
+            K = 0.5 * (K + K.conj().T)
+
+            # Diagonalize K (Hermitian eigenproblem)
+            w_T_real, y_RT = eigh(K)
+            w_T[:] = w_T_real
+
+            # Back-transform eigenvectors: x = L^{-dag} y
+            # Solve L^dag x = y for x
+            v_RT[:] = solve_triangular(
+                L.conj().T, y_RT, lower=False)
+
+            # Left eigenvectors from BSE structure: w_left = S @ x_right
+            vl_RT[:] = sign_R[:, np.newaxis] * v_RT
+
         comm.broadcast(v_RT, 0)
         comm.broadcast(vl_RT, 0)
         comm.broadcast(w_T, 0)
@@ -826,10 +929,12 @@ class BSEBackend:
         return ScreenedPotential(pawcorr_q, W_qGG, qpd_q)
 
     @timer('diagonalize')
-    def diagonalize_bse_matrix(self, bsematrix):
+    def diagonalize_bse_matrix(self, bsematrix, structured=True):
         self.context.print('Diagonalizing Hamiltonian')
         if self.use_tammdancoff:
             return bsematrix.diagonalize_tammdancoff(self)
+        elif structured:
+            return bsematrix.diagonalize_nontammdancoff_structured(self)
         else:
             return bsematrix.diagonalize_nontammdancoff(self)
 

@@ -110,6 +110,7 @@ PyObject* pyelpa_set_comm(PyObject *self, PyObject *args);
 PyObject* pyelpa_setup(PyObject *self, PyObject *args);
 PyObject* pyelpa_diagonalize(PyObject *self, PyObject *args);
 PyObject* pyelpa_general_diagonalize(PyObject *self, PyObject *args);
+PyObject* pyelpa_skew_diagonalize(PyObject *self, PyObject *args);
 PyObject* pyelpa_constants(PyObject *self, PyObject *args);
 PyObject* pyelpa_deallocate(PyObject *self, PyObject *args);
 #endif // GPAW_WITH_ELPA
@@ -255,6 +256,7 @@ static PyMethodDef functions[] = {
     {"pyelpa_set_comm", pyelpa_set_comm, METH_VARARGS, 0},
     {"pyelpa_diagonalize", pyelpa_diagonalize, METH_VARARGS, 0},
     {"pyelpa_general_diagonalize", pyelpa_general_diagonalize, METH_VARARGS, 0},
+    {"pyelpa_skew_diagonalize", pyelpa_skew_diagonalize, METH_VARARGS, 0},
     {"pyelpa_constants", pyelpa_constants, METH_VARARGS, 0},
     {"pyelpa_deallocate", pyelpa_deallocate, METH_VARARGS, 0},
 #endif // GPAW_WITH_ELPA

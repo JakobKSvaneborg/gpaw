@@ -105,6 +105,34 @@ class LibElpa:
                                          is_already_decomposed,
                                          self._is_complex(A))
 
+    def skew_diagonalize(self, A, Q, ev):
+        """Diagonalize a real skew-symmetric matrix using ELPA.
+
+        Solves the eigenvalue problem for a real skew-symmetric matrix
+        K = -K^T. Eigenvalues are purely imaginary (±i*sigma_k); ELPA
+        returns the non-negative sigma_k values.
+
+        Only real (float64) matrices are supported.
+
+        Reference: C. Penke et al., Parallel Computing 96, 102639 (2020).
+            DOI: 10.1016/j.parco.2020.102639
+
+        Parameters
+        ----------
+        A : ndarray (float64)
+            Input skew-symmetric matrix (distributed). Overwritten on exit.
+        Q : ndarray (float64)
+            Output eigenvector matrix (distributed).
+        ev : ndarray (float64)
+            Output array for eigenvalues (the non-negative sigma_k).
+        """
+        self.desc.checkassert(A)
+        self.desc.checkassert(Q)
+        if A.dtype != np.float64:
+            raise TypeError('skew_diagonalize only supports real (float64) '
+                            'matrices, got {}'.format(A.dtype))
+        cgpaw.pyelpa_skew_diagonalize(self._ptr, A, Q, ev)
+
     def elpa_set(self, **kwargs):
         for key, value in kwargs.items():
             # print('pyelpa_set {}={}'.format(key, value))
