@@ -122,19 +122,37 @@ components satisfy
   W_{\vb{GG}'}(\vb{q})^*
   = W_{-\vb{G},-\vb{G}'}(-\vb{q}).
 \end{equation}
-For a \emph{pure rotation} ($s = +1$), the BZ reciprocal-lattice
-vectors are $\vb{G}_\text{BZ} = U\,\vb{G}_\text{IBZ}$.  The
-rotational invariance of $W$ gives
-\begin{equation}
-  W(U\vb{x},\, U\vb{y}) = W(\vb{x},\, \vb{y}),
+The contraction in the BSE kernel requires $W$ at the BZ wavevectors
+$\vb{Q} + \vb{G}_\text{BZ}$.  From Eq.~\eqref{eq:qmap}, the
+pair-density code maps the IBZ reciprocal-lattice vectors as
+$\vb{G}_\text{BZ} = s\,U\,\vb{G}_\text{IBZ}$, so we need
+$W_{\vb{G}_\text{BZ},\,\vb{G}_\text{BZ}'}(\vb{Q})$.
+Rotational invariance of $W$ in reciprocal space gives
+\begin{equation}\label{eq:rotation}
+  W_{U\vb{G},\,U\vb{G}'}(U\vb{q})
+  = W_{\vb{GG}'}(\vb{q}).
 \end{equation}
-so the stored IBZ matrix can be used directly.  For a
-\emph{time-reversed} operation ($s = -1$), the BZ vectors are
-$\vb{G}_\text{BZ} = -U\,\vb{G}_\text{IBZ}$, and combining rotational
-invariance with Eq.~\eqref{eq:reality}:
+
+For a \emph{pure rotation} ($s = +1$), $\vb{Q} = U\vb{q}_\text{IBZ}$
+and $\vb{G}_\text{BZ} = U\vb{G}_\text{IBZ}$, so by
+Eq.~\eqref{eq:rotation}:
+\begin{equation}
+  W_{U\vb{G},\,U\vb{G}'}(U\vb{q}_\text{IBZ})
+  = W_{\vb{GG}'}(\vb{q}_\text{IBZ}),
+\end{equation}
+and the stored IBZ matrix can be used directly.
+
+For a \emph{time-reversed} operation ($s = -1$),
+$\vb{Q} = -U\vb{q}_\text{IBZ}$ and
+$\vb{G}_\text{BZ} = -U\vb{G}_\text{IBZ}$.  Applying
+Eq.~\eqref{eq:rotation} first:
+\begin{equation}
+  W_{-U\vb{G},\,-U\vb{G}'}(-U\vb{q}_\text{IBZ})
+  = W_{-\vb{G},\,-\vb{G}'}(-\vb{q}_\text{IBZ}),
+\end{equation}
+and then the reality condition Eq.~\eqref{eq:reality}:
 \begin{equation}\label{eq:conjugation}
-  W(-U\vb{x},\, -U\vb{y})
-  = W(-\vb{x},\, -\vb{y})
+  W_{-\vb{G},\,-\vb{G}'}(-\vb{q}_\text{IBZ})
   = W_{\vb{GG}'}(\vb{q}_\text{IBZ})^*.
 \end{equation}
 Hence, when $s = -1$, the stored $W_{\vb{GG}'}(\vb{q}_\text{IBZ})$
