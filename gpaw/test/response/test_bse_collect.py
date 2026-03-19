@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 
 from gpaw.mpi import world
+from gpaw.response.bse import BSE
 
 
 class MockContext:
@@ -24,8 +25,8 @@ class MockKD:
         self.nbzkpts = nK
 
 
-class CollectHelper:
-    """Minimal mock exposing only collect_A_SS and its dependencies."""
+class CollectStub:
+    """Stub with just enough attributes for BSE.collect_A_SS to work."""
 
     def __init__(self, nK, nv, nc, comm):
         self.context = MockContext(comm)
@@ -36,54 +37,28 @@ class CollectHelper:
         self.nS = nK * nv * nc
         self.ns = -(-nK // comm.size) * nv * nc  # padded size
 
-    def parallelisation_kpoints(self, rank=None):
-        comm = self.context.comm
-        if rank is None:
-            rank = comm.rank
-        nK = self.kd.nbzkpts
-        myKsize = -(-nK // comm.size)
-        myKrange = range(rank * myKsize,
-                         min((rank + 1) * myKsize, nK))
-        myKsize = len(myKrange)
-        return myKrange, myKsize
+    # Bind the real BSE methods to this stub
+    collect_A_SS = BSE.collect_A_SS
+    parallelisation_kpoints = BSE.parallelisation_kpoints
 
-    def collect_A_SS_original(self, A_sS):
-        """Original (buggy) implementation using padded self.ns."""
-        comm = self.context.comm
-        if comm.rank == 0:
-            A_SS = np.zeros((self.nS, self.nS), dtype=complex)
-            A_SS[:len(A_sS)] = A_sS
-            Ntot = len(A_sS)
-            for rank in range(1, comm.size):
-                buf = np.empty((self.ns, self.nS), dtype=complex)
-                comm.receive(buf, rank, tag=123)
-                A_SS[Ntot:Ntot + self.ns] = buf
-                Ntot += self.ns
-        else:
-            comm.send(A_sS, 0, tag=123)
-        comm.barrier()
-        if comm.rank == 0:
-            return A_SS
 
-    def collect_A_SS_fixed(self, A_sS):
-        """Fixed implementation using actual row count per rank."""
-        comm = self.context.comm
-        if comm.rank == 0:
-            A_SS = np.zeros((self.nS, self.nS), dtype=complex)
-            A_SS[:len(A_sS)] = A_sS
-            Ntot = len(A_sS)
-            for rank in range(1, comm.size):
-                _, myKsize = self.parallelisation_kpoints(rank)
-                nrows = myKsize * self.nv * self.nc
-                buf = np.empty((nrows, self.nS), dtype=complex)
-                comm.receive(buf, rank, tag=123)
-                A_SS[Ntot:Ntot + nrows] = buf
-                Ntot += nrows
-        else:
-            comm.send(A_sS, 0, tag=123)
-        comm.barrier()
-        if comm.rank == 0:
-            return A_SS
+def _collect_A_SS_original(stub, A_sS):
+    """Original (buggy) implementation using padded self.ns."""
+    comm = stub.context.comm
+    if comm.rank == 0:
+        A_SS = np.zeros((stub.nS, stub.nS), dtype=complex)
+        A_SS[:len(A_sS)] = A_sS
+        Ntot = len(A_sS)
+        for rank in range(1, comm.size):
+            buf = np.empty((stub.ns, stub.nS), dtype=complex)
+            comm.receive(buf, rank, tag=123)
+            A_SS[Ntot:Ntot + stub.ns] = buf
+            Ntot += stub.ns
+    else:
+        comm.send(A_sS, 0, tag=123)
+    comm.barrier()
+    if comm.rank == 0:
+        return A_SS
 
 
 @pytest.mark.response
@@ -98,15 +73,15 @@ def test_collect_A_SS_uneven():
     nv, nc = 2, 2
     nS = nK * nv * nc
 
-    helper = CollectHelper(nK, nv, nc, comm)
-    _, myKsize = helper.parallelisation_kpoints()
+    stub = CollectStub(nK, nv, nc, comm)
+    _, myKsize = stub.parallelisation_kpoints()
     mySsize = myKsize * nv * nc
 
     # Build a known global matrix: A_SS[i, j] = i * nS + j
     # Each rank owns rows [offset : offset + mySsize]
     offset = 0
     for r in range(comm.rank):
-        _, ksize = helper.parallelisation_kpoints(r)
+        _, ksize = stub.parallelisation_kpoints(r)
         offset += ksize * nv * nc
 
     A_sS = np.empty((mySsize, nS), dtype=complex)
@@ -117,7 +92,7 @@ def test_collect_A_SS_uneven():
     # --- The original code should fail on uneven distributions ---
     original_failed = False
     try:
-        helper.collect_A_SS_original(A_sS)
+        _collect_A_SS_original(stub, A_sS)
     except (ValueError, Exception):
         original_failed = True
     # Synchronise: all ranks must agree on whether it failed.
@@ -131,7 +106,7 @@ def test_collect_A_SS_uneven():
         f'k-point distribution (nK={nK}, comm.size={comm.size})')
 
     # --- The fixed code should succeed and return the correct matrix ---
-    A_SS = helper.collect_A_SS_fixed(A_sS)
+    A_SS = stub.collect_A_SS(A_sS)
     if comm.rank == 0:
         expected = np.empty((nS, nS), dtype=complex)
         for i in range(nS):
