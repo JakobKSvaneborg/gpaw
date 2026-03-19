@@ -381,7 +381,12 @@ When $A$ and $B$ are real symmetric:
   \item Form $K_J = L^T J L$ (real skew-symmetric).
   \item Diagonalize with ELPA's skew-symmetric solver:
     eigenvalues $\sigma_k$ (the $\omega_k = \sigma_k$).
-  \item Recover BSE eigenvectors from skew-symmetric eigenvectors.
+  \item Recover BSE eigenvectors from skew-symmetric eigenvectors:
+    if $K_J z_k = +i\sigma_k z_k$ and $v_k = L^{-T} z_k$, then
+    the right eigenvector of $H$ for eigenvalue $+\sigma_k$ is
+    $x_k = v_k - i\,\Sigma_1 v_k$, where
+    $\Sigma_1 = \bigl(\begin{smallmatrix}0 & I_n \\ I_n & 0\end{smallmatrix}\bigr)$.
+    Left eigenvectors: $w_k = S\,x_k$.
 \end{enumerate}
 
 This gives a factor-of-2 savings over the complex Hermitian approach
