@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from functools import partial
-from pprint import pformat
 
 import numpy as np
 
@@ -52,10 +51,6 @@ class RMMDIIS(PWFDEigensolver):
         self.niter = niter
         self.diis_steps = diis_steps
         self.babysit_fd = isinstance(hamiltonian, FDHamiltonian)
-
-    def __str__(self):
-        return pformat(dict(name='RMMDIIS',
-                            converge_bands=self.converge_bands))
 
     def _initialize(self, ibzwfs):
         super()._initialize(ibzwfs)

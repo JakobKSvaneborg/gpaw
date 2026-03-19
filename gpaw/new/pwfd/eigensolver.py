@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable
 from functools import partial
 
 import numpy as np
-
 from gpaw.core.arrays import XArray
 from gpaw.core.atom_centered_functions import AtomArrays
 from gpaw.core.matrix import suggest_blocking
-from gpaw.mpi import broadcast_exception, MPIComm, serial_comm
+from gpaw.mpi import MPIComm, broadcast_exception, serial_comm
 from gpaw.new import trace, zips
 from gpaw.new.c import calculate_residuals_gpu
 from gpaw.new.eigensolver import Eigensolver, calculate_weights
@@ -60,11 +60,25 @@ class PWFDEigensolver(Eigensolver):
             self.scalapack_parameters = slparams(nbands, domain_band_comm)
         else:
             r, c, b = scalapack_parameters
-            slcomm = domain_band_comm
-            assert r * c <= slcomm.size
-            if r * c < slcomm.size:
-                slcomm = slcomm.new_communicator(range(r * c)) or serial_comm
-            self.scalapack_parameters = (slcomm, r, c, b)
+            if nbands**2 / (r * c) < 1000:
+                warnings.warn(
+                    f'{nbands}x{nbands} matrix too small for Scalapack')
+                self.scalapack_parameters = (serial_comm, 1, 1, 0)
+            else:
+                slcomm = domain_band_comm
+                assert r * c <= slcomm.size
+                if r * c < slcomm.size:
+                    slcomm = (slcomm.new_communicator(range(r * c))
+                              or serial_comm)
+                self.scalapack_parameters = (slcomm, r, c, b)
+
+    def __str__(self):
+        txt = f'{self.__class__.__name__}\n'
+        txt += f'Converge bands: {self.converge_bands}\n'
+        _, r, c, b = self.scalapack_parameters
+        if r * c > 1:
+            txt += f'Scalapack: {r}x{c} rows, blocksize={b}\n'
+        return txt
 
     def _initialize(self, ibzwfs):
         # First time: allocate work-arrays

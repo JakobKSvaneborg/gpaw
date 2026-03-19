@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from functools import partial
-from pprint import pformat
 
 import numpy as np
 
@@ -39,9 +38,7 @@ class Davidson(PWFDEigensolver):
         self.M_nn: Matrix
 
     def __str__(self):
-        return pformat(dict(name='Davidson',
-                            niter=self.niter,
-                            converge_bands=self.converge_bands))
+        return super().__str__() + f'niter={self.niter}\n'
 
     def _initialize(self, ibzwfs: PWFDIBZWaveFunctions):
         super()._initialize(ibzwfs)

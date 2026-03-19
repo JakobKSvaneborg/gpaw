@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from functools import partial
-from pprint import pformat
 
 import numpy as np
 from ase.units import Ha
@@ -116,9 +115,7 @@ class PPCG(PWFDEigensolver):
         self.allow_dynamic_breakout = hamiltonian.band_local
 
     def __str__(self):
-        return pformat(dict(name='PPCG',
-                            niter=self.niter,
-                            converge_bands=self.converge_bands))
+        return super().__str__() + f'niter={self.niter}\n'
 
     def _initialize(self, ibzwfs):
         xp = ibzwfs.xp
