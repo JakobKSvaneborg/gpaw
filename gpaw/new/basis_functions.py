@@ -50,6 +50,7 @@ def find_sphere_images(
     """Finds all periodic copies of a sphere that overlap with the main cell.
     The original sphere is assumed to be inside the main cell.
     "Image" refers to a copy of the sphere in other cells.
+    Result includes the original sphere in the main cell.
 
     Returns
     -------
@@ -70,7 +71,9 @@ def find_sphere_images(
     # by grid.cell_cv[c] for c=0,1,2. Conversion between real-space vector
     # pos_v and fractional "grid-aligned" vector pos_c happens as:
     #   pos_v = pos_c @ cell_cv.
-    icell_cv = grid.icell  # inverse of cell_cv
+
+    # Get inverse of cell_cv. NOT grid.icell because that is transposed!
+    icell_cv = grid.icell.T
     pos_c = sphere_pos_v @ icell_cv
 
     # We want to "stack" unit cells in all directions until the sphere no
@@ -99,7 +102,6 @@ def find_sphere_images(
     cells = np.meshgrid(*ranges, indexing="ij")
     shifts = np.stack(cells, axis=-1)
     # includes (0, 0, 0), ie. the main cell
-    # assert shifts.size > 0
 
     # Place image sphere candidates
     image_pos_c = pos_c + shifts

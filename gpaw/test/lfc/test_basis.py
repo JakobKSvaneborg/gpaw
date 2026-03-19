@@ -1,10 +1,8 @@
 from gpaw.core import UGArray, UGDesc
 from gpaw.lfc import BasisFunctions
-from gpaw.new.basis_functions import (BasisFunctionDesc,
-                                      BasisFunctionCollectionBase,
-                                      LFCAtomDesc,
-                                      LFCSystemDesc,
-                                      PrecalculationMode)
+from gpaw.new.basis_functions import (
+    BasisFunctionDesc, BasisFunctionCollectionBase, LFCAtomDesc,
+    LFCSystemDesc, PrecalculationMode, find_sphere_images)
 
 from gpaw.new.basis_functions_purepython \
     import BasisFunctionCollectionPurePython
@@ -81,9 +79,10 @@ BoundaryConds = namedtuple("BoundaryConds", ["pbc", "zerobc"])
     GridShape(cell=[3, 3, 3], size=(14, 14, 14)),
     GridShape(cell=[1, 2, 3], size=(16, 10, 11)),
     GridShape(cell=[3, 2, 3], size=(5, 8, 9)),
+    GridShape(cell=[[0, 1, 1], [3, 0, 3], [2, 2, 0]], size=(16, 8, 7)),
     GridShape(cell=[[1, 2, 3], [0, 0, 3], [2, 2, 0]], size=(16, 10, 7))],
     ids=["UniformOrthorhombic", "NonUniformOrthorombic", "SmallOrthorhombic",
-         "WeirdShape"],
+         "WeirdShape", "VeryWeirdShape"],
     scope="module")
 def fixt_grid_shape(request) -> GridShape:
     """Parametrized grid shape fixture, generates grids of different shapes
@@ -186,12 +185,10 @@ def make_basis(system: LFCSystemDesc,
     return basis
 
 
-@pytest.mark.parametrize("block_size", [None, 8])
-@pytest.mark.parametrize("radius_scale", [0.49, 0.75])
-def test_overlaps(fixt_grid_shape, fixt_bc, block_size: int,
-                  radius_scale: float):
-    """Prepares a very simple system and tests that our sphere/grid/block
-    overlap calculations make sense"""
+def test_find_sphere_images(fixt_grid_shape, fixt_bc, num_spheres: int = 10,
+                            seed: int = 42):
+    """Test that we correctly identify periodic copies of basis funcs
+    (spheres)"""
 
     global world
     world = cast(MPIComm, world)
@@ -199,47 +196,31 @@ def test_overlaps(fixt_grid_shape, fixt_bc, block_size: int,
     grid = UGDesc(cell=fixt_grid_shape.cell, size=fixt_grid_shape.size,
                   comm=world, pbc=fixt_bc.pbc, zerobc=fixt_bc.zerobc)
 
-    # helper for scaling radial cutoffs: length of the longest cell vector
-    a = float(np.max(np.linalg.norm([grid.cell_cv[c] for c in range(3)])))
+    rng = np.random.default_rng(seed)
 
-    # One basis func at center of the main cell. With radius_scale < 0.5 it
-    # should not overlap with any other cells (at least on orthorhombic)
-    radius = radius_scale * a
-    s = BasisFunctionDesc(0, radius,
-                          np.asarray([1.0, 0.5, 0.0]))
+    # Max cell extent, used to generate sensible radii
+    corners = np.array(
+        [s @ grid.cell_cv for s in itertools.product([0, 1],repeat=3)]
+    )
+    max_extent = np.max(np.linalg.norm(corners, axis=1))
 
-    relpos_c = np.asarray([0.5, 0.5, 0.5])
-    pos_v_intended = relpos_c @ grid.cell_cv
+    for i in range(num_spheres):
+        sphere_relpos_c = rng.uniform(0.0, 1.0, size=3)
+        sphere_pos_v = sphere_relpos_c @ grid.cell_cv
 
-    atoms = [LFCAtomDesc([s], pos_v_intended)]
-    system_desc = LFCSystemDesc(grid, atoms)
+        radius = rng.uniform(0.1, 3.5) * max_extent
 
-    # Overlap computations are done in the base class so doesn't matter which
-    # implementation we use:
-    basis = BasisFunctionCollectionPurePython(
-        system_desc, use_gpu=False, block_size=block_size,
-        mode=PrecalculationMode.eNever)
+        cells, positions = find_sphere_images(grid, sphere_pos_v, radius)
 
-    # Check atom placement
-    relpos_ac = basis.get_atom_positions(grid_relative=True)
-    pos_av = basis.get_atom_positions(grid_relative=False)
+        assert len(cells) > 0, "Should find at least the main cell sphere"
 
-    assert relpos_ac.shape[0] == 1
-    assert pos_av.shape[0] == 1
-    np.testing.assert_allclose(relpos_ac[0], relpos_c)
-    np.testing.assert_allclose(pos_av[0], pos_v_intended)
+        for n_c, image_pos_v in zip(cells, positions):
+            # Translate image sphere back to main cell
+            unshifted_v = image_pos_v - n_c @ grid.cell_cv
 
-    # if radius_scale < 0.5:
-    #     # Can't overlap with other cells
-    #     assert len(basis.get_phi_instances()) == 1
-
-    # Check that cell coordinates make sense: phi in the main unit cell have
-    # coords (0, 0, 0) and periodic copies have something else.
-    # We actually test that shifting the phi according to its cell coords
-    # gives back the original phi
-    for phi in basis.get_phi_instances():
-        unshifted_pos_v = phi.position - phi.cell_coords @ grid.cell_cv
-        np.testing.assert_allclose(unshifted_pos_v, pos_v_intended)
+            # Should recover the original sphere centre
+            assert np.allclose(unshifted_v, sphere_pos_v), \
+                f"Image {n_c} does not unshift back to original position"
 
 
 @pytest.mark.parametrize("block_size", parametrize_blocksize())
