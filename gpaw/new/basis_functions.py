@@ -653,44 +653,54 @@ class BasisFunctionCollectionBase(ABC):
         # sanity check for domain decomp
         assert self.grid.mysize_c.size > 0
 
-        # Get grid spacings and the "perpendicular height" per grid step
-        h_cv = self.grid._gd.h_cv
-        ih_cv = np.linalg.inv(h_cv)
-        h_perp_c = 1.0 / np.linalg.norm(ih_cv, axis=1)
+        # Label blocks by 3 integers: block with coords (bx, by, bz), spans
+        # global grid indices `(bx, by, bz) * block_size * [0, 1]`. Each MPI
+        # rank only needs to care about blocks in their own grid-point range,
+        # so in practice we store (bx, by, bz) relative to the grid domain.
 
-        # Number of blocks along each grid axis. The last block is allowed to
-        # be smaller (fancy upwards rounding):
+        # Number of blocks along each grid axis in this MPI domain.
+        # The last block is allowed to be smaller (fancy upwards rounding):
         num_blocks_c = -(self.grid.mysize_c // -self.block_size).astype(int)
 
         block_map: dict[BlockCoords, GridBlock] = {}
 
+        # Get inverse of cell_cv, note transpose
+        icell_cv = self.grid.icell.T
+        # Perpedincular height of the full cell
+        h_perp_c = 1.0 / np.linalg.norm(icell_cv, axis=1)
+        # Perpendicular height per one grid step
+        h_perp_step_c = h_perp_c / self.grid.size_c
+
+        block_size_frac_c = self.block_size / self.grid.size_c
+        # Fractional coords of this domain origin
+        domain_start_frac_c = self.grid.start_c / self.grid.size_c
+
         for phi in self.get_phi_instances():
             radius = phi.get_cutoff()
+            relpos_c = phi.position @ icell_cv
 
-            # Express sphere position in grid-domain coords. Not necessarily
-            # integers.
-            pos_h_c = phi.position @ ih_cv - self.grid.start_c
+            # How many blocks can the sphere reach
+            reach_in_blocks_c = radius / (h_perp_step_c * self.block_size)
+            # Sphere center is in this block (can be outside the domain):
+            block_of_center_c = (
+                (relpos_c - domain_start_frac_c) / block_size_frac_c
+            )
 
-            # The sphere extends this many blocks:
-            n_blocks_reach_c = radius / (h_perp_c * self.block_size)
-            # and has its center in this block (block coords are domain aware)
-            block_coords_of_center_c = pos_h_c / self.block_size
+            # Block coord ranges that we have to check for overlaps
+            min_block_c = np.clip(
+                np.floor(block_of_center_c - reach_in_blocks_c).astype(int),
+                0, num_blocks_c - 1)
 
-            # Min and max block indices, clamped to stay in our grid domain:
-            min_block_c = np.floor(
-                block_coords_of_center_c - n_blocks_reach_c).astype(int)
-            max_block_c = np.floor(
-                block_coords_of_center_c + n_blocks_reach_c).astype(int)
-
-            min_block_c = np.maximum(min_block_c, 0)
-            max_block_c = np.minimum(max_block_c, num_blocks_c - 1)
+            max_block_c = np.clip(
+                np.floor(block_of_center_c + reach_in_blocks_c).astype(int),
+                0, num_blocks_c - 1)
 
             for bx, by, bz in itertools.product(
                 range(min_block_c[0], max_block_c[0] + 1),
                 range(min_block_c[1], max_block_c[1] + 1),
                 range(min_block_c[2], max_block_c[2] + 1),
             ):
-                # Block spans grid-domain indices [block_start_c, block_end_c]
+                # Block spans grid indices [block_start_c, block_end_c]
                 block_start_c = (self.grid.start_c
                                  + self.block_size * np.asarray([bx, by, bz]))
                 # Clip end corner so that it stays within the MPI domain
@@ -698,13 +708,16 @@ class BasisFunctionCollectionBase(ABC):
                 block_end_c = np.minimum(block_end_c, self.grid.end_c)
 
                 # Find closest point inside the block to the sphere center
-                clamped_pos_h_c = np.clip(pos_h_c, block_start_c, block_end_c)
-                closest_v = clamped_pos_h_c @ h_cv
+                closest_frac_c = np.clip(relpos_c,
+                                         block_start_c / self.grid.size_c,
+                                         block_end_c / self.grid.size_c)
+
+                closest_v = closest_frac_c @ self.grid.cell_cv
 
                 # FIXME can happen that a sphere DOES overlap the block,
                 # but NOT any grid points in the block => not needed.
                 # Happens already in update_atom_position()...
-                if np.sum((phi.position - closest_v)**2 < radius**2):
+                if np.sum((phi.position - closest_v)**2) < radius**2:
                     block_coords = (bx, by, bz)
                     if block_coords in block_map:
                         block = block_map[block_coords]

@@ -238,7 +238,6 @@ def test_basis_creation(fixt_lfc_system: LFCSystemDesc, xp, purepython: bool,
     assert basis.uses_gpu() == (xp is not np)
     assert basis.num_atoms == len(system.atoms)
 
-    # TODO check index range if using multiple MPI ranks?
     assert basis.mu_range.start == 0
 
     # check that there are no duplicate phi
@@ -257,13 +256,6 @@ def test_basis_creation(fixt_lfc_system: LFCSystemDesc, xp, purepython: bool,
         if block_size is None:
             np.testing.assert_equal(block.shape, basis.grid.mysize_c)
 
-    # TODO check that each phi overlaps with at least one block. But this
-    # will need to be domain aware: the overlap may happen in other MPI domain
-    # for phi in all_phi:
-    #     overlaps = phi.find_overlapping_points(basis.grid.xyz())
-    #     if overlaps.size == 0:
-    #         assert np.all(phi.phi_mG == 0.0)
-
     # Each grid point should appear at most in one block. Blocks that don't
     # overlap with any basis functions are ignored, so it's OK for a point
     # to not be present in any block.
@@ -281,7 +273,7 @@ def test_basis_creation(fixt_lfc_system: LFCSystemDesc, xp, purepython: bool,
 @pytest.mark.skipif(world.size > 1, reason="TODO, probably")
 @pytest.mark.parametrize("xp", xp_params_no_cpupy())
 def test_no_blocking(fixt_lfc_system: LFCSystemDesc, xp):
-    """Some tests that blocking = None makes sense. Useful because under the
+    """Tests that blocking = None makes sense. Useful because under the
     hood the same blocking logic is still ran but with block_size == grid_size
     """
 
@@ -291,6 +283,11 @@ def test_no_blocking(fixt_lfc_system: LFCSystemDesc, xp):
     # TODO mpi? some domain may be empty...
     assert len(blocks) == 1
     block = blocks[0]
+
+    # Check block index ranges
+    assert block.coords == (0, 0, 0)
+    np.testing.assert_equal(basis.grid.start_c, block.start_c)
+    np.testing.assert_equal(basis.grid.end_c, block.end_c)
 
     # check that there are no duplicate phi in the block
     has_duplicates = len({id(phi) for phi in block.phi_j}) != len(block.phi_j)
