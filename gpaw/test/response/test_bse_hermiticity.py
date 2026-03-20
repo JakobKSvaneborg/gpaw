@@ -23,10 +23,10 @@ def _build_bse_matrix(gpwfile, conjugate_W_for_time_reversal, comm):
     """
     bse = BSE(
         gpwfile,
-        ecut=10,
+        ecut=50,
         valence_bands=2,
         conduction_bands=2,
-        nbands=15,
+        nbands=16,
         mode="BSE",
         truncation="2D",
         comm=comm,
