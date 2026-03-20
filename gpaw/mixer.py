@@ -236,19 +236,30 @@ class BaseMixer:
         return string
 
 class MSR1Mixer(BaseMixer):
-    from line_profiler import profile
     name = 'MSR1'
-    soft_bad_lim = 1.5
-    hard_bad_lim = 2.0
 
-    mR_isG = []
-    mD_iasp = []
+    def __init__(self,
+                 beta = 0.035,
+                 nmaxold = 8,
+                 weight = 64,
+                 trust_scalar = 4.0,
+                 soft_bad_lim = 1.5,
+                 hard_bad_lim = 2.0,
+                 gb_scale = 0.9):
+        super().__init__(beta, nmaxold, weight)
+        self.mR_isG = []
+        self.mD_iasp = []
+        self.gb_scale = gb_scale
+        self.soft_bad_lim = soft_bad_lim
+        self.hard_bad_lim = hard_bad_lim
+        self.trust_scalar = trust_scalar
+
     def reset(self):
         super().reset()
-        self.dNt_i = []
+        self.mR_isG = []
+        self.mD_iasp = []
         self.last_dNt = np.inf
 
-    @profile
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         nt_isG = self.nt_isG
         R_isG = self.R_isG
@@ -323,16 +334,17 @@ class MSR1Mixer(BaseMixer):
 
             dampen = 1  # Dampen the greeds
             punishment_factor = 0.8 if del_oldest else 1.0  # How much to reduce greed when backtracing
-            trust_scalar = 4 # Scaling factor for the trust radius.
+            trust_scalar = self.trust_scalar # Scaling factor for the trust radius.
             abs_gb_lim = 20 # Maximum value of good Broyden.
-            max_gb_fact = 0.9 * np.clip((1e-2 / dNt_normed), 0.05, 1) # Scaling factor for maximum good Broyden.
+            max_gb_fact = self.gb_scale * np.clip((2e-2 / dNt_normed), 0.05, 1) # Scaling factor for maximum good Broyden.
             post_gb_fact = 0.9 if del_oldest else (0.9 if backtracked else 0.9)  # Scaling factor for the final amount of good Broyden
-            weight = 8e-4  # Weight for regularization, 2e-4 works well. Strongly depends on the amount of good Broyden.
-            B0_boost = 1e-1  # Favor the predicted greed towards 1
-            B0_lims = [0.2, 1]   # Limits for predicted greed
+            weight = 8e-4  # Weight for regularization.
+            B0_boost = 5e-2  # Favor the predicted greed towards 1
+            B0_lims = [0.4, 1.1]   # Limits for predicted greed
             A0_lims = [0.015, 0.45]   # Limits for unpredicted greed
             rate_ratio = [0.7, 1.3 if not backtracked else punishment_factor]  # Rate ratio for clipping
             renormalize = True  # Renormalize t_isG
+            prescale = False
             initial_B0 = 1.0
 
             ### Calculate the multi-secants:
@@ -356,17 +368,18 @@ class MSR1Mixer(BaseMixer):
                 tyD_iasp.append(tyD_asp)
 
             ### Rescale the multisecants
-            # y_norm = self.dotprod(y_isG, ty_isG, yD_iasp, tyD_iasp, self.gd, mode='vecdot')
-            # y_norm = 1 / np.sqrt(y_norm)
-            # y_norm_expanded = np.expand_dims(y_norm, axis=tuple(np.arange(1, y_isG.ndim)))
-            # y_isG *= y_norm_expanded
-            # ty_isG *= y_norm_expanded
-            # s_isG *= y_norm_expanded
-            # for i, (sD_asp, yD_asp, tyD_asp) in enumerate(zip(sD_iasp, yD_iasp, tyD_iasp)):
-            #     for a, (sD_sp, yD_sp, tyD_sp) in enumerate(zip(sD_asp, yD_asp, tyD_asp)):
-            #         sD_sp *= y_norm[i]
-            #         yD_sp *= y_norm[i]
-            #         tyD_sp *= y_norm[i]
+            if prescale:
+                y_norm = self.dotprod(y_isG, ty_isG, yD_iasp, tyD_iasp, self.gd, mode='vecdot')
+                y_norm = 1 / np.sqrt(y_norm)
+                y_norm_expanded = np.expand_dims(y_norm, axis=tuple(np.arange(1, y_isG.ndim)))
+                y_isG *= y_norm_expanded
+                ty_isG *= y_norm_expanded
+                s_isG *= y_norm_expanded
+                for i, (sD_asp, yD_asp, tyD_asp) in enumerate(zip(sD_iasp, yD_iasp, tyD_iasp)):
+                    for a, (sD_sp, yD_sp, tyD_sp) in enumerate(zip(sD_asp, yD_asp, tyD_asp)):
+                        sD_sp *= y_norm[i]
+                        yD_sp *= y_norm[i]
+                        tyD_sp *= y_norm[i]
 
             ### 2023 paper eq 22 - Limit good_broydenness
             Ay_ii = self.dotprod(y_isG, ty_isG, yD_iasp, tyD_iasp, self.gd, mode='gemm')
@@ -380,7 +393,6 @@ class MSR1Mixer(BaseMixer):
             # Choose max good_broydenness s.t. A_ii is positive definite
             # for good_broydenness in good_broydenness_range:
             # binary search 2**(-10) accuracy:
-
             # Calculate norms for determining good-broydenness
             y_norm = np.diag(Ay_ii)
             s_norm = np.diag(As_ii)
@@ -469,7 +481,6 @@ class MSR1Mixer(BaseMixer):
             B2_i = self.dotprod(t_isG, [self.pk_sG, ], tD_iasp, [self.pD_asp, ], self.gd, mode='gemm')[:, 0]
             B3_i = self.dotprod([self.R_isG[last_step] - self.uk_sG, ], y_isG, [uRnoD_asp, ], yD_iasp, self.gd, mode='gemm')[0, :]
 
-
             A2 = A3_i @ B_ii @ A2_i * dampen
             B2 = B3_i @ B_ii @ B2_i
 
@@ -492,7 +503,7 @@ class MSR1Mixer(BaseMixer):
                 self.A0 *= np.clip(A0_ratio_GEOM, *rate_ratio)
             else:
                 self.B0 = initial_B0
-                self.A0 = np.clip(A0_target * 0.67, *A0_lims)
+                self.A0 = np.sqrt(A0_target * self.beta * 0.5)
 
             A0 = self.A0
             B0 = self.B0
