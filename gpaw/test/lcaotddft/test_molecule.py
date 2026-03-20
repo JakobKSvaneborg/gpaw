@@ -134,7 +134,7 @@ def build_ksd(initialize_system, request, scalapack):
 
 @pytest.fixture(scope='module', params=parallel_i)
 def load_ksd(build_ksd, request):
-    calc = GPAW('unocc.gpw', parallel=request.param, txt=None)
+    calc = GPAW('unocc.gpw', parallel=request.param, legacy_gpaw=True)
     # Initialize positions in order to calculate density
     calc.initialize_positions()
     ksd = KohnShamDecomposition(calc, 'ksd.ulm')
