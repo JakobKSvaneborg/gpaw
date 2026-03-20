@@ -79,7 +79,7 @@ class PWFDEigensolver(Eigensolver):
         txt += f'Converge bands: {self.converge_bands}\n'
         _, r, c, b = self.scalapack_parameters
         if r * c > 1:
-            txt += f'Scalapack: {r}x{c} rows, blocksize={b}\n'
+            txt += f'Scalapack: {r}x{c} grid, blocksize={b}\n'
         return txt
 
     def _initialize(self, ibzwfs):
