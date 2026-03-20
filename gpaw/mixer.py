@@ -198,10 +198,17 @@ class BaseMixer:
                 @ np.reshape(R2_isG, (shape2[0], -1)).T
         elif mode == 'vecdot' or mode == 'scalar':
             assert len(R1_isG) == len(R2_isG)
-            prod = np.vecdot(
-                np.reshape(R1_isG, (len(R1_isG), -1)),
-                np.reshape(R2_isG, (len(R2_isG), -1))
-            )
+            if hasattr(np, 'vecdot'):  # numpy 2.0+
+                prod = np.vecdot(
+                    np.reshape(R1_isG, (len(R1_isG), -1)),
+                    np.reshape(R2_isG, (len(R2_isG), -1))
+                )
+            else:
+                prod = np.einsum(
+                    'ix, ix -> i',
+                    np.reshape(R1_isG, (len(R1_isG), -1)).conj(),
+                    np.reshape(R2_isG, (len(R2_isG), -1))
+                )
         prod *= gd.dv
         comm.sum(prod)
         assert (prod.imag < 1e-10).all()
@@ -688,10 +695,17 @@ class ExperimentalDotProd:
                 @ np.reshape(R2_isG, (shape2[0], -1)).T
         elif mode == 'vecdot' or mode == 'scalar':
             assert len(R1_isG) == len(R2_isG)
-            prod = np.vecdot(
-                np.reshape(R1_isG, (len(R1_isG), -1)),
-                np.reshape(R2_isG, (len(R2_isG), -1))
-            )
+            if hasattr(np, 'vecdot'):  # numpy 2.0+
+                prod = np.vecdot(
+                    np.reshape(R1_isG, (len(R1_isG), -1)),
+                    np.reshape(R2_isG, (len(R2_isG), -1))
+                )
+            else:
+                prod = np.einsum(
+                    'ix, ix -> i',
+                    np.reshape(R1_isG, (len(R1_isG), -1)).conj(),
+                    np.reshape(R2_isG, (len(R2_isG), -1))
+                )
         prod *= gd.dv
         assert self.atomdist.comm.rank == comm.rank
         my_atoms_inds = np.where(self.atomdist.rank_a == comm.rank)[0]
