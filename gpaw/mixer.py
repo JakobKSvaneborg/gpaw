@@ -106,7 +106,6 @@ class BaseMixer:
         return self.gd.integrate(np.fabs(R_sG)).sum()
 
     def mix_density(self, nt_sG, D_asp, g_ss=None):
-        # nt_sG /= np.sum(nt_sG)
         nt_isG = self.nt_isG
         R_isG = self.R_isG
         D_iasp = self.D_iasp
@@ -293,20 +292,14 @@ class MSR1Mixer(BaseMixer):
                 del D_iasp[to_del]
                 del dD_iasp[to_del]
                 del mD_iasp[to_del]
-                if self.world.rank == 0:
-                    print('Deleting index ', to_del)
                 iold = len(nt_isG)
 
-        if self.world.rank == 0:
-            print('hist: ', iold)
         if iold > 1:
             backtracked = False
             last_step = -2
             del_oldest = False
             if dNt > self.last_dNt * self.soft_bad_lim:
                 reduction = dNt / self.last_dNt
-                if self.world.rank == 0:
-                    print(f'XXX: Backtracing due to reduction {reduction}')
                 del_oldest = True if reduction > self.hard_bad_lim else False
                 insert_pos = 0 if del_oldest else -2
                 last_step = -1
@@ -431,9 +424,6 @@ class MSR1Mixer(BaseMixer):
             good_broydenness -= 2**(- iter - 1) * max_gb
             good_broydenness *= post_gb_fact
 
-            if self.world.rank == 0:
-                print('good_broydenness: ', good_broydenness)
-
             # Re-Scale the problem!
             if renormalize:
                 t_norm = y_norm + good_broydenness * s_norm
@@ -512,9 +502,6 @@ class MSR1Mixer(BaseMixer):
             A2 = A3_i @ B_ii @ A2_i * dampen
             B2 = B3_i @ B_ii @ B2_i
 
-            if self.world.rank == 0:
-                print('ratio: ', np.abs(A1 / A2))
-
             A0_target = np.clip(
                 np.abs(A1 / A2),
                 *A0_lims
@@ -536,8 +523,6 @@ class MSR1Mixer(BaseMixer):
 
             A0 = self.A0
             B0 = self.B0
-            if self.world.rank == 0:
-                print(f"rank: {self.world.rank}, A0: {A0}, B0: {B0}")
 
             trust_step = (A0 * self.uk_sG + B0 * self.pk_sG)
             dstep_asp = []
@@ -579,9 +564,6 @@ class MSR1Mixer(BaseMixer):
 
             # Trust radius control:
             if predicted_size > self.trust_radius * 1.02:
-                if self.world.rank == 0:
-                    print(f'XXXX {predicted_size} > {self.trust_radius}')
-
                 BR_i = self.dotprod(t_isG, [mR_sG, ], tD_iasp,
                                     [mD_asp, ], self.gd, mode='gemm')[:, 0]
                 s_ii = self.dotprod(s_isG, s_isG, sD_iasp,
@@ -601,7 +583,6 @@ class MSR1Mixer(BaseMixer):
                     lamb = root_scalar(err_fct, bracket=[0, 500 * A_diag])
                     root = lamb.root
                 except ValueError:
-                    print('XXX: Failed to match trust region!!')
                     root = 500 * A_diag
                 beta_i = np.linalg.solve(
                     A_ii + root * np.eye(iold - 1), BR_i
@@ -754,7 +735,7 @@ class ReciprocalMetric:
         mR_Q[:] = R_Q * (1.0 + self.q1 / self.k2_Q) * self.scale
 
 
-class FFTBaseMixer(MSR1Mixer):
+class FFTBaseMixer(BaseMixer):  # This should be able to wrap MSR1
     name = 'fft'
 
     """Mix the density in Fourier space"""
