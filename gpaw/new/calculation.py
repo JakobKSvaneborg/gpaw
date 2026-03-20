@@ -28,7 +28,8 @@ from gpaw.new.potential import Potential
 from gpaw.new.scf import SCFLoop
 from gpaw.setup import Setups
 from gpaw.typing import Array1D, Array2D
-from gpaw.utilities import check_atoms_too_close, check_atoms_too_close_to_boundary
+from gpaw.utilities import (check_atoms_too_close,
+                            check_atoms_too_close_to_boundary)
 
 
 if TYPE_CHECKING:
