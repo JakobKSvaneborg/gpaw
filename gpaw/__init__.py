@@ -198,6 +198,7 @@ GPAW_NEW = int(os.environ.get('GPAW_NEW') or 0)
 # 0: use old GPAW
 # 1: use new GPAW
 # 147: use whatever works ...
+GPAW_NEW=147
 
 if os.uname().machine == 'wasm32':
     GPAW_NO_C_EXTENSION = True
