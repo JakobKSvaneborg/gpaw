@@ -92,9 +92,10 @@ def fixt_grid_shape(request) -> GridShape:
 
 @pytest.fixture(params=[
     BoundaryConds(pbc=[True, True, True], zerobc=[False, False, False]),
-    #BoundaryConds(pbc=[False, True, False], zerobc=[False, False, False])
+    BoundaryConds(pbc=[False, True, False], zerobc=[False, False, False]),
+    BoundaryConds(pbc=[False, False, False], zerobc=[False, False, False])
     ],
-    #ids=["AllPeriodic", "SomePeriodic"],
+    ids=["AllPeriodic", "SomePeriodic", "AllNonPeriodic"],
     scope="module")
 def fixt_bc(request) -> BoundaryConds:
     """Generates bunch of different boundary conditions for grids"""
@@ -154,8 +155,17 @@ def make_legacy_basis_functions(lfc: BasisFunctionCollectionBase, xp) \
                    for phi in phi_datas]
         phi_aj.append(splines)
 
+    # DON'T use grid._gd, it doesn't get the same boundary conditions as
+    # the new grid object (bug??).
+
+    from gpaw.old.grid_descriptor import GridDescriptor
+    legacy_grid = GridDescriptor(N_c=lfc.grid.size, cell_cv=lfc.grid.cell_cv,
+                                 comm=lfc.grid.comm, pbc_c=lfc.grid.pbc_c)
+
+    assert np.all(legacy_grid.pbc_c == lfc.grid.pbc_c)
+
     basis = BasisFunctions(
-        lfc.grid._gd,
+        legacy_grid,
         phi_aj,
         xp=xp)
 
@@ -184,45 +194,6 @@ def make_basis(system: LFCSystemDesc,
         # )
 
     return basis
-
-
-@pytest.mark.skip(reason="wip")
-def test_find_sphere_images(fixt_grid_shape, fixt_bc, num_spheres: int = 10,
-                            seed: int = 42):
-    """Test that we correctly identify periodic copies of basis funcs
-    (spheres)"""
-
-    global world
-    world = cast(MPIComm, world)
-
-    grid = UGDesc(cell=fixt_grid_shape.cell, size=fixt_grid_shape.size,
-                  comm=world, pbc=fixt_bc.pbc, zerobc=fixt_bc.zerobc)
-
-    rng = np.random.default_rng(seed)
-
-    # Max cell extent, used to generate sensible radii
-    corners = np.array(
-        [s @ grid.cell_cv for s in itertools.product([0, 1],repeat=3)]
-    )
-    max_extent = np.max(np.linalg.norm(corners, axis=1))
-
-    for i in range(num_spheres):
-        sphere_relpos_c = rng.uniform(0.0, 1.0, size=3)
-        sphere_pos_v = sphere_relpos_c @ grid.cell_cv
-
-        radius = rng.uniform(0.1, 3.5) * max_extent
-
-        cells, positions = find_sphere_images(grid, sphere_pos_v, radius)
-
-        assert len(cells) > 0, "Should find at least the main cell sphere"
-
-        for n_c, image_pos_v in zip(cells, positions):
-            # Translate image sphere back to main cell
-            unshifted_v = image_pos_v - n_c @ grid.cell_cv
-
-            # Should recover the original sphere centre
-            assert np.allclose(unshifted_v, sphere_pos_v), \
-                f"Image {n_c} does not unshift back to original position"
 
 
 @pytest.mark.parametrize("block_size", parametrize_blocksize())
@@ -270,51 +241,6 @@ def test_basis_creation(fixt_lfc_system: LFCSystemDesc, xp, purepython: bool,
         ):
             assert xyz not in seen_points
             seen_points.append(xyz)
-
-    # # Count number of spheres in the old LFC impl
-    # legacy_basis = make_legacy_basis_functions(basis, xp=xp)
-
-    # seen_phi = []
-    # for atom in legacy_basis.sphere_a:
-    #     sphere_pos_wc = atom.spos_c - np.asarray(atom.sdisp_wc)
-    #     sphere_pos_wv = sphere_pos_wc @ basis.grid.cell_cv
-    #     for w, sphere_pos_v in enumerate(sphere_pos_wv):
-    #         r = atom.spline_w[w].get_cutoff()
-    #         l = atom.spline_w[w].get_angular_momentum_number()
-
-    #         found = False
-    #         for phi in basis.get_phi_instances():
-    #             if phi.get_angular_momentum_number() == l and pytest.approx(phi.get_cutoff()) == r and np.allclose(sphere_pos_v, phi.position, atol=1e-6):
-    #                 seen_phi.append(phi)
-    #                 found = True
-    #                 break
-
-    #         if not found:
-    #             print(f"NOT FOUND: l={l} r={r}  pos={sphere_pos_v}")
-
-    #             if np.flatnonzero(atom.A_wgm[w]).size == 0:
-    #                 print("But its empty so OK")
-    #                 continue
-
-
-    #             icell_cv = np.linalg.inv(basis.grid.cell_cv)
-    #             image_pos_v = sphere_pos_v
-
-    #             image_pos_c = image_pos_v @ icell_cv
-    #             n_c = np.round(image_pos_c - atom.spos_c).astype(int)
-    #             print(f"atom fractional: {atom.spos_c}")
-    #             print(f"image fractional: {image_pos_c}")
-    #             print(f"required shift n_c: {n_c}")
-    #             h_c = 1.0 / np.linalg.norm(icell_cv, axis=1)
-    #             print(f"n_max_c used: {np.ceil(r / h_c).astype(int) + 1}")
-    #             assert False
-
-    # #print(f"num_new_phi={len(basis.get_phi_instances())}")
-    # extra_phi = [phi for phi in basis.get_phi_instances() if not any(phi is existing for existing in seen_phi)]
-    # for phi in extra_phi:
-    #     print(f"EXTRA: l={phi.get_angular_momentum_number()}, r={phi.get_cutoff()}, pos={phi.position}")
-
-    #assert old_num_spheres == len(basis.get_phi_instances())
 
 
 @pytest.mark.skipif(world.size > 1, reason="TODO, probably")
