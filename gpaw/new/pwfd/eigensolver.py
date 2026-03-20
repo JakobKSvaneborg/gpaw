@@ -60,9 +60,11 @@ class PWFDEigensolver(Eigensolver):
             self.scalapack_parameters = slparams(nbands, domain_band_comm)
         else:
             r, c, b = scalapack_parameters
-            if nbands**2 / (r * c) < 1000:
+            if b > nbands // max(r, c):
                 warnings.warn(
-                    f'{nbands}x{nbands} matrix too small for Scalapack')
+                    f'{nbands}x{nbands} matrix on {r}x{c} grid with '
+                    f'blocksize {b} is too small for ScaLapack.  '
+                    'Using Lapack instead.')
                 self.scalapack_parameters = (serial_comm, 1, 1, 0)
             else:
                 slcomm = domain_band_comm
