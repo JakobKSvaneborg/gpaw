@@ -137,22 +137,14 @@ class BaseMixer:
             for D_sp, D_isp in zip(D_asp, D_iasp[-1]):
                 dD_iasp[-1].append(D_sp - D_isp)
 
-            if self.metric is None:
-                mR_sG = R_sG
-            else:
-                mR_sG = np.empty_like(R_sG)
-                for s in range(spin):
-                    self.metric(R_sG[s], mR_sG[s])
-
-            if g_ss is not None:
-                mR_sG = np.tensordot(g_ss, mR_sG, axes=(1, 0))
+            mR_sG, mD_asp = self.apply_metric(R_sG, dD_iasp[-1], g_ss)
 
             # Update matrix:
             A_ii = np.zeros((iold, iold))
             i2 = iold - 1
 
             for i1, R_1sG in enumerate(R_isG):
-                a = self.dotprod(R_1sG, mR_sG, dD_iasp[i1], dD_iasp[-1], self.gd)
+                a = self.dotprod(R_1sG, mR_sG, dD_iasp[i1], mD_iasp[-1], self.gd)
                 A_ii[i1, i2] = a
                 A_ii[i2, i1] = a
             A_ii[:i2, :i2] = self.A_ii[-i2:, -i2:]
@@ -218,6 +210,21 @@ class BaseMixer:
         prod = prod.real
         return prod[0] if mode == 'scalar' else prod
 
+    def apply_metric(self, R_sG, dD_asp, g_ss):
+        mR_sG = R_sG.copy()
+        if self.metric is not None:
+            for R_G, mR_G in zip(R_sG, mR_sG):
+                self.metric(R_G, mR_G)
+        mD_asp = []
+        if g_ss is not None:
+            mR_sG[:] = np.tensordot(g_ss, mR_sG, axes=(1, 0))
+        for dD_sp in dD_asp:
+            if g_ss is not None:
+                mD_asp.append(np.tensordot(g_ss, dD_sp, axes=(1, 0)))
+            else:
+                mD_asp.append(dD_sp.copy())
+        return mR_sG, mD_asp
+
     def estimate_memory(self, mem, gd):
         gridbytes = gd.bytecount()
         mem.subnode('nt_iG, R_iG', 2 * self.nmaxold * gridbytes)
@@ -229,45 +236,51 @@ class BaseMixer:
         return string
 
 class MSR1Mixer(BaseMixer):
+    from line_profiler import profile
     name = 'MSR1'
     soft_bad_lim = 1.5
     hard_bad_lim = 2.0
 
-    dNt_i = []
+    mR_isG = []
+    mD_iasp = []
     def reset(self):
         super().reset()
         self.dNt_i = []
         self.last_dNt = np.inf
 
+    @profile
     def mix_density(self, nt_sG, D_asp, g_ss=None):
         nt_isG = self.nt_isG
         R_isG = self.R_isG
+        mR_isG = self.mR_isG
         D_iasp = self.D_iasp
         dD_iasp = self.dD_iasp
+        mD_iasp = self.mD_iasp
         iold = len(self.nt_isG)
         dNt = np.inf
         if iold > 0:
             # Calculate new residual (difference between input and
             # output density):
-            self.dNt_i = [dNtt * 1.2 for dNtt in self.dNt_i]
             R_sG = nt_sG - nt_isG[-1]
             dNt = self.calculate_charge_sloshing(R_sG)
-            self.dNt_i.append(dNt)
             R_isG.append(R_sG)
             dD_iasp.append([])
             for D_sp, D_isp in zip(D_asp, D_iasp[-1]):
                 dD_iasp[-1].append(D_sp - D_isp)
+            mR_sG, mD_asp = self.apply_metric(R_sG, dD_iasp[-1], g_ss)
+            mR_isG.append(mR_sG)
+            mD_iasp.append(mD_asp)
 
             while (iold > self.nmaxold and dNt <= self.last_dNt * self.soft_bad_lim) \
                     or (iold > self.nmaxold):
                 # Throw away too old stuff:
                 to_del = 0
-                assert len(self.dNt_i) == len(nt_isG)
                 del nt_isG[to_del]
                 del R_isG[to_del]
+                del mR_isG[to_del]
                 del D_iasp[to_del]
                 del dD_iasp[to_del]
-                del self.dNt_i[to_del]
+                del mD_iasp[to_del]
                 if self.world.rank == 0:
                     print('Deleting index ', to_del)
                 iold = len(nt_isG)
@@ -289,15 +302,19 @@ class MSR1Mixer(BaseMixer):
                 nt_isG.insert(insert_pos, tmp)
                 tmp = R_isG.pop()
                 R_isG.insert(insert_pos, tmp)
+                tmp = mR_isG.pop()
+                mR_isG.insert(insert_pos, tmp)
+                tmp = mD_iasp.pop()
+                mD_iasp.insert(insert_pos, tmp)
                 tmp = D_iasp.pop()
                 D_iasp.insert(insert_pos, tmp)
                 tmp = dD_iasp.pop()
                 dD_iasp.insert(insert_pos, tmp)
-                dNt = self.dNt_i.pop()
-                self.dNt_i.insert(insert_pos, dNt)
                 dNt = self.last_dNt * 1.1  # Avoid infinite loop
 
                 R_sG = R_isG[-1]
+                mR_sG = mR_isG[-1]
+                mD_asp = mD_iasp[-1]
                 backtracked = True
 
             # 1st order norm
@@ -321,68 +338,52 @@ class MSR1Mixer(BaseMixer):
             ### Calculate the multi-secants:
             s_isG = (nt_isG[:-1] - nt_isG[-1])
             y_isG = -(R_isG[:-1] - R_isG[-1])
+            ty_isG = -(mR_isG[:-1] - mR_isG[-1])
 
             sD_iasp = []
             yD_iasp = []
+            tyD_iasp = []
             for i1 in range(len(D_iasp) - 1):
                 sD_asp = []
                 yD_asp = []
+                tyD_asp = []
                 for a1 in range(len(D_iasp[i1])):
                     sD_asp.append((D_iasp[i1][a1] - D_iasp[-1][a1]))
                     yD_asp.append(-(dD_iasp[i1][a1] - dD_iasp[-1][a1]))
+                    tyD_asp.append(-(mD_iasp[i1][a1] - mD_iasp[-1][a1]))
                 sD_iasp.append(sD_asp)
                 yD_iasp.append(yD_asp)
-
-            # Apply metric to the function value multisecant
-            ty_isG = y_isG.copy()
-            for ty_sG in ty_isG:
-                for ty_G in ty_sG:
-                    if self.metric is not None:
-                        self.metric(ty_G.copy(), ty_G)
-                if g_ss is not None:
-                    ty_sG[:] = np.tensordot(g_ss, ty_sG, axes=(1, 0))
-
-            tyD_iasp = []
-            for yD_asp in yD_iasp:
-                tyD_asp = []
-                for yD_sp in yD_asp:
-                    if g_ss is not None:
-                        tyD_sp = np.tensordot(g_ss, yD_sp, axes=(1, 0))
-                    else:
-                        tyD_sp = yD_sp.copy()
-                    tyD_asp.append(tyD_sp)
                 tyD_iasp.append(tyD_asp)
 
             ### Rescale the multisecants
-            y_norm = self.dotprod(y_isG, ty_isG, tyD_iasp, yD_iasp, self.gd, mode='vecdot')
-            y_norm = 1 / np.sqrt(y_norm)
-            y_norm_expanded = np.expand_dims(y_norm, axis=tuple(np.arange(1, y_isG.ndim)))
-            y_isG *= y_norm_expanded
-            ty_isG *= y_norm_expanded
-            s_isG *= y_norm_expanded
-            for i, (sD_asp, yD_asp, tyD_asp) in enumerate(zip(sD_iasp, yD_iasp, tyD_iasp)):
-                for a, (sD_sp, yD_sp, tyD_sp) in enumerate(zip(sD_asp, yD_asp, tyD_asp)):
-                    sD_sp *= y_norm[i]
-                    yD_sp *= y_norm[i]
-                    tyD_sp *= y_norm[i]
-
-            # Calculate norms for determining good-broydenness
-            y_norm = self.dotprod(y_isG, ty_isG, yD_iasp, tyD_iasp, self.gd, mode='vecdot')
-            s_norm = self.dotprod(s_isG, ty_isG, sD_iasp, tyD_iasp, self.gd, mode='vecdot')
+            # y_norm = self.dotprod(y_isG, ty_isG, yD_iasp, tyD_iasp, self.gd, mode='vecdot')
+            # y_norm = 1 / np.sqrt(y_norm)
+            # y_norm_expanded = np.expand_dims(y_norm, axis=tuple(np.arange(1, y_isG.ndim)))
+            # y_isG *= y_norm_expanded
+            # ty_isG *= y_norm_expanded
+            # s_isG *= y_norm_expanded
+            # for i, (sD_asp, yD_asp, tyD_asp) in enumerate(zip(sD_iasp, yD_iasp, tyD_iasp)):
+            #     for a, (sD_sp, yD_sp, tyD_sp) in enumerate(zip(sD_asp, yD_asp, tyD_asp)):
+            #         sD_sp *= y_norm[i]
+            #         yD_sp *= y_norm[i]
+            #         tyD_sp *= y_norm[i]
 
             ### 2023 paper eq 22 - Limit good_broydenness
-            YY_LIM = self.dotprod(y_isG, ty_isG, yD_iasp, tyD_iasp, self.gd, mode='gemm')
-            YY_LIM = np.linalg.norm(YY_LIM, ord='fro')
-            YS_LIM = self.dotprod(s_isG, ty_isG, sD_iasp, tyD_iasp, self.gd, mode='gemm')
-            YS_LIM = np.linalg.norm(YS_LIM, ord='fro')
+            Ay_ii = self.dotprod(y_isG, ty_isG, yD_iasp, tyD_iasp, self.gd, mode='gemm')
+            As_ii = self.dotprod(s_isG, ty_isG, sD_iasp, tyD_iasp, self.gd, mode='gemm')
+
+            YY_LIM = np.linalg.norm(Ay_ii, ord='fro')
+            YS_LIM = np.linalg.norm(As_ii, ord='fro')
             max_gb = min(max(YY_LIM / YS_LIM * max_gb_fact, 1), abs_gb_lim)
             good_broydenness = 0.5 * max_gb
 
             # Choose max good_broydenness s.t. A_ii is positive definite
             # for good_broydenness in good_broydenness_range:
             # binary search 2**(-10) accuracy:
-            Ay_ii = self.dotprod(y_isG, ty_isG, yD_iasp, tyD_iasp, self.gd, mode='gemm')
-            As_ii = self.dotprod(s_isG, ty_isG, sD_iasp, tyD_iasp, self.gd, mode='gemm')
+
+            # Calculate norms for determining good-broydenness
+            y_norm = np.diag(Ay_ii)
+            s_norm = np.diag(As_ii)
 
             for iter in range(2, 11):
                 norm_vec = 1 / np.sqrt(np.abs(y_norm + s_norm * good_broydenness))
@@ -408,7 +409,7 @@ class MSR1Mixer(BaseMixer):
 
             ### Re-Scale the problem!
             if renormalize:
-                t_norm = np.diag(Ay_ii) + good_broydenness * np.diag(As_ii)
+                t_norm = y_norm + good_broydenness * s_norm
                 t_norm = 1 / np.sqrt(t_norm)
                 t_norm_expanded = np.expand_dims(t_norm, axis=tuple(np.arange(1, y_isG.ndim)))
                 y_isG *= t_norm_expanded
@@ -442,21 +443,6 @@ class MSR1Mixer(BaseMixer):
             S, V, D = np.linalg.svd(A_ii)
             A_i = V / (V**2 + A_diag**2 * weight**2)
             A_ii = D.T @ np.diag(A_i) @ S.T
-            mR_sG = R_sG.copy()
-
-            if self.metric is not None:
-                for R_G, mR_G in zip(R_sG, mR_sG):
-                    self.metric(R_G, mR_G)
-
-            mD_asp = []
-            if g_ss is not None:
-                mR_sG[:] = np.tensordot(g_ss, mR_sG, axes=(1, 0))
-
-            for dD_sp in dD_iasp[-1]:
-                if g_ss is not None:
-                    mD_asp.append(np.tensordot(g_ss, dD_sp, axes=(1, 0)))
-                else:
-                    mD_asp.append(dD_sp.copy())
 
             alpha_i = self.dotprod(t_isG, [mR_sG, ], tD_iasp, [mD_asp, ],
                                    self.gd, mode='gemm')[:, 0]
@@ -536,8 +522,8 @@ class MSR1Mixer(BaseMixer):
                 pD_sp[:] = 0
 
             for i1, alpha in enumerate(alpha_i):
-                self.uk_sG -= y_isG[i1] * alpha
-                self.pk_sG += s_isG[i1] * alpha
+                self.uk_sG -= alpha * y_isG[i1]
+                self.pk_sG += alpha * s_isG[i1]
 
                 for a1, sD_sp in enumerate(sD_iasp[i1]):
                     self.pD_asp[a1] += alpha * sD_sp
@@ -625,7 +611,8 @@ class MSR1Mixer(BaseMixer):
                 del R_isG[0]
                 del dD_iasp[0]
                 del D_iasp[0]
-                del self.dNt_i[0]
+                del mR_isG[0]
+                del mD_iasp[0]
 
         elif iold > 0:
             # Pratt step
