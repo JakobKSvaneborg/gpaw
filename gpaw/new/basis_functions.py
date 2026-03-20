@@ -12,6 +12,7 @@ from gpaw.new.timer import trace
 from gpaw.old.grid_descriptor import GridBoundsError
 from gpaw.setup import Setup, Setups
 from gpaw.spline import Spline
+from gpaw.typing import Array4D
 
 """
 Each atom has list of basis functions. A basis function is defined by its
@@ -43,47 +44,17 @@ def sphere_overlaps_box(
     return dist2 <= radius * radius
 
 
-def find_sphere_images(
+def find_image_spheres_conservative(
         grid: UGDesc,
         sphere_pos_v: np.ndarray,
-        radius: float) -> tuple[list[np.ndarray], list[np.ndarray]]:
-    """Finds all periodic copies of a sphere that overlap with the main cell.
-    The original sphere is assumed to be inside the main cell.
-    "Image" refers to a copy of the sphere in other cells.
-    Result includes the original sphere in the main cell.
-
-    Returns
-    -------
-    cells  : list of ndarray shape (3,) int
-        Integer indices of all cells that contain an image of the sphere.
-        IE: cell (0, 0, 0) is the main cell, (-1, 0, 0) is the next cell in
-        the negative 0-direction, etc.
-    positions : list of ndarray shape (3,) float
-        Real-space positions of the sphere images.
-
-    Notes
-    -----
-    - Works with non-periodic grid directions (no images in those dirs)
-    - Works with generic parallelepiped-shaped grids
-    """
-
-    # The unit cell is aligned along the real-space Cartesian vectors given
-    # by grid.cell_cv[c] for c=0,1,2. Conversion between real-space vector
-    # pos_v and fractional "grid-aligned" vector pos_c happens as:
-    #   pos_v = pos_c @ cell_cv.
-
-    # Get inverse of cell_cv. NOT grid.icell because that is transposed!
+        radius: float
+) -> tuple[list[np.ndarray], list[np.ndarray]]:
+    """"""
     icell_cv = grid.icell.T
-    pos_c = sphere_pos_v @ icell_cv
+    h_c = 1.0 / np.linalg.norm(icell_cv, axis=0)
 
-    # We want to "stack" unit cells in all directions until the sphere no
-    # longer reaches new cells. Do this by finding the "perpedincular
-    # heights" of the unit cell, ie. face normals times appropriate length.
-    # These give the minimum possible spacing between spheres.
-    # But icell_cv[b] @ cell_cv[c] == delta_(bc) means that icell_cv[c] is
-    # normal to the face spanned by the other two cell_cv vectors, and its
-    # length gives the perpedicular height h_c.
-    h_c = 1.0 / np.linalg.norm(icell_cv, axis=1)
+    # Sphere position in cell-fractional coords
+    pos_c = sphere_pos_v @ icell_cv
 
     # How many cells can the sphere extend at max, in a given direction
     n_max_c = np.ceil(radius / h_c).astype(int) + 1
@@ -103,24 +74,22 @@ def find_sphere_images(
     shifts = np.stack(cells, axis=-1)
     # includes (0, 0, 0), ie. the main cell
 
-    # Can happen that a sphere overlaps the cell but not any grid points in
-    # it, because of how boundary points are treated. We only care about grid
-    # point overlaps, so do overlap checks against a slightly shrinked cell.
-    last_frac_c = (grid.size_c - 1) / grid.size_c
-
     # Place image sphere candidates
     image_pos_c = pos_c + shifts
-    # Find closest point to the image within the main cell
-    image_closest_c = np.clip(image_pos_c, 0.0, last_frac_c)
-
-    # The actual overlap check:
     image_pos_v = image_pos_c @ grid.cell_cv
-    closest_v = image_closest_c @ grid.cell_cv
-    dist2 = np.sum((image_pos_v - closest_v)**2, axis=-1)
-    shifts = shifts[dist2 <= radius**2]
 
-    positions = sphere_pos_v + (shifts @ grid.cell_cv)
-    return list(shifts), list(positions)
+    # --- Fast conservative pass: sphere vs AABB of the main cell ---
+    aabb_corners_c = np.array(list(itertools.product([0, 1], repeat=3)))
+    aabb_corners_v = aabb_corners_c @ grid.cell_cv
+    aabb_min = aabb_corners_v.min(axis=0)
+    aabb_max = aabb_corners_v.max(axis=0)
+
+    closest_v = np.clip(image_pos_v, aabb_min, aabb_max)
+    dist2_aabb = np.sum((image_pos_v - closest_v)**2, axis=-1)
+    in_range = dist2_aabb < radius**2
+    candidate_shifts = shifts[in_range]
+
+    return list(candidate_shifts), list(image_pos_v[in_range])
 
 
 @dataclass
@@ -437,6 +406,75 @@ class SplinePoolBase(ABC):
         return self.splines[spline_idx]
 
 
+class BlockData:
+    """Blocks are labeled by integers (Bx, By, Bz). Block (0, 0, 0) starts
+    at grid.start_c and spans `block_size` grid points.
+    Note that (Bx, By, Bz) are relative to the MPI domain. Last blocks in each
+    direction can be smaller: their end_c are clipped so that the block does
+    not extend outside the domain.
+    """
+
+    def __init__(self, grid: UGDesc, block_size: int):
+        """"""
+
+        self.grid = grid
+        self.block_size = block_size
+
+        # Blocks are labeled by integers (Bx, By, Bz). Block (0, 0, 0) starts
+        # at grid.start_c and spans `block_size` grid points.
+        # Note that (Bx, By, Bz) are relative to the MPI domain.
+
+        num_blocks_c = -(self.grid.mysize_c // -self.block_size).astype(int)
+        self.num_blocks_c = num_blocks_c
+        """Number of blocks in this MPI domain in each grid direction."""
+
+        # Compute block geometry: start_c and end_c for each block.
+        # end_c is clamped so that blocks don't extend outside the domain.
+        # Block start/end in grid-index space: (Bx, By, Bz, 3)
+        block_grid = np.stack(
+            np.meshgrid(*[np.arange(n) for n in num_blocks_c], indexing='ij'),
+            axis=-1)
+
+        block_start_c = self.grid.start_c + self.block_size * block_grid
+        block_end_c = np.minimum(block_start_c + self.block_size,
+                                 self.grid.end_c)
+        num_blocks_c = -(self.grid.mysize_c // -self.block_size).astype(int)
+
+        self.block_start_c = block_start_c
+        """Start grid indices of each block into the full grid"""
+        self.block_end_c = block_end_c
+        """End grid indices of each block into the full grid"""
+
+        # AABB of each block: need all 8 corners since the cell can be skewed
+        corner_offsets = np.array(list(itertools.product([0, 1], repeat=3)))
+
+        block_corners_c = (block_start_c[..., None, :]
+            + corner_offsets * (block_end_c - block_start_c)[..., None, :])
+
+        self.h_cv = self.grid._gd.h_cv
+        """Grid spacing (precomputed; same as on the full grid)"""
+
+        self.block_corners_v = block_corners_c @ self.h_cv
+        """Block corner positions in real space: (Bx, By, Bz, 8, 3)"""
+
+    def get_grid_points_xyz(self, block: BlockCoords) -> Array4D:
+        """Returns real-space XYZ coordinates for each grid point in the
+        specified block. The block coords must be given relative to this MPI
+        domain. See also grid.xyz()."""
+
+        block_coords = np.asarray(block)
+        if (np.any(block_coords < 0)
+            or np.any(block_coords >= self.num_blocks_c)
+        ):
+            raise ValueError("Invalid block coords (must be domain-relative)")
+
+        start_c = self.block_start_c[*block]
+        end_c = self.block_end_c[*block]
+        indices_Rc = (
+            np.indices(tuple(end_c - start_c)).transpose((1, 2, 3, 0)))
+        indices_Rc += start_c
+        return indices_Rc @ self.h_cv
+
 class BasisFunctionCollectionBase(ABC):
     """Base class for LFC basis functions (new implementation). Handles atom
     and phi_mu placement and their index ordering, and blocking of the grid.
@@ -468,6 +506,7 @@ class BasisFunctionCollectionBase(ABC):
     This includes periodic copies of the phi from neighboring cells, if those
     overlap the main cell."""
 
+
     _mu_range_a: list[range]
     """Range of mu indices for atom 'a'."""
 
@@ -486,6 +525,9 @@ class BasisFunctionCollectionBase(ABC):
 
     blocks: list[GridBlock]
     # Store just those blocks that actually have phi overlap
+
+    block_data: BlockData
+    """"""
 
     def __init__(self,
                  system: LFCSystemDesc,
@@ -529,6 +571,8 @@ class BasisFunctionCollectionBase(ABC):
 
         # TODO let caller choose dtype (32 or 64bit float)
         self.dtype = np.float64
+
+        self.block_data = BlockData(self.grid, self.block_size)
 
         # TODO: actually check if we can/should precalculate
         if mode != PrecalculationMode.eNever:
@@ -643,108 +687,81 @@ class BasisFunctionCollectionBase(ABC):
             self._mu_range_a.append(range(mu, mu + mu_local))
             mu += mu_local
 
-    @trace
-    def _update_grid_blocks(self) -> None:
-        """Actually just fully rebuilds block info."""
 
-        """For each phi, find which blocks they overlap. This is very similar
-        to the "image sphere search" in _update_atom_position(), but instead
-        of unit cell overlaps we work with smaller parallelepipids within
-        the main unit cell.
-        """
+    def _update_block_data(self, spheres_i: list[PhiSphereData]) -> None:
+        """"""
 
-        self.blocks = []
-
-        # sanity check for domain decomp
-        assert self.grid.mysize_c.size > 0
-
-        # Label blocks by 3 integers: block with coords (bx, by, bz), spans
-        # global grid indices `(bx, by, bz) * block_size * [0, 1]`. Each MPI
-        # rank only needs to care about blocks in their own grid-point range,
-        # so in practice we store (bx, by, bz) relative to the grid domain.
-
-        # Number of blocks along each grid axis in this MPI domain.
-        # The last block is allowed to be smaller (fancy upwards rounding):
-        num_blocks_c = -(self.grid.mysize_c // -self.block_size).astype(int)
-
+        phi_idx = 0
+        self.phi_i = []
         block_map: dict[BlockCoords, GridBlock] = {}
+        # Fast but conservative AABB pass: cull distant block-sphere pairs
 
-        # Get inverse of cell_cv, note transpose
-        icell_cv = self.grid.icell.T
-        # Perpedincular height of the full cell
-        h_perp_c = 1.0 / np.linalg.norm(icell_cv, axis=1)
-        # Perpendicular height per one grid step
-        h_perp_step_c = h_perp_c / self.grid.size_c
+        # shape (Bx, By, Bz, 3)
+        block_aabb_min  = self.block_data.block_corners_v.min(axis=-2)
+        block_aabb_max  = self.block_data.block_corners_v.max(axis=-2)
 
-        block_size_frac_c = self.block_size / self.grid.size_c
-        # Fractional coords of this domain origin
-        domain_start_frac_c = self.grid.start_c / self.grid.size_c
+        # Gather sphere data into arrays. TODO atom update should already do something like this
+        # Let S = len(spheres_i)
+        pos_iv = np.array([s.pos_v for s in spheres_i])  # (S, 3)
+        radius_i = np.array([s.phi_desc.cutoff for s in spheres_i])  # (S,)
+        # For array broadcasting
+        pos_iBv = pos_iv[:, None, None, None, :]
+        radius_iB = radius_i[:, None, None, None]
 
-        for phi in self.get_phi_instances():
-            radius = phi.get_cutoff()
-            relpos_c = phi.position @ icell_cv
+        # Vectorized box-sphere overlap check for all pairs
+        closest_iBv = np.clip(pos_iBv, block_aabb_min, block_aabb_max)
+        dist2_iB = np.sum((closest_iBv - pos_iBv)**2, axis=-1)
+        aabb_overlap_mask = (dist2_iB <= radius_iB**2)  # (S, Bx, By, Bz)
 
-            # How many blocks can the sphere reach
-            reach_in_blocks_c = radius / (h_perp_step_c * self.block_size)
-            # Sphere center is in this block (can be outside the domain):
-            block_of_center_c = (
-                (relpos_c - domain_start_frac_c) / block_size_frac_c
-            )
+        # FIXME clearly we don't need the phi sphere struct to be separate
+        # from BasisFunctionInstance. We should have some flattened PhiData
+        # array that handles phi indexing, so that we don't have to have the idx
+        # inside BasisFunctionInstance.
+        phi_i_map: dict[int, BasisFunctionInstance] = {}
 
-            # Block coord ranges that we have to check for overlaps
-            min_block_c = np.clip(
-                np.floor(block_of_center_c - reach_in_blocks_c).astype(int),
-                0, num_blocks_c - 1)
+        # Exact pass: compute sphere distances from grid points of the blocks
+        for s_idx, bx, by, bz in zip(*np.where(aabb_overlap_mask)):
 
-            max_block_c = np.clip(
-                np.floor(block_of_center_c + reach_in_blocks_c).astype(int),
-                0, num_blocks_c - 1)
+            r = radius_i[s_idx]
+            pos_v = pos_iv[s_idx]
 
-            for bx, by, bz in itertools.product(
-                range(min_block_c[0], max_block_c[0] + 1),
-                range(min_block_c[1], max_block_c[1] + 1),
-                range(min_block_c[2], max_block_c[2] + 1),
-            ):
-                # Block spans grid indices [block_start_c, block_end_c]
-                block_start_c = (self.grid.start_c
-                                 + self.block_size * np.asarray([bx, by, bz]))
-                # Clip end corner so that it stays within the MPI domain
-                block_end_c = block_start_c + self.block_size
-                block_end_c = np.minimum(block_end_c, self.grid.end_c)
+            points_Rv = self.block_data.get_grid_points_xyz((bx, by, bz))
+            dist2_R = np.sum((points_Rv - pos_v)**2, axis=-1)
+            if not np.any(dist2_R <= r**2):
+                continue
 
-                # Find closest point inside the block to the sphere center
-                closest_frac_c = np.clip(relpos_c,
-                                         block_start_c / self.grid.size_c,
-                                         block_end_c / self.grid.size_c)
+            # Overlap OK
+            block_coords = (int(bx), int(by), int(bz))
+            if block_coords not in block_map:
+                block_map[block_coords] = GridBlock(
+                    self.grid, block_coords,
+                    self.block_data.block_start_c[bx, by, bz],
+                    self.block_data.block_end_c[bx, by, bz])
+            block = block_map[block_coords]
 
-                closest_v = closest_frac_c @ self.grid.cell_cv
+            sphere = spheres_i[s_idx]
 
-                # FIXME same issue with block being "too large" as in
-                # find_sphere_images()
-                if np.sum((phi.position - closest_v)**2) < radius**2:
-                    block_coords = (bx, by, bz)
-                    if block_coords in block_map:
-                        block = block_map[block_coords]
-                    else:
-                        # first time in this block
-                        block = GridBlock(
-                            self.grid,
-                            block_coords,
-                            block_start_c,
-                            block_end_c)
-                        block_map[block_coords] = block
+            # Ugly, gotta create the phi instances here on the fly
+            if s_idx not in phi_i_map.keys():
+                new_phi = BasisFunctionInstance(
+                        phi_idx,
+                        sphere.phi_desc,
+                        sphere.spline_idx,
+                        sphere.parent_atom_idx,
+                        sphere.first_mu,
+                        sphere.pos_v,
+                        sphere.cell_coords)
+                phi_i_map[s_idx] = new_phi
+                phi_idx += 1
+                self.phi_i.append(new_phi)
 
-                    block.phi_j.append(phi)
-                    phi.blocks_with_overlap.append(block)
-                # end block loop
+            phi = phi_i_map[s_idx]
+            block.phi_j.append(phi)
 
-            # Sort the block list for convenience
-            # phi.blocks_with_overlap = sorted(phi.blocks_with_overlap,
-            #                                  key=lambda x : x.coords)
-
-        # end phi loop
+        # End sphere-block loop
 
         # Construct mapping for block-local phi_m => global phi_mu
+        self.blocks = []
         for block in block_map.values():
             block.M_m = []
             block.phi_j = sorted(block.phi_j, key=lambda x: x.first_mu)
@@ -923,6 +940,18 @@ class BasisFunctionCollectionBase(ABC):
         # Keep track of all phi that are now present
         phi_spheres = []
 
+        # Find periodic copies ("image spheres") of all basis functions that
+        # overlap the main cell. First a fast conservative pass that finds
+        # potential images, then a slower exact check with blocked grid
+        # that only keeps images that overlap with some grid point in this
+        # MPI domain.
+
+        """TODO:
+        - Catch GridBoundsError "atom too close to edge". In old code this originates from get_boxes(),
+          which we don't use here, so need to copy the check from there and raise as needed.
+        -
+        """
+
         for a in range(self.num_atoms):
 
             new_relpos = relpos_ac[a]
@@ -930,12 +959,14 @@ class BasisFunctionCollectionBase(ABC):
                 # Nothing to do for this atom
                 continue
 
-            try:
-                res = self._update_atom_position(a, new_relpos)
-            except GridBoundsError as e:
-                e.args = (f'Atom {a} too close to edge: {e}',)
-                # FIXME if this happens our self._relpos_ac goes out of sync
-                raise
+            res = self._update_atom_position(a, new_relpos)
+
+            # try:
+            #     res = self._update_atom_position(a, new_relpos)
+            # except GridBoundsError as e:
+            #     e.args = (f'Atom {a} too close to edge: {e}',)
+            #     # FIXME if this happens our self._relpos_ac goes out of sync
+            #     raise
 
             has_changes = True
             assert np.all(res.relpos_c == new_relpos)
@@ -981,46 +1012,31 @@ class BasisFunctionCollectionBase(ABC):
 
         for i, phi in enumerate(self.get_phi_data_for_atom(atom_idx)):
 
+            cells, positions_v = find_image_spheres_conservative(
+                self.grid,
+                position_v,
+                phi.cutoff)
+
             spline_idx = spline_indices[i]
 
-            # NOTE: there is a helper function in GridDescriptor called
-            # get_boxes(), but it seems to give false positives. The following
-            # tries to do better.
-            cells, positions_v = find_sphere_images(self.grid,
-                                                    position_v,
-                                                    phi.cutoff)
-
-            for j, atom_pos in enumerate(positions_v):
+            for j, sphere_pos_v in enumerate(positions_v):
                 phi_spheres.append(
-                    PhiSphereData(atom_pos, spline_idx, atom_idx, mu, phi,
+                    PhiSphereData(sphere_pos_v, spline_idx, atom_idx, mu, phi,
                                   cell_coords=cells[j]))
 
             mu += (2 * phi.l + 1)
 
-        # FIXME: the above can still give phi instances that technically
-        # overlap the cell, but don't overlap with any grid point...?
-        # Not a big issue but wastes memory/flops
         return self.AtomUpdateResult(new_relpos_c, new_rank, phi_spheres)
+
 
     def _build_phi_instances(
             self,
             phi_spheres: list[PhiSphereData]) -> None:
         """"""
-        self.phi_i = []
 
-        for i, sphere in enumerate(phi_spheres):
-            new_phi = BasisFunctionInstance(
-                i,
-                sphere.phi_desc,
-                sphere.spline_idx,
-                sphere.parent_atom_idx,
-                sphere.first_mu,
-                sphere.pos_v,
-                sphere.cell_coords)
-
-            self.phi_i.append(new_phi)
-
-        self._update_grid_blocks()
+        # Input spheres are optimistic and may not actually overlap the cell.
+        # Do blocking to cull them
+        self._update_block_data(phi_spheres)
 
     def set_matrix_distribution(self, Mstart: int, Mstop: int) -> None:
         """Specifies that calculate_potential_matrices should only do rows

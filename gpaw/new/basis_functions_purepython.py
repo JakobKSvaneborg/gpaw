@@ -98,6 +98,7 @@ class BasisFunctionCollectionPurePython(BasisFunctionCollectionBase):
                 f_r = self.evaluate_spline(phi.spline_index, d_G)
 
                 l = phi.get_angular_momentum_number()
+
                 # ensure the order is what we expect
                 assert block.M_m[mu_local] == phi.first_mu
 
