@@ -9,6 +9,7 @@ to account for this produces a non-Hermitian BSE matrix.
 import numpy as np
 import pytest
 
+from gpaw.mpi import broadcast_float
 from gpaw.response.bse import BSE
 
 
@@ -65,19 +66,26 @@ def test_bse_hermiticity(in_tmp_dir, gpw_files):
         deviation_fixed = np.abs(H_fixed - H_fixed.conj().T).max()
         deviation_broken = np.abs(H_broken - H_broken.conj().T).max()
         diff = np.abs(H_fixed - H_broken).max()
+    else:
+        deviation_fixed = deviation_broken = diff = 0.0
 
-        # --- 1. With the fix: matrix must be Hermitian ---
-        assert deviation_fixed < 1e-12, (
-            f'BSE matrix is not Hermitian with fix: '
-            f'max|H - H†| = {deviation_fixed:.2e}')
+    # Broadcast so all ranks assert together (avoids MPI deadlock on failure)
+    deviation_fixed = broadcast_float(deviation_fixed, comm)
+    deviation_broken = broadcast_float(deviation_broken, comm)
+    diff = broadcast_float(diff, comm)
 
-        # --- 2. Without the fix: matrix must NOT be Hermitian ---
-        assert deviation_broken > 1e-6, (
-            f'Expected non-Hermitian matrix without fix, but '
-            f'max|H - H†| = {deviation_broken:.2e} is too small. '
-            f'The test may not be exercising time-reversed q-points.')
+    # --- 1. With the fix: matrix must be Hermitian ---
+    assert deviation_fixed < 1e-12, (
+        f'BSE matrix is not Hermitian with fix: '
+        f'max|H - H†| = {deviation_fixed:.2e}')
 
-        # --- 3. The fix and the broken version should differ ---
-        assert diff > 1e-6, (
-            f'Fixed and broken matrices are identical (diff={diff:.2e}). '
-            f'The fix may not be active for this system.')
+    # --- 2. Without the fix: matrix must NOT be Hermitian ---
+    assert deviation_broken > 1e-6, (
+        f'Expected non-Hermitian matrix without fix, but '
+        f'max|H - H†| = {deviation_broken:.2e} is too small. '
+        f'The test may not be exercising time-reversed q-points.')
+
+    # --- 3. The fix and the broken version should differ ---
+    assert diff > 1e-6, (
+        f'Fixed and broken matrices are identical (diff={diff:.2e}). '
+        f'The fix may not be active for this system.')
