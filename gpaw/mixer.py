@@ -243,7 +243,7 @@ class MSR1Mixer(BaseMixer):
                  beta=0.07,
                  nmaxold=8,
                  weight=70,
-                 trust_scalar=4.0,
+                 trust_scalar=8.0,
                  soft_bad_lim=1.5,
                  hard_bad_lim=2.0,
                  gb_scale=0.9):
@@ -347,8 +347,8 @@ class MSR1Mixer(BaseMixer):
             post_gb_fact = 0.9 if del_oldest else (
                 0.9 if backtracked else 0.9)
             weight = 8e-4  # Weight for regularization.
-            B0_boost = 5e-2  # Favor the predicted greed towards 1
-            B0_lims = [0.4, 1.1]   # Limits for predicted greed
+            B0_boost = 1e-1  # Favor the predicted greed towards 1
+            B0_lims = [0.4, 1.0]   # Limits for predicted greed
             A0_lims = [0.015, 0.45]   # Limits for unpredicted greed
             rate_ratio = [  # Rate ratio for clipping
                 0.7, 1.3 if not backtracked else punishment_factor]
