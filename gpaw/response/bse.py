@@ -669,15 +669,17 @@ class BSEBackend:
                 rho3_nnG, iq, sign = self.get_density_matrix(
                     pair_calc, screened_potential, kptv1_s[0], kptv2_s[0])
 
-                rho4_nnG, iq, sign = self.get_density_matrix(
+                rho4_nnG, iq, sign4 = self.get_density_matrix(
                     pair_calc, screened_potential, kptc1_s[0], kptc2_s[0])
-
+                assert sign == sign4
                 if self.nspins == 2:
-                    rho3s1_nnG, iq, sign = self.get_density_matrix(
+                    rho3s1_nnG, iq, sign3 = self.get_density_matrix(
                         pair_calc, screened_potential, kptv1_s[1], kptv2_s[1])
 
-                    rho4s1_nnG, iq, sign = self.get_density_matrix(
+                    rho4s1_nnG, iq, sign4 = self.get_density_matrix(
                         pair_calc, screened_potential, kptc1_s[1], kptc2_s[1])
+                    assert sign == sign3
+                    assert sign == sign4
                 else:
                     rho3s1_nnG = None
                     rho4s1_nnG = None
