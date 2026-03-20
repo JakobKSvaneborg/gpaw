@@ -124,7 +124,7 @@ def ksd_transform_reference(ksd_reference):
 
 @pytest.fixture(scope='module', params=parallel_i)
 def build_ksd(initialize_system, request, scalapack):
-    calc = GPAW('unocc.gpw', parallel=request.param, txt=None)
+    calc = GPAW('unocc.gpw', parallel=request.param, legacy_gpaw=True)
     if not calc.wfs.ksl.using_blacs and calc.wfs.bd.comm.size > 1:
         pytest.skip('Band parallelization without scalapack is not supported')
     ksd = KohnShamDecomposition(calc)
