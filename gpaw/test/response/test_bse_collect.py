@@ -1,9 +1,9 @@
 """Test that collect_A_SS works with uneven k-point distribution.
 
 When the number of k-points does not divide evenly by the number of
-MPI ranks, the last rank has fewer rows. The original collect_A_SS
-used the padded self.ns (same on all ranks) for receive buffers,
-which caused a ValueError on uneven distributions.
+MPI ranks, the last rank has fewer rows.  The original collect_A_SS
+used the padded self.ns (same on all ranks) for receive buffers and
+slice widths, which caused a shape mismatch on uneven distributions.
 
 This test must be run with at least 2 MPI ranks and an odd number of
 k-points to exercise the bug.
@@ -42,25 +42,6 @@ class CollectStub:
     parallelisation_kpoints = BSE.parallelisation_kpoints
 
 
-def _collect_A_SS_original(stub, A_sS):
-    """Original (buggy) implementation using padded self.ns."""
-    comm = stub.context.comm
-    if comm.rank == 0:
-        A_SS = np.zeros((stub.nS, stub.nS), dtype=complex)
-        A_SS[:len(A_sS)] = A_sS
-        Ntot = len(A_sS)
-        for rank in range(1, comm.size):
-            buf = np.empty((stub.ns, stub.nS), dtype=complex)
-            comm.receive(buf, rank, tag=123)
-            A_SS[Ntot:Ntot + stub.ns] = buf
-            Ntot += stub.ns
-    else:
-        comm.send(A_sS, 0, tag=123)
-    comm.barrier()
-    if comm.rank == 0:
-        return A_SS
-
-
 @pytest.mark.response
 def test_collect_A_SS_uneven():
     """collect_A_SS must handle uneven k-point distribution across ranks."""
@@ -74,11 +55,21 @@ def test_collect_A_SS_uneven():
     nS = nK * nv * nc
 
     stub = CollectStub(nK, nv, nc, comm)
-    _, myKsize = stub.parallelisation_kpoints()
-    mySsize = myKsize * nv * nc
+
+    # --- Verify the bug precondition: the last rank's actual row count
+    # differs from the padded self.ns.  This is exactly the mismatch that
+    # caused the original code to fail (it used self.ns for every rank). ---
+    last_rank = comm.size - 1
+    _, last_Ksize = stub.parallelisation_kpoints(last_rank)
+    last_nrows = last_Ksize * nv * nc
+    assert last_nrows < stub.ns, (
+        f'Test requires uneven distribution: last rank has {last_nrows} '
+        f'rows but padded ns = {stub.ns}')
 
     # Build a known global matrix: A_SS[i, j] = i * nS + j
     # Each rank owns rows [offset : offset + mySsize]
+    _, myKsize = stub.parallelisation_kpoints()
+    mySsize = myKsize * nv * nc
     offset = 0
     for r in range(comm.rank):
         _, ksize = stub.parallelisation_kpoints(r)
@@ -89,23 +80,7 @@ def test_collect_A_SS_uneven():
         for j in range(nS):
             A_sS[i, j] = (offset + i) * nS + j
 
-    # --- The original code should fail on uneven distributions ---
-    original_failed = False
-    try:
-        _collect_A_SS_original(stub, A_sS)
-    except (ValueError, Exception):
-        original_failed = True
-    # Synchronise: all ranks must agree on whether it failed.
-    # (The error occurs on rank 0; other ranks just did send+barrier.)
-    failed_flag = np.array([1.0 if original_failed else 0.0])
-    comm.max(failed_flag)
-    original_failed = failed_flag[0] > 0.5
-
-    assert original_failed, (
-        'Expected the original collect_A_SS to fail with uneven '
-        f'k-point distribution (nK={nK}, comm.size={comm.size})')
-
-    # --- The fixed code should succeed and return the correct matrix ---
+    # --- The fixed collect_A_SS should handle this correctly ---
     A_SS = stub.collect_A_SS(A_sS)
     if comm.rank == 0:
         expected = np.empty((nS, nS), dtype=complex)
@@ -113,4 +88,4 @@ def test_collect_A_SS_uneven():
             for j in range(nS):
                 expected[i, j] = i * nS + j
         assert np.allclose(A_SS, expected), (
-            'Fixed collect_A_SS returned incorrect values')
+            'collect_A_SS returned incorrect values')
