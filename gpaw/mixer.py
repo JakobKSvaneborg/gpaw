@@ -105,7 +105,7 @@ class BaseMixer:
     def calculate_charge_sloshing(self, R_sG) -> float:
         return self.gd.integrate(np.fabs(R_sG)).sum()
 
-    def mix_density(self, nt_sG, D_asp, g_ss=None, rhot=None):
+    def mix_density(self, nt_sG, D_asp, g_ss=None):
         # nt_sG /= np.sum(nt_sG)
         nt_isG = self.nt_isG
         R_isG = self.R_isG
@@ -131,7 +131,6 @@ class BaseMixer:
             dNt = self.calculate_charge_sloshing(R_sG)
             R_isG.append(R_sG)
 
-            print('dnt: ', dNt)
             dD_iasp.append([])
             for D_sp, D_isp in zip(D_asp, D_iasp[-1]):
                 dD_iasp[-1].append(D_sp - D_isp)
@@ -780,7 +779,7 @@ class FFTBaseMixer(MSR1Mixer):
 
         return self.gd.comm.sum_scalar(cs)
 
-    def mix_density(self, nt_sR, D_asp, g_ss=None, rhot=None):
+    def mix_density(self, nt_sR, D_asp, g_ss=None):
         # Transform real-space density to Fourier space
         nt1_sR = [self.gd.collect(nt_R) for nt_R in nt_sR]
         if self.gd.comm.rank == 0:
@@ -1090,11 +1089,9 @@ class SpinDifferenceMixerDriver:
         if nspins == 1:
             raise ValueError('Spin difference mixer expects 2 or 4 components')
         basemixer = self.basemixerclass(self.beta, self.nmaxold, self.weight)
-        basemixer.min_imp = 100000
         if nspins == 2:
             basemixer_m = self.basemixerclass(self.beta_m, self.nmaxold_m,
                                               self.weight_m)
-            basemixer_m.min_imp = 100000
             return basemixer, basemixer_m
         else:
             basemixer_x = self.basemixerclass(self.beta_m, self.nmaxold_m,
@@ -1166,7 +1163,7 @@ class FullSpinMixerDriver:
         basemixer = self.basemixerclass(self.beta, self.nmaxold, self.weight)
         return [basemixer]
 
-    def mix(self, basemixers, nt_sG, D_asp, rhot=None):
+    def mix(self, basemixers, nt_sG, D_asp):
         D_asp = D_asp.values()
         basemixer = basemixers[0]
         if self.g_ss is None or len(self.g_ss) != len(nt_sG):
@@ -1258,7 +1255,7 @@ class MixerWrapper:
             basemixer.world = world
 
     @trace
-    def mix(self, nt_sR, D_asp=None, rhot=None):
+    def mix(self, nt_sR, D_asp=None):
         if D_asp is not None:
             return self.driver.mix(self.basemixers, nt_sR, D_asp)
 
