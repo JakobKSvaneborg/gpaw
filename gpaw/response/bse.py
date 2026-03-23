@@ -672,17 +672,18 @@ class BSEBackend:
         storing all W_qGG simultaneously, which can require tens of GB for
         dense k-grids with large plane-wave cutoffs.
         """
-        from collections import defaultdict
         kpf = kptpair_factory
 
-        # Group BZ q-points by their IBZ q-point index
-        iq_to_bz_indices = defaultdict(list)
-        for iQ in range(len(self.qd.bzk_kc)):
-            iq = self.qd.bz2ibz_k[iQ]
-            iq_to_bz_indices[iq].append(iQ)
+        # Build reverse mapping from IBZ q-point index to all BZ indices.
+        # (ibz2bz_k maps each IBZ point to one representative BZ point,
+        # but here we need all BZ points that reduce to each IBZ point.)
+        bz2ibz = self.qd.bz2ibz_k
+        iq_to_bz_indices = [np.where(bz2ibz == iq)[0]
+                            for iq in range(self.qd.nibzkpts)]
 
-        n_pairs_done = 0
-        total_pairs = self.myKsize * len(self.qd.bzk_kc)
+        n_iterations_done = 0
+        # Total (k, Q) loop iterations for progress tracking
+        total_iterations = self.myKsize * len(self.qd.bzk_kc)
 
         self.context.print('Calculating screened potential and direct kernel')
 
@@ -763,22 +764,19 @@ class BSEBackend:
                         W_mmmm * (self.add_soc + 1) / 2
                     self.context.timer.stop('Screened exchange')
 
-                    n_pairs_done += 1
-
-            # Free W_GG before computing the next one
-            del W_GG, pawcorr_q, qpd_q
+                    n_iterations_done += 1
 
             if iq % (self.qd.nibzkpts // 5 + 1) == 0:
                 dt = time() - self._direct_kernel_t0
-                frac = n_pairs_done / total_pairs if total_pairs > 0 else 1
+                frac = n_iterations_done / total_iterations if total_iterations > 0 else 1
                 if frac > 0:
                     tleft = dt / frac - dt
                 else:
                     tleft = 0
                 self.context.print(
-                    '  Finished IBZ q-point %d/%d (%d pairs) in %s'
+                    '  Finished IBZ q-point %d/%d (%d iterations) in %s'
                     ' - Estimated %s left'
-                    % (iq + 1, self.qd.nibzkpts, n_pairs_done,
+                    % (iq + 1, self.qd.nibzkpts, n_iterations_done,
                        timedelta(seconds=round(dt)),
                        timedelta(seconds=round(tleft))))
 
@@ -875,6 +873,9 @@ class BSEBackend:
             chi0 = self._chi0calc.calculate(q_c)
             W_wGG = self._wcalc.calculate_W_wGG(chi0)
             W_GG = W_wGG[0]
+            # This is such a terrible way to access the paw
+            # corrections. Attributes should not be groped like
+            # this... Change in the future! XXX
             pawcorr_q.append(self._chi0calc.chi0_body_calc.pawcorr)
             qpd_q.append(chi0.qpd)
             W_qGG.append(W_GG)
