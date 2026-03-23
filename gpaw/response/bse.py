@@ -598,7 +598,7 @@ class BSEBackend:
         comm.sum(rhoex_KmmG)
 
         self.rhoG0_S = rhoex_KmmG[:, :, :, 0].ravel().copy()
-        self.rho_SG = rhoex_KmmG.reshape((self.nS, -1)).copy()
+        self.rho_SG = rhoex_KmmG.reshape((self.nS, -1))
         if self.susc_component != '00':
             comm.sum(rhomag_KmmG)
             self.rhomag_SG = np.reshape(rhomag_KmmG, (self.nS, -1))
@@ -630,9 +630,7 @@ class BSEBackend:
 
         # Add kernels to buffer array
         self.add_indirect_kernel(kptpair_factory, rhoex_KmmG, H_kmmKmm)
-        # Free rhoex_KmmG now that indirect kernel is done.
-        # self.rho_SG and self.rhoG0_S are independent copies.
-        del rhoex_KmmG
+        del rhoex_KmmG  # self.rho_SG holds a view of the same data
         if self.mode != 'RPA':
             self._direct_kernel_t0 = time()
             self.add_direct_kernel(kptpair_factory, pair_calc,
