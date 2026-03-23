@@ -3,6 +3,7 @@
  *  Please see the accompanying LICENSE file for further information. */
 
 #include "python_utils.h"
+#include "array.h"
 #include "extensions.h"
 #include "bmgs/bmgs.h"
 #include "spline.h"
@@ -84,6 +85,12 @@ PyObject *tci_overlap(PyObject *self, PyObject *args)
                           &dxdR_cmi_obj))
         return NULL;
 
+    CHK_ARRAY(G_LLL_obj);
+    CHK_ARRAY(rlY_L_obj);
+    CHK_ARRAY(x_mi_obj);
+    CHK_ARRAY(Rhat_c_obj);
+    CHK_ARRAY(drlYdR_Lc_obj);
+    CHK_ARRAY(dxdR_cmi_obj);
 
     SplineObject *spline_obj;
     bmgsspline *spline;
