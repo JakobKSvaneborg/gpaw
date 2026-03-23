@@ -134,7 +134,7 @@ class DOSCalculator:
         self.eig_skn = wfs.eigenvalues()
         self.fermi_level = wfs.fermi_level
 
-        if shift_fermi_level and np.isfinite(wfs.fermi_level):
+        if shift_fermi_level:
             self.eig_skn -= wfs.fermi_level
 
         self.collinear = (self.eig_skn.ndim == 3)
