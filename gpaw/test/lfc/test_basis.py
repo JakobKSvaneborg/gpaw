@@ -2,7 +2,7 @@ from gpaw.core import UGArray, UGDesc
 from gpaw.lfc import BasisFunctions
 from gpaw.new.basis_functions import (
     BasisFunctionDesc, BasisFunctionCollectionBase, LFCAtomDesc,
-    LFCSystemDesc, PrecalculationMode)
+    LFCSystemDesc)
 
 from gpaw.new.basis_functions_purepython \
     import BasisFunctionCollectionPurePython
@@ -18,11 +18,6 @@ import itertools
 from collections import namedtuple
 from typing import cast
 
-
-# Best to use grid.empty() and grid.zeros() for test array creation. They are
-# aware of boundary condition and domain distribution gimmicks.
-# But note that these NEED the communicator as input, otherwise they default
-# to serial even if the grid already has communicator set...
 
 def xp_params_no_cpupy():
     """Use as @pytest.mark.parametrize("xp", xp_params_no_cpupy())
@@ -479,33 +474,43 @@ def test_domain_decomposition(
 
     # Re-seed just in case
     rng = xp.random.default_rng(841)
-    # nt_sR_serial = serial_basis.grid.empty(num_spins,
-    #                                        comm=serial_basis.grid.comm)
 
-    nt_sG_serial = rng.random((num_spins, *serial_basis.grid.mysize_c))
+    # Grid zerobc complications:
+    # - First grid point is implicitly deleted
+    # - mysize_c is aware of this, so is global_shape(), but size is not
+    # - start_c starts from 1 in the first MPI rank
+    # - Data arrays are smaller in first rank
+    # UGArray and UGDesc.empty, UGDesc.zeros are aware of some of this, but
+    # manual array ops are still complicated because of start_c.
+
+    shape_sR = (num_spins, *serial_basis.grid.global_shape())
+    nt_sR_serial = rng.random(shape_sR)
     # Decomposed density array:
-    sG_shape = (num_spins, *system.grid.mysize_c)
-    nt_sG = xp.empty(sG_shape)
+    shape_decomp_sR = (num_spins, *basis.grid.myshape)
+    nt_sR = xp.empty(shape_decomp_sR)
 
-    def manual_scatter(full_nt_sG, decomp_nt_sG):
-        start_c = system.grid.start_c
-        end_c = system.grid.end_c
-        decomp_nt_sG[:] = full_nt_sG[:,
+    def manual_scatter(full_nt_sR, decomp_nt_sR):
+        start_c = system.grid.start_c.copy()
+        end_c = system.grid.end_c.copy()
+        # handle first grid point missing if using zerobc
+        zerobc = system.grid.zerobc_c
+        start_c[zerobc] -= 1
+        end_c[zerobc] -= 1
+
+        decomp_nt_sR[:] = full_nt_sR[:,
                                      start_c[0]:end_c[0],
                                      start_c[1]:end_c[1],
                                      start_c[2]:end_c[2]]
 
-    manual_scatter(nt_sG_serial, nt_sG)
+    manual_scatter(nt_sR_serial, nt_sR)
 
-    basis.grid.zeros()
-
-    basis.add_to_density(nt_sG, f_asi)
+    basis.add_to_density(nt_sR, f_asi)
     # Do the serial part separately in all ranks because this test doesn't
     # actually use MPI for scattering the reference result
-    serial_basis.add_to_density(nt_sG_serial, f_asi)
+    serial_basis.add_to_density(nt_sR_serial, f_asi)
 
-    nt_sG_ref = xp.empty_like(nt_sG)
+    nt_sG_ref = xp.empty_like(nt_sR)
     # Scatter the serial result back to all ranks
-    manual_scatter(nt_sG_serial, nt_sG_ref)
+    manual_scatter(nt_sR_serial, nt_sG_ref)
 
-    xp.testing.assert_allclose(nt_sG, nt_sG_ref, rtol=1e-10, atol=1e-12)
+    xp.testing.assert_allclose(nt_sR, nt_sG_ref, rtol=1e-10, atol=1e-12)
