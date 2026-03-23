@@ -8,7 +8,6 @@
 
 #include "python_utils.h"
 #include "gpaw_utils.h"
-#include "array.h"
 #include "extensions.h"
 
 /* Python wrappers for some BLAS functions. The following calls Fortran functions
@@ -66,10 +65,6 @@ PyObject* mmm(PyObject *self, PyObject *args)
                           &alpha, &M1, &trans1, &M2, &trans2, &beta, &M3))
         return NULL;
 
-    CHK_ARRAY(M1);
-    CHK_ARRAY(M2);
-    CHK_ARRAY(M3);
-
     double* a = (double*) PyArray_DATA(M2);
     double* b = (double*) PyArray_DATA(M1);
     double* c = (double*) PyArray_DATA(M3);
@@ -120,9 +115,6 @@ PyObject* rk(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "dOdO|s", &alpha, &a, &beta, &c, &trans))
         return NULL;
 
-    CHK_ARRAY(a);
-    CHK_ARRAY(c);
-
     int n = PyArray_DIMS(c)[0];
 
     int k, lda;
@@ -163,10 +155,6 @@ PyObject* r2k(PyObject *self, PyObject *args)
 
     if (!PyArg_ParseTuple(args, "DOOdO|s", &alpha, &a, &b, &beta, &c, &trans))
         return NULL;
-
-    CHK_ARRAY(a);
-    CHK_ARRAY(b);
-    CHK_ARRAY(c);
 
     int n = PyArray_DIMS(c)[0];
     int k, lda;
