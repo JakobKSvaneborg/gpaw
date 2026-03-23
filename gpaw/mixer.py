@@ -245,13 +245,20 @@ class MSR1Mixer(BaseMixer):
     name = 'MSR1'
 
     def __init__(self,
-                 beta=0.07,
+                 beta=0.035,
                  nmaxold=8,
                  weight=70,
                  trust_scalar=8.0,
                  soft_bad_lim=1.5,
                  hard_bad_lim=2.0,
                  gb_scale=0.9):
+        """
+        This is an implementation of the MSR1 mixer.
+        References:
+          -  DOI: https://doi.org/10.1021/acs.jctc.1c00630
+          -  http://www.wien2k.at/reg_user/textbooks/Mixing_For_Dummies.pdf
+          -  and other mixer related papers by Laurence Marks (wien2k dev)
+        """
         super().__init__(beta, nmaxold, weight)
         self.mR_isG = []
         self.mD_iasp = []
@@ -333,6 +340,12 @@ class MSR1Mixer(BaseMixer):
             ntnorm = self.calculate_charge_sloshing(nt_isG[-1])
             dNt_normed = dNt / ntnorm
 
+            # Here are some hardcoded parameters for the mixer.
+            # I have collected them all here, for simplicity,
+            # however, the idea is not that these should be
+            # changeable by the user.
+            # Maybe at some point, someone, wants to try and
+            # optimize them - if so - good luck and have fun.
             dampen = 1  # Dampen the greeds
             # How much to reduce greed when backtracing
             punishment_factor = 0.8 if del_oldest else 1.0
@@ -351,8 +364,6 @@ class MSR1Mixer(BaseMixer):
             A0_lims = [0.015, 0.45]   # Limits for unpredicted greed
             rate_ratio = [  # Rate ratio for clipping
                 0.7, 1.3 if not backtracked else punishment_factor]
-            renormalize = True  # Renormalize t_isG
-            prescale = False
             initial_B0 = 1.0
 
             # Calculate the multi-secants:
@@ -374,24 +385,6 @@ class MSR1Mixer(BaseMixer):
                 sD_iasp.append(sD_asp)
                 yD_iasp.append(yD_asp)
                 tyD_iasp.append(tyD_asp)
-
-            # Rescale the multisecants
-            if prescale:
-                y_norm = self.dotprod(
-                    y_isG, ty_isG, yD_iasp, tyD_iasp, self.gd, mode='vecdot')
-                y_norm = 1 / np.sqrt(y_norm)
-                y_norm_expanded = np.expand_dims(
-                    y_norm, axis=tuple(np.arange(1, y_isG.ndim)))
-                y_isG *= y_norm_expanded
-                ty_isG *= y_norm_expanded
-                s_isG *= y_norm_expanded
-                for i, (sD_asp, yD_asp, tyD_asp) in enumerate(
-                        zip(sD_iasp, yD_iasp, tyD_iasp)):
-                    for a, (sD_sp, yD_sp, tyD_sp) in enumerate(
-                            zip(sD_asp, yD_asp, tyD_asp)):
-                        sD_sp *= y_norm[i]
-                        yD_sp *= y_norm[i]
-                        tyD_sp *= y_norm[i]
 
             # 2023 paper eq 22 - Limit good_broydenness
             Ay_ii = self.dotprod(y_isG, ty_isG, yD_iasp,
@@ -432,20 +425,19 @@ class MSR1Mixer(BaseMixer):
             good_broydenness *= post_gb_fact
 
             # Re-Scale the problem!
-            if renormalize:
-                t_norm = y_norm + good_broydenness * s_norm
-                t_norm = 1 / np.sqrt(t_norm)
-                t_norm_expanded = np.expand_dims(
-                    t_norm, axis=tuple(np.arange(1, y_isG.ndim)))
-                y_isG *= t_norm_expanded
-                ty_isG *= t_norm_expanded
-                s_isG *= t_norm_expanded
-                for i, (sD_asp, yD_asp, tyD_asp) in enumerate(
-                        zip(sD_iasp, yD_iasp, tyD_iasp)):
-                    for sD_sp, yD_sp, tyD_sp in zip(sD_asp, yD_asp, tyD_asp):
-                        sD_sp *= t_norm[i]
-                        yD_sp *= t_norm[i]
-                        tyD_sp *= t_norm[i]
+            t_norm = y_norm + good_broydenness * s_norm
+            t_norm = 1 / np.sqrt(t_norm)
+            t_norm_expanded = np.expand_dims(
+                t_norm, axis=tuple(np.arange(1, y_isG.ndim)))
+            y_isG *= t_norm_expanded
+            ty_isG *= t_norm_expanded
+            s_isG *= t_norm_expanded
+            for i, (sD_asp, yD_asp, tyD_asp) in enumerate(
+                    zip(sD_iasp, yD_iasp, tyD_iasp)):
+                for sD_sp, yD_sp, tyD_sp in zip(sD_asp, yD_asp, tyD_asp):
+                    sD_sp *= t_norm[i]
+                    yD_sp *= t_norm[i]
+                    tyD_sp *= t_norm[i]
 
             t_isG = y_isG + good_broydenness * s_isG
             tD_iasp = []
@@ -526,7 +518,7 @@ class MSR1Mixer(BaseMixer):
                 self.A0 *= np.clip(A0_ratio_GEOM, *rate_ratio)
             else:
                 self.B0 = initial_B0
-                self.A0 = np.sqrt(A0_target * self.beta * 0.5)
+                self.A0 = np.sqrt(A0_target * self.beta)
 
             A0 = self.A0
             B0 = self.B0
@@ -651,7 +643,7 @@ class MSR1Mixer(BaseMixer):
             # Pratt step
             self.trust_radius = None
             self.A0 = None
-            A0 = self.beta / 2
+            A0 = self.beta
             self.uk_sG = R_sG
             self.pk_sG = np.zeros_like(self.uk_sG)
             nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG
