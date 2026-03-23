@@ -752,7 +752,7 @@ class BSEBackend:
 
             if iq % (self.qd.nibzkpts // 5 + 1) == 0:
                 dt = time() - self._direct_kernel_t0
-                frac = n_iterations_done / total_iterations if total_iterations > 0 else 1
+                frac = n_iterations_done / total_iterations
                 if frac > 0:
                     tleft = dt / frac - dt
                 else:
