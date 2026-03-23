@@ -630,7 +630,6 @@ class BSEBackend:
 
         # Add kernels to buffer array
         self.add_indirect_kernel(kptpair_factory, rhoex_KmmG, H_kmmKmm)
-        del rhoex_KmmG  # self.rho_SG holds a view of the same data
         if self.mode != 'RPA':
             self._direct_kernel_t0 = time()
             self.add_direct_kernel(kptpair_factory, pair_calc,
