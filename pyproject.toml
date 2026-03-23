@@ -38,7 +38,7 @@ gpaw-setup = 'gpaw.atom.gpaw_setup:main'
 gpaw-upfplot = 'gpaw.upf:main_plot'
 
 [project.entry-points."ase.ioformats"]
-gpaw-log = "gpaw.plugin:io"
+gpaw-log = "gpaw.ase_plugin:io"
 
 [project.optional-dependencies]
 docs = [
