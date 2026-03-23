@@ -13,6 +13,7 @@ PyObject * FFTWPlan(PyObject *self, PyObject *args)
 {
     PyArrayObject* in_obj;
     PyArrayObject* out_obj;
+    int sign;
     unsigned int flags;
     if (!PyArg_ParseTuple(args, "OOiI", &in_obj, &out_obj, &sign, &flags))
     {
