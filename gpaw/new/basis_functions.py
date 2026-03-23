@@ -605,10 +605,180 @@ class BasisFunctionCollectionBase(ABC):
         # if self.should_precalculate:
         #    self.precalculate_on_grid()
 
+    # Begin abstracts
+    @trace
+    @abstractmethod
+    def precalculate_on_grid(self) -> None:
+        raise NotImplementedError
+
+    @trace
+    @abstractmethod
+    def add_to_density(
+            self,
+            nt_sG: np.ndarray | cp.ndarray,
+            f_asi: dict[int, np.ndarray] | dict[int, cp.ndarray]) -> None:
+        r"""Add linear combination of squared localized functions to density.
+        Note that different atoms can have different number of basis funcs, so
+        the range of `i` can vary. Therefore, f_asi is a dict (or a list) of
+        arrays, not an array itself.
+        :::
+
+          ~        ---   a    a   2
+          n (r) += >    f   [Φ(r)]
+           s       ---   si   i
+                   a,i
+        """
+        raise NotImplementedError
+
+    @trace
+    @abstractmethod
+    def calculate_potential_matrix(
+            self,
+            vt_G: np.ndarray | cp.ndarray,
+            out: np.ndarray | cp.ndarray | None = None) \
+            -> np.ndarray | cp.ndarray:
+        """Calculate lower part of the potential matrix.
+
+        ::
+
+                      /
+            ~         |     *  _  ~ _        _   _
+            V      =  |  Phi  (r) v(r) Phi  (r) dr    for  mu >= nu
+             mu nu    |     mu            nu
+                      /
+
+        Parameters
+        ----------
+        vt_G : np.ndarray | cp.ndarray
+            The potential array in real space (GPU or CPU).
+        out : np.ndarray | cp.ndarray | None, optional
+            Optional output array to store the result. If None, a new array is
+            created. Default is None. TODO shape requirements?
+
+        Returns
+        -------
+        np.ndarray | cp.ndarray
+            The potential matrix with shape (Mstop - Mstart, MMax), where:
+            - Rows correspond to basis functions [Mstart, Mstop)
+            (if set_matrix_distribution was called, otherwise all rows).
+            - Only the lower triangle and diagonal are guaranteed to be
+            correct. Upper triangle elements may contain undefined or stale
+            values.
+
+            If 'out' was given, return value will be that same array.
+
+        Notes
+        -----
+        - Only the lower triangle and diagonal elements are guaranteed to be
+        correct. Upper triangle may still be modified (for example, the old
+        CPU code does this).
+        - If set_matrix_distribution() has been called, only rows
+        [Mstart, Mstop) are computed.
+        - The returned array type (CPU or GPU) matches the input vt_G type.
+        """
+
+        raise NotImplementedError
+
+    @abstractmethod
+    def construct_density(self,
+                          rho_MM,
+                          nt_G: np.ndarray | cp.ndarray,
+                          q):
+        raise NotImplementedError
+
+    @abstractmethod
+    def has_precalculated_phi(self) -> bool:
+        """"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def _init_splines(self) -> None:
+        """Creates and sets self.spline_pool"""
+        raise NotImplementedError
+    # End abstracts
+
+    def calculate_potential_matrices(
+            self,
+            vt_G: np.ndarray | cp.ndarray) -> np.ndarray | cp.ndarray:
+        """"""
+        V_MM = self.calculate_potential_matrix(vt_G)
+        return V_MM[np.newaxis]
+
+    def set_matrix_distribution(self, Mstart: int, Mstop: int) -> None:
+        """Specifies that calculate_potential_matrices should only do rows
+        [Mstart, Mstop); Mstop is exclusive. Used for parallelization.
+        See dataclass LFCMatrixDistributionRules."""
+        # FIXME: why do we need stateful Mstart, Mstop?
+        # Why not just pass them as inputs to functions that use them?
+
+        Mstart = max(Mstart, self.mu_range.start)
+        Mstop = min(Mstop, self.mu_range.stop)
+        self._matrix_distribution_rules \
+            = LFCMatrixDistributionRules(Mstart, Mstop)
+
+    def get_relevant_blocks(self) -> list[GridBlock]:
+        """Returns list of grid blocks that contribute, ie. have overlap with
+        some phi."""
+        return self.blocks
+
+    @cached_property
+    def mu_range(self) -> range:
+        """Range of mu indices"""
+        # atom indices for lookups are always in range 0, ... N
+        mu_start = self._mu_range_a[0].start
+        mu_end = self._mu_range_a[-1].stop
+        return range(mu_start, mu_end)
+
+    @property
+    def Mmax(self) -> int:
+        """Last global index mu."""
+        return self.mu_range.stop
+
+    def get_mu_range_a(self, atom_index: int) -> range:
+        """Get range of mu indices for specified atom."""
+        return self._mu_range_a[atom_index]
+
+    def get_num_phi_a(self, atom_index: int) -> int:
+        """Get number of basis functions for specified atom"""
+        mu_range = self._mu_range_a[atom_index]
+        return mu_range.stop - mu_range.start
+
+    def num_basis_functions(self) -> int:
+        """"""
+        return self.mu_range.stop - self.mu_range.start
+
+    def get_phi_instances(self) -> list[BasisFunctionInstance]:
+        """Returns all basis function instances that contribute in this unit
+        cell, including periodic copies extending from other cells"""
+        return self.phi_i
+
+    # ??? These need to be exposed directly, outside code accesses them...
+    @property
+    def Mstart(self) -> int:
+        """"""
+        return self._matrix_distribution_rules.mu_start
+
+    @property
+    def Mstop(self) -> int:
+        """"""
+        return self._matrix_distribution_rules.mu_end
+    # end ???
+
     def uses_gpu(self) -> bool:
         """Returns True if the basis functions and splines are allocated in
         GPU memory."""
         return self.xp is not np
+
+    def get_cache_size_estimate(self) -> int:
+        """Estimate of how many bytes are needed to precalculate and cache the
+        basis functions on the grid.
+        """
+        num_sites = 0
+        for block in self.get_relevant_blocks():
+            num_sites += int(np.prod(block.shape))
+
+        dummy = np.empty((1), dtype=self.dtype)
+        return num_sites * self.num_basis_functions() * dummy.itemsize
 
     def get_phi_data_for_atom(self, atom_idx: int) -> list[BasisFunctionDesc]:
         """"""
@@ -633,7 +803,7 @@ class BasisFunctionCollectionBase(ABC):
         return [a for a, r in enumerate(self._rank_a) if r == myrank]
 
     def get_atom_positions(self, grid_relative=False) -> np.ndarray:
-        """Returns current atom positions. Either position_av or relpos_ac"""
+        """Returns current atom positions. Either position_av or relpos_ac."""
         if grid_relative:
             return self._relpos_ac
         else:
@@ -671,11 +841,6 @@ class BasisFunctionCollectionBase(ABC):
             self.phi_datas[k] = phi_copy
 
         assert len(self.phi_datas) > 0
-
-    @abstractmethod
-    def _init_splines(self) -> None:
-        """Creates and sets self.spline_pool"""
-        raise NotImplementedError
 
     def _init_mu_lookups(self) -> None:
         """"""
@@ -777,143 +942,6 @@ class BasisFunctionCollectionBase(ABC):
             #
             self.blocks.append(block)
         #
-
-    def get_relevant_blocks(self) -> list[GridBlock]:
-        """Returns list of grid blocks that contribute, ie. have overlap with
-        some phi."""
-        return self.blocks
-
-    @trace
-    @abstractmethod
-    def precalculate_on_grid(self) -> None:
-        raise NotImplementedError
-
-    @trace
-    @abstractmethod
-    def add_to_density(
-            self,
-            nt_sG: np.ndarray | cp.ndarray,
-            f_asi: dict[int, np.ndarray] | dict[int, cp.ndarray]) -> None:
-        r"""Add linear combination of squared localized functions to density.
-        Note that different atoms can have different number of basis funcs, so
-        the range of `i` can vary. Therefore, f_asi is a dict (or a list) of
-        arrays, not an array itself.
-        :::
-
-          ~        ---   a    a   2
-          n (r) += >    f   [Φ(r)]
-           s       ---   si   i
-                   a,i
-        """
-        raise NotImplementedError
-
-    @trace
-    @abstractmethod
-    def calculate_potential_matrix(
-            self,
-            vt_G: np.ndarray | cp.ndarray,
-            out: np.ndarray | cp.ndarray | None = None) \
-            -> np.ndarray | cp.ndarray:
-        """Calculate lower part of the potential matrix.
-
-        ::
-
-                      /
-            ~         |     *  _  ~ _        _   _
-            V      =  |  Phi  (r) v(r) Phi  (r) dr    for  mu >= nu
-             mu nu    |     mu            nu
-                      /
-
-        Parameters
-        ----------
-        vt_G : np.ndarray | cp.ndarray
-            The potential array in real space (GPU or CPU).
-        out : np.ndarray | cp.ndarray | None, optional
-            Optional output array to store the result. If None, a new array is
-            created. Default is None. TODO shape requirements?
-
-        Returns
-        -------
-        np.ndarray | cp.ndarray
-            The potential matrix with shape (Mstop - Mstart, MMax), where:
-            - Rows correspond to basis functions [Mstart, Mstop)
-            (if set_matrix_distribution was called, otherwise all rows).
-            - Only the lower triangle and diagonal are guaranteed to be
-            correct. Upper triangle elements may contain undefined or stale
-            values.
-
-            If 'out' was given, return value will be that same array.
-
-        Notes
-        -----
-        - Only the lower triangle and diagonal elements are guaranteed to be
-        correct. Upper triangle may still be modified (for example, the old
-        CPU code does this).
-        - If set_matrix_distribution() has been called, only rows
-        [Mstart, Mstop) are computed.
-        - The returned array type (CPU or GPU) matches the input vt_G type.
-        """
-
-        raise NotImplementedError
-
-    @abstractmethod
-    def construct_density(self,
-                          rho_MM,
-                          nt_G: np.ndarray | cp.ndarray,
-                          q):
-        raise NotImplementedError
-
-    @abstractmethod
-    def has_precalculated_phi(self) -> bool:
-        """"""
-        raise NotImplementedError
-
-    @cached_property
-    def mu_range(self) -> range:
-        """Range of mu indices"""
-        # atom indices for lookups are always in range 0, ... N
-        mu_start = self._mu_range_a[0].start
-        mu_end = self._mu_range_a[-1].stop
-        return range(mu_start, mu_end)
-
-    @property
-    def Mmax(self) -> int:
-        """Last global index mu."""
-        return self.mu_range.stop
-
-    def get_mu_range_a(self, atom_index: int) -> range:
-        """Get range of mu indices for specified atom."""
-        return self._mu_range_a[atom_index]
-
-    def get_num_phi_a(self, atom_index: int) -> int:
-        """Get number of basis functions for specified atom"""
-        mu_range = self._mu_range_a[atom_index]
-        return mu_range.stop - mu_range.start
-
-    def is_gpu(self) -> bool:
-        """True if this object is using GPU."""
-        return self.xp is not np
-
-    def num_basis_functions(self) -> int:
-        """"""
-        return self.mu_range.stop - self.mu_range.start
-
-    def get_phi_instances(self) -> list[BasisFunctionInstance]:
-        """Returns all basis function instances that contribute in this unit
-        cell, including periodic copies extending from other cells"""
-        return self.phi_i
-
-    # ??? These need to be exposed directly, outside code accesses them...
-    @property
-    def Mstart(self) -> int:
-        """"""
-        return self._matrix_distribution_rules.mu_start
-
-    @property
-    def Mstop(self) -> int:
-        """"""
-        return self._matrix_distribution_rules.mu_end
-    # end ???
 
     @dataclass
     class AtomUpdateResult:
@@ -1024,33 +1052,3 @@ class BasisFunctionCollectionBase(ABC):
         # Input spheres are optimistic and may not actually overlap the cell.
         # Do blocking to cull them
         self._update_block_data(phi_spheres)
-
-    def set_matrix_distribution(self, Mstart: int, Mstop: int) -> None:
-        """Specifies that calculate_potential_matrices should only do rows
-        [Mstart, Mstop); Mstop is exclusive. Used for parallelization.
-        See dataclass LFCMatrixDistributionRules."""
-        # FIXME: why do we need stateful Mstart, Mstop?
-        # Why not just pass them as inputs to functions that use them?
-
-        Mstart = max(Mstart, self.mu_range.start)
-        Mstop = min(Mstop, self.mu_range.stop)
-        self._matrix_distribution_rules \
-            = LFCMatrixDistributionRules(Mstart, Mstop)
-
-    def calculate_potential_matrices(
-            self,
-            vt_G: np.ndarray | cp.ndarray) -> np.ndarray | cp.ndarray:
-        """Alias for calculate_potential_matrix"""
-        V_MM = self.calculate_potential_matrix(vt_G)
-        return V_MM[np.newaxis]
-
-    def get_cache_size_estimate(self) -> int:
-        """Estimate of how many bytes are needed to precalculate and cache the
-        basis functions on the grid.
-        """
-        num_sites = 0
-        for block in self.get_relevant_blocks():
-            num_sites += int(np.prod(block.shape))
-
-        dummy = np.empty((1), dtype=self.dtype)
-        return num_sites * self.num_basis_functions() * dummy.itemsize
