@@ -67,12 +67,16 @@ def test_wannier_pw(in_tmp_dir, gpw_files, needs_ase_master):
     # test that one of the Wannier functions is localized between the
     # two Si atoms in the unit cell, as it should be.
     # Wannier centers are only defined modulo lattice vectors, so
-    # compare using minimum-image convention.
+    # compare using minimum-image convention. We verify this by
+    # translating all centers to several different cells — the
+    # minimum-image distance must be the same regardless.
     center = calc.atoms.positions.mean(axis=0)
     cell = calc.atoms.get_cell()
-    diff = wan.get_centers() - center
-    frac = diff @ np.linalg.inv(cell)
-    frac -= np.round(frac)
-    diff_mic = frac @ cell
-    min_dist_to_center = np.min(np.linalg.norm(diff_mic, axis=1))
-    assert min_dist_to_center < 1e-3
+    for translation in [(0, 0, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1)]:
+        wan.translate_all_to_cell(cell=translation)
+        diff = wan.get_centers() - center
+        frac = diff @ np.linalg.inv(cell)
+        frac -= np.round(frac)
+        diff_mic = frac @ cell
+        min_dist_to_center = np.min(np.linalg.norm(diff_mic, axis=1))
+        assert min_dist_to_center < 1e-3
