@@ -331,4 +331,3 @@ def main(arguments: list[str] | None = None, world=None):
 
 if __name__ == '__main__':
     main()
-    # work('H2-0')

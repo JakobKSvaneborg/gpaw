@@ -3,6 +3,7 @@ from __future__ import annotations
 import warnings
 from collections.abc import Callable
 from functools import partial
+from math import ceil, floor
 
 import numpy as np
 from gpaw.core.arrays import XArray
@@ -24,8 +25,10 @@ def slparams(nbands: int, comm: MPIComm) -> tuple[MPIComm, int, int, int]:
     if nbands < 1000:
         return serial_comm, 1, 1, 0
     # How much of comm should we use?
-    # At least 30,000 numbers per core:
-    ncores = 2**int(np.log2(nbands**2 / 30_000))
+    # At least 30,000 numbers per core, approximately:
+    ncores = nbands**2 / 30_000
+    # We also want ncores to factor into a product of two integers:
+    ncores = int(floor(ncores**0.5) * ceil(ncores**0.5))
     if ncores < comm.size:
         comm = comm.new_communicator(range(ncores))
     return (comm, *suggest_blocking(nbands, comm.size))

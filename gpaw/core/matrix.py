@@ -1098,8 +1098,6 @@ class CuPyDistribution(MatrixDistribution):
            H = LHL ,  HC = CΛ,  C = L C.
         """
         assert self.comm.size == 1
-        # dist = CuPyDistribution(*self.full_shape,
-        #                         serial_comm, 1, 1, self.br, self.bc)
         tmp = H.new()
         self.multiply(1.0, L, 'N', H, 'N', 0.0, tmp)
         self.multiply(1.0, tmp, 'N', L, 'C', 0.0, H, symmetric=True)
