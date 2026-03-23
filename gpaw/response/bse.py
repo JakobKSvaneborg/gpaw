@@ -610,16 +610,6 @@ class BSEBackend:
         self.context.timer.start('Calculate Hamiltonian')
         t0 = time()
 
-        def update_progress(iK1):
-            dt = time() - t0
-            tleft = dt * self.myKsize / (iK1 + 1) - dt
-
-            self.context.print(
-                '  Finished %s pair orbitals in %s - Estimated %s left'
-                % ((iK1 + 1) * self.nv * self.nc * comm.size,
-                    timedelta(seconds=round(dt)),
-                    timedelta(seconds=round(tleft))))
-
         self.context.print('Calculating {} matrix elements at q_c = {}'.format(
             self.mode, self.q_c))
 
@@ -632,8 +622,7 @@ class BSEBackend:
         self.add_indirect_kernel(kptpair_factory, rhoex_KmmG, H_kmmKmm)
         if self.mode != 'RPA':
             self._direct_kernel_t0 = time()
-            self.add_direct_kernel(kptpair_factory, pair_calc,
-                                   update_progress, H_kmmKmm)
+            self.add_direct_kernel(kptpair_factory, pair_calc, H_kmmKmm)
         H_kmmKmm /= self.gs.volume
         self.context.timer.stop('Calculate Hamiltonian')
 
@@ -659,8 +648,7 @@ class BSEBackend:
         return BSEMatrix(df_S, H_sS, deps_S, self.deps_max)
 
     @timer('add_direct_kernel')
-    def add_direct_kernel(self, kptpair_factory, pair_calc,
-                          update_progress, H_kmmKmm):
+    def add_direct_kernel(self, kptpair_factory, pair_calc, H_kmmKmm):
         """Add the direct (screened exchange) kernel to the BSE Hamiltonian.
 
         The loop is organized with IBZ q-points in the outer loop so that
