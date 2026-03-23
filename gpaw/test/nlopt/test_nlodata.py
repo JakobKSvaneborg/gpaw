@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 
-from gpaw.mpi import world
 from gpaw.nlopt.basic import NLOData
 
 
@@ -17,23 +16,23 @@ def generate_testing_data(ns, nk, nb, seed=42):
     return w_sk, f_skn, E_skn, p_skvnn
 
 
-@pytest.mark.skipif(world.size > 1, reason='Serial only')
-def test_write_load_serial(in_tmp_dir):
+@pytest.mark.serial
+def test_write_load_serial(in_tmp_dir, comm):
     w_sk, f_skn, E_skn, p_skvnn = generate_testing_data(2, 4, 20)
 
-    nlo = NLOData(w_sk, f_skn, E_skn, p_skvnn, world)
+    nlo = NLOData(w_sk, f_skn, E_skn, p_skvnn, comm)
     nlo.write('nlodata.npz')
 
-    newdata = NLOData.load('nlodata.npz', world)
+    newdata = NLOData.load('nlodata.npz', comm)
     assert newdata.w_sk == pytest.approx(w_sk, abs=1e-16)
     assert newdata.f_skn == pytest.approx(f_skn, abs=1e-16)
     assert newdata.E_skn == pytest.approx(E_skn, abs=1e-16)
     assert newdata.p_skvnn == pytest.approx(p_skvnn, abs=1e-16)
 
 
-def test_serial_file_parallel_data(in_tmp_dir):
+def test_serial_file_parallel_data(in_tmp_dir, comm):
     # Random data only on rank = 0
-    if world.rank == 0:
+    if comm.rank == 0:
         w_sk, f_skn, E_skn, p_skvnn = generate_testing_data(2, 4, 20)
     else:
         w_sk = None
@@ -41,11 +40,11 @@ def test_serial_file_parallel_data(in_tmp_dir):
         E_skn = None
         p_skvnn = None
 
-    nlo = NLOData(w_sk, f_skn, E_skn, p_skvnn, world)
+    nlo = NLOData(w_sk, f_skn, E_skn, p_skvnn, comm)
     nlo.write('nlodata.npz')
     k_info = nlo.distribute()
 
-    newdata = NLOData.load('nlodata.npz', world)
+    newdata = NLOData.load('nlodata.npz', comm)
     k_info_new = newdata.distribute()
     for newdata, data in zip(k_info_new.values(), k_info.values()):
         assert newdata[0] == pytest.approx(data[0], abs=1e-16)
@@ -54,14 +53,14 @@ def test_serial_file_parallel_data(in_tmp_dir):
         assert newdata[3] == pytest.approx(data[3], abs=1e-16)
 
 
-def test_write_load_parallel(in_tmp_dir):
+def test_write_load_parallel(in_tmp_dir, comm):
     # Same random data array on each core
     w_sk, f_skn, E_skn, p_skvnn = generate_testing_data(2, 4, 20)
 
-    nlo = NLOData(w_sk, f_skn, E_skn, p_skvnn, world)
+    nlo = NLOData(w_sk, f_skn, E_skn, p_skvnn, comm)
     nlo.write('nlodata.npz')
 
-    newdata = NLOData.load('nlodata.npz', world)
+    newdata = NLOData.load('nlodata.npz', comm)
     k_info = newdata.distribute()
 
     # Compare the distributed data with original data
