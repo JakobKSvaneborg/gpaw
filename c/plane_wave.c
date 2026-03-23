@@ -37,7 +37,7 @@ PyObject *pw_insert(PyObject *self, PyObject *args)
 
     CHK_ARRAY(c_G_obj);
     CHK_ARRAY(Q_G_obj);
-    CHK_ARRAY(tmp_G_obj);
+    CHK_ARRAY(tmp_Q_obj);
 
     double_complex *c_G = (double_complex*) PyArray_DATA(c_G_obj);
     npy_int32 *Q_G = (npy_int32*) PyArray_DATA(Q_G_obj);
