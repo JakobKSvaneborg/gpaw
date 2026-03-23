@@ -114,7 +114,7 @@ def calculate_overlaps(calc: GPAW,
     assert not spinors
 
     if n2 <= 0:
-        n2 += calc.get_number_of_bands()
+        n2 += nwannier + n1
 
     bzwfs = BZRealSpaceWaveFunctions.from_calculation(calc, n1, n2, spin)
 
