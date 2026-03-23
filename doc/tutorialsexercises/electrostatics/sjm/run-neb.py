@@ -55,6 +55,8 @@ images += [final]
 interpolate(images)
 
 # Create and relax the DyNEB.
-neb = DyNEB(images, method='improvedtangent')
+# XXX Use peer-reviewed method 'improvedtangent' instead of
+# unpublished 'aseneb' for 2026?
+neb = DyNEB(images, method='aseneb')
 opt = BFGS(neb, logfile='neb.log', trajectory='neb.traj')
 opt.run(fmax=0.05)

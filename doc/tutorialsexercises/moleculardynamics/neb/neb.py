@@ -36,7 +36,9 @@ for i in range(3):
 
 images.append(final)
 
-neb = NEB(images, parallel=True, climb=True, method='improvedtangent')
+# XXX Use peer-reviewed method 'improvedtangent' instead of
+# unpublished 'aseneb' for 2026?
+neb = NEB(images, parallel=True, climb=True, method='aseneb')
 neb.interpolate()
 
 qn = BFGS(neb, logfile='qn.log', trajectory='neb.traj')
