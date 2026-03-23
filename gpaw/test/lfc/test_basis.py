@@ -19,6 +19,11 @@ from collections import namedtuple
 from typing import cast
 
 
+# Best to use grid.empty() and grid.zeros() for test array creation. They are
+# aware of boundary condition and domain distribution gimmicks.
+# But note that these NEED the communicator as input, otherwise they default
+# to serial even if the grid already has communicator set...
+
 def xp_params_no_cpupy():
     """Use as @pytest.mark.parametrize("xp", xp_params_no_cpupy())
     to run both xp=np and xp=cp cases, but skipping fake Cupy.
@@ -76,26 +81,46 @@ BoundaryConds = namedtuple("BoundaryConds", ["pbc", "zerobc"])
 
 
 @pytest.fixture(params=[
-    GridShape(cell=[3, 3, 3], size=(14, 14, 14)),
-    GridShape(cell=[1, 2, 3], size=(16, 10, 11)),
-    GridShape(cell=[3, 2, 3], size=(5, 8, 9)),
-    GridShape(cell=[[0, 1, 1], [3, 0, 3], [2, 2, 0]], size=(16, 8, 7)),
-    GridShape(cell=[[1, 2, 3], [0, 0, 3], [2, 2, 0]], size=(16, 10, 7))],
-    ids=["UniformOrthorhombic", "NonUniformOrthorombic", "SmallOrthorhombic",
-         "WeirdShape", "VeryWeirdShape"],
+    pytest.param(
+        GridShape(cell=[3, 3, 3], size=(14, 14, 14)),
+        id="UniformOrthorhombic",),
+    pytest.param(
+        GridShape(cell=[1, 2, 3], size=(16, 10, 11)),
+        id="NonUniformOrthorombic"),
+    pytest.param(
+        GridShape(cell=[3, 2, 3], size=(5, 8, 9)),
+        id="SmallOrthorhombic",
+        marks=pytest.mark.ci),
+    pytest.param(
+        GridShape(cell=[[0, 1, 1], [3, 0, 3], [2, 2, 0]], size=(16, 8, 7)),
+        id="WeirdShape",
+        marks=pytest.mark.ci),
+    pytest.param(
+        GridShape(cell=[[1, 2, 3], [0, 0, 3], [2, 2, 0]], size=(16, 10, 7)),
+        id="VeryWeirdShape"
+    )],
     scope="module")
 def fixt_grid_shape(request) -> GridShape:
     """Parametrized grid shape fixture, generates grids of different shapes
     and sizes."""
     return request.param
 
+# TODO: test cases combinations like "pbc = False and zerobc = False".
+# This wouldn't pass tests currently because we're comparing against the old
+# LFC code, which only has pbc (which is actually ~zerobc).
 
 @pytest.fixture(params=[
-    BoundaryConds(pbc=[True, True, True], zerobc=[False, False, False]),
-    BoundaryConds(pbc=[False, True, False], zerobc=[False, False, False]),
-    BoundaryConds(pbc=[False, False, False], zerobc=[False, False, False])
-    ],
-    ids=["AllPeriodic", "SomePeriodic", "AllNonPeriodic"],
+    pytest.param(
+        BoundaryConds(pbc=[True, True, True], zerobc=[False, False, False]),
+        id="AllPeriodic"),
+    pytest.param(
+        BoundaryConds(pbc=[False, True, True], zerobc=[True, False, False]),
+        id="SomePeriodic",
+        marks=pytest.mark.ci),
+    pytest.param(
+        BoundaryConds(pbc=[False, False, False], zerobc=[True, True, True]),
+        id="AllNonPeriodic"
+        )],
     scope="module")
 def fixt_bc(request) -> BoundaryConds:
     """Generates bunch of different boundary conditions for grids"""
@@ -155,19 +180,22 @@ def make_legacy_basis_functions(lfc: BasisFunctionCollectionBase, xp) \
                    for phi in phi_datas]
         phi_aj.append(splines)
 
-    # DON'T use grid._gd, it doesn't get the same boundary conditions as
-    # the new grid object (bug??).
-
+    # DON'T use grid._gd, it gets its pbc fixed as ~zerobc
     from gpaw.old.grid_descriptor import GridDescriptor
     legacy_grid = GridDescriptor(N_c=lfc.grid.size, cell_cv=lfc.grid.cell_cv,
                                  comm=lfc.grid.comm, pbc_c=lfc.grid.pbc_c)
 
     assert np.all(legacy_grid.pbc_c == lfc.grid.pbc_c)
 
+    # cut=True means non-periodic boundaries don't let basis funcs leak into
+    # other cells. With False such leaks would throw GridBoundsError.
+    # Old BasisFunctions has False as default, but apparently it's not really
+    # used because basis.py creates the object with True anyway.
     basis = BasisFunctions(
         legacy_grid,
         phi_aj,
-        xp=xp)
+        xp=xp,
+        cut=True)
 
     relpos_ac = lfc.get_atom_positions(grid_relative=True)
     basis.set_positions(relpos_ac)
@@ -241,6 +269,11 @@ def test_basis_creation(fixt_lfc_system: LFCSystemDesc, xp, purepython: bool,
         ):
             assert xyz not in seen_points
             seen_points.append(xyz)
+
+    # If all boundaries are non-periodic, shouldn't have any "image" phis
+    if np.all(~system.grid.pbc_c):
+        num_phi_expected = sum([len(atom.phi_j) for atom in system.atoms])
+        assert len(basis.get_phi_instances()) == num_phi_expected
 
 
 @pytest.mark.skipif(world.size > 1, reason="TODO, probably")
@@ -446,7 +479,10 @@ def test_domain_decomposition(
 
     # Re-seed just in case
     rng = xp.random.default_rng(841)
-    nt_sG_serial = rng.random((num_spins, *system.grid.size))
+    # nt_sR_serial = serial_basis.grid.empty(num_spins,
+    #                                        comm=serial_basis.grid.comm)
+
+    nt_sG_serial = rng.random((num_spins, *serial_basis.grid.mysize_c))
     # Decomposed density array:
     sG_shape = (num_spins, *system.grid.mysize_c)
     nt_sG = xp.empty(sG_shape)
@@ -460,6 +496,8 @@ def test_domain_decomposition(
                                      start_c[2]:end_c[2]]
 
     manual_scatter(nt_sG_serial, nt_sG)
+
+    basis.grid.zeros()
 
     basis.add_to_density(nt_sG, f_asi)
     # Do the serial part separately in all ranks because this test doesn't

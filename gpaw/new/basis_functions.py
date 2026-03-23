@@ -1,19 +1,3 @@
-import itertools
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from enum import Enum, auto
-from functools import cached_property
-from typing import TypeAlias, cast
-
-import numpy as np
-from gpaw.core import UGDesc
-from gpaw.gpu import cupy as cp
-from gpaw.new.timer import trace
-from gpaw.old.grid_descriptor import GridBoundsError
-from gpaw.setup import Setup, Setups
-from gpaw.spline import Spline
-from gpaw.typing import Array4D
-
 """
 Each atom has list of basis functions. A basis function is defined by its
 angular quantum numbers l, m and a radial function f(r). We also require a
@@ -29,6 +13,27 @@ that first are l=0 functions of atom a=0, then l=1 funcs of a=0, etc.
 Class BasisFunctionCollection describes the full set of all basis functions
 phi_mu and provides methods for calculating stuff with them.
 """
+
+import itertools
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from enum import Enum, auto
+from functools import cached_property
+from typing import TypeAlias, cast
+
+import numpy as np
+from gpaw.core import UGDesc
+from gpaw.gpu import cupy as cp
+from gpaw.new.timer import trace
+from gpaw.setup import Setup, Setups
+from gpaw.spline import Spline
+from gpaw.typing import Array4D
+
+
+# TODO don't use grid._gd for anything, it seems buggy
+
+
+
 
 
 def sphere_overlaps_box(
@@ -58,7 +63,12 @@ def find_image_spheres_conservative(
 
     # How many cells can the sphere extend at max, in a given direction
     n_max_c = np.ceil(radius / h_c).astype(int) + 1
-    # Handle non-periodic boundaries: can't have images in non-periodic dirs
+
+    # Handle non-periodic boundaries: can't have images in non-periodic dirs.
+    # This matches the `cut=True` option in old BasisFunctions class,
+    # however the default there was actually `cut=False` which would throw
+    # GridBoundsError if the basis funcs don't fit in non-periodic box.
+    # TODO: which behavior do we want??
     n_max_c = np.where(grid.pbc_c, n_max_c, 0)
 
     # Build a 3D grid of sphere shifts. This Numpy magic is equivalent to:
@@ -946,12 +956,6 @@ class BasisFunctionCollectionBase(ABC):
         # that only keeps images that overlap with some grid point in this
         # MPI domain.
 
-        """TODO:
-        - Catch GridBoundsError "atom too close to edge". In old code this originates from get_boxes(),
-          which we don't use here, so need to copy the check from there and raise as needed.
-        -
-        """
-
         for a in range(self.num_atoms):
 
             new_relpos = relpos_ac[a]
@@ -960,13 +964,6 @@ class BasisFunctionCollectionBase(ABC):
                 continue
 
             res = self._update_atom_position(a, new_relpos)
-
-            # try:
-            #     res = self._update_atom_position(a, new_relpos)
-            # except GridBoundsError as e:
-            #     e.args = (f'Atom {a} too close to edge: {e}',)
-            #     # FIXME if this happens our self._relpos_ac goes out of sync
-            #     raise
 
             has_changes = True
             assert np.all(res.relpos_c == new_relpos)
