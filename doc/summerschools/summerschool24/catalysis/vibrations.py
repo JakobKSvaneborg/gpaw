@@ -241,9 +241,7 @@ calc = GPAW(xc='PBE',
             kpts={'size': (6, 6, 1), 'gamma': True})
 ts.calc = calc
 
-# XXX Use peer-reviewed method 'improvedtangent' instead of
-# unpublished 'aseneb' for 2026 summerschool?
-neb = NEB(images, k=1.0, climb=True, method='aseneb')
+neb = NEB(images, k=1.0, climb=True, method='improvedtangent')
 qn = BFGS(neb, logfile='neb.log')
 traj = Trajectory('ts.traj', 'w', ts)
 qn.attach(traj)

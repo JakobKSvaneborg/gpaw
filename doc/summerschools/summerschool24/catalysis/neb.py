@@ -100,9 +100,7 @@ for i in range(n_im):
 
 images.append(final)
 
-# XXX Use peer-reviewed method 'improvedtangent' instead of
-# unpublished 'aseneb' for 2026 summerschool?
-neb = NEB(images, method='aseneb')
+neb = NEB(images, method='improvedtangent')
 neb.interpolate()
 view(images)
 
@@ -251,9 +249,7 @@ for i in range(N):
     images.append(image)
 images.append(final)
 
-# XXX Use peer-reviewed method 'improvedtangent' instead of
-# unpublished 'aseneb' for 2026 summerschool?
-neb = NEB(images, k=1.0, parallel=True, method='aseneb')
+neb = NEB(images, k=1.0, parallel=True, method='improvedtangent')
 neb.interpolate()
 qn = BFGS(neb, logfile='neb.log', trajectory='neb.traj')
 qn.run(fmax=0.1)

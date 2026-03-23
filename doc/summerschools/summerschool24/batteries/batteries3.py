@@ -98,7 +98,7 @@ It this point `images` consist of 6 copies of `initial` and one entry of `final`
 # %%
 # XXX Use peer-reviewed method 'improvedtangent' instead of
 # unpublished 'aseneb' for 2026 summerschool?
-neb = NEB(images, method='aseneb')
+neb = NEB(images, method='improvedtangent')
 neb.interpolate()
 
 # %%
@@ -192,9 +192,7 @@ images = [initial]
 images += [initial.copy() for i in range(5)]  #These will become the minimum energy path images.
 images += [final]
 
-# XXX Use peer-reviewed method 'improvedtangent' instead of
-# unpublished 'aseneb' for 2026 summerschool?
-neb = NEB(images, method='aseneb')
+neb = NEB(images, method='improvedtangent')
 neb.interpolate()
 
 for image in images[0:7]:
