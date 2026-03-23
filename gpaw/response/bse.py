@@ -190,6 +190,17 @@ class ScreenedPotential:
     qpd_q: list
 
 
+@dataclass
+class ScreenedPotentialLight:
+    """Like ScreenedPotential but without W_qGG to save memory.
+
+    W_GG is computed on the fly during the direct kernel construction,
+    one IBZ q-point at a time.
+    """
+    pawcorr_q: list
+    qpd_q: list
+
+
 class SpinorData:
     def __init__(self, con_m, val_m, e_km, f_km, v_kmn, soc_tol):
         self.e_km = e_km
@@ -478,10 +489,9 @@ class BSEBackend:
         pair_calc = kptpair_factory.pair_calculator()
         pawcorr = self.gs.pair_density_paw_corrections(qpd0)
 
-        if self.mode != 'RPA':
-            screened_potential = self.calculate_screened_potential()
-        else:
-            screened_potential = None
+        # Note: W_GG is now computed on-the-fly in add_direct_kernel,
+        # one IBZ q-point at a time, to avoid storing all W_qGG
+        # simultaneously (which can require tens of GB of memory).
 
         # Calculate pair densities, eigenvalues and occupations
         self.context.timer.start('Pair densities')
@@ -587,8 +597,8 @@ class BSEBackend:
         comm.sum(df_Kmm)
         comm.sum(rhoex_KmmG)
 
-        self.rhoG0_S = np.reshape(rhoex_KmmG[:, :, :, 0], -1)
-        self.rho_SG = np.reshape(rhoex_KmmG, (len(self.rhoG0_S), -1))
+        self.rhoG0_S = rhoex_KmmG[:, :, :, 0].ravel().copy()
+        self.rho_SG = rhoex_KmmG.reshape((self.nS, -1)).copy()
         if self.susc_component != '00':
             comm.sum(rhomag_KmmG)
             self.rhomag_SG = np.reshape(rhomag_KmmG, (self.nS, -1))
@@ -620,9 +630,13 @@ class BSEBackend:
 
         # Add kernels to buffer array
         self.add_indirect_kernel(kptpair_factory, rhoex_KmmG, H_kmmKmm)
+        # Free rhoex_KmmG now that indirect kernel is done.
+        # self.rho_SG and self.rhoG0_S are independent copies.
+        del rhoex_KmmG
         if self.mode != 'RPA':
+            self._direct_kernel_t0 = time()
             self.add_direct_kernel(kptpair_factory, pair_calc,
-                                   screened_potential, update_progress,
+                                   None, update_progress,
                                    H_kmmKmm)
         H_kmmKmm /= self.gs.volume
         self.context.timer.stop('Calculate Hamiltonian')
@@ -651,68 +665,122 @@ class BSEBackend:
     @timer('add_direct_kernel')
     def add_direct_kernel(self, kptpair_factory, pair_calc, screened_potential,
                           update_progress, H_kmmKmm):
+        """Add the direct (screened exchange) kernel to the BSE Hamiltonian.
+
+        The loop is organized with IBZ q-points in the outer loop so that
+        W_GG is computed on the fly for one q-point at a time. This avoids
+        storing all W_qGG simultaneously, which can require tens of GB for
+        dense k-grids with large plane-wave cutoffs.
+        """
+        from collections import defaultdict
         kpf = kptpair_factory
-        for ik1, iK1 in enumerate(self.myKrange):
-            kptv1_s = [kpf.get_k_point(s, iK1, self.vi, self.vf)
-                       for s in range(self.nspins)]
-            kptc1_s = [kpf.get_k_point(s, self.ikq_k[iK1], self.ci, self.cf)
-                       for s in range(self.nspins)]
-            for Q_c in self.qd.bzk_kc:
-                iK2 = self.kd.find_k_plus_q(Q_c, [kptv1_s[0].K])[0]
-                kptv2_s = [kptpair_factory.get_k_point(s, iK2, self.vi,
-                                                       self.vf)
-                           for s in range(self.nspins)]
-                kptc2_s = [kptpair_factory.get_k_point(s, self.ikq_k[iK2],
-                                                       self.ci, self.cf)
-                           for s in range(self.nspins)]
 
-                rho3_nnG, iq, sign = self.get_density_matrix(
-                    pair_calc, screened_potential, kptv1_s[0], kptv2_s[0])
+        # Group BZ q-points by their IBZ q-point index
+        iq_to_bz_indices = defaultdict(list)
+        for iQ in range(len(self.qd.bzk_kc)):
+            iq = self.qd.bz2ibz_k[iQ]
+            iq_to_bz_indices[iq].append(iQ)
 
-                rho4_nnG, iq, sign4 = self.get_density_matrix(
-                    pair_calc, screened_potential, kptc1_s[0], kptc2_s[0])
-                assert sign == sign4
-                if self.nspins == 2:
-                    rho3s1_nnG, iq, sign3 = self.get_density_matrix(
-                        pair_calc, screened_potential, kptv1_s[1], kptv2_s[1])
+        n_pairs_done = 0
+        total_pairs = self.myKsize * len(self.qd.bzk_kc)
 
-                    rho4s1_nnG, iq, sign4 = self.get_density_matrix(
-                        pair_calc, screened_potential, kptc1_s[1], kptc2_s[1])
-                    assert sign == sign3
+        self.context.print('Calculating screened potential and direct kernel')
+
+        # Outer loop over IBZ q-points: compute W_GG once per IBZ q-point
+        for iq in range(self.qd.nibzkpts):
+            q_c = self.qd.ibzk_kc[iq]
+            bz_indices = iq_to_bz_indices[iq]
+
+            # Compute W_GG, PAW corrections, and PW descriptor for this
+            # q-point. Only one W_GG is in memory at a time.
+            self.context.timer.start('Compute W_GG')
+            W_GG, pawcorr_q, qpd_q = \
+                self._compute_screened_data_for_q(q_c)
+            self.context.timer.stop('Compute W_GG')
+
+            # Process all BZ q-points that map to this IBZ q-point
+            for iQ in bz_indices:
+                Q_c = self.qd.bzk_kc[iQ]
+                for ik1, iK1 in enumerate(self.myKrange):
+                    kptv1_s = [kpf.get_k_point(s, iK1, self.vi, self.vf)
+                               for s in range(self.nspins)]
+                    kptc1_s = [kpf.get_k_point(s, self.ikq_k[iK1],
+                                               self.ci, self.cf)
+                               for s in range(self.nspins)]
+                    iK2 = self.kd.find_k_plus_q(Q_c, [kptv1_s[0].K])[0]
+                    kptv2_s = [kpf.get_k_point(s, iK2, self.vi, self.vf)
+                               for s in range(self.nspins)]
+                    kptc2_s = [kpf.get_k_point(s, self.ikq_k[iK2],
+                                               self.ci, self.cf)
+                               for s in range(self.nspins)]
+
+                    rho3_nnG, _, sign = self.get_density_matrix(
+                        pair_calc, kptv1_s[0], kptv2_s[0],
+                        pawcorr0=pawcorr_q, qpd=qpd_q)
+
+                    rho4_nnG, _, sign4 = self.get_density_matrix(
+                        pair_calc, kptc1_s[0], kptc2_s[0],
+                        pawcorr0=pawcorr_q, qpd=qpd_q)
                     assert sign == sign4
+
+                    if self.nspins == 2:
+                        rho3s1_nnG, _, sign3 = self.get_density_matrix(
+                            pair_calc, kptv1_s[1], kptv2_s[1],
+                            pawcorr0=pawcorr_q, qpd=qpd_q)
+
+                        rho4s1_nnG, _, sign4 = self.get_density_matrix(
+                            pair_calc, kptc1_s[1], kptc2_s[1],
+                            pawcorr0=pawcorr_q, qpd=qpd_q)
+                        assert sign == sign3
+                        assert sign == sign4
+                    else:
+                        rho3s1_nnG = None
+                        rho4s1_nnG = None
+
+                    if self.add_soc:
+                        rho3_nnG = self.spinors_data.rho_valence_valence(
+                            kptv1_s[0].K, kptv2_s[0].K,
+                            rho3_nnG, rho3s1_nnG)
+
+                        rho4_nnG = self.spinors_data.rho_conduction_conduction(
+                            kptc1_s[0].K, kptc2_s[0].K,
+                            rho4_nnG, rho4s1_nnG)
+
+                    # When the symmetry operation involves time-reversal
+                    # (sign == -1), the physical W at the BZ q-point is the
+                    # complex conjugate of W at the IBZ q-point:
+                    # W(Q+G_BZ, Q+G_BZ') = conj(W_ibz[G, G'])
+                    W_GG_eff = W_GG.conj() if sign == -1 else W_GG
+
+                    self.context.timer.start('Screened exchange')
+                    W_mmmm = np.einsum(
+                        'ijk,km,pqm->ipjq',
+                        rho3_nnG.conj(),
+                        W_GG_eff,
+                        rho4_nnG,
+                        optimize='optimal')
+                    H_kmmKmm[ik1, :, :, iK2] -= \
+                        W_mmmm * (self.add_soc + 1) / 2
+                    self.context.timer.stop('Screened exchange')
+
+                    n_pairs_done += 1
+
+            # Free W_GG before computing the next one
+            del W_GG, pawcorr_q, qpd_q
+
+            if iq % (self.qd.nibzkpts // 5 + 1) == 0:
+                dt = time() - self._direct_kernel_t0
+                frac = n_pairs_done / total_pairs if total_pairs > 0 else 1
+                if frac > 0:
+                    tleft = dt / frac - dt
                 else:
-                    rho3s1_nnG = None
-                    rho4s1_nnG = None
-
-                # Here we use n instead of m for the soc indices to save memory
-                if self.add_soc:
-                    rho3_nnG = self.spinors_data.rho_valence_valence(
-                        kptv1_s[0].K, kptv2_s[0].K, rho3_nnG, rho3s1_nnG)
-
-                    rho4_nnG = self.spinors_data.rho_conduction_conduction(
-                        kptc1_s[0].K, kptc2_s[0].K, rho4_nnG, rho4s1_nnG)
-
-                # When the symmetry operation involves time-reversal
-                # (sign == -1), the physical W at the BZ q-point is the
-                # complex conjugate of W at the IBZ q-point:
-                # W(Q+G_BZ, Q+G_BZ') = conj(W_ibz[G, G'])
-                W_GG = screened_potential.W_qGG[iq]
-                if sign == -1:
-                    W_GG = W_GG.conj()
-
-                self.context.timer.start('Screened exchange')
-                W_mmmm = np.einsum(
-                    'ijk,km,pqm->ipjq',
-                    rho3_nnG.conj(),
-                    W_GG,
-                    rho4_nnG,
-                    optimize='optimal')
-                # Only include 0.5*W for spinpaired calculations without soc
-                H_kmmKmm[ik1, :, :, iK2] -= W_mmmm * (self.add_soc + 1) / 2
-                self.context.timer.stop('Screened exchange')
-
-            if iK1 % (self.myKsize // 5 + 1) == 0:
-                update_progress(iK1=iK1)
+                    tleft = 0
+                self.context.print(
+                    '  Finished IBZ q-point %d/%d (%d pairs) in %s'
+                    ' - Estimated %s left'
+                    % (iq + 1, self.qd.nibzkpts, n_pairs_done,
+                       timedelta(seconds=round(dt)),
+                       timedelta(seconds=round(tleft))))
 
     @timer('add_indirect_kernel')
     def add_indirect_kernel(self, kptpair_factory, rhoex_KmmG, H_kmmKmm):
@@ -730,14 +798,24 @@ class BSEBackend:
                 self.context.timer.stop('Coulomb')
 
     @timer('get_density_matrix')
-    def get_density_matrix(self, pair_calc, screened_potential, kpt1, kpt2):
+    def get_density_matrix(self, pair_calc, kpt1, kpt2,
+                           pawcorr0=None, qpd=None,
+                           screened_potential=None):
+        """Compute pair density matrix for a k-point pair.
+
+        Either (pawcorr0, qpd) or screened_potential must be provided.
+        Using (pawcorr0, qpd) directly avoids the need to store a
+        ScreenedPotential object with all W_qGG.
+        """
         self.context.timer.start('Symop')
         from gpaw.response.g0w0 import QSymmetryOp, get_nmG
         symop, iq = QSymmetryOp.get_symop_from_kpair(self.kd, self.qd,
                                                      kpt1, kpt2)
-        qpd = screened_potential.qpd_q[iq]
+        if qpd is None:
+            qpd = screened_potential.qpd_q[iq]
+        if pawcorr0 is None:
+            pawcorr0 = screened_potential.pawcorr_q[iq]
         nG = qpd.ngmax
-        pawcorr0 = screened_potential.pawcorr_q[iq]
         pawcorr, I_G = symop.apply_symop_q(qpd, pawcorr0, kpt1, kpt2)
         self.context.timer.stop('Symop')
 
@@ -779,7 +857,13 @@ class BSEBackend:
 
     @timer('calculate_screened_potential')
     def calculate_screened_potential(self):
-        """Calculate W_GG(q)."""
+        """Calculate W_GG(q).
+
+        Note: This method is no longer called during the standard BSE
+        calculation path. It is kept for backward compatibility.
+        The direct kernel now computes W_GG on the fly, one IBZ q-point
+        at a time, to avoid storing all W_qGG simultaneously.
+        """
 
         pawcorr_q = []
         W_qGG = []
@@ -791,9 +875,6 @@ class BSEBackend:
             chi0 = self._chi0calc.calculate(q_c)
             W_wGG = self._wcalc.calculate_W_wGG(chi0)
             W_GG = W_wGG[0]
-            # This is such a terrible way to access the paw
-            # corrections. Attributes should not be groped like
-            # this... Change in the future! XXX
             pawcorr_q.append(self._chi0calc.chi0_body_calc.pawcorr)
             qpd_q.append(chi0.qpd)
             W_qGG.append(W_GG)
@@ -807,6 +888,21 @@ class BSEBackend:
                             seconds=round(tleft))))
 
         return ScreenedPotential(pawcorr_q, W_qGG, qpd_q)
+
+    def _compute_screened_data_for_q(self, q_c):
+        """Compute chi0, W_GG, PAW corrections, and PW descriptor for one
+        q-point.
+
+        Returns (W_GG, pawcorr, qpd) tuple. This is used by the direct
+        kernel to process one IBZ q-point at a time without storing all
+        W_qGG in memory.
+        """
+        chi0 = self._chi0calc.calculate(q_c)
+        W_wGG = self._wcalc.calculate_W_wGG(chi0)
+        W_GG = W_wGG[0]
+        pawcorr = self._chi0calc.chi0_body_calc.pawcorr
+        qpd = chi0.qpd
+        return W_GG, pawcorr, qpd
 
     @timer('diagonalize')
     def diagonalize_bse_matrix(self, bsematrix):
