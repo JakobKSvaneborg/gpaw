@@ -7,6 +7,7 @@
 
 #include "python_utils.h"
 #include "gpaw_utils.h"
+#include "array.h"
 #include <mpi.h>
 #include <structmember.h>
 #include "extensions.h"
@@ -391,6 +392,11 @@ PyObject* pblas_tran(PyObject *self, PyObject *args)
                           &conj))
         return NULL;
 
+    CHK_ARRAY(a);
+    CHK_ARRAY(c);
+    CHK_ARRAY(desca);
+    CHK_ARRAY(descc);
+
     int one = 1;
     if (PyArray_DESCR(c)->type_num == NPY_DOUBLE)
         pdtran_(&m, &n,
@@ -430,6 +436,13 @@ PyObject* pblas_gemm(PyObject *self, PyObject *args)
                         &transa, &transb)) {
     return NULL;
   }
+
+  CHK_ARRAY(a);
+  CHK_ARRAY(b);
+  CHK_ARRAY(c);
+  CHK_ARRAY(desca);
+  CHK_ARRAY(descb);
+  CHK_ARRAY(descc);
 
   // cdesc
   // int c_ConTxt = INTP(descc)[1];
@@ -475,6 +488,13 @@ PyObject* pblas_hemm_symm(PyObject *self, PyObject *args)
     return NULL;
   }
 
+  CHK_ARRAY(a);
+  CHK_ARRAY(b);
+  CHK_ARRAY(c);
+  CHK_ARRAY(desca);
+  CHK_ARRAY(descb);
+  CHK_ARRAY(descc);
+
   if (PyArray_DESCR(c)->type_num == NPY_DOUBLE) {
      pdsymm_(side, uplo, &n, &m, &(alpha.real),
              (void*)DOUBLEP(a), &one, &one, INTP(desca),
@@ -515,6 +535,13 @@ PyObject* pblas_gemv(PyObject *self, PyObject *args)
                         &descy, &transa)) {
     return NULL;
   }
+
+  CHK_ARRAY(a);
+  CHK_ARRAY(b);
+  CHK_ARRAY(c);
+  CHK_ARRAY(desca);
+  CHK_ARRAY(descb);
+  CHK_ARRAY(descc);
 
   // ydesc
   // int y_ConTxt = INTP(descy)[1];
@@ -557,6 +584,13 @@ PyObject* pblas_r2k(PyObject *self, PyObject *args)
     return NULL;
   }
 
+  CHK_ARRAY(a);
+  CHK_ARRAY(b);
+  CHK_ARRAY(c);
+  CHK_ARRAY(desca);
+  CHK_ARRAY(descb);
+  CHK_ARRAY(descc);
+
   // cdesc
   // int c_ConTxt = INTP(descc)[1];
 
@@ -598,6 +632,11 @@ PyObject* pblas_rk(PyObject *self, PyObject *args)
     return NULL;
   }
 
+  CHK_ARRAY(a);
+  CHK_ARRAY(c);
+  CHK_ARRAY(desca);
+  CHK_ARRAY(descc);
+
   // cdesc
   // int c_ConTxt = INTP(descc)[1];
 
@@ -632,6 +671,8 @@ PyObject* new_blacs_context(PyObject *self, PyObject *args)
   if (!PyArg_ParseTuple(args, "Oiis", &comm_obj, &nprow, &npcol, &order)){
     return NULL;
   }
+
+  CHK_ARRAY(comm_obj);
 
   // Create blacs grid on this communicator
   MPI_Comm comm = *((MPI_Comm*) PyLong_AsVoidPtr(comm_obj));
@@ -700,6 +741,11 @@ PyObject* mklscalapack_diagonalize_geev(PyObject *self, PyObject *args)
 
   if (!PyArg_ParseTuple(args, "OOOO", &a_obj, &U_obj, &eps_obj, &desca_obj))
     return NULL;
+
+  CHK_ARRAY(a_obj);
+  CHK_ARRAY(U_obj);
+  CHK_ARRAY(eps_obj);
+  CHK_ARRAY(desca_obj);
 
    char balanc = 'N';
    char jobvl = 'N';
@@ -794,6 +840,9 @@ PyObject* scalapack_set(PyObject *self, PyObject *args)
                         &m, &n, &ia, &ja))
     return NULL;
 
+  CHK_ARRAY(a);
+  CHK_ARRAY(desca);
+
   if (PyArray_DESCR(a)->type_num == NPY_DOUBLE)
     pdlaset_(uplo, &m, &n, &(alpha.real), &(beta.real), DOUBLEP(a),
              &ia, &ja, INTP(desca));
@@ -828,6 +877,11 @@ PyObject* scalapack_redist(PyObject *self, PyObject *args)
                         &c_ConTxt,
                         &uplo))
     return NULL;
+
+  CHK_ARRAY(a);
+  CHK_ARRAY(b);
+  CHK_ARRAY(desca);
+  CHK_ARRAY(descb);
 
   if (*uplo == 'G') // General matrix
     {
@@ -987,6 +1041,11 @@ PyObject* scalapack_diagonalize_ex(PyObject *self, PyObject *args)
                         &z, &w))
     return NULL;
 
+  CHK_ARRAY(a);
+  CHK_ARRAY(desca);
+  CHK_ARRAY(z);
+  CHK_ARRAY(w);
+
   // a desc
   int a_ConTxt = INTP(desca)[1];
   int n = INTP(desca)[2];
@@ -1126,6 +1185,11 @@ PyObject* scalapack_diagonalize_mr3(PyObject *self, PyObject *args)
                         &z, &w))
     return NULL;
 
+  CHK_ARRAY(a);
+  CHK_ARRAY(desca);
+  CHK_ARRAY(z);
+  CHK_ARRAY(w);
+
   // a desc
   // int a_ConTxt = INTP(desca)[1];
   int n = INTP(desca)[2];
@@ -1240,6 +1304,12 @@ PyObject* scalapack_general_diagonalize_dc(PyObject *self, PyObject *args)
   if (!PyArg_ParseTuple(args, "OOsOOO", &a, &desca, &uplo,
                         &b, &z, &w))
     return NULL;
+
+  CHK_ARRAY(a);
+  CHK_ARRAY(desca);
+  CHK_ARRAY(b);
+  CHK_ARRAY(z);
+  CHK_ARRAY(w);
 
   // a desc
   // int a_ConTxt = INTP(desca)[1];
@@ -1436,6 +1506,12 @@ PyObject* scalapack_general_diagonalize_ex(PyObject *self, PyObject *args)
                         &b, &z, &w))
     return NULL;
 
+  CHK_ARRAY(a);
+  CHK_ARRAY(desca);
+  CHK_ARRAY(b);
+  CHK_ARRAY(z);
+  CHK_ARRAY(w);
+
   // a desc
   int a_ConTxt = INTP(desca)[1];
   int n = INTP(desca)[2];
@@ -1579,6 +1655,12 @@ PyObject* scalapack_general_diagonalize_mr3(PyObject *self, PyObject *args)
   if (!PyArg_ParseTuple(args, "OOsiOOO", &a, &desca, &uplo, &iu,
                         &b, &z, &w))
     return NULL;
+
+  CHK_ARRAY(a);
+  CHK_ARRAY(desca);
+  CHK_ARRAY(b);
+  CHK_ARRAY(z);
+  CHK_ARRAY(w);
 
   // a desc
   // int a_ConTxt = INTP(desca)[1];
@@ -1776,6 +1858,9 @@ PyObject* scalapack_inverse_cholesky(PyObject *self, PyObject *args)
   if (!PyArg_ParseTuple(args, "OOs", &a, &desca, &uplo))
     return NULL;
 
+  CHK_ARRAY(a);
+  CHK_ARRAY(desca);
+
   // adesc
   // int a_ConTxt = INTP(desca)[1];
   int n = INTP(desca)[2];
@@ -1832,6 +1917,9 @@ PyObject* scalapack_inverse(PyObject *self, PyObject *args)
   int one = 1;
   if (!PyArg_ParseTuple(args, "OOs", &a, &desca, &uplo))
     return NULL;
+
+  CHK_ARRAY(a);
+  CHK_ARRAY(desca);
 
   int n = INTP(desca)[2];
   assert(n == INTP(desca)[3]); // Only square matrices
@@ -1906,6 +1994,11 @@ PyObject* scalapack_solve(PyObject *self, PyObject *args) {
   int one = 1;
   if (!PyArg_ParseTuple(args, "OOOO", &a, &desca, &b, &descb))
     return NULL;
+
+  CHK_ARRAY(a);
+  CHK_ARRAY(desca);
+  CHK_ARRAY(b);
+  CHK_ARRAY(descb);
 
   int a_ConTxt = INTP(desca)[1];
   int n = INTP(desca)[2];
