@@ -15,7 +15,7 @@
 			 || !PyArray_ISCARRAY((PyArrayObject*)a)            \
                          || !PyArray_ISNUMBER((PyArrayObject*)a)) {         \
     PyErr_SetString(PyExc_TypeError,                                        \
-		    "Not a proper NumPy array for MPI communication.");     \
+		    "Not a proper NumPy array: needs to be c-contiguous, aligned and writeable.");     \
     return NULL; } else
 
 // Check that array is well-behaved, read-only  and contains data that
@@ -24,7 +24,7 @@
 			 || !PyArray_ISCARRAY_RO((PyArrayObject*)a)         \
 			 || !PyArray_ISNUMBER((PyArrayObject*)a)) {         \
     PyErr_SetString(PyExc_TypeError,                                        \
-		    "Not a proper NumPy array for MPI communication.");     \
+		    "Not a proper NumPy array: needs to be c-contiguous and aligned.");     \
     return NULL; } else
 
 // Check that two arrays have the same type, and the size of the
