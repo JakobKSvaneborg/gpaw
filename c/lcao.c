@@ -90,7 +90,7 @@ PyObject *tci_overlap(PyObject *self, PyObject *args)
     CHK_ARRAY(x_mi_obj);
     CHK_ARRAY(Rhat_c_obj);
     CHK_ARRAY(drlYdR_Lc_obj);
-    CHK_ARRAY(dxdR_cmi_obj);
+    // CHK_ARRAY(dxdR_cmi_obj);
 
     SplineObject *spline_obj;
     bmgsspline *spline;
