@@ -21,20 +21,19 @@ with warnings.catch_warnings():
 
     df.get_polarizability(filename='pol_rpa_MoS2.csv')
 
-
     bse = BSE('gs_MoS2.gpw',
-            add_soc=True,
-            ecut=ecut,
-            valence_bands=[16, 17],
-            conduction_bands=[18, 19],
-            nbands=50,
-            mode='BSE',
-            txt='bse_MoS2.txt')
+              add_soc=True,
+              ecut=ecut,
+              valence_bands=[16, 17],
+              conduction_bands=[18, 19],
+              nbands=50,
+              mode='BSE',
+              txt='bse_MoS2.txt')
 
     bse.get_polarizability(filename='pol_bse_MoS2.csv',
-                        eta=eta,
-                        write_eig='bse_MoS2_eig.dat',
-                        w_w=np.linspace(0, 5, 5001))
+                           eta=eta,
+                           write_eig='bse_MoS2_eig.dat',
+                           w_w=np.linspace(0, 5, 5001))
 
 bse = BSE('gs_MoS2.gpw',
           add_soc=True,
