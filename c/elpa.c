@@ -149,7 +149,7 @@ PyObject* pyelpa_diagonalize(PyObject *self, PyObject *args)
 {
     PyObject *handle_obj;
     PyArrayObject *A_obj, *C_obj, *eps_obj;
-    int is_complex_obj;
+    int is_complex;
 
     if (!PyArg_ParseTuple(args,
                           "OOOOi",
