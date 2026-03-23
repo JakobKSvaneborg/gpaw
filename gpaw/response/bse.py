@@ -104,6 +104,12 @@ class BSEMatrix:
         """
         H_sS = self.H_sS
         comm = bse.context.comm
+        if comm.size == 1:
+            H_rS = np.delete(H_sS, exclude_S, axis=0)
+            H_rr = np.delete(H_rS, exclude_S, axis=1)
+            bse.context.print('  Eliminated %s pair orbitals' % len(
+                exclude_S))
+            return np.ascontiguousarray(H_rr), None
         grid = BlacsGrid(comm, comm.size, 1)
         nS = bse.nS
         ns = bse.ns
@@ -960,19 +966,23 @@ class BSEBackend:
                C_tGG1 = A_Gt.T.conj()[..., np.newaxis] * B_Gt.T[:, np.newaxis]
                C_tGG = B_Gt.T.conj()[..., np.newaxis] * A_Gt.T[:, np.newaxis]
                '''
-            grid = BlacsGrid(comm, comm.size, 1)
-            desc = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
-            C_tGG = desc.empty(dtype=complex)
-            np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt,
-                      out=C_tGG.reshape((-1, nG, nG)))
-            desc1 = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
-            C_tGG1 = desc1.empty(dtype=complex)
-            np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt,
-                      out=C_tGG1.reshape((-1, nG, nG)))
-            print(f'shape is {C_tGG.shape}')
-            C_tGG = C_tGG[:C_tGG.shape[0]].reshape((C_tGG.shape[0], nG, nG))
-            C_tGG1 = C_tGG1[:C_tGG1.shape[0]].reshape(
-                (C_tGG1.shape[0], nG, nG))
+            if comm.size == 1:
+                C_tGG = np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt)
+                C_tGG1 = np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt)
+            else:
+                grid = BlacsGrid(comm, comm.size, 1)
+                desc = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
+                C_tGG = desc.empty(dtype=complex)
+                np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt,
+                          out=C_tGG.reshape((-1, nG, nG)))
+                desc1 = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
+                C_tGG1 = desc1.empty(dtype=complex)
+                np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt,
+                          out=C_tGG1.reshape((-1, nG, nG)))
+                C_tGG = C_tGG[:C_tGG.shape[0]].reshape(
+                    (C_tGG.shape[0], nG, nG))
+                C_tGG1 = C_tGG1[:C_tGG1.shape[0]].reshape(
+                    (C_tGG1.shape[0], nG, nG))
 
         eta /= Hartree
 
