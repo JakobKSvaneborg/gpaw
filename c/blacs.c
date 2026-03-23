@@ -537,11 +537,11 @@ PyObject* pblas_gemv(PyObject *self, PyObject *args)
   }
 
   CHK_ARRAY(a);
-  CHK_ARRAY(b);
-  CHK_ARRAY(c);
+  CHK_ARRAY(x);
+  CHK_ARRAY(y);
   CHK_ARRAY(desca);
-  CHK_ARRAY(descb);
-  CHK_ARRAY(descc);
+  CHK_ARRAY(descx);
+  CHK_ARRAY(descy);
 
   // ydesc
   // int y_ConTxt = INTP(descy)[1];
@@ -878,10 +878,10 @@ PyObject* scalapack_redist(PyObject *self, PyObject *args)
                         &uplo))
     return NULL;
 
-  CHK_ARRAY(a);
-  CHK_ARRAY(b);
   CHK_ARRAY(desca);
   CHK_ARRAY(descb);
+  CHK_ARRAY(a);
+  CHK_ARRAY(b);
 
   if (*uplo == 'G') // General matrix
     {
@@ -929,6 +929,11 @@ PyObject* scalapack_diagonalize_dc(PyObject *self, PyObject *args)
 
   if (!PyArg_ParseTuple(args, "OOsOO", &a, &desca, &uplo, &z, &w))
     return NULL;
+
+  CHK_ARRAY(a);
+  CHK_ARRAY(desca);
+  CHK_ARRAY(z);
+  CHK_ARRAY(w);
 
   // adesc
   // int a_ConTxt = INTP(desca)[1];
