@@ -96,8 +96,6 @@ It this point `images` consist of 6 copies of `initial` and one entry of `final`
 """
 
 # %%
-# XXX Use peer-reviewed method 'improvedtangent' instead of
-# unpublished 'aseneb' for 2026 summerschool?
 neb = NEB(images, method='improvedtangent')
 neb.interpolate()
 
