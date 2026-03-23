@@ -633,8 +633,7 @@ class BSEBackend:
         if self.mode != 'RPA':
             self._direct_kernel_t0 = time()
             self.add_direct_kernel(kptpair_factory, pair_calc,
-                                   None, update_progress,
-                                   H_kmmKmm)
+                                   update_progress, H_kmmKmm)
         H_kmmKmm /= self.gs.volume
         self.context.timer.stop('Calculate Hamiltonian')
 
@@ -660,7 +659,7 @@ class BSEBackend:
         return BSEMatrix(df_S, H_sS, deps_S, self.deps_max)
 
     @timer('add_direct_kernel')
-    def add_direct_kernel(self, kptpair_factory, pair_calc, screened_potential,
+    def add_direct_kernel(self, kptpair_factory, pair_calc,
                           update_progress, H_kmmKmm):
         """Add the direct (screened exchange) kernel to the BSE Hamiltonian.
 
