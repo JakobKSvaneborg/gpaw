@@ -665,9 +665,10 @@ class BSEBackend:
         iq_to_bz_indices = [np.where(bz2ibz == iq)[0]
                             for iq in range(self.qd.nibzkpts)]
 
-        n_iterations_done = 0
-        # Total (k, Q) loop iterations for progress tracking
         total_iterations = self.myKsize * len(self.qd.bzk_kc)
+        if total_iterations == 0:
+            return
+        n_iterations_done = 0
 
         self.context.print('Calculating screened potential and direct kernel')
 
@@ -752,7 +753,7 @@ class BSEBackend:
 
             if iq % (self.qd.nibzkpts // 5 + 1) == 0:
                 dt = time() - self._direct_kernel_t0
-                frac = n_iterations_done / total_iterations if total_iterations > 0 else 1
+                frac = n_iterations_done / total_iterations
                 if frac > 0:
                     tleft = dt / frac - dt
                 else:
