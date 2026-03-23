@@ -92,10 +92,14 @@ def gaussian_dos(eig_kn,
     if weight_kn is None:
         for e_n, w in zip(eig_kn, weight_k):
             for e in e_n:
+                if np.isnan(e):
+                    continue
                 dos += w * np.exp(-((energies - e) / width)**2)
     else:
         for e_n, w, w_n in zip(eig_kn, weight_k, weight_kn):
             for e, w2 in zip(e_n, w_n):
+                if np.isnan(e):
+                    continue
                 dos += w * w2 * np.exp(-((energies - e) / width)**2)
     return dos / (np.pi**0.5 * width)
 
@@ -151,8 +155,8 @@ class DOSCalculator:
                      emin: float | None = None,
                      emax: float | None = None,
                      npoints: int = 100):
-        emin = emin if emin is not None else self.eig_skn.min()
-        emax = emax if emax is not None else self.eig_skn.max()
+        emin = emin if emin is not None else np.nanmin(self.eig_skn)
+        emax = emax if emax is not None else np.nanmax(self.eig_skn)
         return np.linspace(emin, emax, npoints)
 
     @classmethod
