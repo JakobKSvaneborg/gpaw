@@ -672,8 +672,6 @@ PyObject* new_blacs_context(PyObject *self, PyObject *args)
     return NULL;
   }
 
-  CHK_ARRAY(comm_obj);
-
   // Create blacs grid on this communicator
   MPI_Comm comm = *((MPI_Comm*) PyLong_AsVoidPtr(comm_obj));
 
