@@ -958,24 +958,24 @@ class BSEBackend:
                 flat_C_tGG = np.empty(nR * nG * nG, dtype=complex)
             comm.broadcast(flat_C_tGG, 0)
             C_tGG = flat_C_tGG.reshape((nR, nG, nG))[self.blocks.myslice]
-            C_tGG1 = None
+            C1_tGG = None
         else:
             A_Gt = rho_RG.T @ v_Rt
             B_Gt = (rho_RG.T * df_R[np.newaxis]) @ v_Rt
             '''The following computes
-               C_tGG1 = A_Gt.T.conj()[..., np.newaxis] * B_Gt.T[:, np.newaxis]
+               C1_tGG = A_Gt.T.conj()[..., np.newaxis] * B_Gt.T[:, np.newaxis]
                C_tGG = B_Gt.T.conj()[..., np.newaxis] * A_Gt.T[:, np.newaxis]
                '''
             if comm.size == 1:
                 C_tGG = np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt)
-                C_tGG1 = np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt)
+                C1_tGG = np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt)
             else:
                 grid = BlacsGrid(comm, comm.size, 1)
                 desc = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
                 C_tGG = desc.empty(dtype=complex).reshape((-1, nG, nG))
                 np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt, out=C_tGG)
-                C_tGG1 = desc.empty(dtype=complex).reshape((-1, nG, nG))
-                np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt, out=C_tGG1)
+                C1_tGG = desc.empty(dtype=complex).reshape((-1, nG, nG))
+                np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt, out=C1_tGG)
 
         eta /= Hartree
 
@@ -983,14 +983,15 @@ class BSEBackend:
             tmp_tw = 1 / (w_w[None, :] / Hartree - w_t[:, None] + 1j * eta)
             chi_wGG_local = np.einsum('tw,tAB->wAB', tmp_tw, C_tGG)
 
-            if C_tGG1 is not None:
+            if C1_tGG is not None:
                 n_tmp_tw = - 1 / (w_w[None, :] / Hartree
                                   + w_t[:, None] + 1j * eta)
-                chi_wGG_local += np.einsum('tw,tAB->wAB', n_tmp_tw, C_tGG1)
+                chi_wGG_local += np.einsum('tw,tAB->wAB', n_tmp_tw, C1_tGG)
 
             chi_wGG_local *= 1 / self.gs.volume
 
-        comm.sum(chi_wGG_local)
+        if comm.size > 1:
+            comm.sum(chi_wGG_local)
         chi_wGG = chi_wGG_local
 
         return np.swapaxes(chi_wGG, -1, -2)
