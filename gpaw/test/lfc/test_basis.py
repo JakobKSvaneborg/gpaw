@@ -100,9 +100,6 @@ def fixt_grid_shape(request) -> GridShape:
     and sizes."""
     return request.param
 
-# TODO: test cases combinations like "pbc = False and zerobc = False".
-# This wouldn't pass tests currently because we're comparing against the old
-# LFC code, which only has pbc (which is actually ~zerobc).
 
 @pytest.fixture(params=[
     pytest.param(
@@ -114,11 +111,13 @@ def fixt_grid_shape(request) -> GridShape:
         marks=pytest.mark.ci),
     pytest.param(
         BoundaryConds(pbc=[False, False, False], zerobc=[True, True, True]),
-        id="AllNonPeriodic"
-        )],
+        id="AllNonPeriodic")],
     scope="module")
 def fixt_bc(request) -> BoundaryConds:
-    """Generates bunch of different boundary conditions for grids"""
+    """Generates bunch of different boundary conditions for grids.
+    TODO: test cases combinations like "pbc = False and zerobc = False.
+    This wouldn't pass tests currently because we're comparing against the old
+    LFC code, which only has pbc (which is actually ~zerobc)"""
     return request.param
 
 

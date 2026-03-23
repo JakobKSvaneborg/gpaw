@@ -30,12 +30,6 @@ from gpaw.spline import Spline
 from gpaw.typing import Array4D
 
 
-# TODO don't use grid._gd for anything, it seems buggy
-
-
-
-
-
 def sphere_overlaps_box(
     radius: float,
     center: np.ndarray,   # 3D array, real space pos of sphere center
@@ -458,10 +452,10 @@ class BlockData:
         # AABB of each block: need all 8 corners since the cell can be skewed
         corner_offsets = np.array(list(itertools.product([0, 1], repeat=3)))
 
-        block_corners_c = (block_start_c[..., None, :]
-            + corner_offsets * (block_end_c - block_start_c)[..., None, :])
+        block_corners_c = block_start_c[..., None, :] \
+            + corner_offsets * (block_end_c - block_start_c)[..., None, :]
 
-        self.h_cv = self.grid._gd.h_cv
+        self.h_cv = (grid.cell_cv.T / grid.size_c).T
         """Grid spacing (precomputed; same as on the full grid)"""
 
         self.block_corners_v = block_corners_c @ self.h_cv
@@ -474,8 +468,7 @@ class BlockData:
 
         block_coords = np.asarray(block)
         if (np.any(block_coords < 0)
-            or np.any(block_coords >= self.num_blocks_c)
-        ):
+            or np.any(block_coords >= self.num_blocks_c)):
             raise ValueError("Invalid block coords (must be domain-relative)")
 
         start_c = self.block_start_c[*block]
@@ -484,6 +477,7 @@ class BlockData:
             np.indices(tuple(end_c - start_c)).transpose((1, 2, 3, 0)))
         indices_Rc += start_c
         return indices_Rc @ self.h_cv
+
 
 class BasisFunctionCollectionBase(ABC):
     """Base class for LFC basis functions (new implementation). Handles atom
@@ -515,7 +509,6 @@ class BasisFunctionCollectionBase(ABC):
     """List of all basis function instances in the system ("spheres").
     This includes periodic copies of the phi from neighboring cells, if those
     overlap the main cell."""
-
 
     _mu_range_a: list[range]
     """Range of mu indices for atom 'a'."""
@@ -697,7 +690,6 @@ class BasisFunctionCollectionBase(ABC):
             self._mu_range_a.append(range(mu, mu + mu_local))
             mu += mu_local
 
-
     def _update_block_data(self, spheres_i: list[PhiSphereData]) -> None:
         """"""
 
@@ -707,10 +699,10 @@ class BasisFunctionCollectionBase(ABC):
         # Fast but conservative AABB pass: cull distant block-sphere pairs
 
         # shape (Bx, By, Bz, 3)
-        block_aabb_min  = self.block_data.block_corners_v.min(axis=-2)
-        block_aabb_max  = self.block_data.block_corners_v.max(axis=-2)
+        block_aabb_min = self.block_data.block_corners_v.min(axis=-2)
+        block_aabb_max = self.block_data.block_corners_v.max(axis=-2)
 
-        # Gather sphere data into arrays. TODO atom update should already do something like this
+        # Gather sphere data into arrays.
         # Let S = len(spheres_i)
         pos_iv = np.array([s.pos_v for s in spheres_i])  # (S, 3)
         radius_i = np.array([s.phi_desc.cutoff for s in spheres_i])  # (S,)
@@ -725,8 +717,8 @@ class BasisFunctionCollectionBase(ABC):
 
         # FIXME clearly we don't need the phi sphere struct to be separate
         # from BasisFunctionInstance. We should have some flattened PhiData
-        # array that handles phi indexing, so that we don't have to have the idx
-        # inside BasisFunctionInstance.
+        # array that handles phi indexing, so that we don't have to have the
+        # idx inside BasisFunctionInstance.
         phi_i_map: dict[int, BasisFunctionInstance] = {}
 
         # Exact pass: compute sphere distances from grid points of the blocks
@@ -754,13 +746,13 @@ class BasisFunctionCollectionBase(ABC):
             # Ugly, gotta create the phi instances here on the fly
             if s_idx not in phi_i_map.keys():
                 new_phi = BasisFunctionInstance(
-                        phi_idx,
-                        sphere.phi_desc,
-                        sphere.spline_idx,
-                        sphere.parent_atom_idx,
-                        sphere.first_mu,
-                        sphere.pos_v,
-                        sphere.cell_coords)
+                    phi_idx,
+                    sphere.phi_desc,
+                    sphere.spline_idx,
+                    sphere.parent_atom_idx,
+                    sphere.first_mu,
+                    sphere.pos_v,
+                    sphere.cell_coords)
                 phi_i_map[s_idx] = new_phi
                 phi_idx += 1
                 self.phi_i.append(new_phi)
@@ -990,7 +982,6 @@ class BasisFunctionCollectionBase(ABC):
             atom_idx: int,
             new_relpos_c: np.ndarray) -> AtomUpdateResult:
         """"""
-
         new_rank = self.grid._gd.get_rank_from_position(new_relpos_c)
 
         """Handle periodic boundaries: basis funcs from other unit cells
@@ -1024,7 +1015,6 @@ class BasisFunctionCollectionBase(ABC):
             mu += (2 * phi.l + 1)
 
         return self.AtomUpdateResult(new_relpos_c, new_rank, phi_spheres)
-
 
     def _build_phi_instances(
             self,
