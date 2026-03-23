@@ -972,16 +972,10 @@ class BSEBackend:
             else:
                 grid = BlacsGrid(comm, comm.size, 1)
                 desc = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
-                C_tGG = desc.empty(dtype=complex)
-                np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt,
-                          out=C_tGG.reshape((-1, nG, nG)))
-                C_tGG1 = desc.empty(dtype=complex)
-                np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt,
-                          out=C_tGG1.reshape((-1, nG, nG)))
-                C_tGG = C_tGG[:C_tGG.shape[0]].reshape(
-                    (C_tGG.shape[0], nG, nG))
-                C_tGG1 = C_tGG1[:C_tGG1.shape[0]].reshape(
-                    (C_tGG1.shape[0], nG, nG))
+                C_tGG = desc.empty(dtype=complex).reshape((-1, nG, nG))
+                np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt, out=C_tGG)
+                C_tGG1 = desc.empty(dtype=complex).reshape((-1, nG, nG))
+                np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt, out=C_tGG1)
 
         eta /= Hartree
 
