@@ -49,9 +49,13 @@ def test_lcao_lcao_parallel_kpt():
         except KohnShamConvergenceError:
             pass
 
-        E = calc.hamiltonian.e_total_free
-        F_av = calculate_forces(calc.wfs, calc.density,
-                                calc.hamiltonian)
+        if calc.old:
+            E = calc.hamiltonian.e_total_free
+            F_av = calculate_forces(calc.wfs, calc.density,
+                                    calc.hamiltonian)
+        else:
+            E = calc.dft.calculate_energy()
+            F_av = calc.dft.calculate_forces()
 
         nonlocal Eref, Fref_av
         if Eref is None:

@@ -107,7 +107,8 @@ def calculate(element, vacuum, xc, magmom, comm):
         mixer = MixerSum(0.4, nmaxold=1, weight=100)
         atom.set_positions(atom.get_positions() + [0.0, 0.0, 0.0001])
 
-    calc_atom = GPAW(mode='fd',
+    calc_atom = GPAW(legacy_gpaw=True,
+                     mode='fd',
                      xc=_xc(data[element][xc][2]),
                      experimental={'niter_fixdensity': 2},
                      eigensolver='rmm-diis',
@@ -126,7 +127,8 @@ def calculate(element, vacuum, xc, magmom, comm):
         mms = [1.0 for i in range(len(compound))]
         compound.set_initial_magnetic_moments(mms)
 
-    calc = GPAW(mode='fd',
+    calc = GPAW(legacy_gpaw=True,
+                mode='fd',
                 xc=_xc(data[element][xc][2]),
                 experimental={'niter_fixdensity': 2},
                 eigensolver='rmm-diis',
