@@ -29,19 +29,19 @@ PARAMS = dict(
 # Initial set of 14 materials for the first bechmark-run
 # with old GPAW (version 25.7.0):
 REFERENCES0 = {
-    'Bi2Se3-3': (-21.46195, -0.18655, 24, 46.74),
-    'C60-0': (-530.92535, -0.44820, 24, 204.56),
-    'C72-2': (-530.92535, -0.44820, 24, 389.18),
+    'Bi2Se3-3': (-8.911, -0.00074, 24, 46.74),
+    'C60-0': (-530.92535, -0.4486, 24, 204.56),
+    'C72-2': (-663.739, 3.4112, 24, 389.18),
     'C2-3': (-18.19611, -0.00000, 24, 11.11),
     'Ga2F4N4H10-3': (-99.08900, 0.00013, 40, 80.28),
-    'H2-0': (-6.77477, 0.11710, 24, 3.78),
-    'LiC8-3': (-75.37653, 0.66102, 24, 32.01),
+    'H2-0': (-6.77477, 0.1170, 24, 3.78),
+    'LiC8-3': (-75.37653, 0.6415, 24, 32.01),
     'Fe8-3M': (-72.37710, -0.00713, 24, 114.55),
-    'Al96-2': (-350.06299, -0.01156, 40, 1434.00),
-    'Mo60S120-1': (-1291.31046, 7.55276, 56, 6239.00),
-    'OPt24-2': (-153.25143, -1.61599, 40, 999.75),
-    'CrSi2As4-2M': (-38.89434, -0.17154, 24, 100.10),
-    'VI2-2M': (-9.29013, -0.77486, 24, 31.65),
+    'Al96-2': (-350.06299, -0.01145, 40, 1434.00),
+    'Mo60S120-1': (-1291.31046, 7.2669, 56, 6239.00),
+    'OPt24-2': (-153.25143, -1.6164, 40, 999.75),
+    'CrSi2As4-2M': (-38.89434, -0.1714, 24, 100.10),
+    'VI2-2M': (-12.965, -0.00017, 24, 31.65),
     'Ti2Br6-3': (-32.64699, -0.00286, 24, 155.44)}
 
 RESCALE_FACTOR = 1.0
@@ -50,8 +50,8 @@ RESCALE_FACTOR = 1.0
 # (new GPAW, master branch Nov. 11 2025):
 REFERENCES0 |= {
     'MnVS2-2M': (-29.11777, -0.00014, 24, 98.608),
-    'PtLi2O6-2M': (-40.713, -2.068, 24, 454.22),
-    'V3Cl6-2N': (-51.117, -0.102, 24, 3364.039)}
+    'PtLi2O6-2M': (-40.713, -2.06842, 24, 454.22),
+    'V3Cl6-2N': (-51.117, -0.10189, 24, 3364.039)}
 
 # Score for the 14 systems was 94.34.
 # Rescaling to 17 systems:
@@ -61,7 +61,7 @@ RESCALE_FACTOR *= old / new
 
 # New initial magmoms for MnVS2-2M (new GPAW, master branch Nov 25 2025).
 # Time for MnVS2-2M system changed from 98.608 to 68.767 seconds:
-REFERENCES0['MnVS2-2M'] = (-29.11777, -0.00014, 24, 68.767)
+REFERENCES0['MnVS2-2M'] = (-29.11777, -0.00016, 24, 68.767)
 
 # New score for 17 systems: 115.80
 old = 115.80
@@ -74,7 +74,7 @@ RESCALE_FACTOR *= old / new
 
 # Not yet included in benchmark:
 REFERENCES = REFERENCES0 | {
-    'Mn2O2-3M': (0.0, 0.0, 24, 9999999)}
+    'Mn2O2-3M': (-18.577, -0.01743, 24, 9999999)}
 
 NAMES = sorted(REFERENCES, key=lambda name: name.split('-')[::-1])
 
@@ -215,9 +215,9 @@ def read(folder: Path,
         if path.is_file():
             x = json.loads(path.read_text())
             if abs(x[0] - e0) > eps:
-                pass  # print(path, x[0] - e0)
-            if abs(x[4] - (e0 + de0)) > eps / 10:
-                pass  # print(path, 'D', x[4] - (e0 + de0))
+                print(path, x[0], x[0] - e0)
+            if abs((x[4] - x[0] - de0) / e0) > eps:
+                print(path, 'D', x[4] - x[0], x[4] - (e0 + de0))
             if mode == 1:
                 t = x[1]
                 i = x[2]
@@ -235,43 +235,43 @@ def read(folder: Path,
 
 
 def summary(folders: list[Path], mode: int) -> None:
-    from gpaw.new.logger import GREEN, RESET
+    from gpaw.new.logger import GREEN, RED, RESET
     alldata = [read(folder, mode) for folder in folders]
     for i, folder in enumerate(folders):
         print(i + 1, folder)
-    print('-----------------' + '+---------------------' * len(folders))
+    print('-----------------' + '+-----------------------' * len(folders))
     scores = [0.0] * len(folders)
     N = 0
     for r, name in enumerate(REFERENCES):
         print(f'{r + 1:2} {name:12} ', end='')
         times = [data[name][0] for data in alldata]
         iters = [data[name][1] for data in alldata]
-        t0 = min(times)
-        if t0 == np.inf:
-            print()
-            continue
+        t0 = times[0]
         if max(times) < np.inf:
             N += 1
         for n, (t, i) in enumerate(zip(times, iters)):
             if t == np.inf:
-                line = ' | ------(---) ------%'
+                line = ' | -------(---) -------%'
             else:
-                percent = f'{(t / t0 - 1) * 100:+6.1f}%'
-                if t == t0:
+                percent = f'{(t / t0 - 1) * 100:+7.1f}%'
+                if t < t0:
                     percent = GREEN + percent + RESET
-                line = f' | {t:6.1f}({i:3}) {percent}'
+                elif t > t0:
+                    percent = RED + percent + RESET
+                line = f' | {t:7.1f}({i:3}) {percent}'
             print(line, end='')
             if max(times) < np.inf:
                 scores[n] += t / t0
         print()
-    print('-----------------' + '+---------------------' * len(folders) +
+    print('-----------------' + '+-----------------------' * len(folders) +
           '\n           ', end='')
     for s in scores:
         print(f'{(s / N - 1) * 100:+21.1f}%', end='')
-    print('\n           ', end='')
-    for data in alldata:
-        s, _ = score({name: t for name, (t, i) in data.items()})
-        print(f'{s:22.2f}', end='')
+    if mode == 3:
+        print('\n           ', end='')
+        for data in alldata:
+            s, _ = score({name: t for name, (t, i) in data.items()})
+            print(f'{s:22.2f}', end='')
     print()
 
 
