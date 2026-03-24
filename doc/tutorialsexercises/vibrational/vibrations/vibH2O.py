@@ -18,6 +18,7 @@ h2o.center(vacuum=3.5)
 h2o.calc = GPAW(txt='h2o.txt',
                 mode='lcao',
                 basis='dzp',
+                convegence={'density': 1e-6},
                 symmetry='off')
 
 QuasiNewton(h2o).run(fmax=0.05)
