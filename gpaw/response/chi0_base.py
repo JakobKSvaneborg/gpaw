@@ -303,9 +303,21 @@ class Chi0ComponentCalculator:
         if integrationmode == 'point integration':
             k_kc = generator.get_kpt_domain()
         elif integrationmode == 'tetrahedron integration':
+            calc = self.gs._calc
+            if calc.old:
+                tolerance = calc.symmetry.tol
+                _backwards_compatible = True
+            else:
+                sym = calc.dft.ibzwfs.ibz.symmetries
+                tolerance = sym.tolerance
+                _backwards_compatible = sym._backwards_compatible
+            atoms = calc.atoms
+
             k_kc = generator.get_tetrahedron_kpt_domain(
-                pbc_c=self.pbc, cell_cv=self.gs.gd.cell_cv,
+                cell_cv=atoms.cell, pbc_c=atoms.pbc, tolerance=tolerance,
+                _backwards_compatible=_backwards_compatible,
                 comm=self.context.comm)
+
         kpoints = KPointDomain(k_kc, self.gs.gd.icell_cv)
 
         # In the future, we probably want to put enough functionality on the
