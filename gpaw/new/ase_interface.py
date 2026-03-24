@@ -171,13 +171,21 @@ class ASECalculator:
 
         assert self.hooks.keys() <= {'scf_step', 'converged'}
 
+        import time
+
+        starttime = time.time()
+
         with self.timer('SCF'):
             for ctx in self.dft.iconverge(
                     calculate_forces=self._calculate_forces):
                 yield ctx
                 self.hooks.get('scf_step', lambda ctx: None)(ctx)
 
+        scftime = time.time() - starttime
+
         self.log(f'Converged in {ctx.niter} steps')
+        self.log(f'SCF loop duration: {scftime:.3f} s '
+                 f'({scftime / ctx.niter:.3f} s/step)')
 
         # Calculate all the cheap things:
         self.dft.calculate_energy()
