@@ -123,6 +123,9 @@ class ASECalculator:
         Will also calculate "cheap" properties: energy, magnetic moments
         and dipole moment.
         """
+
+        inittimer = simpletimer()
+
         if atoms is None:
             atoms = self.atoms
         else:
@@ -172,8 +175,9 @@ class ASECalculator:
             self.create_new_calculation(atoms)
 
         assert self.hooks.keys() <= {'scf_step', 'converged'}
+        self.log(f'Initialization done in: {inittimer():.3f} s\n')
 
-        timer = simpletimer()
+        scftimer = simpletimer()
 
         with self.timer('SCF'):
             for ctx in self.dft.iconverge(
@@ -181,7 +185,7 @@ class ASECalculator:
                 yield ctx
                 self.hooks.get('scf_step', lambda ctx: None)(ctx)
 
-        scftime = timer()
+        scftime = scftimer()
 
         self.log(f'Converged in {ctx.niter} steps')
         self.log(f'SCF loop duration: {scftime:.3f} s '
