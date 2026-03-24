@@ -88,9 +88,11 @@ PyObject *tci_overlap(PyObject *self, PyObject *args)
     CHK_ARRAY(G_LLL_obj);
     CHK_ARRAY(rlY_L_obj);
     // x_mi can be non-contiguous
+    assert(PyArray_Check(x_mi_obj));
     CHK_ARRAY(Rhat_c_obj);
     CHK_ARRAY(drlYdR_Lc_obj);
-    CHK_ARRAY(dxdR_cmi_obj);
+    // dxdR_cmi_obj can be non-contigous;
+    assert(PyArray_Check(dxdR_cmi_obj));
 
     SplineObject *spline_obj;
     bmgsspline *spline;
