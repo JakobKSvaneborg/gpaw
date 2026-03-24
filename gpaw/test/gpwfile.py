@@ -495,6 +495,27 @@ class GPWFiles(CachedFilesHandler):
         return atm.calc
 
     @gpwfile
+    def h2o_lcaosic_innerloop(self):
+        atm = self.h2o_maker(vacuum=4.0)
+        atm.calc = self.GPAW(
+            mode=LCAO(force_complex_dtype=True),
+            h=0.22,
+            occupations={'name': 'fixed-uniform'},
+            eigensolver=LCAOETDM(
+                localizationtype='PM_PZ',
+                localizationseed=42,
+                functional={'name': 'PZ-SIC', 'scaling_factor': (0.5, 0.5)},
+                localize_every=1,
+            ),
+            convergence={'eigenstates': 1e-4},
+            mixer={'backend': 'no-mixing'},
+            nbands='nao',
+            symmetry='off',
+        )
+        atm.get_potential_energy()
+        return atm.calc
+
+    @gpwfile
     def h2o_mom_lcaosic(self):
         atm = self.h2o_maker(vacuum=3.0)
         calc = self.GPAW(

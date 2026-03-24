@@ -32,13 +32,20 @@ def test_fileio_parallel(in_tmp_dir, mpi):
     calc.write('tmp.gpw', mode='all')
 
     # Continue calculation for few iterations
-    atoms, calc = mpi.restart(
-        'tmp.gpw',
-        eigensolver='rmm-diis',
-        mixer=MixerSum(0.1, 3),
-        parallel={'band': 2, 'domain': (1, 1, 2)},
-        maxiter=4)
-    try:
-        atoms.get_potential_energy()
-    except ConvergenceError:
-        pass
+    if calc.old:
+        atoms, calc = mpi.restart(
+            'tmp.gpw',
+            eigensolver='rmm-diis',
+            mixer=MixerSum(0.1, 3),
+            parallel={'band': 2, 'domain': (1, 1, 2)},
+            maxiter=4)
+        try:
+            atoms.get_potential_energy()
+        except ConvergenceError:
+            pass
+        return
+
+    calc = mpi.GPAW('tmp.gpw', parallel={'band': 2, 'domain': (1, 1, 2)})
+    calc.dft.change(
+        mixer=MixerSum(0.1, 3))
+    calc.dft.converge(steps=4)

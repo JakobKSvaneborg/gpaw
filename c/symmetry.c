@@ -2,6 +2,7 @@
  *  Please see the accompanying LICENSE file for further information. */
 
 #include "python_utils.h"
+#include "array.h"
 #include "extensions.h"
 
 
@@ -17,6 +18,10 @@ PyObject* GG_shuffle(PyObject *self, PyObject *args)
                           &G_G_obj, &sign, &A_GG_obj, &B_GG_obj))
         return NULL;
 
+    CHK_ARRAY(G_G_obj);
+    // A_GG can be non-contiguous
+    assert(PyArray_Check(A_GG_obj));
+    CHK_ARRAY(B_GG_obj);
 
     int nG = PyArray_DIMS(G_G_obj)[0];
     // Check dimensions
@@ -39,7 +44,7 @@ PyObject* GG_shuffle(PyObject *self, PyObject *args)
 
     if (PyArray_TYPE(G_G_obj) != NPY_INT)
     {
-         PyErr_SetString(PyExc_TypeError, "G_G expected to be an integer array.");
+         PyErr_SetString(PyExc_TypeError, "G_G expected to be an 32 bit integer array.");
          return NULL;
     }
 
@@ -120,6 +125,11 @@ PyObject* symmetrize(PyObject *self, PyObject *args)
                           &a_g_obj, &b_g_obj, &op_cc_obj, &offset_c_obj))
         return NULL;
 
+    CHK_ARRAY(a_g_obj);
+    CHK_ARRAY(b_g_obj);
+    CHK_ARRAY(op_cc_obj);
+    CHK_ARRAY(offset_c_obj);
+
     const long* C = (const long*)PyArray_DATA(op_cc_obj);
     const long* o_c = (const long*)PyArray_DATA(offset_c_obj);
     int ng0 = PyArray_DIMS(a_g_obj)[0];
@@ -148,6 +158,7 @@ PyObject* symmetrize(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+
 PyObject* symmetrize_ft(PyObject *self, PyObject *args)
 {
     PyArrayObject* a_g_obj;
@@ -160,6 +171,12 @@ PyObject* symmetrize_ft(PyObject *self, PyObject *args)
                           &a_g_obj, &b_g_obj, &op_cc_obj, &t_c_obj,
                           &offset_c_obj))
         return NULL;
+
+    CHK_ARRAY(a_g_obj);
+    CHK_ARRAY(b_g_obj);
+    CHK_ARRAY(op_cc_obj);
+    CHK_ARRAY(t_c_obj);
+    CHK_ARRAY(offset_c_obj);
 
     const long* t_c = (const long*)PyArray_DATA(t_c_obj);
     const long* C = (const long*)PyArray_DATA(op_cc_obj);
@@ -201,6 +218,12 @@ PyObject* symmetrize_wavefunction(PyObject *self, PyObject *args)
 
     if (!PyArg_ParseTuple(args, "OOOOO", &a_g_obj, &b_g_obj, &op_cc_obj, &kpt0_obj, &kpt1_obj))
         return NULL;
+
+    CHK_ARRAY(a_g_obj);
+    CHK_ARRAY(b_g_obj);
+    CHK_ARRAY(op_cc_obj);
+    CHK_ARRAY(kpt0_obj);
+    CHK_ARRAY(kpt1_obj);
 
     const long* C = (const long*)PyArray_DATA(op_cc_obj);
     const double* kpt0 = (const double*) PyArray_DATA(kpt0_obj);
@@ -244,6 +267,12 @@ PyObject* symmetrize_return_index(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "OOOOO", &a_g_obj, &b_g_obj, &op_cc_obj, &kpt0_obj, &kpt1_obj))
         return NULL;
 
+    CHK_ARRAY(a_g_obj);
+    CHK_ARRAY(b_g_obj);
+    CHK_ARRAY(op_cc_obj);
+    CHK_ARRAY(kpt0_obj);
+    CHK_ARRAY(kpt1_obj);
+
     const long* C = (const long*)PyArray_DATA(op_cc_obj);
     const double* kpt0 = (const double*) PyArray_DATA(kpt0_obj);
     const double* kpt1 = (const double*) PyArray_DATA(kpt1_obj);
@@ -286,6 +315,11 @@ PyObject* symmetrize_with_index(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "OOOO", &a_g_obj, &b_g_obj, &index_g_obj, &phase_g_obj))
         return NULL;
 
+    CHK_ARRAY(a_g_obj);
+    CHK_ARRAY(b_g_obj);
+    CHK_ARRAY(index_g_obj);
+    CHK_ARRAY(phase_g_obj);
+
     int ng0 = PyArray_DIMS(a_g_obj)[0];
     int ng1 = PyArray_DIMS(a_g_obj)[1];
     int ng2 = PyArray_DIMS(a_g_obj)[2];
@@ -319,6 +353,10 @@ PyObject* map_k_points(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "OOdOii", &bzk_kc_obj, &U_scc_obj,
                            &tol, &bz2bz_ks_obj, &ka, &kb))
         return NULL;
+
+    CHK_ARRAY(bzk_kc_obj);
+    CHK_ARRAY(U_scc_obj);
+    CHK_ARRAY(bz2bz_ks_obj);
 
     const long* U_scc = (const long*)PyArray_DATA(U_scc_obj);
     const double* bzk_kc = (const double*)PyArray_DATA(bzk_kc_obj);
