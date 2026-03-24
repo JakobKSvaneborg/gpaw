@@ -395,7 +395,6 @@ class MSR1Mixer(BaseMixer):
             YY_LIM = np.linalg.norm(Ay_ii, ord='fro')
             YS_LIM = np.linalg.norm(As_ii, ord='fro')
             max_gb = min(max(YY_LIM / YS_LIM * max_gb_fact, 1), abs_gb_lim)
-            good_broydenness = 0.5 * max_gb
 
             # Choose max good_broydenness s.t. A_ii is positive definite
             # for good_broydenness in good_broydenness_range:
@@ -403,12 +402,19 @@ class MSR1Mixer(BaseMixer):
             # Calculate norms for determining good-broydenness
             y_norm = np.diag(Ay_ii)
             s_norm = np.diag(As_ii)
+            fracs_i = y_norm / s_norm
+            if (fracs_i <= 0).any():
+                # Handle negative values in fracs_i
+                # Set max_gb to a safe value
+                max_gb = min(
+                    max_gb,
+                    np.min(-fracs_i[fracs_i <= 0])
+                )
 
+            good_broydenness = 0.5 * max_gb
             for iter in range(2, 12):
-                t_norm = y_norm + s_norm * good_broydenness
                 norm_vec = 1 / np.sqrt(
-                    np.abs(y_norm + s_norm * good_broydenness))
-                t_norm_pos = (t_norm > 0).all()
+                    y_norm + s_norm * good_broydenness)
                 A_ii = Ay_ii + As_ii * good_broydenness
                 A_ii *= norm_vec[None, :]
                 A_ii *= norm_vec[:, None]
@@ -419,7 +425,7 @@ class MSR1Mixer(BaseMixer):
                 except np.linalg.LinAlgError:
                     good_broydenness -= 2**(-iter) * max_gb
                     continue
-                if min_real > max(1e-9, max_imag) and t_norm_pos:
+                if min_real > max(1e-9, max_imag):
                     good_broydenness += 2**(-iter) * max_gb
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
