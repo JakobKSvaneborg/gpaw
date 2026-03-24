@@ -969,7 +969,7 @@ class BSEBackend:
             C_tGG1 = desc1.empty(dtype=complex)
             np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt,
                       out=C_tGG1.reshape((-1, nG, nG)))
-            print(f'shape is {C_tGG.shape}')
+            self.context.print(f'shape is {C_tGG.shape}')
             C_tGG = C_tGG[:C_tGG.shape[0]].reshape((C_tGG.shape[0], nG, nG))
             C_tGG1 = C_tGG1[:C_tGG1.shape[0]].reshape(
                 (C_tGG1.shape[0], nG, nG))
@@ -1047,10 +1047,12 @@ class BSEBackend:
             A_SS[:len(A_sS)] = A_sS
             Ntot = len(A_sS)
             for rank in range(1, comm.size):
-                buf = np.empty((self.ns, self.nS), dtype=complex)
+                _, myKsize_rank = self.parallelisation_kpoints(rank=rank)
+                ns_rank = myKsize_rank * self.nv * self.nc
+                buf = np.empty((ns_rank, self.nS), dtype=complex)
                 comm.receive(buf, rank, tag=123)
-                A_SS[Ntot:Ntot + self.ns] = buf
-                Ntot += self.ns
+                A_SS[Ntot:Ntot + ns_rank] = buf
+                Ntot += ns_rank
         else:
             comm.send(A_sS, 0, tag=123)
         comm.barrier()
