@@ -30,17 +30,7 @@ from gpaw.spline import Spline
 from gpaw.typing import Array4D
 
 
-def sphere_overlaps_box(
-    radius: float,
-    center: np.ndarray,   # 3D array, real space pos of sphere center
-    box_min: np.ndarray,  # 3D array, box "start" corner in real units
-    box_max: np.ndarray,  # 3D array, box "end" corner in real units
-) -> bool:
-    """Exact sphere-box overlap check."""
-    # closest point in the box to sphere center
-    closest = np.maximum(box_min, np.minimum(center, box_max))
-    dist2 = np.sum((closest - center)**2)
-    return dist2 <= radius * radius
+BlockCoords: TypeAlias = tuple[int, int, int]
 
 
 def find_image_spheres_conservative(
@@ -59,10 +49,10 @@ def find_image_spheres_conservative(
     n_max_c = np.ceil(radius / h_c).astype(int) + 1
 
     # Handle non-periodic boundaries: can't have images in non-periodic dirs.
-    # This matches the `cut=True` option in old BasisFunctions class,
-    # however the default there was actually `cut=False` which would throw
-    # GridBoundsError if the basis funcs don't fit in non-periodic box.
-    # TODO: which behavior do we want??
+    # This matches the `cut=True` option in old BasisFunctions class;
+    # the other option would throw GridBoundsError if some basis funcs don't
+    # fit the main cell. But in basis.py the object was always created with
+    # `cut=True`, so we only implement that version.
     n_max_c = np.where(grid.pbc_c, n_max_c, 0)
 
     # Build a 3D grid of sphere shifts. This Numpy magic is equivalent to:
@@ -94,6 +84,21 @@ def find_image_spheres_conservative(
     candidate_shifts = shifts[in_range]
 
     return list(candidate_shifts), list(image_pos_v[in_range])
+
+
+class PrecalculationMode(Enum):
+    eIfPossible = auto()
+    eAlways = auto()
+    eNever = auto()
+
+
+@dataclass
+class LFCMatrixDistributionRules:
+    """Used to describe how calculate_potential_matrix should be parallelized.
+    We will parallelize by rows, ie. one rank does rows [mu_start, mu_end).
+    """
+    mu_start: int
+    mu_end: int
 
 
 @dataclass
@@ -160,9 +165,6 @@ class LFCSystemDesc:
     description of its basis functions."""
     grid: UGDesc
     atoms: list[LFCAtomDesc]
-
-
-BlockCoords: TypeAlias = tuple[int, int, int]
 
 
 @dataclass
@@ -358,21 +360,6 @@ def build_lfc_system(setups: Setups,
     return LFCSystemDesc(grid, atoms)
 
 
-class PrecalculationMode(Enum):
-    eIfPossible = auto()
-    eAlways = auto()
-    eNever = auto()
-
-
-@dataclass
-class LFCMatrixDistributionRules:
-    """Used to describe how calculate_potential_matrix should be parallelized.
-    We will parallelize by rows, ie. one rank does rows [mu_start, mu_end).
-    """
-    mu_start: int
-    mu_end: int
-
-
 @dataclass
 class PhiSphereData:
     """Atom position updates produce these, gets turned to
@@ -411,24 +398,23 @@ class SplinePoolBase(ABC):
 
 
 class BlockData:
-    """Blocks are labeled by integers (Bx, By, Bz). Block (0, 0, 0) starts
-    at grid.start_c and spans `block_size` grid points.
+    """Describes blocking of the grid domain into sub-grids of block_size_c
+    grid points each. Blocks are labeled by integers (Bx, By, Bz), so that
+    block (0, 0, 0) starts at grid.start_c and spans `block_size` grid points.
     Note that (Bx, By, Bz) are relative to the MPI domain. Last blocks in each
     direction can be smaller: their end_c are clipped so that the block does
     not extend outside the domain.
     """
 
-    def __init__(self, grid: UGDesc, block_size: int):
+    def __init__(self, grid: UGDesc, block_size_c: np.ndarray):
         """"""
+        assert np.all(block_size_c) > 0
+        assert np.all(block_size_c <= grid.mysize_c)
 
         self.grid = grid
-        self.block_size = block_size
+        self.block_size_c = block_size_c
 
-        # Blocks are labeled by integers (Bx, By, Bz). Block (0, 0, 0) starts
-        # at grid.start_c and spans `block_size` grid points.
-        # Note that (Bx, By, Bz) are relative to the MPI domain.
-
-        num_blocks_c = -(self.grid.mysize_c // -self.block_size).astype(int)
+        num_blocks_c = -(self.grid.mysize_c // -self.block_size_c).astype(int)
         self.num_blocks_c = num_blocks_c
         """Number of blocks in this MPI domain in each grid direction."""
 
@@ -439,10 +425,10 @@ class BlockData:
             np.meshgrid(*[np.arange(n) for n in num_blocks_c], indexing='ij'),
             axis=-1)
 
-        block_start_c = self.grid.start_c + self.block_size * block_grid
-        block_end_c = np.minimum(block_start_c + self.block_size,
+        block_start_c = self.grid.start_c + self.block_size_c * block_grid
+        block_end_c = np.minimum(block_start_c + self.block_size_c,
                                  self.grid.end_c)
-        num_blocks_c = -(self.grid.mysize_c // -self.block_size).astype(int)
+        num_blocks_c = -(self.grid.mysize_c // -self.block_size_c).astype(int)
 
         self.block_start_c = block_start_c
         """Start grid indices of each block into the full grid"""
@@ -491,7 +477,6 @@ class BasisFunctionCollectionBase(ABC):
     done to have full separation of spline lookups and spline implementations.
     """
 
-    # Dict instead of list for more versatility if we modify this later:
     phi_datas: dict[int, BasisFunctionDesc]
     """Holds definitions of all basis functions _types_ in the system,
     assigning a unique integer ID to each (the dict key). This is the single
@@ -524,19 +509,17 @@ class BasisFunctionCollectionBase(ABC):
     to C functions anyway. Outside users do seems to access Mstart, Mend,
     why?!?"""
 
-    block_size: int
-
     blocks: list[GridBlock]
     # Store just those blocks that actually have phi overlap
 
     block_data: BlockData
-    """"""
+    """Contains static data about block geometry"""
 
     def __init__(self,
                  system: LFCSystemDesc,
                  use_gpu: bool = False,
                  mode: PrecalculationMode = PrecalculationMode.eIfPossible,
-                 block_size: int | None = 8):
+                 block_size: int | tuple[int, int, int] | None = 8):
         """
         Initialize a BasisFunctionCollection.
 
@@ -556,26 +539,27 @@ class BasisFunctionCollectionBase(ABC):
             Warning: For realistic systems this may require extreme
             amounts of memory!
             Default is eIfPossible (precalculate if memory allows).
-        block_size: int, optional
+        block_size: int | tuple[int, int, int], optional
             Size of each grid block. None means no blocking.
         """
         self.grid = system.grid
-
-        if block_size is not None:
-            self.block_size = min(block_size, np.min(self.grid.mysize_c))
-        else:
-            self.block_size = np.max(self.grid.mysize_c)
-        self.block_size = int(self.block_size)
-
         if len(system.atoms) == 0:
             raise RuntimeError("No atoms?!")
 
         self.xp = cp if use_gpu else np
 
+        if block_size is not None:
+            real_block_size = np.asanyarray(block_size)
+            real_block_size = np.minimum(real_block_size, self.grid.mysize_c)
+        else:
+            real_block_size = self.grid.mysize_c.copy().astype(int)
+        real_block_size = real_block_size.astype(int)
+
+
         # TODO let caller choose dtype (32 or 64bit float)
         self.dtype = np.float64
 
-        self.block_data = BlockData(self.grid, self.block_size)
+        self.block_data = BlockData(self.grid, real_block_size)
 
         # TODO: actually check if we can/should precalculate
         if mode != PrecalculationMode.eNever:
@@ -600,10 +584,6 @@ class BasisFunctionCollectionBase(ABC):
 
         # Default is to always compute do the full V_munu matrix
         self.set_matrix_distribution(0, self.Mmax)
-
-        # This happens now inside block rebuild...
-        # if self.should_precalculate:
-        #    self.precalculate_on_grid()
 
     # Begin abstracts
     @trace
@@ -744,7 +724,7 @@ class BasisFunctionCollectionBase(ABC):
         return mu_range.stop - mu_range.start
 
     def num_basis_functions(self) -> int:
-        """"""
+        """Returns the total number of mu indices."""
         return self.mu_range.stop - self.mu_range.start
 
     def get_phi_instances(self) -> list[BasisFunctionInstance]:
@@ -843,7 +823,7 @@ class BasisFunctionCollectionBase(ABC):
         assert len(self.phi_datas) > 0
 
     def _init_mu_lookups(self) -> None:
-        """"""
+        """This fixes how atom index is related to the global mu index."""
         self._mu_range_a = []
         mu = 0
         for a in range(self.num_atoms):
@@ -958,7 +938,21 @@ class BasisFunctionCollectionBase(ABC):
         """Updates atom positions. Return value is True if any atom migrated
         to another MPI rank in grid domain decomposition.
         If force_update is true, does a full init without caring about
-        existing state."""
+        existing state.
+        This is a rather expensive routine! Internally it goes roughly as
+        follows:
+        1. For each moved atom and each basis function associated with it, a
+        fast but conservative overlap calculation is performed to find which
+        periodic copies of phi from other cells overlap with the main cell.
+        2. The overlap results from step 1 are refined and made exact for each
+        phi by finding grid points that they overlap. This utilizes grid
+        blocking.
+        3. Lookup arrays are constructed for mapping block indices -> list of
+        phi instances that overlap the block.
+
+        Note that the total number of contributing phi instances may change
+        every time atoms move, due to changes in periodic overlaps.
+        """
         relpos_ac = np.asanyarray(relpos_ac)
         if len(relpos_ac) != self.num_atoms:
             raise ValueError("Wrong atom position array shape")

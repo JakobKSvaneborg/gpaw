@@ -121,6 +121,16 @@ def fixt_bc(request) -> BoundaryConds:
     return request.param
 
 
+@pytest.fixture(scope="module", params=[
+    pytest.param(None, id="NoBlocking"),
+    pytest.param(8, id="Block8", marks=pytest.mark.ci),
+    pytest.param([5, 6, 7], id="Block567")
+])
+def fixt_block_size(request) -> int | tuple[int, int, int] | None:
+    """"""
+    return request.param
+
+
 @pytest.fixture(scope="module")
 def fixt_lfc_system(fixt_grid_shape, fixt_bc) -> LFCSystemDesc:
     """"""
@@ -218,17 +228,16 @@ def make_basis(system: LFCSystemDesc,
     return basis
 
 
-@pytest.mark.parametrize("block_size", parametrize_blocksize())
 @pytest.mark.parametrize("xp", xp_params_no_cpupy())
 @pytest.mark.parametrize("purepython", parametrize_purepython())
 def test_basis_creation(fixt_lfc_system: LFCSystemDesc, xp, purepython: bool,
-                        block_size: int | None):
+                        fixt_block_size):
     """"""
     if not purepython and xp is np:
         pytest.skip(reason="CPU + C++ is WIP")
 
     system = fixt_lfc_system
-    basis = make_basis(system, xp, purepython, block_size)
+    basis = make_basis(system, xp, purepython, fixt_block_size)
 
     assert basis.uses_gpu() == (xp is not np)
     assert basis.num_atoms == len(system.atoms)
@@ -248,7 +257,7 @@ def test_basis_creation(fixt_lfc_system: LFCSystemDesc, xp, purepython: bool,
 
     for block in basis.get_relevant_blocks():
         assert np.prod(block.shape) > 0
-        if block_size is None:
+        if fixt_block_size is None:
             np.testing.assert_equal(block.shape, basis.grid.mysize_c)
 
     # Each grid point should appear at most in one block. Blocks that don't
@@ -300,7 +309,6 @@ def test_no_blocking(fixt_lfc_system: LFCSystemDesc, xp):
     # duplicates. But that is done in test_basis_creation()
 
 
-@pytest.mark.parametrize("block_size", parametrize_blocksize())
 @pytest.mark.parametrize("xp", xp_params_no_cpupy())
 @pytest.mark.parametrize("purepython", parametrize_purepython())
 @pytest.mark.parametrize("row_range", [None, range(1, 4), range(0, 100000)])
@@ -308,7 +316,7 @@ def test_potential_matrix(
     fixt_lfc_system: LFCSystemDesc,
     xp,
     purepython: bool,
-    block_size: int,
+    fixt_block_size,
     row_range: range | None
 ):
     """"""
@@ -316,7 +324,7 @@ def test_potential_matrix(
         pytest.skip(reason="CPU + C++ is WIP")
 
     system = fixt_lfc_system
-    basis = make_basis(system, xp, purepython, block_size)
+    basis = make_basis(system, xp, purepython, fixt_block_size)
 
     if row_range:
         assert row_range.step == 1
@@ -371,7 +379,6 @@ def test_potential_matrix(
                                atol=1e-12)
 
 
-@pytest.mark.parametrize("block_size", parametrize_blocksize())
 @pytest.mark.parametrize("xp", xp_params_no_cpupy())
 @pytest.mark.parametrize("purepython", parametrize_purepython())
 @pytest.mark.parametrize("num_spins", [1, 2])
@@ -380,7 +387,7 @@ def test_add_to_density(
     xp,
     purepython: bool,
     num_spins: int,
-    block_size: int
+    fixt_block_size
 ):
     """"""
 
@@ -388,7 +395,7 @@ def test_add_to_density(
         pytest.skip(reason="CPU + C++ is WIP")
 
     system = fixt_lfc_system
-    basis = make_basis(system, xp, purepython, block_size)
+    basis = make_basis(system, xp, purepython, fixt_block_size)
     # Matrix distribution does not matter here.
     # TODO separate test that it indeed does not matter?
 
@@ -418,7 +425,6 @@ def test_add_to_density(
     xp.testing.assert_allclose(nt_sG, nt_sG_ref, rtol=1e-10, atol=1e-12)
 
 
-@pytest.mark.parametrize("block_size", parametrize_blocksize())
 @pytest.mark.parametrize("xp", xp_params_no_cpupy())
 @pytest.mark.parametrize("purepython", parametrize_purepython())
 @pytest.mark.parametrize("num_spins", [1, 2])
@@ -428,14 +434,14 @@ def test_domain_decomposition(
     xp,
     purepython: bool,
     num_spins: int,
-    block_size: int
+    fixt_block_size
 ):
     """"""
     if not purepython and xp is np:
         pytest.skip(reason="CPU + C++ is WIP")
 
     system = fixt_lfc_system
-    basis = make_basis(system, xp, purepython, block_size)
+    basis = make_basis(system, xp, purepython, fixt_block_size)
 
     global world
     world = cast(MPIComm, world)
@@ -446,7 +452,7 @@ def test_domain_decomposition(
 
     serial_system = copy.copy(system)
     serial_system.grid = system.grid.new(comm=serial_comm)
-    serial_basis = make_basis(serial_system, xp, purepython, block_size)
+    serial_basis = make_basis(serial_system, xp, purepython, fixt_block_size)
 
     assert serial_basis.num_atoms == basis.num_atoms
     assert serial_basis.num_basis_functions() == basis.num_basis_functions()
