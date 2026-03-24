@@ -30,6 +30,7 @@ from gpaw.setup import Setups
 from gpaw.typing import Array1D, Array2D
 from gpaw.utilities import (check_atoms_too_close,
                             check_atoms_too_close_to_boundary)
+from gpaw.utilities.timing import simpletimer
 
 
 if TYPE_CHECKING:
@@ -279,6 +280,8 @@ class DFTCalculation:
     def calculate_forces(self):
         """Calculate atomic forces in eV / Angstrom."""
 
+        forcetimer = simpletimer()
+
         if 'forces' not in self.results:
             self._calculate_forces()
 
@@ -292,6 +295,8 @@ class DFTCalculation:
             x, y, z = F_av[a]
             self.log(f'  {a:4} {setup.symbol:2} '
                      f'{x:10.5f} {y:10.5f} {z:10.5f}')
+
+        self.log(f'\nForce computation time: {forcetimer():.3f}s')
         self.log.fd.flush()
 
         return self.results['forces'] * units['forces']
