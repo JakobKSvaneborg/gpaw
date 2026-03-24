@@ -5,7 +5,7 @@ from gpaw import GPAW, FermiDirac
 from gpaw.utilities.adjust_cell import adjust_cell
 
 
-def test_Hubbard_U_Zn():
+def test_Hubbard_U_Zn(comm):
     h = .35
     box = 3.
     energy_tolerance = 0.0004
@@ -22,7 +22,8 @@ def test_Hubbard_U_Zn():
                       basis='sz(dzp)',
                       parallel=dict(kpt=1),
                       charge=1,
-                      occupations=FermiDirac(width=0.1, fixmagmom=spin))
+                      occupations=FermiDirac(width=0.1, fixmagmom=spin),
+                      communicator=comm)
         s.calc = GPAW(**params)
         E[spin] = s.get_potential_energy()
         s.calc = GPAW(**params, setups=':d,3.0,1')
