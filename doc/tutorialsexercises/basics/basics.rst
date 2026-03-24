@@ -8,7 +8,7 @@ Basics
    :maxdepth: 1
 
    gettingstarted/gettingstarted
-   water/water
+   representation/representation
    aluminium/aluminium
    surface/surface
    ../H2/atomization

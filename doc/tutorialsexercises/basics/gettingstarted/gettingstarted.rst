@@ -1,10 +1,9 @@
 Getting started with GPAW
 =========================
 
-In this exercise we will calculate structures and binding energies for
-simple molecules.
+In this exercise we will relax structures of simple molecules and calculate their binding energies.
 
-At first let's have a look at a simple static GPAW calculation:
+At first let's have a look at a simple GPAW calculation for obtaining forces on the :mol:`H_2` molecule:
 
 .. literalinclude:: /documentation/h2.py
     :start-after: creates
@@ -124,7 +123,7 @@ Write a script which calculates the total energy of the isolated O and
 H atoms, and calculate the atomization energy of :mol:`H_2O`.
 
 The following script calculates the atomization energy for :mol:`H_2O`:
-:download:`h2o.py</tutorialsexercises/basics/water/h2o.py>`.
+:download:`h2o.py</tutorialsexercises/basics/representation/h2o.py>`.
 
 Exchange and correlation functionals
 ------------------------------------

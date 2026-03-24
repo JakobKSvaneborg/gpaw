@@ -2,9 +2,6 @@
 Basics of GPAW calculations
 ===========================
 
-Atomization energy revisited
-============================
-
 The below script calculates the total energies of :mol:`H_2O`, H and O.
 
 .. literalinclude:: h2o.py
@@ -41,7 +38,7 @@ Read the script and try to understand what it does.  A few notes:
    exercise, but file handling will come in handy below.
 
 Run the script.  You can monitor the progress by opening one of the
-log files (e.g. ``gpaw.H2O.txt``).  The command :samp:`tail -f
+logfiles (e.g. ``gpaw.H2O.txt``).  The command :samp:`tail -f
 {filename}` can be used to view the output in real-time.  The calculated
 atomization energy can be found in the ``results-400.txt`` file.
 
@@ -68,8 +65,8 @@ e.g. on four CPUs::
 
     $ gpaw -P 4 python script.py
 
-Verify by checking the log file that GPAW is actually using multiple
-CPUs.  The log file should reveal that the :mol:`H_2O` calculation
+Verify by checking the logfile that GPAW is actually using multiple
+CPUs.  The logfile should reveal that the :mol:`H_2O` calculation
 uses domain-decomposed with four domains, while the two atomic
 calculations should parallelize over the two spins and two domains.
 
@@ -77,6 +74,11 @@ calculations should parallelize over the two spins and two domains.
 
 Convergence checks
 ==================
+
+In plane-wave mode wavefunctions are expanded in plane-wave coefficients
+
+.. math::
+    \psi_{n\vec{k}}(\vec{r}) = \frac{1}{V} \sum_{\vec{G}} c_{n\vec{k}\vec{G}} \exp^{i(\vec{k} + \vec{G}) \vec{r}}
 
 It is essential that the calculations use a sufficiently large number of
 plane-wave cofficients, and that the cell is sufficiently large not to affect the
@@ -147,17 +149,18 @@ Compare the calculated energies to those calculated in plane-wave mode.  Do
 the energies deviate a lot?  What about the atomization energy?  Is
 the energy variational with respect to the quality of the basis?
 
-LCAO calculations do not in fact produce very precise binding energies
-(although these can be improved considerably by manually generating
-optimized basis functions) - however the method is well suited
-to calculate geometries, and for applications that require a small basis
-set, such as electron transport calculations.
+.. note:: 
+    Binding energies from LCAO calculation should be considered with caution
+    (although these can be improved considerably by manually generating
+    optimized basis functions) - however the method is well suited
+    to calculate geometries, and for applications that require a small basis
+    set, such as electron transport calculations.
 
 
 Finite difference calculations
 ==============================
 
-For some applications, especially for non-periodic boundary conditions, it can be beneficial to expand the wave-functions on a finite-difference real-space grid.
+For some applications, e.g. solvent models, real-time TDDFT and Ehrenfest dynamics, it can be beneficial to expand the wave-functions on a finite-difference :ref:`real-space grid <grids>`.
 Try running a calculation for a water molecule with grid spacing ``h=0.2``::
 
     calc = GPAW(mode='fd', h=0.2)
