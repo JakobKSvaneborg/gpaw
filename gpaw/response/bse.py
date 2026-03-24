@@ -588,7 +588,6 @@ class BSEBackend:
         comm.sum(df_Kmm)
         comm.sum(rhoex_KmmG)
 
-        self.rhoG0_S = rhoex_KmmG[:, :, :, 0].ravel().copy()
         self.rho_SG = rhoex_KmmG.reshape((self.nS, -1))
         if self.susc_component != '00':
             comm.sum(rhomag_KmmG)
@@ -900,7 +899,7 @@ class BSEBackend:
     @timer('get_spectral_weights')
     def get_spectral_weights(self, eig_data, df_S, mode_c):
         if mode_c is None:
-            rho_S = self.rhoG0_S
+            rho_S = self.rho_SG[:, 0]
         else:
             G_Gc = self.G_Gc
             index = np.where(np.all(np.round(G_Gc) == mode_c, axis=1))[0][0]
