@@ -12,7 +12,7 @@ from ase.units import Bohr, Hartree
 from scipy.linalg import eigh
 
 from gpaw.blacs import BlacsDescriptor, BlacsGrid, Redistributor
-from gpaw.mpi import normalize_communicator, serial_comm
+from gpaw.mpi import broadcast_string, normalize_communicator, serial_comm
 from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.response import ResponseContext
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
@@ -891,28 +891,74 @@ class BSEBackend:
         return W_GG, pawcorr, qpd
 
     def _precompute_W_to_disk(self):
-        """Precompute W_GG for all IBZ q-points, saving to temp files."""
-        cache_dir = Path(tempfile.mkdtemp(prefix='gpaw_bse_W_'))
-        pawcorr_list = []
-        qpd_list = []
+        """Precompute W_GG for all IBZ q-points, saving to temp files.
 
+        When running with multiple MPI ranks, IBZ q-points are
+        distributed round-robin across ranks.  Each rank runs an
+        independent (serial) chi0 calculation for its q-points and
+        writes W_GG to a shared temporary directory.  After a barrier,
+        all ranks compute the cheap pawcorr/qpd for every q-point.
+        """
+        comm = self.context.comm
+        nibz = self.qd.nibzkpts
+
+        # Rank 0 creates cache dir; broadcast path to all ranks
+        cache_dir_str = ''
+        if comm.rank == 0:
+            cache_dir_str = tempfile.mkdtemp(prefix='gpaw_bse_W_')
+        cache_dir = Path(broadcast_string(cache_dir_str, root=0,
+                                          comm=comm))
+
+        # Create a serial chi0/W calculator (no MPI within chi0)
+        serial_ctx = ResponseContext(txt=None, comm=serial_comm)
+        chi0calc = Chi0Calculator(
+            self.gs, serial_ctx,
+            wd=FrequencyDescriptor([0.0]),
+            eta=0.001,
+            ecut=self.ecut * Hartree,
+            intraband=False,
+            hilbert=False,
+            nbands=self.nbands)
+        wcalc = initialize_w_calculator(
+            chi0calc, serial_ctx,
+            coulomb=self.coulomb,
+            integrate_gamma=self.integrate_gamma,
+            q0_correction=self.q0_correction)
+
+        # Distribute q-points round-robin across ranks
+        my_iqs = range(comm.rank, nibz, comm.size)
         t0 = time()
-        self.context.print('Calculating screened potential')
-        for iq, q_c in enumerate(self.qd.ibzk_kc):
-            W_GG, pawcorr, qpd = self._compute_screened_data_for_q(q_c)
-            np.save(cache_dir / f'W_{iq}.npy', W_GG)
-            pawcorr_list.append(pawcorr)
-            qpd_list.append(qpd)
+        self.context.print(
+            'Calculating screened potential (%d q-points, %d ranks)'
+            % (nibz, comm.size))
 
-            if iq % (self.qd.nibzkpts // 5 + 1) == 0:
+        for count, iq in enumerate(my_iqs):
+            q_c = self.qd.ibzk_kc[iq]
+            chi0 = chi0calc.calculate(q_c)
+            W_wGG = wcalc.calculate_W_wGG(chi0)
+            np.save(cache_dir / f'W_{iq}.npy', W_wGG[0])
+
+            nmine = len(my_iqs)
+            if count % (nmine // 5 + 1) == 0:
                 dt = time() - t0
-                tleft = dt * self.qd.nibzkpts / (iq + 1) - dt
+                tleft = dt * nmine / (count + 1) - dt
                 self.context.print(
-                    '  Finished %d/%d q-points in %s'
+                    '  rank %d: %d/%d q-points in %s'
                     ' - Estimated %s left'
-                    % (iq + 1, self.qd.nibzkpts,
+                    % (comm.rank, count + 1, nmine,
                        timedelta(seconds=round(dt)),
                        timedelta(seconds=round(tleft))))
+
+        comm.barrier()
+
+        # Compute the cheap pawcorr/qpd for all q-points on every rank
+        pawcorr_list = []
+        qpd_list = []
+        for q_c in self.qd.ibzk_kc:
+            qpd = SingleQPWDescriptor.from_q(q_c, self.ecut, self.gs.gd)
+            pawcorr = self.gs.pair_density_paw_corrections(qpd)
+            pawcorr_list.append(pawcorr)
+            qpd_list.append(qpd)
 
         return cache_dir, pawcorr_list, qpd_list
 
