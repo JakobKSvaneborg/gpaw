@@ -53,6 +53,7 @@ class KPointPairFactory:
         self.context = context
         assert self.gs.kd.symmetry.symmorphic
         assert self.gs.world.size == 1
+        self._kpt_cache = {}
 
     @timer('Get a k-point')
     def get_k_point(self, s, K, n1, n2, blockcomm=None):
@@ -67,6 +68,9 @@ class KPointPairFactory:
         """
 
         assert n1 <= n2
+
+        if blockcomm is None and (s, K, n1, n2) in self._kpt_cache:
+            return self._kpt_cache[(s, K, n1, n2)]
 
         gs = self.gs
         kd = gs.kd
@@ -109,8 +113,11 @@ class KPointPairFactory:
             else:
                 P_ani = []
 
-        return KPoint(s, K, n1, n2, blocksize, na, nb,
-                      ut_nR, eps_n, f_n, P_ani, k_c)
+        kpoint = KPoint(s, K, n1, n2, blocksize, na, nb,
+                        ut_nR, eps_n, f_n, P_ani, k_c)
+        if blockcomm is None:
+            self._kpt_cache[(s, K, n1, n2)] = kpoint
+        return kpoint
 
     @timer('Get kpoint pair')
     def get_kpoint_pair(self, qpd, s, K, n1, n2, m1, m2,
