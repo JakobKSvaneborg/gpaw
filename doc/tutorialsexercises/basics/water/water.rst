@@ -29,7 +29,7 @@ Read the script and try to understand what it does.  A few notes:
 
  * The expression ``f'results-{ecut:3.0f}.txt'`` inserts the value of ``ecut``
    in place of the *substitution code* ``3.0f`` (floating point number
-   with no decimals).  Thus the result file name evaluates to
+   with no decimals).  Thus the result filename evaluates to
    ``results-400.txt``.  Similarly, ``f'gpaw-{name}-{ecut:3.0f}.txt'``
    evaluates to ``gpaw-H2O-400.txt`` in the first loop iteration
    (the format substitution code for the ``name`` string can be left out).

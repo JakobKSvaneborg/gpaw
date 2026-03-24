@@ -35,7 +35,7 @@ system.  This involves multiple calculations of the atomic forces
 respect to the atomic positions `\mathbf R^a` as the atoms
 are moved downhill according to an optimization algorithm.
 
-The following script uses the :mod:`GPAW calculator <gpaw.calculator.GPAW>`
+The following script uses the :class:`~gpaw.calculator.GPAW` calculator
 to optimize the structure of :mol:`H_2`.
 
 .. literalinclude:: h2_opt.py
