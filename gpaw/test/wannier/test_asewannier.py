@@ -56,6 +56,16 @@ def test_ase_features_asewannier(in_tmp_dir):
 
 @pytest.mark.wannier
 def test_wannier_pw(in_tmp_dir, gpw_files, needs_ase_master):
+    """
+    valence band Wannier functions for fcc silicon should be centered on the
+    bonds between atoms. Each atom has four nearest neighbors, so with 4
+    Wannier functions there should be a Wannier function for each of these
+    four bonds.
+    This test confirms that the functional converges to a known value and that
+    one of the Wannier functions is located on the center between the two atoms
+    in the first unit cell. The remaining 3 Wannier functions should be located
+    on the 3 remaining bonds.
+    """
     calc = GPAW(gpw_files['fancy_si_pw_nosym'],
                 convergence={'denisty': 1e-5})
     wan = Wannier(nwannier=4, calc=calc, fixedstates=4,
