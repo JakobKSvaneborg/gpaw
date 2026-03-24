@@ -296,7 +296,7 @@ class DFTCalculation:
             self.log(f'  {a:4} {setup.symbol:2} '
                      f'{x:10.5f} {y:10.5f} {z:10.5f}')
 
-        self.log(f'\nForce computation time: {forcetimer():.3f}s')
+        self.log(f'\nForce computation time: {forcetimer():.3f} s')
         self.log.fd.flush()
 
         return self.results['forces'] * units['forces']
@@ -352,6 +352,8 @@ class DFTCalculation:
     def calculate_stress(self) -> None:
         """Calculate stress in eV / Angstrom^3."""
 
+        stresstimer = simpletimer()
+
         if 'stress' in self.results:
             return self.results['stress'] * units['stress']
         stress_vv = self.pot_calc.stress(
@@ -359,7 +361,9 @@ class DFTCalculation:
         self.log('\nstress tensor: [  # eV/Ang^3')
         for (x, y, z), c in zips(stress_vv * units['stress'], ',,]'):
             self.log(f'  [{x:13.6f}, {y:13.6f}, {z:13.6f}]{c}')
+
         self.results['stress'] = stress_vv.flat[[0, 4, 8, 5, 2, 1]]
+        self.log(f'\nStress computation time: {stresstimer():.3f} s\n')
         return self.results['stress'] * units['stress']
 
     def write_converged(self) -> None:
