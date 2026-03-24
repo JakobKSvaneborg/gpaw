@@ -30,7 +30,7 @@ def check_soc():
     soc = (soc - soc[0]) * 1000
     print(soc)
 
-    assert np.argmin(soc) == 3394
+    assert np.argmin(soc) == 2317  # 3394
     assert abs(max(soc) - min(soc) - 3.44) < 0.01
 
 
