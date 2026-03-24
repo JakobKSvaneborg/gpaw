@@ -399,14 +399,16 @@ class MSR1Mixer(BaseMixer):
 
             # Choose max good_broydenness s.t. A_ii is positive definite
             # for good_broydenness in good_broydenness_range:
-            # binary search 2**(-10) accuracy:
+            # binary search 2**(-11) accuracy:
             # Calculate norms for determining good-broydenness
             y_norm = np.diag(Ay_ii)
             s_norm = np.diag(As_ii)
 
-            for iter in range(2, 11):
+            for iter in range(2, 12):
+                t_norm = y_norm + s_norm * good_broydenness
                 norm_vec = 1 / np.sqrt(
                     np.abs(y_norm + s_norm * good_broydenness))
+                t_norm_pos = (t_norm > 0).all()
                 A_ii = Ay_ii + As_ii * good_broydenness
                 A_ii *= norm_vec[None, :]
                 A_ii *= norm_vec[:, None]
@@ -417,15 +419,18 @@ class MSR1Mixer(BaseMixer):
                 except np.linalg.LinAlgError:
                     good_broydenness -= 2**(-iter) * max_gb
                     continue
-                if min_real > max(1e-9, max_imag):
+                if min_real > max(1e-9, max_imag) and t_norm_pos:
                     good_broydenness += 2**(-iter) * max_gb
                 else:
                     good_broydenness -= 2**(-iter) * max_gb
-            good_broydenness -= 2**(- iter - 1) * max_gb
+            good_broydenness -= 2**(- iter) * max_gb
             good_broydenness *= post_gb_fact
 
             # Re-Scale the problem!
             t_norm = y_norm + good_broydenness * s_norm
+            if (t_norm < 0).any():
+                good_broydenness = 0
+                t_norm = y_norm  # When things are real bad.
             t_norm = 1 / np.sqrt(t_norm)
             t_norm_expanded = np.expand_dims(
                 t_norm, axis=tuple(np.arange(1, y_isG.ndim)))
