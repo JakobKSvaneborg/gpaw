@@ -217,7 +217,10 @@ class NonSelfConsistentHybridXCCalculator:
             if psit1.spin == spin:
                 pw = pw2.new(kpt=pw2.kpt_c - psit1.kpt_c)
                 v_G = self.coulomb(pw)
-                eig_n += self._exx_part(pw, v_G, psit1, ut2_nR, P2_ani)
+                if (v_G < 0.0).any():
+                    v_G = v_G.astype(complex)
+                sqrtv_G = v_G**0.5
+                eig_n += self._exx_part(pw, sqrtv_G, psit1, ut2_nR, P2_ani)
         eig_n *= -self.exx_fraction / self.nbzk
         self.comm.sum(eig_n)
         dhyb_n += eig_n
@@ -226,7 +229,7 @@ class NonSelfConsistentHybridXCCalculator:
 
     def _exx_part(self,
                   pw: PWDesc,
-                  v_G: np.ndarray,
+                  sqrtv_G: np.ndarray,
                   psit1: Psit,
                   ut2_nR: UGArray,
                   P2_ani: AtomArrays) -> np.ndarray:
@@ -254,7 +257,7 @@ class NonSelfConsistentHybridXCCalculator:
                 self.ghat_aLR.add_to(rhot_nR, Q_anL)
                 rhot_nG = pw.empty(len(rhot_nR))
                 rhot_nR.fft(out=rhot_nG, plan=self.plan)
-            rhot_nG.data *= v_G**0.5
+            rhot_nG.data *= sqrtv_G
             e_n += rhot_nG.norm2() * f1_n[n1]
         return e_n
 
