@@ -217,10 +217,7 @@ class NonSelfConsistentHybridXCCalculator:
             if psit1.spin == spin:
                 pw = pw2.new(kpt=pw2.kpt_c - psit1.kpt_c)
                 v_G = self.coulomb(pw)
-                if (v_G < 0.0).any():
-                    v_G = v_G.astype(complex)
-                sqrtv_G = v_G**0.5
-                eig_n += self._exx_part(pw, sqrtv_G, psit1, ut2_nR, P2_ani)
+                eig_n += self._exx_part(pw, v_G, psit1, ut2_nR, P2_ani)
         eig_n *= -self.exx_fraction / self.nbzk
         self.comm.sum(eig_n)
         dhyb_n += eig_n
@@ -229,7 +226,7 @@ class NonSelfConsistentHybridXCCalculator:
 
     def _exx_part(self,
                   pw: PWDesc,
-                  sqrtv_G: np.ndarray,
+                  v_G: np.ndarray,
                   psit1: Psit,
                   ut2_nR: UGArray,
                   P2_ani: AtomArrays) -> np.ndarray:
@@ -257,8 +254,9 @@ class NonSelfConsistentHybridXCCalculator:
                 self.ghat_aLR.add_to(rhot_nR, Q_anL)
                 rhot_nG = pw.empty(len(rhot_nR))
                 rhot_nR.fft(out=rhot_nG, plan=self.plan)
-            rhot_nG.data *= sqrtv_G
-            e_n += rhot_nG.norm2() * f1_n[n1]
+            assert (v_G >= 0.0).all()
+            for n, rhot_G in enumerate(rhot_nG.data):
+                e_n[n] += np.abs(rhot_G)**2 @ v_G * f1_n[n1] * pw.dv
         return e_n
 
     def _semi_local_xc_parts(self,
