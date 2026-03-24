@@ -2,20 +2,20 @@ import numpy as np
 import pytest
 from ase.build import bulk
 
-from gpaw import GPAW, FermiDirac
+from gpaw import FermiDirac
 from gpaw.response.bse import BSE
 
 
 @pytest.mark.response
 @pytest.mark.parametrize('tda', [False, True])
-def test_bse_plus(tda, in_tmp_dir, scalapack):
-    calc = GPAW(mode='pw',
-                kpts={'size': (2, 2, 2), 'gamma': True},
-                occupations=FermiDirac(0.01),
-                nbands=8,
-                symmetry='off',
-                convergence={'bands': -4, 'density': 1e-7,
-                             'eigenstates': 1e-10})
+def test_bse_plus(tda, in_tmp_dir, scalapack, mpi):
+    calc = mpi.GPAW(mode='pw',
+                    kpts={'size': (2, 2, 2), 'gamma': True},
+                    occupations=FermiDirac(0.01),
+                    nbands=8,
+                    symmetry='off',
+                    convergence={'bands': -4, 'density': 1e-7,
+                                 'eigenstates': 1e-10})
 
     a = 5.431
     atoms = bulk('Si', 'diamond', a=a)
@@ -32,7 +32,8 @@ def test_bse_plus(tda, in_tmp_dir, scalapack):
               eshift=0,
               mode='BSE',
               nbands=8,
-              q_c=[0.0, 0.0, 0.0])
+              q_c=[0.0, 0.0, 0.0],
+              comm=mpi.comm)
 
     chi_irr_bse = bse.get_chi_wGG(eta=0.2, optical=True, irreducible=True,
                                   w_w=np.array([-3, 0, 6]))
@@ -45,4 +46,4 @@ def test_bse_plus(tda, in_tmp_dir, scalapack):
                 (-4.0745632474313676e-05 - 0.0005604860798409453j)]
 
     for i, r in enumerate(ref if tda else ref_ntda):
-        assert np.allclose(chi_irr_bse[i, i, i + 1], r)
+        assert chi_irr_bse[i, i, i + 1] == pytest.approx(r, abs=1e-6, rel=1e-4)

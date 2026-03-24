@@ -302,12 +302,12 @@ def all_gpw_files(request, gpw_files, pytestconfig):
 
 
 @pytest.fixture(scope='session')
-def mme_files(request, gpw_files):
+def mme_files(request, gpw_files, _not_world):
     """Reuse mme files"""
     cache = request.config.cache
     mme_cachedir = cache.mkdir('gpaw_test_mmefiles')
 
-    return MMEFiles(mme_cachedir, gpw_files)
+    return MMEFiles(mme_cachedir, gpw_files, comm=_not_world)
 
 
 class GPAWPlugin:
@@ -399,15 +399,6 @@ def require_real_mpi(_not_world):
         _not_world.get_c_object()
     except RuntimeError:
         pytest.skip('This test requires actual MPI to be enabled')
-
-
-@pytest.fixture
-def needs_ase_master():
-    from ase.utils.filecache import MultiFileJSONCache
-    try:
-        MultiFileJSONCache('bla-bla', comm=None)
-    except TypeError:
-        pytest.skip('ASE is too old')
 
 
 def pytest_report_header(config, start_path):

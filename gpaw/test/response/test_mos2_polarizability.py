@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-import gpaw.mpi as mpi
+import gpaw.mpi as mpi_module
 from gpaw import GPAW
 from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.test import findpeak
@@ -9,16 +9,16 @@ from gpaw.test import findpeak
 
 @pytest.mark.dielectricfunction
 @pytest.mark.response
-def test_mos2_polarizability(in_tmp_dir, gpw_files):
-    calc = GPAW(gpw_files['mos2_pw'], communicator=mpi.serial_comm)
+def test_mos2_polarizability(in_tmp_dir, gpw_files, mpi):
+    calc = GPAW(gpw_files['mos2_pw'], communicator=mpi_module.serial_comm)
 
     # Calculate the 2D polarizability within the RPA and ALDA
     df = DielectricFunction(calc, truncation='2D',
                             frequencies={'type': 'nonlinear', 'domega0': 0.05},
                             integrationmode='tetrahedron integration',
-                            nblocks='max')
+                            nblocks='max', world=mpi.comm)
     df.get_polarizability(xc='RPA', filename='rpa_pol.csv')
-    mpi.world.barrier()  # give rank 0 some time to write the files
+    mpi.comm.barrier()  # give rank 0 some time to write the files
 
     # Test against reference values
     refs = [  # rpa
@@ -51,5 +51,5 @@ def plot_pol(omega_w, a0_w, a_w):
     plt.subplot(1, 2, 2)
     plt.plot(omega_w, a0_w.imag)
     plt.plot(omega_w, a_w.imag)
-    if mpi.world.rank == 0:
+    if mpi_module.world.rank == 0:
         plt.show()

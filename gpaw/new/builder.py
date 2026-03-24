@@ -133,6 +133,12 @@ class DFTComponentsBuilder:
         self.communicators = create_communicators(
             comm, len(self.ibz) * self.nspins,
             d, k, b, self.xp)
+        k = self.communicators['k'].size
+        if len(self.ibz) * self.nspins < k:
+            raise ValueError(
+                f'Too few spins ({self.nspins}) '
+                f'and IBZ k-points ({len(self.ibz)}) '
+                f'for {k} ranks')
 
         if self.mode == 'fd':
             pass  # filter = create_fourier_filter(grid)
@@ -261,18 +267,20 @@ class DFTComponentsBuilder:
         raise NotImplementedError
 
     def create_basis_set(self):
-        return create_basis(self.ibz,
-                            self.ncomponents % 3,
-                            self.atoms.pbc,
-                            self.grid,
-                            self.setups,
-                            self.dtype,
-                            self.relpos_ac,
-                            self.communicators['w'],
-                            self.communicators['k'],
-                            self.communicators['b'],
-                            self.xp,
-                            gpu_add_and_integrate=False)
+        return create_basis(
+            self.ibz,
+            self.ncomponents % 3,
+            self.atoms.pbc,
+            self.grid,
+            self.setups,
+            self.dtype,
+            self.relpos_ac,
+            self.communicators['w'],
+            self.communicators['k'],
+            self.communicators['b'],
+            self.xp,
+            gpu_add_and_integrate=False,
+            new_basis=self.params.experimental.get('new_basis', False))
 
     def density_from_superposition(self, basis_set):
         return Density.from_superposition(

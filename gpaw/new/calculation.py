@@ -1,19 +1,25 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, IO
+
+from pathlib import Path
 
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr, Ha
+from gpaw import GPAW_NO_C_EXTENSION
 from gpaw.core import UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.densities import Densities
 from gpaw.electrostatic_potential import ElectrostaticPotential
-from gpaw.gpu import as_np
+from gpaw.gpu import as_np, cupy as cp
 from gpaw.mpi import broadcast as bcast
 from gpaw.mpi import broadcast_float, MPIComm, receive, send, serial_comm
 from gpaw.new import trace, zips
+from gpaw.new.gpw import read_gpw
+
 from gpaw.new.density import Density
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.ibzwfs import IBZWaveFunctions
@@ -24,6 +30,7 @@ from gpaw.setup import Setups
 from gpaw.typing import Array1D, Array2D
 from gpaw.utilities import (check_atoms_too_close,
                             check_atoms_too_close_to_boundary)
+
 
 if TYPE_CHECKING:
     from gpaw.dft import Mode, Parameters
@@ -193,6 +200,13 @@ class DFTCalculation:
             calculate_forces = self._calculate_forces
 
         self.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
+
+        if self.params.mode.name == 'pw':
+            if self.params.mode.dtype == 'single':
+                if not (GPAW_NO_C_EXTENSION or self.ibzwfs.xp is cp):
+                    raise NotImplementedError(
+                        'Single precision is GPU or pure python only.')
+
         for ctx in self.scf_loop.iterate(self.ibzwfs,
                                          self.density,
                                          self.potential,
@@ -688,6 +702,60 @@ class DFTCalculation:
             nbands=nbands)
 
         self.results = {}
+
+    def write_gpw_file(self, filename,
+                       *,
+                       include_wfs: bool = False,
+                       precision: str = 'double',
+                       include_projections: bool = True):
+        """Write calculator object to a file.
+
+        Parameters
+        ----------
+        filename:
+            File to be written.
+        include_wfs:
+            Use ``include_wfs=True``
+            to include wave functions in the file.
+        precision:
+            'double' (the default) or 'single'.
+        include_projections:
+            Use ``include_projections=False`` to not include
+            the PAW-projections.
+        """
+        mode = ''
+        if include_wfs:
+            mode = 'all'
+        self.log(f'Writing to {filename} (mode={mode!r})\n')
+        self.ase_calculator().write(filename,
+                                    mode=mode,
+                                    precision=precision,
+                                    include_projections=include_projections)
+        self.comm.barrier()
+
+    @classmethod
+    def from_gpw_file(cls,
+                      filename: str | Path | IO[str],
+                      log: Logger | str | Path | IO[str] | None = None,
+                      comm=None,
+                      parallel: dict[str, Any] = None,
+                      dtype=None,
+                      force_complex_dtype: bool = False,
+                      object_hooks: dict[str,
+                                         Callable[[dict], Any]] | None = None
+                      ) -> DFTCalculation:
+
+        (atoms,
+         dft,
+         builder) = read_gpw(filename=filename,
+                             log=log,
+                             comm=comm,
+                             parallel=parallel,
+                             dtype=dtype,
+                             force_complex_dtype=force_complex_dtype,
+                             object_hooks=object_hooks)
+
+        return dft
 
     def get_state(self):
         return DFTState(self.ibzwfs, self.density, self.potential)

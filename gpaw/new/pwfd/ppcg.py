@@ -482,7 +482,8 @@ class PPCG(PWFDEigensolver):
                 if (i + 1) % self.rr_modulo == 0:
                     wfs.subspace_diagonalize(Ht, dH,
                                              psit2_nX=residual_nX,
-                                             data_buffer=self.data_buffers[0])
+                                             data_buffer=self.data_buffers[0],
+                                             calculate_energy=False)
                 else:
                     wfs.orthonormalize(residual_nX)
                     Ht(psit_nX, out=residual_nX)

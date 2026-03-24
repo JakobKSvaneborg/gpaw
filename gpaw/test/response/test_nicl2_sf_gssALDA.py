@@ -4,6 +4,7 @@ import pytest
 from gpaw.mpi import world
 from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator
+from gpaw.response.context import ResponseContext
 from gpaw.response.dyson import HXCKernel
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.fxc_kernels import AdiabaticFXCCalculator
@@ -19,7 +20,7 @@ pytestmark = pytest.mark.skipif(world.size < 4,
 @pytest.mark.kspair
 @pytest.mark.response
 @pytest.mark.old_gpaw_only
-def test_nicl2_magnetic_response(in_tmp_dir, gpw_files):
+def test_nicl2_magnetic_response(in_tmp_dir, gpw_files, mpi):
     # ---------- Inputs ---------- #
 
     q_qc = [[0., 0., 0.],
@@ -39,6 +40,7 @@ def test_nicl2_magnetic_response(in_tmp_dir, gpw_files):
     # Magnetic response calculation
     gs = ResponseGroundStateAdapter.from_gpw_file(gpw_files['nicl2_pw'])
     chiks_calc = ChiKSCalculator(gs,
+                                 context=ResponseContext(comm=mpi.comm),
                                  ecut=ecut,
                                  gammacentered=True,
                                  nblocks=nblocks)
@@ -90,7 +92,7 @@ def test_nicl2_magnetic_response(in_tmp_dir, gpw_files):
         bgd_chi.write_macroscopic_component(bgd_filestr + '_q%d.csv' % q)
 
     chiks_calc.context.write_timer()
-    world.barrier()
+    mpi.comm.barrier()
 
     # Compare new results to test values
     check_magnons(filestr, hxc_scaling,

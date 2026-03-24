@@ -62,6 +62,19 @@ lxcXCFunctional_needs_laplacian(lxcXCFunctionalObject *self, PyObject *args)
 }
 
 static PyObject*
+lxcXCFunctional_vv10(lxcXCFunctionalObject *self, PyObject *args)
+{
+  int success = 0; /* assume that functional doesn't use (r)VV10 */
+  // check if VV10 flag present in correlation functional (could be 0 or 1)
+  if (self->functional[0]->info->flags & XC_FLAGS_VV10) {
+    success = XC_FLAGS_VV10;
+  } else if (self->functional[1] && self->functional[1]->info->flags & XC_FLAGS_VV10) {
+    success = XC_FLAGS_VV10;
+  }
+  return Py_BuildValue("i", success);
+}
+
+static PyObject*
 lxcXCFunctional_disable_fhc(lxcXCFunctionalObject *self, PyObject *args)
 {
   int success = 1; /* assume disable fhc is present */
@@ -617,6 +630,8 @@ static PyMethodDef lxcXCFunctional_Methods[] = {
    (PyCFunction)lxcXCFunctional_is_mgga, METH_VARARGS, 0},
   {"needs_laplacian",
    (PyCFunction)lxcXCFunctional_needs_laplacian, METH_VARARGS, 0},
+  {"vv10",
+   (PyCFunction)lxcXCFunctional_vv10, METH_VARARGS, 0},
   {"disable_fhc",
    (PyCFunction)lxcXCFunctional_disable_fhc, METH_VARARGS, 0},
   {"set_omega",

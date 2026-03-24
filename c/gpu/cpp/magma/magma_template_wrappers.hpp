@@ -4,6 +4,11 @@
 #include "gpu/cpp/utils.hpp"
 #include "gpu/cpp/gpu_core.hpp"
 
+// Thin template wrappers around MAGMA's C-API
+
+namespace gpaw
+{
+
 // Templated in-place transpose, works for both real and complex matrices
 template<typename T>
 void magmablas_Xtranspose_inplace(magma_int_t matrix_size, T* matrix, magma_int_t lda, magma_queue_t queue)
@@ -305,3 +310,5 @@ magma_int_t magma_Xheevd_gpu(const MagmaEighContext& context, magmaComplex<RealT
         workspace.iwork, workspace.liwork, &info
     );
 }
+
+} // namespace gpaw

@@ -498,9 +498,9 @@ class Symmetry(Parameter):
             atoms,
             setup_ids=setup_ids,
             magmoms=magmoms,
-            rotations=self.rotations,
-            translations=self.translations,
-            atommaps=self.atommaps,
+            rotation_scc=self.rotations,
+            translation_sc=self.translations,
+            atommap_sa=self.atommaps,
             extra_ids=self.extra_ids,
             tolerance=self.tolerance,
             point_group=self.point_group,
@@ -852,7 +852,8 @@ def _parse_experimental(experimental: dict | None,
         magmoms = experimental.pop('magmoms')
     unknown = experimental.keys() - {'backwards_compatible',
                                      'ccirs',
-                                     'pw_pot_calc'}
+                                     'pw_pot_calc',
+                                     'new_basis'}
     if unknown:
         warnings.warn(f'Unknown experimental keyword(s): {unknown}',
                       stacklevel=3)

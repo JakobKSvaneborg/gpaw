@@ -246,7 +246,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
     def build_hamiltonian(self,
                           Ht,
                           dH,
-                          psit2_nX):
+                          psit2_nX,
+                          calculate_energy=True):
         """
         psit2_nX will be used as a buffer
         for the wave functions.
@@ -268,7 +269,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         P2_ani = P_ani.new()
         domain_comm = psit_nX.desc.comm
 
-        Ht = partial(Ht, out=psit2_nX, spin=self.spin, calculate_energy=True)
+        Ht = partial(Ht, out=psit2_nX, spin=self.spin,
+                     calculate_energy=calculate_energy)
         H_nm = psit_nX.matrix_elements(psit_nX,
                                        function=Ht,
                                        domain_sum=False,
@@ -334,7 +336,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                              data_buffer=None,
                              scalapack_parameters=(None, 1, 1, 0),
                              nocc=None,
-                             eigenvalues_only=False):
+                             eigenvalues_only=False,
+                             calculate_energy=True):
         """
         If data_buffer is None, psit2_nX will be used as a buffer
         for the wave functions.
@@ -351,7 +354,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             m  i   ij  j  n
         """
 
-        H_nm = self.build_hamiltonian(Ht, dH, psit2_nX)
+        H_nm = self.build_hamiltonian(Ht, dH, psit2_nX,
+                                      calculate_energy=calculate_energy)
         if nocc is not None:
             # decouple occupied from unoccupied orbitals
             H_nm.data[:nocc, nocc:] = 0
