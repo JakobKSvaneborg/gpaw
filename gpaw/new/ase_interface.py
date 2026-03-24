@@ -25,6 +25,8 @@ from gpaw.new.xc import create_functional
 from gpaw.typing import Array1D, Array2D, Array3D
 from gpaw.utilities import pack_density
 from gpaw.utilities.memory import maxrss
+from gpaw.utilities.timing import simpletimer
+
 
 LOGO = """\
   ___ ___ ___ _ _ _
@@ -171,9 +173,7 @@ class ASECalculator:
 
         assert self.hooks.keys() <= {'scf_step', 'converged'}
 
-        import time
-
-        starttime = time.time()
+        timer = simpletimer()
 
         with self.timer('SCF'):
             for ctx in self.dft.iconverge(
@@ -181,7 +181,7 @@ class ASECalculator:
                 yield ctx
                 self.hooks.get('scf_step', lambda ctx: None)(ctx)
 
-        scftime = time.time() - starttime
+        scftime = timer()
 
         self.log(f'Converged in {ctx.niter} steps')
         self.log(f'SCF loop duration: {scftime:.3f} s '

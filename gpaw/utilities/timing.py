@@ -9,6 +9,17 @@ import numpy as np
 from ase.utils.timing import Timer
 
 
+def simpletimer():
+    import time
+
+    starttime = time.time()
+
+    def stop():
+        return time.time() - starttime
+
+    return stop
+
+
 class NullTimer:
     """Compatible with Timer and StepTimer interfaces.  Does nothing."""
     def __init__(self):
