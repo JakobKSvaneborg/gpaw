@@ -878,6 +878,7 @@ class BSEBackend:
         """
         chi0 = self._chi0calc.calculate(q_c)
         W_wGG = self._wcalc.calculate_W_wGG(chi0)
+        assert W_wGG.shape[0] == 1  # there should only be 1 frequency point
         W_GG = W_wGG[0]
         pawcorr = self._chi0calc.chi0_body_calc.pawcorr
         qpd = chi0.qpd
