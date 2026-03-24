@@ -55,7 +55,7 @@ def test_ase_features_asewannier(in_tmp_dir):
 
 
 @pytest.mark.wannier
-def test_wannier_pw(in_tmp_dir, gpw_files, needs_ase_master):
+def test_wannier_pw(in_tmp_dir, gpw_files):
     """
     valence band Wannier functions for fcc silicon should be centered on the
     bonds between atoms. Each atom has four nearest neighbors, so with 4
