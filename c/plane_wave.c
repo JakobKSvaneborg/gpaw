@@ -60,8 +60,8 @@ PyObject *pw_precond(PyObject *self, PyObject *args)
                           &G2_G_obj, &R_G_obj, &ekin, &out_G_obj))
         return NULL;
 
-    CHK_ARRAY(G2_G_obj);
-    CHK_ARRAY(R_G_obj);
+    CHK_ARRAY_RO(G2_G_obj);
+    CHK_ARRAY_RO(R_G_obj);
     CHK_ARRAY(out_G_obj);
 
     double *G2_G = (double*) PyArray_DATA(G2_G_obj);
