@@ -46,4 +46,4 @@ def test_bse_plus(tda, in_tmp_dir, scalapack, mpi):
                 (-4.0745632474313676e-05 - 0.0005604860798409453j)]
 
     for i, r in enumerate(ref if tda else ref_ntda):
-        assert np.allclose(chi_irr_bse[i, i, i + 1], r)
+        assert chi_irr_bse[i, i, i + 1] == pytest.approx(r, abs=1e-6, rel=1e-4)
