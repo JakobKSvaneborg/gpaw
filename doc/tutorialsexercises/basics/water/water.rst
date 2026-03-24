@@ -73,51 +73,41 @@ CPUs.  The log file should reveal that the :mol:`H_2O` calculation
 uses domain-decomposed with four domains, while the two atomic
 calculations should parallelize over the two spins and two domains.
 
-.. TODO
-
 .. _convergence_checks:
 
 Convergence checks
 ==================
 
-It is essential that the calculations use a sufficiently fine grid
-spacing, and that the cell is sufficiently large not to affect the
+It is essential that the calculations use a sufficiently large number of
+plane-wave cofficients, and that the cell is sufficiently large not to affect the
 result.  For this reason, convergence with respect to these parameters
 should generally be checked.  For now we shall only bother to check
-the grid spacings.
+the number of plane-wave coefficients which is controlled by the plane-wave energy cutoff.
 
-Modify the above script to include a loop over different grid
-spacings.  For :ref:`technical reasons <poisson_performance>`, GPAW
-will always use a number of grid points divisible by four along each
-direction.  Use a loop structure like::
+Modify the above script to include a loop over different energy cutoff.
+Use a loop structure like::
 
-  for symbol in [...]:
+  for ecut in [300, 400, 500, ...]:
+      calc = GPAW(mode={'name': 'pw', 'ecut': ecut}, hund=hund,
+                  txt=f'gpaw-{name}-{ecut:3.0f}.txt')
+      atoms.calc = calc
+
+      energy = atoms.get_potential_energy()
       ...
 
-      for ngridpoints in [24, 28, ...]:
-          h = a / ngridpoints
-          calc.set(h=h)
-          energy = system.get_potential_energy()
-          ...
-
-
-The ``set`` method can be used to change the parameters of a
-calculator without creating a new one.  Make sure that the numbers of
-grid points are chosen to cover `0.15<h<0.25`.  While performing
-this convergence check, the other parameters do not need to be
+For each new parameter set we generate a new calculator object.
+While performing this convergence check, the other parameters do not need to be
 converged - you can reduce the cell size to e.g. ``a = 6.0`` to
 improve performance.  You may wish to run the calculation in parallel.
 
- * How do the total energies converge with respect to grid spacing?
+ * How do the total energies converge with respect to plane-wave cutoff?
  * How does the atomization energy converge?
 
-Total energies (maybe surprisingly) do not drop
-as the grid is refined.  This would be the case in plane-wave methods,
-where increase of the planewave cutoff strictly increases the quality
-of the basis.  Grid-based methods rely on *finite-difference
-stencils*, where the gradient in one point is calculated from the
-surrounding points.  This makes the grid strictly inequivalent to a
-basis, and thus not (necessarily) variational.
+Total energies drop as the cutoff is refined.  This is the case in plane-wave methods,
+because the plane-wave cutoff strictly increases the quality
+of the basis.
+Try to look at the text output and see if you can find the number of
+plane-waves used.
 
 
 LCAO calculations
@@ -145,7 +135,7 @@ This will pick out only one function per valence state
 ("single-zeta"), making the calculation even faster but less precise.
 
 Calculate the atomization energy of :mol:`H_2O` using different basis
-sets.  Instead of looping over grid spacing, use a loop over basis keywords::
+sets.  Instead of looping over plane-wave cutoff, use a loop over basis keywords::
 
   for basis in ['sz(dzp)', 'szp(dzp)', 'dzp']:
       ...
@@ -153,7 +143,7 @@ sets.  Instead of looping over grid spacing, use a loop over basis keywords::
                   basis=basis,
                   ...)
 
-Compare the calculated energies to those calculated in grid mode.  Do
+Compare the calculated energies to those calculated in plane-wave mode.  Do
 the energies deviate a lot?  What about the atomization energy?  Is
 the energy variational with respect to the quality of the basis?
 
@@ -164,15 +154,17 @@ to calculate geometries, and for applications that require a small basis
 set, such as electron transport calculations.
 
 
-Plane-wave calculations
-=======================
+Finite difference calculations
+==============================
 
-For systems with small unit-cells, it can be much faster to expand the
-wave-functions in :ref:`plane-waves <manual_mode>`.  Try running a calculation
-for a water molecule with a plane-wave cutoff of 350 eV using this::
+For some applications, especially for non-periodic boundary conditions, it can be beneficial to expand the wave-functions on a finite-difference real-space grid.
+Try running a calculation for a water molecule with grid spacing `h=0.2`::
 
-    from gpaw import GPAW, PW
-    calc = GPAW(mode=PW(350), ...)
+    calc = GPAW(mode='fd', h=0.2)
 
-Try to look at the text output and see if you can find the number of
-plane-waves used.
+.. note::
+
+    Grid-based methods rely on *finite-difference
+    stencils*, where the gradient in one point is calculated from the
+    surrounding points.  This makes the grid strictly inequivalent to a
+    basis, and thus not (necessarily) variational.
