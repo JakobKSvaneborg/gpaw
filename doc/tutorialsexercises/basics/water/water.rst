@@ -158,7 +158,7 @@ Finite difference calculations
 ==============================
 
 For some applications, especially for non-periodic boundary conditions, it can be beneficial to expand the wave-functions on a finite-difference real-space grid.
-Try running a calculation for a water molecule with grid spacing `h=0.2`::
+Try running a calculation for a water molecule with grid spacing ``h=0.2``::
 
     calc = GPAW(mode='fd', h=0.2)
 
