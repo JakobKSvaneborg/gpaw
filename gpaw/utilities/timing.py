@@ -10,8 +10,6 @@ from ase.utils.timing import Timer
 
 
 def simpletimer():
-    import time
-
     starttime = time.time()
 
     def stop():
