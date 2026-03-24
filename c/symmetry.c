@@ -19,7 +19,8 @@ PyObject* GG_shuffle(PyObject *self, PyObject *args)
         return NULL;
 
     CHK_ARRAY(G_G_obj);
-    CHK_ARRAY(A_GG_obj);
+    // A_GG can be non-contiguous
+    assert(PyArray_Check(A_GG_obj));
     CHK_ARRAY(B_GG_obj);
 
     int nG = PyArray_DIMS(G_G_obj)[0];
