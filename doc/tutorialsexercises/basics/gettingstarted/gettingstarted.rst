@@ -1,3 +1,5 @@
+.. _atomization_energy:
+
 Getting started with GPAW
 =========================
 

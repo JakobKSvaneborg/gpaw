@@ -11,4 +11,3 @@ Basics
    representation/representation
    aluminium/aluminium
    surface/surface
-   ../H2/atomization

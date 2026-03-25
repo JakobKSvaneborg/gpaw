@@ -1,5 +1,3 @@
-# web-page: atomization.txt
-
 from ase import Atoms
 from ase.parallel import paropen as open
 from gpaw import GPAW
@@ -36,8 +34,3 @@ calc = calc.new(hund=False,  # no hund rule for molecules
 molecule.calc = calc
 e2 = molecule.get_potential_energy()
 calc.write('H2.gpw')
-
-with open('atomization.txt', 'w') as fd:
-    print(f'  hydrogen atom energy:     {e1:5.2f} eV', file=fd)
-    print(f'  hydrogen molecule energy: {e2:5.2f} eV', file=fd)
-    print(f'  atomization energy:       {2 * e1 - e2:5.2f} eV', file=fd)
