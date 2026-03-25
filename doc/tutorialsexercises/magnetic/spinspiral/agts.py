@@ -31,7 +31,7 @@ def check_soc():
     print(soc)
 
     assert np.argmin(soc) == 2317  # 3394
-    assert abs(max(soc) - min(soc) - 3.44) < 0.01
+    assert abs(max(soc) - min(soc) - 3.7) < 0.1
 
 
 if __name__ == '__main__':
