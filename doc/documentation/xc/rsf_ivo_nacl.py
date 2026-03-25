@@ -8,16 +8,12 @@ from gpaw.eigensolvers import CG, RMMDIIS
 calc_parms = [
     {'xc': 'PBE0:unocc=True',
      'eigensolver': RMMDIIS(niter=5),
-     'mixer': {'method': 'difference',
-               'nmaxold': 3},
      'convergence': {
          'energy': 0.005,
          'bands': -2,
          'eigenstates': 1e-4,
          'density': 1e-3}},
     {'xc': 'PBE0:excitation=singlet',
-     'mixer': {'method': 'difference',
-               'nmaxold': 3},
      'convergence': {
          'energy': 0.005,
          'bands': 'occupied',
@@ -37,6 +33,8 @@ def calc_me(atoms, nbands):
                 nbands=nbands,
                 txt=fname + '.log',
                 occupations=FermiDirac(0.0, fixmagmom=True),
+                mixer={'method': 'difference',
+                       'nmaxold': 3},
                 convergence={
                     'energy': 0.005,
                     'bands': nbands,
