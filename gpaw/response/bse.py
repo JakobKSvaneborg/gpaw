@@ -1209,6 +1209,76 @@ def read_spectrum(filename):
     return w_w, A_w
 
 
+def estimate_bse_memory(bse, memory_per_core=8.0, safety_margin=0.3):
+    """Estimate memory requirements for BSE matrix diagonalization.
+
+    Estimates how many CPU cores are needed to diagonalize the BSE matrix,
+    given a per-core memory budget.
+
+    The BSE matrix has shape (nS, nS) with complex128 dtype, where
+    nS = nK * nv * nc. It is distributed across MPI ranks along the first
+    index. Each rank must store its local portion of the matrix plus
+    workspace for the ScaLAPACK diagonalization.
+
+    Parameters
+    ----------
+    bse : BSEBackend
+        An initialized BSE object.
+    memory_per_core : float
+        Available memory per CPU core in GB. Default: 8.0 GB.
+    safety_margin : float
+        Fractional safety margin. Default: 0.3 (30%).
+
+    Returns
+    -------
+    dict
+        Dictionary with keys:
+        - 'ncores': Minimum number of CPU cores needed.
+        - 'matrix_size_gb': Total BSE matrix size in GB.
+        - 'memory_per_core_gb': Estimated peak memory per core in GB
+          (at the returned ncores).
+        - 'nS': Global BSE matrix dimension.
+    """
+    nS = bse.nS
+    bytes_per_element = 16  # complex128
+
+    # Full BSE matrix: nS x nS complex128
+    matrix_bytes = nS * nS * bytes_per_element
+    matrix_gb = matrix_bytes / 1024**3
+
+    # Each rank stores:
+    # 1) Its local rows of H_sS: (ns, nS) where ns = ceil(nK/ncores)*nv*nc
+    # 2) ScaLAPACK diagonalization workspace: roughly another full copy
+    #    of the matrix in 2D block-cyclic layout, plus the eigenvector matrix.
+    #    In practice the dominant cost is ~2x the local matrix portion
+    #    (one for the matrix, one for eigenvectors) plus ScaLAPACK workspace.
+    #
+    # We estimate peak memory per core as:
+    #   local_matrix + eigenvector_matrix + scalapack_workspace
+    #   ~ 3 * (nS * nS / ncores) * bytes_per_element
+    workspace_factor = 3.0
+
+    usable_memory = memory_per_core * (1.0 - safety_margin)
+
+    # Memory per core = workspace_factor * (nS^2 / ncores) * bytes_per_element
+    # Solve for ncores:
+    #   ncores = workspace_factor * nS^2 * bytes_per_element / usable_memory
+    min_memory_bytes = workspace_factor * nS * nS * bytes_per_element
+    ncores = int(np.ceil(min_memory_bytes / (usable_memory * 1024**3)))
+    ncores = max(ncores, 1)
+
+    # Actual peak memory per core at the chosen ncores
+    peak_per_core_gb = (workspace_factor * nS * nS * bytes_per_element
+                        / ncores / 1024**3)
+
+    return {
+        'ncores': ncores,
+        'matrix_size_gb': matrix_gb,
+        'memory_per_core_gb': peak_per_core_gb,
+        'nS': nS,
+    }
+
+
 @dataclass
 class VChi:
     cd: CellDescriptor
