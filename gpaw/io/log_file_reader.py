@@ -61,6 +61,7 @@ def parse_str(s):
         return float('nan')
     if ',' in s:
         s = re.sub(r',\s+', ',', s)
+        s = re.sub(r'\(\s+', '(', s)
         if s.startswith('(('):
             return [parse_str(x) for x in s[2:-2].split('),(')]
         if s.startswith('('):
@@ -94,6 +95,7 @@ def table(lines):
             missing_lines = True
         else:
             line = re.sub(r',\s+', ',', line)
+            line = re.sub(r'\(\s+', '(', line)
             rows.append([parse_str(x) for x in line.split()])
     if missing_lines:
         dct = []
@@ -122,14 +124,14 @@ def line_iter(lines):
         indent -= 2
 
 
-def parse(lines, indents=0, dicts=None, keys=None):
+def _parse(lines, indents=0, dicts=None, keys=None):
     dct = {}
     key = None
     while (line := next(lines)) != 'DEDENT':
         if line.endswith(':'):
             key = normalize_key(line[:-1])
             if keys is None or key in keys:
-                value = parse(lines, indents + 1)
+                value = _parse(lines, indents + 1)
             else:
                 while next(lines) != 'DEDENT':
                     pass
@@ -161,13 +163,18 @@ def parse(lines, indents=0, dicts=None, keys=None):
         if dicts is not None and key in dct:
             dicts.append(dct)
             dct = {}
-        if not re.match('[a-zA-Z_ ]+', key):
-            raise ValueError(f'Bad key: {key}')
-        dct[key] = value
+        if re.match('[a-zA-Z_]+', key):
+            dct[key] = value
         key = None
     if dicts is not None:
         dicts.append(dct)
     return dct
+
+
+def parse(lines, keys=None):
+    dicts = []
+    _parse(line_iter(iter(lines)), dicts=dicts, keys=keys)
+    return dicts
 
 
 def normalize_key(key):
@@ -183,16 +190,10 @@ def h2():
     h.calc = GPAW(mode='pw', txt=txt)
     h.get_potential_energy()
     out = txt.getvalue()
-    ds = []
-    parse(line_iter(iter(out.splitlines())), dicts=ds)
-    ds = []
-    parse(line_iter(iter(out.splitlines())), dicts=ds, keys={'atoms', 'unit_cell'})
+    ds = parse(iter(out.splitlines()), keys={'atoms', 'unit_cell'})
     print(ds)
+    parse(iter(out.splitlines()))
 
 
 if __name__ == '__main__':
     h2()
-    if 0:
-        ds = []
-        parse(line_iter(iter(__doc__.splitlines())), ds)
-        print(ds)
