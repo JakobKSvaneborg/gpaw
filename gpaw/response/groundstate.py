@@ -383,8 +383,6 @@ class ResponseGroundStateAdapter:
         # For the tetrahedron method in Chi0
         from gpaw.bztools import get_bz
 
-        # NB: We are ignoring the pbc_c keyword to get_bz() in order to mimic
-        # find_high_symmetry_monkhorst_pack() in gpaw.bztools. XXX
         _, ibz_vertices_kc, _ = get_bz(self._calc, comm=context.comm)
         return ibz_vertices_kc
 

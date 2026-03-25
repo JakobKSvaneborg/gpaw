@@ -96,18 +96,21 @@ class KPointDomainGenerator:
                          K_K in self.group_kpoints()])
         return k_kc
 
-    def get_tetrahedron_ikpts(self, *, pbc_c, cell_cv, comm):
+    def get_tetrahedron_ikpts(self, *, pbc_c, cell_cv, tolerance,
+                              _backwards_compatible, comm):
         """Find irreducible k-points for tetrahedron integration."""
-        U_scc = np.array([  # little group of q
+        from gpaw.utilities.symmetry import find_set_of_lattice_symmetries
+        lU_scc = find_set_of_lattice_symmetries(
+            cell_cv, pbc_c, tolerance=tolerance,
+            _backwards_compatible=_backwards_compatible)
+
+        cU_scc = np.array([  # little group of q
             sign * U_cc for U_cc, sign, _ in self.symmetries])
 
         # Determine the irreducible BZ
-        bzk_kc, ibzk_kc, _ = get_reduced_bz(cell_cv,
-                                            U_scc,
-                                            False,
-                                            comm,
-                                            pbc_c=pbc_c)
-
+        bzk_kc, ibzk_kc, _ = get_reduced_bz(cell_cv, pbc_c,
+                                            lU_scc=lU_scc, cU_scc=cU_scc,
+                                            tolerance=tolerance, comm=comm)
         n = 3
         N_xc = np.indices((n, n, n)).reshape((3, n**3)).T - n // 2
 
@@ -124,9 +127,13 @@ class KPointDomainGenerator:
 
         return ik_kc
 
-    def get_tetrahedron_kpt_domain(self, *, pbc_c, cell_cv, comm):
+    def get_tetrahedron_kpt_domain(self, *, cell_cv, pbc_c, tolerance,
+                                   _backwards_compatible, comm):
+
         ik_kc = self.get_tetrahedron_ikpts(
-            pbc_c=pbc_c, cell_cv=cell_cv, comm=comm)
+            pbc_c=pbc_c, cell_cv=cell_cv, tolerance=tolerance,
+            _backwards_compatible=_backwards_compatible, comm=comm)
+
         if pbc_c.all():
             k_kc = ik_kc
         else:
