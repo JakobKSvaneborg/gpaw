@@ -1,62 +1,53 @@
-r"""
-  __  _  _
- | _ |_)|_||  |
- |__||  | ||/\| - 26.4.0
+"""GPAW's log-file parser.
 
- dsfg
- asdg
- sadg
+Example:
 
-user: jensj
-x:    42
+>>> parse('''
+a: 117
+b: hello
 
-Species:
-  H:
-    a: ...
-  Li:
-    a: asfag
+Indented block:
+    a: (1, 2)
 
-Atoms:
-  positions
-  -------------
-   symbol x y z magmom
-  --------------------------
-  0 H  1.2 2.0 0.0
-  1 Li 1.2 2.0 0.0
-  --------------
+table
+--------------
+ignored header
+--------------
+a      1     2
+b      3     4
+--------------
+''')
 
-cell:
-  axes
-  ---
-   x   y   z
-  ----------
-  1 2 3
-  2 3 4
-  4 5 6
-  ---------
-  lengths: 1, 2, 3
-
-SCF:
-  iterations
-  -------------
-  dafg df dfag
-  ----------------
-  iter 0 12:03:47 1.4  -
-  iter 1 11:03:48 1.4c -9.5
-  ----------------
-
-  steps: 2
-
-Atoms: 54
 """
 import re
+from typing import Any, Iterable, Generator
+
+
+def parse(lines: Iterable[str],
+          keys: set[str] | None = None) -> list[dict]:
+    """Parse GPAW's log-file to list of dicts.
+
+    One dict for each atomic configuration.
+    """
+    dicts = []
+    _parse(line_iter(lines), dicts=dicts, keys=keys)
+    return dicts
 
 
 class ConvergedFloat(float):
-    pass
+    """Special float like "-8.4c" ("c" for converged)."""
 
 
-def parse_str(s):
+def parse_str(s: str) -> Any:
+    """Convert str to int, float or str or list any of those or ...
+
+    >>> parse_str('1.2')
+    1.2
+    >>> parse_str('AB')
+    'AB'
+    >>> parse_str('( 1, 1.2, AB)')
+    [1, 1.2, 'AB']
+    """
     if s == '-':
         return float('nan')
     if ',' in s:
@@ -87,7 +78,14 @@ def parse_str(s):
     return s
 
 
-def table(lines):
+def table(lines: list[str]) -> list[list] | dict[int, list]:
+    """Parse table lines.
+
+    >>> table(['1 1.1 a', '2 2.2 b', '3 3.3 c'])
+    [[1, 1.1, 'a'], [2, 2.2, 'b'], [3, 3.3, 'c']]
+    >>> table(['1 1.1 a', '...', '3 3.3 c'])
+    {1: [1.1, 'a'], 3: [3.3, 'c']}
+    """
     rows = []
     missing_lines = False
     for line in lines:
@@ -105,7 +103,14 @@ def table(lines):
     return rows
 
 
-def line_iter(lines):
+def line_iter(lines: Iterable[str]) -> Generator[str]:
+    """Yield lines from line-generator.
+
+    Lines are stripped for leading and trailing spaces.
+    Special 'DEDENT' lines are yielded everytime and
+    indented block of lines stops.  Indented blocks begin
+    after lines ending with a colon.
+    """
     indent = 0
     for rawline in lines:
         print(rawline)
@@ -124,28 +129,36 @@ def line_iter(lines):
         indent -= 2
 
 
-def _parse(lines, indents=0, dicts=None, keys=None):
+def _parse(lines: Iterable[str],
+           indents: int = 0,
+           dicts: list[dict] | None = None,
+           keys: set[str] | None = None) -> dict:
     dct = {}
     key = None
     while (line := next(lines)) != 'DEDENT':
         if line.endswith(':'):
+            # indented block:
             key = normalize_key(line[:-1])
             if keys is None or key in keys:
                 value = _parse(lines, indents + 1)
             else:
+                # skip parsing:
                 while next(lines) != 'DEDENT':
                     pass
                 key = None
                 continue
         elif ':' in line:
+            # "key: value" pair:
             key, _, value = line.partition(':')
             key = normalize_key(key)
             if keys is None or key in keys:
                 value = parse_str(value.strip())
             else:
+                # skip parsing:
                 key = None
                 continue
         elif line.startswith('--') and key is not None:
+            # table:
             key = normalize_key(key)
             while not next(lines).startswith('--'):
                 pass
@@ -155,6 +168,7 @@ def _parse(lines, indents=0, dicts=None, keys=None):
             if keys is None or key in keys:
                 value = table(rows)
             else:
+                # skip parsing:
                 key = None
                 continue
         else:
@@ -169,12 +183,6 @@ def _parse(lines, indents=0, dicts=None, keys=None):
     if dicts is not None:
         dicts.append(dct)
     return dct
-
-
-def parse(lines, keys=None):
-    dicts = []
-    _parse(line_iter(iter(lines)), dicts=dicts, keys=keys)
-    return dicts
 
 
 def normalize_key(key):

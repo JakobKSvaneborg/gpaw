@@ -28,12 +28,10 @@ from gpaw.utilities.memory import maxrss
 from gpaw.utilities.timing import simpletimer
 
 
-LOGO = """\
-  ___ ___ ___ _ _ _
- |   |   |_  | | | |
- | | | | | . | | | |
- |__ |  _|___|_____| - {version}
- |___|_|
+LOGO = r"""\
+  __  _  _
+ | _ |_)|_||  |
+ |__||  | ||/\| - {version}
 """
 
 
