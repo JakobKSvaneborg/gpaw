@@ -302,52 +302,7 @@ class Matrix(XP):
             other.data[:] = self.data
             return
 
-        if self.xp is np:
-            # Use BLACS-redist:
-            c = d1.comm if d1.comm.size > d2.comm.size else d2.comm
-            n = max(n1, n2)
-            M, N = self.shape
-            d1 = create_distribution(M, N, c,
-                                     d1.rows, d1.columns, d1.br, d1.bc)
-            d2 = create_distribution(M, N, c,
-                                     d2.rows, d2.columns, d2.br, d2.bc)
-            if n1 == n:
-                ctx = d1.desc[1]
-            else:
-                ctx = d2.desc[1]
-            redist(d1, self.data, d2, other.data, ctx)
-            return
-
-        # For cupy arrays, we try to do it our-self!
-        if d2.all_data_on_rank_zero and d1.simple:
-            comm = d1.comm
-            if comm.rank == 0:
-                M = self.shape[0]
-                m = (M + d1.rows - 1) // d1.rows
-                other.data[:m] = self.data
-                for r in range(1, d1.rows):
-                    m1 = min(r * m, M)
-                    m2 = min(m1 + m, M)
-                    comm.receive(other.data[m1:m2], r * d1.columns)
-            elif comm.rank % d1.columns == 0:
-                comm.send(self.data, 0)
-            return
-
-        if d1.all_data_on_rank_zero and d2.simple:
-            comm = d2.comm
-            if comm.rank == 0:
-                M = self.shape[0]
-                m = (M + d2.rows - 1) // d2.rows
-                other.data[:] = self.data[:m]
-                for r in range(1, d2.rows):
-                    m1 = min(r * m, M)
-                    m2 = min(m1 + m, M)
-                    comm.send(self.data[m1:m2], r * d2.columns)
-            elif comm.rank % d2.columns == 0:
-                comm.receive(other.data, 0)
-            return
-
-        assert False, (self, other)
+        d1.redist(d2, self.data, other.data)
 
     @overload
     def gather(self, broadcast: Literal[True] = True) -> Matrix:
@@ -645,14 +600,6 @@ def _matrix(M):
     return _matrix(M.matrix)
 
 
-def redist(dist1, M1, dist2, M2, context):
-    cgpaw.scalapack_redist(dist1.desc, dist2.desc,
-                           M1, M2,
-                           dist1.desc[2], dist1.desc[3],
-                           1, 1, 1, 1,  # 1-indexing
-                           context, 'G')
-
-
 def create_distribution(M: int,
                         N: int,
                         comm: MPIComm | None = None,
@@ -768,6 +715,37 @@ class MatrixDistribution:
                 subset_by_index=(0, limit - 1) if limit else None)
             limit = limit or len(eigs)
             H.data.T[:, :limit] = evecs
+
+    def redist(self, other, m1data, m2data):
+        if other.all_data_on_rank_zero and self.simple:
+            comm = self.comm
+            if comm.rank == 0:
+                M = self.full_shape[0]
+                m = (M + self.rows - 1) // self.rows
+                m2data[:m] = m1data
+                for r in range(1, self.rows):
+                    m1 = min(r * m, M)
+                    m2 = min(m1 + m, M)
+                    comm.receive(m2data[m1:m2], r * self.columns)
+            elif comm.rank % self.columns == 0:
+                comm.send(m1data, 0)
+            return
+
+        if self.all_data_on_rank_zero and other.simple:
+            comm = other.comm
+            if comm.rank == 0:
+                M = self.full_shape[0]
+                m = (M + other.rows - 1) // other.rows
+                other.data[:] = self.data[:m]
+                for r in range(1, other.rows):
+                    m1 = min(r * m, M)
+                    m2 = min(m1 + m, M)
+                    comm.send(m1data[m1:m2], r * other.columns)
+            elif comm.rank % other.columns == 0:
+                comm.receive(m2data, 0)
+            return
+
+        raise NotImplementedError
 
 
 class NoDistribution(MatrixDistribution):
@@ -928,6 +906,23 @@ class BLACSDistribution(MatrixDistribution):
         return CuPyDistribution(
             *self.full_shape,
             self.comm, self.rows, self.columns, self.br, self.bc)
+
+    def redist(self, other, m1data, m2data):
+        c = self.comm if self.comm.size > other.comm.size else other.comm
+        M, N = self.full_shape
+        d1 = create_distribution(M, N, c,
+                                 self.rows, self.columns, self.br, self.bc)
+        d2 = create_distribution(M, N, c,
+                                 other.rows, other.columns, other.br, other.bc)
+        if d1.rows * d1.columns >= d2.rows * d2.columns:
+            ctx = d1.desc[1]
+        else:
+            ctx = d2.desc[1]
+        cgpaw.scalapack_redist(d1.desc, d2.desc,
+                               m1data, m2data,
+                               d1.desc[2], d1.desc[3],
+                               1, 1, 1, 1,  # 1-indexing
+                               ctx, 'G')
 
 
 def eigh_parallel(H: Matrix,
