@@ -1184,9 +1184,6 @@ class BSEBackend:
             gvv_slmn = gvv_slmn * scale_factor[:, np.newaxis, np.newaxis, np.newaxis]
             gcc_slmn = gcc_slmn * scale_factor[:, np.newaxis, np.newaxis, np.newaxis]
 
-            gvv_slmn /= units.Hartree
-            gcc_slmn /= units.Hartree
-
             #to here 
 
             g_slvv = np.einsum('am, slab, bn->slmn', Cvv_left_nm, gvv_slmn, Cvv_right_nm)
@@ -1203,20 +1200,24 @@ class BSEBackend:
         def get_deps(k, kp):
             k_value = K_point_values[k]
             kp_value = K_point_values[kp]
-            q_c = (k_value - kp_value + 0.5) % 1.0 - 0.5
+            q_c = (kp_value - k_value + 0.5) % 1.0 - 0.5  # swapped kp k
             optical_limit = np.allclose(q_c, 0.0)
             qpd0 = SingleQPWDescriptor.from_q(q_c, self.ecut, self.gs.gd)
             pair0 = get_pair(qpd0, 0, k, self.vi, self.vf,
                                  self.ci, self.cf)
 
             if self.gw_kn is not None:
+                if world.rank == 0:
+                    print(f'{self.gw_kn = }')
                 epsv_m = self.gw_kn[k, :self.nv]
                 epsc_m = self.gw_kn[kp, self.nv:]
                 deps_vc = -(epsv_m[:, np.newaxis] - epsc_m)
             elif self.add_soc:
                 deps_vc = self.spinors_data.get_deps(k, kp)
             else:
-                deps_vc = -pair0.get_transition_energies()
+                deps_vc = -pair0.get_transition_energies()   # AI's suggest removing a minus sign
+                if world.rank == 0:
+                    print(f'{deps_vc = }')
             if optical_limit:
                 deps_vc[np.where(deps_vc == 0)] = 1.0e-9
             if self.eshift is not None:
@@ -1247,6 +1248,10 @@ class BSEBackend:
         if world.rank == 0:
             print(f'{np.shape(my_Kph) = }')
 
+
+        my_M_abs = np.zeros((len(w_T), len(w_T)), dtype=complex)
+        my_M_emi = np.zeros((len(w_T), len(w_T)), dtype=complex) 
+
         for k in self.myKrange:
             for kp in range(nK):
                 depskkp_vc = get_deps(k, kp)
@@ -1270,23 +1275,43 @@ class BSEBackend:
                 M2_wt = np.einsum('vct, slca, slvb, bat, vatl -> t',
                                   Ap_vct, g_slcc, g_slvv, A_vct, nkpk_vcwl, optimize='optimal')
 
+
+                M_abs_wt_1 = np.einsum('vct, slca, slvb, bat, bctl -> t',
+                                  Ap_vct, g_slcc, g_slvv, A_vct, n3_vcwl, optimize='optimal')
+                M_abs_wt_2 = np.einsum('vct, slca, slvb, bat, vatl -> t',
+                                  Ap_vct, g_slcc, g_slvv, A_vct, n4_vcwl, optimize='optimal')
+                M_emi_wt_1 = np.einsum('vct, slca, slvb, bat, bctl -> t',
+                                  Ap_vct, g_slcc, g_slvv, A_vct, n1_vcwl, optimize='optimal')
+                M_emi_wt_2 = np.einsum('vct, slca, slvb, bat, vatl -> t',
+                                  Ap_vct, g_slcc, g_slvv, A_vct, n2_vcwl, optimize='optimal')
+
+                
                 del nkkp_vcwl, nkpk_vcwl, g_slvv, g_slcc
 
                 my_Kph -= (M1_wt + M2_wt)
-            if world.rank == 0:
-                print(f'made {k = }')
+
+                my_M_abs += (M_abs_wt_1 + M_abs_wt_2)
+                my_M_emi += (M_emi_wt_1 + M_emi_wt_2)
         
         world.barrier()
         world.sum(my_Kph)
         Kph_all = my_Kph
-        Kph_all /= nK
+
+        world.sum(my_M_abs)
+        M_abs = my_M_abs
+        world.sum(my_M_emi)
+        M_emi = my_M_emi
+
         if world.rank == 0:
-            Kph_all = Kph_all / self.gs.volume # added this
-            print(f'{self.gs.volume = }')
-            print(f'{self.gs.nspins = }')
+            M_abs_all = (M_abs / self.gs.volume) * units.Hartree * 1000
+            M_abs_all /= 2
+            print(f'{M_abs_all = }')
+            M_emi_all = (M_emi / self.gs.volume) * units.Hartree * 1000
+            M_emi_all /= 2
+            print(f'{M_emi_all = }')
+            Kph_all = Kph_all / self.gs.volume
             Kph_meV = Kph_all * units.Hartree * 1000
-            print(f'{np.shape(Kph_all) = }')
-            return Kph_meV
+            return Kph_meV/2
         else:
             return 
 
