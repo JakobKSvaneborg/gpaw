@@ -272,7 +272,8 @@ class BSEBackend:
                  q0_correction=False,
                  mode='BSE',
                  q_c=(0.0, 0.0, 0.0),
-                 direction=0):
+                 direction=0,
+                 diagW=False):
 
         integrate_gamma = GammaIntegrationMode(integrate_gamma)
 
@@ -282,6 +283,7 @@ class BSEBackend:
         self.context = context
         self.add_soc = add_soc
         self.scale = scale
+        self.diagW = diagW
         self.q0_correction = q0_correction
         if q0_correction and truncation != '2D':
             raise ValueError('q0_correction should only be used with '
@@ -874,6 +876,14 @@ class BSEBackend:
         W_wGG = self._wcalc.calculate_W_wGG(chi0)
         assert W_wGG.shape[0] == 1  # there should only be 1 frequency point
         W_GG = W_wGG[0]
+        if self.diagW:
+            G_Gv = chi0.qpd.get_reciprocal_vectors(add_q=False)
+            Gxy_Gv = G_Gv[:, :2]
+            mask_GG = np.all(np.isclose(Gxy_Gv[:, None, :],
+                                        Gxy_Gv[None, :, :],
+                                        rtol=0.0, atol=1e-12),
+                             axis=-1)
+            W_GG = W_GG * mask_GG
         pawcorr = self._chi0calc.chi0_body_calc.pawcorr
         qpd = chi0.qpd
         return W_GG, pawcorr, qpd
@@ -1253,6 +1263,9 @@ class BSE(BSEBackend):
             Whether to use analytical correction at q=0 in the
             calculation of W, applicable for 2D systems.
             Will raise an error if used without truncation='2D'
+        diagW: bool
+            If True, zero off-diagonal elements of the screened interaction
+            W_GG where the in-plane G-vector components (Gx, Gy) differ.
         txt: str
             txt output
         mode: str
