@@ -1217,8 +1217,28 @@ def estimate_bse_memory(bse, memory_per_core=8.0, safety_margin=0.3):
 
     The BSE matrix has shape (nS, nS) with complex128 dtype, where
     nS = nK * nv * nc. It is distributed across MPI ranks along the first
-    index. Each rank must store its local portion of the matrix plus
-    workspace for the ScaLAPACK diagonalization.
+    index. The peak memory occurs during the parallel_delete /
+    diagonalization phase, where each rank simultaneously holds multiple
+    distributed copies of the matrix.
+
+    The memory budget per core accounts for:
+
+    1. parallel_delete phase (exclude_states): The matrix is redistributed
+       and rows/columns are removed. During this process, up to two full
+       distributed copies coexist (source + destination of redistribution),
+       each of size ~nS^2/P complex128 elements.
+
+    2. ScaLAPACK pzheevd (divide-and-conquer) diagonalization: Each rank
+       holds its local block of the matrix (~nS^2/P complex128) plus an
+       equally sized eigenvector matrix. In addition, pzheevd allocates
+       real workspace of size ~3*NP0*NQ0 doubles (where NP0*NQ0 ~ nS^2/P),
+       contributing another ~1.5 complex-equivalent matrix copies.
+
+    The peak memory per core is estimated as
+        peak = 4.5 * (nS^2 / P) * 16 bytes
+    which accounts for: 2 matrix copies during parallel_delete (the
+    dominant bottleneck), the eigenvector matrix, and the pzheevd real
+    workspace (~1.5x a matrix copy in bytes).
 
     Parameters
     ----------
@@ -1246,23 +1266,33 @@ def estimate_bse_memory(bse, memory_per_core=8.0, safety_margin=0.3):
     matrix_bytes = nS * nS * bytes_per_element
     matrix_gb = matrix_bytes / 1024**3
 
-    # Each rank stores:
-    # 1) Its local rows of H_sS: (ns, nS) where ns = ceil(nK/ncores)*nv*nc
-    # 2) ScaLAPACK diagonalization workspace: roughly another full copy
-    #    of the matrix in 2D block-cyclic layout, plus the eigenvector matrix.
-    #    In practice the dominant cost is ~2x the local matrix portion
-    #    (one for the matrix, one for eigenvectors) plus ScaLAPACK workspace.
+    # Peak memory per core breakdown (each unit = nS^2/P * 16 bytes):
     #
-    # We estimate peak memory per core as:
-    #   local_matrix + eigenvector_matrix + scalapack_workspace
-    #   ~ 3 * (nS * nS / ncores) * bytes_per_element
-    workspace_factor = 3.0
+    # During parallel_delete (exclude_states), the matrix is redistributed
+    # between BLACS layouts. At the redistribution step, both the source
+    # and destination arrays exist simultaneously:
+    #   - Source array A_mN or A_mR: ~1 copy
+    #   - Destination array A_Nr:    ~1 copy
+    # After redistribution the source is freed, but the peak is 2 copies.
+    #
+    # During pzheevd diagonalization:
+    #   - Input matrix (H_rr):       ~1 copy
+    #   - Eigenvector matrix (v_rt): ~1 copy
+    #   - LRWORK (real workspace):   ~3*NP0*NQ0 doubles = 3*nS^2/P * 8 bytes
+    #                                = 1.5 * nS^2/P * 16 bytes
+    #   - LWORK (complex workspace): ~O(nS/sqrt(P)) << nS^2/P, negligible
+    #   - LIWORK (int workspace):    ~O(nS), negligible
+    # Diag total: ~3.5 copies
+    #
+    # The diagonalization phase dominates at 3.5 copies, but the
+    # parallel_delete temporary arrays may still be alive (Python GC),
+    # so we use 4.5 as a conservative estimate.
+    workspace_factor = 4.5
 
     usable_memory = memory_per_core * (1.0 - safety_margin)
 
     # Memory per core = workspace_factor * (nS^2 / ncores) * bytes_per_element
     # Solve for ncores:
-    #   ncores = workspace_factor * nS^2 * bytes_per_element / usable_memory
     min_memory_bytes = workspace_factor * nS * nS * bytes_per_element
     ncores = int(np.ceil(min_memory_bytes / (usable_memory * 1024**3)))
     ncores = max(ncores, 1)
