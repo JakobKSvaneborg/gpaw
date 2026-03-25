@@ -117,6 +117,7 @@ class SCFLoop:
                         ibzwfs, nelectrons, self.occ_calc, self.mixer, log)
                     for ext in pot_calc.extensions)
                 if converged:
+                    log.end_table()
                     break
 
             if self.niter == maxiter:

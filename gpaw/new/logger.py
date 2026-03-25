@@ -58,6 +58,7 @@ class Logger:
         else:
             self.green = ''
             self.reset = ''
+        self.table_line = ''
 
     def __del__(self):
         self.close()
@@ -89,6 +90,15 @@ class Logger:
                 for rank in range(1, self.comm.size):
                     self(receive_string(rank, comm=self.comm),
                          end=end, flush=flush, parallel=False)
+
+    def begin_table(self, title, header):
+        bar = '-' * max((len(line) for line in header.splitlines()))
+        self(f'{title}\n{bar}\n{header}\n{bar}')
+        self.table_line = bar
+
+    def end_table(self):
+        self(self.table_line)
+        self.table_line = ''
 
 
 def can_colorize(*, file: IO[str] | IO[bytes] | None = None) -> bool:
