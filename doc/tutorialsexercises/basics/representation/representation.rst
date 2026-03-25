@@ -72,19 +72,22 @@ calculations should parallelize over the two spins and two domains.
 
 .. _convergence_checks:
 
-Convergence checks
-==================
+Plane-wave convergence
+======================
 
 In plane-wave mode wavefunctions are expanded in plane-wave coefficients
 
 .. math::
     \psi_{n\vec{k}}(\vec{r}) = \frac{1}{V} \sum_{\vec{G}} C_{n\vec{k}\vec{G}} e^{i(\vec{k} + \vec{G}) \vec{r}}.
 
+.. XXX V ... Volume ...
 It is essential that the calculations use a sufficiently large number of
 plane-wave cofficients, and that the cell is sufficiently large not to affect the
 result.  For this reason, convergence with respect to these parameters
 should generally be checked.  For now we shall only bother to check
 the number of plane-wave coefficients which is controlled by the plane-wave energy cutoff.
+
+.. XXX formula energy cutoff
 
 Modify the above script to include a loop over different energy cutoff.
 Use a loop structure like::
@@ -110,6 +113,8 @@ because the plane-wave cutoff strictly increases the quality
 of the basis.
 Try to look at the text output and see if you can find the number of
 plane-waves used.
+
+.. XXX include script with solutions
 
 
 LCAO calculations
@@ -153,7 +158,7 @@ the energy variational with respect to the quality of the basis?
     Binding energies from LCAO calculation should be considered with caution
     (although these can be improved considerably by manually generating
     optimized basis functions) - however the method is well suited
-    to calculate geometries, and for applications that require a small basis
+    to calculate geometries, band structures, and for applications that require a small basis
     set, such as electron transport calculations.
 
 
