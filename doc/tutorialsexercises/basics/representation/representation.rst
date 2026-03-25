@@ -78,7 +78,7 @@ Convergence checks
 In plane-wave mode wavefunctions are expanded in plane-wave coefficients
 
 .. math::
-    \psi_{n\vec{k}}(\vec{r}) = \frac{1}{V} \sum_{\vec{G}} c_{n\vec{k}\vec{G}} \exp^{i(\vec{k} + \vec{G}) \vec{r}}
+    \psi_{n\vec{k}}(\vec{r}) = \frac{1}{V} \sum_{\vec{G}} C_{n\vec{k}\vec{G}} e^{i(\vec{k} + \vec{G}) \vec{r}}.
 
 It is essential that the calculations use a sufficiently large number of
 plane-wave cofficients, and that the cell is sufficiently large not to affect the
