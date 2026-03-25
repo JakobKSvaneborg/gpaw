@@ -2,26 +2,28 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, IO
-
 from pathlib import Path
+from typing import IO, TYPE_CHECKING, Any
 
 import numpy as np
 from ase import Atoms
+from ase.geometry import cell_to_cellpar
 from ase.units import Bohr, Ha
+
 from gpaw import GPAW_NO_C_EXTENSION
 from gpaw.core import UGArray, UGDesc
 from gpaw.core.atom_arrays import AtomDistribution
 from gpaw.densities import Densities
 from gpaw.electrostatic_potential import ElectrostaticPotential
-from gpaw.gpu import as_np, cupy as cp
+from gpaw.gpu import as_np
+from gpaw.gpu import cupy as cp
+from gpaw.mpi import MPIComm
 from gpaw.mpi import broadcast as bcast
-from gpaw.mpi import broadcast_float, MPIComm, receive, send, serial_comm
+from gpaw.mpi import broadcast_float, receive, send, serial_comm
 from gpaw.new import trace, zips
-from gpaw.new.gpw import read_gpw
-
 from gpaw.new.density import Density
 from gpaw.new.energies import DFTEnergies
+from gpaw.new.gpw import read_gpw
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.logger import Logger, indent
 from gpaw.new.potential import Potential
@@ -31,7 +33,6 @@ from gpaw.typing import Array1D, Array2D
 from gpaw.utilities import (check_atoms_too_close,
                             check_atoms_too_close_to_boundary)
 from gpaw.utilities.timing import simpletimer
-
 
 if TYPE_CHECKING:
     from gpaw.dft import Mode, Parameters
@@ -780,9 +781,31 @@ def write_atoms(atoms: Atoms,
                 magmom_av: Array2D,
                 grid: UGDesc,
                 log) -> None:
-    from gpaw.old.output import print_cell, print_positions
-    print_positions(atoms, log, magmom_av)
-    print_cell(grid._gd, grid.pbc, log)
+    log('\nAtoms  # Å, Bohr')
+    log('-----------------------------------------------------')
+    log('   symbol    x    y    z   initial magnetic moments')
+    log('-----------------------------------------------------')
+    symbols = atoms.get_chemical_symbols()
+    for a, (x, y, z) in enumerate(atoms.positions):
+        symbol = symbols[a]
+        X, Y, Z = magmom_av[a]
+        log(f'{a:3} {symbol:>4} {x:11.6f} {y:11.6f} {z:11.6f}'
+            f'    ({X:7.4f}, {Y:7.4f}, {Z:7.4f})')
+    log('-------------------------------------------------------')
+
+    log('\nUnit cell:  # Å')
+    log('  axes')
+    log('  -----------------------------------')
+    log('    x           y           z')
+    log('  -----------------------------------')
+    for x, y, z in atoms.cell:
+        log(f'  {x:10.6f}  {y:10.6f}  {z:10.6f}')
+    log('  -----------------------------------')
+    p0, p1, p2 = ('yes' if p else 'no' for p in atoms.pbc)
+    log(f'  Periodic: ({p0:>10}, {p1:>10}, {p2:>10})')
+    a, b, c, A, B, C = cell_to_cellpar(atoms.cell)
+    log(f'  Lengths:  ({a:10.6f}, {b:10.6f}, {c:10.6f})')
+    log(f'  Angles:   ({A:10.6f}, {B:10.6f}, {C:10.6f})\n')
 
 
 class DFTState:
