@@ -75,24 +75,26 @@ calculations should parallelize over the two spins and two domains.
 Plane-wave convergence
 ======================
 
-In plane-wave mode wavefunctions are expanded in plane-wave coefficients
+In plane-wave mode wavefunctions are expanded in plane-wave coefficients `C_{n\vec{k}\vec{G}}`
 
 .. math::
-    \psi_{n\vec{k}}(\vec{r}) = \frac{1}{V} \sum_{\vec{G}} C_{n\vec{k}\vec{G}} e^{i(\vec{k} + \vec{G}) \vec{r}}.
+    \psi_{n\vec{k}}(\vec{r}) = \frac{1}{V} \sum_{\vec{G}} C_{n\vec{k}\vec{G}} e^{i(\vec{k} + \vec{G}) \vec{r}},
 
-.. XXX V ... Volume ...
+where `V` is the cell volume, `n` the orbital quantum number, `\vec{k}` the Bloch vector within the Brillouin zone and `\vec{G}` are the reciprocal lattice vectors.
 It is essential that the calculations use a sufficiently large number of
 plane-wave cofficients, and that the cell is sufficiently large not to affect the
 result.  For this reason, convergence with respect to these parameters
 should generally be checked.  For now we shall only bother to check
-the number of plane-wave coefficients which is controlled by the plane-wave energy cutoff.
+the number of plane-wave coefficients which is controlled by the plane-wave energy cutoff `E_{cut}`
 
-.. XXX formula energy cutoff
+.. math::
+    \frac{\hbar^2}{2 m} | \vec{G} + \vec{k} |^2 ≤ E_{cut}.
 
 Modify the above script to include a loop over different energy cutoff.
 Use a loop structure like::
 
   for ecut in [300, 400, 500, ...]:
+      ...
       calc = GPAW(mode={'name': 'pw', 'ecut': ecut}, hund=hund,
                   txt=f'gpaw-{name}-{ecut:3.0f}.txt')
       atoms.calc = calc
@@ -114,7 +116,7 @@ of the basis.
 Try to look at the text output and see if you can find the number of
 plane-waves used.
 
-.. XXX include script with solutions
+The following script performs the plane-wave convergeence calculations for :mol:`H_2O`: :download:`h2o_ecut.py`.
 
 
 LCAO calculations
