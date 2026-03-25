@@ -1,5 +1,4 @@
 from ase import Atoms
-from ase.parallel import paropen as open
 from gpaw import GPAW
 
 a = 10.  # Size of unit cell (Angstrom)
