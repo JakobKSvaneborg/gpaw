@@ -241,7 +241,7 @@ class BaseMixer:
 
 
 class MSR1Mixer(BaseMixer):
-    name = 'MSR1'
+    name = 'msr1'
 
     def __init__(self,
                  beta=0.035,
