@@ -53,7 +53,7 @@ def write_header(log: Logger, params: Parameters) -> None:
                 value = getattr(gpaw, name)
             except AttributeError:
                 continue
-            parts.append(f'{name}={value!r}')
+            parts.append(f'{name}: {value!r}')
         log(',\n'.join(parts))
 
 

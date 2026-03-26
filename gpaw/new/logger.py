@@ -92,7 +92,7 @@ class Logger:
                          end=end, flush=flush, parallel=False)
 
     def begin_table(self, title, header):
-        bar = '-' * max((len(line) for line in header.splitlines()))
+        bar = '=' * max((len(line) for line in header.splitlines()))
         self(f'{title}\n{bar}\n{header}\n{bar}')
         self.table_line = bar
 

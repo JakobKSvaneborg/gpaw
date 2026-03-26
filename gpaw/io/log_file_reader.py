@@ -2,22 +2,27 @@
 
 Example:
 
->>> parse('''
-a: 117
-b: hello
-
-Indented block:
-    a: (1, 2)
-
-table
---------------
-ignored header
---------------
-a      1     2
-b      3     4
---------------
-''')
-
+>>> d = parse('''
+... a: 117
+... b: hello
+...
+... Indented block:
+...     a: (1, 2)
+...
+... table
+... ==============
+... ignored header
+... ==============
+... a      1     2
+... b      3     4
+... ==============
+... ''')
+>>> for k, v in d[0].items():
+...     print(k, v)
+a 117
+b hello
+indented_block {'a': [1, 2]}
+table [['a', 1, 2], ['b', 3, 4]]
 """
 import re
 from typing import Any, Iterable, Generator, Iterator
@@ -29,6 +34,8 @@ def parse(lines: Iterable[str],
 
     One dict for each atomic configuration.
     """
+    if isinstance(lines, str):
+        lines = lines.splitlines()
     dicts: list[dict] = []
     _parse(line_iter(lines), dicts=dicts, keys=keys)
     return dicts
@@ -161,13 +168,13 @@ def _parse(lines: Iterator[str],
                 # skip parsing:
                 key = None
                 continue
-        elif line.startswith('--') and key is not None:
+        elif line.startswith('==') and key is not None:
             # table:
             key = normalize_key(key)
-            while not next(lines).startswith('--'):
+            while not next(lines).startswith('=='):
                 pass
             rows = []
-            while not (line := next(lines)).startswith('--'):
+            while not (line := next(lines)).startswith('=='):
                 rows.append(line)
             if keys is None or key in keys:
                 value = table(rows)
@@ -189,6 +196,21 @@ def _parse(lines: Iterator[str],
     return dct
 
 
+def main():
+    import argparse
+    import pprint
+    parser = argparse.ArgumentParser()
+    parser.add_argument('filename')
+    parser.add_argument('key', nargs='*')
+    args = parser.parse_args()
+    with open(args.filename) as fd:
+        blocks = parse(fd, keys=set(args.key) if args.key else None)
+    print('Blocks:', len(blocks))
+    for n, dct in enumerate(blocks):
+        print(n, '=' * 70)
+        pprint.pp(dct)
+
+
 def h2():
     import io
     from gpaw.dft import GPAW
@@ -204,4 +226,4 @@ def h2():
 
 
 if __name__ == '__main__':
-    h2()
+    main()

@@ -255,7 +255,7 @@ class DFTCalculation:
             return self.results['dipole'] * units['dipole']
         dipole_v = self.density.calculate_dipole_moment(self.relpos_ac)
         x, y, z = dipole_v * Bohr
-        self.log(f'dipole moment: [{x:.6f}, {y:.6f}, {z:.6f}]  # |e|*Ang\n')
+        self.log(f'dipole moment: ({x:.6f}, {y:.6f}, {z:.6f})  # |e|*Ang\n')
         self.results['dipole'] = dipole_v
         return self.results['dipole'] * units['dipole']
 
@@ -268,13 +268,15 @@ class DFTCalculation:
 
         if self.density.ncomponents > 1:
             x, y, z = mm_v
-            self.log(f'total magnetic moment: [{x:.6f}, {y:.6f}, {z:.6f}]\n')
-            self.log('local magnetic moments: [')
-            for a, (setup, m_v) in enumerate(zips(self.setups, mm_av)):
-                x, y, z = m_v
-                c = ',' if a < len(mm_av) - 1 else ']'
-                self.log(f'  [{x:9.6f}, {y:9.6f}, {z:9.6f}]{c}'
+            self.log(f'total magnetic moment: ({x:.6f}, {y:.6f}, {z:.6f})\n')
+            self.log('local magnetic moments')
+            self.log('===================================')
+            self.log('   x    y     z')
+            self.log('===================================')
+            for a, (setup, (x, y, z)) in enumerate(zips(self.setups, mm_av)):
+                self.log(f'  {x:9.6f} {y:9.6f} {z:9.6f}'
                          f'  # {setup.symbol:2} {a}')
+            self.log('===================================')
             self.log()
         return mm_v, mm_av
 
@@ -290,14 +292,18 @@ class DFTCalculation:
             return self.results['forces'] * units['forces']
 
         self.forces_have_been_printed = True
-        self.log('\nForces in eV/Ang:')
+        self.log('\nForces  # eV/Ang')
+        self.log('=========================')
+        self.log('  symbol   x       y        z')
+        self.log('=========================')
         F_av = self.results['forces'] * units['forces']
         for a, setup in enumerate(self.setups):
             x, y, z = F_av[a]
             self.log(f'  {a:4} {setup.symbol:2} '
                      f'{x:10.5f} {y:10.5f} {z:10.5f}')
+        self.log('=========================')
 
-        self.log(f'\nForce computation time: {forcetimer():.3f} s')
+        self.log(f'\nForce computation time: {forcetimer():.3f}  # s')
         self.log.fd.flush()
 
         return self.results['forces'] * units['forces']
@@ -359,12 +365,16 @@ class DFTCalculation:
             return self.results['stress'] * units['stress']
         stress_vv = self.pot_calc.stress(
             self.ibzwfs, self.density, self.potential)
-        self.log('\nstress tensor: [  # eV/Ang^3')
-        for (x, y, z), c in zips(stress_vv * units['stress'], ',,]'):
-            self.log(f'  [{x:13.6f}, {y:13.6f}, {z:13.6f}]{c}')
+        self.log('\nstress tensor  # eV/Ang^3')
+        self.log('==============================')
+        self.log('    x     y       z')
+        self.log('==============================')
+        for x, y, z in stress_vv * units['stress']:
+            self.log(f'  {x:13.6f} {y:13.6f} {z:13.6f}')
+        self.log('==============================')
 
         self.results['stress'] = stress_vv.flat[[0, 4, 8, 5, 2, 1]]
-        self.log(f'\nStress computation time: {stresstimer():.3f} s\n')
+        self.log(f'\nStress computation time: {stresstimer():.3f}  # s\n')
         return self.results['stress'] * units['stress']
 
     def write_converged(self) -> None:
@@ -782,25 +792,27 @@ def write_atoms(atoms: Atoms,
                 grid: UGDesc,
                 log) -> None:
     log('\nAtoms  # Å, Bohr')
-    log('-----------------------------------------------------')
+    log('=====================================================')
     log('   symbol    x    y    z   initial magnetic moments')
-    log('-----------------------------------------------------')
+    log('=====================================================')
     symbols = atoms.get_chemical_symbols()
     for a, (x, y, z) in enumerate(atoms.positions):
         symbol = symbols[a]
         X, Y, Z = magmom_av[a]
         log(f'{a:3} {symbol:>4} {x:11.6f} {y:11.6f} {z:11.6f}'
             f'    ({X:7.4f}, {Y:7.4f}, {Z:7.4f})')
-    log('-------------------------------------------------------')
+    log('=====================================================')
 
     log('\nUnit cell:  # Å')
     log('  axes')
-    log('  -----------------------------------')
+    log('  ===================================')
+
     log('    x           y           z')
-    log('  -----------------------------------')
+    log('  ===================================')
+
     for x, y, z in atoms.cell:
         log(f'  {x:10.6f}  {y:10.6f}  {z:10.6f}')
-    log('  -----------------------------------')
+    log('  ===================================')
     p0, p1, p2 = ('yes' if p else 'no' for p in atoms.pbc)
     log(f'  Periodic: ({p0:>10}, {p1:>10}, {p2:>10})')
     a, b, c, A, B, C = cell_to_cellpar(atoms.cell)
