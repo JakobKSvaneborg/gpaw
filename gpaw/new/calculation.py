@@ -803,21 +803,20 @@ def write_atoms(atoms: Atoms,
             f'    ({X:7.4f}, {Y:7.4f}, {Z:7.4f})')
     log('=====================================================')
 
-    log('\nUnit cell:  # Å')
-    log('  axes')
-    log('  ===================================')
-
-    log('    x           y           z')
-    log('  ===================================')
-
-    for x, y, z in atoms.cell:
-        log(f'  {x:10.6f}  {y:10.6f}  {z:10.6f}')
-    log('  ===================================')
-    p0, p1, p2 = ('yes' if p else 'no' for p in atoms.pbc)
-    log(f'  Periodic: ({p0:>10}, {p1:>10}, {p2:>10})')
-    a, b, c, A, B, C = cell_to_cellpar(atoms.cell)
-    log(f'  Lengths:  ({a:10.6f}, {b:10.6f}, {c:10.6f})')
-    log(f'  Angles:   ({A:10.6f}, {B:10.6f}, {C:10.6f})\n')
+    log('\nUnit cell  # Å')
+    log('===================================')
+    log(' periodic  x           y           z Lengths Angles')
+    log('===================================')
+    par = cell_to_cellpar(atoms.cell)
+    for p, (x, y, z), L, A in zip(atoms.pbc,
+                                  atoms.cell,
+                                  par[:3],
+                                  par[3:]):
+        pbc = 'yes' if p else ' no'
+        log(f'{pbc}'
+            f'  ({x:10.6f},  {y:10.6f},  {z:10.6f})'
+            f'  {L:10.6f}  {A:10.6f}')
+    log('===================================')
 
 
 class DFTState:
