@@ -5,6 +5,93 @@ from gpaw.response.pw_parallelization import block_partition
 from gpaw.utilities.blas import mmm
 
 
+def get_bz_fft_indices(Q_G_ibz, N_c, U_cc, time_reversal):
+    """Compute FFT grid indices for a BZ k-point from IBZ indices + symmetry.
+
+    The plane-wave coefficients for BZ k-point K, related to IBZ k-point ik
+    by K = U(ik), have the same values as the IBZ coefficients but at
+    rotated positions on the FFT grid: G_K = U · G_ik.
+
+    With time reversal, G-vectors are also negated (and coefficients
+    conjugated, handled separately).
+
+    Parameters
+    ----------
+    Q_G_ibz : 1-d int ndarray
+        FFT grid indices for the IBZ k-point's plane-wave set.
+    N_c : array-like of 3 ints
+        FFT grid dimensions.
+    U_cc : 3x3 int ndarray
+        Rotation matrix mapping IBZ -> BZ k-point.
+    time_reversal : bool
+        Whether time reversal is applied.
+
+    Returns
+    -------
+    Q_G_bz : 1-d int ndarray
+        FFT grid indices for the BZ k-point's plane-wave set.
+    """
+    N_c = np.asarray(N_c)
+    i_cG = np.array(np.unravel_index(Q_G_ibz, N_c))  # (3, nPW)
+    if time_reversal:
+        bz_cG = -(U_cc @ i_cG)
+    else:
+        bz_cG = U_cc @ i_cG
+    bz_cG = bz_cG % N_c[:, np.newaxis]
+    return np.ravel_multi_index(bz_cG, N_c)
+
+
+def build_pw_convolution_map(Q_G_K1, Q_G_K2, Q_G_resp, shift_c, N_c):
+    """Build index map for direct reciprocal-space pair density computation.
+
+    For each response G-vector G_j and each G-vector G' in K1's PW set,
+    finds the index of (G' + G_j + shift) in K2's PW set.
+
+    This enables computing pair densities as:
+
+        ρ(G_j+q) = norm × Σ_{G'} c*_n(G',K1) · c_m(G'+G_j+shift, K2)
+
+    Parameters
+    ----------
+    Q_G_K1 : 1-d int ndarray (nPW1,)
+        FFT grid indices for K1's plane-wave set.
+    Q_G_K2 : 1-d int ndarray (nPW2,)
+        FFT grid indices for K2's plane-wave set.
+    Q_G_resp : 1-d int ndarray (nG,)
+        FFT grid indices for the response G-vectors.
+    shift_c : array-like of 3 ints
+        BZ folding shift in crystal coordinates (k1 + q - k2).
+    N_c : array-like of 3 ints
+        FFT grid dimensions.
+
+    Returns
+    -------
+    g2_map : 2-d int ndarray (nG, nPW1)
+        Index into K2's PW set for each (G_j, G') pair, or -1 if the
+        target G-vector falls outside K2's cutoff sphere.
+    """
+    N_c = np.asarray(N_c)
+    nPW1 = len(Q_G_K1)
+    nPW2 = len(Q_G_K2)
+    nG = len(Q_G_resp)
+
+    # Build inverse lookup: FFT grid index -> K2 PW index (or -1)
+    inv_K2 = np.full(int(np.prod(N_c)), -1, dtype=np.int32)
+    inv_K2[Q_G_K2] = np.arange(nPW2, dtype=np.int32)
+
+    K1_cG = np.array(np.unravel_index(Q_G_K1, N_c))    # (3, nPW1)
+    resp_cG = np.array(np.unravel_index(Q_G_resp, N_c))  # (3, nG)
+    shift_c = np.asarray(shift_c, dtype=int)
+
+    g2_map = np.empty((nG, nPW1), dtype=np.int32)
+    for j in range(nG):
+        target_c = (K1_cG + resp_cG[:, j:j + 1]
+                    + shift_c[:, np.newaxis]) % N_c[:, np.newaxis]
+        g2_map[j] = inv_K2[np.ravel_multi_index(target_c, N_c)]
+
+    return g2_map
+
+
 class KPoint:
     def __init__(self, s, K, n1, n2, blocksize, na, nb,
                  ut_nR, eps_n, f_n, P_ani, k_c):
@@ -55,7 +142,7 @@ class KPointPairFactory:
         assert self.gs.world.size == 1
 
     @timer('Get a k-point')
-    def get_k_point(self, s, K, n1, n2, blockcomm=None):
+    def get_k_point(self, s, K, n1, n2, blockcomm=None, pw_mode=False):
         """Return wave functions for a specific k-point and spin.
 
         s: int
@@ -64,6 +151,10 @@ class KPointPairFactory:
             BZ k-point index.
         n1, n2: int
             Range of bands to include.
+        pw_mode: bool
+            If True, skip the expensive inverse FFT to real space.
+            The resulting KPoint will have ut_nR=None, suitable only
+            for the direct reciprocal-space pair density method.
         """
 
         assert n1 <= n2
@@ -93,12 +184,15 @@ class KPointPairFactory:
 
         k_c = self.gs.ibz2bz[K].map_kpoint()
 
-        with self.context.timer('load wfs'):
-            psit_nG = kpt.psit_nG
-            ut_nR = gs.gd.empty(nb - na, gs.dtype)
-            for n in range(na, nb):
-                ut_nR[n - na] = self.gs.ibz2bz[K].map_pseudo_wave(
-                    gs.pd.ifft(psit_nG[n], ik))
+        if not pw_mode:
+            with self.context.timer('load wfs'):
+                psit_nG = kpt.psit_nG
+                ut_nR = gs.gd.empty(nb - na, gs.dtype)
+                for n in range(na, nb):
+                    ut_nR[n - na] = self.gs.ibz2bz[K].map_pseudo_wave(
+                        gs.pd.ifft(psit_nG[n], ik))
+        else:
+            ut_nR = None
 
         with self.context.timer('Load projections'):
             if nb - na > 0:
@@ -114,7 +208,7 @@ class KPointPairFactory:
 
     @timer('Get kpoint pair')
     def get_kpoint_pair(self, qpd, s, K, n1, n2, m1, m2,
-                        blockcomm=None, flipspin=False):
+                        blockcomm=None, flipspin=False, pw_mode=False):
         assert m1 <= m2
         assert n1 <= n2
 
@@ -127,8 +221,9 @@ class KPointPairFactory:
         s2 = (s + flipspin) % 2
 
         with self.context.timer('get k-points'):
-            kpt1 = self.get_k_point(s1, K1, n1, n2)
-            kpt2 = self.get_k_point(s2, K2, m1, m2, blockcomm=blockcomm)
+            kpt1 = self.get_k_point(s1, K1, n1, n2, pw_mode=pw_mode)
+            kpt2 = self.get_k_point(s2, K2, m1, m2, blockcomm=blockcomm,
+                                    pw_mode=pw_mode)
 
         with self.context.timer('fft indices'):
             Q_G = phase_shifted_fft_indices(kpt1.k_c, kpt2.k_c, qpd)
@@ -193,6 +288,129 @@ class ActualPairDensityCalculator:
             with self.context.timer('paw'):
                 C1_aGi = pawcorr.multiply(kpt1.P_ani, band=n - kpt1.na)
                 n_nmG[j] = cpd(ut1cc_R, C1_aGi, kpt2, qpd, Q_G, block=block)
+
+        return n_nmG
+
+    @timer('get_pair_density_pw')
+    def get_pair_density_pw(self, qpd, kptpair, n_n, m_m, *,
+                            pawcorr, block=False, output_buffer=None):
+        """Get pair density using direct reciprocal-space computation.
+
+        Instead of computing pair densities via real-space products and FFTs,
+        computes them directly as plane-wave coefficient convolutions:
+
+            ρ(G_j+q) = (dv/N) × Σ_{G'} c*_n(G',K1) · c_m(G'+G_j+shift, K2)
+
+        where dv is the real-space grid volume element, N is the number of
+        grid points, and the c coefficients are the stored plane-wave
+        expansion coefficients from pd.ifft normalization.
+
+        This is more efficient when nG × nPW << N log N, which is typical
+        for response calculations where the response energy cutoff is much
+        smaller than the ground-state cutoff.
+
+        The interface is identical to get_pair_density, so the two methods
+        can be used interchangeably.
+        """
+        kpt1 = kptpair.kpt1
+        kpt2 = kptpair.kpt2
+
+        gs = self.gs
+        N_c = np.array(qpd.gd.N_c)
+        N_tot = int(np.prod(N_c))
+        dv = qpd.gd.dv
+        normalization = dv / N_tot
+
+        # Get IBZ k-point data and symmetry mappings
+        kd = gs.kd
+        ik1 = kd.bz2ibz_k[kpt1.K]
+        ik2 = kd.bz2ibz_k[kpt2.K]
+        ibz2bz1 = gs.ibz2bz[kpt1.K]
+        ibz2bz2 = gs.ibz2bz[kpt2.K]
+
+        psit1_all = kd.comm.size == 1 and gs.kpt_ks[ik1][kpt1.s].psit_nG
+        psit2_all = kd.comm.size == 1 and gs.kpt_ks[ik2][kpt2.s].psit_nG
+        nPW2 = psit2_all.shape[1]
+
+        # Compute BZ k-point FFT indices (rotated from IBZ)
+        Q_G_K1 = get_bz_fft_indices(
+            gs.pd.Q_qG[ik1], N_c, ibz2bz1.U_cc, ibz2bz1.time_reversal)
+        Q_G_K2 = get_bz_fft_indices(
+            gs.pd.Q_qG[ik2], N_c, ibz2bz2.U_cc, ibz2bz2.time_reversal)
+
+        # Compute BZ folding shift (same as in phase_shifted_fft_indices)
+        shift_c = kpt1.k_c + qpd.q_c - kpt2.k_c
+        shift_c = np.round(shift_c).astype(int)
+
+        # Build convolution index map (once per k-point pair)
+        Q_G_resp = qpd.Q_qG[0]  # unshifted response G-vector FFT indices
+        with self.context.timer('pw index map'):
+            g2_map = build_pw_convolution_map(
+                Q_G_K1, Q_G_K2, Q_G_resp, shift_c, N_c)
+
+        # Prepare safe indices: replace -1 with nPW2 (maps to zero-pad)
+        idx_safe = np.where(g2_map >= 0, g2_map, nPW2)
+
+        nG = qpd.ngmax
+        if output_buffer is None:
+            n_nmG = np.zeros((len(n_n), len(m_m), nG), qpd.dtype)
+        else:
+            assert output_buffer.shape == (len(n_n), len(m_m), nG)
+            assert output_buffer.dtype == qpd.dtype
+            n_nmG = output_buffer
+
+        for j, n in enumerate(n_n):
+            # Conjugated PW coefficients for band n at K1
+            # c_K(G) = c_ik(U^{-1}G) without TR; c*_ik(-U^{-1}G) with TR
+            # So c*_K(G) = c*_ik(g') without TR; c_ik(g') with TR
+            c1_G = psit1_all[n]
+            if ibz2bz1.time_reversal:
+                c1_star = c1_G.copy()
+            else:
+                c1_star = c1_G.conj()
+
+            # PAW corrections (same as FFT approach)
+            with self.context.timer('paw'):
+                C1_aGi = pawcorr.multiply(kpt1.P_ani, band=n - kpt1.na)
+
+            # Compute pair densities for all m bands via gathered dot products
+            myblocksize = kpt2.nb - kpt2.na
+            n_mG = qpd.empty(kpt2.blocksize)
+            n_mG[:] = 0.0
+
+            for m_local in range(myblocksize):
+                m_global = kpt2.na + m_local
+                c2_G = psit2_all[m_global]
+
+                if ibz2bz2.time_reversal:
+                    c2_use = c2_G.conj()
+                else:
+                    c2_use = c2_G
+
+                # Zero-pad for invalid index lookups
+                c2_padded = np.empty(nPW2 + 1, dtype=c2_use.dtype)
+                c2_padded[:nPW2] = c2_use
+                c2_padded[nPW2] = 0.0
+
+                # Gather c2 at convolution targets and compute dot product:
+                # ρ(G_j) = norm × Σ_{g'} c1_star[g'] × c2[map[j,g']]
+                with self.context.timer('pw convolution'):
+                    c2_gathered = c2_padded[idx_safe]  # (nG, nPW1)
+                    n_mG[m_local] = normalization * (c2_gathered @ c1_star)
+
+            # PAW corrections (identical to FFT approach)
+            with self.context.timer('gemm'):
+                for C1_Gi, P2_mi in zip(C1_aGi, kpt2.P_ani):
+                    mmm(1.0, P2_mi, 'N', C1_Gi, 'T', 1.0,
+                        n_mG[:myblocksize])
+
+            if not block or self.blockcomm.size == 1:
+                n_nmG[j] = n_mG
+            else:
+                n_MG = qpd.empty(kpt2.blocksize * self.blockcomm.size)
+                with self.context.timer('all_gather'):
+                    self.blockcomm.all_gather(n_mG, n_MG)
+                n_nmG[j] = n_MG[:kpt2.n2 - kpt2.n1]
 
         return n_nmG
 

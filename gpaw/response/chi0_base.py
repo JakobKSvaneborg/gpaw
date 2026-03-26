@@ -99,6 +99,9 @@ class Chi0Integrand(Integrand):
             # pair_calc: ActualPairDensityCalculator from gpaw.response.pair
             target_method = self._chi0calc.pair_calc.get_optical_pair_density
             out_ngmax = self.qpd.ngmax + 2
+        elif self._chi0calc.pw_mode:
+            target_method = self._chi0calc.pair_calc.get_pair_density_pw
+            out_ngmax = self.qpd.ngmax
         else:
             target_method = self._chi0calc.pair_calc.get_pair_density
             out_ngmax = self.qpd.ngmax
@@ -126,7 +129,8 @@ class Chi0Integrand(Integrand):
 
         kptpair = self.kptpair_factory.get_kpoint_pair(
             qpd, point.spin, K, self.n1, self.n2,
-            self.m1, self.m2, blockcomm=self.blockcomm)
+            self.m1, self.m2, blockcomm=self.blockcomm,
+            pw_mode=self._chi0calc.pw_mode)
 
         m_m = np.arange(self.m1, self.m2)
         n_n = np.arange(self.n1, self.n2)
@@ -348,6 +352,7 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
                  timeordered=False,
                  ecut=50.0,
                  eta=0.2,
+                 pw_mode=False,
                  **kwargs):
         """Set up attributes to calculate the chi0 body and optical extensions.
 
@@ -389,6 +394,7 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
             assert self.hilbert  # Timeordered is only needed for G0W0
 
         self.pawcorr = None
+        self.pw_mode = pw_mode
 
         self.context.print('Nonperiodic BCs: ', (~self.pbc))
         if sum(self.pbc) == 1:
