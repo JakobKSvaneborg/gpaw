@@ -243,74 +243,39 @@ def test_NiO_withU(in_tmp_dir):
     a = bulk('NiO', 'rocksalt', a=a0)
     a.set_initial_magnetic_moments([2, 0])
 
-    calc = GPAW(mode=PW(400),
-                xc='LDA',
-                setups={'Ni': ':d,4.0'},
-                kpts={'size': (2, 2, 2), 'gamma': True},
-                occupations=FermiDirac(0.001),
-                parallel=dict(domain=1))
+    epw_q = np.array([0., -2.98733, -0.03207])
+    epz_q = np.array([0., -3.18565137, -0.03267547])
 
-    a.calc = calc
-    a.get_potential_energy()
+    for xc, e0_q in zip(['LDA', 'LDA_X+LDA_C_PZ'], [epw_q, epz_q]):
+        if not xc == 'LDA':
+            from gpaw.test import gen
+            gen('Ni', xcname='LDA_X+LDA_C_PZ', write_xml=True)
+            gen('O', xcname='LDA_X+LDA_C_PZ', write_xml=True)
 
-    # q-points and atomic sites
-    q_qc = np.vstack([[0, 0, 0], [0, 0, 0.5], [0, 0.5, 0.5]])
-    context = ResponseContext(txt='mft_nio.txt')
-    gs = ResponseGroundStateAdapter(calc)
-    _, r_a = get_site_radii_range(gs)
-    sites = AtomicSites(indices=[0], radii=[[r_a[0]]])
-    m = a.get_magnetic_moment()
-
-    # Do the mft calculation
-    jcalc = HeisenbergExchangeCalculator(gs, sites, context=context)
-    J_q = np.array([jcalc(q_c).array[..., 0]  # dimension: J_abp
-                    for q_c in q_qc])[:, 0, 0]
-    e_q = calculate_single_site_magnon_energies(J_q, q_qc, m)
-    print('-----', e_q)
-
-    assert e_q == pytest.approx(
-        np.array([0., -2.98733, -0.03207]), abs=1e-2)
-
-
-@pytest.mark.response
-@pytest.mark.kspair
-def test_NiO_withPZ(in_tmp_dir, add_cwd_to_setup_paths):
-
-    from gpaw.test import gen
-    a0 = 4.17
-    a = bulk('NiO', 'rocksalt', a=a0)
-    a.set_initial_magnetic_moments([2, 0])
-
-    gen('Ni', xcname='LDA_X+LDA_C_PZ', write_xml=True)
-    gen('O', xcname='LDA_X+LDA_C_PZ', write_xml=True)
-
-    calc = GPAW(mode=PW(400),
-                xc='LDA_X+LDA_C_PZ',
-                setups={'Ni': ':d,4.0'},
-                kpts={'size': (2, 2, 2), 'gamma': True},
-                occupations=FermiDirac(0.001),
-                parallel=dict(domain=1))
-
-    a.calc = calc
-    a.get_potential_energy()
-
-    # q-points and atomic sites
-    q_qc = np.vstack([[0, 0, 0], [0, 0, 0.5], [0, 0.5, 0.5]])
-    context = ResponseContext(txt='mft_nio.txt')
-    gs = ResponseGroundStateAdapter(calc)
-    _, r_a = get_site_radii_range(gs)
-    sites = AtomicSites(indices=[0], radii=[[r_a[0]]])
-    m = a.get_magnetic_moment()
-
-    # Do the mft calculation
-    jcalc = HeisenbergExchangeCalculator(gs, sites, context=context)
-    J_q = np.array([jcalc(q_c).array[..., 0]  # dimension: J_abp
-                    for q_c in q_qc])[:, 0, 0]
-    e_q = calculate_single_site_magnon_energies(J_q, q_qc, m)
-    print('PZ----', e_q)
-
-    assert e_q == pytest.approx(
-        np.array([0., -3.18565137, -0.03267547]), abs=1e-2)
+        calc = GPAW(mode=PW(400),
+                    xc=xc,
+                    setups={'Ni': ':d,4.0'},
+                    kpts={'size': (2, 2, 2), 'gamma': True},
+                    occupations=FermiDirac(0.001),
+                    parallel=dict(domain=1))
+        
+        a.calc = calc
+        a.get_potential_energy()
+        
+        # q-points and atomic sites
+        q_qc = np.array([[0, 0, 0], [0, 0, 0.5], [0, 0.5, 0.5]])
+        context = ResponseContext(txt='mft_nio.txt')
+        gs = ResponseGroundStateAdapter(calc)
+        _, r_a = get_site_radii_range(gs)
+        sites = AtomicSites(indices=[0], radii=[[r_a[0]]])
+        m = a.get_magnetic_moment()
+        
+        # Do the mft calculation
+        jcalc = HeisenbergExchangeCalculator(gs, sites, context=context)
+        J_q = np.array([jcalc(q_c).array[..., 0]  # dimension: J_abp
+                        for q_c in q_qc])[:, 0, 0]
+        e_q = calculate_single_site_magnon_energies(J_q, q_qc, m)
+        assert e_q == pytest.approx(e0_q, abs=1e-2)
 
 
 @pytest.mark.response

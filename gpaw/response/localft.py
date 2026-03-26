@@ -560,8 +560,8 @@ def calculate_spin_polarization(n_sR):
     return n_sR[0] - n_sR[1]
 
 
-def add_LSDA_Wxc(gd, n_sR, Wxc_R, **kwargs):
-    Wxc_R += calculate_LSDA_Wxc(gd, n_sR, **kwargs)
+def add_LSDA_Wxc(gd, n_sR, Wxc_R, xc='LDA'):
+    Wxc_R += calculate_LSDA_Wxc(gd, n_sR, xc='LDA')
 
 
 def calculate_LSDA_Wxc(gd, n_sR, xc='LDA'):
@@ -579,7 +579,7 @@ def calculate_LSDA_Wxc(gd, n_sR, xc='LDA'):
 
     # Calculate the spin-dependent potential
     xc = XC(xc)
-    assert xc.type in ['LDA']
+    assert xc.type == 'LDA'
     xc.calculate(gd, n_sR, v_sg=v_sR)
 
     return (v_sR[0] - v_sR[1]) / 2
