@@ -187,7 +187,6 @@ class BaseMixer:
         if mode == 'scalar':
             R1_isG = [R1_isG, ]
             dD1_iasp = [dD1_iasp, ]
-        if mode == 'scalar':
             R2_isG = [R2_isG, ]
             dD2_iasp = [dD2_iasp, ]
 
@@ -687,7 +686,6 @@ class ExperimentalDotProd:
         if mode == 'scalar':
             R1_isG = [R1_isG, ]
             dD1_iasp = [dD1_iasp, ]
-        if mode == 'scalar':
             R2_isG = [R2_isG, ]
             dD2_iasp = [dD2_iasp, ]
 
