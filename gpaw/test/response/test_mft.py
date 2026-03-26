@@ -283,7 +283,7 @@ def test_NiO_withPZ(in_tmp_dir, add_cwd_to_setup_paths):
 
     setup_Ni = gen('Ni', xcname='LDA_X+LDA_C_PZ', write_xml=True)
     setup_O = gen('O', xcname='LDA_X+LDA_C_PZ', write_xml=True)
-     
+
     calc = GPAW(mode=PW(400),
                 xc='LDA_X+LDA_C_PZ',
                 setups={'Ni': ':d,4.0'},
