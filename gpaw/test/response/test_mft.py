@@ -281,8 +281,8 @@ def test_NiO_withPZ(in_tmp_dir, add_cwd_to_setup_paths):
     a = bulk('NiO', 'rocksalt', a=a0)
     a.set_initial_magnetic_moments([2, 0])
 
-    setup_Ni = gen('Ni', xcname='LDA_X+LDA_C_PZ', write_xml=True)
-    setup_O = gen('O', xcname='LDA_X+LDA_C_PZ', write_xml=True)
+    gen('Ni', xcname='LDA_X+LDA_C_PZ', write_xml=True)
+    gen('O', xcname='LDA_X+LDA_C_PZ', write_xml=True)
 
     calc = GPAW(mode=PW(400),
                 xc='LDA_X+LDA_C_PZ',
