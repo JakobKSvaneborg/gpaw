@@ -19,6 +19,8 @@ class DirectOptimization(Eigensolver):
               nbands,
               wf_desc,
               band_comm,
+              domain_band_comm,
+              scalapack_parameters,
               hamiltonian,
               convergence,
               setups,
@@ -26,4 +28,7 @@ class DirectOptimization(Eigensolver):
         return DirOptPWFD(
             converge_unocc=self.converge_unocc,
             convergence=convergence,
-            hamiltonian=hamiltonian)
+            hamiltonian=hamiltonian,
+            domain_band_comm=domain_band_comm,
+            nbands=nbands,
+            scalapack_params=scalapack_parameters)

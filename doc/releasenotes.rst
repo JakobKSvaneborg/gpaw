@@ -12,6 +12,9 @@ Git master branch
 
 * Minimum version requirements: Python 3.10, ASE 3.27.0.
 
+* PW and FD eigensolvers will now automatically use Scalapack for sub-space
+  diagonalization when we have 1000 or more bands.
+
 * `pybind11 <https://pybind11.readthedocs.io/en/stable/>`__ is now a required
   dependency when building GPAW with GPU support. It should be installed
   automatically by ``pip`` when you install GPAW. If this doesn't happen for

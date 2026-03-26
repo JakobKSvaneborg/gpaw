@@ -84,7 +84,7 @@ def diagonalizer_tester_common(
         cp.testing.assert_allclose(matrix_orig.data, matrix.data)
 
     # Gather eigenvectors back to root rank for checking
-    eigvecs = eigvecs.gather(0, broadcast=False)
+    eigvecs = eigvecs.gather(broadcast=False)
 
     dtype = matrix.dtype
     atol = 1e-12 if (dtype == np.float64 or dtype == np.complex128) else 1e-5
