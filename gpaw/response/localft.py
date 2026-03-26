@@ -560,11 +560,11 @@ def calculate_spin_polarization(n_sR):
     return n_sR[0] - n_sR[1]
 
 
-def add_LSDA_Wxc(gd, n_sR, Wxc_R):
-    Wxc_R += calculate_LSDA_Wxc(gd, n_sR)
+def add_LSDA_Wxc(gd, n_sR, Wxc_R, **kwargs):
+    Wxc_R += calculate_LSDA_Wxc(gd, n_sR, **kwargs)
 
 
-def calculate_LSDA_Wxc(gd, n_sR):
+def calculate_LSDA_Wxc(gd, n_sR, xc='LDA'):
     """Calculate W_xc^z in the local spin-density approximation.
 
     For a collinear system:
@@ -578,7 +578,7 @@ def calculate_LSDA_Wxc(gd, n_sR):
     v_sR = np.zeros(np.shape(n_sR))
 
     # Calculate the spin-dependent potential
-    xc = XC('LDA')
+    xc = XC(xc)
     xc.calculate(gd, n_sR, v_sg=v_sR)
 
     return (v_sR[0] - v_sR[1]) / 2
