@@ -579,6 +579,7 @@ def calculate_LSDA_Wxc(gd, n_sR, xc='LDA'):
 
     # Calculate the spin-dependent potential
     xc = XC(xc)
+    assert xc.type in ['LDA']
     xc.calculate(gd, n_sR, v_sg=v_sR)
 
     return (v_sR[0] - v_sR[1]) / 2
