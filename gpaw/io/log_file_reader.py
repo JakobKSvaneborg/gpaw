@@ -20,7 +20,7 @@ b      3     4
 
 """
 import re
-from typing import Any, Iterable, Generator
+from typing import Any, Iterable, Generator, Iterator
 
 
 def parse(lines: Iterable[str],
@@ -29,13 +29,42 @@ def parse(lines: Iterable[str],
 
     One dict for each atomic configuration.
     """
-    dicts = []
+    dicts: list[dict] = []
     _parse(line_iter(lines), dicts=dicts, keys=keys)
     return dicts
 
 
+def normalize_key(key: str) -> str:
+    return key.lower().replace(' ', '_')
+
+
 class ConvergedFloat(float):
     """Special float like "-8.4c" ("c" for converged)."""
+
+
+def line_iter(lines: Iterable[str]) -> Generator[str, None, None]:
+    """Yield lines from line-generator.
+
+    Lines are stripped for leading and trailing spaces.
+    Special 'DEDENT' lines are yielded everytime an
+    indented block of lines stops.  Indented blocks begin
+    after lines ending with a colon.
+    """
+    indent = 0
+    for rawline in lines:
+        line = rawline.lstrip()
+        if line:
+            i = len(rawline) - len(line)
+            while i < indent:
+                yield 'DEDENT'
+                indent -= 2
+            line = line.split('#')[0].rstrip()
+            if line.endswith(':'):
+                indent += 2
+            yield line
+    while indent >= 0:
+        yield 'DEDENT'
+        indent -= 2
 
 
 def parse_str(s: str) -> Any:
@@ -96,46 +125,21 @@ def table(lines: list[str]) -> list[list] | dict[int, list]:
             line = re.sub(r'\(\s+', '(', line)
             rows.append([parse_str(x) for x in line.split()])
     if missing_lines:
-        dct = []
+        dct = {}
         for key, *row in rows:
             dct[key] = row
         return dct
     return rows
 
 
-def line_iter(lines: Iterable[str]) -> Generator[str]:
-    """Yield lines from line-generator.
-
-    Lines are stripped for leading and trailing spaces.
-    Special 'DEDENT' lines are yielded everytime and
-    indented block of lines stops.  Indented blocks begin
-    after lines ending with a colon.
-    """
-    indent = 0
-    for rawline in lines:
-        print(rawline)
-        line = rawline.lstrip()
-        if line:
-            i = len(rawline) - len(line)
-            while i < indent:
-                yield 'DEDENT'
-                indent -= 2
-            line = line.split('#')[0].rstrip()
-            if line.endswith(':'):
-                indent += 2
-            yield line
-    while indent >= 0:
-        yield 'DEDENT'
-        indent -= 2
-
-
-def _parse(lines: Iterable[str],
+def _parse(lines: Iterator[str],
            indents: int = 0,
            dicts: list[dict] | None = None,
            keys: set[str] | None = None) -> dict:
-    dct = {}
+    dct: dict[str, Any] = {}
     key = None
     while (line := next(lines)) != 'DEDENT':
+        value: Any
         if line.endswith(':'):
             # indented block:
             key = normalize_key(line[:-1])
@@ -149,10 +153,10 @@ def _parse(lines: Iterable[str],
                 continue
         elif ':' in line:
             # "key: value" pair:
-            key, _, value = line.partition(':')
+            key, _, val = line.partition(':')
             key = normalize_key(key)
             if keys is None or key in keys:
-                value = parse_str(value.strip())
+                value = parse_str(val.strip())
             else:
                 # skip parsing:
                 key = None
@@ -183,10 +187,6 @@ def _parse(lines: Iterable[str],
     if dicts is not None:
         dicts.append(dct)
     return dct
-
-
-def normalize_key(key):
-    return key.lower().replace(' ', '_')
 
 
 def h2():
