@@ -1,4 +1,4 @@
-# creates: h2o.gpaw.traj
+# creates: h2o.txt
 from ase import Atoms
 from gpaw.calculator import GPAW
 from ase.optimize import QuasiNewton
@@ -15,5 +15,5 @@ atoms.center()
 calc = GPAW(mode='pw', txt='h2o.txt')
 atoms.calc = calc
 
-opt = QuasiNewton(atoms, trajectory='h2o.gpaw.traj')
+opt = QuasiNewton(atoms, trajectory='h2o.traj')
 opt.run(fmax=0.05)

@@ -73,7 +73,7 @@ like this:
 ...             xc='PBE')
 
 Here, we want to use finite difference (``fd``) mode,
-one electronic band, the Perdew, Burke, Ernzerhof
+one electronic band and the Perdew, Burke, Ernzerhof
 (PBE)\ [#PBE]_ exchange-correlation functional.
 
 .. _parameters:

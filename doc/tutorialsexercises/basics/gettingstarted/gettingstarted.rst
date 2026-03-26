@@ -3,9 +3,11 @@
 Getting started with GPAW
 =========================
 
-In this exercise we will relax structures of simple molecules and calculate their binding energies.
+In this exercise we will relax structures of simple molecules and
+calculate their binding energies.
 
-At first let's have a look at a simple GPAW calculation for obtaining forces on the :mol:`H_2` molecule:
+At first let's have a look at a simple GPAW calculation for obtaining
+forces on the :mol:`H_2` molecule:
 
 .. literalinclude:: /documentation/h2.py
     :start-after: creates
@@ -20,10 +22,12 @@ are in order:
 * An :class:`~gpaw.calculator.GPAW` calculator is created.  A
   *calculator* can evaluate
   quantities such as energies and forces on a collection of atoms.
-* We create the GPAW calculator in plane-wave (``pw``) mode, with output to ``h2.txt``.
+* We create the GPAW calculator in plane-wave (``pw``) mode, with
+  output to ``h2.txt``.
 * The calculator is associated with the :class:`~ase.Atoms`
   object by calling ``atoms.calc = calc``.
-* Calling ``atoms.get_forces()`` triggers the DFT calculation for :mol:`H_2` and forces on the atoms are return (here: printed).
+* Calling ``atoms.get_forces()`` triggers the DFT calculation for
+  :mol:`H_2` and forces on the atoms are return (here: printed).
 
 
 Performing a structure optimization
@@ -56,9 +60,10 @@ Apart from the commands in the static calculation above:
 **Run the above structure optimization.**
 
 This will print the (decreasing) total energy for each iteration until
-it converges, leaving the file :file:`h2.gpaw.traj` in the working
+it converges, leaving the file :file:`h2.traj` in the working
 directory.  Use the command :command:`ase gui` to view the
 trajectory file, showing each step of the optimization.
+
 
 Structure optimization of :mol:`H_2O`
 -------------------------------------
@@ -85,7 +90,9 @@ Use :command:`ase gui` to visualize the structure and measure
 bond lengths and bond angles.  Bond lengths and angles are shown
 automatically if you select two or three atoms at a time.
 
-The following script performs the structure optimization for :mol:`H_2O`: :download:`h2o_opt.py`.
+The following script performs the structure optimization for :mol:`H_2O`:
+:download:`h2o_opt.py`.
+
 
 Atomization energies
 --------------------
@@ -126,6 +133,7 @@ H atoms, and calculate the atomization energy of :mol:`H_2O`.
 
 The following script calculates the atomization energy for :mol:`H_2O`:
 :download:`h2o.py</tutorialsexercises/basics/representation/h2o.py>`.
+
 
 Exchange and correlation functionals
 ------------------------------------

@@ -1,4 +1,4 @@
-# creates: h2.gpaw.traj
+# creates: h2.traj
 from ase import Atoms
 from gpaw.calculator import GPAW
 from ase.optimize import QuasiNewton
@@ -15,5 +15,5 @@ atoms.center()
 calc = GPAW(mode='pw', txt='h2.txt')
 atoms.calc = calc
 
-opt = QuasiNewton(atoms, trajectory='h2.gpaw.traj')
+opt = QuasiNewton(atoms, trajectory='h2.traj')
 opt.run(fmax=0.05)
