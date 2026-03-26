@@ -29,20 +29,20 @@ PARAMS = dict(
 # Initial set of 14 materials for the first bechmark-run
 # with old GPAW (version 25.7.0):
 REFERENCES0 = {
-    'Bi2Se3-3': (-8.911, -0.00074, "24_test", 46.74),
+    'Bi2Se3-3': (-8.911, -0.00074, 24, 46.74),
     'C60-0': (-530.92535, -0.4486, 24, 204.56),
     'C72-2': (-663.739, 3.4112, 24, 389.18),
-    'C2-3': (-18.19611, -0.00000, "24_test", 11.11),
+    'C2-3': (-18.19611, -0.00000, 24, 11.11),
     'Ga2F4N4H10-3': (-99.08900, 0.00013, 40, 80.28),
-    'H2-0': (-6.77477, 0.1170, "24_test", 3.78),
-    'LiC8-3': (-75.37653, 0.6415, "24_test", 32.01),
-    'Fe8-3M': (-72.37710, -0.00713, "24_test", 114.55),
+    'H2-0': (-6.77477, 0.1170, 24, 3.78),
+    'LiC8-3': (-75.37653, 0.6415, 24, 32.01),
+    'Fe8-3M': (-72.37710, -0.00713, 24, 114.55),
     'Al96-2': (-350.06299, -0.01145, 40, 1434.00),
     'Mo60S120-1': (-1291.31046, 7.2669, 56, 6239.00),
     'OPt24-2': (-153.25143, -1.6164, 40, 999.75),
-    'CrSi2As4-2M': (-38.89434, -0.1714, "24_test", 100.10),
-    'VI2-2M': (-12.965, -0.00017, "24_test", 31.65),
-    'Ti2Br6-3': (-32.64699, -0.00286, "24_test", 155.44)}
+    'CrSi2As4-2M': (-38.89434, -0.1714, 24, 100.10),
+    'VI2-2M': (-12.965, -0.00017, 24, 31.65),
+    'Ti2Br6-3': (-32.64699, -0.00286, 24, 155.44)}
 
 RESCALE_FACTOR = 1.0
 
@@ -109,16 +109,16 @@ def workflow(skip: list[str] | None = None) -> list:
     """MyQueue workflow."""
     from myqueue.workflow import run
     handles = []
-    for name, (_, _, cores, _) in REFERENCES.items():
+    for name, (_, _, cores, est_time) in REFERENCES.items():
         if skip and name in skip:
             continue
         tmax = '2h'
-        if cores == '24_test':
-            cores = 24
-            nodename = 'xeon24el8_test'
-            tmax = '10m'
-        elif cores == 24:
-            nodename = 'xeon24el8'
+        if cores == 24:
+            if est_time > 180:
+                nodename = 'xeon24el8'
+            else:
+                nodename = 'xeon24el8_test'
+                tmax = '10m'
         elif cores == 40:
             nodename = 'xeon40el8_clx'
             tmax = '3h'
