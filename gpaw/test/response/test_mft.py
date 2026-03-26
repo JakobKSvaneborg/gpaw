@@ -237,7 +237,7 @@ def test_Co_hcp(in_tmp_dir, gpw_files):
 
 @pytest.mark.response
 @pytest.mark.kspair
-def test_NiO_withU(in_tmp_dir):
+def test_NiO_withU(in_tmp_dir, mpi):
 
     a0 = 4.17
     a = bulk('NiO', 'rocksalt', a=a0)
@@ -252,16 +252,20 @@ def test_NiO_withU(in_tmp_dir):
             gen('Ni', xcname='LDA_X+LDA_C_PZ', write_xml=True)
             gen('O', xcname='LDA_X+LDA_C_PZ', write_xml=True)
 
-        calc = GPAW(mode=PW(400),
-                    xc=xc,
-                    setups={'Ni': ':d,4.0'},
-                    kpts={'size': (2, 2, 2), 'gamma': True},
-                    occupations=FermiDirac(0.001),
-                    parallel=dict(domain=1))
-        
+        calc = mpi.GPAW(mode=PW(400),
+                        xc=xc,
+                        setups={'Ni': ':d,4.0'},
+                        kpts={'size': (2, 2, 2), 'gamma': True},
+                        occupations=FermiDirac(0.001),
+                        convergence={'density': 1e-5},
+                        mixer={'method': 'difference',
+                               'beta': 0.05,
+                               'weight': 50},
+                        parallel=dict(domain=1))
+
         a.calc = calc
         a.get_potential_energy()
-        
+
         # q-points and atomic sites
         q_qc = np.array([[0, 0, 0], [0, 0, 0.5], [0, 0.5, 0.5]])
         context = ResponseContext(txt='mft_nio.txt')
@@ -269,7 +273,7 @@ def test_NiO_withU(in_tmp_dir):
         _, r_a = get_site_radii_range(gs)
         sites = AtomicSites(indices=[0], radii=[[r_a[0]]])
         m = a.get_magnetic_moment()
-        
+
         # Do the mft calculation
         jcalc = HeisenbergExchangeCalculator(gs, sites, context=context)
         J_q = np.array([jcalc(q_c).array[..., 0]  # dimension: J_abp
