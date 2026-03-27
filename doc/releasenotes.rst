@@ -11,7 +11,7 @@ Git master branch
 :git:`master <>`.
 
 * Fixed bug in BSE code for systems without inversion symmetry.
-  Some off-diagonal elements of W_GG' were wrongly conjugated,
+  Some off-diagonal elements of `W_{GG'}` were wrongly conjugated,
   resulting in the BSE Hamiltonian not being Hermitian under
   the Tamm-Dancoff approximation.
   Systems with inversion symmetry and calculations with ``symmetry='off'``
