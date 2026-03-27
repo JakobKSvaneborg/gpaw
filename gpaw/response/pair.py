@@ -69,15 +69,20 @@ class KPointPairFactory:
         self.context = context
         assert self.gs.kd.symmetry.symmorphic
         assert self.gs.world.size == 1
-        # Cache for IBZ iFFT results: {(s, ik, n): ut_R_ibz}
-        # Multiple BZ k-points K map to the same IBZ k-point ik, so
-        # pd.ifft(psit_nG[n], ik) gives identical results for all of them.
-        # Only map_pseudo_wave (a cheap grid permutation) differs per K.
+        # Cache for IBZ iFFT results.  Multiple BZ k-points K map to the
+        # same IBZ k-point ik, so pd.ifft(psit_nG[n], ik) gives identical
+        # results for all of them.  Only map_pseudo_wave (a cheap grid
+        # permutation) differs per K.
+        #
+        # To avoid storing iFFTs for the entire IBZ (which would consume
+        # too much memory), the cache holds results for at most one
+        # (s, ik) pair at a time.  When a different IBZ k-point is
+        # requested, the cache is evicted.  This still helps because the
+        # integrator visits many BZ k-points that share the same ik in
+        # succession (K1 and K2 in a pair, and consecutive domain points
+        # that map to the same ik).
         self._ibz_ifft_cache = {}
-
-    def clear_ibz_ifft_cache(self):
-        """Clear the IBZ iFFT cache (e.g. between q-points)."""
-        self._ibz_ifft_cache.clear()
+        self._ibz_ifft_cache_key = None  # current (s, ik)
 
     @timer('Get a k-point')
     def get_k_point(self, s, K, n1, n2, blockcomm=None, pw_mode=False):
@@ -125,17 +130,23 @@ class KPointPairFactory:
         if not pw_mode:
             with self.context.timer('load wfs'):
                 psit_nG = kpt.psit_nG
+
+                # Evict cache if the IBZ k-point changed, so we only
+                # ever store iFFTs for one (s, ik) at a time.
+                sik = (s, ik)
+                if sik != self._ibz_ifft_cache_key:
+                    self._ibz_ifft_cache.clear()
+                    self._ibz_ifft_cache_key = sik
+
                 ut_nR = gs.gd.empty(nb - na, gs.dtype)
                 for n in range(na, nb):
-                    # Cache the IBZ iFFT result: pd.ifft(psit_nG[n], ik)
-                    # depends only on (s, ik, n), not on the BZ k-point K.
-                    # The symmetry rotation (map_pseudo_wave) is cheap and
-                    # K-dependent, so it's always recomputed.
-                    cache_key = (s, ik, n)
-                    ut_ibz_R = self._ibz_ifft_cache.get(cache_key)
+                    # pd.ifft(psit_nG[n], ik) depends only on (s, ik, n),
+                    # not on the BZ k-point K.  The symmetry rotation
+                    # (map_pseudo_wave) is cheap and K-dependent.
+                    ut_ibz_R = self._ibz_ifft_cache.get(n)
                     if ut_ibz_R is None:
                         ut_ibz_R = gs.pd.ifft(psit_nG[n], ik)
-                        self._ibz_ifft_cache[cache_key] = ut_ibz_R
+                        self._ibz_ifft_cache[n] = ut_ibz_R
                     ut_nR[n - na] = self.gs.ibz2bz[K].map_pseudo_wave(
                         ut_ibz_R)
         else:
