@@ -14,9 +14,9 @@ def test_exx(gpw_files):
 
 
 def test_2h():
-    h2 = molecule('H2', cell=[3, 3, 15], pbc=1)
+    h2 = molecule('H2', cell=[4.18, 4.18, 18.4, 90, 90, 120], pbc=(1, 1, 0))
     h2.center()
-    dft = DFT(h2, mode=PW(800, force_complex_dtype=True), kpts=(6, 7, 1))
+    dft = DFT(h2, mode=PW(800, force_complex_dtype=True), kpts=(14, 14, 1))
     dft.converge()
     exx = NonSelfConsistentHybridXCCalculator.from_dft_calculation(
         dft, 'EXX')
