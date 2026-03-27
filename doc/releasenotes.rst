@@ -10,6 +10,13 @@ Git master branch
 
 :git:`master <>`.
 
+* Fixed bug in BSE code for systems without inversion symmetry.
+  Some off-diagonal elements of `W_{GG'}` were wrongly conjugated,
+  resulting in the BSE Hamiltonian not being Hermitian under
+  the Tamm-Dancoff approximation.
+  Systems with inversion symmetry and calculations with ``symmetry='off'``
+  were not affected by this bug.
+
 * Minimum version requirements: Python 3.10, ASE 3.27.0.
 
 * PW and FD eigensolvers will now automatically use Scalapack for sub-space
