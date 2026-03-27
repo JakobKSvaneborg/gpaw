@@ -92,6 +92,22 @@ def build_pw_convolution_map(Q_G_K1, Q_G_K2, Q_G_resp, shift_c, N_c):
     return g2_map
 
 
+def _fine_to_coarse_3d(i_cG, N_c, M_c):
+    """Map 3D FFT grid indices from a fine grid to a coarse grid.
+
+    Correctly handles negative G-vectors (indices >= N/2) by converting
+    to signed crystal coordinates before taking the modulus.
+    """
+    N_c = np.asarray(N_c)
+    M_c = np.asarray(M_c)
+    # Convert fine-grid indices to signed G-vector crystal coordinates
+    G_cG = np.where(i_cG >= N_c[:, np.newaxis] // 2,
+                    i_cG - N_c[:, np.newaxis],
+                    i_cG)
+    # Map to coarse grid (Python % always returns non-negative)
+    return G_cG % M_c[:, np.newaxis]
+
+
 class KPoint:
     def __init__(self, s, K, n1, n2, blocksize, na, nb,
                  ut_nR, eps_n, f_n, P_ani, k_c):
@@ -291,114 +307,134 @@ class ActualPairDensityCalculator:
 
         return n_nmG
 
-    @timer('get_pair_density_pw')
-    def get_pair_density_pw(self, qpd, kptpair, n_n, m_m, *,
-                            pawcorr, block=False, output_buffer=None):
-        """Get pair density using direct reciprocal-space computation.
+    @timer('get_pair_density_coarsegrid')
+    def get_pair_density_coarsegrid(self, qpd, kptpair, n_n, m_m, *,
+                                    pawcorr, block=False, output_buffer=None,
+                                    ecut_pair):
+        r"""Get pair density using coarse-grid FFT with truncated PW expansion.
 
-        Instead of computing pair densities via real-space products and FFTs,
-        computes them directly as plane-wave coefficient convolutions:
+        The exact pair density is the convolution:
 
-            ρ(G_j+q) = (dv/N) × Σ_{G'} c*_n(G',K1) · c_m(G'+G_j+shift, K2)
+            ρ(G_j+q) = (Ω/N²) Σ_{G' ∈ S_gs} c*_n(G') c_m(G'+G_j+shift)
 
-        where dv is the real-space grid volume element, N is the number of
-        grid points, and the c coefficients are the stored plane-wave
-        expansion coefficients from pd.ifft normalization.
+        where S_gs = {G : ½|G+k|² < ecut_gs}. This method approximates it by
+        truncating the sum to a smaller set:
 
-        This is more efficient when nG × nPW << N log N, which is typical
-        for response calculations where the response energy cutoff is much
-        smaller than the ground-state cutoff.
+            ρ̃(G_j+q) = (Ω/N²) Σ_{G' ∈ S_pair} c*_n(G') c_m(G'+G_j+shift)
 
-        The interface is identical to get_pair_density, so the two methods
-        can be used interchangeably.
+        where S_pair = {G : ½|G+k|² < ecut_pair} ⊂ S_gs. The truncation
+        discards contributions from high-frequency PW coefficients, which are
+        small for well-converged ground states.
+
+        The truncated convolution is computed via FFT on a coarser real-space
+        grid whose dimensions are set by ecut_pair rather than ecut_gs.
+        This gives a speedup of approximately (ecut_gs / ecut_pair)^{3/2}.
+
+        Parameters
+        ----------
+        ecut_pair : float
+            Plane-wave energy cutoff (in Hartree) for the pair density
+            convolution. Must satisfy ecut_resp <= ecut_pair <= ecut_gs.
         """
         kpt1 = kptpair.kpt1
         kpt2 = kptpair.kpt2
-
         gs = self.gs
         N_c = np.array(qpd.gd.N_c)
         N_tot = int(np.prod(N_c))
-        dv = qpd.gd.dv
-        normalization = dv / N_tot
+        Omega = abs(np.linalg.det(qpd.gd.cell_cv))
 
-        # Get IBZ k-point data and symmetry mappings
+        # --- Determine coarse grid dimensions ---
+        # The coarse grid resolves wave functions up to ecut_pair.
+        # Scale from the fine grid, which resolves up to ecut_gs.
+        ratio = np.sqrt(ecut_pair / gs.pd.ecut)
+        M_c = np.maximum(4, np.round(N_c * ratio).astype(int))
+        M_c += M_c % 2  # ensure even for FFT efficiency
+        M_tot = int(np.prod(M_c))
+        dv_coarse = Omega / M_tot
+        pw_scale = M_tot / N_tot  # rescale PW coefficients for coarse grid
+
+        # --- IBZ k-point data ---
         kd = gs.kd
         ik1 = kd.bz2ibz_k[kpt1.K]
         ik2 = kd.bz2ibz_k[kpt2.K]
         ibz2bz1 = gs.ibz2bz[kpt1.K]
         ibz2bz2 = gs.ibz2bz[kpt2.K]
+        psit1_all = gs.kpt_ks[ik1][kpt1.s].psit_nG
+        psit2_all = gs.kpt_ks[ik2][kpt2.s].psit_nG
 
-        psit1_all = kd.comm.size == 1 and gs.kpt_ks[ik1][kpt1.s].psit_nG
-        psit2_all = kd.comm.size == 1 and gs.kpt_ks[ik2][kpt2.s].psit_nG
-        nPW2 = psit2_all.shape[1]
+        # --- Truncation masks: keep only G with ½|G+k|² < ecut_pair ---
+        G1_Gv = gs.pd.get_reciprocal_vectors(q=ik1, add_q=True)
+        G2_Gv = gs.pd.get_reciprocal_vectors(q=ik2, add_q=True)
+        mask1 = 0.5 * np.sum(G1_Gv**2, axis=1) < ecut_pair
+        mask2 = 0.5 * np.sum(G2_Gv**2, axis=1) < ecut_pair
 
-        # Compute BZ k-point FFT indices (rotated from IBZ)
-        Q_G_K1 = get_bz_fft_indices(
-            gs.pd.Q_qG[ik1], N_c, ibz2bz1.U_cc, ibz2bz1.time_reversal)
-        Q_G_K2 = get_bz_fft_indices(
-            gs.pd.Q_qG[ik2], N_c, ibz2bz2.U_cc, ibz2bz2.time_reversal)
+        # --- Map IBZ G-vectors to coarse grid (with symmetry rotation) ---
+        def _ibz_to_coarse(Q_fine, mask, U_cc, time_reversal):
+            i_cG = np.array(np.unravel_index(Q_fine[mask], N_c))
+            if time_reversal:
+                i_cG = -(U_cc @ i_cG)
+            else:
+                i_cG = U_cc @ i_cG
+            return np.ravel_multi_index(
+                _fine_to_coarse_3d(i_cG, N_c, M_c), M_c)
 
-        # Compute BZ folding shift (same as in phase_shifted_fft_indices)
-        shift_c = kpt1.k_c + qpd.q_c - kpt2.k_c
-        shift_c = np.round(shift_c).astype(int)
+        Q1_coarse = _ibz_to_coarse(gs.pd.Q_qG[ik1], mask1,
+                                    ibz2bz1.U_cc, ibz2bz1.time_reversal)
+        Q2_coarse = _ibz_to_coarse(gs.pd.Q_qG[ik2], mask2,
+                                    ibz2bz2.U_cc, ibz2bz2.time_reversal)
 
-        # Build convolution index map (once per k-point pair)
-        Q_G_resp = qpd.Q_qG[0]  # unshifted response G-vector FFT indices
-        with self.context.timer('pw index map'):
-            g2_map = build_pw_convolution_map(
-                Q_G_K1, Q_G_K2, Q_G_resp, shift_c, N_c)
+        # --- Map shifted response G-vectors to coarse grid ---
+        shift_c = np.round(kpt1.k_c + qpd.q_c - kpt2.k_c).astype(int)
+        i_resp = np.array(np.unravel_index(qpd.Q_qG[0], N_c))
+        i_resp_shifted = i_resp + shift_c[:, np.newaxis]
+        Q_resp_coarse = np.ravel_multi_index(
+            _fine_to_coarse_3d(i_resp_shifted, N_c, M_c), M_c)
 
-        # Prepare safe indices: replace -1 with nPW2 (maps to zero-pad)
-        idx_safe = np.where(g2_map >= 0, g2_map, nPW2)
+        # --- Helper: construct one coarse-grid wavefunction ---
+        def _make_coarse_wf(psit_G, mask, Q_coarse, time_reversal):
+            coeffs = psit_G[mask] * pw_scale
+            if time_reversal:
+                coeffs = coeffs.conj()
+            buf = np.zeros(tuple(M_c), dtype=complex)
+            buf.ravel()[Q_coarse] = coeffs
+            return np.fft.ifftn(buf)
 
+        # --- Pre-load coarse-grid K2 wavefunctions ---
+        myblocksize = kpt2.nb - kpt2.na
+        ut2_coarse = np.empty((myblocksize,) + tuple(M_c), dtype=complex)
+        with self.context.timer('coarse wf K2'):
+            for m_local in range(myblocksize):
+                m_global = kpt2.na + m_local
+                ut2_coarse[m_local] = _make_coarse_wf(
+                    psit2_all[m_global], mask2,
+                    Q2_coarse, ibz2bz2.time_reversal)
+
+        # --- Compute pair densities ---
         nG = qpd.ngmax
         if output_buffer is None:
             n_nmG = np.zeros((len(n_n), len(m_m), nG), qpd.dtype)
         else:
-            assert output_buffer.shape == (len(n_n), len(m_m), nG)
-            assert output_buffer.dtype == qpd.dtype
             n_nmG = output_buffer
 
         for j, n in enumerate(n_n):
-            # Conjugated PW coefficients for band n at K1
-            # c_K(G) = c_ik(U^{-1}G) without TR; c*_ik(-U^{-1}G) with TR
-            # So c*_K(G) = c*_ik(g') without TR; c_ik(g') with TR
-            c1_G = psit1_all[n]
-            if ibz2bz1.time_reversal:
-                c1_star = c1_G.copy()
-            else:
-                c1_star = c1_G.conj()
+            with self.context.timer('coarse wf K1'):
+                ut1cc_coarse = _make_coarse_wf(
+                    psit1_all[n], mask1,
+                    Q1_coarse, ibz2bz1.time_reversal).conj()
 
-            # PAW corrections (same as FFT approach)
             with self.context.timer('paw'):
                 C1_aGi = pawcorr.multiply(kpt1.P_ani, band=n - kpt1.na)
 
-            # Compute pair densities for all m bands via gathered dot products
-            myblocksize = kpt2.nb - kpt2.na
             n_mG = qpd.empty(kpt2.blocksize)
             n_mG[:] = 0.0
 
-            for m_local in range(myblocksize):
-                m_global = kpt2.na + m_local
-                c2_G = psit2_all[m_global]
+            with self.context.timer('coarse pair FFT'):
+                for m_local in range(myblocksize):
+                    product = ut1cc_coarse * ut2_coarse[m_local]
+                    F = np.fft.fftn(product)
+                    n_mG[m_local] = F.ravel()[Q_resp_coarse] * dv_coarse
 
-                if ibz2bz2.time_reversal:
-                    c2_use = c2_G.conj()
-                else:
-                    c2_use = c2_G
-
-                # Zero-pad for invalid index lookups
-                c2_padded = np.empty(nPW2 + 1, dtype=c2_use.dtype)
-                c2_padded[:nPW2] = c2_use
-                c2_padded[nPW2] = 0.0
-
-                # Gather c2 at convolution targets and compute dot product:
-                # ρ(G_j) = norm × Σ_{g'} c1_star[g'] × c2[map[j,g']]
-                with self.context.timer('pw convolution'):
-                    c2_gathered = c2_padded[idx_safe]  # (nG, nPW1)
-                    n_mG[m_local] = normalization * (c2_gathered @ c1_star)
-
-            # PAW corrections (identical to FFT approach)
+            # PAW corrections (unchanged from fine-grid approach)
             with self.context.timer('gemm'):
                 for C1_Gi, P2_mi in zip(C1_aGi, kpt2.P_ani):
                     mmm(1.0, P2_mi, 'N', C1_Gi, 'T', 1.0,

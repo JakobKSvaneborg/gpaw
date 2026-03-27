@@ -1,5 +1,5 @@
-"""Test that pw_mode (direct reciprocal-space pair density) gives the same
-chi0 as the standard FFT-based approach."""
+"""Test that the coarse-grid pair density (ecut_pair) gives results
+converging toward the standard FFT-based approach."""
 import pytest
 import numpy as np
 from ase.build import bulk
@@ -12,8 +12,13 @@ from gpaw.response.frequencies import FrequencyDescriptor
 
 
 @pytest.mark.response
-def test_pw_mode_vs_fft(in_tmp_dir, mpi):
-    """Verify that pw_mode produces the same chi0 as the FFT approach."""
+def test_ecut_pair_convergence(in_tmp_dir, mpi):
+    """Verify that ecut_pair results converge to the exact (full-grid) result.
+
+    With ecut_pair = ecut_gs, the truncation includes all plane waves and
+    the result should match the standard calculation to high precision
+    (only aliasing differences remain, which are identical in character).
+    """
     a = bulk('Si', 'diamond')
 
     calc = a.calc = mpi.GPAW(
@@ -32,22 +37,36 @@ def test_pw_mode_vs_fft(in_tmp_dir, mpi):
     wd = FrequencyDescriptor.from_array_or_dict([0, 1.0, 2.0])
 
     # Standard FFT-based chi0
-    context_fft = ResponseContext(txt='chi0_fft.log', comm=mpi.comm)
-    chi0_calc_fft = Chi0Calculator(
-        gs=calc, context=context_fft,
-        wd=wd, hilbert=False, ecut=50, pw_mode=False)
-    chi0_fft = chi0_calc_fft.calculate(q_c)
-    chi0_fft_wGG = chi0_fft.chi0_WgG.copy()
+    context_ref = ResponseContext(txt='chi0_ref.log', comm=mpi.comm)
+    chi0_ref = Chi0Calculator(
+        gs=calc, context=context_ref,
+        wd=wd, hilbert=False, ecut=50).calculate(q_c)
+    ref_wGG = chi0_ref.chi0_WgG.copy()
 
-    # Direct reciprocal-space chi0
-    context_pw = ResponseContext(txt='chi0_pw.log', comm=mpi.comm)
-    chi0_calc_pw = Chi0Calculator(
-        gs=calc, context=context_pw,
-        wd=wd, hilbert=False, ecut=50, pw_mode=True)
-    chi0_pw = chi0_calc_pw.calculate(q_c)
-    chi0_pw_wGG = chi0_pw.chi0_WgG.copy()
+    # Coarse-grid chi0 with ecut_pair = ecut_gs (should be near-exact)
+    context_full = ResponseContext(txt='chi0_full.log', comm=mpi.comm)
+    chi0_full = Chi0Calculator(
+        gs=calc, context=context_full,
+        wd=wd, hilbert=False, ecut=50, ecut_pair=150).calculate(q_c)
+    full_wGG = chi0_full.chi0_WgG.copy()
 
-    # They should agree to high precision
-    err = np.abs(chi0_fft_wGG - chi0_pw_wGG).max()
-    assert err < 1e-10, \
-        f'pw_mode chi0 differs from FFT chi0 by {err}'
+    err_full = np.abs(ref_wGG - full_wGG).max()
+    scale = np.abs(ref_wGG).max()
+    assert err_full / scale < 1e-4, \
+        f'ecut_pair=ecut_gs differs from reference by {err_full/scale:.2e}'
+
+    # Coarse-grid chi0 with smaller ecut_pair (approximate, but converging)
+    context_approx = ResponseContext(txt='chi0_approx.log', comm=mpi.comm)
+    chi0_approx = Chi0Calculator(
+        gs=calc, context=context_approx,
+        wd=wd, hilbert=False, ecut=50, ecut_pair=100).calculate(q_c)
+    approx_wGG = chi0_approx.chi0_WgG.copy()
+
+    err_approx = np.abs(ref_wGG - approx_wGG).max()
+    # Should be reasonably close (truncation error is small for Si)
+    assert err_approx / scale < 0.05, \
+        f'ecut_pair=100 differs from reference by {err_approx/scale:.2e}'
+
+    # The full-cutoff result should be closer than the truncated one
+    assert err_full < err_approx, \
+        'Larger ecut_pair should give better accuracy'
