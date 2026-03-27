@@ -4,7 +4,7 @@ from ase.mep import NEB
 from ase.optimize import BFGS
 from gpaw.mpi import world
 
-from gpaw import GPAW
+from gpaw import GPAW, PW
 
 initial = read('initial.traj')
 final = read('final.traj')
@@ -23,10 +23,10 @@ for i in range(3):
 
     if world.rank in ranks:
 
-        calc = GPAW(mode='fd',
-                    h=0.3,
-                    kpts=(2, 2, 1),
+        calc = GPAW(mode=PW(500),
+                    kpts=(4, 4, 1),
                     txt=f'neb{j}.txt',
+                    convergence={'forces': 0.005},
                     communicator=world.new_communicator(ranks))
 
         image.calc = calc
