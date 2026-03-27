@@ -109,13 +109,17 @@ def workflow(skip: list[str] | None = None) -> list:
     """MyQueue workflow."""
     from myqueue.workflow import run
     handles = []
-    for name, (_, _, cores, _) in REFERENCES.items():
+    for name, (_, _, cores, est_time) in REFERENCES.items():
         if skip and name in skip:
             continue
         tmax = '2h'
         if cores == 24:
-            nodename = 'xeon24el8'
-        if cores == 40:
+            if est_time > 180:
+                nodename = 'xeon24el8'
+            else:
+                nodename = 'xeon24el8_test'
+                tmax = '10m'
+        elif cores == 40:
             nodename = 'xeon40el8_clx'
             tmax = '3h'
         elif cores == 56:
