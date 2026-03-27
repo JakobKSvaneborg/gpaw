@@ -99,7 +99,7 @@ Overview:
         * ``symmetries``
         * ``bz``
 
-      * ``wfs_qs[q][s]``:
+      * ``_wfs_u[u]``:
 
         * ``psit_nX``
         * ``occ_n``
@@ -188,14 +188,14 @@ Examples:
   * - ``density.nt_sR``
     - `\tilde{n}_\sigma(\mathbf{r})`
     - :class:`~UGArray`
-  * - ``ibzwfs.wfs_qs[q][s].P_ani``
+  * - ``ibzwfs._wfs_u[u].P_ani``
     - `P_{\sigma \mathbf{k} ni}^a`
     - :class:`~atom_arrays.AtomArrays`
-  * - ``ibzwfs.wfs_qs[q][s].psit_nX``
+  * - ``ibzwfs._wfs_u[u].psit_nX``
     - `\tilde{\psi}_{\sigma \mathbf{k} n}(\mathbf{r})`
     - :class:`~UGArray` |
       :class:`~PWArray`
-  * - ``ibzwfs.wfs_qs[q][s].pt_aX``
+  * - ``ibzwfs._wfs_u[u].pt_aX``
     - `\tilde{p}_{\sigma \mathbf{k} i}^a(\mathbf{r}-\mathbf{R}^a)`
     - :class:`~atom_centered_functions.AtomCenteredFunctions`
 
@@ -253,7 +253,7 @@ grid:
 >>> pw = PWDesc(ecut=100, cell=grid.cell)
 >>> func_G = pw.empty()
 >>> func_R.fft(out=func_G)
-PWArray(pw=PWDesc(ecut=100 <coefs=1536/1536>, cell=[4.0, 4.0, 4.0], pbc=[True, True, True], comm=0/1, dtype=float64), dims=())
+PWArray(pw=PWDesc(ecut=100 <coefs=1536/1536>, cell=[4.0, 4.0, 4.0], pbc=[1, 1, 1], comm=0/1, dtype=float64), dims=())
 >>> G = pw.reciprocal_vectors()
 >>> G.shape
 (1536, 3)
@@ -262,7 +262,7 @@ array([0., 0., 0.])
 >>> func_G.data[0]
 np.complex128(1+0j)
 >>> func_G.ifft(out=func_R)
-UGArray(grid=UGDesc(size=[20, 20, 20], cell=[4.0, 4.0, 4.0], pbc=[True, True, True], comm=0/1, dtype=float64), dims=())
+UGArray(grid=UGDesc(size=[20, 20, 20], cell=[4.0, 4.0, 4.0], pbc=[1, 1, 1], comm=0/1, dtype=float64), dims=())
 >>> round(func_R.data[0, 0, 0], 15)
 np.float64(1.0)
 
@@ -281,7 +281,7 @@ Atoms-arrays
 ============
 
 As an example, here is how to store the PAW atomic density-matrices for
-a water molcule
+a water molecule
 (:math:`D_{\sigma,i_1,i_2}^a`):
 
 .. code-block:: python
@@ -393,7 +393,7 @@ Core
 .. autoclass:: gpaw.core.UGArray
     :members:
     :undoc-members:
-.. autoclass:: gpaw.core.arrays.DistributedArrays
+.. autoclass:: gpaw.core.arrays.XArray
     :members:
     :undoc-members:
 .. autoclass:: gpaw.core.atom_arrays.AtomArrays

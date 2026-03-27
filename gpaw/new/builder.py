@@ -1,14 +1,17 @@
 from __future__ import annotations
+
+import warnings
 from functools import cached_property
 from types import ModuleType, SimpleNamespace
-from typing import Any, TYPE_CHECKING
-import warnings
+from typing import TYPE_CHECKING, Any
+
 import numpy as np
-from gpaw import GPAW_USE_GPUS, GPAW_CPUPY
 from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
 from ase.geometry.cell import cell_to_cellpar
 from ase.units import Bohr
+
+from gpaw import GPAW_CPUPY, GPAW_USE_GPUS
 from gpaw.core import UGDesc
 from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
                                    AtomDistribution)
@@ -17,8 +20,8 @@ from gpaw.gpu import cpupy as fake_cupy
 from gpaw.gpu.mpi import CuPyMPI
 from gpaw.lfc import BasisFunctions
 from gpaw.mixer import MixerWrapper, get_mixer_from_keywords
-from gpaw.mpi import (MPIComm, Parallelization, broadcast, serial_comm,
-                      synchronize_atoms, world)
+from gpaw.mpi import (MPIComm, Parallelization, broadcast,
+                      normalize_communicator, serial_comm, synchronize_atoms)
 from gpaw.new import prod
 from gpaw.new.basis import create_basis
 from gpaw.new.brillouin import BZPoints, MonkhorstPackKPoints
@@ -33,6 +36,7 @@ from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.typing import Array2D, ArrayLike1D, ArrayLike2D, DTypeLike
 from gpaw.utilities.gpts import get_number_of_grid_points
+
 if TYPE_CHECKING:
     from gpaw.dft import Parameters
 
@@ -43,7 +47,8 @@ class DFTComponentsBuilder:
                  params: Parameters,
                  *,
                  log=None,
-                 comm=None):
+                 comm=None,
+                 world=None):
         from gpaw.gpu import set_device
 
         self.atoms = atoms.copy()
@@ -53,11 +58,17 @@ class DFTComponentsBuilder:
             log = Logger(log, comm)
 
         self.log = log
-        comm = log.comm
+        if comm is None:
+            comm = log.comm
+        else:
+            assert comm.size == log.comm.size
 
         parallel = params.parallel
         if self.gpu:
-            set_device(log)
+            # XXX We should not be setting globals inside library code.
+            # It should probably be set by main().
+            world = normalize_communicator(world)
+            set_device(log, world)
 
         synchronize_atoms(atoms, comm)
         self.check_cell(atoms.cell)
@@ -116,11 +127,18 @@ class DFTComponentsBuilder:
             comm=comm,
             use_time_reversal=use_time_reversal)
 
-        d = parallel.get('domain', 1 if xcfunc.type == 'HYB' else None)
+        d = parallel.get('domain', None)
         k = parallel.get('kpt', None)
         b = parallel.get('band', None)
-        self.communicators = create_communicators(comm, len(self.ibz),
-                                                  d, k, b, self.xp)
+        self.communicators = create_communicators(
+            comm, len(self.ibz) * self.nspins,
+            d, k, b, self.xp)
+        k = self.communicators['k'].size
+        if len(self.ibz) * self.nspins < k:
+            raise ValueError(
+                f'Too few spins ({self.nspins}) '
+                f'and IBZ k-points ({len(self.ibz)}) '
+                f'for {k} ranks')
 
         if self.mode == 'fd':
             pass  # filter = create_fourier_filter(grid)
@@ -135,7 +153,7 @@ class DFTComponentsBuilder:
             self.nbands *= 2
 
         self.dtype: DTypeLike
-        if params.mode.dtype is None:
+        if params.mode.dtype == 'double':
             if self.params.mode.force_complex_dtype:
                 self.dtype = complex
             else:
@@ -143,8 +161,16 @@ class DFTComponentsBuilder:
                     self.dtype = float
                 else:
                     self.dtype = complex
+        elif params.mode.dtype == 'single':
+            if self.params.mode.force_complex_dtype:
+                self.dtype = np.complex64
+            else:
+                if self.ibz.bz.gamma_only and self.ncomponents < 4:
+                    self.dtype = np.float32
+                else:
+                    self.dtype = np.complex64
         else:
-            self.dtype = params.mode.dtype
+            raise ValueError(f'Unknown dtype {params.mode.dtype}')
 
         self.grid, self.fine_grid = self.create_uniform_grids()
 
@@ -187,12 +213,12 @@ class DFTComponentsBuilder:
             a, b, c = angles
             warnings.warn(
                 'The angles between your unit-cell vectors are '
-                f'{a:.1}, {b:.1} and {c:.1} degrees.  '
+                f'{a:.1f}, {b:.1f} and {c:.1f} degrees.  '
                 'Results may be wrong!  '
-                'Please Niggli-reduce your unit-cell so that the angle '
+                'Please Niggli-reduce your unit-cell so that the angles '
                 'are closer to 90 degrees:\n\n'
                 '  from ase.build import niggli_reduce\n'
-                '  nigli_reduce(atoms)\n')
+                '  niggli_reduce(atoms)\n')
 
     @cached_property
     def wf_desc(self) -> Domain:
@@ -216,7 +242,7 @@ class DFTComponentsBuilder:
                     f'GPU calculation is requested via {parallel_source}, '
                     'but the requisite CuPy library is not found; '
                     'please set GPAW_CPUPY=1 if you really want to do "GPU" '
-                    'calculations with GPAW\'s fake CuPy library '
+                    "calculations with GPAW's fake CuPy library "
                     '(gpaw.gpu.cpupy)')
             return True
         return False
@@ -241,17 +267,20 @@ class DFTComponentsBuilder:
         raise NotImplementedError
 
     def create_basis_set(self):
-        return create_basis(self.ibz,
-                            self.ncomponents % 3,
-                            self.atoms.pbc,
-                            self.grid,
-                            self.setups,
-                            self.dtype,
-                            self.relpos_ac,
-                            self.communicators['w'],
-                            self.communicators['k'],
-                            self.communicators['b'],
-                            self.xp)
+        return create_basis(
+            self.ibz,
+            self.ncomponents % 3,
+            self.atoms.pbc,
+            self.grid,
+            self.setups,
+            self.dtype,
+            self.relpos_ac,
+            self.communicators['w'],
+            self.communicators['k'],
+            self.communicators['b'],
+            self.xp,
+            gpu_add_and_integrate=False,
+            new_basis=self.params.experimental.get('new_basis', False))
 
     def density_from_superposition(self, basis_set):
         return Density.from_superposition(
@@ -359,7 +388,7 @@ class DFTComponentsBuilder:
                 dims = [self.nbands, 2]
                 index = (wfs.k,)
 
-            wfs._eig_n = eig_skn[index] / ha
+            wfs.eig_n = eig_skn[index] / ha
             wfs._occ_n = occ_skn[index]
             layout = AtomArraysLayout([(setup.ni,) for setup in self.setups],
                                       atomdist=self.atomdist,
@@ -395,13 +424,13 @@ class DFTComponentsBuilder:
                 [reader.occupations.fermilevel / ha])
 
 
-def create_communicators(comm: MPIComm = None,
+def create_communicators(comm: MPIComm,
                          nibzkpts: int = 1,
                          domain: int | tuple[int, int, int] | None = None,
                          kpt: int = None,
                          band: int = None,
                          xp: ModuleType = np) -> dict[str, MPIComm]:
-    parallelization = Parallelization(comm or world, nibzkpts)
+    parallelization = Parallelization(comm, nibzkpts)
     if domain is not None and not isinstance(domain, int):
         domain = prod(domain)
     parallelization.set(kpt=kpt,

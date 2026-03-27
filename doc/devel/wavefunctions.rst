@@ -19,5 +19,5 @@ Wave functions
 .. autoclass:: gpaw.old.kpoint.KPoint
    :members:
 
-.. autoclass:: gpaw.eigensolvers.eigensolver.Eigensolver
+.. autoclass:: gpaw.old.eigensolvers.eigensolver.Eigensolver
    :members:

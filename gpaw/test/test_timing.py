@@ -1,13 +1,14 @@
 # Copyright (C) 2003  CAMP
 # Please see the accompanying LICENSE file for further information.
-from gpaw.old.grid_descriptor import GridDescriptor
-from gpaw.transformers import Transformer
 from time import perf_counter as clock
 
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.transformers import Transformer
 
-def test_timing():
+
+def test_timing(mpi):
     n = 6
-    gda = GridDescriptor((n, n, n))
+    gda = GridDescriptor((n, n, n), comm=mpi.comm)
     gdb = gda.refine()
     gdc = gdb.refine()
     a = gda.zeros()

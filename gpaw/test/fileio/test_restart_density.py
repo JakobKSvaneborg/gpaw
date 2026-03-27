@@ -1,5 +1,4 @@
 import numpy as np
-from gpaw import GPAW, restart
 import pytest
 from ase.io.ulm import ulmopen
 
@@ -24,8 +23,8 @@ def get_restart_test_values(calc, skip_forces):
     return e, f, m, eig0, eig1
 
 
-def test_fileio_restart_density(in_tmp_dir, gpw_files):
-    calc = GPAW(gpw_files['na3_fd_density_restart'])
+def test_fileio_restart_density(in_tmp_dir, gpw_files, mpi):
+    calc = mpi.GPAW(gpw_files['na3_fd_density_restart'])
 
     # We don't care about forces working for new GPAW reading old gpw-file
     skip_forces = (not calc.old and
@@ -36,7 +35,7 @@ def test_fileio_restart_density(in_tmp_dir, gpw_files):
     calc.write('tmp.gpw')
 
     # Try restarting from all the files
-    atoms, calc = restart('tmp.gpw')
+    atoms, calc = mpi.restart('tmp.gpw')
     e1, f1, m1, eig10, eig11 = get_restart_test_values(calc, skip_forces)
 
     print(e0, e1)

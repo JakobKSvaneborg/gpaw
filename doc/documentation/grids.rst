@@ -32,9 +32,6 @@ Here the wave functions are exactly zero at *x*\ =0 Å and *x*\ =\ *L*,
 and only the non-zero values are stored in 7x7x7 grids (grid points
 numbered from 0 to 6).
 
-
-Update this XXX how about padding?
-
 An example:
 
 >>> L = 2.0

@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 import numpy as np
-
 from ase.units import Ha
 
 from gpaw.old.pw.descriptor import PWMapping
-
-from gpaw.response.pw_parallelization import (Blocks1D,
-                                              PlaneWaveBlockDistributor)
-from gpaw.response.frequencies import (FrequencyDescriptor,
-                                       ComplexFrequencyDescriptor)
+from gpaw.response.frequencies import (ComplexFrequencyDescriptor,
+                                       FrequencyDescriptor)
 from gpaw.response.pair_functions import (SingleQPWDescriptor,
                                           map_ZgG_array_to_reduced_pd)
+from gpaw.response.pw_parallelization import (Blocks1D,
+                                              PlaneWaveBlockDistributor)
 
 
 class Chi0RelatedData:
@@ -69,6 +67,17 @@ class Chi0BodyData(Chi0RelatedData):
     def get_distributed_frequencies_blocks1d(self):
         """Get Blocks1D for the global frequency distribution."""
         return Blocks1D(self.blockdist.world, len(self.wd))
+
+    def array_with_distribution(self, distribution):
+        """Return the data in a desired distribution.
+
+        Parameters
+        ----------
+        distribution: str
+            Array distribution. Choices: 'wGG' and 'WgG'
+        """
+        return self.blockdist.distribute_as(self.data_WgG, self.nw,
+                                            distribution)
 
     def copy_array_with_distribution(self, distribution):
         """Copy data to a new array of a desired distribution.

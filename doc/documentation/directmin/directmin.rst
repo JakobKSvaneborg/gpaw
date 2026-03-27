@@ -10,7 +10,7 @@ avoiding density mixing and diagonalization of the Kohn-Sham Hamiltonian matrix.
 PW and FD mode
 --------------
 
-The energy is minimized w.r.t. orbitals subject to orthonomality constraints
+The energy is minimized w.r.t. orbitals subject to orthonormality constraints
 
 .. math:: E_0 = \min_{{\bf\Psi} {\bf \Psi^\dagger} = I} E[{\bf\Psi}].
 
@@ -20,7 +20,7 @@ Orbitals are updated at each step according to iteratives:
 
 where search direction, :math:`{\bf V}^{(k)}`, is calculated according to L-BFGS algorithm
 and projected on the tangent space to orbitals. After each iteration
-orthonormalization procedure is applied to satify orthonormality constriants.
+orthonormalization procedure is applied to satisfy orthonormality constraints.
 For details of the implementation see Ref. [#Ivanov2021pwfd]_
 
 Example
@@ -30,7 +30,13 @@ Example
 
 If you want to converge the unoccupied orbitals too then set:
 
-* ``converge_unocc=True``.
+* ``converge_unocc=True``
+
+.. warning::
+
+   The use of ``converge_unocc=True`` is **not recommended**, as it may lead
+   to incorrect results.  
+   It is safer to always keep ``converge_unocc=False``.
 
 LCAO mode
 ----------
@@ -63,7 +69,7 @@ the exponential of a skew-hermitian matrix `A`:
 
 .. math:: U = \exp(A)
 
-This parametrisation is advantageous since the orthonormality
+This parametrization is advantageous since the orthonormality
 constraints are automatically satisfied:
 
 .. math:: UU^{\dagger} = \exp(A)\exp(A^{\dagger}) = \exp(A)\exp(-A) = I

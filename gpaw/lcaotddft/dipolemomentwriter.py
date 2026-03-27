@@ -1,11 +1,9 @@
 import re
 
 import numpy as np
-
 from ase.utils import IOContext
 
 from gpaw.lcaotddft.magneticmomentwriter import parse_header
-
 from gpaw.lcaotddft.observer import TDDFTObserver
 
 
@@ -64,7 +62,7 @@ class DipoleMomentWriter(TDDFTObserver):
                  density: str = 'comp',
                  force_new_file: bool = False,
                  interval: int = 1):
-        TDDFTObserver.__init__(self, paw, interval)
+        super().__init__(paw, interval)
         self.ioctx = IOContext()
         if paw.niter == 0 or force_new_file:
             # Initialize
@@ -149,8 +147,6 @@ class DipoleMomentWriter(TDDFTObserver):
         norm = gd.integrate(rho_g)
         # dm = self.calculate_dipole_moment(gd, rho_g, center=self.do_center)
         dm = gd.calculate_dipole_moment(rho_g, center=self.do_center)
-        if paw.hamiltonian.poisson.get_description() == 'FDTD+TDDFT':  # XXX
-            dm += paw.hamiltonian.poisson.get_classical_dipole_moment()
         line = ('%20.8lf %20.8le %22.12le %22.12le %22.12le\n' %
                 (time, norm, dm[0], dm[1], dm[2]))
         self._write(line)

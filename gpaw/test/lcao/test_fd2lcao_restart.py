@@ -7,6 +7,7 @@ from ase import Atom, Atoms
 from gpaw import GPAW, FermiDirac, restart
 
 
+@pytest.mark.hmm
 @pytest.mark.old_gpaw_only
 def test_lcao_fd2lcao_restart(in_tmp_dir):
     energy_tolerance = 0.001
@@ -39,6 +40,7 @@ def test_lcao_fd2lcao_restart(in_tmp_dir):
     if os.path.isfile('Na4_fd.gpw'):
         # LCAO calculation based on grid kpts calculation
         atoms, calc = restart('Na4_fd.gpw',
+                              legacy_gpaw=True,
                               # basis='dzp',
                               mode='lcao',
                               txt='Na4_lcao.txt')

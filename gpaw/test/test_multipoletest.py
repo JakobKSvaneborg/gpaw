@@ -1,11 +1,11 @@
-from math import sqrt, pi
+from math import pi, sqrt
 
 import numpy as np
 import pytest
 
-from gpaw.setup import create_setup
-from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.lfc import LFC
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.setup import create_setup
 from gpaw.xc import XC
 
 n = 60  # 40 /8 * 10
@@ -13,8 +13,8 @@ a = 10.0
 
 
 @pytest.mark.ci
-def test_multipole():
-    gd = GridDescriptor((n, n, n), (a, a, a))
+def test_multipole(mpi):
+    gd = GridDescriptor((n, n, n), (a, a, a), comm=mpi.comm)
     c_LL = np.identity(9, float)
     a_Lg = gd.zeros(9)
     xc = XC('LDA')

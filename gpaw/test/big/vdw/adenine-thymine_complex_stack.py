@@ -29,15 +29,16 @@ for molecule in ['Adenine-thymine_complex_stack']:
     assert len(ss) == len(s1) + len(s2)
     calc_params = dict(mode='fd', h=h, nbands=-6,
                        occupations=FermiDirac(width=0.1), txt=None)
-    c = GPAW(**calc_params, xc='PBE')
-    cdf = GPAW(**calc_params, xc='vdW-DF')
+    c = GPAW(**calc_params, xc='PBE', legacy_gpaw=True)
+    cdf = GPAW(**calc_params, xc='vdW-DF', legacy_gpaw=True)
 
     for s in [s1, s2, ss]:
         s.calc = c
         adjust_cell(s, box, h=h)
         Energy['PBE'].append(s.get_potential_energy())
-        cc = vdWTkatchenko09prl(HirshfeldPartitioning(c),
-                                vdWradii(s.get_chemical_symbols(), 'PBE'))
+        cc = vdWTkatchenko09prl(
+            HirshfeldPartitioning(c),
+            vdWradii(s.get_chemical_symbols(), 'PBE', world=c.world))
         s.calc = cc
         Energy['TS09'].append(s.get_potential_energy())
 

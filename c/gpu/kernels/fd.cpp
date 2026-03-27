@@ -1,3 +1,7 @@
+#include "gpu/gpu.h"
+#include "gpu/gpu-complex.h"
+#include "gpu/bmgs.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -6,9 +10,7 @@
 #include <float.h>
 #include <sys/types.h>
 #include <sys/time.h>
-
-#include "../gpu.h"
-#include "../gpu-complex.h"
+#include <cassert>
 
 #undef MYJ_X
 #undef NDOUBLE
@@ -445,14 +447,6 @@ __global__ void FD_kernel_onlyb(
 #  undef MYJ
 
 
-extern "C"
-bmgsstencil_gpu bmgs_stencil_to_gpu(const bmgsstencil* s);
-
-extern "C"
-int bmgs_fd_boundary_test(
-        const bmgsstencil_gpu* s, int boundary, int ndouble);
-
-extern "C"
 void Zgpu(bmgs_fd_gpu)(
         const bmgsstencil_gpu* s_gpu, const Tgpu* adev, Tgpu* bdev,
         int boundary, int blocks, gpuStream_t stream)
@@ -681,7 +675,6 @@ void Zgpu(bmgs_fd_gpu)(
 #define GPU_USE_COMPLEX
 #include "fd.cpp"
 
-extern "C"
 int bmgs_fd_boundary_test(const bmgsstencil_gpu* s, int boundary,
                           int ndouble)
 {
@@ -746,7 +739,6 @@ int bmgs_fd_boundary_test(const bmgsstencil_gpu* s, int boundary,
     return 1;
 }
 
-extern "C"
 bmgsstencil_gpu bmgs_stencil_to_gpu(const bmgsstencil* s)
 {
     bmgsstencil_gpu s_gpu;

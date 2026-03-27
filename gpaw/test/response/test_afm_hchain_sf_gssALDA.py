@@ -1,31 +1,29 @@
 """Simple magnons calculation in a 1D hydrogen chain."""
 
 # General modules
-import pytest
 import numpy as np
-
+import pytest
 # Script modules
 from ase import Atoms
 from ase.dft.kpoints import monkhorst_pack
 
-from gpaw import PW, GPAW
-from gpaw.mpi import world
-from gpaw.test import findpeak
-
+from gpaw import PW
 from gpaw.response import ResponseGroundStateAdapter
-from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.chiks import ChiKSCalculator
-from gpaw.response.susceptibility import ChiFactory
+from gpaw.response.context import ResponseContext
+from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.fxc_kernels import AdiabaticFXCCalculator
 from gpaw.response.goldstone import AFMGoldstoneScaling
 from gpaw.response.pair_functions import read_pair_function
+from gpaw.response.susceptibility import ChiFactory
+from gpaw.test import findpeak
 
 
 @pytest.mark.old_gpaw_only  # interpolate=3 for PW-mode not implemented!
 @pytest.mark.kspair
 @pytest.mark.response
 @pytest.mark.parametrize('from_file', [False, True])
-def test_response_afm_hchain_gssALDA(in_tmp_dir, from_file):
+def test_response_afm_hchain_gssALDA(in_tmp_dir, from_file, mpi):
     # ---------- Inputs ---------- #
 
     # Part 1: Ground state calculation
@@ -53,9 +51,9 @@ def test_response_afm_hchain_gssALDA(in_tmp_dir, from_file):
     frq_w = np.linspace(-0.6, 0.6, 41)
     eta = 0.24
     zd = ComplexFrequencyDescriptor.from_array(frq_w + 1.j * eta)
-    if world.size % 4 == 0:
+    if mpi.comm.size % 4 == 0:
         nblocks = 4
-    elif world.size % 2 == 0:
+    elif mpi.comm.size % 2 == 0:
         nblocks = 2
     else:
         nblocks = 1
@@ -72,15 +70,15 @@ def test_response_afm_hchain_gssALDA(in_tmp_dir, from_file):
     Hchain = Hatom.repeat((2, 1, 1))
     Hchain.set_initial_magnetic_moments([mm, -mm])
 
-    calc = GPAW(xc=xc,
-                mode=PW(pw,
-                        # Interpolate the density in real space
-                        interpolation=3),
-                kpts=monkhorst_pack((kpts, 1, 1)),
-                nbands=nbands + ebands,
-                convergence=conv,
-                symmetry={'point_group': True},
-                parallel={'domain': 1})
+    calc = mpi.GPAW(xc=xc,
+                    mode=PW(pw,
+                            # Interpolate the density in real space
+                            interpolation=3),
+                    kpts=monkhorst_pack((kpts, 1, 1)),
+                    nbands=nbands + ebands,
+                    convergence=conv,
+                    symmetry={'point_group': True},
+                    parallel={'domain': 1})
 
     Hchain.calc = calc
     Hchain.get_potential_energy()
@@ -92,6 +90,7 @@ def test_response_afm_hchain_gssALDA(in_tmp_dir, from_file):
     else:
         gs = ResponseGroundStateAdapter(calc)
     chiks_calc = ChiKSCalculator(gs,
+                                 context=ResponseContext(comm=mpi.comm),
                                  nbands=nbands,
                                  ecut=ecut,
                                  gammacentered=True,
@@ -112,7 +111,7 @@ def test_response_afm_hchain_gssALDA(in_tmp_dir, from_file):
         chi.write_macroscopic_component(filename)
 
     chi_factory.context.write_timer()
-    world.barrier()
+    mpi.comm.barrier()
 
     # Part 3: Identify magnon peak in finite q scattering function
     w0_w, chi0_w = read_pair_function('h-chain_macro_tms_q0.csv')

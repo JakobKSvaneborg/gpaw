@@ -1,21 +1,21 @@
-import pytest
 import numpy as np
+import pytest
 
-from gpaw.response.tool import (get_bz_transitions,
-                                get_chi0_integrand,
+from gpaw.response.tool import (get_bz_transitions, get_chi0_integrand,
                                 get_degeneracy_matrix,
                                 get_individual_transition_strengths)
 
 
 @pytest.mark.response
-def test_response_pdens_tool(in_tmp_dir, gpw_files):
+def test_response_pdens_tool(in_tmp_dir, gpw_files, mpi):
     """Calculate optical transition strengths."""
     spins = 'all'
     q_c = [0., 0., 0.]
     bzk_kc = np.array([[0., 0., 0.]])
 
     pair, qpd, domain = get_bz_transitions(
-        gpw_files['silicon_pdens_tool'], q_c, bzk_kc, spins=spins, ecut=10)
+        gpw_files['silicon_pdens_tool'], q_c, bzk_kc, spins=spins, ecut=10,
+        world=mpi.comm)
 
     nocc1, nocc2 = pair.gs.count_occupied_bands(1e-6)
     # XXX should we know 1e-6?

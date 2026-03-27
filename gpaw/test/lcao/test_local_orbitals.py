@@ -1,5 +1,6 @@
 import pytest
 from ase.build import graphene_nanoribbon, molecule
+
 from gpaw import GPAW
 from gpaw.lcao.local_orbitals import LocalOrbitals
 from gpaw.mpi import world
@@ -12,7 +13,8 @@ pytestmark = pytest.mark.skipif(world.size > 1,
 def test_gamma_point_calculation():
     atoms = molecule('C6H6', vacuum=2)
 
-    calc = GPAW(mode='lcao',
+    calc = GPAW(legacy_gpaw=True,
+                mode='lcao',
                 xc='LDA',
                 basis='szp(dzp)',
                 txt=None)
@@ -43,7 +45,8 @@ def test_k_point_calculation():
     atoms = graphene_nanoribbon(2, 1, type='zigzag', saturated=True,
                                 C_H=1.1, C_C=1.4, vacuum=2)
 
-    calc = GPAW(mode='lcao',
+    calc = GPAW(legacy_gpaw=True,
+                mode='lcao',
                 xc='LDA',
                 basis='szp(dzp)',
                 txt=None,

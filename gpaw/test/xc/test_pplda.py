@@ -1,6 +1,7 @@
-from ase import Atoms
-from gpaw import GPAW
 import numpy as np
+from ase import Atoms
+
+from gpaw import GPAW
 
 # spin paired H2
 
@@ -16,7 +17,8 @@ def test_xc_pplda():
     for xc in ['LDA', 'PPLDA']:
         calc = GPAW(nbands=-1,
                     xc=xc,
-                    convergence={'eigenstates': 1.e-9},
+                    convergence={'eigenstates': 1e-9,
+                                 'density': 1e-6},
                     txt=None,
                     mode='lcao',
                     basis='szp(dzp)',

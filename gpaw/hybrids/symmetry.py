@@ -1,9 +1,10 @@
-from math import pi
 from collections import defaultdict
+from math import pi
 
 import numpy as np
 
 from gpaw.old.kpt_descriptor import KPointDescriptor
+
 from .kpts import RSKPoint, to_real_space
 
 

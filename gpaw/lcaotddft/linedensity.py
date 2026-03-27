@@ -1,6 +1,5 @@
-import numpy as np
-
 import ase.io.ulm as ulm
+import numpy as np
 
 from gpaw.io import Writer
 from gpaw.lcaotddft.observer import TDDFTObserver
@@ -52,7 +51,7 @@ class LineDensityWriter(TDDFTObserver):
     ulmtag = 'LineDensity'
 
     def __init__(self, paw, filename, c=0, density_type='comp', interval=1):
-        TDDFTObserver.__init__(self, paw, interval)
+        super().__init__(paw, interval)
         if paw.niter == 0:
             self.density_type = density_type
             self.c = c

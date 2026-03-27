@@ -71,6 +71,9 @@ class LibXC(XCKernel):
         self.xc = cgpaw.lxcXCFunctional(xc, x, c, nspins)
         self.set_omega()
 
+        if self.xc.vv10():
+            raise NotImplementedError('(r)VV10 correlation is not implemented')
+
         if self.xc.is_mgga():
             self.type = 'MGGA'
             if self.disable_fhc:

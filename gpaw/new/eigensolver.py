@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import numpy as np
-
 from ase.units import Ha
 
+from gpaw.mpi import broadcast_float
 from gpaw.new.density import Density
-from gpaw.new.hamiltonian import Hamiltonian
-from gpaw.new.potential import Potential
 from gpaw.new.energies import DFTEnergies
+from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pot_calc import PotentialCalculator
-from gpaw.mpi import broadcast_float
+from gpaw.new.potential import Potential
 from gpaw.typing import Array1D
 
 
@@ -26,17 +25,18 @@ class Eigensolver:
                 energies: DFTEnergies) -> tuple[float, float, DFTEnergies]:
         raise NotImplementedError
 
-    def postprocess(self, ibzwfs, density, potential, hamiltonian):
+    def postprocess(self, ibzwfs, density, potential, hamiltonian,
+                    maxiter, cc, log):
         pass
 
-    def iterate_kpt(self, wfs, weight_n, iter_func, **fkwargs):
+    def iterate_kpt(self, wfs, weight_n, iter_func, **kwargs):
         had_eigs_and_occs = wfs.has_eigs and wfs.has_occs
         if had_eigs_and_occs:
             eig_old = wfs.myeig_n
-        eigs_error = iter_func(wfs=wfs, weight_n=weight_n, **fkwargs)
+        eigs_error = iter_func(wfs=wfs, weight_n=weight_n, **kwargs)
         if had_eigs_and_occs:
             eig_error = np.max(weight_n * np.abs(eig_old - wfs.myeig_n),
-                               initial=0)
+                               initial=0.0)
         else:  # no eigenvalues to compare with
             eig_error = np.inf
         return eigs_error, eig_error
@@ -46,7 +46,7 @@ def calculate_weights(converge_bands: int | str,
                       ibzwfs: IBZWaveFunctions) -> list[Array1D | None]:
     """Calculate convergence weights for all eigenstates."""
     weight_un = []
-    nu = len(ibzwfs.wfs_qs) * ibzwfs.nspins
+    nu = len(ibzwfs._wfs_u)
     nbands = ibzwfs.nbands
 
     if converge_bands == 'occupied':

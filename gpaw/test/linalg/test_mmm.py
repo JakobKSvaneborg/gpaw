@@ -1,5 +1,6 @@
 """Test BLAS matrix-matrix-multiplication interface."""
 import numpy as np
+
 from gpaw.utilities.blas import mmm
 
 

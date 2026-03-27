@@ -1,9 +1,10 @@
 import pytest
 from ase import Atom, Atoms
+
 from gpaw import GPAW, FermiDirac
 
 
-def test_spin_spinpol():
+def test_spin_spinpol(comm):
     a = 4.0
     n = 16
     hydrogen = Atoms([Atom('H')], cell=(a, a, a), pbc=True)
@@ -12,6 +13,7 @@ def test_spin_spinpol():
         mode='fd',
         gpts=(n, n, n),
         nbands=1,
+        communicator=comm,
         convergence={'energy': 1e-5},
         occupations=FermiDirac(0.0))
     e1 = hydrogen.get_potential_energy()

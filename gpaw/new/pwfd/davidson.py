@@ -1,16 +1,17 @@
 from __future__ import annotations
 
-from pprint import pformat
+from functools import partial
 
 import numpy as np
+
 from gpaw import debug
 from gpaw.core.matrix import Matrix
 from gpaw.gpu import as_np
-from gpaw.mpi import broadcast_exception
+from gpaw.new import tracectx
 from gpaw.new.pwfd.eigensolver import PWFDEigensolver, calculate_residuals
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D
-from gpaw.new import trace, tracectx
+from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 
 
 class Davidson(PWFDEigensolver):
@@ -18,43 +19,44 @@ class Davidson(PWFDEigensolver):
                  nbands: int,
                  wf_grid,
                  band_comm,
+                 domain_band_comm,
                  hamiltonian,
-                 converge_bands='occupied',
+                 convergence,
                  niter=2,
-                 scalapack_parameters=None,
-                 max_buffer_mem: int = 200 * 1024 ** 2):
+                 scalapack_parameters: tuple[int, int, int] | None = None,
+                 max_buffer_mem: int = 200 * 1024**2):
         super().__init__(
-            hamiltonian,
-            converge_bands,
-            max_buffer_mem=max_buffer_mem)
+            hamiltonian=hamiltonian,
+            convergence=convergence,
+            nbands=nbands,
+            domain_band_comm=domain_band_comm,
+            max_buffer_mem=max_buffer_mem,
+            scalapack_parameters=scalapack_parameters)
         self.niter = niter
         self.H_NN: Matrix
         self.S_NN: Matrix
         self.M_nn: Matrix
 
     def __str__(self):
-        return pformat(dict(name='Davidson',
-                            niter=self.niter,
-                            converge_bands=self.converge_bands))
+        return super().__str__() + f'niter={self.niter}\n'
 
-    def _initialize(self, ibzwfs):
+    def _initialize(self, ibzwfs: PWFDIBZWaveFunctions):
         super()._initialize(ibzwfs)
         self._allocate_work_arrays(ibzwfs, shape=(1,))
         self._allocate_buffer_arrays(ibzwfs, shape=(1,))
 
-        wfs = ibzwfs.wfs_qs[0][0]
-        assert isinstance(wfs, PWFDWaveFunctions)
-        domain_comm = wfs.psit_nX.desc.comm
-        band_comm = wfs.band_comm
+        band_comm = ibzwfs.band_comm
 
         B = ibzwfs.nbands
         xp = ibzwfs.xp
-        dtype = wfs.psit_nX.desc.dtype
-        if domain_comm.rank == 0 and band_comm.rank == 0:
-            self.H_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp)
-            self.S_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp)
-        else:
-            self.H_NN = self.S_NN = Matrix(0, 0)
+        dtype = ibzwfs.dtype
+
+        # H and S have everything on rank-0 of domain-band comm:
+        self.H_NN = Matrix(2 * B, 2 * B, dtype=dtype, xp=xp,
+                           dist=(self.domain_band_comm,
+                                 -1, 1,
+                                 2 * B, 2 * B))
+        self.S_NN = self.H_NN.new()
 
         self.M_nn = Matrix(B, B, dtype=dtype,
                            dist=(band_comm, band_comm.size),
@@ -63,24 +65,28 @@ class Davidson(PWFDEigensolver):
 
     def iterate1(self,
                  wfs: PWFDWaveFunctions,
-                 Ht, dH, dS_aii, weight_n):
+                 Ht, potential,
+                 dS_aii, weight_n):
         H_NN = self.H_NN
         S_NN = self.S_NN
         M_nn = self.M_nn
         M2_nn = self.M2_nn
+        dH = partial(potential.deltaH, spin=wfs.spin)
 
         xp = M_nn.xp
 
         psit_nX = wfs.psit_nX
         B = psit_nX.dims[0]  # number of bands
-        eig_N = xp.empty(2 * B)
+        eig_n = xp.empty(B)
         b = psit_nX.mydims[0]
 
         psit2_nX = psit_nX.new(data=self.work_arrays[0, :b])
         data_buffer = self.data_buffers[0]
-        wfs.subspace_diagonalize(Ht, dH,
-                                 psit2_nX=psit2_nX,
-                                 data_buffer=data_buffer)
+        wfs.subspace_diagonalize(
+            Ht, dH,
+            psit2_nX=psit2_nX,
+            data_buffer=data_buffer,
+            scalapack_parameters=self.scalapack_parameters)
 
         P_ani = wfs.P_ani
         P2_ani = P_ani.new()
@@ -93,11 +99,10 @@ class Davidson(PWFDEigensolver):
         M0_nn = M_nn.new(dist=(band_comm, 1, 1))
 
         if domain_comm.rank == 0:
-            eig_N[:B] = xp.asarray(wfs.eig_n)
+            eig_n[:] = xp.asarray(wfs.eig_n)
 
         me_buffer_mX = psit_nX.create_work_buffer(data_buffer)
 
-        @trace
         def me(a, b, function=None):
             """Matrix elements"""
             return a.matrix_elements(b,
@@ -134,58 +139,50 @@ class Davidson(PWFDEigensolver):
 
             # Calculate projections
             wfs.pt_aiX.integrate(psit2_nX, out=P2_ani)
-            with tracectx('Matrix elements'):
-                # Sliced matrix elements with hamiltonian. See
-                # sliced_matrix_elements docstring.
-                sliced_matrix_elements(psit_nX, psit2_nX,
-                                       buffer_mX=me_buffer_mX,
-                                       Ht=Ht,
-                                       M1_nn=M_nn,
-                                       M2_nn=M2_nn)
 
-                # <psi2 | H | psi2>
-                dH(P2_ani, out_ani=P3_ani)
-                P2_ani.matrix.multiply(P3_ani, opb='C', symmetric=True, beta=1,
-                                       out=M2_nn)
-                copy(H_NN.data[B:, B:], M2_nn)
+            # Sliced matrix elements with hamiltonian. See
+            # sliced_matrix_elements docstring.
+            sliced_matrix_elements(psit_nX, psit2_nX,
+                                   buffer_mX=me_buffer_mX,
+                                   Ht=Ht,
+                                   M1_nn=M_nn,
+                                   M2_nn=M2_nn)
 
-                # <psi2 | H | psi>
-                P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
-                copy(H_NN.data[B:, :B], M_nn)
+            # <psi2 | H | psi2>
+            dH(P2_ani, out_ani=P3_ani)
+            P2_ani.matrix.multiply(P3_ani, opb='C', symmetric=True, beta=1,
+                                   out=M2_nn)
+            copy(H_NN.data[B:, B:], M2_nn)
 
-                # <psi2 | S | psi2>
-                me(psit2_nX, psit2_nX)
-                P2_ani.block_diag_multiply(dS_aii, out_ani=P3_ani)
-                P2_ani.matrix.multiply(P3_ani, opb='C', symmetric=True, beta=1,
-                                       out=M_nn)
-                copy(S_NN.data[B:, B:], M_nn)
+            # <psi2 | H | psi>
+            P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
+            copy(H_NN.data[B:, :B], M_nn)
 
-                # <psi2 | S | psi>
-                me(psit2_nX, psit_nX)
-                P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
-                copy(S_NN.data[B:, :B], M_nn)
+            # <psi2 | S | psi2>
+            me(psit2_nX, psit2_nX)
+            P2_ani.block_diag_multiply(dS_aii, out_ani=P3_ani)
+            P2_ani.matrix.multiply(P3_ani, opb='C', symmetric=True, beta=1,
+                                   out=M_nn)
+            copy(S_NN.data[B:, B:], M_nn)
 
-            with tracectx('Diagonalize'):
-                with broadcast_exception(domain_comm):
-                    with broadcast_exception(band_comm):
-                        if is_domain_band_master:
-                            H_NN.data[:B, :B] = xp.diag(eig_N[:B])
-                            S_NN.data[:B, :B] = xp.eye(B)
-                            # print(H_NN.data)
-                            # print(S_NN.data)
-                            eig_N[:] = H_NN.eigh(S_NN)
-                            # print(eig_N, self.niter)
-                            wfs._eig_n = as_np(eig_N[:B])
-                if domain_comm.rank == 0:
-                    band_comm.broadcast(wfs.eig_n, 0)
-                domain_comm.broadcast(wfs.eig_n, 0)
+            # <psi2 | S | psi>
+            me(psit2_nX, psit_nX)
+            P3_ani.matrix.multiply(P_ani, opb='C', beta=1.0, out=M_nn)
+            copy(S_NN.data[B:, :B], M_nn)
 
-                if domain_comm.rank == 0:
-                    if band_comm.rank == 0:
-                        M0_nn.data[:] = H_NN.data[:B, :B]
-                        M0_nn.complex_conjugate()
-                    M0_nn.redist(M_nn)
-                domain_comm.broadcast(M_nn.data, 0)
+            if is_domain_band_master:
+                H_NN.data[:B, :B] = xp.diag(eig_n)
+                S_NN.data[:B, :B] = xp.eye(B)
+            # This may convert eigenvalues from single to double:
+            eig_n[:] = H_NN.eigh(S_NN,
+                                 limit=B,
+                                 scalapack=self.scalapack_parameters)
+            wfs.eig_n = as_np(eig_n)
+            if is_domain_band_master:
+                M0_nn.data[:] = H_NN.data[:B, :B]
+                M0_nn.complex_conjugate()
+            M0_nn.redist(M_nn)
+            domain_comm.broadcast(M_nn.data, 0)
 
             with tracectx('Rotate Psi'):
                 M_nn.multiply(psit_nX, out=psit_nX,

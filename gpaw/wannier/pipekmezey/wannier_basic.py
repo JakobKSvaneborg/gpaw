@@ -7,13 +7,13 @@
     this code is as in ASE but modified to use it with gpaw's wfs.
 """
 
-from time import time
 from math import pi
+from time import time
+
 import numpy as np
 from ase.dft.kpoints import get_monkhorst_pack_size_and_offset
 from ase.dft.wannier import calculate_weights, gram_schmidt
 from ase.transport.tools import dagger
-from ase.parallel import parprint
 
 dag = dagger
 
@@ -35,8 +35,8 @@ def random_orthogonal_matrix(dim, rng, real=False):
 
 def md_min(func, step=.25, tolerance=1e-6, verbose=False, **kwargs):
     if verbose:
-        parprint('Localize with step =', step,
-                 'and tolerance =', tolerance)
+        print('Localize with step =', step,
+              'and tolerance =', tolerance)
     t = -time()
     fvalueold = 0.
     fvalue = fvalueold + 10
@@ -57,18 +57,18 @@ def md_min(func, step=.25, tolerance=1e-6, verbose=False, **kwargs):
         func.niter = count
 
         if verbose:
-            parprint('MDmin: iter=%s, step=%s, value=%s'
-                     % (count, step, fvalue))
+            print('MDmin: iter=%s, step=%s, value=%s'
+                  % (count, step, fvalue))
     t += time()
     if verbose:
-        parprint('%d iterations in %0.2f seconds(%0.2f ms/iter),'
-                 ' endstep = %s'
-                 % (count, t, t * 1000. / count, step))
+        print('%d iterations in %0.2f seconds(%0.2f ms/iter),'
+              ' endstep = %s'
+              % (count, t, t * 1000. / count, step))
 
 
 def get_atoms_object_from_wfs(wfs):
-    from ase.units import Bohr
     from ase import Atoms
+    from ase.units import Bohr
 
     spos_ac = wfs.spos_ac
     cell_cv = wfs.gd.cell_cv
@@ -91,7 +91,7 @@ class WannierLocalization:
     """
 
     def __init__(self, wfs, calc=None, spin=0, seed=None, verbose=False):
-        from ase.dft.wannier import get_kklst, get_invkklst
+        from ase.dft.wannier import get_invkklst, get_kklst
 
         # Bloch phase sign convention
         sign = -1

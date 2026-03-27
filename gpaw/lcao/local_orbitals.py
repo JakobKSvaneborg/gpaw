@@ -1,19 +1,20 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 from ase.data import covalent_radii
 from ase.data.colors import jmol_colors
 from ase.units import Bohr, Hartree
-from gpaw.old.calculator import GPAW
+from scipy.linalg import eigh
+
 from gpaw.lcao.tightbinding import TightBinding  # as LCAOTightBinding
 from gpaw.lcao.tools import get_bfi
+from gpaw.old.calculator import GPAW
 from gpaw.typing import Array1D, Array2D, Array4D
 from gpaw.utilities.blas import r2k
 from gpaw.utilities.tools import lowdin, tri2full
-from scipy.linalg import eigh
 
 
 def get_subspace(A_MM: Array2D, indices: Sequence[int]):
@@ -412,6 +413,8 @@ class LocalOrbitals(TightBinding):
     """
 
     def __init__(self, calc: GPAW):
+        from gpaw.old import assert_legacy_gpaw
+        assert_legacy_gpaw(calc)
         self.calc = calc
         self.gamma = calc.wfs.kd.gamma  # Gamma point calculation
         self.subdiag: Subdiagonalization | None = None
@@ -595,7 +598,7 @@ class LocalOrbitals(TightBinding):
         # Broute force hack to restore matrices.
         H_NMM = self.H_NMM
         S_NMM = self.S_NMM
-        ret = TightBinding.band_structure(self, path_kc, blochstates)
+        ret = super().band_structure(path_kc, blochstates)
         self.H_NMM = H_NMM
         self.S_NMM = S_NMM
         return ret

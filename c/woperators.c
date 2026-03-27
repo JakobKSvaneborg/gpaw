@@ -6,11 +6,7 @@
  *  Copyright (C) 2005-2020  CSC - IT Center for Science Ltd.
  *  Please see the accompanying LICENSE file for further information. */
 
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
-#include <stdlib.h>
+#include "python_utils.h"
 #include "extensions.h"
 #include "bc.h"
 #include "mympi.h"
@@ -19,6 +15,8 @@
 #include <omp.h>
 #endif
 #include "threading.h"
+
+#include <stdlib.h>
 
 #ifdef GPAW_ASYNC
   #define GPAW_ASYNC3 3

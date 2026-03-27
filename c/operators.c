@@ -6,11 +6,7 @@
 //*** Double buffering code based on original code by             ***//
 //*** Mads R. B. Kristensen - madsbk@diku.dk                      ***//
 
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
-#include <stdlib.h>
+#include "python_utils.h"
 #include "extensions.h"
 #include "bc.h"
 #include "mympi.h"
@@ -19,10 +15,7 @@
 #include <omp.h>
 #endif
 #include "threading.h"
-
-#define __OPERATORS_C
 #include "operators.h"
-#undef __OPERATORS_C
 
 #ifdef GPAW_ASYNC
   #define GPAW_ASYNC3 3
@@ -37,6 +30,8 @@
 PyObject* Operator_relax_gpu(OperatorObject *self, PyObject *args);
 PyObject* Operator_apply_gpu(OperatorObject *self, PyObject *args);
 #endif
+
+#include <stdlib.h>
 
 static void Operator_dealloc(OperatorObject *self)
 {

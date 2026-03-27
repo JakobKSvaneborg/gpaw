@@ -5,7 +5,7 @@ import numpy as np
 
 from ase.build import bulk
 from gpaw import GPAW, PW, FermiDirac
-from gpaw.mpi import rank
+from gpaw.mpi import world
 from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.site_data import (AtomicSites, get_site_radii_range,
                                      calculate_site_magnetization,
@@ -26,6 +26,7 @@ calc = GPAW(xc='LDA',
             mode=PW(800),
             kpts={'size': (16, 16, 16), 'gamma': True},
             # We converge the ground state density tightly
+            mixer={'method': 'difference'},
             convergence={'density': 1.e-8},
             occupations=FermiDirac(0.001),
             txt='Fe_gs.txt')
@@ -56,7 +57,7 @@ EZ_ar = calculate_site_zeeman_energy(gs, sites)
 rc_a, magmom_a = maximize_site_magnetization(gs)
 
 # Save site data
-if rank == 0:
+if world.rank == 0:
     np.save('Fe_rc_r.npy', rc_r)
     np.save('Fe_m_r.npy', m_ar[0])
     np.save('Fe_EZ_r.npy', EZ_ar[0])

@@ -1,11 +1,11 @@
+import pytest
 from ase.build import molecule
 from ase.parallel import parprint
 
 from gpaw import GPAW
-from gpaw.utilities.adjust_cell import adjust_cell
 from gpaw.analyse.hirshfeld import HirshfeldDensity, HirshfeldPartitioning
 from gpaw.analyse.wignerseitz import WignerSeitz
-import pytest
+from gpaw.utilities.adjust_cell import adjust_cell
 
 
 @pytest.mark.old_gpaw_only
@@ -71,7 +71,8 @@ def test_utilities_partitioning(in_tmp_dir):
     # calculate
     if 1:
         parprint('### fresh:')
-        calc = GPAW(mode='fd',
+        calc = GPAW(legacy_gpaw=True,
+                    mode='fd',
                     nbands=6,
                     h=h,
                     txt=None)
@@ -83,7 +84,7 @@ def test_utilities_partitioning(in_tmp_dir):
     # load previous calculation
     if 1:
         parprint('### reloaded:')
-        calc = GPAW(gpwname, txt=None)
+        calc = GPAW(gpwname, legacy_gpaw=True)
         mol = calc.get_atoms()
         run(lastres)
 

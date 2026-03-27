@@ -75,7 +75,7 @@ I am a normal user
   the same version for ongoing projects.  See below for a description
   on how to do that.
 
-I am sligtly conservative or need ``libvwdxc``.
+I am slightly  conservative or need ``libvwdxc``.
   The version of GPAW compiled with the FOSS toolchain (``GPAW/25.7.0-foss-2025b``) is somewhat
   slower in many situations, but is better tested and may use less
   memory.  You may also have to use this version if you want the

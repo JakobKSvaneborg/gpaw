@@ -1,6 +1,6 @@
-import pytest
 from io import StringIO
 
+import pytest
 from ase.io import read
 from ase.units import Ha
 
@@ -8,14 +8,15 @@ from gpaw import GPAW, FermiDirac
 from gpaw.lrtddft import LrTDDFT
 from gpaw.lrtddft2 import LrTDDFT2
 
-
 jend = 12  # LUMO
 
 
 @pytest.fixture
 def C3H6O():
+    # Geometry from CISD/6-31G* in https://cccbdb.nist.gov/
+    # NB: This website is currently unstable, often returns HTTP Error 500
     atoms = read(StringIO("""10
-https://cccbdb.nist.gov/ Geometry for C3H6O (Propylene oxide), CISD/6-31G*
+Geometry for C3H6O (Propylene oxide),
 O   0.8171  -0.7825  -0.2447
 C  -1.5018   0.1019  -0.1473
 H  -1.3989   0.3323  -1.2066
@@ -29,12 +30,16 @@ H   1.8684   0.8649   0.5908
 """), format='xyz')
     atoms.center(vacuum=3)
 
-    atoms.calc = GPAW(mode='fd', h=0.3,
-                      occupations=FermiDirac(width=0.1),
-                      nbands=15, convergence={
-                          'eigenstates': 1e-4,
-                          'bands': jend},
-                      txt=None)
+    atoms.calc = GPAW(
+        legacy_gpaw=True,
+        mode='fd',
+        h=0.3,
+        occupations=FermiDirac(width=0.1),
+        nbands=15,
+        convergence={
+            'eigenstates': 1e-4,
+            'bands': jend},
+        txt=None)
     atoms.get_potential_energy()
     return atoms
 

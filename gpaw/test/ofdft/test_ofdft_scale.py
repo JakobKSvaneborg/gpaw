@@ -1,9 +1,10 @@
 import pytest
 from ase import Atoms
+
 from gpaw import GPAW
+from gpaw.eigensolvers import CG
 from gpaw.mixer import Mixer
 from gpaw.test import gen
-from gpaw.eigensolvers import CG
 
 
 @pytest.mark.ofdft
@@ -33,7 +34,8 @@ def test_ofdft_ofdft_scale(in_tmp_dir):
 
         mixer = Mixer(0.3, 5, 1)
         eigensolver = CG(tw_coeff=lambda_coeff)
-        calc = GPAW(mode='fd',
+        calc = GPAW(legacy_gpaw=True,
+                    mode='fd',
                     h=h,
                     xc=xcname,
                     setups=setups,

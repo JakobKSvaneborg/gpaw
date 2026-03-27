@@ -1,36 +1,28 @@
-import numpy as np
-import pytest
 from functools import partial
 
+import numpy as np
+import pytest
 from ase.units import Ha
-from ase.data import chemical_symbols
 
 from gpaw.response import ResponseGroundStateAdapter
-from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.response.groundstate import ResponsePAWDataset
-from gpaw.response.paw import (calculate_pair_density_correction,
-                               calculate_matrix_element_correction)
-from gpaw.response.site_paw import calculate_site_matrix_element_correction
 from gpaw.response.localft import add_LSDA_trans_fxc
-
+from gpaw.response.paw import (calculate_matrix_element_correction,
+                               calculate_pair_density_correction)
+from gpaw.response.qpd import SingleQPWDescriptor
+from gpaw.response.site_paw import calculate_site_matrix_element_correction
 from gpaw.setup import create_setup
 from gpaw.sphere.rshe import calculate_reduced_rshe
 
 
-def setups():
-    for symbol in chemical_symbols:
-        try:
-            setup = create_setup(symbol)
-        except FileNotFoundError:
-            pass
-        else:
-            yield setup
-
-
 @pytest.mark.response
 @pytest.mark.serial
-@pytest.mark.parametrize('setup', setups())
-def test_paw_corrections(setup):
+@pytest.mark.parametrize(
+    'symbol',
+    ['H', 'Li', 'O', 'Si', 'Fe', 'Mo', 'In', 'I', 'Au', 'Hg', 'Pb',
+     'La', 'Dy', 'Er'])
+def test_paw_corrections(symbol):
+    setup = create_setup(symbol)
     radial_points = 2**10
     if setup.symbol in {'I', 'Hg', 'Pb'}:
         # More points where needed, for performance.
@@ -44,7 +36,7 @@ def test_paw_corrections(setup):
 
 
 @pytest.mark.response
-def test_paw_correction_consistency(gpw_files):
+def test_paw_correction_consistency(gpw_files, mpi):
     """Test consistency of the pair density PAW corrections."""
     gs = ResponseGroundStateAdapter.from_gpw_file(gpw_files['fe_pw'])
 
@@ -65,14 +57,15 @@ def test_paw_correction_consistency(gpw_files):
     f_ng = np.ones((Y_nL.shape[0], rgd.N))
     rshe, _ = calculate_reduced_rshe(rgd, f_ng, Y_nL, lmax=0)
     # Calculate correction
-    Q2_Gii = calculate_matrix_element_correction(qG_Gv, pawdata, rshe)
+    Q2_Gii = calculate_matrix_element_correction(
+        qG_Gv, pawdata, rshe, comm=mpi.comm)
 
     assert Q2_Gii == pytest.approx(Q1_Gii, rel=1e-3, abs=1e-5)
 
 
 @pytest.mark.response
 @pytest.mark.serial
-def test_site_paw_correction_consistency(gpw_files):
+def test_site_paw_correction_consistency(gpw_files, mpi):
     """Test consistency of generalized matrix elements."""
     gs = ResponseGroundStateAdapter.from_gpw_file(gpw_files['fe_pw'])
 
@@ -84,7 +77,8 @@ def test_site_paw_correction_consistency(gpw_files):
 
     # Calculate PAW correction with G + q = 0
     qG_Gv = np.zeros((1, 3))
-    nF_Gii = calculate_matrix_element_correction(qG_Gv, pawdata, rshe)
+    nF_Gii = calculate_matrix_element_correction(
+        qG_Gv, pawdata, rshe, comm=mpi.comm)
 
     # Calculate PAW correction with site cutoff exceeding the augmentation
     # sphere radius

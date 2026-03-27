@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import itertools
 import warnings
+from collections.abc import Callable
 from math import inf
 from types import SimpleNamespace
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 
@@ -12,8 +13,8 @@ from gpaw import KohnShamConvergenceError
 from gpaw.convergence_criteria import (Criterion, check_convergence,
                                        dict2criterion)
 from gpaw.new.energies import DFTEnergies
-from gpaw.new.logger import indent
 from gpaw.new.ibzwfs import IBZWaveFunctions
+from gpaw.new.logger import indent
 from gpaw.scf import write_iteration
 from gpaw.typing import Array2D
 
@@ -131,7 +132,8 @@ class SCFLoop:
                 energies.sanity_check()
 
         self.eigensolver.postprocess(
-            ibzwfs, density, potential, self.hamiltonian)
+            ibzwfs, density, potential, self.hamiltonian,
+            maxiter=maxiter, cc=cc, log=log)
 
 
 class SCFContext:

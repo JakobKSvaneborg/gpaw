@@ -1,14 +1,15 @@
 from __future__ import annotations
+
 from types import SimpleNamespace
 
 import numpy as np
 
 import gpaw.gpu.cpupy.cublas as cublas
+import gpaw.gpu.cpupy.cuda as cuda  # noqa: F401
 import gpaw.gpu.cpupy.fft as fft
 import gpaw.gpu.cpupy.linalg as linalg
 import gpaw.gpu.cpupy.random as random
 import gpaw.gpu.cpupy.testing as testing
-import gpaw.gpu.cpupy.cuda as cuda  # noqa: F401
 
 __version__ = 'fake'
 
@@ -116,7 +117,7 @@ def einsum(indices, *args, optimize=False, **kwargs):
 
 
 def diag(a):
-    return ndarray(np.diag(a._data))
+    return ndarray(np.diag(asarray(a)._data))
 
 
 def abs(a):
@@ -182,6 +183,12 @@ def isfinite(a):
 
 def isnan(a):
     return ndarray(np.isnan(a._data))
+
+
+def nan_to_num(a: ndarray, copy=True, nan=0.0, posinf=None, neginf=None):
+    """"""
+    return ndarray(np.nan_to_num(a._data, copy=copy, nan=nan, posinf=posinf,
+                                 neginf=neginf))
 
 
 def real(a: ndarray) -> ndarray:

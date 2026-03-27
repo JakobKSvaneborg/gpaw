@@ -1,15 +1,14 @@
+import numpy as np
 import pytest
 from ase import Atoms
-import numpy as np
-from gpaw import GPAW, FermiDirac, Davidson, Mixer
+
+from gpaw import GPAW, Davidson, FermiDirac, Mixer
 from gpaw.cdft.cdft import CDFT
 from gpaw.cdft.cdft_coupling import CouplingParameters
-from gpaw.mpi import world
 
 
 @pytest.mark.old_gpaw_only
-@pytest.mark.skipif(world.size > 1, reason='cdft coupling not parallel')
-def test_pbc_cdft(in_tmp_dir):
+def test_pbc_cdft(in_tmp_dir, not_parallelized, comm):
     distance = 2.5
     sys = Atoms('He2', positions=([0., 0., 0.], [0., 0., distance]))
     sys.center(3)
@@ -18,6 +17,7 @@ def test_pbc_cdft(in_tmp_dir):
 
     # Calculator for the initial state
     calc_a = GPAW(
+        legacy_gpaw=True,
         h=0.2,
         mode='fd',
         basis='dzp',
@@ -30,6 +30,7 @@ def test_pbc_cdft(in_tmp_dir):
         nbands=4,
         mixer=Mixer(beta=0.25, nmaxold=3, weight=100.0),
         txt='He2+_initial.txt',
+        communicator=comm,
         convergence={
             'eigenstates': 1.0,
             'density': 1.0,
@@ -55,6 +56,7 @@ def test_pbc_cdft(in_tmp_dir):
 
     # the same for the final state
     calc_b = GPAW(
+        legacy_gpaw=True,
         h=0.2,
         mode='fd',
         basis='dzp',
@@ -67,6 +69,7 @@ def test_pbc_cdft(in_tmp_dir):
         nbands=4,
         mixer=Mixer(beta=0.25, nmaxold=3, weight=100.0),
         txt='He2+_final.txt',
+        communicator=comm,
         convergence={
             'eigenstates': 1.0,
             'density': 1.0,
@@ -87,6 +90,6 @@ def test_pbc_cdft(in_tmp_dir):
     sys.get_potential_energy()
 
     # Now for the coupling parameter
-    coupling = CouplingParameters(cdft_a, cdft_b, AE=False)
+    coupling = CouplingParameters(cdft_a, cdft_b, AE=False, world=comm)
     H12 = coupling.get_coupling_term()  # use original cDFT method
     assert np.imag(H12) == 0

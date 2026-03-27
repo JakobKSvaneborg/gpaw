@@ -21,27 +21,31 @@ Versions:
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Any, Union, Callable
+from typing import IO, Any, TYPE_CHECKING
 
 import ase.io.ulm as ulm
-import gpaw
-import gpaw.mpi as mpi
 import numpy as np
 from ase import Atoms
 from ase.io.trajectory import read_atoms, write_atoms
 from ase.units import Bohr, Ha
+
+import gpaw
+import gpaw.mpi as mpi
 from gpaw.core.atom_arrays import AtomArraysLayout
 from gpaw.new.builder import DFTComponentsBuilder
-from gpaw.new.calculation import DFTCalculation, units
 from gpaw.new.density import Density
+from gpaw.new.energies import DFTEnergies
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
-from gpaw.utilities import unpack_hermitian, unpack_density, as_dtype_precision
-from gpaw.new.energies import DFTEnergies
-from gpaw.dft import Parameters
+from gpaw.utilities import as_dtype_precision, unpack_density, unpack_hermitian
+
+if TYPE_CHECKING:
+    from gpaw.dft import Parameters
+    from gpaw.new.calculation import DFTCalculation
 
 
 def as_single_precision(array):
@@ -88,7 +92,7 @@ class GPWFlags:
 def write_gpw(filename: str | Path,
               dft: DFTCalculation,
               flags: GPWFlags) -> None:
-
+    from gpaw.new.calculation import units
     comm = dft.comm
 
     writer: ulm.Writer | ulm.DummyWriter
@@ -170,9 +174,9 @@ def write_wave_function_indices(writer, ibzwfs, grid):
     if np.issubdtype(ibzwfs.dtype, np.floating):
         size = (size[0], size[1], size[2] // 2 + 1)
 
-    for k, rank in enumerate(ibzwfs.rank_k):
+    for k, rank in enumerate(ibzwfs.rank_ks[:, 0]):
         if rank == kpt_comm.rank:
-            wfs = ibzwfs.wfs_qs[ibzwfs.q_k[k]][0]
+            wfs = ibzwfs._get_wfs(k, 0)
             i_G = wfs.psit_nX.desc.indices(size)
             index_G[:len(i_G)] = i_G
             index_G[len(i_G):] = -1
@@ -185,9 +189,9 @@ def write_wave_function_indices(writer, ibzwfs, grid):
             writer.fill(index_G)
 
 
-def read_gpw(filename: Union[str, Path, IO[str]],
+def read_gpw(filename: str | Path | IO[str],
              *,
-             log: Union[Logger, str, Path, IO[str]] = None,
+             log: Logger | str | Path | IO[str] | None = None,
              comm=None,
              parallel: dict[str, Any] = None,
              dtype=None,
@@ -195,8 +199,9 @@ def read_gpw(filename: Union[str, Path, IO[str]],
              object_hooks: dict[str, Callable[[dict], Any]] | None = None
              ) -> tuple[Atoms,
                         DFTCalculation,
-                        Parameters,
                         DFTComponentsBuilder]:
+    from gpaw.dft import Parameters
+    from gpaw.new.calculation import DFTCalculation, units
     """
     Read gpw file
 
@@ -207,7 +212,7 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     parallel = parallel or {}
 
     if not isinstance(log, Logger):
-        log = Logger(log, comm or mpi.world)
+        log = Logger(log, mpi.normalize_communicator(comm))
 
     comm = log.comm
 
@@ -271,13 +276,13 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     dft.results = results
 
     if builder.mode in ['pw', 'fd']:  # fd = finite-difference
-        data = ibzwfs.wfs_qs[0][0].psit_nX.data
+        data = ibzwfs._wfs_u[0].psit_nX.data
         if not hasattr(data, 'fd'):  # fd = file-descriptor
             reader.close()
     else:
         reader.close()
 
-    return atoms, dft, params, builder
+    return atoms, dft, builder
 
 
 def read_dft_state(reader: ulm.Reader,
@@ -294,6 +299,7 @@ def read_dft_state(reader: ulm.Reader,
                                     Density,
                                     Potential,
                                     DFTEnergies]]:
+    from gpaw.dft import Parameters
     bohr = reader.bohr
     ha = reader.ha
 
@@ -427,7 +433,6 @@ def read_dft_state(reader: ulm.Reader,
     energies = DFTEnergies(**ec)
 
     potential = Potential(vt_sR, dH_asp.to_full(), dedtaut_sR, vHt_x, e_stress)
-
     ibzwfs = builder.read_ibz_wave_functions(reader)
 
     return builder, params, (ibzwfs, density, potential, energies)

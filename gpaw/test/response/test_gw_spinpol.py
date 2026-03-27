@@ -2,13 +2,13 @@
 
 # General modules
 import pytest
+
 from gpaw.response.g0w0 import G0W0
-from gpaw.mpi import world
 
 
 @pytest.mark.response
-def test_gw_spinpol(in_tmp_dir, gpw_files):
-    if world.size > 1:
+def test_gw_spinpol(in_tmp_dir, gpw_files, mpi):
+    if mpi.comm.size > 1:
         nblocks = 2
     else:
         nblocks = 1
@@ -18,7 +18,8 @@ def test_gw_spinpol(in_tmp_dir, gpw_files):
               ecut=100,
               kpts=[(0, 0, 0)],
               nblocks=nblocks,
-              relbands=(-1, 1))
+              relbands=(-1, 1),
+              world=mpi.comm)
     result = gw.calculate()
 
     # Make sure gaps in both spin-channels are the same and don't change.

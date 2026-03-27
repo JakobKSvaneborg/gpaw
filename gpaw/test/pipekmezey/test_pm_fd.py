@@ -1,5 +1,6 @@
 import pytest
 from ase import Atoms
+
 from gpaw import GPAW
 from gpaw.wannier.pipekmezey.pipek_mezey_wannier import PipekMezey
 
@@ -12,7 +13,8 @@ def test_pipekmezey_fd(in_tmp_dir):
                              [0, 0, 1.128]])
     atoms.center(vacuum=5)
 
-    calc = GPAW(mode='fd',
+    calc = GPAW(legacy_gpaw=True,
+                mode='fd',
                 h=0.24,
                 convergence={'density': 1e-4,
                              'eigenstates': 1e-4})

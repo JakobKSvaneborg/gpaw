@@ -1,26 +1,21 @@
+import numpy as np
 import pytest
 
-import numpy as np
-
-from gpaw import GPAW
-from gpaw.response import ResponseGroundStateAdapter, ResponseContext
-from gpaw.response.frequencies import ComplexFrequencyDescriptor
+from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator, SelfEnhancementCalculator
 from gpaw.response.dyson import DysonSolver
-from gpaw.response.goldstone import (
-    NewFMGoldstoneScaling,
-    RefinedFMGoldstoneScaling,
-)
-from gpaw.response.susceptibility import (spectral_decomposition,
-                                          read_eigenmode_lineshapes)
-
+from gpaw.response.frequencies import ComplexFrequencyDescriptor
+from gpaw.response.goldstone import (NewFMGoldstoneScaling,
+                                     RefinedFMGoldstoneScaling)
+from gpaw.response.susceptibility import (read_eigenmode_lineshapes,
+                                          spectral_decomposition)
 from gpaw.test import findpeak
 from gpaw.test.gpwfile import response_band_cutoff
 
 
 @pytest.mark.kspair
 @pytest.mark.response
-def test_response_cobalt_sf_gsspawALDA(in_tmp_dir, gpw_files):
+def test_response_cobalt_sf_gsspawALDA(in_tmp_dir, gpw_files, mpi):
     # ---------- Inputs ---------- #
 
     q_qc = [[0.0, 0.0, 0.0], [1. / 4., 0.0, 0.0]]  # Two q-points along G-M
@@ -36,8 +31,8 @@ def test_response_cobalt_sf_gsspawALDA(in_tmp_dir, gpw_files):
     # ---------- Script ---------- #
 
     # Read ground state data
-    context = ResponseContext(txt='cobalt_susceptibility.txt')
-    calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
+    context = ResponseContext(txt='cobalt_susceptibility.txt', comm=mpi.comm)
+    calc = mpi.GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
     nbands = response_band_cutoff['co_pw']
     gs = ResponseGroundStateAdapter(calc)
 
@@ -173,8 +168,9 @@ def get_mode_projections(chiks, xi, Amaj, *, lambd, nmodes):
 
 def plot_enhancement(chiks, xi, Amaj0, sAmaj, *, lambd, nmodes):
     import matplotlib.pyplot as plt
-    from gpaw.mpi import world
     from ase.units import Ha
+
+    from gpaw.mpi import world
 
     for Amaj, _lambd in zip([Amaj0, sAmaj], [1., lambd]):
         a_mW = Amaj.get_eigenmode_lineshapes(nmodes=nmodes).T

@@ -1,9 +1,10 @@
 #ifdef GPAW_WITH_LIBVDWXC
-#include "../extensions.h"
+#include "python_utils.h"
+#include "extensions.h"
 
 #ifdef PARALLEL
 #include <mpi.h>
-#include "../mympi.h"
+#include "mympi.h"
 #include <vdwxc_mpi.h>
 #else
 #include <vdwxc.h>
@@ -49,7 +50,7 @@ PyObject* libvdwxc_has(PyObject* self, PyObject* args)
     return pyval;
 }
 
-PyObject* libvdwxc_create(PyObject* self, PyObject* args, PyObject* kwargs)
+PyObject* libvdwxc_create(PyObject* self, PyObject* args)
 {
     PyObject* vdwxc_obj;
     int vdwxc_code;

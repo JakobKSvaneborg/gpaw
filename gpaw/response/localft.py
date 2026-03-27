@@ -4,14 +4,12 @@ functions of the electon (spin-)density."""
 from abc import ABC, abstractmethod
 
 import numpy as np
+from ase.units import Bohr
 from scipy.special import spherical_jn
 
-from ase.units import Bohr
-
-from gpaw.response import ResponseGroundStateAdapter, ResponseContext, timer
-
-from gpaw.sphere.spherical_harmonics import Yarr
+from gpaw.response import ResponseContext, ResponseGroundStateAdapter, timer
 from gpaw.sphere.rshe import calculate_reduced_rshe
+from gpaw.sphere.spherical_harmonics import Yarr
 from gpaw.xc import XC
 from gpaw.xc.libxc import LibXC
 
@@ -118,7 +116,7 @@ class LocalFTCalculator(ABC):
 
     @abstractmethod
     def calculate(self, qpd, add_f):
-        pass
+        """Calculate PW components f(G) using method add_f and PW basis qpd."""
 
     @staticmethod
     def equivalent_real_space_grids(gd1, gd2):

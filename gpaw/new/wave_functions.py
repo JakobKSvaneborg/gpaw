@@ -3,6 +3,7 @@ from __future__ import annotations
 from types import ModuleType
 
 import numpy as np
+
 from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.core.uniform_grid import UGArray
 from gpaw.mpi import MPIComm, serial_comm
@@ -30,8 +31,8 @@ class WaveFunctions:
                  ncomponents: int = 1,
                  dtype=float,
                  qspiral_v=None,
-                 domain_comm: MPIComm = serial_comm,
-                 band_comm: MPIComm = serial_comm):
+                 band_comm: MPIComm = serial_comm,
+                 domain_band_comm: MPIComm = serial_comm):
         """"""
         assert spin < ncomponents
 
@@ -45,12 +46,13 @@ class WaveFunctions:
         self.kpt_c = kpt_c
         self.relpos_ac = relpos_ac
         self.atomdist = atomdist
-        self.domain_comm = domain_comm
+        self.domain_comm = atomdist.comm
         self.band_comm = band_comm
+        self.domain_band_comm = domain_band_comm
         self.nbands = nbands
         self.qspiral_v = qspiral_v
 
-        assert domain_comm.size == atomdist.comm.size
+        assert domain_band_comm.size == self.domain_comm.size * band_comm.size
 
         self.nspins = ncomponents % 3
         self.spin_degeneracy = ncomponents % 2 + 1
@@ -110,9 +112,9 @@ class WaveFunctions:
         """
         raise NotImplementedError
 
-    def collect(self,
-                n1: int = 0,
-                n2: int = 0) -> WaveFunctions | None:
+    def collect_bands(self,
+                      n1: int = 0,
+                      n2: int = 0) -> WaveFunctions | None:
         raise NotImplementedError
 
     @property
@@ -135,6 +137,15 @@ class WaveFunctions:
         if self._eig_n is None:
             raise ValueError
         return self._eig_n
+
+    @eig_n.setter
+    def eig_n(self, value):
+        # It can induce (and has induced) mpi and related bugs to set wrong
+        # length or wrong dtype arrays, so we are being very careful here.
+        if value is not None:
+            assert value.dtype == np.float64
+            assert len(value) == self.nbands
+        self._eig_n = value
 
     @property
     def occ_n(self) -> Array1D:

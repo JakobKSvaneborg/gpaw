@@ -1,16 +1,18 @@
-from gpaw import GPAW, restart, FD
-from ase.build import molecule
 import pytest
+from ase.build import molecule
+
+from gpaw import FD
 
 
-def test_complex(in_tmp_dir, gpaw_new):
+def test_complex(in_tmp_dir, gpaw_new, mpi):
     Eini0 = -17.8037610364
     energy_eps = 0.0005
 
-    calc = GPAW(xc='LDA',
-                h=0.21,
-                convergence={'eigenstates': 3.5e-5, 'energy': energy_eps},
-                mode=FD(force_complex_dtype=True))
+    calc = mpi.GPAW(
+        xc='LDA',
+        h=0.21,
+        convergence={'eigenstates': 3.5e-5, 'energy': energy_eps},
+        mode=FD(force_complex_dtype=True))
 
     mol = molecule('N2')
     mol.center(vacuum=3.0)
@@ -22,7 +24,7 @@ def test_complex(in_tmp_dir, gpaw_new):
 
     calc.write('N2_complex.gpw', mode='all')
 
-    mol, calc = restart('N2_complex.gpw')
+    mol, calc = mpi.restart('N2_complex.gpw')
 
     if gpaw_new:
         calc.dft.converge({'eigenstates': 3.5e-9,

@@ -1,40 +1,89 @@
 from __future__ import annotations
 
+import warnings
+from collections.abc import Callable
 from functools import partial
-from typing import Callable
+from math import ceil, floor
 
 import numpy as np
-
-from gpaw.core.arrays import DistributedArrays as XArray
+from gpaw.core.arrays import XArray
 from gpaw.core.atom_centered_functions import AtomArrays
-from gpaw.mpi import broadcast_exception
+from gpaw.core.matrix import suggest_blocking
+from gpaw.mpi import MPIComm, broadcast_exception, serial_comm
 from gpaw.new import trace, zips
 from gpaw.new.c import calculate_residuals_gpu
 from gpaw.new.eigensolver import Eigensolver, calculate_weights
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.hamiltonian import Hamiltonian
-from gpaw.utilities.blas import axpy
-from gpaw.utilities import as_real_dtype
 from gpaw.new.ibzwfs import IBZWaveFunctions
+from gpaw.utilities import as_real_dtype
+from gpaw.utilities.blas import axpy
+
+
+def slparams(nbands: int, comm: MPIComm) -> tuple[MPIComm, int, int, int]:
+    """Decide on scalapack parameters."""
+    if nbands < 1000:
+        return serial_comm, 1, 1, 0
+    # How much of comm should we use?
+    # At least 30,000 numbers per core, approximately:
+    ncores = nbands**2 / 30_000
+    # We also want ncores to factor into a product of two integers:
+    ncores = int(floor(ncores**0.5) * ceil(ncores**0.5))
+    if ncores < comm.size:
+        comm = comm.new_communicator(range(ncores))
+    return (comm, *suggest_blocking(nbands, comm.size))
 
 
 class PWFDEigensolver(Eigensolver):
     def __init__(self,
+                 *,
                  hamiltonian,
-                 converge_bands: int | str = 'occupied',
+                 convergence: dict,
+                 nbands: int,
+                 domain_band_comm,
                  blocksize: int = 10,
-                 max_buffer_mem: int | None = 200 * 1024 ** 2):
-        self.converge_bands = converge_bands
+                 max_buffer_mem: int | None = 200 * 1024 ** 2,
+                 scalapack_parameters: tuple[int, int, int] | None = None):
+        self.converge_bands = convergence.get('bands', 'occupied')
+        self.residual_target = convergence.get('eigenstates', 4e-8)
         self.blocksize = blocksize
         self.preconditioner: Callable
         self.preconditioner_factory = hamiltonian.create_preconditioner
         self.work_arrays: np.ndarray
         self.data_buffers: np.ndarray
 
+        self.domain_band_comm = domain_band_comm
+
         # Maximal memory to be used for the eigensolver
         # should be infinite if hamiltonian is not band-local (hybrids)
         self.max_buffer_mem = (
             max_buffer_mem if hamiltonian.band_local else None)
+
+        if scalapack_parameters is None:
+            self.scalapack_parameters = slparams(nbands, domain_band_comm)
+        else:
+            r, c, b = scalapack_parameters
+            if b > nbands // max(r, c):
+                warnings.warn(
+                    f'{nbands}x{nbands} matrix on {r}x{c} grid with '
+                    f'blocksize {b} is too small for ScaLapack.  '
+                    'Using Lapack instead.')
+                self.scalapack_parameters = (serial_comm, 1, 1, 0)
+            else:
+                slcomm = domain_band_comm
+                assert r * c <= slcomm.size
+                if r * c < slcomm.size:
+                    slcomm = (slcomm.new_communicator(range(r * c))
+                              or serial_comm)
+                self.scalapack_parameters = (slcomm, r, c, b)
+
+    def __str__(self):
+        txt = f'{self.__class__.__name__}\n'
+        txt += f'Converge bands: {self.converge_bands}\n'
+        _, r, c, b = self.scalapack_parameters
+        if r * c > 1:
+            txt += f'Scalapack: {r}x{c} grid, blocksize={b}\n'
+        return txt
 
     def _initialize(self, ibzwfs):
         # First time: allocate work-arrays
@@ -42,10 +91,10 @@ class PWFDEigensolver(Eigensolver):
                                                           xp=ibzwfs.xp)
 
     def _allocate_buffer_arrays(self, ibzwfs, shape):
-        G_max = np.prod(ibzwfs.get_max_shape())
+        G_max = max(1, np.prod(ibzwfs.get_max_shape()))
         b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
         nbands = ibzwfs.nbands
-        dtype_size = ibzwfs.wfs_qs[0][0].psit_nX.data.dtype.itemsize
+        dtype_size = ibzwfs._wfs_u[0].psit_nX.data.dtype.itemsize
         domain_size = ibzwfs.domain_comm.size
 
         if self.max_buffer_mem is not None:
@@ -68,7 +117,7 @@ class PWFDEigensolver(Eigensolver):
     def _allocate_work_arrays(self, ibzwfs, shape):
         b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
         shape += (b,) + ibzwfs.get_max_shape()
-        dtype = ibzwfs.wfs_qs[0][0].psit_nX.data.dtype
+        dtype = ibzwfs._wfs_u[0].psit_nX.data.dtype
         self.work_arrays = ibzwfs.xp.empty(shape, dtype)
 
     @trace
@@ -94,11 +143,12 @@ class PWFDEigensolver(Eigensolver):
         if not hasattr(self, 'preconditioner'):
             self._initialize(ibzwfs)
 
-        wfs = ibzwfs.wfs_qs[0][0]
+        wfs = ibzwfs._wfs_u[0]
         dS_aii = wfs.setups.get_overlap_corrections(wfs.P_ani.layout.atomdist,
                                                     wfs.xp)
 
         ibzwfs.orthonormalize()
+        # ibzwfs = kpad(ibzwfs)
         hamiltonian.update_wave_functions(ibzwfs)
 
         apply = partial(hamiltonian.apply,
@@ -113,11 +163,11 @@ class PWFDEigensolver(Eigensolver):
         # Loop over k-points:
         with broadcast_exception(ibzwfs.kpt_comm):
             for wfs, weight_n in zips(ibzwfs, weight_un):
-                dH = partial(potential.dH, spin=wfs.spin)
                 Ht = partial(apply, spin=wfs.spin)
                 temp_wfs_error, temp_eig_error = \
                     self.iterate_kpt(wfs, weight_n, self.iterate1,
-                                     Ht=Ht, dH=dH, dS_aii=dS_aii)
+                                     Ht=Ht, potential=potential,
+                                     dS_aii=dS_aii)
                 wfs_error += wfs.weight * temp_wfs_error
                 if eig_error < temp_eig_error:
                     eig_error = temp_eig_error

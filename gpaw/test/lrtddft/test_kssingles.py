@@ -1,10 +1,9 @@
 import pytest
-
 from ase.build import molecule
 
-from gpaw.mpi import world
 from gpaw import GPAW
 from gpaw.lrtddft.kssingle import KSSingles
+from gpaw.mpi import world
 
 
 @pytest.mark.new_gpaw_ready
@@ -44,7 +43,12 @@ def test_old_io(in_tmp_dir):
 def ch4():
     ch4 = molecule('CH4')
     ch4.center(vacuum=2)
-    ch4.calc = GPAW(mode='fd', h=0.25, nbands=8, txt=None)
+    ch4.calc = GPAW(
+        legacy_gpaw=True,
+        mode='fd',
+        h=0.25,
+        nbands=8,
+        txt=None)
     ch4.get_potential_energy()
     return ch4
 

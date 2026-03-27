@@ -6,21 +6,20 @@ provide pseudopotential objects for use with GPAW.
 """
 
 from optparse import OptionParser
-from xml.etree.ElementTree import parse as xmlparse, fromstring
-from xml.etree.ElementTree import ParseError
+from xml.etree.ElementTree import ParseError, fromstring
+from xml.etree.ElementTree import parse as xmlparse
 
 import numpy as np
 from ase.data import atomic_numbers
 
 from gpaw.atom.atompaw import AtomPAW
 from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
-from gpaw.setup_data import search_for_file
 from gpaw.basis_data import Basis, BasisFunction
-from gpaw.pseudopotential import (PseudoPotential, screen_potential,
-                                  figure_out_valence_states,
-                                  get_radial_hartree_energy)
+from gpaw.pseudopotential import (PseudoPotential, figure_out_valence_states,
+                                  get_radial_hartree_energy, screen_potential)
+from gpaw.setup_data import search_for_file
 from gpaw.spline import Spline
-from gpaw.utilities import pack_hermitian, divrl
+from gpaw.utilities import divrl, pack_hermitian
 
 
 class UPFStateSpec:

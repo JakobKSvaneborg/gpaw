@@ -1,3 +1,9 @@
+#include "python_utils.h"
+#include "gpaw_complex.h"
+#include "gpu/lfc_gpu.h"
+#include "gpu/gpu.h"
+#include "gpu/gpu-complex.h"
+
 #include <stdio.h>
 #include <malloc.h>
 #include <string.h>
@@ -5,16 +11,6 @@
 #include <time.h>
 #include <sys/types.h>
 #include <sys/time.h>
-
-#include </usr/include/complex.h>
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
-
-#include "../../lfc.h"
-#include "../gpu.h"
-#include "../gpu-complex.h"
 
 #ifndef GPU_USE_COMPLEX
 
@@ -90,7 +86,7 @@ __global__ void Zgpu(add_kernel)(Tgpu *a_G, const Tgpu *c_M, int *G_B1,
 #define GPU_USE_COMPLEX
 #include "lfc.cpp"
 
-extern "C"
+
 void lfc_dealloc_gpu(LFCObject *self)
 {
     if (self->use_gpu) {
@@ -114,7 +110,6 @@ void lfc_dealloc_gpu(LFCObject *self)
     }
 }
 
-extern "C"
 void *transp(void *matrix, int rows, int cols, size_t item_size)
 {
 #define ALIGNMENT 16    /* power of 2 >= minimum array boundary alignment;
@@ -161,7 +156,6 @@ void *transp(void *matrix, int rows, int cols, size_t item_size)
     return matrix;
 }
 
-extern "C"
 PyObject * NewLFCObject_gpu(LFCObject *self, PyObject *args)
 {
     PyObject* A_Wgm_obj;
@@ -346,7 +340,10 @@ PyObject * NewLFCObject_gpu(LFCObject *self, PyObject *args)
 
     int WMimax = 0;
     int *WMi_gpu = GPAW_MALLOC(int, self->nW);
-    int *volume_WMi_gpu = GPAW_MALLOC(int, self->nW * self->nW);
+    // Initialize this to 0 to avoid -Wmaybe-uninitialized in the complicated loop below
+    int *volume_WMi_gpu = (int*)calloc(self->nW * self->nW, sizeof(int));
+    assert(volume_WMi_gpu);
+    //int *volume_WMi_gpu = GPAW_MALLOC(int, self->nW * self->nW);
 
     self->Mcount = 0;
     for (int W=0; W < self->nW; W++) {
@@ -358,8 +355,7 @@ PyObject * NewLFCObject_gpu(LFCObject *self, PyObject *args)
 
         for (int W2=0; W2 <= W; W2++) {
             if (WMi_gpu[W2] > 0) {
-                LFVolume_gpu* v2
-                    = &volume_W_gpu[volume_WMi_gpu[W2 * self->nW]];
+                LFVolume_gpu* v2 = &volume_W_gpu[volume_WMi_gpu[W2 * self->nW]];
                 if (v2->M == M) {
                     volume_WMi_gpu[W2 * self->nW + WMi_gpu[W2]] = W;
                     WMi_gpu[W2]++;
@@ -446,7 +442,6 @@ PyObject * NewLFCObject_gpu(LFCObject *self, PyObject *args)
 }
 
 
-extern "C"
 void parse_shape_xG(PyObject* shape, int* nx, int* nG)
 {
     int nd = PyTuple_Size(shape);
@@ -461,7 +456,6 @@ void parse_shape_xG(PyObject* shape, int* nx, int* nG)
 }
 
 
-extern "C"
 PyObject* integrate_gpu(LFCObject *lfc, PyObject *args)
 {
     void *a_xG_gpu;
@@ -502,7 +496,6 @@ PyObject* integrate_gpu(LFCObject *lfc, PyObject *args)
         Py_RETURN_NONE;
 }
 
-extern "C"
 PyObject* add_gpu(LFCObject *lfc, PyObject *args)
 {
     void *a_xG_gpu;

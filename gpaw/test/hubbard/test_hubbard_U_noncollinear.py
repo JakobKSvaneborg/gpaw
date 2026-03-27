@@ -1,11 +1,11 @@
-import pytest
-
 import numpy as np
+import pytest
 from ase.units import Ha
 
 from gpaw.hubbard import hubbard
 
 
+@pytest.mark.serial
 def test_hubbard_U_noncollinear():
     rng = np.random.default_rng(seed=555)
 

@@ -5,9 +5,8 @@ from typing import Any, Union
 
 from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.pot_calc import PotentialCalculator
-from gpaw.new.rttddft.state import RTTDDFTState
+from gpaw.new.rttddft.dataclasses import RTTDDFTState
 from gpaw.new.rttddft.wf_propagator import build_wf_propagator
-
 
 TDAlgorithmLike = Union[None, str, 'TDAlgorithm', dict[str, Any]]
 
@@ -145,8 +144,7 @@ class SICNAlgorithm(TDAlgorithm):
                   pot_calc: PotentialCalculator,
                   hamiltonian: Hamiltonian):
         # Copy wave functions
-        prev_wfs_list = [[wfs.copy() for wfs in wfs_s]
-                         for wfs_s in state.ibzwfs.wfs_qs]
+        prev_wfs_list = [wfs.copy() for wfs in state.ibzwfs]
 
         # Copy Hamiltonian
         prev_potential = state.potential.copy()
@@ -164,7 +162,7 @@ class SICNAlgorithm(TDAlgorithm):
         state.potential.dH_asii.data[:] *= 0.5
 
         # Restore the previous wave functions
-        state.ibzwfs.wfs_qs = prev_wfs_list
+        state.ibzwfs._wfs_u = prev_wfs_list
 
         # Propagate wave functions one timestep; ψ(t) -> ψ(t + dt)
         # using the averaged Hamiltonian

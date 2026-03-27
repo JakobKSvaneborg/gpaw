@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+
 from gpaw.core import UGArray, UGDesc
 from gpaw.new.builder import create_uniform_grid
 from gpaw.new.fd.hamiltonian import FDHamiltonian
@@ -92,18 +93,6 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         return FDHamiltonian(self.wf_desc,
                              kin_stencil=self.params.mode.nn,
                              xp=self.xp)
-
-    def convert_wave_functions_from_uniform_grid(self,
-                                                 C_nM,
-                                                 basis_set,
-                                                 kpt_c,
-                                                 q):
-        grid = self.grid.new(kpt=kpt_c, dtype=self.dtype)
-        psit_nR = grid.zeros(self.nbands, self.communicators['b'])
-        mynbands = len(C_nM.data)
-        basis_set.lcao_to_grid(C_nM.to_xp(np).data,
-                               psit_nR.data[:mynbands], q)
-        return psit_nR.to_xp(self.xp)
 
     def read_ibz_wave_functions(self, reader):
         ibzwfs = super().read_ibz_wave_functions(reader)

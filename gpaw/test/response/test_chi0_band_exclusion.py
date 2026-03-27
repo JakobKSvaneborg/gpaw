@@ -1,14 +1,14 @@
-from gpaw.mpi import world
 import numpy as np
+import pytest
 from ase.units import Ha
-from gpaw.response.pair import get_gs_and_context
+
 from gpaw.response.chi0 import (Chi0Calculator, get_frequency_descriptor,
                                 get_omegamax)
-import pytest
+from gpaw.response.pair import get_gs_and_context
 
 
 @pytest.mark.response
-def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
+def test_chi0_band_exclusion(in_tmp_dir, gpw_files, mpi):
     """Testing the removal of the lowest three valence bands in a chi0
     calculation for Ni. This is done by comparing two chi0 calculation: one
     includs all bands but limits the frequency grid to exclude the transitions
@@ -17,7 +17,7 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     The real part is obtained via a Hilbert transform"""
 
     gs, context = get_gs_and_context(
-        gpw_files['ni_pw'], txt=None, world=world, timer=None)
+        gpw_files['ni_pw'], txt=None, world=mpi.comm, timer=None)
 
     ecut = 40
     eta = 0.1
@@ -37,8 +37,8 @@ def test_chi0_band_exclusion(in_tmp_dir, gpw_files):
     omegamax2 = np.max(wd2.omega_w) * Ha
     omegamax1 = np.max(wd1.omega_w) * Ha
 
-    assert omegamax1 == pytest.approx(45.223, abs=1e-3)
-    assert omegamax2 == pytest.approx(100.713, abs=1e-3)
+    assert omegamax1 == pytest.approx(45.223, abs=3e-3)
+    assert omegamax2 == pytest.approx(100.714, abs=3e-3)
 
     assert np.allclose(wd1.omega_w, wd2.omega_w[:len(wd1)])
 

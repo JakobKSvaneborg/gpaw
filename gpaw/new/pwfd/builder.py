@@ -2,12 +2,12 @@ from math import pi
 
 import numpy as np
 
+from gpaw.core.arrays import XArrayWithNoData
 from gpaw.new.builder import DFTComponentsBuilder
-from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.lcao.eigensolver import LCAOEigensolver
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
+from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.core.arrays import XArrayWithNoData
 
 
 class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
@@ -26,19 +26,21 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
         from gpaw.dft import DefaultEigensolver
         es = self.params.eigensolver
         if isinstance(es, DefaultEigensolver):
-            es = es.from_param({'name': 'davidson', **es.params})
+            es = es.from_param({'name': 'ppcg', **es.params})
         return es.build(
             self.nbands,
             self.wf_desc,
             self.communicators['b'],
+            self.communicators['K'],
+            self.params.parallel.get('sl_diagonalize'),
             hamiltonian,
-            self.params.convergence.get('bands', 'occupied'),
+            self.params.convergence,
             self.setups,
             self.atoms)
 
     def read_ibz_wave_functions(self, reader):
-        kpt_comm, band_comm, domain_comm = (self.communicators[x]
-                                            for x in 'kbd')
+        kpt_comm, band_comm, domain_band_comm = (self.communicators[x]
+                                                 for x in 'kbK')
 
         def create_wfs(spin: int, q: int, k: int, kpt_c, weight: float):
             psit_nG = XArrayWithNoData(
@@ -55,6 +57,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                 setups=self.setups,
                 relpos_ac=self.relpos_ac,
                 atomdist=self.atomdist,
+                domain_band_comm=domain_band_comm,
                 ncomponents=self.ncomponents,
                 qspiral_v=self.qspiral_v)
 
@@ -64,7 +67,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
             ibz=self.ibz,
             ncomponents=self.ncomponents,
             create_wfs_func=create_wfs,
-            kpt_comm=self.communicators['k'],
+            kpt_comm=kpt_comm,
             kpt_band_comm=self.communicators['D'],
             comm=self.communicators['w'])
 
@@ -100,45 +103,12 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
         LCAOEigensolver(basis).iterate(
             lcao_ibzwfs, None, potential, hamiltonian)
 
-        self.log('Converting LCAO to grid', flush=True)
-
-        def create_wfs(spin, q, k, kpt_c, weight):
-            lcaowfs = lcao_ibzwfs.wfs_qs[q][spin]
-            assert lcaowfs.spin == spin
-
-            # Convert to PW-coefs in PW-mode:
-            psit_nX = self.convert_wave_functions_from_uniform_grid(
-                lcaowfs.C_nM, basis, kpt_c, q)
-
-            mylcaonbands, nao = lcaowfs.C_nM.dist.shape
-            mynbands = len(psit_nX.data)
-            eig_n = np.empty(self.nbands)
-            eig_n[:lcaonbands] = lcaowfs._eig_n
-            eig_n[lcaonbands:] = 100.0  # set high value for random wfs.
-            if mylcaonbands < mynbands:
-                psit_nX[mylcaonbands:].randomize(
-                    seed=self.communicators['w'].rank)
-            wfs = PWFDWaveFunctions(
-                psit_nX=psit_nX,
-                spin=spin,
-                q=q,
-                k=k,
-                weight=weight,
-                setups=self.setups,
-                relpos_ac=self.relpos_ac,
-                atomdist=self.atomdist,
-                ncomponents=self.ncomponents,
-                qspiral_v=self.qspiral_v)
-            wfs._eig_n = eig_n
-            return wfs
-
-        return PWFDIBZWaveFunctions.create(
-            ibz=self.ibz,
-            ncomponents=self.ncomponents,
-            create_wfs_func=create_wfs,
-            kpt_comm=self.communicators['k'],
-            kpt_band_comm=self.communicators['D'],
-            comm=self.communicators['w'])
+        self.log(f'Converting LCAO to {self.mode} mode', flush=True)
+        return lcao_ibzwfs.convert_to(mode=self.mode,
+                                      grid=self.grid,
+                                      pw=self.wf_desc,
+                                      qspiral_v=self.qspiral_v,
+                                      nbands=self.nbands)
 
     def create_random_ibz_wave_functions(self):
         self.log('Initializing wave functions with random numbers')
@@ -163,6 +133,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                 setups=self.setups,
                 relpos_ac=self.relpos_ac,
                 atomdist=self.atomdist,
+                domain_band_comm=self.communicators['K'],
                 ncomponents=self.ncomponents,
                 qspiral_v=self.qspiral_v)
 

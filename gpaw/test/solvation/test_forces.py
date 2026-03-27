@@ -1,22 +1,15 @@
 # flake8: noqa
+import numpy as np
 import pytest
 from ase import Atoms
-from ase.units import Pascal, m
 from ase.data.vdw import vdw_radii
-from gpaw.mpi import rank
-from gpaw import Mixer
-from gpaw.solvation import (
-    SolvationGPAW,
-    EffectivePotentialCavity,
-    Power12Potential,
-    LinearDielectric,
-    KB51Volume,
-    GradientSurface,
-    VolumeInteraction,
-    SurfaceInteraction,
-    LeakedDensityInteraction)
+from ase.units import Pascal, m
 
-import numpy as np
+from gpaw import Mixer
+from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
+                            KB51Volume, LeakedDensityInteraction,
+                            LinearDielectric, Power12Potential, SolvationGPAW,
+                            SurfaceInteraction, VolumeInteraction)
 
 SKIP_ENERGY_CALCULATION = True
 F_max_err = 0.005
@@ -28,13 +21,14 @@ T = 298.15
 
 
 @pytest.mark.slow
-def test_solvation_forces():
+def test_solvation_forces(comm):
     atoms = Atoms('NaCl', positions=((5.6, 5.6, 6.8), (5.6, 5.6, 8.8)))
     atoms.set_cell((11.2, 11.2, 14.4))
 
     atoms.calc = SolvationGPAW(
         mode='fd',
         mixer=Mixer(0.5, 7, 50.0),
+        communicator=comm,
         xc='oldPBE', h=h, setups={'Na': '1'},
         cavity=EffectivePotentialCavity(
             effective_potential=Power12Potential(u0=u0),
@@ -68,7 +62,7 @@ def test_solvation_forces():
         E = np.array(E)
         F = np.array(F)
 
-        if rank == 0:
+        if comm.rank == 0:
             np.save('d.npy', d)
             np.save('E.npy', E)
             np.save('F.npy', F)

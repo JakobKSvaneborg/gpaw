@@ -1,4 +1,5 @@
 import pytest
+
 from gpaw.setup import create_setup
 
 
@@ -7,8 +8,8 @@ from gpaw.setup import create_setup
                           ('Fe', 3, 5),
                           ('V', 3, 5),
                           ('Ti', 2, 5)])
-def test_initial_occs(symbol, M, n):
-    s = create_setup(symbol)
+def test_initial_occs(symbol, M, n, mpi):
+    s = create_setup(symbol, world=mpi.comm)
     f_si = s.calculate_initial_occupation_numbers(magmom=M,
                                                   hund=False,
                                                   charge=0,

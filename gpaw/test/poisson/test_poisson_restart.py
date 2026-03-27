@@ -1,14 +1,14 @@
-import pytest
-from gpaw.mpi import world
 import numpy as np
-
+import pytest
 from ase.build import molecule
+
 from gpaw import GPAW
-from gpaw.tddft import TDDFT as GRIDTDDFT
 from gpaw.lcaotddft import LCAOTDDFT
+from gpaw.mpi import world
 from gpaw.poisson import PoissonSolver as PS
-from gpaw.poisson_moment import MomentCorrectionPoissonSolver
 from gpaw.poisson_extravacuum import ExtraVacuumPoissonSolver
+from gpaw.poisson_moment import MomentCorrectionPoissonSolver
+from gpaw.tddft import TDDFT as GRIDTDDFT
 
 pytestmark = pytest.mark.skipif(world.size > 2,
                                 reason='world.size > 2')
@@ -63,20 +63,25 @@ def test_poisson_poisson_restart(in_tmp_dir):
 
             # Standard ground state calculation
             # Use loose convergence criterion for speed
-            calc = GPAW(nbands=2, gpts=gpts / 2, setups={'Na': '1'}, txt=None,
-                        poissonsolver=poissonsolver,
-                        mode=mode,
-                        symmetry={'point_group': False},
-                        convergence={'energy': 1.0,
-                                     'density': 1.0,
-                                     'eigenstates': 1.0})
+            calc = GPAW(
+                legacy_gpaw=True,
+                nbands=2,
+                gpts=gpts / 2,
+                setups={'Na': '1'},
+                txt=None,
+                poissonsolver=poissonsolver,
+                mode=mode,
+                symmetry={'point_group': False},
+                convergence={'energy': 1.0,
+                             'density': 1.0,
+                             'eigenstates': 1.0})
             atoms.calc = calc
             atoms.get_potential_energy()
             descr = calc.hamiltonian.poisson.get_description()
             calc.write('%s_gs.gpw' % name, mode='all')
 
             # Restart ground state
-            calc = GPAW('%s_gs.gpw' % name, txt=None)
+            calc = GPAW('%s_gs.gpw' % name, legacy_gpaw=True)
             ps = calc.hamiltonian.poisson
             assert descr == ps.get_description(), \
                 'poisson solver has changed in GPAW / %s' % mode

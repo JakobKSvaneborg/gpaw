@@ -1,11 +1,12 @@
 import numbers
 from math import pi
+
 import numpy as np
 
 import gpaw.cgpaw as cgpaw
 import gpaw.fftw as fftw
-from gpaw.utilities.blas import mmm, r2k, rk
 from gpaw.gpu import cupy as cp
+from gpaw.utilities.blas import mmm, r2k, rk
 
 
 class PWDescriptor:
@@ -249,7 +250,7 @@ class PWDescriptor:
             #
             # but much faster:
             Q_G = self.Q_qG[q]
-            assert len(c_G) == len(Q_G)
+            assert len(c_G) == len(Q_G), (len(c_G), len(Q_G))
             cgpaw.pw_insert(c_G, Q_G, scale, self.tmp_Q)
             if self.dtype == float:
                 t = self.tmp_Q[:, :, 0]

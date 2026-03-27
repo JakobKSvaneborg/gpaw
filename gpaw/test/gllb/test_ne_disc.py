@@ -1,9 +1,9 @@
 import pytest
 from ase import Atom, Atoms
 
-from gpaw import GPAW, restart, Davidson, Mixer
-from gpaw.atom.generator import Generator
+from gpaw import GPAW, Davidson, Mixer, restart
 from gpaw.atom.configurations import parameters
+from gpaw.atom.generator import Generator
 from gpaw.mpi import world
 
 # This test calculates the derivative discontinuity of Ne-atom
@@ -47,7 +47,7 @@ def test_gllb_ne_disc(in_tmp_dir, add_cwd_to_setup_paths):
         eps3d = calc.wfs.kpt_u[0].eps_n[3]
         calc.write('Ne_temp.gpw', mode='all')
 
-        atoms, calc = restart('Ne_temp.gpw')
+        atoms, calc = restart('Ne_temp.gpw', legacy_gpaw=True)
         homo, lumo = calc.get_homo_lumo()
         response = calc.hamiltonian.xc.response
         dxc_pot = response.calculate_discontinuity_potential(homo, lumo)

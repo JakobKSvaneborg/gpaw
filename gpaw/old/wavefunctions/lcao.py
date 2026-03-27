@@ -4,17 +4,17 @@ from ase.utils.timing import timer
 
 # from gpaw import debug
 from gpaw.directmin.etdm_lcao import LCAOETDM
-from gpaw.directmin.tools import loewdin_lcao, gramschmidt_lcao
+from gpaw.directmin.tools import gramschmidt_lcao, loewdin_lcao
 from gpaw.lcao.atomic_correction import (DenseAtomicCorrection,
                                          SparseAtomicCorrection)
 # from gpaw.lcao.overlap import NewTwoCenterIntegrals as NewTCI
 from gpaw.lcao.tci import TCIExpansions
 from gpaw.lfc import BasisFunctions
-from gpaw.utilities import unpack_hermitian
-from gpaw.utilities.blas import mmm, gemmdot
-from gpaw.utilities.tools import tri2full
 from gpaw.old.wavefunctions.base import WaveFunctions
 from gpaw.old.wavefunctions.mode import Mode
+from gpaw.utilities import unpack_hermitian
+from gpaw.utilities.blas import gemmdot, mmm
+from gpaw.utilities.tools import tri2full
 
 
 class LCAO(Mode):
@@ -24,7 +24,7 @@ class LCAO(Mode):
                  force_complex_dtype=False):
         self.atomic_correction = atomic_correction
         self.interpolation = interpolation
-        Mode.__init__(self, force_complex_dtype)
+        super().__init__(force_complex_dtype)
 
     def __call__(self, *args, **kwargs):
         return LCAOWaveFunctions(*args,
@@ -95,9 +95,9 @@ class LCAOWaveFunctions(WaveFunctions):
     def __init__(self, ksl, gd, nvalence, setups, bd,
                  dtype, world, kd, kptband_comm, timer,
                  atomic_correction=None, collinear=True):
-        WaveFunctions.__init__(self, gd, nvalence, setups, bd,
-                               dtype, collinear, world, kd,
-                               kptband_comm, timer)
+        super().__init__(gd, nvalence, setups, bd,
+                         dtype, collinear, world, kd,
+                         kptband_comm, timer)
         self.ksl = ksl
         self.S_qMM = None
         self.T_qMM = None
@@ -161,7 +161,7 @@ class LCAOWaveFunctions(WaveFunctions):
         return s
 
     def set_eigensolver(self, eigensolver):
-        WaveFunctions.set_eigensolver(self, eigensolver)
+        super().set_eigensolver(eigensolver)
         if eigensolver:
             if isinstance(eigensolver, LCAOETDM):
                 eigensolver.initialize(self.gd, self.dtype, self.bd.nbands,
@@ -175,7 +175,7 @@ class LCAOWaveFunctions(WaveFunctions):
     def set_positions(self, spos_ac, atom_partition=None, move_wfs=False):
         oldspos_ac = self.spos_ac
         with self.timer('Basic WFS set positions'):
-            WaveFunctions.set_positions(self, spos_ac, atom_partition)
+            super().set_positions(spos_ac, atom_partition)
 
         with self.timer('Basis functions set positions'):
             self.basis_functions.set_positions(spos_ac)
@@ -258,6 +258,17 @@ class LCAOWaveFunctions(WaveFunctions):
         self.decomposed_S_qMM = [None] * len(self.S_qMM)
         self.set_orthonormalized(False)
 
+    def planewavefy(self, lazy=False, *, ecut):
+        import gpaw.fftw as fftw
+        from gpaw.old.pw.descriptor import PWDescriptor
+        from gpaw.old.wavefunctions.pw import PWWaveFunctions
+        self.pd = PWDescriptor(ecut, self.gd, self.dtype, self.kd,
+                               fftw.MEASURE)
+        PWWaveFunctions.initialize_from_lcao_coefficients(self,
+                                                          self.basis_functions,
+                                                          lazy=lazy,
+                                                          reset_C_nM=False)
+
     def initialize(self, density, hamiltonian, spos_ac):
         # Note: The above line exists also in set_positions.
         # This is guaranteed to be correct, but we can probably remove one.
@@ -313,8 +324,7 @@ class LCAOWaveFunctions(WaveFunctions):
         self.initialize_wave_functions_from_lcao()
 
     def add_orbital_density(self, nt_G, kpt, n):
-        rank, q = self.kd.get_rank_and_index(kpt.k)
-        u = q * self.nspins + kpt.s
+        rank, u = self.kd.get_rank_and_index(kpt.k, kpt.s)
         assert rank == self.kd.comm.rank
         assert self.kpt_u[u] is kpt
         psit_G = self._get_wave_function_array(u, n, realspace=True)
@@ -419,7 +429,7 @@ class LCAOWaveFunctions(WaveFunctions):
             return C_M
 
     def write(self, writer, write_wave_functions=False):
-        WaveFunctions.write(self, writer)
+        super().write(writer)
         if write_wave_functions:
             self.write_wave_functions(writer)
 
@@ -434,7 +444,7 @@ class LCAOWaveFunctions(WaveFunctions):
                 writer.fill(C_nM * Bohr**-1.5)
 
     def read(self, reader):
-        WaveFunctions.read(self, reader)
+        super().read(reader)
         r = reader.wave_functions
         if 'coefficients' in r:
             self.read_wave_functions(r)

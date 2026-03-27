@@ -1,10 +1,15 @@
-from gpaw.dft import Eigensolver
-from gpaw.new.pwfd.etdm import ETDM
+from gpaw.dft import Eigensolver, LegacyGPAWError
+from gpaw.new.pwfd.diropt import DirOptPWFD
 
 
 class DirectOptimization(Eigensolver):
+    name = 'etdm-fdpw'
+
     def __init__(self,
-                 converge_unocc: bool = False):
+                 converge_unocc: bool = False,
+                 **kwargs):
+        if kwargs:
+            raise LegacyGPAWError
         self.converge_unocc = converge_unocc
 
     def todict(self):
@@ -14,9 +19,16 @@ class DirectOptimization(Eigensolver):
               nbands,
               wf_desc,
               band_comm,
+              domain_band_comm,
+              scalapack_parameters,
               hamiltonian,
-              converge_bands,
+              convergence,
               setups,
               atoms):
-        return ETDM(converge_unocc=self.converge_unocc,
-                    hamiltonian=hamiltonian)
+        return DirOptPWFD(
+            converge_unocc=self.converge_unocc,
+            convergence=convergence,
+            hamiltonian=hamiltonian,
+            domain_band_comm=domain_band_comm,
+            nbands=nbands,
+            scalapack_params=scalapack_parameters)

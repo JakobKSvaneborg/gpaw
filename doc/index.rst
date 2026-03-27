@@ -32,8 +32,8 @@ Energy: -6.631 eV
 >>> forces = h2.get_forces()
 >>> forces.shape
 (2, 3)
->>> print(f'Force: {forces[0, 2]:.3f} eV/Å')
-Force: -0.639 eV/Å
+>>> print(f'Force: {forces[0, 2]:.2f} eV/Å')
+Force: -0.64 eV/Å
 
 .. image:: https://badge.fury.io/py/gpaw.svg
     :target: https://pypi.org/project/gpaw/
@@ -69,7 +69,7 @@ News
 * .. warning::
 
     **IMPORTANT**: A bug was found in PW-mode `\Gamma`-point only calculations.
-    Please check :ref:`here <bug0>` if you have been afected by this.
+    Please check :ref:`here <bug0>` if you have been affected by this.
 
 * :ref:`GPAW version 23.9.1 <releasenotes>` released (Sep 15, 2023).
 
@@ -240,6 +240,7 @@ News
    setups/setups
    releasenotes
    gallery/gallery
+   ecosystem
    contact
    faq
    devel/devel

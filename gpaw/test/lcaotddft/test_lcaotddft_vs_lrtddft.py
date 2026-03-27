@@ -1,16 +1,15 @@
-import pytest
 import numpy as np
-
+import pytest
 from ase.units import Hartree
+
 from gpaw import GPAW
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
-from gpaw.tddft.spectrum import photoabsorption_spectrum as spec_td
 from gpaw.lrtddft import LrTDDFT
 from gpaw.lrtddft import photoabsorption_spectrum as spec_lr
 from gpaw.lrtddft2 import LrTDDFT2
 from gpaw.mpi import world
-
+from gpaw.tddft.spectrum import photoabsorption_spectrum as spec_td
 
 pytestmark = [pytest.mark.usefixtures('module_tmp_path')]
 
@@ -36,7 +35,7 @@ def time_propagation_calculation(gpw_files):
 
 @pytest.fixture(scope='module')
 def lrtddft_calculation(gpw_files):
-    calc = GPAW(gpw_files['na2_tddft_sz'], txt=None)
+    calc = GPAW(gpw_files['na2_tddft_sz'], txt=None, legacy_gpaw=True)
     lr = LrTDDFT(calc, xc='LDA', txt='lr.out')
     lr.diagonalize()
     spec_lr(lr, 'spec_lr.dat',
@@ -53,7 +52,7 @@ def lrtddft_calculation(gpw_files):
 
 @pytest.fixture(scope='module')
 def lrtddft2_calculation(gpw_files):
-    calc = GPAW(gpw_files['na2_tddft_sz'], txt='lr2.out')
+    calc = GPAW(gpw_files['na2_tddft_sz'], txt='lr2.out', legacy_gpaw=True)
     lr2 = LrTDDFT2('lr2', calc, fxc='LDA')
     lr2.calculate()
     lr2.get_spectrum('spec_lr2.dat', 0, 10.1, 0.1, width=0.5)

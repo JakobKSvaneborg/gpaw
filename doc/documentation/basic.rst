@@ -45,16 +45,21 @@ In Python code, it looks like this:
 .. literalinclude:: h2.py
     :start-after: creates
 
-If the above code was executed, a calculation for a single `\rm{H}_2`
-molecule would be started.  The calculation would be done using a
-supercell of size `6.0 \times 6.0 \times 6.0` Å with cluster
-boundary conditions.  The parameters for the PAW calculation are:
+If the above code was executed, a plane-wave (``pw``) calculation
+for a single :mol:`H_2` molecule would be started.
+The calculation would be done using a cell of size
+`6.0 \times 6.0 \times 6.0` Å with open boundary conditions.
 
-* 2 electronic bands.
+.. note::
+   For plane-waves mode GPAW will always use periodic boundary conditions.
+
+The other (default) parameters for the PAW calculation are:
+
+* Plane-wave cutoff ``ecut`` 340 eV.
+* ``nbands`` 2 electronic bands.
 * Local density approximation (LDA)\ [#LDA]_ for the
-  exchange-correlation functional.
+  exchange-correlation functional ``xc``.
 * Spin-paired calculation.
-* `32 \times 32 \times 32` grid points.
 
 The values of these parameters can be found in the text output file:
 :download:`h2.txt`.
@@ -65,12 +70,11 @@ like this:
 
 >>> calc = GPAW(mode='fd',
 ...             nbands=1,
-...             xc='PBE',
-...             gpts=(24, 24, 24))
+...             xc='PBE')
 
-Here, we want to use one electronic band, the Perdew, Burke, Ernzerhof
-(PBE)\ [#PBE]_ exchange-correlation functional and 24 grid points in
-each direction.
+Here, we want to use finite difference (``fd``) mode,
+one electronic band and the Perdew, Burke, Ernzerhof
+(PBE)\ [#PBE]_ exchange-correlation functional.
 
 .. _parameters:
 
@@ -107,8 +111,8 @@ given in the following sections.
       -
       - :ref:`manual_convergence`
     * - ``eigensolver``
-      - ``str``
-      - ``'dav'``
+      - ``str`` or ``dict``
+      - ``'ppcg'``
       - :ref:`manual_eigensolver`
     * - ``external``
       - Object
@@ -425,7 +429,7 @@ in chemistry corresponds to ``'LDA_X+LDA_C_VWN'``.
 
 XC functionals can also be specified as dictionaries. This is useful for
 functionals that depend on one or more parameters. For example, to use a
-stencil with two nearest neighbours for the density-gradient with the PBE
+stencil with two nearest neighbors for the density-gradient with the PBE
 functional, use ``xc={'name': 'PBE', 'stencil': 2}``. The ``stencil``
 keyword applies to any GGA or MGGA. Some functionals may take other
 parameters; see their respective documentation pages.
@@ -893,7 +897,7 @@ the ``Atoms`` object.
 
 .. note::
 
-    If you want to use only the ``sz`` basis functinons from a ``dzp``
+    If you want to use only the ``sz`` basis functions from a ``dzp``
     basis set, then you can use this syntax: ``basis='sz(dzp)'``.
     This will read the basis functions for, say hydrogen, from the
     ``H.dzp.basis`` file.  If the basis has a custom name,
@@ -915,25 +919,25 @@ Eigensolver
 -----------
 
 The default solver for iterative diagonalization of the Kohn-Sham
-Hamiltonian is a simple Davidson method, (``eigensolver='dav'``), which
+Hamiltonian is the PPCG method, (``eigensolver='ppcg'``), which
 seems to perform well in most cases. Sometimes more efficient/stable
 convergence can be obtained with a different eigensolver. One option is the
 RMM-DIIS (Residual minimization method - direct inversion in iterative
-subspace), (``eigensolver='rmm-diis'``), which performs well when only a few
-unoccupied states are calculated. Another option is the conjugate gradient
-method (``eigensolver='cg'``), which is stable but slower.
+subspace), (``eigensolver='rmm-diis'``). This eigensolver is particularly
+useful if only a few unoccupied states are calculated.
 
-If parallellization over bands is necessary, then Davidson or RMM-DIIS must
-be used.
+More control can be obtained by specifying parameters in a dict::
 
-More control can be obtained by using directly the eigensolver objects::
+  calc = GPAW(...,
+              eigensolver={
+                  'name': 'rmm-diis',
+                  'diis-steps': 3,
+                  'niter': 2},
+              ...)
 
-  from gpaw.eigensolvers import CG
-  calc = GPAW(..., eigensolver=CG(niter=5, rtol=0.20), ...)
-
-Here, ``niter`` specifies the maximum number of conjugate gradient iterations
-for each band (within a single SCF step), and if the relative change
-in residual is less than ``rtol``, the iteration for the band is not continued.
+Here, ``niter`` specifies the maximum number of eigensolver iterations
+(within a single SCF step), and ``diis-steps`` the number of diis steps per
+eigensolver iteration.
 
 LCAO mode has its own eigensolvers. ``DirectLCAO`` eigensolver directly
 diagonalizes the Hamiltonian matrix instead of using an iterative method.
@@ -1044,7 +1048,7 @@ where the default value is also ``n=3``.
 
 In PW-mode, the interpolation of the density from the coarse grid to the
 fine grid is done with FFT's.  In FD and LCAO mode, tri-quintic interpolation
-is used (5. degree polynomium)::
+is used (5. degree polynomial)::
 
     from gpaw import GPAW, FD
     calc = GPAW(mode=FD(interpolation=n))
@@ -1052,7 +1056,7 @@ is used (5. degree polynomium)::
     from gpaw import GPAW, LCAO
     calc = GPAW(mode=LCAO(interpolation=n))
 
-The order of polynomium is `2n-1`, default value is ``n=3`` and ``n`` must be
+The order of polynomial is `2n-1`, default value is ``n=3`` and ``n`` must be
 between 1 and 4 (linear, cubic, quintic, heptic).
 
 
@@ -1062,7 +1066,7 @@ Using Hund's rule for guessing initial magnetic moments
 -------------------------------------------------------
 
 With ``hund=True``, the calculation will become spinpolarized, and the initial
-ocupations, and magnetic moments of all atoms will be set to the values
+occupations, and magnetic moments of all atoms will be set to the values
 required by Hund's rule.  You may further wish to specify that the
 total magnetic moment be fixed, by passing e.g. ``occupations={'name': ...,
 'fixmagmom': True}``. Any user specified magnetic moment is ignored. Default
@@ -1089,7 +1093,7 @@ Output verbosity
 
 By default, only a limited number of information is printed out for each SCF
 step. It is possible to obtain more information (e.g. for investigating
-convergen problems in more detail) by ``verbose=1`` keyword.
+convergence problems in more detail) by ``verbose=1`` keyword.
 
 
 .. _manual_communicator:
@@ -1174,7 +1178,7 @@ More details can be found on the :ref:`restart_files` page.
 
 
 ---------------------------------------
-Customizing behaviour through observers
+Customizing behavior through observers
 ---------------------------------------
 
 An *observer* function can be *attached* to the calculator so that it

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from ase.units import Bohr
 from gpaw import GPAW
 rs = 5.0 * Bohr
-calc = GPAW('surface.gpw')
+calc = GPAW('surface.gpw', legacy_gpaw=True)
 density = calc.get_pseudo_density()[0, 0]
 h = 0.2
 a = 8 * h

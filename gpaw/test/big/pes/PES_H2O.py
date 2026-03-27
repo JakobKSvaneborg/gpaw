@@ -2,7 +2,9 @@
 
 import numpy as np
 from ase import Atom, Atoms
-from gpaw import GPAW, MixerDif, mpi
+
+from gpaw import GPAW, MixerDif
+from gpaw.mpi import world
 from gpaw.lrtddft import LrTDDFT
 from gpaw.pes.dos import DOSPES
 from gpaw.pes.tddft import TDDFTPES
@@ -20,11 +22,11 @@ calc_params = dict(
     mode='fd',
     gpts=N_c,
     mixer=MixerDif(0.1, 5, weight=100.0),
-    parallel={'domain': mpi.size},
+    parallel={'domain': world.size},
     xc='PBE',
     spinpol=True)
 
-m_calc = GPAW(**calc_params, nbands=4, txt='H2O-m.txt')
+m_calc = GPAW(**calc_params, nbands=4, txt='H2O-m.txt', legacy_gpaw=True)
 
 m = atoms.copy()
 m.set_initial_magnetic_moments([-1, 1, -1])

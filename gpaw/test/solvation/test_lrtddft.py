@@ -1,10 +1,10 @@
+import pytest
 from ase.build import molecule
 
-import pytest
 import gpaw.solvation as solv
-from gpaw.utilities.adjust_cell import adjust_cell
-from gpaw.lrtddft import LrTDDFT
 from gpaw import PoissonSolver
+from gpaw.lrtddft import LrTDDFT
+from gpaw.utilities.adjust_cell import adjust_cell
 
 
 @pytest.mark.old_gpaw_only

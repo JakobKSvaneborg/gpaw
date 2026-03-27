@@ -1,7 +1,7 @@
 import pytest
 from ase import Atom, Atoms
 
-from gpaw import GPAW, GPAW_MPI4PY
+from gpaw import GPAW, GPAW_MPI_BACKEND
 from gpaw.analyse.overlap import Overlap
 from gpaw.lrtddft.kssingle import KSSingles
 
@@ -20,7 +20,7 @@ c = 5.0
 
 @pytest.mark.lrtddft
 def test_lrtddft_placzek_profeta_albrecht(in_tmp_dir):
-    if GPAW_MPI4PY:
+    if GPAW_MPI_BACKEND == 'mpi4py':
         pytest.skip(reason='not working with MPI4PY')
     from ase.vibrations.albrecht import Albrecht
     from ase.vibrations.placzek import Placzek, Profeta
@@ -34,6 +34,7 @@ def test_lrtddft_placzek_profeta_albrecht(in_tmp_dir):
     exkwargs = {'restrict': {'eps': 0.0, 'jend': 3}}
 
     calc = GPAW(
+        legacy_gpaw=True,
         mode='fd',
         xc=xc, nbands=7,
         convergence={'bands': 3},

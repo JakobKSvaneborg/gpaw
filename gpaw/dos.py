@@ -1,17 +1,19 @@
 from __future__ import annotations
+
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Union, List, Optional, Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import numpy as np
 from ase.dft.dos import linear_tetrahedron_integration as lti
 
 from gpaw.setup import Setup
-from gpaw.spinorbit import soc_eigenstates, BZWaveFunctions
+from gpaw.spinorbit import BZWaveFunctions, soc_eigenstates
 from gpaw.typing import Array1D, Array2D, Array3D, ArrayLike1D
 
 if TYPE_CHECKING:
-    from gpaw.old.calculator import GPAW
     from gpaw.new.ase_interface import ASECalculator
+    from gpaw.old.calculator import GPAW
 
 
 class IBZWaveFunctions:
@@ -36,7 +38,7 @@ class IBZWaveFunctions:
 
     def pdos_weights(self,
                      a: int,
-                     indices: List[int]
+                     indices: list[int]
                      ) -> Array3D:
         """Projections for PDOS.
 
@@ -60,7 +62,7 @@ class IBZWaveFunctions:
         return dos_kns
 
 
-def get_projector_numbers(setup: Setup, ell: int) -> List[int]:
+def get_projector_numbers(setup: Setup, ell: int) -> list[int]:
     """Find indices of bound-state PAW projector functions.
 
     >>> from gpaw.setup import create_setup
@@ -146,8 +148,8 @@ class DOSCalculator:
         self.weight_k = wfs.weights()
 
     def get_energies(self,
-                     emin: Optional[float] = None,
-                     emax: Optional[float] = None,
+                     emin: float | None = None,
+                     emax: float | None = None,
                      npoints: int = 100):
         emin = emin if emin is not None else self.eig_skn.min()
         emax = emax if emax is not None else self.eig_skn.max()
@@ -169,7 +171,7 @@ class DOSCalculator:
         else:
             calc = GPAW(filename, txt=None)
 
-        wfs: Union[BZWaveFunctions, IBZWaveFunctions]
+        wfs: BZWaveFunctions | IBZWaveFunctions
         if soc:
             wfs = soc_eigenstates(calc, theta=theta, phi=phi)
         else:
@@ -195,7 +197,7 @@ class DOSCalculator:
 
     def raw_dos(self,
                 energies: Sequence[float],
-                spin: Optional[int] = None,
+                spin: int | None = None,
                 width: float = 0.1) -> Array1D:
         """Calculate density of states.
 
@@ -216,8 +218,8 @@ class DOSCalculator:
                  energies: Sequence[float],
                  a: int,
                  l: int,
-                 m: Optional[int] = None,
-                 spin: Optional[int] = None,
+                 m: int | None = None,
+                 spin: int | None = None,
                  width: float = 0.1) -> Array1D:
         """Calculate projected density of states.
 

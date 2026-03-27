@@ -4,7 +4,7 @@ Used if GPAW_NO_C_EXTENSION=1.  See also the gpaw.cgpaw module.
 """
 import numpy as np
 from scipy.interpolate import CubicSpline
-from gpaw.gpu import cupy as cp, cupy_is_fake
+
 from gpaw.typing import Array1D, ArrayND
 
 have_openmp = False
@@ -128,9 +128,16 @@ def pw_insert_gpu(psit_nG,
 def pwlfc_expand(f_Gs, Gk_Gv, pos_av, eikR_a,
                  Y_GL, l_s, a_J, s_J,
                  cc, f_GI, xp=np):
-    emiGR_Ga = Gk_Gv @ pos_av.T
-    emiGR_Ga = \
-        (xp.cos(emiGR_Ga) - 1j * xp.sin(emiGR_Ga)) * eikR_a
+    GkR_Ga = Gk_Gv @ pos_av.T
+    emiGR_Ga = np.exp(-1j * GkR_Ga) * eikR_a
+    pwlfc_expand_old(f_Gs, emiGR_Ga,
+                     Y_GL, l_s, a_J, s_J,
+                     cc, f_GI, xp=xp)
+
+
+def pwlfc_expand_old(f_Gs, emiGR_Ga,
+                     Y_GL, l_s, a_J, s_J,
+                     cc, f_GI, xp=np):
     real = np.issubdtype(f_GI.dtype, np.floating)
     I1 = 0
     for J, (a, s) in enumerate(zip(a_J, s_J)):
@@ -153,6 +160,7 @@ def pwlfc_expand(f_Gs, Gk_Gv, pos_av, eikR_a,
 def pwlfc_expand_gpu(f_Gs, Gk_Gv, pos_av, eikR_a,
                      Y_GL, l_s, a_J, s_J,
                      cc, f_GI, I_J):
+    from gpaw.gpu import cupy as cp
     pwlfc_expand(f_Gs, Gk_Gv, pos_av, eikR_a,
                  Y_GL, l_s, a_J, s_J,
                  cc, f_GI, xp=cp)
@@ -186,6 +194,7 @@ def calculate_residuals_gpu(residual_nG, eps_n, wfs_nG):
 
 
 def add_to_density_gpu(weight_n, psit_nR, nt_R):
+    from gpaw.gpu import cupy as cp
     for weight, psit_R in zip(weight_n, psit_nR):
         nt_R += float(weight) * cp.abs(psit_R)**2
 
@@ -198,25 +207,29 @@ def symmetrize_ft(a_R, b_R, r_cc, t_c, offset_c):
 
 
 def evaluate_lda_gpu(nt_sr, vxct_sr, e_r) -> None:
+    from gpaw.xc.lda import PurePythonLDAKernel
+    kernel = PurePythonLDAKernel()
+    from gpaw.gpu import cupy_is_fake
     if cupy_is_fake:
-        from gpaw.xc.kernel import XCKernel
-        XCKernel('LDA').calculate(e_r._data, nt_sr._data, vxct_sr._data)
+        kernel.calculate(e_r._data, nt_sr._data, vxct_sr._data)
     else:
-        from _gpaw import evaluate_lda_gpu as evalf  # type: ignore
-        evalf(nt_sr, vxct_sr, e_r)
+        kernel.calculate(e_r, nt_sr, vxct_sr)
 
 
 def evaluate_pbe_gpu(nt_sr, vxct_sr, e_r, sigma_xr, dedsigma_xr) -> None:
+    from gpaw.xc.gga import PurePythonGGAKernel
+    kernel = PurePythonGGAKernel('pyPBE')
+    from gpaw.gpu import cupy_is_fake
     if cupy_is_fake:
-        from gpaw.xc.kernel import XCKernel
-        XCKernel('PBE').calculate(e_r._data, nt_sr._data, vxct_sr._data,
-                                  sigma_xr._data, dedsigma_xr._data)
+        kernel.calculate(e_r._data, nt_sr._data, vxct_sr._data,
+                         sigma_xr._data, dedsigma_xr._data)
     else:
-        from _gpaw import evaluate_pbe_gpu as evalf  # type: ignore
-        evalf(nt_sr, vxct_sr, e_r, sigma_xr, dedsigma_xr)
+        kernel.calculate(e_r, nt_sr, vxct_sr, sigma_xr, dedsigma_xr)
 
 
 def pw_norm_gpu(result_x, C_xG):
+    from gpaw.gpu import cupy as cp
+    from gpaw.gpu import cupy_is_fake
     if cupy_is_fake:
         result_x._data[:] = np.sum(np.abs(C_xG._data)**2, axis=1)
     else:
@@ -224,9 +237,128 @@ def pw_norm_gpu(result_x, C_xG):
 
 
 def pw_norm_kinetic_gpu(result_x, a_xG, kin_G):
+    from gpaw.gpu import cupy as cp
+    from gpaw.gpu import cupy_is_fake
     if cupy_is_fake:
         result_x._data[:] = np.sum(
             np.abs(a_xG._data)**2 * kin_G._data[None, :],
             axis=1)
     else:
         result_x[:] = cp.sum(cp.abs(a_xG)**2 * kin_G[None, :], axis=1)
+
+
+def r2k_gpu(stream, alpha, a, b, beta, c, lda, ldb, ldc):
+    # assert a.shape[-1] == lda
+    # assert b.shape[-1] == ldb
+    # assert c.shape[-1] == ldc
+    # Note, lda, ldb and ldc are not respected on purpose
+    # These are cupy arrays so cupy will have correct strides
+    # the r2k wrapper would take the cupy arrays as flat,
+    # and then require lda, ldb and ldc in addition
+
+    # Guard against nans on uninitialized arrays
+    if beta == 0.0:
+        c[:] = 0.0
+
+    c[:] = c * beta + alpha * a @ b.conj().T + np.conj(alpha) * b @ a.conj().T
+
+
+def axpy_gpu(alpha, xptr, xshape,
+             yptr, yshape,
+             dtype):
+    from cupy.cuda.memory import MemoryPointer, UnownedMemory
+
+    from gpaw.gpu import cupy
+    xmem = UnownedMemory(xptr, np.prod(xshape) * dtype.itemsize, None)
+    ymem = UnownedMemory(yptr, np.prod(yshape) * dtype.itemsize, None)
+    x = cupy.ndarray(shape=xshape, dtype=dtype, memptr=MemoryPointer(xmem, 0))
+    y = cupy.ndarray(shape=yshape, dtype=dtype, memptr=MemoryPointer(ymem, 0))
+
+    if alpha == 0.0:
+        return
+
+    y += alpha * x
+
+
+def mmm_gpu(alpha, aptr, lda, opa, bptr, ldb, opb,
+            beta, cptr, ldc, itemsize, m, n, k):
+    assert opa == 'N'
+    assert opb == 'N'
+    from cupy.cuda.memory import MemoryPointer, UnownedMemory
+
+    from gpaw.gpu import cupy as cp
+    amem = UnownedMemory(aptr, itemsize * m * lda, None)
+    bmem = UnownedMemory(bptr, itemsize * n * ldb, None)
+    cmem = UnownedMemory(cptr, itemsize * m * ldc, None)
+    if itemsize == 16:
+        dtype = cp.complex128
+    elif itemsize == 8:
+        dtype = cp.float64
+    else:
+        raise ValueError('Unknown itemsize', itemsize)
+
+    # NOTE: The test_blas.py test is not qualified to test this
+    # so this is essentially untested.
+    a = cp.ndarray(shape=(m, lda), dtype=dtype,
+                   memptr=MemoryPointer(amem, 0))[:, :n]
+    b = cp.ndarray(shape=(n, ldb), dtype=dtype,
+                   memptr=MemoryPointer(bmem, 0))[:, :k]
+    c = cp.ndarray(shape=(m, ldc), dtype=dtype,
+                   memptr=MemoryPointer(cmem, 0))[:, :m]
+
+    # Guard against nans on uninitialized arrays
+    if beta == 0.0:
+        c[:] = 0.0
+
+    c[:] = c * beta + alpha * a @ b
+
+
+def XCFunctional(xcid: int):
+    if xcid == -1:
+        from gpaw.xc.lda import PurePythonLDAKernel
+        return PurePythonLDAKernel()
+    elif xcid == 0:
+        from gpaw.xc.gga import PurePythonGGAKernel
+        return PurePythonGGAKernel('pyPBE')
+
+    raise ValueError(f'Unsupported XC for GPAW_NO_C_EXTENSION=1: {xcid}')
+
+
+def GG_shuffle(G_G, sign, A_GG, tmp_GG):
+    if sign == 1:
+        tmp_GG += A_GG[G_G, :][:, G_G]
+    elif sign == -1:
+        tmp_GG += A_GG[G_G, :][:, G_G].T
+    else:
+        raise ValueError(f'Invalid sign {sign}')
+
+
+def adjust_positions(*args):
+    raise NotImplementedError('adjust_positions')
+
+
+def evaluate_mpa_poly(*args):
+    raise NotImplementedError('evaluate_mpa_poly')
+
+
+def adjust_momenta(*args):
+    raise NotImplementedError('adjust_momenta')
+
+
+def calculate_forces_H2O(*args):
+    raise NotImplementedError('calculate_forces_H2O')
+
+
+class Operator:
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError('Operator')
+
+
+def spherical_harmonics(l, R_v, rlY_m):
+    from gpaw.sphere.spherical_harmonics import Y
+    for m in range(2 * l + 1):
+        rlY_m[m] = Y(l**2 + m, R_v[0], R_v[1], R_v[2])
+
+
+def tci_overlap(*args, **kwargs):
+    raise NotImplementedError('tci_overlap')

@@ -1,7 +1,9 @@
 /*  Copyright (C) 2010-2011 CAMd
  *  Please see the accompanying LICENSE file for further information. */
-#include "extensions.h"
 
+#include "python_utils.h"
+#include "array.h"
+#include "extensions.h"
 
 
 PyObject* GG_shuffle(PyObject *self, PyObject *args)
@@ -16,6 +18,10 @@ PyObject* GG_shuffle(PyObject *self, PyObject *args)
                           &G_G_obj, &sign, &A_GG_obj, &B_GG_obj))
         return NULL;
 
+    CHK_ARRAY(G_G_obj);
+    // A_GG can be non-contiguous
+    assert(PyArray_Check(A_GG_obj));
+    CHK_ARRAY(B_GG_obj);
 
     int nG = PyArray_DIMS(G_G_obj)[0];
     // Check dimensions
@@ -38,7 +44,7 @@ PyObject* GG_shuffle(PyObject *self, PyObject *args)
 
     if (PyArray_TYPE(G_G_obj) != NPY_INT)
     {
-         PyErr_SetString(PyExc_TypeError, "G_G expected to be an integer array.");
+         PyErr_SetString(PyExc_TypeError, "G_G expected to be an 32 bit integer array.");
          return NULL;
     }
 
@@ -75,8 +81,8 @@ PyObject* GG_shuffle(PyObject *self, PyObject *args)
         }
     }
 
-    double complex* A_GG = (double complex*)PyArray_DATA(A_GG_obj);
-    double complex* B_GG = (double complex*)PyArray_DATA(B_GG_obj);
+    double_complex* A_GG = (double_complex*)PyArray_DATA(A_GG_obj);
+    double_complex* B_GG = (double_complex*)PyArray_DATA(B_GG_obj);
 
     for (int G0=0; G0<nG; G0++)
     {
@@ -86,7 +92,7 @@ PyObject* GG_shuffle(PyObject *self, PyObject *args)
             int take1 = G1_G[G1];
             // Instead of numpy magic, we do some C magic.
             char* ptr = (char*)A_GG + take0 + take1;
-            double complex* value_ptr = (double_complex*) ptr;
+            double_complex* value_ptr = (double_complex*) ptr;
             *(B_GG++) += *value_ptr;
         }
     }
@@ -119,6 +125,11 @@ PyObject* symmetrize(PyObject *self, PyObject *args)
                           &a_g_obj, &b_g_obj, &op_cc_obj, &offset_c_obj))
         return NULL;
 
+    CHK_ARRAY(a_g_obj);
+    CHK_ARRAY(b_g_obj);
+    CHK_ARRAY(op_cc_obj);
+    CHK_ARRAY(offset_c_obj);
+
     const long* C = (const long*)PyArray_DATA(op_cc_obj);
     const long* o_c = (const long*)PyArray_DATA(offset_c_obj);
     int ng0 = PyArray_DIMS(a_g_obj)[0];
@@ -147,6 +158,7 @@ PyObject* symmetrize(PyObject *self, PyObject *args)
     Py_RETURN_NONE;
 }
 
+
 PyObject* symmetrize_ft(PyObject *self, PyObject *args)
 {
     PyArrayObject* a_g_obj;
@@ -159,6 +171,12 @@ PyObject* symmetrize_ft(PyObject *self, PyObject *args)
                           &a_g_obj, &b_g_obj, &op_cc_obj, &t_c_obj,
                           &offset_c_obj))
         return NULL;
+
+    CHK_ARRAY(a_g_obj);
+    CHK_ARRAY(b_g_obj);
+    CHK_ARRAY(op_cc_obj);
+    CHK_ARRAY(t_c_obj);
+    CHK_ARRAY(offset_c_obj);
 
     const long* t_c = (const long*)PyArray_DATA(t_c_obj);
     const long* C = (const long*)PyArray_DATA(op_cc_obj);
@@ -201,6 +219,12 @@ PyObject* symmetrize_wavefunction(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "OOOOO", &a_g_obj, &b_g_obj, &op_cc_obj, &kpt0_obj, &kpt1_obj))
         return NULL;
 
+    CHK_ARRAY(a_g_obj);
+    CHK_ARRAY(b_g_obj);
+    CHK_ARRAY(op_cc_obj);
+    CHK_ARRAY(kpt0_obj);
+    CHK_ARRAY(kpt1_obj);
+
     const long* C = (const long*)PyArray_DATA(op_cc_obj);
     const double* kpt0 = (const double*) PyArray_DATA(kpt0_obj);
     const double* kpt1 = (const double*) PyArray_DATA(kpt1_obj);
@@ -208,8 +232,8 @@ PyObject* symmetrize_wavefunction(PyObject *self, PyObject *args)
     int ng1 = PyArray_DIMS(a_g_obj)[1];
     int ng2 = PyArray_DIMS(a_g_obj)[2];
 
-    const double complex* a_g = (const double complex*)PyArray_DATA(a_g_obj);
-    double complex* b_g = (double complex*)PyArray_DATA(b_g_obj);
+    const double_complex* a_g = (const double_complex*)PyArray_DATA(a_g_obj);
+    double_complex* b_g = (double_complex*)PyArray_DATA(b_g_obj);
 
     for (int g0 = 0; g0 < ng0; g0++)
         for (int g1 = 0; g1 < ng1; g1++)
@@ -218,7 +242,7 @@ PyObject* symmetrize_wavefunction(PyObject *self, PyObject *args)
               int p1 = ((C[1] * g0 + C[4] * g1 + C[7] * g2) % ng1 + ng1) % ng1;
               int p2 = ((C[2] * g0 + C[5] * g1 + C[8] * g2) % ng2 + ng2) % ng2;
 
-              double complex phase = cexp(I * 2. * M_PI *
+              double_complex phase = cexp(I * 2. * M_PI *
                                           (kpt1[0]/ng0*p0 +
                                            kpt1[1]/ng1*p1 +
                                            kpt1[2]/ng2*p2 -
@@ -243,6 +267,12 @@ PyObject* symmetrize_return_index(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "OOOOO", &a_g_obj, &b_g_obj, &op_cc_obj, &kpt0_obj, &kpt1_obj))
         return NULL;
 
+    CHK_ARRAY(a_g_obj);
+    CHK_ARRAY(b_g_obj);
+    CHK_ARRAY(op_cc_obj);
+    CHK_ARRAY(kpt0_obj);
+    CHK_ARRAY(kpt1_obj);
+
     const long* C = (const long*)PyArray_DATA(op_cc_obj);
     const double* kpt0 = (const double*) PyArray_DATA(kpt0_obj);
     const double* kpt1 = (const double*) PyArray_DATA(kpt1_obj);
@@ -252,7 +282,7 @@ PyObject* symmetrize_return_index(PyObject *self, PyObject *args)
     int ng2 = PyArray_DIMS(a_g_obj)[2];
 
     unsigned long* a_g = (unsigned long*)PyArray_DATA(a_g_obj);
-    double complex* b_g = (double complex*)PyArray_DATA(b_g_obj);
+    double_complex* b_g = (double_complex*)PyArray_DATA(b_g_obj);
 
     for (int g0 = 0; g0 < ng0; g0++)
         for (int g1 = 0; g1 < ng1; g1++)
@@ -261,7 +291,7 @@ PyObject* symmetrize_return_index(PyObject *self, PyObject *args)
               int p1 = ((C[1] * g0 + C[4] * g1 + C[7] * g2) % ng1 + ng1) % ng1;
               int p2 = ((C[2] * g0 + C[5] * g1 + C[8] * g2) % ng2 + ng2) % ng2;
 
-              double complex phase = cexp(I * 2. * M_PI *
+              double_complex phase = cexp(I * 2. * M_PI *
                                           (kpt1[0]/ng0*p0 +
                                            kpt1[1]/ng1*p1 +
                                            kpt1[2]/ng2*p2 -
@@ -285,14 +315,19 @@ PyObject* symmetrize_with_index(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "OOOO", &a_g_obj, &b_g_obj, &index_g_obj, &phase_g_obj))
         return NULL;
 
+    CHK_ARRAY(a_g_obj);
+    CHK_ARRAY(b_g_obj);
+    CHK_ARRAY(index_g_obj);
+    CHK_ARRAY(phase_g_obj);
+
     int ng0 = PyArray_DIMS(a_g_obj)[0];
     int ng1 = PyArray_DIMS(a_g_obj)[1];
     int ng2 = PyArray_DIMS(a_g_obj)[2];
 
     const unsigned long* index_g = (const unsigned long*)PyArray_DATA(index_g_obj);
-    const double complex* phase_g = (const double complex*)PyArray_DATA(phase_g_obj);
-    const double complex* a_g = (const double complex*)PyArray_DATA(a_g_obj);
-    double complex* b_g = (double complex*)PyArray_DATA(b_g_obj);
+    const double_complex* phase_g = (const double_complex*)PyArray_DATA(phase_g_obj);
+    const double_complex* a_g = (const double_complex*)PyArray_DATA(a_g_obj);
+    double_complex* b_g = (double_complex*)PyArray_DATA(b_g_obj);
 
 
     for (int g0 = 0; g0 < ng0; g0++)
@@ -318,6 +353,10 @@ PyObject* map_k_points(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "OOdOii", &bzk_kc_obj, &U_scc_obj,
                            &tol, &bz2bz_ks_obj, &ka, &kb))
         return NULL;
+
+    CHK_ARRAY(bzk_kc_obj);
+    CHK_ARRAY(U_scc_obj);
+    CHK_ARRAY(bz2bz_ks_obj);
 
     const long* U_scc = (const long*)PyArray_DATA(U_scc_obj);
     const double* bzk_kc = (const double*)PyArray_DATA(bzk_kc_obj);

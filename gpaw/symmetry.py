@@ -3,7 +3,6 @@
 # Wits University
 # Please see the accompanying LICENSE file for further information.
 from fractions import Fraction
-from typing import Tuple
 
 import numpy as np
 
@@ -13,8 +12,7 @@ import gpaw.mpi as mpi
 
 def frac(f: float,
          *,
-         max_denominator: int = 50,
-         tol: float = 1e-6) -> Tuple[int, int]:
+         max_denominator: int = 50) -> tuple[int, int]:
     """Convert to fraction.
 
     >>> frac(0.5)
@@ -191,7 +189,7 @@ class Symmetry:
                 ftrans_jc -= np.rint(ftrans_jc)
                 for ft_c in ftrans_jc:
                     try:
-                        nom_c, denom_c = np.array([frac(ft, tol=self.tol)
+                        nom_c, denom_c = np.array([frac(ft)
                                                    for ft in ft_c]).T
                     except ValueError:
                         continue

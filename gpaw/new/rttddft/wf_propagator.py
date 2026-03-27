@@ -14,7 +14,7 @@ from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
-from gpaw.new.rttddft.state import RTTDDFTState
+from gpaw.new.rttddft.dataclasses import RTTDDFTState
 from gpaw.new.wave_functions import WaveFunctions
 from gpaw.tddft.solvers.cscg import CSCG
 from gpaw.utilities.timing import nulltimer
@@ -143,9 +143,9 @@ class FDNumpyPropagator(WaveFunctionPropagator):
         if isinstance(hamiltonian, FDKickHamiltonian):
             self.dH = hamiltonian.dH
         else:
-            self.dH = state.potential.dH
+            self.dH = state.potential.deltaH
 
-        wfs = state.ibzwfs.wfs_qs[0][0]
+        wfs = state.ibzwfs._wfs_u[0]
         self.dS = partial(wfs.setups.get_overlap_corrections,
                           wfs.P_ani.layout.atomdist,
                           wfs.xp)
@@ -360,7 +360,8 @@ class CSCGAdapter:
               time_step: float):
         self._time_step = time_step
         out_nR.data[:] = init_guess_nR.data
-        self.solver.solve(self, out_nR.data, rhs_nR.data)
+        # XXX Where do we get world from?
+        self.solver.solve(self, out_nR.data, rhs_nR.data, world=None)
         self._time_step = None
 
     def dot(self, psit_nR: np.ndarray, out_nR: np.ndarray):

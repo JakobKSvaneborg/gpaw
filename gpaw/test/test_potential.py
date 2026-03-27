@@ -1,13 +1,9 @@
 import pytest
-from gpaw.mpi import world
 from ase import Atoms
-from gpaw import GPAW
-
-pytestmark = pytest.mark.skipif(world.size > 1,
-                                reason='world.size > 1')
 
 
-def test_potential(gpaw_new):
+@pytest.mark.serial
+def test_potential(gpaw_new, mpi):
     if gpaw_new:
         pytest.skip('Not implemented')
     for mode in ['fd', 'pw']:
@@ -15,7 +11,7 @@ def test_potential(gpaw_new):
         hydrogen = Atoms('H',
                          cell=(2.5, 3, 3.5),
                          pbc=1,
-                         calculator=GPAW(txt=None, mode=mode))
+                         calculator=mpi.GPAW(txt=None, mode=mode))
         hydrogen.get_potential_energy()
         dens = hydrogen.calc.density
         ham = hydrogen.calc.hamiltonian

@@ -3,10 +3,10 @@ from __future__ import annotations
 import numpy as np
 from ase.units import Bohr, Ha
 
-from gpaw.core.arrays import DistributedArrays as XArray
+from gpaw.core import PWArray, UGArray, UGDesc
+from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.core.domain import Domain as XDesc
-from gpaw.core import PWArray, UGArray, UGDesc
 from gpaw.mpi import MPIComm, broadcast_float
 from gpaw.new import zips
 
@@ -32,7 +32,7 @@ class Potential:
         return (f'potential:\n'
                 f'  grid points: {self.vt_sR.desc.size}\n')
 
-    def dH(self, P_ani, out_ani, spin):
+    def deltaH(self, P_ani, out_ani, spin):
         if len(P_ani.dims) == 1:  # collinear wave functions
             P_ani.block_diag_multiply(self.dH_asii, out_ani, spin)
             return
@@ -86,13 +86,20 @@ class Potential:
             None if self.vHt_x is None else self.vHt_x.redist(
                 desc, comm1, comm2))
 
-    def write_to_gpw(self, writer, flags):
+    def gather(self):
         dH_asp = self.dH_asii.to_cpu().to_lower_triangle().gather()
         vt_sR = self.vt_sR.to_xp(np).gather()
+        dedtaut_sR = None
+        vHt_x = None
         if self.dedtaut_sR is not None:
             dedtaut_sR = self.dedtaut_sR.to_xp(np).gather()
         if self.vHt_x is not None:
             vHt_x = self.vHt_x.to_xp(np).gather()
+        return dH_asp, vt_sR, dedtaut_sR, vHt_x
+
+    def write_to_gpw(self, writer, flags):
+        dH_asp, vt_sR, dedtaut_sR, vHt_x = self.gather()
+
         if dH_asp is None:
             return
 

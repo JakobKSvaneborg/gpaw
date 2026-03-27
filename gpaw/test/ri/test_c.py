@@ -1,16 +1,17 @@
-import pytest
 import numpy as np
-from gpaw.mpi import world
+import pytest
+
 from gpaw.atom.generator2 import generate
+from gpaw.mpi import world
 
 
 @pytest.mark.hybrids
 @pytest.mark.skipif(world.size > 1, reason='Not parallelized')
 def test_diamond(in_tmp_dir, add_cwd_to_setup_paths):
 
-    from gpaw.atom.generator import Generator
-    from gpaw.atom.configurations import parameters
     from gpaw.atom.basis import BasisMaker
+    from gpaw.atom.configurations import parameters
+    from gpaw.atom.generator import Generator
 
     args = parameters['C']
     generator = Generator('C', 'PBE', configuration='1s2',
@@ -32,10 +33,11 @@ def test_diamond(in_tmp_dir, add_cwd_to_setup_paths):
     setup = gen.make_paw_setup()
     setup.write_xml()
 
-    from gpaw import GPAW
     from ase import Atoms
     from ase.build import bulk
     from ase.units import Hartree
+
+    from gpaw import GPAW
 
     atoms = Atoms('C')
     atoms.center(vacuum=3)
@@ -43,8 +45,13 @@ def test_diamond(in_tmp_dir, add_cwd_to_setup_paths):
     # atoms.calc = calc
     # atoms.get_potential_energy()
 
-    calc = GPAW(h=0.12, mode='lcao', basis='qzdp',
-                xc='HSE06WIP:backend=ri', charge=4)
+    calc = GPAW(
+        legacy_gpaw=True,
+        h=0.12,
+        mode='lcao',
+        basis='qzdp',
+        xc='HSE06WIP:backend=ri',
+        charge=4)
     atoms.calc = calc
     atoms.get_potential_energy()
 
@@ -57,9 +64,12 @@ def test_diamond(in_tmp_dir, add_cwd_to_setup_paths):
                        atoms.get_potential_energy(), atol=0.1)
 
     atoms = bulk('C', 'diamond')
-    atoms.calc = GPAW(kpts={'size': (2, 2, 2), 'gamma': True},
-                      mode='lcao', basis='dzp',
-                      xc='HSE06WIP:backend=ri')
+    atoms.calc = GPAW(
+        legacy_gpaw=True,
+        kpts={'size': (2, 2, 2), 'gamma': True},
+        mode='lcao',
+        basis='dzp',
+        xc='HSE06WIP:backend=ri')
 
     # NOTE: HSE06 does not yet work. This is just a placeholder for
     # integration test.

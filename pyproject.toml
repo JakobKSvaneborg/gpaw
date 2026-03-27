@@ -1,5 +1,5 @@
 [build-system]
-requires = ['setuptools >= 77.0.3', 'numpy >= 1.20.0']
+requires = ['setuptools >= 77.0.3', 'numpy >= 1.20.0', 'pybind11 >= 2.6.2']
 build-backend = 'setuptools.build_meta'
 
 [project]
@@ -22,7 +22,7 @@ classifiers = [
 requires-python = '>=3.10'
 
 dependencies = [
-    'ase >= 3.25.0',  # what about __ase_version_required__?
+    'ase >= 3.27.0',  # what about __ase_version_required__?
     'numpy >= 1.20.0',  # Must match build requirement, otherwise older version may be left in place due to "build isolation"
     'scipy >= 1.6.0',
     'gpaw-data',
@@ -36,6 +36,9 @@ gpaw-plot-parallel-timings = 'gpaw.tools.gpaw_plot_parallel_timings:main'
 gpaw-runscript = 'gpaw.tools.gpaw_runscript:main'
 gpaw-setup = 'gpaw.atom.gpaw_setup:main'
 gpaw-upfplot = 'gpaw.upf:main_plot'
+
+[project.entry-points."ase.ioformats"]
+gpaw-log = "gpaw.ase_plugin:io"
 
 [project.optional-dependencies]
 docs = [
@@ -60,11 +63,18 @@ Homepage = 'https://gpaw.readthedocs.io/'
 Repository = 'https://gitlab.com/gpaw/gpaw.git'
 Issues = 'https://gitlab.com/gpaw/gpaw/issues/'
 
-[tool.setuptools]
-packages = ['gpaw']
-
 [tool.setuptools.dynamic]
 version = {attr = 'gpaw.__version__'}
 
+[tool.setuptools.packages.find]
+# where = ['gpaw']  # why does this fail?
+
 [tool.setuptools.package-data]
 gpaw = ['py.typed']
+
+[tool.coverage.report]
+exclude_also = [
+    'if __name__ == .__main__.:',
+    '(abc\\.)?abstractmethod',
+    'if TYPE_CHECKING:'
+]

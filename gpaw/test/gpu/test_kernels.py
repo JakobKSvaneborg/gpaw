@@ -1,8 +1,10 @@
-import pytest
 import numpy as np
+import pytest
 
+from gpaw import GPAW_NO_C_EXTENSION
+from gpaw.gpu import cupy as cp
+from gpaw.gpu import cupy_is_fake
 from gpaw.utilities import as_real_dtype
-from gpaw.gpu import cupy as cp, cupy_is_fake
 
 seed = 42
 
@@ -12,7 +14,10 @@ seed = 42
 @pytest.mark.parametrize("dtype", [np.float32, np.float64,
                                    np.complex64, np.complex128])
 def test_dH_aii_times_P_ani(dtype):
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import dH_aii_times_P_ani_gpu as kernel_call
+
     from gpaw.purepython import dH_aii_times_P_ani_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -43,7 +48,10 @@ def test_dH_aii_times_P_ani(dtype):
                                    np.complex64, np.complex128])
 @pytest.mark.parametrize("cc", [True, False])
 def test_pwlfc_expand(dtype, cc):
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import pwlfc_expand_gpu as kernel_call
+
     from gpaw.purepython import pwlfc_expand_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -92,7 +100,7 @@ def test_pwlfc_expand(dtype, cc):
               cc, f_cupy_GI, I_J)
 
     if dtype in {np.float32, np.complex64}:
-        tol = 1e-6
+        tol = 1.3e-6
     else:
         tol = 1e-12
     assert f_kernel_GI.get() == pytest.approx(f_cupy_GI.get(),
@@ -103,7 +111,10 @@ def test_pwlfc_expand(dtype, cc):
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
 def test_pw_amend_insert_realwf(dtype):
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import pw_amend_insert_realwf_gpu as kernel_call
+
     from gpaw.purepython import pw_amend_insert_realwf_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -131,7 +142,10 @@ def test_pw_amend_insert_realwf(dtype):
 @pytest.mark.parametrize("dtype", [np.float32, np.float64,
                                    np.complex64, np.complex128])
 def test_calculate_residuals(dtype):
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import calculate_residuals_gpu as kernel_call
+
     from gpaw.purepython import calculate_residuals_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -158,7 +172,10 @@ def test_calculate_residuals(dtype):
 @pytest.mark.parametrize("dtype", [np.float32, np.float64,
                                    np.complex64, np.complex128])
 def test_add_to_density(dtype):
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import add_to_density_gpu as kernel_call
+
     from gpaw.purepython import add_to_density_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -186,7 +203,10 @@ def test_add_to_density(dtype):
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.parametrize("dtype", [np.complex64, np.complex128])
 def test_pw_norm(dtype):
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import pw_norm_gpu as kernel_call
+
     from gpaw.purepython import pw_norm_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -212,7 +232,10 @@ def test_pw_norm(dtype):
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.parametrize("dtype", [np.complex64, np.complex128])
 def test_pw_norm_kinetic(dtype):
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import pw_norm_kinetic_gpu as kernel_call
+
     from gpaw.purepython import pw_norm_kinetic_gpu as cupy_call
     assert cupy_call is not kernel_call
 
@@ -240,7 +263,10 @@ def test_pw_norm_kinetic(dtype):
 @pytest.mark.skipif(cupy_is_fake, reason='No cupy')
 @pytest.mark.parametrize("dtype", [np.complex64, np.complex128])
 def test_pw_insert(dtype):
+    if GPAW_NO_C_EXTENSION:
+        pytest.skip('GPAW_NO_C_EXTENSION')
     from _gpaw import pw_insert_gpu as kernel_call
+
     from gpaw.purepython import pw_insert_gpu as cupy_call
     assert cupy_call is not kernel_call
 

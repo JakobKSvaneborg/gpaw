@@ -20,11 +20,16 @@ def test_corehole_h2o_recursion(in_tmp_dir):
                  Atom('H', (d * cos(t), d * sin(t), 0))],
                 cell=(a, a, a), pbc=False)
     H2O.center()
-    calc = GPAW(mode='fd', nbands=10, h=0.2, setups={'O': s},
-                eigensolver=Davidson(4),
-                mixer=Mixer(0.5),
-                xc='oldLDA',
-                poissonsolver=PoissonSolver(use_charge_center=True))
+    calc = GPAW(
+        legacy_gpaw=True,
+        mode='fd',
+        nbands=10,
+        h=0.2,
+        setups={'O': s},
+        eigensolver=Davidson(4),
+        mixer=Mixer(0.5),
+        xc='oldLDA',
+        poissonsolver=PoissonSolver(use_charge_center=True))
     H2O.calc = calc
     e = H2O.get_potential_energy()
     niter = calc.get_number_of_iterations()

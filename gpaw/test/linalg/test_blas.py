@@ -1,6 +1,12 @@
 import numpy as np
-from gpaw.utilities.blas import axpy, r2k, rk, gemmdot, mmm, mmmx
+import pytest
+from gpaw.utilities.blas import no_c_blas, axpy, gemmdot, mmm, mmmx, r2k, rk
 from gpaw.utilities.tools import tri2full
+from gpaw.utilities.blas_purepython import (
+    rk as rk_purepython,
+    r2k as r2k_purepython,
+    mmm as mmm_purepython
+)
 
 
 def test_gemm_size_zero():
@@ -76,3 +82,71 @@ def test_linalg_blas():
     r2k(.5, a, a2, -1., c)
     tri2full(c)
     assert not c.any()
+
+
+@pytest.mark.ci
+@pytest.mark.skipif(no_c_blas, reason="No C-blas to compare against")
+@pytest.mark.parametrize('dtype', [float, complex])
+def test_purepython_blas(dtype):
+    """Tests stuff from blas_purepython.py and compares the results against
+    similar funcs from proper C-blas."""
+    # Mostly copied from gpu/test_blas.
+    N = 100
+    rng = np.random.default_rng(seed=42)
+    a = np.zeros((N, N), dtype=dtype)
+    b = np.zeros_like(a)
+    c = np.zeros_like(a)
+    if dtype == float:
+        a[:] = rng.random((N, N))
+        b[:] = rng.random((N, N))
+        c[:] = rng.random((N, N))
+    else:
+        a.real = rng.random((N, N))
+        a.imag = rng.random((N, N))
+        b.real = rng.random((N, N))
+        b.imag = rng.random((N, N))
+        c.real = rng.random((N, N))
+        c.imag = rng.random((N, N))
+
+    a_ref = a.copy()
+    b_ref = b.copy()
+    c_ref = c.copy()
+
+    def approx(y):
+        return pytest.approx(y, rel=1e-14, abs=1e-14)
+
+    # mmm
+    mmm(0.5, a_ref, 'N', b_ref, 'N', 0.2, c_ref)
+    mmm_purepython(0.5, a, 'N', b, 'N', 0.2, c)
+    assert approx(c_ref) == c
+
+    """For rk and r2k we have to compare only the lower triangle of the output
+    matrix 'c', because the C-blas functions only fill in this part. Meanwhile
+    the Purepython versions don't make any promises like this and might just
+    fill in the entire matrix."""
+    # rk
+    alpha = 0.5
+    beta = 0.2
+    rk(alpha, a_ref, beta, c_ref)
+    rk_purepython(alpha, a, beta, c)
+    assert approx(np.tril(c_ref)) == np.tril(c)
+
+    # r2k
+    c_ref_bu = c_ref.copy()
+    c_bu = c.copy()
+    r2k(alpha, a_ref, b_ref, beta, c_ref)
+    r2k_purepython(alpha, a, b, beta, c)
+    assert approx(np.tril(c_ref)) == np.tril(c)
+
+    # r2k sliced
+    bs = 11
+    for i in range(0, (N + bs - 1) // bs):
+        r2k(alpha, a_ref[:, i * bs:(i + 1) * bs],
+            b_ref[::, i * bs:(i + 1) * bs],
+            beta if (i == 0) else 1.0, c_ref_bu)
+        r2k(alpha, a[:, i * bs:(i + 1) * bs],
+            b[:, i * bs:(i + 1) * bs],
+            beta if (i == 0) else 1.0, c_bu)
+
+    assert approx(np.tril(c_ref_bu)) == np.tril(c)
+    assert approx(np.tril(c_bu)) == np.tril(c)

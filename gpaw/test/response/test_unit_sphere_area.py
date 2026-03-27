@@ -1,14 +1,13 @@
 from itertools import product
 
-import pytest
 import numpy as np
-
-from gpaw.response.pw_parallelization import block_partition
-from gpaw.response.integrators import (TetrahedronIntegrator, Integrand,
-                                       HilbertTetrahedron, Domain)
-from gpaw.response.frequencies import FrequencyGridDescriptor
+import pytest
 
 from gpaw.response import ResponseContext
+from gpaw.response.frequencies import FrequencyGridDescriptor
+from gpaw.response.integrators import (Domain, HilbertTetrahedron, Integrand,
+                                       TetrahedronIntegrator)
+from gpaw.response.pw_parallelization import block_partition
 
 
 class MyIntegrand(Integrand):
@@ -21,9 +20,9 @@ class MyIntegrand(Integrand):
 
 @pytest.mark.tetrahedron
 @pytest.mark.response
-def test_tetrahedron_integrator():
+def test_tetrahedron_integrator(mpi):
     cell_cv = np.eye(3)
-    context = ResponseContext()
+    context = ResponseContext(comm=mpi.comm)
     integrator = TetrahedronIntegrator(
         cell_cv, context, *block_partition(context.comm, nblocks=1))
     x_g = np.linspace(-1, 1, 30)

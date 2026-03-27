@@ -1,4 +1,5 @@
 import numpy as np
+
 from gpaw.solvation.gridmem import NeedsGD
 
 

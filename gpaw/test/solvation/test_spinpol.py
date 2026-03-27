@@ -1,18 +1,13 @@
+import numpy as np
 import pytest
-from gpaw.utilities.adjust_cell import adjust_cell
 from ase.build import molecule
 from ase.units import Pascal, m
-from gpaw.solvation import (
-    SolvationGPAW,
-    EffectivePotentialCavity,
-    Power12Potential,
-    LinearDielectric,
-    SurfaceInteraction,
-    VolumeInteraction,
-    LeakedDensityInteraction,
-    GradientSurface,
-    KB51Volume)
-import numpy as np
+
+from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
+                            KB51Volume, LeakedDensityInteraction,
+                            LinearDielectric, Power12Potential, SolvationGPAW,
+                            SurfaceInteraction, VolumeInteraction)
+from gpaw.utilities.adjust_cell import adjust_cell
 
 
 def test_solvation_spinpol():

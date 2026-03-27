@@ -3,15 +3,15 @@
 
 #include "bmgs.h"
 
-void Z(bmgs_paste)(const T* a, const int sizea[3],
-		   T* b, const int sizeb[3], const int startb[3])
+void Z(bmgs_paste)(const TGPAW* a, const int sizea[3],
+		   TGPAW* b, const int sizeb[3], const int startb[3])
 {
   b += startb[2] + (startb[1] + startb[0] * sizeb[1]) * sizeb[2];
   for (int i0 = 0; i0 < sizea[0]; i0++)
     {
       for (int i1 = 0; i1 < sizea[1]; i1++)
 	{
-	  memcpy(b, a, sizea[2] * sizeof(T));
+	  memcpy(b, a, sizea[2] * sizeof(TGPAW));
 	  a += sizea[2];
 	  b += sizeb[2];
 	}
@@ -19,8 +19,8 @@ void Z(bmgs_paste)(const T* a, const int sizea[3],
     }
 }
 
-void Z(bmgs_pastep)(const T* a, const int sizea[3],
-		    T* b, const int sizeb[3], const int startb[3])
+void Z(bmgs_pastep)(const TGPAW* a, const int sizea[3],
+		    TGPAW* b, const int sizeb[3], const int startb[3])
 {
   b += startb[2] + (startb[1] + startb[0] * sizeb[1]) * sizeb[2];
   for (int i0 = 0; i0 < sizea[0]; i0++)

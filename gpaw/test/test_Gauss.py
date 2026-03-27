@@ -1,4 +1,5 @@
 import pytest
+
 from gpaw.gauss import test_derivatives as check
 
 

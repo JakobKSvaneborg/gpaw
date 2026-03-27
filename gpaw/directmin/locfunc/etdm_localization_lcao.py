@@ -1,5 +1,7 @@
 import time
+
 from ase.units import Hartree
+
 from gpaw.directmin.derivatives import get_approx_analytical_hessian
 
 
@@ -19,15 +21,19 @@ class LCAOETDMLocalize:
             'PZ-SIC localization requested, but functional '
             'settings do not use PZ-SIC.')
 
+    def _log(self, *args, **kwargs):
+        if self.log is not None:
+            self.log(*args, **kwargs)
+
     def run(self, ham, dens):
         """Run the localization."""
         self.ham = ham
         self.dens = dens
 
-        self.log('Perdew-Zunger localization started', flush=True)
+        self._log('Perdew-Zunger localization started', flush=True)
         self.log_header()
-
         self.solver.lock_subspace('oo')
+        self.solver.searchdir_algo.reset()
         self.solver.dm_helper.set_reference_orbitals(
             self.wfs, self.solver.n_dim)
 
@@ -60,22 +66,24 @@ class LCAOETDMLocalize:
                 kpt, self.solver.dtype, ind_up=self.solver.ind_up[k])
             self.wfs.atomic_correction.calculate_projections(self.wfs, kpt)
 
-        self.log('Perdew-Zunger localization finished', flush=True)
-        self.log('Total number of e/g calls: %d' % eg_calls_in_loop)
+        self._log('Perdew-Zunger localization finished', flush=True)
+        self._log('Total number of e/g calls: %d' % eg_calls_in_loop)
         self.solver.subspace_iters = 0
 
     def log_header(self):
-        self.log('\nINNER LOOP:')
-        self.log(
+        self._log('\nINNER LOOP:')
+        self._log(
             '                      Kohn-Sham'
             '          SIC        Total             '
         )
-        self.log(
+        self._log(
             '           time         energy:'
             '      energy:      energy:       G_max:'
         )
 
     def log_iteration(self, niter, e_total, g_max):
+        if self.log is None:
+            return
         t = time.localtime()
         e_ks = e_total - self.solver.e_sic
 

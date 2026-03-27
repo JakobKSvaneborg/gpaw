@@ -1,15 +1,17 @@
+from __future__ import annotations
+from abc import ABC, abstractmethod
+from copy import copy
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+from warnings import warn
+
+import numpy as np
+
+from gpaw import debug
 from gpaw.gpu import cupy as cp
 from gpaw.gpu import cupy_is_fake
 from gpaw.new.timer import trace
 from gpaw.utilities import as_real_dtype
-from gpaw import debug
-
-import numpy as np
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from copy import copy
-from typing import TYPE_CHECKING, Union
-from warnings import warn
 
 if TYPE_CHECKING:
     from gpaw.core.matrix import Matrix
@@ -35,12 +37,11 @@ class GPUDiagonalizer(ABC):
 
     @abstractmethod
     def eigh(self,
-             inout_matrix: "Matrix",
+             inout_matrix: Matrix,
              options: DiagonalizerOptions
              ) -> tuple[cp.ndarray, "Matrix"]:
         """Eigensolver that is aware of matrix internal distribution.
         """
-        pass
 
 
 class NonDistributedDiagonalizer(GPUDiagonalizer):
@@ -55,9 +56,8 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
         """Solve eigenvalues and eigenvectors of a GPU matrix, represented by
         CuPy array.
         """
-        pass
 
-    def check_matrix(self, mat: Union[cp.ndarray, np.ndarray]):
+    def check_matrix(self, mat: cp.ndarray | np.ndarray):
         """"""
 
         xp = cp if isinstance(mat, cp.ndarray) else np
@@ -71,9 +71,9 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
 
     @trace(gpu=True)
     def eigh(self,
-             inout_matrix: "Matrix",
+             inout_matrix: Matrix,
              options: DiagonalizerOptions
-             ) -> tuple[cp.ndarray, "Matrix"]:
+             ) -> tuple[cp.ndarray, Matrix]:
         """"""
 
         assert isinstance(inout_matrix.data, cp.ndarray)
@@ -99,7 +99,7 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
                 warn("Matrix may be too large to gather over MPI! "
                      "If you crash here, try running with more MPI processes")
 
-            matrix_non_distributed = inout_matrix.gather(0, broadcast=False)
+            matrix_non_distributed = inout_matrix.gather(broadcast=False)
             # Can always do in-place for the internal eigh
             options_non_distributed = copy(options)
             options_non_distributed.inplace = True
@@ -113,7 +113,7 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
         else:
             eigvecs = matrix_non_distributed.new()
 
-        comm = matrix_non_distributed.dist.comm
+        comm = inout_matrix.dist.comm
         if comm.rank == 0:
 
             if debug:
@@ -125,8 +125,7 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
 
             eigvals, eigvecs.data.T[:] = (
                 self.eigh_non_distributed(matrix_non_distributed.data,
-                                          options_non_distributed)
-            )
+                                          options_non_distributed))
 
         else:
             # Other ranks need to alloc recv buffers for eigenvalues (real!)
@@ -144,7 +143,7 @@ class NonDistributedDiagonalizer(GPUDiagonalizer):
         else:
             out_eigvecs = inout_matrix.new()
 
-        eigvecs.redist(out_eigvecs)
+        out_eigvecs.scatter_from(eigvecs)
         return eigvals, out_eigvecs
 
 

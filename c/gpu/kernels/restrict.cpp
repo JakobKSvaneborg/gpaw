@@ -1,10 +1,12 @@
+#include "gpu/gpu.h"
+#include "gpu/gpu-complex.h"
+#include "gpu/bmgs.h"
+
 #include <stdio.h>
 #include <time.h>
 #include <sys/types.h>
 #include <sys/time.h>
-
-#include "../gpu.h"
-#include "../gpu-complex.h"
+#include <cassert>
 
 #ifndef GPU_USE_COMPLEX
 #  define BLOCK     (16)
@@ -206,7 +208,6 @@ __global__ void Zgpu(restrict_kernel)(const Tgpu* a, const int3 n,
     }
 }
 
-extern "C"
 void Zgpu(bmgs_restrict_gpu)(int k, const Tgpu* a, const int size[3],
                              Tgpu* b, const int sizeb[3], int blocks)
 {
@@ -263,7 +264,6 @@ void Zgpu(bmgs_restrict_gpu)(int k, const Tgpu* a, const int size[3],
 #undef RST1D_kernel
 #undef K
 
-extern "C"
 void Zgpu(bmgs_restrict_stencil_gpu)(int k, Tgpu* a, const int na[3],
                                      Tgpu* b, const int nb[3],
                                      Tgpu* w, int blocks)

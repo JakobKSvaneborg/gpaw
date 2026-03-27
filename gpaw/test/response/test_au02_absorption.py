@@ -1,26 +1,27 @@
-import pytest
 import numpy as np
+import pytest
 from ase import Atoms
-from gpaw import GPAW, FermiDirac, PW
+
+from gpaw import PW, FermiDirac
 from gpaw.response.df import DielectricFunction
 from gpaw.test import findpeak
 
 
 @pytest.fixture
-def gpwfile(in_tmp_dir):
+def gpwfile(in_tmp_dir, mpi):
     cluster = Atoms('Au2', [(0, 0, 0), (0, 0, 2.564)])
     cluster.set_cell((6, 6, 6), scale_atoms=False)
     cluster.center()
-    calc = GPAW(mode=PW(ecut=180, force_complex_dtype=True),
-                xc={'name': 'RPBE', 'stencil': 1},
-                nbands=16,
-                eigensolver='rmm-diis',
-                parallel={'domain': 1},
-                occupations=FermiDirac(0.01))
+    calc = mpi.GPAW(mode=PW(ecut=180, force_complex_dtype=True),
+                    xc={'name': 'RPBE', 'stencil': 1},
+                    nbands=16,
+                    eigensolver='rmm-diis',
+                    parallel={'domain': 1},
+                    occupations=FermiDirac(0.01))
 
     cluster.calc = calc
     cluster.get_potential_energy()
-    calc.diagonalize_full_hamiltonian(nbands=24, scalapack=True)
+    calc.diagonalize_full_hamiltonian(nbands=24)
     gpwname = 'Au2.gpw'
     calc.write(gpwname, 'all')
     return gpwname
@@ -29,7 +30,7 @@ def gpwfile(in_tmp_dir):
 @pytest.mark.dielectricfunction
 @pytest.mark.response
 @pytest.mark.slow
-def test_response_au02_absorption(scalapack, in_tmp_dir, gpwfile):
+def test_response_au02_absorption(scalapack, in_tmp_dir, gpwfile, mpi):
     nw = 141
     frequencies = np.linspace(0, 14, nw)
 
@@ -37,7 +38,8 @@ def test_response_au02_absorption(scalapack, in_tmp_dir, gpwfile):
                             frequencies=frequencies,
                             hilbert=False,
                             eta=0.1,
-                            ecut=10)
+                            ecut=10,
+                            world=mpi.comm)
 
     b0, b = df.get_dielectric_function(filename=None,
                                        direction='z')

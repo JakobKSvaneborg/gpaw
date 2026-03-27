@@ -10,8 +10,8 @@ import subprocess
 from pathlib import Path
 from sys import version_info
 
-if version_info < (3, 9):
-    raise ValueError('Please use Python-3.9 or later')
+if version_info < (3, 10):
+    raise ValueError('Please use Python-3.10 or later')
 
 # Python version in the venv that we are creating
 version = '3.13'
@@ -81,6 +81,8 @@ module load libvdwxc/0.5.0-{fullchain}
 module_cmds_gpu = """\
 if [ "$CPU_ARCH" == "icelake" ] && [ {fullchain} == "foss-2025b" ];\
 then module load CuPy/13.6.0-{fullchain}-CUDA-12.9.1;fi
+if [ "$CPU_ARCH" == "sapphirerapids" ] && [ {fullchain} == "foss-2025b" ];\
+then module load CuPy/13.6.0-{fullchain}-CUDA-12.9.1;fi
 if [ "$CPU_ARCH" == "skylake_el8" ] && [ {fullchain} == "foss-2025b" ];\
 then module load CuPy/13.6.0-{fullchain}-CUDA-12.9.1;fi
 if [ "$SLURM_JOB_PARTITION" == "a100" ] \
@@ -94,7 +96,7 @@ then export GPAW_USE_GPUS=1;export GPAW_NEW=1;fi
 
 
 activate_extra = """
-export GPAW_SETUP_PATH=$GPAW_SETUP_PATH:{venv}/gpaw-basis-pvalence-0.9.20000
+export GPAW_SETUP_PATH=${{GPAW_SETUP_PATH:+$GPAW_SETUP_PATH:}}{venv}/gpaw-basis-pvalence-0.9.20000
 
 # Set matplotlib backend:
 if [[ $SLURM_SUBMIT_DIR ]]; then
@@ -135,7 +137,7 @@ def compile_gpaw_c_code(gpaw: Path, activate: Path, intel_only: bool) -> None:
     for host in nifllogin:
         if host == 'fjorm' and intel_only:
             continue
-        run(f'ssh {host} ". {activate} && pip install -q --no-build-isolation -e {gpaw}"')
+        run(f'time ssh {host} ". {activate} && GPAW_BUILD_JOBS=16 pip install -q --no-build-isolation -e {gpaw}"')
         # Save compiled file
         remote_arch = run(f"ssh {host} 'echo $CPU_ARCH'", capture_output=True).stdout.decode().strip()  # Single quote needed in command
         paths = list(gpaw.glob('_gpaw.*.so'))
@@ -145,12 +147,10 @@ def compile_gpaw_c_code(gpaw: Path, activate: Path, intel_only: bool) -> None:
         print(f'Moving {path} to {targetpath}')
         targetpath.mkdir(parents=True, exist_ok=True)
         path.rename(targetpath / path.name)
-
     # Clean up:
     for path in gpaw.glob('_gpaw.*.so'):
         raise RuntimeError(f'Found unexpected {path}')
-    for path in gpaw.glob('build/temp.linux-x86_64-*'):
-        shutil.rmtree(path)
+    run(f'cd {gpaw} && make clean')
 
 
 def fix_installed_scripts(venvdir: Path,
@@ -298,7 +298,8 @@ def main():
     packages = ['myqueue',
                 'graphviz',
                 'sphinx_rtd_theme',
-                'sphinxcontrib-jquery']
+                'sphinxcontrib-jquery',
+                'pybind11']
     if args.piponly:
         packages += ['matplotlib',
                      'scipy',

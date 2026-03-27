@@ -1,15 +1,17 @@
 from __future__ import annotations
-import contextlib
+
 import atexit
+import contextlib
+from collections.abc import Generator, Iterable
 from time import time
-from typing import TYPE_CHECKING, Generator
 from types import ModuleType
-from collections.abc import Iterable
-from gpaw.new.timer import trace
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from gpaw import ENVVAR_GPAW_NO_GPU_MPI
+from gpaw.new.timer import trace
+from gpaw.cgpaw.gpu import magma
 
 device_id = None
 """Device id"""
@@ -34,8 +36,8 @@ else:
         if not hasattr(cgpaw, 'gpaw_gpu_init'):
             raise ImportError
         import cupy
-        from cupy_backends.cuda.api.runtime import CUDARuntimeError \
-            as CUDAError
+        from cupy_backends.cuda.api.runtime import \
+            CUDARuntimeError as CUDAError
         try:
             if not cupy.cuda.runtime.getDeviceCount() > 0:
                 raise ImportError('No GPUs')
@@ -58,8 +60,8 @@ else:
 if not TYPE_CHECKING:
     if not cupy_is_fake:
         # Homerolled gemm wrapper and helper functions:
-        from cupy.cublas import (_get_scalar_ptr, _trans_to_cublas_op,
-                                 _change_order_if_necessary, device)
+        from cupy.cublas import (_change_order_if_necessary, _get_scalar_ptr,
+                                 _trans_to_cublas_op, device)
         from cupy_backends.cuda.libs import cublas as _cublas
 
         def _decide_ld_and_trans(a, trans):
@@ -217,12 +219,18 @@ if not TYPE_CHECKING:
             cupy.fft.ifftshift = ifftshift_patch
 
 
-def set_device(log):
+def set_device(log, world=None):
     global device_id
-    from gpaw.mpi import rank
+
+    if device_id is not None:
+        return
+
+    from gpaw.mpi import normalize_communicator
+    world = normalize_communicator(world)
+
     if cupy_is_fake:
         device_id = 'CPU emulation of GPU'
-        log(f'mpi rank {rank} has no GPU device!', parallel=True)
+        log(f'mpi rank {world.rank} has no GPU device!', parallel=True)
         return
 
     if device_id is None:
@@ -240,12 +248,17 @@ def set_device(log):
         if device_count > 0:
             # select GPU device (round-robin based on MPI rank)
             # if not set, all MPI ranks will use the same default device
-            runtime.setDevice(rank % device_count)
+            runtime.setDevice(world.rank % device_count)
 
             # initialise C parameters and memory buffers
             import gpaw.cgpaw as cgpaw
             cgpaw.gpaw_gpu_init()
             atexit.register(cgpaw.gpaw_gpu_delete)
+
+            # Initialize MAGMA library if available
+            if magma.is_available():
+                magma.magma_init()
+                atexit.register(magma.magma_finalize)
 
             # Generate a device id
             import os
@@ -253,7 +266,8 @@ def set_device(log):
             bus_id = runtime.deviceGetPCIBusId(runtime.getDevice())
             device_id = f'{nodename}:{bus_id}'
 
-    log(f'mpi rank {rank} has GPU device {device_id}', parallel=True)
+        log(f'mpi rank {world.rank} has GPU device {device_id}', parallel=True)
+
     if ENVVAR_GPAW_NO_GPU_MPI:
         log('Running without GPU aware MPI because \'GPAW_NO_GPU_MPI\' is'
             ' set in the environment. Comms will be staged through host.')
@@ -262,15 +276,14 @@ def set_device(log):
 __all__ = ['cupy', 'cupyx', 'as_xp', 'as_np', 'synchronize',
            'flush_pinned_arrays']
 
-
 try:
-    from gpaw.cgpaw import _flush_pending_decrefs
+    from gpaw.cgpaw import flush_pending_decrefs
 
     def flush_pinned_arrays() -> None:
         """Flushes the list of arrays that are currently pinned by GPAW's
         'GPU array life support' system.
         """
-        _flush_pending_decrefs()
+        flush_pending_decrefs()
 
     # Hook the above to garbage collector
     import gc
@@ -282,7 +295,7 @@ try:
     gc.callbacks.append(gpaw_gc_flush_pinned_arrays)
 
 except ImportError:
-    def _flush_pending_decrefs() -> None:
+    def flush_pending_decrefs() -> None:  # type:ignore
         # no-op
         pass
 
@@ -294,7 +307,7 @@ def synchronize():
 
 @contextlib.contextmanager
 def as_numpy(a: np.ndarray | cupy.ndarray
-             ) -> Generator[np.ndarray, None, None]:
+             ) -> Generator[np.ndarray]:
     """Copy array to CPU and back to GPU when done."""
     if isinstance(a, np.ndarray):
         yield a
@@ -304,7 +317,7 @@ def as_numpy(a: np.ndarray | cupy.ndarray
     a[:] = cupy.asarray(b)
 
 
-def as_np(array: np.ndarray | cupy.ndarray) -> np.ndarray:
+def as_np(array: np.ndarray | cupy.ndarray, dtype=None) -> np.ndarray:
     """Transfer array to CPU (if not already there).
 
     Parameters
@@ -312,9 +325,13 @@ def as_np(array: np.ndarray | cupy.ndarray) -> np.ndarray:
     array:
         Numpy or CuPy array.
     """
-    if isinstance(array, np.ndarray):
-        return array
-    return cupy.asnumpy(array)
+    if not isinstance(array, np.ndarray):
+        array = cupy.asnumpy(array)
+
+    if dtype is None:
+        return np.asarray(array)
+
+    return np.asarray(array, dtype=dtype)
 
 
 def as_xp(array, xp):

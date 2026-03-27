@@ -21,7 +21,8 @@ def make_calculator(index):
     epsinf = 78.36  # dielectric constant of water at 298 K
     gamma = 18.4 * 1e-3 * Pascal * m
     cavity = EffectivePotentialCavity(
-        effective_potential=SJMPower12Potential(H2O_layer=True),
+        effective_potential=SJMPower12Potential(
+            H2O_layer={'style': 'ghost_atoms'}),
         temperature=298.15,  # K
         surface_calculator=GradientSurface())
     dielectric = LinearDielectric(epsinf=epsinf)
@@ -54,6 +55,6 @@ images += [final]
 interpolate(images)
 
 # Create and relax the DyNEB.
-neb = DyNEB(images)
+neb = DyNEB(images, method='improvedtangent')
 opt = BFGS(neb, logfile='neb.log', trajectory='neb.traj')
 opt.run(fmax=0.05)

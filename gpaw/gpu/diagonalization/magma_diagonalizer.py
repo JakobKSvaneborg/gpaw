@@ -1,11 +1,13 @@
 import numpy as np
-from typing import Union
-from gpaw.gpu.diagonalization.diagonalizer import (NonDistributedDiagonalizer,
-                                                   DiagonalizerOptions)
-from gpaw.gpu import cupy as cp, cupy_is_fake
+from typing import cast
+
+from gpaw.cgpaw.gpu import magma
+from gpaw.gpu import cupy as cp
+from gpaw.gpu import cupy_is_fake
+from gpaw.gpu.diagonalization.diagonalizer import (DiagonalizerOptions,
+                                                   NonDistributedDiagonalizer)
 from gpaw.new.timer import trace
 from gpaw.utilities import as_real_dtype
-from gpaw.cgpaw import have_magma
 
 
 class MagmaDiagonalizer(NonDistributedDiagonalizer):
@@ -23,15 +25,15 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
         This makes implementation details easier as we don't have to check
         for fake CuPy everywhere.
         """
-        assert have_magma, "Must compile GPAW with MAGMA support"
+        assert magma.is_available(), "Must compile GPAW with MAGMA support"
         assert not cupy_is_fake, "Can't use MAGMA solvers with fake CuPy"
 
     @trace(gpu=True)
     def eigh_non_distributed(self,
-                             inout_matrix: Union[cp.ndarray, np.ndarray],
+                             inout_matrix: cp.ndarray | np.ndarray,
                              options: DiagonalizerOptions
-                             ) -> Union[tuple[cp.ndarray, cp.ndarray],
-                                        tuple[np.ndarray, np.ndarray]]:
+                             ) -> (tuple[cp.ndarray, cp.ndarray] |
+                                   tuple[np.ndarray, np.ndarray]):
         """
         Wrapper for MAGMA symmetric/Hermitian eigensolvers.
 
@@ -54,8 +56,6 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
             Eigenvector corresponding to ``w[i]`` is in column ``v[:,i]``.
         """
 
-        from gpaw.cgpaw import _eigh_magma_cupy, _eigh_magma_numpy
-
         shape = inout_matrix.shape
         assert (inout_matrix.ndim == 2 and shape[0] == shape[1])
 
@@ -74,10 +74,11 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
             host_matrix = cp.asnumpy(inout_matrix)
             eigvals = np.empty((shape[0]), dtype=eigval_dtype)
 
-            _eigh_magma_numpy(host_matrix,
-                              eigvals,
-                              options.uplo,
-                              options.gpus_per_process)
+            magma.eigh_magma_numpy(
+                host_matrix,
+                eigvals,
+                options.uplo,
+                options.gpus_per_process)
 
             eigvecs[:] = cp.asarray(host_matrix)
             eigvals = cp.asarray(eigvals)
@@ -85,10 +86,14 @@ class MagmaDiagonalizer(NonDistributedDiagonalizer):
         else:
             eigvals = xp.empty((shape[0]), dtype=eigval_dtype)
             if xp is np:
-                _eigh_magma_numpy(eigvecs, eigvals, options.uplo,
-                                  options.gpus_per_process)
+                eigvecs = cast(np.ndarray, eigvecs)
+                magma.eigh_magma_numpy(eigvecs,
+                                       eigvals,
+                                       options.uplo,
+                                       options.gpus_per_process)
             else:
-                _eigh_magma_cupy(eigvecs, eigvals, options.uplo)
+                eigvecs = cast(cp.ndarray, eigvecs)
+                magma.eigh_magma_cupy(eigvecs, eigvals, options.uplo)
 
         # Transform to Numpy convention (conjugate transpose)
         xp.conjugate(eigvecs, out=eigvecs.T)

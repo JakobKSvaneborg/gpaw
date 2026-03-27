@@ -2,10 +2,10 @@ import os
 import sys
 import time
 
-import numpy as np
 import ase
+import numpy as np
 from ase import __version__ as ase_version
-from ase.utils import search_current_git_hash, IOContext
+from ase.utils import IOContext, search_current_git_hash
 
 import gpaw
 import gpaw.cgpaw as cgpaw
@@ -134,10 +134,7 @@ def write_header(log, world):
     log('gpaw:  ', line)
 
     # Find C-code:
-    c = getattr(cgpaw._gpaw, '__file__', '')
-    if not c:
-        c = sys.executable
-    line = os.path.normpath(c)
+    line = os.path.normpath(cgpaw.get_extension_module_path())
     if hasattr(cgpaw, 'githash'):
         line += f' ({cgpaw.githash():.10})'
     log('_gpaw: ', cut(line))
@@ -162,7 +159,7 @@ def write_header(log, world):
     log('units:  Angstrom and eV')
     log('cores:', world.size)
     log('OpenMP:', cgpaw.have_openmp)
-    log('OMP_NUM_THREADS:', os.environ['OMP_NUM_THREADS'])
+    log('OMP_NUM_THREADS:', os.environ.get('OMP_NUM_THREADS', ''))
 
     if gpaw.debug:
         log('DEBUG-MODE: true')

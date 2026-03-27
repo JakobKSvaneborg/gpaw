@@ -70,7 +70,7 @@ In terms of scaled k-points `\mathbf q`, where:
 we get `\mathbf q'=\mathbf U\mathbf q`.
 
 
-Besides cystal symmetry, there is also time reversal symmetry for all 
+Besides crystal symmetry, there is also time reversal symmetry for all 
 systems with no magnetic field. The wavefunction for `{\mathbf k}` 
 and `{-\mathbf k}` is related as:
 

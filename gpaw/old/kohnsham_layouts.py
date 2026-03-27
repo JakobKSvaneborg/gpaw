@@ -4,6 +4,8 @@
 import re
 
 import numpy as np
+from scipy.linalg import eigh
+
 from gpaw import debug
 from gpaw.blacs import BlacsGrid, Redistributor
 from gpaw.mpi import broadcast_exception
@@ -13,11 +15,10 @@ from gpaw.utilities.scalapack import (pblas_simple_gemm, pblas_tran,
                                       scalapack_tri2full)
 from gpaw.utilities.timing import nulltimer
 from gpaw.utilities.tools import tri2full
-from scipy.linalg import eigh
 
 
 def uncamelcase(name):
-    """Convert a CamelCase name to a string of space-seperated words."""
+    """Convert a CamelCase name to a string of space-separated words."""
     words = re.split('([A-Z]{1}[a-z]+)', name)
     return ' '.join([word for word in words if word != ''])
 
@@ -90,8 +91,7 @@ class BlacsLayouts(KohnShamLayouts):
 
     def __init__(self, gd, bd, block_comm, dtype, mcpus, ncpus,
                  blocksize, timer=nulltimer):
-        KohnShamLayouts.__init__(self, gd, bd, block_comm, dtype,
-                                 timer)
+        super().__init__(gd, bd, block_comm, dtype, timer)
         # WARNING: Do not create the BlacsGrid on a communicator which does not
         # contain block_comm.rank = 0. This will break BlacsBandLayouts which
         # assume eps_M will be broadcast over block_comm.
@@ -124,8 +124,8 @@ class BlacsOrbitalLayouts(BlacsLayouts):
     # This class 'describes' all the LCAO Blacs-related layouts
     def __init__(self, gd, bd, block_comm, dtype, mcpus, ncpus,
                  blocksize, nao, elpasolver=None, timer=nulltimer):
-        BlacsLayouts.__init__(self, gd, bd, block_comm, dtype,
-                              mcpus, ncpus, blocksize, timer)
+        super().__init__(gd, bd, block_comm, dtype,
+                         mcpus, ncpus, blocksize, timer)
         nbands = bd.nbands
         self.blocksize = blocksize
 
@@ -422,8 +422,7 @@ class BlacsOrbitalLayouts(BlacsLayouts):
 class OrbitalLayouts(KohnShamLayouts):
     def __init__(self, gd, bd, block_comm, dtype, nao,
                  timer=nulltimer):
-        KohnShamLayouts.__init__(self, gd, bd, block_comm, dtype,
-                                 timer)
+        super().__init__(gd, bd, block_comm, dtype, timer)
         self.mMdescriptor = MatrixDescriptor(nao, nao)
         self.nMdescriptor = MatrixDescriptor(bd.mynbands, nao)
 

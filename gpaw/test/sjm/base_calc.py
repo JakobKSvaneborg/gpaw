@@ -1,12 +1,7 @@
-from gpaw.solvation.sjm import SJM, SJMPower12Potential
 from gpaw import FermiDirac
-from gpaw.solvation import (
-    EffectivePotentialCavity,
-    LinearDielectric,
-    GradientSurface,
-    SurfaceInteraction
-)
-
+from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
+                            LinearDielectric, SurfaceInteraction)
+from gpaw.solvation.sjm import SJM, SJMPower12Potential
 
 # Solvent parameters
 epsinf = 78.36

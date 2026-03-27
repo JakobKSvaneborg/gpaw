@@ -1,9 +1,11 @@
 from pathlib import Path
+
 import pytest
 from ase import Atom, Atoms
+
 from gpaw import GPAW
 from gpaw.lrtddft import LrTDDFT
-from gpaw.lrtddft.dielectric import get_dielectric, dielectric
+from gpaw.lrtddft.dielectric import dielectric, get_dielectric
 
 
 @pytest.fixture
@@ -15,7 +17,8 @@ def H2():
                 Atom('H', (a / 2, a / 2, (c + R) / 2))],
                cell=(a, a, c))
 
-    H2.calc = GPAW(mode='fd', h=0.25, nbands=3, spinpol=False, txt=None)
+    H2.calc = GPAW(mode='fd', h=0.25, nbands=3, spinpol=False, txt=None,
+                   legacy_gpaw=True)
     H2.get_potential_energy()
     return H2
 

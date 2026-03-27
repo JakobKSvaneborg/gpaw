@@ -1,0 +1,180 @@
+===========================
+Basics of GPAW calculations
+===========================
+
+The below script calculates the total energies of :mol:`H_2O`, H and O.
+
+.. literalinclude:: h2o.py
+
+Read the script and try to understand what it does.  A few notes:
+
+ * In most languages it is common to declare loops with integer counters.
+   In Python, a ``for`` loop always loops over elements of an
+   *iterable* (in this case a list of the strings ``H2O``, ``H`` and ``O``).
+   You can loop over integers, if desired, using ``for x in range(17):``.
+
+ * The code in loops, if-statements and other code blocks is indented.
+   The loop or if-statement stops when the lines are no longer indented.
+   Thus, *indentation determines control flow*.
+
+ * In this case we conveniently load the geometry from the G2 database
+   of small molecules, using the :func:`~ase.build.molecule`
+   function from ASE.
+
+ * By setting the ``txt`` parameter, we specify a file where GPAW will save
+   the calculation log.
+
+ * The expression ``f'results-{ecut:3.0f}.txt'`` inserts the value of ``ecut``
+   in place of the *substitution code* ``3.0f`` (floating point number
+   with no decimals).  Thus the result filename evaluates to
+   ``results-400.txt``.  Similarly, ``f'gpaw-{name}-{ecut:3.0f}.txt'``
+   evaluates to ``gpaw-H2O-400.txt`` in the first loop iteration
+   (the format substitution code for the ``name`` string can be left out).
+
+ * The call to ``open`` opens a file.  The parameter ``'w'`` signifies that
+   the file is opened in write mode (deleting any previous file with that
+   name!).  The calculated energies are written to this file using a print
+   statement.  We could have chosen to just print the parameter as in the last
+   exercise, but file handling will come in handy below.
+
+Run the script.  You can monitor the progress by opening one of the
+logfiles (e.g. ``gpaw.H2O.txt``).  The command :samp:`tail -f
+{filename}` can be used to view the output in real-time.  The calculated
+atomization energy can be found in the ``results-400.txt`` file.
+
+
+Parallelization
+===============
+
+To speed things up, let us run the script using some more CPUs.  The
+actual GPAW calculation is coded to make proper use of these extra
+CPUs, while the rest of the script (everything except
+``calc.get_potential_energy()``) is actually going to be run
+independently by each CPU.  This matters little except when writing to
+files.  Each CPU will attempt to write to the same file, probably at
+the same time, producing garbled data.  We must therefore make sure
+that only one process writes.  ASE provides the handy
+:func:`~ase.parallel.paropen` function for just that::
+
+  from ase.parallel import paropen
+  ...
+  resultfile = paropen('results-{ecut:3.0f}.txt', 'w')
+
+Apply the above modifications to the script and run it in parallel
+e.g. on four CPUs::
+
+    $ gpaw -P 4 python script.py
+
+Verify by checking the logfile that GPAW is actually using multiple
+CPUs.  The logfile should reveal that the :mol:`H_2O` calculation
+uses domain-decomposed with four domains, while the two atomic
+calculations should parallelize over the two spins and two domains.
+
+.. _convergence_checks:
+
+Plane-wave convergence
+======================
+
+In plane-wave mode wavefunctions are expanded in plane-wave coefficients `C_{n\vec{k}\vec{G}}`
+
+.. math::
+    \psi_{n\vec{k}}(\vec{r}) = \frac{1}{V} \sum_{\vec{G}} C_{n\vec{k}\vec{G}} e^{i(\vec{k} + \vec{G}) \vec{r}},
+
+where `V` is the cell volume, `n` the orbital quantum number, `\vec{k}` the Bloch vector within the Brillouin zone and `\vec{G}` are the reciprocal lattice vectors.
+It is essential that the calculations use a sufficiently large number of
+plane-wave cofficients, and that the cell is sufficiently large not to affect the
+result.  For this reason, convergence with respect to these parameters
+should generally be checked.  For now we shall only bother to check
+the number of plane-wave coefficients which is controlled by the plane-wave energy cutoff `E_{cut}`
+
+.. math::
+    \frac{\hbar^2}{2 m} | \vec{G} + \vec{k} |^2 ≤ E_{cut}.
+
+Modify the above script to include a loop over different energy cutoff.
+Use a loop structure like::
+
+  for ecut in [300, 400, 500, ...]:
+      ...
+      calc = GPAW(mode={'name': 'pw', 'ecut': ecut}, hund=hund,
+                  txt=f'gpaw-{name}-{ecut:3.0f}.txt')
+      atoms.calc = calc
+
+      energy = atoms.get_potential_energy()
+      ...
+
+For each new parameter set we generate a new calculator object.
+While performing this convergence check, the other parameters do not need to be
+converged - you can reduce the cell size to e.g. ``a = 6.0`` to
+improve performance.  You may wish to run the calculation in parallel.
+
+ * How do the total energies converge with respect to plane-wave cutoff?
+ * How does the atomization energy converge?
+
+Total energies drop as the cutoff is refined.  This is the case in plane-wave methods,
+because the plane-wave cutoff strictly increases the quality
+of the basis.
+Try to look at the text output and see if you can find the number of
+plane-waves used.
+
+The following script performs the plane-wave convergeence calculations for :mol:`H_2O`: :download:`h2o_ecut.py`.
+
+
+LCAO calculations
+=================
+
+GPAW supports an alternative calculation mode, :ref:`LCAO mode
+<lcao>`, which uses linear combinations of pre-calculated atomic
+orbitals to represent the wavefunctions.  LCAO calculations are much
+faster for most systems, but also less precise.
+
+Performing an LCAO calculation requires setting the ``mode`` and
+normally a ``basis``::
+
+  calc = GPAW(...,
+              mode='lcao',
+              basis='dzp',
+              ...)
+
+Here ``dzp`` ("double-zeta polarized") means two basis functions per
+valence state plus a polarization function - a function corresponding
+to the lowest unoccupied angular-momentum state on the atom.  This
+will use the standard basis sets distributed with GPAW.  You can pick
+out a smaller basis set using the special syntax ``basis='sz(dzp)'``.
+This will pick out only one function per valence state
+("single-zeta"), making the calculation even faster but less precise.
+
+Calculate the atomization energy of :mol:`H_2O` using different basis
+sets.  Instead of looping over plane-wave cutoff, use a loop over basis keywords::
+
+  for basis in ['sz(dzp)', 'szp(dzp)', 'dzp']:
+      ...
+      calc = GPAW(mode='lcao',
+                  basis=basis,
+                  ...)
+
+Compare the calculated energies to those calculated in plane-wave mode.  Do
+the energies deviate a lot?  What about the atomization energy?  Is
+the energy variational with respect to the quality of the basis?
+
+.. note:: 
+    Binding energies from LCAO calculation should be considered with caution
+    (although these can be improved considerably by manually generating
+    optimized basis functions) - however the method is well suited
+    to calculate geometries, band structures, and for applications that require a small basis
+    set, such as electron transport calculations.
+
+
+Finite difference calculations
+==============================
+
+For some applications, e.g. solvent models, real-time TDDFT and Ehrenfest dynamics, it can be beneficial to expand the wave-functions on a finite-difference :ref:`real-space grid <grids>`.
+Try running a calculation for a water molecule with grid spacing ``h=0.2``::
+
+    calc = GPAW(mode='fd', h=0.2)
+
+.. note::
+
+    Grid-based methods rely on *finite-difference
+    stencils*, where the gradient in one point is calculated from the
+    surrounding points.  This makes the grid strictly inequivalent to a
+    basis, and thus not (necessarily) variational.

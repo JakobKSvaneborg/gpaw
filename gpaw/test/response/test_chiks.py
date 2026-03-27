@@ -1,17 +1,16 @@
 """Test functionality to compute the four-component susceptibility tensor for
 the Kohn-Sham system."""
 
-from itertools import product, combinations
+from itertools import combinations, product
 
 import numpy as np
 import pytest
-from gpaw import GPAW
-from gpaw.mpi import world
+
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
+from gpaw.response.chi0 import Chi0Calculator
+from gpaw.response.chiks import ChiKSCalculator, SelfEnhancementCalculator
 from gpaw.response.frequencies import (ComplexFrequencyDescriptor,
                                        FrequencyDescriptor)
-from gpaw.response.chiks import ChiKSCalculator, SelfEnhancementCalculator
-from gpaw.response.chi0 import Chi0Calculator
 from gpaw.response.pair_functions import (get_inverted_pw_mapping,
                                           get_pw_coordinates)
 from gpaw.test.gpwfile import response_band_cutoff
@@ -131,11 +130,14 @@ def generate_gc_g():
     return gc_g
 
 
-def generate_nblocks_n():
+def generate_nblocks_n(comm=None):
+    from gpaw.mpi import world
+    if comm is None:
+        comm = world
     nblocks_n = [1]
-    if world.size % 2 == 0:
+    if comm.size % 2 == 0:
         nblocks_n.append(2)
-    if world.size % 4 == 0:
+    if comm.size % 4 == 0:
         nblocks_n.append(4)
 
     return nblocks_n
@@ -149,7 +151,7 @@ def generate_nblocks_n():
 @pytest.mark.parametrize(
     'system,qrel,gammacentered',
     product(generate_system_s(), generate_qrel_q(), generate_gc_g()))
-def test_chiks(in_tmp_dir, gpw_files, system, qrel, gammacentered):
+def test_chiks(in_tmp_dir, gpw_files, mpi, system, qrel, gammacentered):
     r"""Test the internals of the ChiKSCalculator.
 
     In particular, we test that the susceptibility does not change due to the
@@ -179,7 +181,7 @@ def test_chiks(in_tmp_dir, gpw_files, system, qrel, gammacentered):
     # Note: None of these should change the actual results.
     disable_syms_s = [True, False]
 
-    nblocks_n = generate_nblocks_n()
+    nblocks_n = generate_nblocks_n(mpi.comm)
     nn = len(nblocks_n)
 
     bandsummation_b = ['double', 'pairwise']
@@ -194,12 +196,13 @@ def test_chiks(in_tmp_dir, gpw_files, system, qrel, gammacentered):
     # ---------- Script ---------- #
 
     # Part 1: Set up ChiKSTestingFactory
-    calc = GPAW(gpw_files[wfs], parallel=dict(domain=1))
+    calc = mpi.GPAW(gpw_files[wfs], parallel=dict(domain=1))
     nbands = response_band_cutoff[wfs]
 
     chiks_testing_factory = ChiKSTestingFactory(calc,
                                                 spincomponent, q_c, zd,
-                                                nbands, ecut, gammacentered)
+                                                nbands, ecut, gammacentered,
+                                                comm=mpi.comm)
 
     # Part 2: Check toggling of calculation parameters
 
@@ -255,7 +258,7 @@ def test_chiks(in_tmp_dir, gpw_files, system, qrel, gammacentered):
 @pytest.mark.parametrize(
     'system,qrel',
     product(generate_system_s(spincomponents=['00']), generate_qrel_q()))
-def test_chiks_vs_chi0(in_tmp_dir, gpw_files, system, qrel):
+def test_chiks_vs_chi0(in_tmp_dir, gpw_files, mpi, system, qrel):
     """Test that the ChiKSCalculator is able to reproduce the Chi0Body.
 
     We use only the default calculation parameter setup for the ChiKSCalculator
@@ -290,13 +293,17 @@ def test_chiks_vs_chi0(in_tmp_dir, gpw_files, system, qrel):
     zd = ComplexFrequencyDescriptor.from_array(complex_frequencies)
 
     # Calculate chiks
-    chiks_calc = ChiKSCalculator(gs, ecut=ecut, nbands=nbands)
+    chiks_calc = ChiKSCalculator(gs,
+                                 context=ResponseContext(comm=mpi.comm),
+                                 ecut=ecut, nbands=nbands)
     chiks = chiks_calc.calculate(spincomponent, q_c, zd)
     chiks = chiks.copy_with_global_frequency_distribution()
     chiks_calc.context.write_timer()
 
     # Part 2: chi0 calculation
-    chi0_calc = Chi0Calculator(gs, wd=wd, eta=eta,
+    chi0_calc = Chi0Calculator(gs,
+                               context=ResponseContext(comm=mpi.comm),
+                               wd=wd, eta=eta,
                                ecut=ecut, nbands=nbands,
                                hilbert=False, intraband=False)
     chi0 = chi0_calc.calculate(q_c)
@@ -313,7 +320,7 @@ def test_chiks_vs_chi0(in_tmp_dir, gpw_files, system, qrel):
     'system,qrel,gammacentered',
     product(generate_system_s(spincomponents=['+-']),
             generate_qrel_q(), generate_gc_g()))
-def test_xi(gpw_files, system, qrel, gammacentered):
+def test_xi(gpw_files, mpi, system, qrel, gammacentered):
     """Test that calculated self-enhancement function does not change
     when varrying internal calculator parameters."""
     # ---------- Inputs ---------- #
@@ -328,7 +335,7 @@ def test_xi(gpw_files, system, qrel, gammacentered):
     ecut = 50
     rshelmax = 0
 
-    if world.size > 1:
+    if mpi.comm.size > 1:
         nblocks = 2
     else:
         nblocks = 1
@@ -345,7 +352,7 @@ def test_xi(gpw_files, system, qrel, gammacentered):
 
     # ---------- Script ---------- #
 
-    calc = GPAW(gpw_files[wfs], parallel=dict(domain=1))
+    calc = mpi.GPAW(gpw_files[wfs], parallel=dict(domain=1))
     gs = ResponseGroundStateAdapter(calc)
 
     xi_mzGG = []
@@ -353,6 +360,7 @@ def test_xi(gpw_files, system, qrel, gammacentered):
         for bandsummation in bandsummation_b:
             xi_calc = SelfEnhancementCalculator(
                 gs,
+                context=ResponseContext(comm=mpi.comm),
                 qsymmetry=qsymmetry,
                 bandsummation=bandsummation,
                 **fixed_kwargs)
@@ -374,9 +382,10 @@ class ChiKSTestingFactory:
 
     def __init__(self, calc,
                  spincomponent, q_c, zd,
-                 nbands, ecut, gammacentered):
+                 nbands, ecut, gammacentered,
+                 comm=None):
         self.gs = GSAdapterWithPAWCache(calc)
-        self.context = ResponseContext()
+        self.context = ResponseContext(comm=comm)
         self.spincomponent = spincomponent
         self.q_c = q_c
         self.zd = zd
@@ -469,16 +478,17 @@ class GSAdapterWithPAWCache(ResponseGroundStateAdapter):
         self._cached_corrections = []
         self._cached_parameters = []
 
-    def matrix_element_paw_corrections(self, qpd, rshe_a):
+    def matrix_element_paw_corrections(self, qpd, rshe_a, comm):
         """Overwrite method with a cached version."""
         cache_index = self._cache_lookup(qpd)
         if cache_index is not None:
             return self._cached_corrections[cache_index]
 
-        return self._calculate_correction(qpd, rshe_a)
+        return self._calculate_correction(qpd, rshe_a, comm)
 
-    def _calculate_correction(self, qpd, rshe_a):
-        correction = super().matrix_element_paw_corrections(qpd, rshe_a)
+    def _calculate_correction(self, qpd, rshe_a, comm=None):
+        correction = super().matrix_element_paw_corrections(
+            qpd, rshe_a, comm=comm)
 
         self._cached_corrections.append(correction)
         self._cached_parameters.append((qpd.q_c, qpd.ecut, qpd.gammacentered))

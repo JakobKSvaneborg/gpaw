@@ -1,26 +1,22 @@
-import pytest
-
 import numpy as np
-
+import pytest
 from ase.spacegroup import crystal
 from ase.units import Bohr
 
-from gpaw import GPAW
-from gpaw.sphere.integrate import integrate_lebedev
-
 from gpaw.response import ResponseGroundStateAdapter
-from gpaw.response.site_data import (AtomicSites, AtomicSiteData,
+from gpaw.response.localft import add_spin_polarization
+from gpaw.response.site_data import (AtomicSiteData, AtomicSites,
                                      calculate_site_magnetization,
                                      calculate_site_zeeman_energy,
                                      get_site_radii_range,
                                      maximize_site_magnetization)
-from gpaw.response.localft import add_spin_polarization
+from gpaw.sphere.integrate import integrate_lebedev
 
 
 @pytest.mark.response
-def test_Fe_site_magnetization(gpw_files):
+def test_Fe_site_magnetization(gpw_files, mpi):
     # Set up ground state adapter
-    calc = GPAW(gpw_files['fe_pw'], parallel=dict(domain=1))
+    calc = mpi.GPAW(gpw_files['fe_pw'], parallel=dict(domain=1))
     gs = ResponseGroundStateAdapter(calc)
 
     # Extract valid site radii range
@@ -86,9 +82,9 @@ def test_Fe_site_magnetization(gpw_files):
 
 
 @pytest.mark.response
-def test_Co_site_data(gpw_files):
+def test_Co_site_data(gpw_files, mpi):
     # Set up ground state adapter
-    calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
+    calc = mpi.GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
     gs = ResponseGroundStateAdapter(calc)
 
     # Extract valid site radii range
@@ -173,7 +169,7 @@ def test_Co_site_data(gpw_files):
 
 
 @pytest.mark.response
-def test_valid_site_radii_symmetry():
+def test_valid_site_radii_symmetry(mpi):
     # Set up Cr2O3 crystal
     cellpar = [4.95721, 4.95721, 13.59170, 90, 90, 120]
     Cr_c = [0, 0, 0.34734]
@@ -190,7 +186,7 @@ def test_valid_site_radii_symmetry():
 
     # Set up calculator with a specific grid spacing and generate adapter
     spacing = 0.1
-    calc = GPAW(mode='fd', h=spacing)
+    calc = mpi.GPAW(mode='fd', h=spacing)
     calc.initialize(atoms)
     gs = DummyAdapter(calc)
 

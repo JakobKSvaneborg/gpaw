@@ -1,24 +1,23 @@
-import pytest
-import numpy as np
 import time
 
+import numpy as np
+import pytest
 from ase.build import bulk
 from ase.parallel import parprint
 
-from gpaw import GPAW, PW
-from gpaw.test import findpeak
-from gpaw.mpi import size, world
-
+from gpaw import PW
 from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator
-from gpaw.response.susceptibility import ChiFactory
+from gpaw.response.context import ResponseContext
 from gpaw.response.pair_functions import read_susceptibility_array
+from gpaw.response.susceptibility import ChiFactory
+from gpaw.test import findpeak
 
 
 @pytest.mark.kspair
 @pytest.mark.response
-def test_response_two_aluminum_chi_RPA(in_tmp_dir):
-    assert size <= 4**3
+def test_response_two_aluminum_chi_RPA(in_tmp_dir, mpi):
+    assert mpi.comm.size <= 4**3
 
     # Ground state calculation
 
@@ -28,30 +27,30 @@ def test_response_two_aluminum_chi_RPA(in_tmp_dir):
     atoms1 = bulk('Al', 'fcc', a=a)
     atoms2 = atoms1.repeat((2, 1, 1))
 
-    calc1 = GPAW(mode=PW(200),
-                 nbands=12,
-                 gpts=(12, 12, 12),
-                 kpts=(8, 8, 8),
-                 convergence={'density': 1e-5,
-                              'eigenstates': 1e-7,
-                              'bands': 8},
-                 parallel={'domain': 1},
-                 xc='LDA')
+    calc1 = mpi.GPAW(mode=PW(200),
+                     nbands=12,
+                     gpts=(12, 12, 12),
+                     kpts=(8, 8, 8),
+                     convergence={'density': 1e-5,
+                                  'eigenstates': 1e-7,
+                                  'bands': 8},
+                     parallel={'domain': 1},
+                     xc='LDA')
 
     atoms1.calc = calc1
     atoms1.get_potential_energy()
 
     t2 = time.time()
 
-    calc2 = GPAW(mode=PW(200),
-                 nbands=24,
-                 gpts=(24, 12, 12),
-                 kpts=(4, 8, 8),
-                 convergence={'density': 1e-5,
-                              'eigenstates': 1e-7,
-                              'bands': 16},
-                 parallel={'domain': 1},
-                 xc='LDA')
+    calc2 = mpi.GPAW(mode=PW(200),
+                     nbands=24,
+                     gpts=(24, 12, 12),
+                     kpts=(4, 8, 8),
+                     convergence={'density': 1e-5,
+                                  'eigenstates': 1e-7,
+                                  'bands': 16},
+                     parallel={'domain': 1},
+                     xc='LDA')
 
     atoms2.calc = calc2
     atoms2.get_potential_energy()
@@ -64,20 +63,26 @@ def test_response_two_aluminum_chi_RPA(in_tmp_dir):
     w = np.linspace(0, 24, 241)
 
     # Calculate susceptibility using Al1
-    calculate_chi(calc1, q1_qc, w, 8, filename_prefix='Al1')
+    calculate_chi(calc1, q1_qc, w, 8, filename_prefix='Al1',
+                  comm=mpi.comm)
 
     t4 = time.time()
 
     # Calculate susceptibility using Al2
-    calculate_chi(calc2, q2_qc, w, 16, filename_prefix='Al2')
+    calculate_chi(calc2, q2_qc, w, 16, filename_prefix='Al2',
+                  comm=mpi.comm)
 
     t5 = time.time()
 
-    parprint('')
-    parprint('Ground state calc 1 took', (t2 - t1), 'seconds')
-    parprint('Ground state calc 2 took', (t3 - t2), 'seconds')
-    parprint('Susceptibility calc 1 took', (t4 - t3), 'seconds')
-    parprint('Susceptibility calc 2 took', (t5 - t4), 'seconds')
+    parprint('', comm=mpi.comm)
+    parprint('Ground state calc 1 took', (t2 - t1), 'seconds',
+             comm=mpi.comm)
+    parprint('Ground state calc 2 took', (t3 - t2), 'seconds',
+             comm=mpi.comm)
+    parprint('Susceptibility calc 1 took', (t4 - t3), 'seconds',
+             comm=mpi.comm)
+    parprint('Susceptibility calc 2 took', (t5 - t4), 'seconds',
+             comm=mpi.comm)
 
     # Check that results are consistent, when structure is simply repeated
 
@@ -108,9 +113,12 @@ def test_response_two_aluminum_chi_RPA(in_tmp_dir):
 def calculate_chi(calc, q_qc, w, nbands,
                   eta=0.2, ecut=50,
                   spincomponent='00', fxc=None,
-                  filename_prefix=None, reduced_ecut=25):
+                  filename_prefix=None, reduced_ecut=25,
+                  comm=None):
     gs = ResponseGroundStateAdapter(calc)
-    chiks_calc = ChiKSCalculator(gs, ecut=ecut, nbands=nbands)
+    context = ResponseContext(comm=comm) if comm is not None else None
+    chiks_calc = ChiKSCalculator(gs, context=context,
+                                 ecut=ecut, nbands=nbands)
     chi_factory = ChiFactory(chiks_calc)
 
     if filename_prefix is None:
@@ -123,4 +131,5 @@ def calculate_chi(calc, q_qc, w, nbands,
         _, chi = chi_factory(spincomponent, q_c, w + 1.j * eta, fxc=fxc)
         chi = chi.copy_with_reduced_ecut(reduced_ecut)
         chi.write_array(fname)
-        world.barrier()
+        if comm is not None:
+            comm.barrier()

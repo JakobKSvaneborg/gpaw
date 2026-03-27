@@ -1,20 +1,21 @@
 from __future__ import annotations
 
-from typing import IO, Any, Union
 from pathlib import Path
+from typing import IO, Any
 
-from ase import Atoms
 import ase.io.ulm as ulm
+from ase import Atoms
 from ase.io.trajectory import read_atoms, write_atoms
 from ase.units import Bohr, Ha
+
 import gpaw
 import gpaw.mpi as mpi
 from gpaw.dft import Parameters
 from gpaw.new.builder import DFTComponentsBuilder
-from gpaw.new.gpw import GPWFlags, write_dft_state, read_dft_state
-from gpaw.new.rttddft.history import RTTDDFTHistory
-from gpaw.new.rttddft.state import RTTDDFTState
+from gpaw.new.gpw import GPWFlags, read_dft_state, write_dft_state
 from gpaw.new.logger import Logger
+from gpaw.new.rttddft.history import RTTDDFTHistory
+from gpaw.new.rttddft.dataclasses import RTTDDFTState
 
 
 def write_rttddft(filename: str | Path,
@@ -22,10 +23,11 @@ def write_rttddft(filename: str | Path,
                   dft_params: Parameters,
                   td_params: dict[str, Any],
                   state: RTTDDFTState,
-                  history: RTTDDFTHistory) -> None:
+                  history: RTTDDFTHistory,
+                  comm=None) -> None:
     flags = GPWFlags(include_wfs=True, include_projections=True,
                      precision='double')
-    comm = mpi.world
+    comm = mpi.normalize_communicator(comm)
 
     writer: ulm.Writer | ulm.DummyWriter
     if comm.rank == 0:
@@ -62,9 +64,9 @@ def write_rttddft(filename: str | Path,
     comm.barrier()
 
 
-def read_rttddft(filename: Union[str, Path, IO[str]],
+def read_rttddft(filename: str | Path | IO[str],
                  *,
-                 log: Union[Logger, str, Path, IO[str]] = None,
+                 log: Logger | str | Path | IO[str] | None = None,
                  comm=None,
                  parallel: dict[str, Any] = None,
                  ) -> tuple[Atoms,
@@ -80,7 +82,7 @@ def read_rttddft(filename: Union[str, Path, IO[str]],
     parallel = parallel or {}
 
     if not isinstance(log, Logger):
-        log = Logger(log, comm or mpi.world)
+        log = Logger(log, comm)
 
     comm = log.comm
 
@@ -108,7 +110,7 @@ def read_rttddft(filename: Union[str, Path, IO[str]],
     state = RTTDDFTState(*dft_state)
 
     if builder.mode in ['pw', 'fd']:  # fd = finite-difference
-        data = ibzwfs.wfs_qs[0][0].psit_nX.data
+        data = ibzwfs._wfs_u[0].psit_nX.data
         if not hasattr(data, 'fd'):  # fd = file-descriptor
             reader.close()
     else:

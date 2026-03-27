@@ -1,13 +1,14 @@
-import pytest
 import numpy as np
-from gpaw.response.df import DielectricFunction
+import pytest
+
 from gpaw.response.bse import BSE, read_spectrum
+from gpaw.response.df import DielectricFunction
 from gpaw.test import findpeak
 
 
 @pytest.mark.dielectricfunction
 @pytest.mark.response
-def test_response_bse_aluminum(in_tmp_dir, gpw_files):
+def test_response_bse_aluminum(in_tmp_dir, gpw_files, mpi):
     df = 1
     bse = 1
     check_spectrum = 1
@@ -24,7 +25,7 @@ def test_response_bse_aluminum(in_tmp_dir, gpw_files):
                   nbands=4,
                   q_c=q_c,
                   ecut=ecut,
-                  )
+                  comm=mpi.comm)
         bse.get_eels_spectrum(filename='bse_eels.csv',
                               w_w=w_w,
                               eta=eta)
@@ -35,7 +36,8 @@ def test_response_bse_aluminum(in_tmp_dir, gpw_files):
                                 frequencies=w_w,
                                 eta=eta,
                                 ecut=ecut,
-                                hilbert=False)
+                                hilbert=False,
+                                world=mpi.comm)
         df_w = df.get_eels_spectrum(q_c=q_c, filename=None)[1]
 
     if check_spectrum:

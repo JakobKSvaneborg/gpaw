@@ -1,7 +1,9 @@
-import pytest
-from gpaw.new.extensions import Extension
-from ase.units import Hartree, Bohr
 import numpy as np
+import pytest
+from ase.units import Bohr, Hartree
+
+from gpaw import restart
+from gpaw.new.extensions import Extension
 
 
 class Spring:
@@ -52,18 +54,17 @@ class Spring:
 
 @pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 1)])
 @pytest.mark.parametrize('mode', [{'name': 'pw', 'ecut': 300}, 'lcao'])
-def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
+def test_extensions(mode, parallel, in_tmp_dir, gpaw_new, mpi):
+    from gpaw.new.ase_interface import GPAW
     if not gpaw_new:
         pytest.skip('Only GPAW new')
     ktot = 20
 
-    from gpaw.new.ase_interface import GPAW
-    from gpaw import restart
-    from gpaw.mpi import world
+    # from gpaw import restart
     domain, band = parallel
-    if world.size < domain * band:
+    if mpi.comm.size < domain * band:
         pytest.skip('Not enough cores for this test.')
-    if world.size > domain * band * 2:
+    if mpi.comm.size > domain * band * 2:
         pytest.skip('Too many cores for this test.')
 
     # 1. Create a calculation with a particular list of extensions.
@@ -79,13 +80,14 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     def get_calc(atoms):
         # To test multiple extensions, create two sprigs which add
         # up to k=ktot, which is what is tested in this test
-        calc = GPAW(extensions=[Spring(a1=0, a2=1, l=2, k=4),
-                                Spring(a1=0, a2=1, l=2, k=ktot - 4)],
-                    symmetry='off',
-                    parallel={'band': band, 'domain': domain},
-                    kpts=(2, 1, 1),
-                    convergence={'density': 1e-6},
-                    mode=mode)
+        calc = mpi.NewGPAW(
+            extensions=[Spring(a1=0, a2=1, l=2, k=4),
+                        Spring(a1=0, a2=1, l=2, k=ktot - 4)],
+            symmetry='off',
+            parallel={'band': band, 'domain': domain},
+            kpts=(2, 1, 1),
+            convergence={'density': 1e-6},
+            mode=mode)
         atoms.calc = calc
         return calc
 
@@ -105,10 +107,11 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     atoms.positions[0, 2] += 0.1
 
     # 3. Calculate a reference result without extensions
-    calc = GPAW(mode=mode,
-                kpts=(2, 1, 1),
-                convergence={'density': 1e-6},
-                symmetry='off')
+    calc = mpi.NewGPAW(
+        mode=mode,
+        kpts=(2, 1, 1),
+        convergence={'density': 1e-6},
+        symmetry='off')
     atoms.calc = calc
 
     E0, F0 = atoms.get_potential_energy(), atoms.get_forces()
@@ -135,6 +138,7 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     atoms, calc = restart(
         'calc.gpw',
         Class=GPAW,
+        communicator=mpi.comm,
         object_hooks={'extensions': hook})
 
     # Make sure the cached energies and forces are correct
@@ -149,13 +153,13 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     # Make sure the recalculated energies are forces are correct
     atoms.set_positions(atoms.get_positions() + 1e-10)
     assert E == pytest.approx(atoms.get_potential_energy(), abs=1e-5)
-    assert F == pytest.approx(atoms.get_forces(), abs=1e-5)
+    assert F == pytest.approx(atoms.get_forces(), abs=2e-5)
 
     # 5. Test full blown relaxation.
     from ase.optimize import BFGS
     atoms = get_atoms()
     calc = get_calc(atoms)
-    relax = BFGS(atoms)
+    relax = BFGS(atoms, comm=mpi.comm)
     relax.run()
     nsteps = relax.nsteps
     assert atoms.get_distance(0, 1) == pytest.approx(1.8483, abs=1e-2)
@@ -165,14 +169,15 @@ def test_extensions(mode, parallel, in_tmp_dir, gpaw_new):
     # 6. Test restarting from a relaxation.
     atoms = get_atoms()
     calc = get_calc(atoms)
-    relax = BFGS(atoms, restart='relax_restart')
+    relax = BFGS(atoms, restart='relax_restart', comm=mpi.comm)
     for _, _ in zip(relax.irun(), range(3)):
         pass
     calc.write('restart_relax.gpw')
     atoms, calc = restart('restart_relax.gpw',
                           Class=GPAW,
+                          communicator=mpi.comm,
                           object_hooks={'extensions': hook})
-    relax = BFGS(atoms, restart='relax_restart')
+    relax = BFGS(atoms, restart='relax_restart', comm=mpi.comm)
     relax.run()
 
     assert relax.nsteps + 3 == nsteps

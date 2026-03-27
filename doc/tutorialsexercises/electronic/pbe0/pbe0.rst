@@ -9,7 +9,7 @@ This tutorial will do non self-consistent PBE0 based on self-consistent PBE.
 .. seealso::
 
    * :ref:`bandstructures` tutorial.
-   * :ref:`band exercise` exercice.
+   * :ref:`band exercise` exercise.
 
 
 PBE and PBE0 band gaps

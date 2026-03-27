@@ -11,6 +11,6 @@ atoms = Atoms('H2',
               cell=(a, a, a))
 atoms.center()
 
-calc = GPAW(mode='fd', nbands=2, txt='h2.txt')
+calc = GPAW(mode='pw', txt='h2.txt')
 atoms.calc = calc
 print(atoms.get_forces())

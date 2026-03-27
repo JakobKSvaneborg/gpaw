@@ -1,11 +1,8 @@
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
+#include "python_utils.h"
 
 #define GPAW_ARRAY_DISABLE_NUMPY
 #define GPAW_ARRAY_ALLOW_CUPY
-#include "../array.h"
+#include "array.h"
 #undef GPAW_ARRAY_DISABLE_NUMPY
 
 #include "gpu.h"
@@ -383,7 +380,7 @@ static void _r2k_gpu(int n, int k,
                     &beta_gpu,
                     (float*) c_gpu, ldc));
     } else if (dtypenum == NP_FLOAT_COMPLEX) {
-        gpublasComplex alpha_gpu = {alpha.real, alpha.imag};
+        gpublasComplex alpha_gpu = { (float) alpha.real, (float) alpha.imag};
         float beta_gpu = beta;
         gpublasSafeCall(
                 gpublasCher2k(_gpaw_gpublas_handle,

@@ -9,7 +9,6 @@ from ase.units import Ha
 
 from gpaw.core import PWDesc, UGDesc
 from gpaw.core.domain import Domain
-from gpaw.core.matrix import Matrix
 from gpaw.core.plane_waves import PWArray
 from gpaw.gpu import as_xp
 from gpaw.new import zips
@@ -116,7 +115,8 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
     def get_pseudo_core_ked(self):
         if self._tauct_ag is None:
             self._tauct_ag = self.setups.create_pseudo_core_ked(
-                self.interpolation_desc, self.relpos_ac, self.atomdist)
+                self.interpolation_desc, self.relpos_ac, self.atomdist,
+                xp=self.xp)
         return self._tauct_ag
 
     def create_poisson_solver(self, extensions):
@@ -177,76 +177,14 @@ class PWDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             return PWHybridHamiltonian(
                 self.grid, self.wf_desc, self.xc, self.setups,
                 self.relpos_ac, self.atomdist, self.log,
+                self.ibz.bz.size_c,
                 self.communicators['k'],
                 self.communicators['b'],
                 self.communicators['w'])
         return SpinorPWHamiltonian(self.qspiral_v)
 
-    def convert_wave_functions_from_uniform_grid(self,
-                                                 C_nM: Matrix,
-                                                 basis_set,
-                                                 kpt_c,
-                                                 q):
-        if self.params.experimental.get('fast_pw_init', True):
-            if self.ncomponents < 4:
-                from gpaw.core.pwacf import PWAtomCenteredFunctions
-                pw = self.wf_desc.new(kpt=kpt_c)
-                phit_aJG = PWAtomCenteredFunctions(
-                    [setup.basis_functions_J for setup in self.setups],
-                    self.relpos_ac,
-                    pw,
-                    atomdist=self.atomdist,
-                    xp=self.xp)
-                psit_nG = pw.empty(self.nbands,
-                                   comm=self.communicators['b'],
-                                   xp=self.xp)
-                mynbands, M = C_nM.dist.shape
-                phit_aJG.multiply(C_nM.to_dtype(pw.dtype),
-                                  out_nG=psit_nG[:mynbands])
-                return psit_nG
-
-        lcao_dtype = complex if \
-            np.issubdtype(self.dtype, np.complexfloating) else float
-
-        grid = self.grid.new(kpt=kpt_c, dtype=lcao_dtype)
-        pw = self.wf_desc.new(kpt=kpt_c, dtype=lcao_dtype)
-        if self.dtype != lcao_dtype:
-            pw_correct = self.wf_desc.new(kpt=kpt_c, dtype=self.dtype)
-
-        if np.issubdtype(self.dtype, np.complexfloating):
-            emikr_R = grid.eikr(-kpt_c)
-
-        mynbands, M = C_nM.dist.shape
-        if self.ncomponents < 4:
-            psit_nG = pw.empty(self.nbands, self.communicators['b'])
-            psit_nR = grid.zeros(mynbands)
-            basis_set.lcao_to_grid(C_nM.data, psit_nR.data, q)
-
-            for psit_R, psit_G in zips(psit_nR, psit_nG, strict=False):
-                if np.issubdtype(self.dtype, np.complexfloating):
-                    psit_R.data *= emikr_R
-                psit_R.fft(out=psit_G)
-
-            if self.dtype != lcao_dtype:
-                psit2_nG = pw_correct.empty(self.nbands,
-                                            self.communicators['b'])
-                psit2_nG.data[:] = psit_nG.data
-                return psit2_nG.to_xp(self.xp)
-            return psit_nG.to_xp(self.xp)
-        else:
-            psit_nsG = pw.empty((self.nbands, 2), self.communicators['b'])
-            psit_sR = grid.empty(2)
-            C_nsM = C_nM.data.reshape((mynbands, 2, M // 2))
-            for psit_sG, C_sM in zips(psit_nsG, C_nsM, strict=False):
-                psit_sR.data[:] = 0.0
-                basis_set.lcao_to_grid(C_sM, psit_sR.data, q)
-                psit_sR.data *= emikr_R
-                for psit_G, psit_R in zips(psit_sG, psit_sR):
-                    psit_R.fft(out=psit_G)
-            return psit_nsG
-
     def read_ibz_wave_functions(self, reader):
-        from gpaw.utilities import get_dtype_precision, as_dtype_precision
+        from gpaw.utilities import as_dtype_precision, get_dtype_precision
 
         def convert_precision(array):
             """Convert array to match calculation precision."""

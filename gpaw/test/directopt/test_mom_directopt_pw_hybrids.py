@@ -1,7 +1,5 @@
-import pytest
-
 import numpy as np
-
+import pytest
 
 from gpaw import GPAW, PW
 from gpaw.mom import prepare_mom_calculation
@@ -9,7 +7,7 @@ from gpaw.mom import prepare_mom_calculation
 
 @pytest.mark.do
 def test_mom_directopt_pw_hybrids(in_tmp_dir, gpw_files):
-    calc = GPAW(gpw_files['h2_mom_do_pwh'])
+    calc = GPAW(gpw_files['h2_mom_do_pwh'], legacy_gpaw=True)
     h2 = calc.atoms
     h2.calc = calc
     e = h2.get_potential_energy()

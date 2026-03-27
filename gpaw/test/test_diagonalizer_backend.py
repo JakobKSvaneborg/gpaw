@@ -1,13 +1,11 @@
 import numpy as np
 import pytest
-from gpaw.mpi import world
+
+from gpaw.old.eigensolvers.diagonalizerbackend import (
+    DistributedBlacsDiagonalizer, ElpaDiagonalizer, ScalapackDiagonalizer,
+    ScipyDiagonalizer)
 from gpaw.utilities import compiled_with_sl
 from gpaw.utilities.elpa import LibElpa
-from gpaw.eigensolvers.diagonalizerbackend import (
-    DistributedBlacsDiagonalizer,
-    ScipyDiagonalizer,
-    ScalapackDiagonalizer,
-    ElpaDiagonalizer)
 
 
 def prepare_eigensolver_matrices(size_of_matrices, dtype):
@@ -29,7 +27,8 @@ def prepare_eigensolver_matrices(size_of_matrices, dtype):
 
 
 @pytest.fixture(params=['eigh', 'scalapack', 'elpa'])
-def backend_problemsize_kwargs(request):
+def backend_problemsize_kwargs(request, require_real_mpi, mpi):
+    world = mpi.comm
     name = request.param
     eigenproblem_size = world.size * 64
     if name == 'eigh':
@@ -59,7 +58,8 @@ def backend_problemsize_kwargs(request):
 
 @pytest.mark.parametrize('dtype,', [float, complex])
 def test_diagonalizer_eigenproblem_correctness(backend_problemsize_kwargs,
-                                               dtype):
+                                               dtype, mpi):
+    world = mpi.comm
     is_master_rank = world.rank == 0
     (
         diagonalizer_class,

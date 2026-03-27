@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import warnings
-
 from functools import cached_property
 from types import SimpleNamespace
 from typing import Any
 
-from gpaw.new.backwards_compatibility import FakePoisson
-from gpaw.mpi import world
+import numpy as np
+
+from gpaw.external import ConstantElectricField, create_absorption_kick
+from gpaw.mpi import normalize_communicator
 from gpaw.new.ase_interface import ASECalculator
+from gpaw.new.backwards_compatibility import FakePoisson
 from gpaw.new.rttddft.rttddft import RTTDDFT
 from gpaw.new.rttddft.td_algorithm import TDAlgorithmLike
 from gpaw.tddft.units import as_to_au, autime_to_asetime
@@ -27,7 +29,7 @@ class FakeTDHamiltonian:
         hamiltonian = self._rttddft.hamiltonian
         ham_calc = hamiltonian.create_hamiltonian_matrix_calculator(
             self._rttddft.state.potential)
-        wfs = self._rttddft.state.ibzwfs.wfs_qs[kpt.q][kpt.s]
+        wfs = self._rttddft.state.ibzwfs._get_wfs(kpt.k, kpt.s)
         H_MM = ham_calc.calculate_matrix(wfs)
         return H_MM.data
 
@@ -36,7 +38,10 @@ class RTTDDFTAdapter:
     """ Adapter to use old-GPAW code with new RTTDDFT """
 
     def __init__(self,
-                 rttddft: RTTDDFT):
+                 rttddft: RTTDDFT,
+                 *,
+                 world=None):
+        world = normalize_communicator(world)
         self._rttddft = rttddft
         self.td_hamiltonian = FakeTDHamiltonian(rttddft)
         self.observers: list[Any] = []
@@ -49,10 +54,7 @@ class RTTDDFTAdapter:
                'be ignored. The recommended way of using the new RTTDDFT '
                'interface outside of tests is via gpaw.new.rttddft.RTTDDFT.')
         warnings.warn(msg)
-
-    @property
-    def world(self):
-        return world
+        self.world = world
 
     @cached_property
     def wfs(self):
@@ -62,7 +64,7 @@ class RTTDDFTAdapter:
                       state.density,
                       state.potential,
                       self._rttddft.pot_calc.setups,
-                      world,
+                      self.world,
                       SimpleNamespace(occ=SimpleNamespace()),
                       self._rttddft.hamiltonian,
                       self.atoms)
@@ -174,8 +176,21 @@ class RTTDDFTAdapter:
         # TODO LCAOTDDFT does niter += for absorption_kick, but TDDFT does not
 
         # Kick and store history
-        result = self._rttddft.absorption_kick(kick_strength)
+
+        kw = dict()
+        if self.mode == 'fd':
+            # Different behavior between LCAO and FD. See #1423
+            kw['nkicks'] = int(round(np.linalg.norm(kick_strength) / 1.0e-4))
+            if kw['nkicks'] < 1:
+                kw['nkicks'] = 1
+
+        # Propagate kick
+        potential = create_absorption_kick(kick_strength)
+        result = self._rttddft.kick(potential, **kw)
         print(result)
+
+        # Store kick in history
+        self._rttddft.history.register_kick(potential)
 
         # Call observers after kick
         self.action = 'kick'
@@ -212,7 +227,14 @@ class RTTDDFTAdapter:
             try:
                 # Return last kick
                 kick = self._rttddft.history.kicks[-1]
-                return kick.strength if attr == 'kick_strength' else kick.gauge
+                if attr == 'kick_gauge':
+                    return kick.gauge
+                assert isinstance(kick.potential, ConstantElectricField)
+                # Magnitude in atomic units
+                magnitude = kick.potential.strength
+                # Normalized direction
+                direction_v = kick.potential.direction_v
+                return magnitude * direction_v
             except IndexError:
                 # There have been no kicks
                 return None

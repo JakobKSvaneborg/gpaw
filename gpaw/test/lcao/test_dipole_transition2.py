@@ -1,17 +1,19 @@
 import numpy as np
 import pytest
-
-from ase.parallel import world, parprint
+from ase.parallel import parprint, world
 from ase.units import Bohr
+
 from gpaw import GPAW
 from gpaw.lcao.dipoletransition import get_dipole_transitions
 from gpaw.lrtddft.kssingle import KSSingles
 
 
 @pytest.mark.old_gpaw_only
-def test_dipole_transition(gpw_files, tmp_path_factory):
+def test_dipole_transition(gpw_files, tmp_path_factory, require_real_mpi):
     """Check dipole matrix-elements for Li."""
-    calc = GPAW(gpw_files['bcc_li_lcao'], parallel=dict(sl_auto=True))
+    calc = GPAW(gpw_files['bcc_li_lcao'],
+                parallel=dict(sl_auto=True),
+                legacy_gpaw=True)
     # Initialize calculator if necessary
     if not hasattr(calc.wfs, 'C_nM'):
         calc.wfs.set_positions
@@ -36,7 +38,7 @@ def test_dipole_transition(gpw_files, tmp_path_factory):
     assert abs(-0.0781 + 0.0282j) == pytest.approx(abs(dip_kvnm[1, 2, 0, 3]),
                                                    abs=1e-4)
 
-    calc = GPAW(gpw_files['bcc_li_fd'])
+    calc = GPAW(gpw_files['bcc_li_fd'], legacy_gpaw=True)
     # compare to lrtddft implementation
     kss = KSSingles()
     atoms = calc.atoms
