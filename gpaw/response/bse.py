@@ -104,6 +104,12 @@ class BSEMatrix:
         """
         H_sS = self.H_sS
         comm = bse.context.comm
+        if comm.size == 1:
+            H_rS = np.delete(H_sS, exclude_S, axis=0)
+            H_rr = np.delete(H_rS, exclude_S, axis=1)
+            bse.context.print('  Eliminated %s pair orbitals' % len(
+                exclude_S))
+            return np.ascontiguousarray(H_rr), None
         grid = BlacsGrid(comm, comm.size, 1)
         nS = bse.nS
         ns = bse.ns
@@ -666,18 +672,20 @@ class BSEBackend:
                                                        self.ci, self.cf)
                            for s in range(self.nspins)]
 
-                rho3_nnG, iq = self.get_density_matrix(
+                rho3_nnG, iq, sign = self.get_density_matrix(
                     pair_calc, screened_potential, kptv1_s[0], kptv2_s[0])
 
-                rho4_nnG, iq = self.get_density_matrix(
+                rho4_nnG, iq, sign4 = self.get_density_matrix(
                     pair_calc, screened_potential, kptc1_s[0], kptc2_s[0])
-
+                assert sign == sign4
                 if self.nspins == 2:
-                    rho3s1_nnG, iq = self.get_density_matrix(
+                    rho3s1_nnG, iq, sign3 = self.get_density_matrix(
                         pair_calc, screened_potential, kptv1_s[1], kptv2_s[1])
 
-                    rho4s1_nnG, iq = self.get_density_matrix(
+                    rho4s1_nnG, iq, sign4 = self.get_density_matrix(
                         pair_calc, screened_potential, kptc1_s[1], kptc2_s[1])
+                    assert sign == sign3
+                    assert sign == sign4
                 else:
                     rho3s1_nnG = None
                     rho4s1_nnG = None
@@ -690,11 +698,19 @@ class BSEBackend:
                     rho4_nnG = self.spinors_data.rho_conduction_conduction(
                         kptc1_s[0].K, kptc2_s[0].K, rho4_nnG, rho4s1_nnG)
 
+                # When the symmetry operation involves time-reversal
+                # (sign == -1), the physical W at the BZ q-point is the
+                # complex conjugate of W at the IBZ q-point:
+                # W(Q+G_BZ, Q+G_BZ') = conj(W_ibz[G, G'])
+                W_GG = screened_potential.W_qGG[iq]
+                if sign == -1:
+                    W_GG = W_GG.conj()
+
                 self.context.timer.start('Screened exchange')
                 W_mmmm = np.einsum(
                     'ijk,km,pqm->ipjq',
                     rho3_nnG.conj(),
-                    screened_potential.W_qGG[iq],
+                    W_GG,
                     rho4_nnG,
                     optimize='optimal')
                 # Only include 0.5*W for spinpaired calculations without soc
@@ -736,7 +752,7 @@ class BSEBackend:
             rho_nnG[n] = get_nmG(kpt1, kpt2, pawcorr, n, qpd, I_G,
                                  pair_calc, timer=self.context.timer)
 
-        return rho_nnG, iq
+        return rho_nnG, iq, symop.sign
 
     @cached_property
     def _chi0calc(self):
@@ -952,27 +968,24 @@ class BSEBackend:
                 flat_C_tGG = np.empty(nR * nG * nG, dtype=complex)
             comm.broadcast(flat_C_tGG, 0)
             C_tGG = flat_C_tGG.reshape((nR, nG, nG))[self.blocks.myslice]
-            C_tGG1 = None
+            C1_tGG = None
         else:
             A_Gt = rho_RG.T @ v_Rt
             B_Gt = (rho_RG.T * df_R[np.newaxis]) @ v_Rt
             '''The following computes
-               C_tGG1 = A_Gt.T.conj()[..., np.newaxis] * B_Gt.T[:, np.newaxis]
+               C1_tGG = A_Gt.T.conj()[..., np.newaxis] * B_Gt.T[:, np.newaxis]
                C_tGG = B_Gt.T.conj()[..., np.newaxis] * A_Gt.T[:, np.newaxis]
                '''
-            grid = BlacsGrid(comm, comm.size, 1)
-            desc = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
-            C_tGG = desc.empty(dtype=complex)
-            np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt,
-                      out=C_tGG.reshape((-1, nG, nG)))
-            desc1 = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
-            C_tGG1 = desc1.empty(dtype=complex)
-            np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt,
-                      out=C_tGG1.reshape((-1, nG, nG)))
-            print(f'shape is {C_tGG.shape}')
-            C_tGG = C_tGG[:C_tGG.shape[0]].reshape((C_tGG.shape[0], nG, nG))
-            C_tGG1 = C_tGG1[:C_tGG1.shape[0]].reshape(
-                (C_tGG1.shape[0], nG, nG))
+            if comm.size == 1:
+                C_tGG = np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt)
+                C1_tGG = np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt)
+            else:
+                grid = BlacsGrid(comm, comm.size, 1)
+                desc = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
+                C_tGG = desc.empty(dtype=complex).reshape((-1, nG, nG))
+                np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt, out=C_tGG)
+                C1_tGG = desc.empty(dtype=complex).reshape((-1, nG, nG))
+                np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt, out=C1_tGG)
 
         eta /= Hartree
 
@@ -980,14 +993,15 @@ class BSEBackend:
             tmp_tw = 1 / (w_w[None, :] / Hartree - w_t[:, None] + 1j * eta)
             chi_wGG_local = np.einsum('tw,tAB->wAB', tmp_tw, C_tGG)
 
-            if C_tGG1 is not None:
+            if C1_tGG is not None:
                 n_tmp_tw = - 1 / (w_w[None, :] / Hartree
                                   + w_t[:, None] + 1j * eta)
-                chi_wGG_local += np.einsum('tw,tAB->wAB', n_tmp_tw, C_tGG1)
+                chi_wGG_local += np.einsum('tw,tAB->wAB', n_tmp_tw, C1_tGG)
 
             chi_wGG_local *= 1 / self.gs.volume
 
-        comm.sum(chi_wGG_local)
+        if comm.size > 1:
+            comm.sum(chi_wGG_local)
         chi_wGG = chi_wGG_local
 
         return np.swapaxes(chi_wGG, -1, -2)
@@ -1047,10 +1061,12 @@ class BSEBackend:
             A_SS[:len(A_sS)] = A_sS
             Ntot = len(A_sS)
             for rank in range(1, comm.size):
-                buf = np.empty((self.ns, self.nS), dtype=complex)
+                _, myKsize = self.parallelisation_kpoints(rank)
+                nrows = myKsize * self.nv * self.nc
+                buf = np.empty((nrows, self.nS), dtype=complex)
                 comm.receive(buf, rank, tag=123)
-                A_SS[Ntot:Ntot + self.ns] = buf
-                Ntot += self.ns
+                A_SS[Ntot:Ntot + nrows] = buf
+                Ntot += nrows
         else:
             comm.send(A_sS, 0, tag=123)
         comm.barrier()

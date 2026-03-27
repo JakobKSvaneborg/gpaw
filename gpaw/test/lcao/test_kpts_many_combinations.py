@@ -83,11 +83,12 @@ def test_lcao_kpts_many_combinations(in_tmp_dir, require_real_mpi):
                 print('T', t2 - t1)
             energies.append(e)
             forces.append(f)
-            corrname = calc.wfs.atomic_correction.name
-            if kwargs['parallel']['sl_auto']:
-                assert corrname == 'sparse'
-            else:
-                assert corrname == 'dense'
+            if calc.old:
+                corrname = calc.wfs.atomic_correction.name
+                if kwargs['parallel']['sl_auto']:
+                    assert corrname == 'sparse'
+                else:
+                    assert corrname == 'dense'
 
             if energies:
                 eerr = abs(e - energies[0])

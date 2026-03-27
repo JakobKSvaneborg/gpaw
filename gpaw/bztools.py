@@ -1,48 +1,28 @@
+from __future__ import annotations
+
 from itertools import product
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from ase import Atoms
 from ase.calculators.calculator import kptdensity2monkhorstpack
 from ase.dft.kpoints import monkhorst_pack
 from ase.neighborlist import NeighborList
-from scipy.spatial import ConvexHull, Delaunay, Voronoi
+from scipy.spatial import ConvexHull, Delaunay, QhullError, Voronoi
 
-try:
-    from scipy.spatial import QhullError
-except ImportError:  # scipy < 1.8
-    from scipy.spatial.qhull import QhullError
-
-from gpaw import GPAW
 from gpaw.mpi import SerialCommunicator
 from gpaw.new import zips
 from gpaw.new.brillouin import BZPoints
 from gpaw.new.symmetry import create_symmetries_object
 from gpaw.old.kpt_descriptor import to1bz
-from gpaw.symmetry import Symmetry, aglomerate_points
-from gpaw.utilities.symmetry import find_set_of_lattice_symmetries
+from gpaw.symmetry import aglomerate_points
+from gpaw.utilities.symmetry import (find_set_of_lattice_symmetries,
+                                     prune_symmetries)
 
-
-def get_lattice_symmetry(cell_cv, tolerance=1e-7):
-    """Return symmetry object of lattice group.
-
-    Parameters
-    ----------
-    cell_cv : ndarray
-        Unit cell.
-
-    Returns
-    -------
-    gpaw.symmetry object
-
-    """
-    # NB: Symmetry.find_lattice_symmetry() uses self.pbc_c, which defaults
-    # to pbc along all three dimensions. Hence, it seems that the lattice
-    # symmetry transformations produced by this method could be faulty if
-    # there are non-periodic dimensions in a system. XXX
-    latsym = Symmetry([0], cell_cv, tolerance=tolerance)
-    latsym.find_lattice_symmetry()
-    return latsym
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+    from gpaw.new.ase_interface import ASECalculator as NewGPAW
+    from gpaw.old.calculator import GPAW as OldGPAW
 
 
 def optimal_monkhorst_pack_grid(
@@ -54,6 +34,7 @@ def optimal_monkhorst_pack_grid(
         force_gamma: bool = False,
         contains_ibz_vertices: bool = False,
         is_symmetric_mp_grid: bool = False,
+        tolerance: float = 1e-5,
         nmaxperdim: int = 8) -> dict[str, Any]:
     """
     This function returns a dictionary yielding a Monkhorst-Pack k-point
@@ -100,7 +81,7 @@ def optimal_monkhorst_pack_grid(
            'compliant with the following predicates:')
 
     msg += ('\n\nThe grid should effectively yield a Born-von Kármán supercell'
-            f'that does not repeat for at least 2𝜋 * {kptdensity} Å.')
+            f' that does not repeat for at least 2𝜋 * {kptdensity} Å.')
 
     predicate_functions = []
     if contains_ibz_vertices:
@@ -137,7 +118,8 @@ def optimal_monkhorst_pack_grid(
 
     for predicate_function in predicate_functions:
         mp_grids = mp_grids[predicate_function(mp_grids, atoms,
-                                               gamma=force_gamma)]
+                                               gamma=force_gamma,
+                                               tolerance=tolerance)]
         if len(mp_grids) == 0:
             raise RuntimeError('Could not find grid which satisfies the'
                                f' {predicate_function.__name__}')
@@ -146,7 +128,7 @@ def optimal_monkhorst_pack_grid(
         return {'size': mp_grids[0], 'gamma': force_gamma}
     else:
         if minimize_ibz_points:
-            nk_ibz = get_nk_ibz(mp_grids, atoms, force_gamma)
+            nk_ibz = get_nk_ibz(mp_grids, atoms, force_gamma, tolerance)
             return {'size': mp_grids[np.argmin(nk_ibz)],
                     'gamma': force_gamma}
         else:
@@ -155,7 +137,9 @@ def optimal_monkhorst_pack_grid(
                     'gamma': force_gamma}
 
 
-def get_mp_grid_from_min_distance_criteria(atoms, min_distance, even):
+def get_mp_grid_from_min_distance_criteria(atoms: Atoms,
+                                           min_distance: float,
+                                           even: bool):
     """
     Get a Monkhorst-Pack grid with the lowest number of k-points in the
     Brillouin zone that still satisfies a given minimum distance condition in
@@ -214,9 +198,10 @@ def get_mp_grid_from_min_distance_criteria(atoms, min_distance, even):
     return np.array(best_grid)
 
 
-def contains_ibz_vertices_predicate(mp_grids,
+def contains_ibz_vertices_predicate(mp_grids: NDArray,
                                     atoms: Atoms,
-                                    gamma: bool):
+                                    gamma: bool,
+                                    tolerance: float):
     """For a list of Monkhorst-Pack grid sizes, this function checks whether
     each k-point sampling contains the vertices of the irreducible
     Brillouin zone.
@@ -239,8 +224,8 @@ def contains_ibz_vertices_predicate(mp_grids,
 
     """
 
-    pbc_c = atoms.pbc
     cell_cv = atoms.cell
+    pbc_c = atoms.pbc
 
     if not gamma:
         raise ValueError('You cannot get an MP grid that contains all '
@@ -251,14 +236,18 @@ def contains_ibz_vertices_predicate(mp_grids,
                          'IBZ vertices without an even k-point sampling.')
 
     # Get IBZ vertices in lattice group.
-    lU_scc = find_set_of_lattice_symmetries(cell_cv, pbc_c, tol=1e-5)
-    latibz_vert_kc = get_ibz_vertices(cell_cv, U_scc=lU_scc,
-                                      time_reversal=False)
+    lU_scc = find_set_of_lattice_symmetries(cell_cv, pbc_c,
+                                            tolerance=tolerance)
+    latibz_vert_kc = get_ibz_vertices(cell_cv, U_scc=lU_scc)
 
     # Expand IBZ vertices from lattice group to crystal group.
-    cU_scc = create_symmetries_object(atoms).rotation_scc
-    ibzk_kc = expand_ibz(lU_scc, cU_scc, latibz_vert_kc,
-                         comm=SerialCommunicator(), pbc_c=pbc_c)
+
+    cU_scc, _, _ = prune_symmetries(
+        lU_scc, cell_cv, relpos_ac=np.asarray(atoms.get_scaled_positions()),
+        id_a=atoms.numbers, symmorphic=True, tolerance=tolerance)
+
+    ibzk_kc = expand_ibz(lU_scc, cU_scc, latibz_vert_kc, pbc_c,
+                         comm=SerialCommunicator())
 
     bools = np.zeros(len(mp_grids), dtype=bool)
     for count, size in enumerate(np.array(mp_grids)):
@@ -280,19 +269,20 @@ def contains_ibz_vertices_predicate(mp_grids,
     return bools
 
 
-def is_symmetric_mp_grid_predicate(mp_grids,
+def is_symmetric_mp_grid_predicate(mp_grids: NDArray,
                                    atoms: Atoms,
-                                   gamma: bool):
+                                   gamma: bool,
+                                   tolerance: float):
     """For a list of Monkhorst-Pack grid sizes, this function checks whether
     each k-point sampling is as symmetric as the crystal.
 
     Parameters
     ----------
-    mp_grids
+    mp_grids:
         List of Monkhorst-Pack grid sizes.
-    atoms
+    atoms:
         Atoms object which is used to generate a list of symmetries.
-    gamma
+    gamma:
         Boolean for whether the k-point sampling should be forced to contain
         the Gamma point through offsets.
 
@@ -304,7 +294,8 @@ def is_symmetric_mp_grid_predicate(mp_grids,
     """
 
     pbc_c = atoms.pbc
-    symmetries = create_symmetries_object(atoms, symmorphic=False)
+    symmetries = create_symmetries_object(atoms, symmorphic=False,
+                                          tolerance=tolerance)
 
     bools = np.zeros(len(mp_grids), dtype=bool)
     for count, size in enumerate(np.array(mp_grids)):
@@ -323,12 +314,14 @@ def is_symmetric_mp_grid_predicate(mp_grids,
     return bools
 
 
-def get_nk_ibz(mp_grids,
+def get_nk_ibz(mp_grids: NDArray,
                atoms: Atoms,
-               gamma: bool):
+               gamma: bool,
+               tolerance: float):
 
     pbc_c = atoms.pbc
-    symmetries = create_symmetries_object(atoms, symmorphic=False)
+    symmetries = create_symmetries_object(atoms, symmorphic=False,
+                                          tolerance=tolerance)
 
     nibz = np.zeros(len(mp_grids), dtype=int)
     for count, size in enumerate(np.array(mp_grids)):
@@ -441,28 +434,7 @@ def get_smallest_Gvecs(cell_cv, n=5):
     return G_xv, N_xc
 
 
-def get_symmetry_operations(U_scc, time_reversal):
-    """Return point symmetry operations."""
-
-    if U_scc is None:
-        U_scc = np.array([np.eye(3)])
-
-    inv_cc = -np.eye(3, dtype=int)
-    has_inversion = (U_scc == inv_cc).all(2).all(1).any()
-
-    if has_inversion:
-        time_reversal = False
-
-    if time_reversal:
-        Utmp_scc = np.concatenate([U_scc, -U_scc])
-    else:
-        Utmp_scc = U_scc
-
-    return Utmp_scc
-
-
-def get_ibz_vertices(cell_cv, U_scc=None, time_reversal=None,
-                     origin_c=None):
+def get_ibz_vertices(cell_cv, U_scc, origin_c=None):
     """Determine irreducible BZ.
 
     Parameters
@@ -470,35 +442,26 @@ def get_ibz_vertices(cell_cv, U_scc=None, time_reversal=None,
     cell_cv : ndarray
         Unit cell
     U_scc : ndarray
-        Crystal symmetry operations.
-    time_reversal : bool
-        Use time reversal symmetry?
+        Symmorphic lattice symmetry operations.
 
     Returns
     -------
     ibzk_kc : ndarray
         Vertices of the irreducible BZ.
     """
+
     # Choose an origin
     if origin_c is None:
         origin_c = np.array([0.12, 0.22, 0.21], float)
     else:
         assert (np.abs(origin_c) < 0.5).all()
 
-    if U_scc is None:
-        U_scc = np.array([np.eye(3)])
-
-    if time_reversal is None:
-        time_reversal = False
-
-    Utmp_scc = get_symmetry_operations(U_scc, time_reversal)
-
     icell_cv = np.linalg.inv(cell_cv).T
     B_cv = icell_cv * 2 * np.pi
     A_cv = np.linalg.inv(B_cv).T
 
     # Map a random point around
-    point_sc = np.dot(origin_c, Utmp_scc.transpose((0, 2, 1)))
+    point_sc = np.dot(origin_c, U_scc.transpose((0, 2, 1)))
     assert len(point_sc) == len(unique_rows(point_sc))
     point_sv = np.dot(point_sc, B_cv)
 
@@ -519,7 +482,6 @@ def get_ibz_vertices(cell_cv, U_scc=None, time_reversal=None,
         voronoi = Voronoi(points_xv)
     except QhullError:
         return get_ibz_vertices(cell_cv, U_scc=U_scc,
-                                time_reversal=time_reversal,
                                 origin_c=origin_c + [0.01, -0.02, -0.01])
 
     ibzregions = voronoi.point_region[0:len(point_sv)]
@@ -531,101 +493,87 @@ def get_ibz_vertices(cell_cv, U_scc=None, time_reversal=None,
     return ibzk_kc
 
 
-def get_bz(calc, comm, pbc_c=np.ones(3, bool)):
+def get_bz(calc: OldGPAW | NewGPAW, comm):
     """Return the BZ and IBZ vertices.
 
     Parameters
     ----------
-    calc : str, GPAW calc instance
+    calc:
+        Instance of GPAW calculator
 
     Returns
     -------
-    bzk_kc : ndarray
+    bzk_kc:
         Vertices of BZ in crystal coordinates
-    ibzk_kc : ndarray
+    ibzk_kc:
         Vertices of IBZ in crystal coordinates
 
     """
 
-    if isinstance(calc, str):
-        calc = GPAW(calc, txt=None)
-    cell_cv = calc.wfs.gd.cell_cv
+    if calc.old:
+        _backwards_compatible = True
+        tolerance = calc.symmetry.tol
+    else:
+        sym = calc.dft.ibzwfs.ibz.symmetries
+        _backwards_compatible = sym._backwards_compatible
+        tolerance = sym.tolerance
 
-    # Crystal symmetries
-    symmetry = calc.wfs.kd.symmetry
-    cU_scc = get_symmetry_operations(symmetry.op_scc,
-                                     symmetry.time_reversal)
-
-    return get_reduced_bz(cell_cv, cU_scc, False, comm, pbc_c=pbc_c)
-
-
-def get_bz_from_atoms(atoms):
+    atoms = calc.atoms
+    cell_cv = atoms.cell  # Å
     pbc_c = atoms.pbc
-    cell_cv = atoms.cell
-    from gpaw.symmetry import Symmetry
-    id_a = atoms.get_chemical_symbols()
-    symmetry = Symmetry(id_a, atoms.cell, atoms.pbc)
-    symmetry.analyze(atoms.get_scaled_positions())
-    cU_scc = get_symmetry_operations(symmetry.op_scc,
-                                     symmetry.time_reversal)
 
-    return get_reduced_bz(cell_cv, cU_scc, False, pbc_c=pbc_c)
+    # Create symmetry operations with forced symmorphic = True
+    lU_scc = find_set_of_lattice_symmetries(
+        cell_cv, pbc_c, tolerance=tolerance,
+        _backwards_compatible=_backwards_compatible)
+
+    cU_scc, _, _ = prune_symmetries(
+        lU_scc, cell_cv, relpos_ac=np.asarray(atoms.get_scaled_positions()),
+        id_a=atoms.numbers, tolerance=tolerance, symmorphic=True,
+        _backwards_compatible=_backwards_compatible)
+
+    return get_reduced_bz(cell_cv, pbc_c,
+                          lU_scc=lU_scc, cU_scc=cU_scc,
+                          tolerance=tolerance, comm=comm)
 
 
-def get_reduced_bz(cell_cv, cU_scc, time_reversal, comm,
-                   pbc_c=np.ones(3, bool), tolerance=1e-7):
-
-    """Reduce the BZ using the crystal symmetries to obtain the IBZ.
+def get_reduced_bz(cell_cv, pbc_c, *, lU_scc, cU_scc, tolerance, comm):
+    """
+    Reduce the BZ using the crystal symmetries to obtain the IBZ.
 
     Parameters
     ----------
-    cell_cv : ndarray
+    cell_cv: ndarray
         Unit cell.
-    cU_scc : ndarray
+    cU_scc: ndarray
         Crystal symmetry operations.
-    time_reversal : bool
-        Switch for time reversal.
     pbc: bool or [bool, bool, bool]
         Periodic bcs
     """
 
-    if time_reversal:
-        # NB: The method never seems to be called with time_reversal=True,
-        # and hopefully get_bz() will generate the right symmetry operations
-        # always. So, can we remove this input? XXX
-        cU_scc = get_symmetry_operations(cU_scc, time_reversal)
-
-    # Lattice symmetries
-    latsym = get_lattice_symmetry(cell_cv, tolerance=tolerance)
-    lU_scc = get_symmetry_operations(latsym.op_scc,
-                                     latsym.time_reversal)
-
     # Find Lattice IBZ
-    ibzk_kc = get_ibz_vertices(cell_cv,
-                               U_scc=latsym.op_scc,
-                               time_reversal=latsym.time_reversal)
-    latibzk_kc = ibzk_kc.copy()
+    latibzk_kc = get_ibz_vertices(cell_cv, U_scc=lU_scc)
 
     # Expand lattice IBZ to crystal IBZ
-    ibzk_kc = expand_ibz(lU_scc, cU_scc, ibzk_kc, comm, pbc_c=pbc_c)
+    ibzk_kc = expand_ibz(lU_scc, cU_scc, latibzk_kc.copy(), pbc_c, comm)
 
     # Fold out to full BZ
-    bzk_kc = unique_rows(np.concatenate(np.dot(ibzk_kc,
-                                               cU_scc.transpose(0, 2, 1))))
+    bzk_kc = unique_rows(
+        np.concatenate(np.dot(ibzk_kc, cU_scc.transpose(0, 2, 1))))
 
     return bzk_kc, ibzk_kc, latibzk_kc
 
 
-def expand_ibz(lU_scc, cU_scc, latibzk_kc, comm, pbc_c=np.ones(3, bool)):
+def expand_ibz(lU_scc, cU_scc, latibzk_kc, pbc_c, comm):
     """Expand IBZ vertices from lattice group to crystal group.
 
     Parameters
     ----------
-    lU_scc : ndarray
+    lU_scc:
         Lattice symmetry operators.
-    cU_scc : ndarray
+    cU_scc:
         Crystal symmetry operators.
-    latibzk_kc : ndarray
+    latibzk_kc:
         Vertices of lattice IBZ.
 
     Returns

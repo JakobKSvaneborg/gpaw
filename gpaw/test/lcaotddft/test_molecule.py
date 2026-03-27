@@ -32,7 +32,7 @@ def nacl_nospin(gpw_files):
 @only_on_master(world)
 def initialize_system(nacl_nospin):
     comm = serial_comm
-    calc = GPAW(nacl_nospin, communicator=comm)
+    calc = GPAW(nacl_nospin, communicator=comm, legacy_gpaw=True)
     fdm = calculate_time_propagation(nacl_nospin,
                                      kick=np.ones(3) * 1e-5,
                                      communicator=comm,
@@ -124,7 +124,7 @@ def ksd_transform_reference(ksd_reference):
 
 @pytest.fixture(scope='module', params=parallel_i)
 def build_ksd(initialize_system, request, scalapack):
-    calc = GPAW('unocc.gpw', parallel=request.param, txt=None)
+    calc = GPAW('unocc.gpw', parallel=request.param, legacy_gpaw=True)
     if not calc.wfs.ksl.using_blacs and calc.wfs.bd.comm.size > 1:
         pytest.skip('Band parallelization without scalapack is not supported')
     ksd = KohnShamDecomposition(calc)
@@ -134,7 +134,7 @@ def build_ksd(initialize_system, request, scalapack):
 
 @pytest.fixture(scope='module', params=parallel_i)
 def load_ksd(build_ksd, request):
-    calc = GPAW('unocc.gpw', parallel=request.param, txt=None)
+    calc = GPAW('unocc.gpw', parallel=request.param, legacy_gpaw=True)
     # Initialize positions in order to calculate density
     calc.initialize_positions()
     ksd = KohnShamDecomposition(calc, 'ksd.ulm')

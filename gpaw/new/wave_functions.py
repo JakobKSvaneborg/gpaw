@@ -31,8 +31,8 @@ class WaveFunctions:
                  ncomponents: int = 1,
                  dtype=float,
                  qspiral_v=None,
-                 domain_comm: MPIComm = serial_comm,
-                 band_comm: MPIComm = serial_comm):
+                 band_comm: MPIComm = serial_comm,
+                 domain_band_comm: MPIComm = serial_comm):
         """"""
         assert spin < ncomponents
 
@@ -46,12 +46,13 @@ class WaveFunctions:
         self.kpt_c = kpt_c
         self.relpos_ac = relpos_ac
         self.atomdist = atomdist
-        self.domain_comm = domain_comm
+        self.domain_comm = atomdist.comm
         self.band_comm = band_comm
+        self.domain_band_comm = domain_band_comm
         self.nbands = nbands
         self.qspiral_v = qspiral_v
 
-        assert domain_comm.size == atomdist.comm.size
+        assert domain_band_comm.size == self.domain_comm.size * band_comm.size
 
         self.nspins = ncomponents % 3
         self.spin_degeneracy = ncomponents % 2 + 1

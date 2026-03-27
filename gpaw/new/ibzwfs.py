@@ -395,7 +395,7 @@ class IBZWaveFunctions(Generic[WFT]):
                         P_ani = wfs.P_ani.to_cpu().gather()  # gather atoms
                         if P_ani is not None:
                             P_nI = P_ani.matrix.gather()  # gather bands
-                            if P_nI.dist.comm.rank == 0:
+                            if P_nI is not None:
                                 if rank == 0:
                                     writer.fill(P_nI.data.reshape(
                                         proj_shape).astype(proj_dtype))

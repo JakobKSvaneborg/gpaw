@@ -37,6 +37,9 @@ gpaw-runscript = 'gpaw.tools.gpaw_runscript:main'
 gpaw-setup = 'gpaw.atom.gpaw_setup:main'
 gpaw-upfplot = 'gpaw.upf:main_plot'
 
+[project.entry-points."ase.ioformats"]
+gpaw-log = "gpaw.ase_plugin:io"
+
 [project.optional-dependencies]
 docs = [
     'sphinx-rtd-theme',
