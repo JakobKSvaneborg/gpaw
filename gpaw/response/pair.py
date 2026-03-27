@@ -5,93 +5,6 @@ from gpaw.response.pw_parallelization import block_partition
 from gpaw.utilities.blas import mmm
 
 
-def get_bz_fft_indices(Q_G_ibz, N_c, U_cc, time_reversal):
-    """Compute FFT grid indices for a BZ k-point from IBZ indices + symmetry.
-
-    The plane-wave coefficients for BZ k-point K, related to IBZ k-point ik
-    by K = U(ik), have the same values as the IBZ coefficients but at
-    rotated positions on the FFT grid: G_K = U · G_ik.
-
-    With time reversal, G-vectors are also negated (and coefficients
-    conjugated, handled separately).
-
-    Parameters
-    ----------
-    Q_G_ibz : 1-d int ndarray
-        FFT grid indices for the IBZ k-point's plane-wave set.
-    N_c : array-like of 3 ints
-        FFT grid dimensions.
-    U_cc : 3x3 int ndarray
-        Rotation matrix mapping IBZ -> BZ k-point.
-    time_reversal : bool
-        Whether time reversal is applied.
-
-    Returns
-    -------
-    Q_G_bz : 1-d int ndarray
-        FFT grid indices for the BZ k-point's plane-wave set.
-    """
-    N_c = np.asarray(N_c)
-    i_cG = np.array(np.unravel_index(Q_G_ibz, N_c))  # (3, nPW)
-    if time_reversal:
-        bz_cG = -(U_cc @ i_cG)
-    else:
-        bz_cG = U_cc @ i_cG
-    bz_cG = bz_cG % N_c[:, np.newaxis]
-    return np.ravel_multi_index(bz_cG, N_c)
-
-
-def build_pw_convolution_map(Q_G_K1, Q_G_K2, Q_G_resp, shift_c, N_c):
-    """Build index map for direct reciprocal-space pair density computation.
-
-    For each response G-vector G_j and each G-vector G' in K1's PW set,
-    finds the index of (G' + G_j + shift) in K2's PW set.
-
-    This enables computing pair densities as:
-
-        ρ(G_j+q) = norm × Σ_{G'} c*_n(G',K1) · c_m(G'+G_j+shift, K2)
-
-    Parameters
-    ----------
-    Q_G_K1 : 1-d int ndarray (nPW1,)
-        FFT grid indices for K1's plane-wave set.
-    Q_G_K2 : 1-d int ndarray (nPW2,)
-        FFT grid indices for K2's plane-wave set.
-    Q_G_resp : 1-d int ndarray (nG,)
-        FFT grid indices for the response G-vectors.
-    shift_c : array-like of 3 ints
-        BZ folding shift in crystal coordinates (k1 + q - k2).
-    N_c : array-like of 3 ints
-        FFT grid dimensions.
-
-    Returns
-    -------
-    g2_map : 2-d int ndarray (nG, nPW1)
-        Index into K2's PW set for each (G_j, G') pair, or -1 if the
-        target G-vector falls outside K2's cutoff sphere.
-    """
-    N_c = np.asarray(N_c)
-    nPW1 = len(Q_G_K1)
-    nPW2 = len(Q_G_K2)
-    nG = len(Q_G_resp)
-
-    # Build inverse lookup: FFT grid index -> K2 PW index (or -1)
-    inv_K2 = np.full(int(np.prod(N_c)), -1, dtype=np.int32)
-    inv_K2[Q_G_K2] = np.arange(nPW2, dtype=np.int32)
-
-    K1_cG = np.array(np.unravel_index(Q_G_K1, N_c))    # (3, nPW1)
-    resp_cG = np.array(np.unravel_index(Q_G_resp, N_c))  # (3, nG)
-    shift_c = np.asarray(shift_c, dtype=int)
-
-    g2_map = np.empty((nG, nPW1), dtype=np.int32)
-    for j in range(nG):
-        target_c = (K1_cG + resp_cG[:, j:j + 1]
-                    + shift_c[:, np.newaxis]) % N_c[:, np.newaxis]
-        g2_map[j] = inv_K2[np.ravel_multi_index(target_c, N_c)]
-
-    return g2_map
-
-
 def _fine_to_coarse_3d(i_cG, N_c, M_c):
     """Map 3D FFT grid indices from a fine grid to a coarse grid.
 
@@ -156,6 +69,15 @@ class KPointPairFactory:
         self.context = context
         assert self.gs.kd.symmetry.symmorphic
         assert self.gs.world.size == 1
+        # Cache for IBZ iFFT results: {(s, ik, n): ut_R_ibz}
+        # Multiple BZ k-points K map to the same IBZ k-point ik, so
+        # pd.ifft(psit_nG[n], ik) gives identical results for all of them.
+        # Only map_pseudo_wave (a cheap grid permutation) differs per K.
+        self._ibz_ifft_cache = {}
+
+    def clear_ibz_ifft_cache(self):
+        """Clear the IBZ iFFT cache (e.g. between q-points)."""
+        self._ibz_ifft_cache.clear()
 
     @timer('Get a k-point')
     def get_k_point(self, s, K, n1, n2, blockcomm=None, pw_mode=False):
@@ -170,7 +92,7 @@ class KPointPairFactory:
         pw_mode: bool
             If True, skip the expensive inverse FFT to real space.
             The resulting KPoint will have ut_nR=None, suitable only
-            for the direct reciprocal-space pair density method.
+            for the coarse-grid pair density method.
         """
 
         assert n1 <= n2
@@ -205,8 +127,17 @@ class KPointPairFactory:
                 psit_nG = kpt.psit_nG
                 ut_nR = gs.gd.empty(nb - na, gs.dtype)
                 for n in range(na, nb):
+                    # Cache the IBZ iFFT result: pd.ifft(psit_nG[n], ik)
+                    # depends only on (s, ik, n), not on the BZ k-point K.
+                    # The symmetry rotation (map_pseudo_wave) is cheap and
+                    # K-dependent, so it's always recomputed.
+                    cache_key = (s, ik, n)
+                    ut_ibz_R = self._ibz_ifft_cache.get(cache_key)
+                    if ut_ibz_R is None:
+                        ut_ibz_R = gs.pd.ifft(psit_nG[n], ik)
+                        self._ibz_ifft_cache[cache_key] = ut_ibz_R
                     ut_nR[n - na] = self.gs.ibz2bz[K].map_pseudo_wave(
-                        gs.pd.ifft(psit_nG[n], ik))
+                        ut_ibz_R)
         else:
             ut_nR = None
 
