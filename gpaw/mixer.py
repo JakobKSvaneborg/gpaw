@@ -64,11 +64,10 @@ class BaseMixer:
         if self.weight == 1:
             self.metric = None
         else:
-            scale = 1 / np.sqrt(self.weight * 2)
-            a = 0.125 * (self.weight + 7) * scale
-            b = 0.0625 * (self.weight - 1) * scale
-            c = 0.03125 * (self.weight - 1) * scale
-            d = 0.015625 * (self.weight - 1) * scale
+            a = 0.125 * (self.weight + 7)
+            b = 0.0625 * (self.weight - 1)
+            c = 0.03125 * (self.weight - 1)
+            d = 0.015625 * (self.weight - 1)
             self.metric = FDOperator([a,
                                       b, b, b, b, b, b,
                                       c, c, c, c, c, c, c, c, c, c, c, c,
@@ -744,10 +743,9 @@ class ReciprocalMetric:
         k2_min = np.min(k2_Q)
         self.q1 = (weight - 1) * k2_min
         self.k2_Q = gd.distribute(k2_Q)
-        self.scale = 1 / np.sqrt(2 * weight)
 
     def __call__(self, R_Q, mR_Q):
-        mR_Q[:] = R_Q * (1.0 + self.q1 / self.k2_Q) * self.scale
+        mR_Q[:] = R_Q * (1.0 + self.q1 / self.k2_Q)
 
 
 class FFTBaseMixer(BaseMixer):  # This should be able to wrap MSR1
