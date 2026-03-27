@@ -36,7 +36,7 @@ class Psit:
 
 
 def truncated_coulomb(cell_cv,
-                      nkpt_c,
+                      bz,
                       omega: float = 0.11,
                       yukawa: bool = False) -> Callable[[PWDesc], np.ndarray]:
     """Fourier transform of truncated Coulomb.
@@ -71,7 +71,7 @@ def truncated_coulomb(cell_cv,
             return v_G
         return f
 
-    wstc = WignerSeitzTruncatedCoulomb(cell_cv, nkpt_c)
+    wstc = WignerSeitzTruncatedCoulomb(cell_cv, bz.size_c)
     return lambda pw: wstc.get_potential_new(pw)
 
 
@@ -197,7 +197,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                  relpos_ac,
                  atomdist,
                  log,
-                 nkpt_c,
+                 bz,
                  kpt_comm,
                  band_comm,
                  comm):
@@ -212,7 +212,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.delta_aiiL = [setup.Delta_iiL for setup in setups]
         self.relpos_ac = relpos_ac
         self.setups = setups
-        self.nbzk = np.prod(nkpt_c)
+        self.nbzk = len(bz)
         self.real = np.issubdtype(pw.dtype, np.floating)
         self.zaxpy = get_blas_funcs('axpy', dtype=complex)
 
@@ -228,7 +228,7 @@ class PWHybridHamiltonian(PWHamiltonian):
 
         # Cached potential for gamma-point calculation:
         self.coulomb = truncated_coulomb(
-            grid.cell_cv, nkpt_c, xc.exx_omega, xc.exx_yukawa)
+            grid.cell_cv, bz, xc.exx_omega, xc.exx_yukawa)
 
     def update_wave_functions(self,
                               ibzwfs: PWFDIBZWaveFunctions,
