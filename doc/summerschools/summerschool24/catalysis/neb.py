@@ -216,7 +216,7 @@ Some suitable parameters for the NEB are given below:
 
 # %%
 # teacher:
-from gpaw import GPAW, PW
+from gpaw import GPAW, PW, Mixer
 from ase.visualize import view
 from ase.optimize import BFGS
 from gpaw.mpi import world
@@ -241,6 +241,7 @@ for i in range(N):
         calc = GPAW(xc='PBE',
                     mode=PW(350),
                     nbands='130%',
+                    mixer=Mixer(beta=0.05, nmaxold=5, weight=50),
                     communicator=world.new_communicator(ranks),
                     txt=f'{i}.txt',
                     kpts={'size': (4, 4, 1), 'gamma': True},
