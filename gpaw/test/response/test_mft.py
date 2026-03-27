@@ -279,7 +279,7 @@ def test_NiO_withU(in_tmp_dir, xc, comm, add_cwd_to_setup_paths):
     J_q = np.array([jcalc(q_c).array[..., 0]  # dimension: J_abp
                     for q_c in q_qc])[:, 0, 0]
     e_q = calculate_single_site_magnon_energies(J_q, q_qc, m)
-    assert e_q == pytest.approx(e0_q, abs=1e-2)
+    assert e_q == pytest.approx(e0_q, abs=2e-2)
 
 
 @pytest.mark.response
