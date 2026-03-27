@@ -6,7 +6,7 @@ io = ExternalIOFormat(
     desc='GPAW log-file',
     code='+F',  # +=multiple atoms objects, F=accepts a file-descriptor
     module='gpaw.ase_plugin',
-    magic='* __  _  _')
+    magic=b'* __  _  _')
 
 
 def read_gpaw_log(filedesc, index):
