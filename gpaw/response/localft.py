@@ -559,7 +559,7 @@ def calculate_spin_polarization(n_sR):
 
 
 def add_LSDA_Wxc(gd, n_sR, Wxc_R, xc='LDA'):
-    Wxc_R += calculate_LSDA_Wxc(gd, n_sR, xc='LDA')
+    Wxc_R += calculate_LSDA_Wxc(gd, n_sR, xc=xc)
 
 
 def calculate_LSDA_Wxc(gd, n_sR, xc='LDA'):
