@@ -225,6 +225,9 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
         """
         qpd = chi0_body.qpd
 
+        # Clear IFFT cache from previous q-point calculations
+        self.kptpair_factory.clear_ifft_cache()
+
         # Reset PAW correction in case momentum has change
         pairden_paw_corr = self.gs.pair_density_paw_corrections
         self.pawcorr = pairden_paw_corr(chi0_body.qpd)
@@ -264,6 +267,8 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
             # Update the actual chi0 array
             chi0_body.data_WgG[:] += out_WgG
         chi0_body.data_WgG[:] *= prefactor
+
+        self.context.print(self.kptpair_factory.get_ifft_cache_stats())
 
         tmp_chi0_wGG = chi0_body.copy_array_with_distribution('wGG')
         with self.context.timer('symmetrize_wGG'):
@@ -423,6 +428,9 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
         self.context.print('Integrating chi0 head and wings.')
         chi0_opt_ext = chi0_optical_extension
         qpd = chi0_opt_ext.qpd
+
+        # Clear IFFT cache from previous calculations
+        self.kptpair_factory.clear_ifft_cache()
 
         symmetries, generator, domain, prefactor = self.get_integration_domain(
             qpd.q_c, spins)

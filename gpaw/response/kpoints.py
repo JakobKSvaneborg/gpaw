@@ -96,6 +96,34 @@ class KPointDomainGenerator:
                          K_K in self.group_kpoints()])
         return k_kc
 
+    def get_kpt_domain_sorted_by_ibz(self, q_c=None):
+        """Get k-point domain sorted by IBZ index for IFFT cache efficiency.
+
+        By sorting the domain k-points by their IBZ k-point index, all BZ
+        k-points that share the same IBZ source are processed consecutively.
+        This enables a single-entry IFFT cache to achieve near-100% hit rate.
+
+        Primary sort: IBZ index of k (for kpt1 cache hits)
+        Secondary sort: IBZ index of k+q (for kpt2 cache hits)
+        """
+        k_kc = self.get_kpt_domain()
+
+        # Get IBZ indices for primary sort (kpt1)
+        ibz1_k = np.array([self.kd.bz2ibz_k[self.kptfinder.find(k_c)]
+                           for k_c in k_kc])
+
+        if q_c is not None and np.any(q_c):
+            # Secondary sort by IBZ index of k+q (kpt2)
+            ibz2_k = np.array([
+                self.kd.bz2ibz_k[self.kptfinder.find(k_c + q_c)]
+                for k_c in k_kc])
+            sort_key = ibz1_k * self.kd.nibzkpts + ibz2_k
+        else:
+            sort_key = ibz1_k
+
+        sort_perm = np.argsort(sort_key, kind='stable')
+        return k_kc[sort_perm]
+
     def get_tetrahedron_ikpts(self, *, pbc_c, cell_cv, comm):
         """Find irreducible k-points for tetrahedron integration."""
         U_scc = np.array([  # little group of q
