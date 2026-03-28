@@ -53,6 +53,15 @@ class KPointPairFactory:
         self.context = context
         assert self.gs.kd.symmetry.symmorphic
         assert self.gs.world.size == 1
+        # Single-entry IFFT cache per band range.
+        # Stores unrotated real-space wavefunctions for one IBZ k-point at a
+        # time. When domain k-points are sorted by IBZ index, consecutive
+        # k-points sharing the same IBZ source get cache hits.
+        # Dict maps (ik, s, na, nb) -> raw_ut_nR; at most ~2 entries
+        # (one per band range: occupied and unoccupied).
+        self._ifft_cache = {}
+        self._ifft_cache_hits = 0
+        self._ifft_cache_misses = 0
 
     @timer('Get a k-point')
     def get_k_point(self, s, K, n1, n2, blockcomm=None):
@@ -94,11 +103,30 @@ class KPointPairFactory:
         k_c = self.gs.ibz2bz[K].map_kpoint()
 
         with self.context.timer('load wfs'):
-            psit_nG = kpt.psit_nG
+            cache_key = (ik, s, na, nb)
+
+            if cache_key in self._ifft_cache:
+                # Cache hit: reuse stored unrotated wavefunctions
+                raw_ut_nR = self._ifft_cache[cache_key]
+                self._ifft_cache_hits += 1
+            else:
+                # Cache miss: compute IFFTs and store
+                psit_nG = kpt.psit_nG
+                raw_ut_nR = gs.gd.empty(nb - na, gs.dtype)
+                for n in range(na, nb):
+                    raw_ut_nR[n - na] = gs.pd.ifft(psit_nG[n], ik)
+                # Evict old entry for this band range to keep cache small
+                self._ifft_cache = {
+                    k: v for k, v in self._ifft_cache.items()
+                    if k[2:] != (na, nb)}
+                self._ifft_cache[cache_key] = raw_ut_nR
+                self._ifft_cache_misses += 1
+
+            # Apply K-dependent symmetry rotation (always needed)
             ut_nR = gs.gd.empty(nb - na, gs.dtype)
             for n in range(na, nb):
                 ut_nR[n - na] = self.gs.ibz2bz[K].map_pseudo_wave(
-                    gs.pd.ifft(psit_nG[n], ik))
+                    raw_ut_nR[n - na])
 
         with self.context.timer('Load projections'):
             if nb - na > 0:
@@ -111,6 +139,25 @@ class KPointPairFactory:
 
         return KPoint(s, K, n1, n2, blocksize, na, nb,
                       ut_nR, eps_n, f_n, P_ani, k_c)
+
+    def clear_ifft_cache(self):
+        """Clear the IFFT cache and reset statistics.
+
+        Should be called between q-point calculations or when band ranges
+        change, to avoid stale cache entries.
+        """
+        self._ifft_cache = {}
+        self._ifft_cache_hits = 0
+        self._ifft_cache_misses = 0
+
+    def get_ifft_cache_stats(self):
+        """Return a string summarizing IFFT cache hit/miss statistics."""
+        total = self._ifft_cache_hits + self._ifft_cache_misses
+        if total == 0:
+            return 'IFFT cache: no calls'
+        pct = 100 * self._ifft_cache_hits / total
+        return (f'IFFT cache: {self._ifft_cache_hits} hits, '
+                f'{self._ifft_cache_misses} misses ({pct:.0f}% hit rate)')
 
     @timer('Get kpoint pair')
     def get_kpoint_pair(self, qpd, s, K, n1, n2, m1, m2,

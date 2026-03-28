@@ -301,7 +301,9 @@ class Chi0ComponentCalculator:
             np.asarray(q_c), self.gs.kpoints, self.context)
 
         if integrationmode == 'point integration':
-            k_kc = generator.get_kpt_domain()
+            # Sort by IBZ index so that consecutive k-points share the same
+            # IBZ source, enabling efficient single-entry IFFT caching
+            k_kc = generator.get_kpt_domain_sorted_by_ibz(q_c)
         elif integrationmode == 'tetrahedron integration':
             k_kc = generator.get_tetrahedron_kpt_domain(
                 pbc_c=self.pbc, cell_cv=self.gs.gd.cell_cv,
