@@ -1,4 +1,4 @@
-"""Plugin for ASE so that ASE can read log-file from a GPAW calculation."""
+"""Plugin for ASE so that ASE can read log-files from GPAW calculations."""
 from ase.utils.plugins import ExternalIOFormat
 
 
@@ -19,7 +19,8 @@ def read_gpaw_log(filedesc, index):
                         'energy_contributions',
                         'forces',
                         'stress',
-                        'magnetic_moments'})
+                        'magnetic_moments',
+                        'dipole'})
     images = []
     for dct in dicts[index]:
         symbols = []
@@ -33,9 +34,9 @@ def read_gpaw_log(filedesc, index):
         atoms = Atoms(
             symbols,
             positions,
-            cell=dct['unit_cell']['axes'],
-            pbc=[p == 'yes' for p in dct['unit_cell']['periodic']],
-            initial_magmoms=initial_magmoms)
+            cell=[axis for _, axis, _, _ in dct['unit_cell']],
+            pbc=[pbc == 'yes' for pbc, _, _, _ in dct['unit_cell']],
+            magmoms=initial_magmoms)
 
         kwargs = {}
         if 'energy_contributions' in dct:
@@ -44,12 +45,16 @@ def read_gpaw_log(filedesc, index):
             kwargs['forces'] = [(x, y, z) for _, x, y, z in dct['forces']]
         if 'stress' in dct:
             kwargs['stress'] = dct['stress']
-        # magmoms, dipole
+        if 'magnetic_moments' in dct:
+            kwargs['magmoms'] = [
+                (x, y, z) for _, x, y, z in dct['magnetic_moments']]
+        if 'dipole' in dct:
+            kwargs['dipole'] = dct['dipole']
         if kwargs:
             atoms.calc = SinglePointCalculator(atoms, **kwargs)
         images.append(atoms)
 
     if len(images) == 0:
-        raise OSError('Corrupted GPAW-text file!')
+        raise OSError('Corrupted GPAW log-file!')
 
     return images

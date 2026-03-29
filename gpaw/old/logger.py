@@ -113,6 +113,9 @@ class GPAWLogger:
 
         self.iocontext.close()
 
+    def begin_table(self, title, header):
+        pass
+
 
 def write_header(log, world):
     # We use os.uname() here bacause platform.uname() starts a subprocess,
