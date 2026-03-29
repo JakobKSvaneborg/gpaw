@@ -386,21 +386,26 @@ class Symmetries:
         return len(self.rotation_scc)
 
     def __str__(self):
-        lines = ['symmetry:',
-                 f'  number of symmetries: {len(self)}']
-        if self.symmorphic:
-            lines.append('  rotations: [')
-            for rot_cc in self.rotation_scc:
-                lines.append(f'    {mat(rot_cc)},')
-        else:
-            nt = self.translation_sc.any(1).sum()
+        lines = ['Symmetry:',
+                 f'  Number of symmetries: {len(self)}']
+        header = 'rotation/mirror/inversion             '
+        nt = self.translation_sc.any(1).sum()
+        if nt > 0:
             lines.append(f'  number of symmetries with translation: {nt}')
-            lines.append('  rotations and translations: [')
+            header += '           translation'
+        lines += ['  operations',
+                  '  ' + '=' * len(header),
+                  '  ' + header,
+                  '  ' + '=' * len(header)]
+        if nt > 0:
             for rot_cc, t_c in zips(self.rotation_scc, self.translation_sc):
                 a, b, c = t_c
-                lines.append(f'    [{mat(rot_cc)}, '
-                             f'[{a:6.3f}, {b:6.3f}, {c:6.3f}]],')
-        lines[-1] = lines[-1][:-1] + ']\n'
+                lines.append(f'  {mat(rot_cc)} '
+                             f'({a:6.3f}, {b:6.3f}, {c:6.3f})')
+        else:
+            for rot_cc in self.rotation_scc:
+                lines.append(f'  {mat(rot_cc)}')
+        lines.append('  ' + '=' * len(header))
         return '\n'.join(lines)
 
     def check_positions(self, fracpos_ac):
@@ -593,12 +598,12 @@ def mat(rot_cc) -> str:
     """Convert 3x3 matrix to str.
 
     >>> mat([[-1, 0, 0], [0, 1, 0], [0, 0, 1]])
-    '[[-1,  0,  0], [ 0,  1,  0], [ 0,  0,  1]]'
+    '((-1,  0,  0), ( 0,  1,  0), ( 0,  0,  1))'
 
     """
-    return '[[' + '], ['.join(', '.join(f'{r:2}'
+    return '((' + '), ('.join(', '.join(f'{r:2}'
                                         for r in rot_c)
-                              for rot_c in rot_cc) + ']]'
+                              for rot_c in rot_cc) + '))'
 
 
 def integer_ids(ids: Iterable) -> list[int]:

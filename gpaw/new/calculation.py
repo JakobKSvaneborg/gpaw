@@ -791,22 +791,21 @@ def write_atoms(atoms: Atoms,
                 magmom_av: Array2D,
                 grid: UGDesc,
                 log) -> None:
-    log('\nAtoms  # Å, Bohr')
-    log('=====================================================')
-    log('   symbol    x    y    z   initial magnetic moments')
-    log('=====================================================')
+    log.begin_table(
+        '\nAtoms  # Å, Bohr',
+        '   symbol           x           y           z'
+        '        initial magnetic moments')
     symbols = atoms.get_chemical_symbols()
     for a, (x, y, z) in enumerate(atoms.positions):
         symbol = symbols[a]
         X, Y, Z = magmom_av[a]
-        log(f'{a:3} {symbol:>4} {x:11.6f} {y:11.6f} {z:11.6f}'
+        log(f'{a:3}  {symbol:>4} {x:11.6f} {y:11.6f} {z:11.6f}'
             f'    ({X:7.4f}, {Y:7.4f}, {Z:7.4f})')
-    log('=====================================================')
+    log.end_table()
 
-    log('\nUnit cell  # Å')
-    log('===================================')
-    log(' periodic  x           y           z Lengths Angles')
-    log('===================================')
+    log.begin_table(
+        '\nUnit cell  # Å',
+        ' periodic                         (x, y, z)   lengths   angles')
     par = cell_to_cellpar(atoms.cell)
     for p, (x, y, z), L, A in zip(atoms.pbc,
                                   atoms.cell,
@@ -816,7 +815,7 @@ def write_atoms(atoms: Atoms,
         log(f'{pbc}'
             f'  ({x:10.6f},  {y:10.6f},  {z:10.6f})'
             f'  {L:10.6f}  {A:10.6f}')
-    log('===================================')
+    log.end_table()
 
 
 class DFTState:

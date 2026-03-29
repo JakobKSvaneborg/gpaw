@@ -159,14 +159,14 @@ class IBZWaveFunctions(Generic[WFT]):
                 f'spin-degeneracy: {self.spin_degeneracy}\n'
                 f'dtype: {self.dtype}\n\n'
                 'memory:\n'
-                f'    storage: {"CPU" if self.xp is np else "GPU"}\n'
-                f'    wave functions: {nbytes:_} bytes '
+                f'  storage: {"CPU" if self.xp is np else "GPU"}\n'
+                f'  wave functions: {nbytes:_} bytes '
                 f'({nbytes // ncores:_} per core)\n' +
                 projectors_text +
                 '\nparallelization:\n'
-                f'    kpt:    {self.kpt_comm.size}\n'
-                f'    domain: {self.domain_comm.size}\n'
-                f'    band:   {self.band_comm.size}\n')
+                f'  kpt:    {self.kpt_comm.size}\n'
+                f'  domain: {self.domain_comm.size}\n'
+                f'  band:   {self.band_comm.size}\n')
 
     def __iter__(self) -> Generator[WFT]:
         yield from self._wfs_u
