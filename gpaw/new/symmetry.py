@@ -388,12 +388,12 @@ class Symmetries:
     def __str__(self):
         lines = ['Symmetry:',
                  f'  Number of symmetries: {len(self)}']
-        header = 'rotation/mirror/inversion             '
+        header = 'rotation/mirror/inversion                 '
         nt = self.translation_sc.any(1).sum()
         if nt > 0:
             lines.append(f'  number of symmetries with translation: {nt}')
             header += '           translation'
-        lines += ['  operations',
+        lines += ['  Operations',
                   '  ' + '-' * len(header),
                   '  ' + header,
                   '  ' + '-' * len(header)]

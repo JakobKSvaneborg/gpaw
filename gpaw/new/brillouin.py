@@ -125,10 +125,11 @@ class IBZ:
         if isinstance(self.bz, MonkhorstPackKPoints):
             txt += '  ' + str(self.bz).replace('\n', '\n  ', 1)
 
-        txt += ('  points  # relative to reciprocal cell\n'
-                '  -------------------------------------------------\n'
-                '        coordinates                          weight\n'
-                '  -------------------------------------------------\n')
+        txt += (
+            '  points  # in reciprocal-cell coordinates\n'
+            '  ----------------------------------------------------------\n'
+            '                      coordinates                     weight\n'
+            '  ----------------------------------------------------------\n')
         k = 0
         while k < N:
             if k == 10:
@@ -140,7 +141,8 @@ class IBZ:
             txt += (f'  {k:4} ({a:12.8f}, {b:12.8f}, {c:12.8f}) '
                     f'{w:.8f}\n')
             k += 1
-        txt += '  --------------------------------------------------\n'
+        txt += (
+            '  ----------------------------------------------------------\n')
         return txt
 
     def ranks(self, comm: MPIComm, nspins: int = 1) -> Array2D:

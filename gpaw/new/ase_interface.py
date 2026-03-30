@@ -28,11 +28,7 @@ from gpaw.utilities.memory import maxrss
 from gpaw.utilities.timing import simpletimer
 
 
-LOGO = r"""\
-  __  _  _
- | _ |_)|_||  |
- |__||  | ||/\| - {version}
-"""
+LOGO = '  __  _  _\n | _ |_)|_||  |\n |__||  | ||/\\| - {version}\n'
 
 
 def GPAW(*args, **kwargs):

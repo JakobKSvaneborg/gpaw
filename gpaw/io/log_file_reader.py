@@ -215,10 +215,12 @@ def h2():
     import io
     from gpaw.dft import GPAW
     from ase import Atoms
-    h = Atoms('H', cell=[2, 2, 2], pbc=1)
+    h = Atoms('H', cell=[2, 2, 2], pbc=1, magmoms=[1])
     txt = io.StringIO()
     h.calc = GPAW(mode='pw', txt=txt)
     h.get_potential_energy()
+    h.get_forces()
+    h.get_stress()
     out = txt.getvalue()
     print(out)
     ds = parse(iter(out.splitlines()), keys={'atoms', 'unit_cell'})
