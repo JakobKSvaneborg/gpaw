@@ -128,45 +128,42 @@ def write_header(log, world):
     log('Arch:  ', machine)
     log('Pid:   ', os.getpid())
     log('CWD:   ', os.getcwd())
-    log('Python: {}.{}.{}'.format(*sys.version_info[:3]))
-    # GPAW
-    line = os.path.dirname(gpaw.__file__)
+    log('units:  Angstrom and eV')
+    log('cores: ', world.size)
+    log('OpenMP:', cgpaw.have_openmp)
+
+    log('\nVersions:')
+    log(f'  Python: {sys.version_info}')
+    log(f'  numpy:  {os.path.dirname(np.__file__)}')
+    import scipy as sp
+    log(f'  scipy:  {os.path.dirname(sp.__file__)}')
+    log('  libxc: ', getattr(cgpaw, 'libxc_version', '2.x.y'))
+
+    log('\nGit-hashes:')
     githash = search_current_git_hash(gpaw, world)
     if githash is not None:
-        line += f' ({githash:.10})'
-    log('gpaw:  ', line)
-
-    # Find C-code:
-    line = os.path.normpath(cgpaw.get_extension_module_path())
+        log(f'  gpaw: {githash:.10}')
     if hasattr(cgpaw, 'githash'):
-        line += f' ({cgpaw.githash():.10})'
-    log('_gpaw: ', cut(line))
-
-    # ASE
-    line = f'{os.path.dirname(ase.__file__)} (version {ase_version}'
+        log(f' _gpaw: {cgpaw.githash():.10}')
     githash = search_current_git_hash(ase, world)
     if githash is not None:
-        line += f'-{githash:.10}'
-    line += ')'
-    log('ase:   ', line)
+        log(f'  ase:  {githash:.10}')
 
-    log('numpy:  %s (version %s)' %
-        (os.path.dirname(np.__file__), np.version.version))
-    import scipy as sp
-    log('scipy:  %s (version %s)' %
-        (os.path.dirname(sp.__file__), sp.version.version))
+    log('\nPaths:')
+    log('  gpaw:  ', os.path.dirname(gpaw.__file__))
+    line = os.path.normpath(cgpaw.get_extension_module_path())
+    log('  _gpaw: ', cut(line))
+    line = f' (version {ase_version}'
+    log(f'  ase:  {os.path.dirname(ase.__file__)}')
+    log(f'  numpy:  {os.path.dirname(np.__file__)}')
+    log(f'  scipy:  {os.path.dirname(sp.__file__)}')
     # Explicitly deleting SciPy seems to remove garbage collection
     # problem of unknown cause
     del sp
-    log('libxc: ', getattr(cgpaw, 'libxc_version', '2.x.y'))
-    log('units:  Angstrom and eV')
-    log('cores:', world.size)
-    log('OpenMP:', cgpaw.have_openmp)
-    log('OMP_NUM_THREADS:', os.environ.get('OMP_NUM_THREADS', ''))
 
+    log('\nOMP_NUM_THREADS:', os.environ.get('OMP_NUM_THREADS', ''))
     if gpaw.debug:
         log('DEBUG-MODE: true')
-
     log()
 
 
