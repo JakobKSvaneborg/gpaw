@@ -76,15 +76,14 @@ BoundaryConds = namedtuple("BoundaryConds", ["pbc", "zerobc"])
         id="UniformOrthorhombic",),
     pytest.param(
         GridShape(cell=[1, 2, 3], size=(16, 10, 11)),
-        id="NonUniformOrthorombic"),
+        id="NonUniformOrthorombic",
+        marks=pytest.mark.ci),
     pytest.param(
         GridShape(cell=[3, 2, 3], size=(5, 8, 9)),
-        id="SmallOrthorhombic",
-        marks=pytest.mark.ci),
+        id="SmallOrthorhombic"),
     pytest.param(
         GridShape(cell=[[0, 1, 1], [3, 0, 3], [2, 2, 0]], size=(16, 8, 7)),
-        id="WeirdShape",
-        marks=pytest.mark.ci),
+        id="WeirdShape"),
     pytest.param(
         GridShape(cell=[[1, 2, 3], [0, 0, 3], [2, 2, 0]], size=(16, 10, 7)),
         id="VeryWeirdShape",
@@ -103,8 +102,7 @@ def fixt_grid_shape(request) -> GridShape:
         id="AllPeriodic"),
     pytest.param(
         BoundaryConds(pbc=[False, True, True], zerobc=[True, False, False]),
-        id="SomePeriodic",
-        marks=pytest.mark.ci),
+        id="SomePeriodic"),
     pytest.param(
         BoundaryConds(pbc=[False, False, False], zerobc=[True, True, True]),
         id="AllNonPeriodic")],
@@ -119,7 +117,7 @@ def fixt_bc(request) -> BoundaryConds:
 
 @pytest.fixture(scope="module", params=[
     pytest.param(None, id="NoBlocking", marks=pytest.mark.slow),
-    pytest.param(8, id="Block8", marks=pytest.mark.ci),
+    pytest.param(8, id="Block8"),
     pytest.param([5, 6, 7], id="Block567")
 ])
 def fixt_block_size(request) -> int | tuple[int, int, int] | None:
