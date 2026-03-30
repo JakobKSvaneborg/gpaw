@@ -1,23 +1,13 @@
 import pytest
 from ase.build import molecule
 from gpaw.dft import DFT, PW
-from gpaw.new.calculation import DFTCalculation
 from gpaw.new.pw.nschse import NonSelfConsistentHybridXCCalculator
-
-
-def test_exx(gpw_files):
-    dft = DFTCalculation.from_gpw_file(gpw_files['n2_pw'])
-    exx = NonSelfConsistentHybridXCCalculator.from_dft_calculation(
-        dft, 'EXX')
-    a, b = exx.calculate(dft.ibzwfs, 0, 8)
-    print(a)
-    print(b)
 
 
 def test_2h():
     """This special 2D unit-cell with 14x14 k-points and ecut=200
     triggers a negative value for the Fourier transform of the
-    Wigner Seitz truncated Coulomb potential.
+    Wigner Seitz truncated Coulomb potential (see #1559).
     """
     a = 4.18
     k = 14
