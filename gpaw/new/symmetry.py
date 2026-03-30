@@ -386,26 +386,41 @@ class Symmetries:
         return len(self.rotation_scc)
 
     def __str__(self):
-        lines = ['Symmetry:',
-                 f'  Number of symmetries: {len(self)}']
-        header = 'rotation/mirror/inversion                 '
+        lines = [f'Number of symmetries: {len(self)}',
+                 'Symmetry operations']
+        header = 'kind               matrix                    '
         nt = self.translation_sc.any(1).sum()
         if nt > 0:
             lines.append(f'  number of symmetries with translation: {nt}')
             header += '           translation'
-        lines += ['  Operations',
-                  '  ' + '-' * len(header),
-                  '  ' + header,
-                  '  ' + '-' * len(header)]
+        lines += ['-' * len(header),
+                  header,
+                  '-' * len(header)]
+        kinds = []
+        for rot_cc in self.rotation_scc:
+            d = np.linalg.det(rot_cc)
+            if d == 1:
+                if (rot_cc == np.eye(3)).all():
+                    kind = '1'
+                else:
+                    kind = 'R'
+            else:
+                if (rot_cc == -np.eye(3)).all():
+                    kind = 'I'
+                else:
+                    kind = 'M'
+            kinds.append(kind)
         if nt > 0:
-            for rot_cc, t_c in zips(self.rotation_scc, self.translation_sc):
+            for kind, rot_cc, t_c in zips(kinds,
+                                          self.rotation_scc,
+                                          self.translation_sc):
                 a, b, c = t_c
-                lines.append(f'  {mat(rot_cc)} '
+                lines.append(f'{kind}  {mat(rot_cc)} '
                              f'({a:6.3f}, {b:6.3f}, {c:6.3f})')
         else:
-            for rot_cc in self.rotation_scc:
-                lines.append(f'  {mat(rot_cc)}')
-        lines.append('  ' + '-' * len(header))
+            for kind, rot_cc in zip(kinds, self.rotation_scc):
+                lines.append(f'{kind}  {mat(rot_cc)}')
+        lines.append('-' * len(header))
         return '\n'.join(lines) + '\n'
 
     def check_positions(self, fracpos_ac):
