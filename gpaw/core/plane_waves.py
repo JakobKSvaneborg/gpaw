@@ -103,8 +103,8 @@ class PWDesc(Domain['PWArray']):
             f'PWDesc(ecut={self.ecut} <coefs={m}/{n}>, ')
 
     def _short_string(self, global_shape):
-        return (f'plane wave coefficients: {global_shape[-1]}\n'
-                f'cutoff: {self.ecut * Ha} eV\n')
+        return (f'Plane wave coefficients: {global_shape[-1]}\n'
+                f'Cutoff: {self.ecut * Ha} eV\n')
 
     def global_shape(self) -> tuple[int, ...]:
         """Tuple with one element: number of plane waves."""

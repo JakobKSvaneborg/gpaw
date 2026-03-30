@@ -133,30 +133,29 @@ def write_header(log, world):
     log('OpenMP:', cgpaw.have_openmp)
 
     log('\nVersions:')
-    log(f'  Python: {sys.version_info}')
-    log(f'  numpy:  {os.path.dirname(np.__file__)}')
+    log(f'  Python: {sys.version.split()[0]}')
+    log(f'  Numpy:  {np.version.version}')
     import scipy as sp
-    log(f'  scipy:  {os.path.dirname(sp.__file__)}')
-    log('  libxc: ', getattr(cgpaw, 'libxc_version', '2.x.y'))
+    log(f'  Scipy:  {sp.version.version}')
+    log('  Libxc: ', getattr(cgpaw, 'libxc_version', '2.x.y'))
 
     log('\nGit-hashes:')
     githash = search_current_git_hash(gpaw, world)
     if githash is not None:
-        log(f'  gpaw: {githash:.10}')
+        log(f'  gpaw:  {githash:.10}')
     if hasattr(cgpaw, 'githash'):
-        log(f' _gpaw: {cgpaw.githash():.10}')
+        log(f'  _gpaw: {cgpaw.githash():.10}')
     githash = search_current_git_hash(ase, world)
     if githash is not None:
-        log(f'  ase:  {githash:.10}')
+        log(f'  ase:   {githash:.10}')
 
     log('\nPaths:')
-    log('  gpaw:  ', os.path.dirname(gpaw.__file__))
+    log('  gpaw: ', os.path.dirname(gpaw.__file__))
     line = os.path.normpath(cgpaw.get_extension_module_path())
-    log('  _gpaw: ', cut(line))
-    line = f' (version {ase_version}'
-    log(f'  ase:  {os.path.dirname(ase.__file__)}')
-    log(f'  numpy:  {os.path.dirname(np.__file__)}')
-    log(f'  scipy:  {os.path.dirname(sp.__file__)}')
+    log('  _gpaw:', cut(line))
+    log(f'  ase:   {os.path.dirname(ase.__file__)}')
+    log(f'  numpy: {os.path.dirname(np.__file__)}')
+    log(f'  scipy: {os.path.dirname(sp.__file__)}')
     # Explicitly deleting SciPy seems to remove garbage collection
     # problem of unknown cause
     del sp

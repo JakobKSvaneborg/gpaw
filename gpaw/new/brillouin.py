@@ -85,8 +85,8 @@ class MonkhorstPackKPoints(BZPoints):
     def __str__(self):
         a, b, c = self.size_c
         l, m, n = self.shift_c
-        return (f'monkhorst-pack size: [{a}, {b}, {c}]\n'
-                f'monkhorst-pack shift: [{l}, {m}, {n}]\n')
+        return (f'Monkhorst-Pack size: [{a}, {b}, {c}]\n'
+                f'Monkhorst-Pack shift: [{l}, {m}, {n}]\n')
 
 
 class IBZ:
@@ -115,18 +115,18 @@ class IBZ:
 
     def __str__(self):
         N = len(self)
-        txt = ('bz sampling:\n'
-               f'  number of bz points: {len(self.bz)}\n'
-               f'  number of ibz points: {N}\n')
+        txt = ('BZ-sampling:\n'
+               f'  Number of bz points: {len(self.bz)}\n'
+               f'  Number of ibz points: {N}\n')
 
         if self.bz2bz_Ks is not None and -1 in self.bz2bz_Ks:
-            txt += '  your k-points are not as symmetric as your crystal!\n'
+            txt += '  Your k-points are not as symmetric as your crystal!\n'
 
         if isinstance(self.bz, MonkhorstPackKPoints):
             txt += '  ' + str(self.bz).replace('\n', '\n  ', 1)
 
         txt += (
-            '  points  # in reciprocal-cell coordinates\n'
+            '  Points  # in reciprocal-cell coordinates\n'
             '  ----------------------------------------------------------\n'
             '                      coordinates                     weight\n'
             '  ----------------------------------------------------------\n')

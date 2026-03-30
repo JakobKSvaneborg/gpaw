@@ -39,18 +39,16 @@ def write_header(log: Logger, params: Parameters) -> None:
     from gpaw.old.logger import write_header as header
     log(LOGO.format(version=__version__))
     header(log, log.comm)
-    with log.indent('input parameters:'):
-        log(params)
-    with log.indent('\nenvironment variables:'):
+    with log.indent('\nEnvironment variables:'):
         import gpaw
-        parts = []
         for name in sorted(gpaw.allowed_envvars):
             try:
                 value = getattr(gpaw, name)
             except AttributeError:
                 continue
-            parts.append(f'{name}: {value!r}')
-        log(',\n'.join(parts))
+            log(f'  {name}: {value}')
+    with log.indent('Input parameters:'):
+        log(params)
 
 
 def compare_atoms(a1: Atoms, a2: Atoms) -> set[str]:

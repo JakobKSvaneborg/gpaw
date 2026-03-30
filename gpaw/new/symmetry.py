@@ -406,7 +406,7 @@ class Symmetries:
             for rot_cc in self.rotation_scc:
                 lines.append(f'  {mat(rot_cc)}')
         lines.append('  ' + '-' * len(header))
-        return '\n'.join(lines)
+        return '\n'.join(lines) + '\n'
 
     def check_positions(self, fracpos_ac):
         for U_cc, t_c, b_a in zip(self.rotation_scc,
