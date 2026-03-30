@@ -52,11 +52,6 @@ def parametrize_purepython():
     #         )]
 
 
-def parametrize_blocksize():
-    """"""
-    return [None, 8]
-
-
 def make_random_phi(
         l: int,
         cutoff: float,
