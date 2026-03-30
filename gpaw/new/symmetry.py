@@ -394,9 +394,9 @@ class Symmetries:
             lines.append(f'  number of symmetries with translation: {nt}')
             header += '           translation'
         lines += ['  operations',
-                  '  ' + '=' * len(header),
+                  '  ' + '-' * len(header),
                   '  ' + header,
-                  '  ' + '=' * len(header)]
+                  '  ' + '-' * len(header)]
         if nt > 0:
             for rot_cc, t_c in zips(self.rotation_scc, self.translation_sc):
                 a, b, c = t_c
@@ -405,7 +405,7 @@ class Symmetries:
         else:
             for rot_cc in self.rotation_scc:
                 lines.append(f'  {mat(rot_cc)}')
-        lines.append('  ' + '=' * len(header))
+        lines.append('  ' + '-' * len(header))
         return '\n'.join(lines)
 
     def check_positions(self, fracpos_ac):

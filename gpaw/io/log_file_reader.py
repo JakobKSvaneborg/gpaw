@@ -7,15 +7,15 @@ Example:
 ... b: hello
 ...
 ... Indented block:
-...     a: (1, 2)
+...   a: (1, 2)
 ...
 ... table
-... ==============
+... --------------
 ... ignored header
-... ==============
+... --------------
 ... a      1     2
 ... b      3     4
-... ==============
+... --------------
 ... ''')
 >>> for k, v in d[0].items():
 ...     print(k, v)
@@ -168,13 +168,13 @@ def _parse(lines: Iterator[str],
                 # skip parsing:
                 key = None
                 continue
-        elif line.startswith('==') and key is not None:
+        elif line.startswith('--') and key is not None:
             # table:
             key = normalize_key(key)
-            while not next(lines).startswith('=='):
+            while not next(lines).startswith('--'):
                 pass
             rows = []
-            while not (line := next(lines)).startswith('=='):
+            while not (line := next(lines)).startswith('--'):
                 rows.append(line)
             if keys is None or key in keys:
                 value = table(rows)
@@ -220,10 +220,11 @@ def h2():
     h.calc = GPAW(mode='pw', txt=txt)
     h.get_potential_energy()
     out = txt.getvalue()
+    print(out)
     ds = parse(iter(out.splitlines()), keys={'atoms', 'unit_cell'})
     print(ds)
     parse(iter(out.splitlines()))
 
 
 if __name__ == '__main__':
-    main()
+    h2()#main()
