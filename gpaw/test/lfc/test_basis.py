@@ -87,7 +87,8 @@ BoundaryConds = namedtuple("BoundaryConds", ["pbc", "zerobc"])
         marks=pytest.mark.ci),
     pytest.param(
         GridShape(cell=[[1, 2, 3], [0, 0, 3], [2, 2, 0]], size=(16, 10, 7)),
-        id="VeryWeirdShape"
+        id="VeryWeirdShape",
+        marks=pytest.mark.slow
     )],
     scope="module")
 def fixt_grid_shape(request) -> GridShape:
@@ -117,7 +118,7 @@ def fixt_bc(request) -> BoundaryConds:
 
 
 @pytest.fixture(scope="module", params=[
-    pytest.param(None, id="NoBlocking"),
+    pytest.param(None, id="NoBlocking", marks=pytest.mark.slow),
     pytest.param(8, id="Block8", marks=pytest.mark.ci),
     pytest.param([5, 6, 7], id="Block567")
 ])
