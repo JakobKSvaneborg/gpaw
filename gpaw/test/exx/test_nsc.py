@@ -1,7 +1,8 @@
-from gpaw.new.pw.nschse import NonSelfConsistentHybridXCCalculator
-from gpaw.new.calculation import DFTCalculation
+import pytest
 from ase.build import molecule
 from gpaw.dft import DFT, PW
+from gpaw.new.calculation import DFTCalculation
+from gpaw.new.pw.nschse import NonSelfConsistentHybridXCCalculator
 
 
 def test_exx(gpw_files):
@@ -14,15 +15,19 @@ def test_exx(gpw_files):
 
 
 def test_2h():
-    h2 = molecule('H2', cell=[4.18, 4.18, 18.4, 90, 90, 120], pbc=(1, 1, 0))
+    """This special 2D unit-cell with 14x14 k-points and ecut=200
+    triggers a negative value for the Fourier transform of the
+    Wigner Seitz truncated Coulomb potential.
+    """
+    a = 4.18
+    k = 14
+    ecut = 200.0
+    h2 = molecule('H2', cell=[a, a, 18.4, 90, 90, 120], pbc=(1, 1, 0))
     h2.center()
-    dft = DFT(h2, mode=PW(800, force_complex_dtype=True), kpts=(14, 14, 1))
+    dft = DFT(h2, mode=PW(ecut, force_complex_dtype=True), kpts=(k, k, 1))
     dft.converge()
     exx = NonSelfConsistentHybridXCCalculator.from_dft_calculation(
         dft, 'EXX')
-    a, b = exx.calculate(dft.ibzwfs)
-    print(a)
-    print(b)
-
-
-test_2h()
+    elda_skn, eexx_skn = exx.calculate(dft.ibzwfs, ibz_indices=[0])
+    assert elda_skn[0, 0] == pytest.approx([-10.12370942, -0.57308455])
+    assert eexx_skn[0, 0] == pytest.approx([-16.12300273,  1.30214902])

@@ -254,8 +254,6 @@ class NonSelfConsistentHybridXCCalculator:
                 self.ghat_aLR.add_to(rhot_nR, Q_anL)
                 rhot_nG = pw.empty(len(rhot_nR))
                 rhot_nR.fft(out=rhot_nG, plan=self.plan)
-            # assert (v_G >= 0.0).all()
-            # print(v_G.min())
             for n, rhot_G in enumerate(rhot_nG.data):
                 e_n[n] += np.abs(rhot_G)**2 @ v_G * f1_n[n1] * pw.dv
         return e_n
