@@ -1,8 +1,7 @@
 from gpaw.core import UGArray, UGDesc
 from gpaw.lfc import BasisFunctions
 from gpaw.new.basis_functions import (
-    BasisFunctionDesc, BasisFunctionCollectionBase, LFCAtomDesc,
-    LFCSystemDesc)
+    BasisFunctionDesc, BasisFunctionCollectionBase, LFCSystemDesc)
 
 from gpaw.new.basis_functions_purepython \
     import BasisFunctionCollectionPurePython
@@ -155,14 +154,13 @@ def fixt_lfc_system(fixt_grid_shape, fixt_bc) -> LFCSystemDesc:
         phi_lists.append(funcs)
 
     relpos_ac = np.asarray([(0.5, 0.5, 0.25 + 0.25 * i) for i in [0, 1, 2]])
-    pos_av = relpos_ac @ grid.cell_cv
 
-    atom_instances = []
+    phi_aj = []
     for a in range(3):
         phi_list = phi_lists[0] if a < 2 else phi_lists[1]
-        atom_instances.append(LFCAtomDesc(phi_list, pos_av[a]))
+        phi_aj.append(phi_list)
 
-    return LFCSystemDesc(grid, atom_instances)
+    return LFCSystemDesc(grid, phi_aj, relpos_ac)
 
 
 def make_legacy_basis_functions(lfc: BasisFunctionCollectionBase, xp) \

@@ -53,19 +53,16 @@ class BasisFunctionCollectionPurePython(BasisFunctionCollectionBase):
     """
 
     @override
-    def _init_splines(self) -> None:
+    def _init_splines(self, phi_i: list[BasisFunctionDesc]) -> None:
         """"""
-        assert self.phi_datas
         on_gpu = self.xp is not np
 
         self.spline_pool = (
             SplinePoolGPUPurePython() if on_gpu else SplinePoolPurePython()
         )
 
-        for phi_desc in self.phi_datas.values():
+        for phi_desc in phi_i:
             self.spline_pool.add_spline(phi_desc)
-
-        assert self.spline_pool.num_splines() == len(self.phi_datas.keys())
 
     def evaluate_spline(self, spline_idx: int, x: np.ndarray | cp.ndarray) \
             -> np.ndarray | cp.ndarray:

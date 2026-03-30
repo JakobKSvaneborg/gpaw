@@ -101,7 +101,7 @@ class LFCMatrixDistributionRules:
     mu_end: int
 
 
-@dataclass
+@dataclass(frozen=True)
 class BasisFunctionDesc:
     """Data for defining a basis function phi(x)."""
 
@@ -129,7 +129,7 @@ class BasisFunctionDesc:
     def __eq__(self, other: object) -> bool:
         """"""
         if not isinstance(other, BasisFunctionDesc):
-            return False
+            return NotImplemented
         return (
             self.l == other.l
             and self.cutoff == other.cutoff
@@ -150,21 +150,14 @@ class BasisFunctionDesc:
 
 
 @dataclass
-class LFCAtomDesc:
-    """Used in LFC creation, see LFCSystemDesc."""
-    phi_j: list[BasisFunctionDesc]
-    """List of basis functions for this atom."""
-    position: np.ndarray
-    """Real-space position of the atom. 3D array."""
-
-
-@dataclass
 class LFCSystemDesc:
     """Defines the LFC system: Grid to use and a list of atoms present in the
-    main unit cell. Each atom should list its position and give a data-only
-    description of its basis functions."""
+    main unit cell. Each atom must define a list of basis function
+    descriptors.
+    """
     grid: UGDesc
-    atoms: list[LFCAtomDesc]
+    phi_aj: list[list[BasisFunctionDesc]]
+    relpos_ac: np.ndarray
 
 
 @dataclass
@@ -248,6 +241,64 @@ class GridBlock:
         return self.shape
 
 
+class AtomStaticData:
+    """Describes atom content of the system and their basis functions.
+    Does not store dynamical info like atom positions.
+    """
+
+    def __init__(
+            self,
+            phi_aj: list[list[BasisFunctionDesc]]):
+        """"""
+
+        # Deduplicate desc -> spline index, using object identity
+        id_to_spline_idx: dict[int, int] = {}
+        num_uniques = 0
+        unique_descs: list[BasisFunctionDesc] = []
+
+        self.spline_indices_a: list[list[int]] = []
+        """Gives spline indices for each basis function of given atom."""
+
+        for phi_j in phi_aj:
+            indices = []
+            for desc in phi_j:
+                desc_id = id(desc)
+                if desc_id not in id_to_spline_idx:
+                    id_to_spline_idx[desc_id] = num_uniques
+                    unique_descs.append(desc)
+                    num_uniques += 1
+
+                indices.append(id_to_spline_idx[desc_id])
+
+            self.spline_indices_a.append(indices)
+            assert len(indices) > 0
+
+        # Take deepcopies of the unique descs: we want exclusive ownership of
+        # this data
+        self.phi_i = [BasisFunctionDesc(desc.l, desc.cutoff, desc.f_r.copy())
+                 for desc in unique_descs]
+        """List of all unique phi descriptors in the system, ordered by their
+        associated spline index."""
+
+        self.phi_aj: list[list[BasisFunctionDesc]] = [
+            [self.phi_i[idx] for idx in indices]
+             for indices in self.spline_indices_a
+        ]
+        """Holds data-only descriptors of basis functions for each atom"""
+
+        self.mu_range_a: list[range] = []
+        """Range of mu indices for atom 'a'."""
+
+        mu = 0
+        for phi_j in self.phi_aj:
+            mu_local = 0
+            for phi in phi_j:
+                mu_local += 2 * phi.l + 1
+
+            self.mu_range_a.append(range(mu, mu + mu_local))
+            mu += mu_local
+
+
 @dataclass
 class BasisFunctionInstance:
     """Instance of a basis function with fixed position and index range."""
@@ -323,9 +374,6 @@ def build_lfc_system(setups: Setups,
     relpos_ac = np.asanyarray(relpos_ac)
     assert len(relpos_ac) == num_atoms
 
-    # atom positions in real units
-    pos_av = relpos_ac @ grid.cell_cv
-
     """Setups generally have multiple copies of the same atom type
     => same splines appear many times. Here we loop over all atoms and
     identify those with unique spline lists, and only create phi descs for
@@ -352,12 +400,10 @@ def build_lfc_system(setups: Setups,
             idx = unique_spline_lists.index(my_splines)
             phi_descs = unique_phi_descs[idx]
 
-        atoms.append(LFCAtomDesc(phi_descs, pos_av[atom_idx]))
-
     assert len(atoms) == num_atoms
     assert len(unique_phi_descs) == len(unique_spline_lists)
 
-    return LFCSystemDesc(grid, atoms)
+    return LFCSystemDesc(grid, unique_phi_descs, relpos_ac)
 
 
 @dataclass
@@ -397,7 +443,7 @@ class SplinePoolBase(ABC):
         return self.splines[spline_idx]
 
 
-class BlockData:
+class BlockStaticData:
     """Describes blocking of the grid domain into sub-grids of block_size_c
     grid points each. Blocks are labeled by integers (Bx, By, Bz), so that
     block (0, 0, 0) starts at grid.start_c and spans `block_size` grid points.
@@ -477,32 +523,13 @@ class BasisFunctionCollectionBase(ABC):
     done to have full separation of spline lookups and spline implementations.
     """
 
-    phi_datas: dict[int, BasisFunctionDesc]
-    """Holds definitions of all basis functions _types_ in the system,
-    assigning a unique integer ID to each (the dict key). This is the single
-    source of truth for indexing splines: Subclasses should construct their
-    splines based on this data and use the same IDs for splines."""
-
-    spline_indices_for_a: dict[int, list[int]]
-    """Maps atom index => list of spline indices for that atom. This is
-    constructed very early on to avoid lookup loops later."""
-
-    spline_pool: SplinePoolBase
-    """Holds the actual splines"""
-
     phi_i: list[BasisFunctionInstance]
     """List of all basis function instances in the system ("spheres").
     This includes periodic copies of the phi from neighboring cells, if those
     overlap the main cell."""
 
-    _mu_range_a: list[range]
-    """Range of mu indices for atom 'a'."""
-
     _rank_a: list[int]
     """MPI rank of the grid domain for specified atom index."""
-
-    _relpos_ac: np.ndarray
-    """Grid-relative positions atoms."""
 
     _matrix_distribution_rules: LFCMatrixDistributionRules
     """FIXME: why does this have to be stored?! Old code passes the M ranges
@@ -512,7 +539,7 @@ class BasisFunctionCollectionBase(ABC):
     blocks: list[GridBlock]
     # Store just those blocks that actually have phi overlap
 
-    block_data: BlockData
+    block_data: BlockStaticData
     """Contains static data about block geometry"""
 
     def __init__(self,
@@ -543,7 +570,7 @@ class BasisFunctionCollectionBase(ABC):
             Size of each grid block. None means no blocking.
         """
         self.grid = system.grid
-        if len(system.atoms) == 0:
+        if len(system.phi_aj) == 0:
             raise RuntimeError("No atoms?!")
 
         self.xp = cp if use_gpu else np
@@ -555,11 +582,10 @@ class BasisFunctionCollectionBase(ABC):
             real_block_size = self.grid.mysize_c.copy().astype(int)
         real_block_size = real_block_size.astype(int)
 
-
         # TODO let caller choose dtype (32 or 64bit float)
         self.dtype = np.float64
 
-        self.block_data = BlockData(self.grid, real_block_size)
+        self.block_data = BlockStaticData(self.grid, real_block_size)
 
         # TODO: actually check if we can/should precalculate
         if mode != PrecalculationMode.eNever:
@@ -568,15 +594,11 @@ class BasisFunctionCollectionBase(ABC):
         else:
             self.should_precalculate = False
 
-        position_av = np.empty((len(system.atoms), 3))
-        for a, atom in enumerate(system.atoms):
-            position_av[a] = atom.position
+        self.atom_static_data = AtomStaticData(system.phi_aj)
+        self._init_splines(self.atom_static_data.phi_i)
 
-        self._relpos_ac = position_av @ np.linalg.inv(self.grid.cell_cv)
-
-        self._init_phi_datas(system.atoms)
-        self._init_splines()
-        self._init_mu_lookups()
+        self._relpos_ac: np.ndarray = system.relpos_ac
+        """Current grid-relative positions atoms."""
 
         # set_positions trigger phi instance rebuild and block rebuild
         self._rank_a = [-1] * self.num_atoms
@@ -672,8 +694,9 @@ class BasisFunctionCollectionBase(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def _init_splines(self) -> None:
-        """Creates and sets self.spline_pool"""
+    def _init_splines(self, phi_i: list[BasisFunctionDesc]) -> None:
+        """Creates concrete spline objects for each phi descriptor in the
+        input list."""
         raise NotImplementedError
     # End abstracts
 
@@ -702,30 +725,18 @@ class BasisFunctionCollectionBase(ABC):
         return self.blocks
 
     @cached_property
-    def mu_range(self) -> range:
-        """Range of mu indices"""
-        # atom indices for lookups are always in range 0, ... N
-        mu_start = self._mu_range_a[0].start
-        mu_end = self._mu_range_a[-1].stop
-        return range(mu_start, mu_end)
-
-    @property
     def Mmax(self) -> int:
         """Last global index mu."""
-        return self.mu_range.stop
+        return self.get_mu_range_a(self.num_atoms - 1).stop
 
     def get_mu_range_a(self, atom_index: int) -> range:
         """Get range of mu indices for specified atom."""
-        return self._mu_range_a[atom_index]
+        return self.atom_static_data.mu_range_a[atom_index]
 
     def get_num_phi_a(self, atom_index: int) -> int:
         """Get number of basis functions for specified atom"""
-        mu_range = self._mu_range_a[atom_index]
+        mu_range = self.get_mu_range_a(atom_index)
         return mu_range.stop - mu_range.start
-
-    def num_basis_functions(self) -> int:
-        """Returns the total number of mu indices."""
-        return self.mu_range.stop - self.mu_range.start
 
     def get_phi_instances(self) -> list[BasisFunctionInstance]:
         """Returns all basis function instances that contribute in this unit
@@ -758,23 +769,12 @@ class BasisFunctionCollectionBase(ABC):
             num_sites += int(np.prod(block.shape))
 
         dummy = np.empty((1), dtype=self.dtype)
-        return num_sites * self.num_basis_functions() * dummy.itemsize
-
-    def get_phi_data_for_atom(self, atom_idx: int) -> list[BasisFunctionDesc]:
-        """"""
-        out = []
-        for spline_idx in self.spline_indices_for_a[atom_idx]:
-            out.append(self.phi_datas[spline_idx])
-        return out
-
-    def get_spline(self, spline_idx: int):
-        """"""
-        return self.spline_pool.get_spline(spline_idx)
+        return num_sites * self.Mmax * dummy.itemsize
 
     @property
     def num_atoms(self) -> int:
         """Total number of atoms in the system (not just in this MPI rank)."""
-        return len(self.spline_indices_for_a.keys())
+        return len(self.atom_static_data.phi_aj)
 
     @property
     def my_atom_indices(self) -> list[int]:
@@ -788,52 +788,6 @@ class BasisFunctionCollectionBase(ABC):
             return self._relpos_ac
         else:
             return self._relpos_ac @ self.grid.cell_cv
-
-    def _init_phi_datas(self, atoms: list[LFCAtomDesc]) -> None:
-        """Setups self.phi_datas and self.spline_indices_for_a lookups."""
-        self.phi_datas = {}
-        self.spline_indices_for_a = {}
-        num_unique_phi = 0
-
-        for a, atom in enumerate(atoms):
-            self.spline_indices_for_a[a] = []
-            for phi in atom.phi_j:
-
-                # avoid creating duplicate phi data (OK in principle)
-                existing_spline_idx = -1
-                for spline_idx, phi_data in self.phi_datas.items():
-                    if phi is phi_data:
-                        existing_spline_idx = spline_idx
-                        break
-
-                if existing_spline_idx >= 0:
-                    self.spline_indices_for_a[a].append(existing_spline_idx)
-                else:
-                    # Found new phi
-                    self.phi_datas[num_unique_phi] = phi
-                    self.spline_indices_for_a[a].append(num_unique_phi)
-                    num_unique_phi += 1
-
-        # Take deepcopies of the phi descs to prevent surprises (LFC is
-        # supposed to own its phi data)
-        for k, v in self.phi_datas.items():
-            phi_copy = BasisFunctionDesc(v.l, v.cutoff, v.f_r.copy())
-            self.phi_datas[k] = phi_copy
-
-        assert len(self.phi_datas) > 0
-
-    def _init_mu_lookups(self) -> None:
-        """This fixes how atom index is related to the global mu index."""
-        self._mu_range_a = []
-        mu = 0
-        for a in range(self.num_atoms):
-
-            mu_local = 0
-            for phi in self.get_phi_data_for_atom(a):
-                mu_local += 2 * phi.l + 1
-
-            self._mu_range_a.append(range(mu, mu + mu_local))
-            mu += mu_local
 
     def _update_block_data(self, spheres_i: list[PhiSphereData]) -> None:
         """"""
