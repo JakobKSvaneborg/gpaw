@@ -20,4 +20,4 @@ def test_2h():
         dft, 'EXX')
     elda_skn, eexx_skn = exx.calculate(dft.ibzwfs, ibz_indices=[0])
     assert elda_skn[0, 0] == pytest.approx([-10.12370942, -0.57308455])
-    assert eexx_skn[0, 0] == pytest.approx([-16.12300273,  1.30214902])
+    assert eexx_skn[0, 0] == pytest.approx([-16.12300273, 1.30214902])
