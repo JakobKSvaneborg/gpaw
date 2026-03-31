@@ -41,7 +41,7 @@ def parse(lines: Iterable[str],
 
 
 def normalize_key(key: str) -> str:
-    return key.lower().replace(' ', '_')
+    return key.lower().replace(' ', '_').replace('-', '_')
 
 
 class ConvergedFloat(float):
@@ -219,7 +219,9 @@ def h2():
     print(out)
     ds = parse(iter(out.splitlines()), keys={'atoms', 'unit_cell'})
     print(ds)
-    parse(iter(out.splitlines()))
+    ds = parse(iter(out.splitlines()))
+    import pprint
+    pprint.pp(ds)
 
 
 if __name__ == '__main__':
