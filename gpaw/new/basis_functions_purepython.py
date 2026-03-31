@@ -1,18 +1,111 @@
 from gpaw.new.basis_functions import (BasisFunctionCollectionBase,
-                                      SplinePoolBase,
-                                      BasisFunctionDesc)
+                                      BasisFunctionInstance, GeometryHelpers,
+                                      BasisFunctionDesc, BlockCoords)
 from gpaw.gpu import cupy as cp, cupyx
 from gpaw.sphere.spherical_harmonics import Y
 from gpaw.typing import override
 
 import numpy as np
 from scipy.interpolate import CubicSpline
+from functools import cached_property
 
 
-class SplinePoolPurePython(SplinePoolBase):
+class PrecalcBlock:
+    """Very explicit class for managing precalculations within a grid block.
+    """
+
+    evaluated_phi_mg: np.ndarray | None = None
+    """phi_mu(x) precalculated on the grid block. Filled in by the
+    precalculator function.
+    NOTE: the XYZ shape can be smaller for some blocks if the grid blocking
+    was uneven. See also get_block_shape().
+    """
+
+    def __init__(
+            self,
+            geometry: GeometryHelpers,
+            coords: BlockCoords,
+            phi_j: list["BasisFunctionInstance"]):
+        """"""
+
+        assert all(x >= 0 for x in coords), \
+            "Block coords are relative to MPI domain and must be >= 0"
+
+        self.geometry = geometry
+        self.grid = geometry.grid
+        self.coords = coords
+        """(Bx, By, Bz) coords of this block, relative to the grid domain"""
+        self.phi_j = phi_j
+        """List of all basis functions that have overlap with this block.
+        Note indexing: each phi_j actually contains many values of m.
+        On periodic systems, this should include basis funcs from unit cells
+        that extend to this cell."""
+
+        self.start_c: np.ndarray = geometry.block_start_Bc[coords]
+        """Start indices to the full (x,y,z) grid for this block. Inclusive.
+        """
+        self.end_c: np.ndarray = geometry.block_end_Bc[coords]
+        """End indices to the full (x,y,z) grid for this block. Exclusive!"""
+
+        # end_c is exclusive so the following is OK even for non-3D shapes:
+        assert np.all(self.end_c > self.start_c)
+        assert np.all(self.start_c >= geometry.grid.start_c)
+        assert np.all(self.end_c <= geometry.grid.end_c)
+
+        self.M_m: list[int] = []
+        """Maps block-local phi index 'm' to global mu"""
+        for phi in self.phi_j:
+            for mm in range(0, 2 * phi.get_angular_momentum_number() + 1):
+                self.M_m.append(phi.first_mu + mm)
+
+    def __repr__(self):
+        """"""
+        return f"PrecalcBlock(coords={self.coords})"
+
+    def get_block_xyz(self) -> np.ndarray:
+        """Gives real-space XYZ points for the given block.
+        4D array of shape (Nx, Ny, Nz, 3)."""
+        # See UGDesc.xyz()
+        indices_Rc = np.indices(tuple(self.shape)).transpose((1, 2, 3, 0))
+        indices_Rc += self.start_c
+        return indices_Rc @ (
+            (self.grid.cell_cv.T / self.grid.size_c).T
+        )
+
+    def get_local_start_end_c(self) -> tuple[np.ndarray, np.ndarray]:
+        """start_c and end_c for looping over block-local XYZ arrays."""
+        local_start_c = np.asarray([0, 0, 0])
+        local_end_c = self.end_c - self.start_c
+        return local_start_c, local_end_c
+
+    def get_domain_local_start_end_c(self) -> tuple[np.ndarray, np.ndarray]:
+        """Get start_c and end_c for this block relative to the grid domain.
+        These are safe to use when slicing or looping over domain-distributed
+        arrays.
+        """
+        domain_start_c = self.start_c - self.grid.start_c
+        domain_end_c = domain_start_c + self.shape
+        return domain_start_c, domain_end_c
+
+    @cached_property
+    def shape(self) -> tuple[int, int, int]:
+        """Real shape of the block, ie. how many grid points it contains.
+        This may in some situations be a 2D shape, but always contains at
+        least one point."""
+        return tuple(self.end_c - self.start_c)
+
+    def get_block_shape(self) -> tuple[int, int, int]:
+        """Gives real shape of the block."""
+        return self.shape
+
+
+class SplinePoolPurePython:
     """"""
 
-    @override
+    def __init__(self):
+        """"""
+        self.splines = []
+
     def add_spline(self, desc: BasisFunctionDesc) -> None:
         """"""
         spline = CubicSpline(
@@ -24,7 +117,7 @@ class SplinePoolPurePython(SplinePoolBase):
         self.splines.append(spline)
 
 
-class SplinePoolGPUPurePython(SplinePoolBase):
+class SplinePoolGPUPurePython(SplinePoolPurePython):
 
     @override
     def add_spline(self, desc: BasisFunctionDesc) -> None:
@@ -49,13 +142,15 @@ class SplinePoolGPUPurePython(SplinePoolBase):
 
 class BasisFunctionCollectionPurePython(BasisFunctionCollectionBase):
     """Pure Python implementation of BasisFunctionCollection.
-    Not very optimized.
+    NOT OPTIMIZED: Intended mainly for debugging and testing.
     """
+
+    precalc_blocks: list[PrecalcBlock] | None = None
 
     @override
     def _init_splines(self, phi_i: list[BasisFunctionDesc]) -> None:
         """"""
-        on_gpu = self.xp is not np
+        on_gpu = self.uses_gpu()
 
         self.spline_pool = (
             SplinePoolGPUPurePython() if on_gpu else SplinePoolPurePython()
@@ -67,18 +162,30 @@ class BasisFunctionCollectionPurePython(BasisFunctionCollectionBase):
     def evaluate_spline(self, spline_idx: int, x: np.ndarray | cp.ndarray) \
             -> np.ndarray | cp.ndarray:
         """"""
-        spline = self.get_spline(spline_idx)
+        spline = self.spline_pool.splines[spline_idx]
         y = spline(x)
         # Purepython splines return NaN for x > xmax, should return 0.0
         return self.xp.nan_to_num(y, nan=0.0)
 
     @override
-    def precalculate_on_grid(self) -> None:
+    def precalculate_on_grid(self, changed_atoms_a: np.ndarray) -> None:
         """
         """
 
-        # TODO precalculation on GPU
-        for block in self.get_relevant_blocks():
+        self.precalc_blocks = []
+
+        # TODO precalculation with Cupy
+
+        block_to_phi = self.get_block_to_phi_map()
+
+        for block_coords, phi_j in block_to_phi.items():
+            new_block = PrecalcBlock(
+                self.geometry,
+                block_coords,
+                phi_j)
+            self.precalc_blocks.append(new_block)
+
+        for block in self.precalc_blocks:
             num_m = len(block.M_m)
 
             phi_mg_shape = (num_m, *block.shape)
@@ -111,7 +218,12 @@ class BasisFunctionCollectionPurePython(BasisFunctionCollectionBase):
     @override
     def has_precalculated_phi(self) -> bool:
         """"""
-        return True
+        return self.precalc_blocks is not None
+
+    def get_relevant_blocks(self) -> list[PrecalcBlock]:
+        """"""
+        assert self.precalc_blocks is not None
+        return self.precalc_blocks
 
     @override
     def add_to_density(
@@ -151,7 +263,7 @@ class BasisFunctionCollectionPurePython(BasisFunctionCollectionBase):
             f_sM = np.zeros((num_spins, self.Mmax))
 
             for atom_idx in range(self.num_atoms):
-                atom_mu_range = self._mu_range_a[atom_idx]
+                atom_mu_range = self.get_mu_range_a(atom_idx)
                 f_sM[:, atom_mu_range.start:atom_mu_range.stop] = (
                     f_asi[atom_idx]
                 )
@@ -203,7 +315,7 @@ class BasisFunctionCollectionPurePython(BasisFunctionCollectionBase):
             else:
                 return xp.empty((0))
 
-        M = self.num_basis_functions()
+        M = self.Mmax
         if out is not None:
             if out.ndim != 2:
                 raise ValueError("out array must be 2D and have enough rows")

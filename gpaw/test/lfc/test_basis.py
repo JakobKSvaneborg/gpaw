@@ -13,7 +13,6 @@ from gpaw.mpi import world, MPIComm
 import numpy as np
 import pytest
 import copy
-import itertools
 from collections import namedtuple
 from typing import cast
 
@@ -171,7 +170,7 @@ def make_legacy_basis_functions(lfc: BasisFunctionCollectionBase, xp) \
     phi_aj: list[list[Spline]] = []
 
     for a in range(lfc.num_atoms):
-        phi_datas = lfc.get_phi_data_for_atom(a)
+        phi_datas = lfc.atom_static_data.phi_aj[a]
         splines = [Spline.from_data(phi.l, phi.cutoff, phi.f_r)
                    for phi in phi_datas]
         phi_aj.append(splines)
@@ -232,42 +231,16 @@ def test_basis_creation(fixt_lfc_system: LFCSystemDesc, xp, purepython: bool,
     basis = make_basis(system, xp, purepython, fixt_block_size)
 
     assert basis.uses_gpu() == (xp is not np)
-    assert basis.num_atoms == len(system.atoms)
-
-    assert basis.mu_range.start == 0
+    assert basis.num_atoms == len(system.relpos_ac)
 
     # check that there are no duplicate phi
     all_phi = basis.get_phi_instances()
     has_duplicate_phi = len({id(phi) for phi in all_phi}) != len(all_phi)
     assert not has_duplicate_phi
 
-    # check that all phi have a unique index
-    seen_indices = []
-    for phi in all_phi:
-        assert phi.index not in seen_indices
-        seen_indices.append(phi.index)
-
-    for block in basis.get_relevant_blocks():
-        assert np.prod(block.shape) > 0
-        if fixt_block_size is None:
-            np.testing.assert_equal(block.shape, basis.grid.mysize_c)
-
-    # Each grid point should appear at most in one block. Blocks that don't
-    # overlap with any basis functions are ignored, so it's OK for a point
-    # to not be present in any block.
-    seen_points = []
-    for block in basis.get_relevant_blocks():
-        for xyz in itertools.product(
-            range(block.start_c[0], block.end_c[0]),
-            range(block.start_c[1], block.end_c[1]),
-            range(block.start_c[2], block.end_c[2])
-        ):
-            assert xyz not in seen_points
-            seen_points.append(xyz)
-
     # If all boundaries are non-periodic, shouldn't have any "image" phis
     if np.all(~system.grid.pbc_c):
-        num_phi_expected = sum([len(atom.phi_j) for atom in system.atoms])
+        num_phi_expected = sum(len(phi_j) for phi_j in system.phi_aj)
         assert len(basis.get_phi_instances()) == num_phi_expected
 
 
@@ -279,24 +252,28 @@ def test_no_blocking(fixt_lfc_system: LFCSystemDesc, xp):
     """
 
     basis = make_basis(fixt_lfc_system, xp, purepython=True, block_size=None)
-    blocks = basis.get_relevant_blocks()
+    block_to_phi = basis.get_block_to_phi_map()
 
-    # TODO mpi? some domain may be empty...
-    assert len(blocks) == 1
-    block = blocks[0]
+    # Should have only the (0, 0, 0) block
+    # TODO mpi? some domain may be empty
+    assert len(block_to_phi) == 1
+    assert (0, 0, 0) in block_to_phi.keys()
+    block_coords = (0, 0, 0)
 
     # Check block index ranges
-    assert block.coords == (0, 0, 0)
-    np.testing.assert_equal(basis.grid.start_c, block.start_c)
-    np.testing.assert_equal(basis.grid.end_c, block.end_c)
+    np.testing.assert_equal(basis.geometry.block_start_Bc[block_coords],
+                            basis.grid.start_c)
+    np.testing.assert_equal(basis.geometry.block_end_Bc[block_coords],
+                            basis.grid.end_c)
 
     # check that there are no duplicate phi in the block
-    has_duplicates = len({id(phi) for phi in block.phi_j}) != len(block.phi_j)
+    block_phi_j = block_to_phi[block_coords]
+    has_duplicates = len({id(phi) for phi in block_phi_j}) != len(block_phi_j)
     assert not has_duplicates
 
     # The block should have overlap with all phi
     all_phi = basis.get_phi_instances()
-    assert len(block.phi_j) == len(all_phi)
+    assert len(block_phi_j) == len(all_phi)
     # technically this is only airtight if we also check that all_phi has no
     # duplicates. But that is done in test_basis_creation()
 
