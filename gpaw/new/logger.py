@@ -100,6 +100,33 @@ class Logger:
         self(self.table_line)
         self.table_line = ''
 
+    def table(self,
+              name: str,
+              header: list[str],
+              rows: list[list[str]],
+              allign: str = '',
+              comment: str = '',
+              comments: list[str] | None = None) -> None:
+        if comment:
+            name += f'  # {comment}'
+        self(name)
+        widths = []
+        for i, h in enumerate(header):
+            widths.append(max(len(h), max(len(row[i]) for row in rows)))
+        if not allign:
+            allign = '>' * len(header)
+        fmt = '|' + '|'.join(
+            f'{{{i}:{allign}{width}}}'
+            for i, (a, width) in enumerate(zip(allign, widths))) + '|'
+        self(fmt.format(*header))
+        self(fmt.format(*['-' * width for width in widths]))
+        if comments is None:
+            for row in rows:
+                self(fmt.format(*row))
+        else:
+            for row, comment in zip(rows, comments):
+                self(fmt.format(*row) + f'  # {comment}')
+
 
 def can_colorize(*, file: IO[str] | IO[bytes] | None = None) -> bool:
     """Code from Python 3.14b1: cpython/Lib/_colorize.py."""

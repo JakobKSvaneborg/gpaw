@@ -269,14 +269,12 @@ class DFTCalculation:
         if self.density.ncomponents > 1:
             x, y, z = mm_v
             self.log(f'Total magnetic moment: ({x:.6f}, {y:.6f}, {z:.6f})\n')
-            self.log('Local magnetic moments')
-            self.log('------------------------------------------')
-            self.log('          x         y         z')
-            self.log('------------------------------------------')
-            for a, (setup, (x, y, z)) in enumerate(zips(self.setups, mm_av)):
-                self.log(f'  {x:9.6f} {y:9.6f} {z:9.6f}'
-                         f'  # {setup.symbol:2} {a:3}')
-            self.log('------------------------------------------')
+            self.log.table(
+                'Local magnetic moments',
+                header=['x', 'y', 'z'],
+                rows=[[f'{mm:.6f}' for mm in mm_v] for mm_v in mm_av],
+                comments=[f'{setup.symbol:2} {a:3}'
+                          for a, setup in enumerate(self.setups)])
             self.log()
         return mm_v, mm_av
 
@@ -292,21 +290,19 @@ class DFTCalculation:
             return self.results['forces'] * units['forces']
 
         self.forces_have_been_printed = True
-        self.log('\nForces  # eV/Ang')
-        self.log('-------------------------------------------')
-        self.log('         x          y          z')
-        self.log('-------------------------------------------')
         F_av = self.results['forces'] * units['forces']
-        for a, setup in enumerate(self.setups):
-            x, y, z = F_av[a]
-            self.log(f'{x:10.5f} {y:10.5f} {z:10.5f}'
-                     f'  # {setup.symbol:2} {a:3}')
-        self.log('-------------------------------------------')
+        self.log.table(
+            '\nForces',
+            comment='eV/Ang',
+            header=['x', 'y', 'z'],
+            rows=[[f'{f:.5f}' for f in F_v] for F_v in F_av],
+            comments=[f'{setup.symbol:2} {a:3}'
+                      for a, setup in enumerate(self.setups)])
 
         self.log(f'\nForce computation time: {forcetimer():.3f}  # s')
         self.log.fd.flush()
 
-        return self.results['forces'] * units['forces']
+        return F_av
 
     def _calculate_forces(self):
         xc = self.pot_calc.xc
@@ -365,13 +361,12 @@ class DFTCalculation:
             return self.results['stress'] * units['stress']
         stress_vv = self.pot_calc.stress(
             self.ibzwfs, self.density, self.potential)
-        self.log('\nStress tensor  # eV/Ang^3')
-        self.log('------------------------------------------')
-        self.log('            x             y             z')
-        self.log('------------------------------------------')
-        for x, y, z in stress_vv * units['stress']:
-            self.log(f'{x:13.6f} {y:13.6f} {z:13.6f}')
-        self.log('------------------------------------------')
+        self.log.table(
+            '\nStress tensor',
+            comment='eV/Ang^3',
+            header=list('xyz'),
+            rows=[[f'{s:.6f}' for s in s_v]
+                  for s_v in stress_vv * units['stress']])
 
         self.results['stress'] = stress_vv.flat[[0, 4, 8, 5, 2, 1]]
         self.log(f'\nStress computation time: {stresstimer():.3f}  # s\n')
@@ -791,7 +786,6 @@ def write_atoms(atoms: Atoms,
                 magmom_av: Array2D,
                 grid: UGDesc,
                 log) -> None:
-    log('\nAtoms  # Å, Bohr magnetons')
     symbols = atoms.get_chemical_symbols()
     rows = []
     for a, (x, y, z) in enumerate(atoms.positions):
@@ -802,23 +796,26 @@ def write_atoms(atoms: Atoms,
                      f'{x:.6f}', f'{y:.6f}', f'{z:.6f}',
                      f'({X:7.4f}, {Y:7.4f}, {Z:7.4f})'])
     log.table(
+        '\nAtoms',
+        comment='Å, Bohr magnetons',
         header='symbol,x,y,z,initial magnetic moments'.split(','),
         rows=rows)
 
-    log.begin_table(
-        '\nUnit cell  # Å',
-        'periodic                 (x, y, z)                  '
-        'lengths      angles')
     par = cell_to_cellpar(atoms.cell)
+    rows = []
     for p, (x, y, z), L, A in zip(atoms.pbc,
                                   atoms.cell,
                                   par[:3],
                                   par[3:]):
-        pbc = 'yes' if p else ' no'
-        log(f'{pbc}    '
-            f'  ({x:10.6f},  {y:10.6f},  {z:10.6f})'
-            f'  {L:10.6f}  {A:10.6f}')
-    log.end_table()
+        rows.append(
+            ['yes' if p else ' no',
+             f'{x:.6f}', f'{y:.6f}', f'{z:.6f}',
+             f'{L:.6f}', f'{A:.6f}'])
+    log.table(
+        '\nUnit cell',
+        comment='Å',
+        header='periodic,x,y,z,lengths,angles',
+        rows=rows)
     log()
 
 
