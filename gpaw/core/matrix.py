@@ -736,7 +736,7 @@ class MatrixDistribution:
             if comm.rank == 0:
                 M = self.full_shape[0]
                 m = (M + other.rows - 1) // other.rows
-                other.data[:] = self.data[:m]
+                m2data[:] = m1data[:m]
                 for r in range(1, other.rows):
                     m1 = min(r * m, M)
                     m2 = min(m1 + m, M)

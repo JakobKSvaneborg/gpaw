@@ -350,6 +350,12 @@ class DFTComponentsBuilder:
             self.grid._gd,
             world=self.communicators['w'])
 
+        if self.params.experimental.get('paw_corr_mixer', False):
+            from gpaw.mixer import ExperimentalDotProd
+            for basemixer in mixer.basemixers:
+                basemixer.dotprod = ExperimentalDotProd(
+                    self.setups, self.atomdist)
+
         return SCFLoop(hamiltonian, occ_calc,
                        eigensolver, mixer, self.communicators['w'],
                        {key: value

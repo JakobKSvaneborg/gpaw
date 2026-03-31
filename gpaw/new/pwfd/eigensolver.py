@@ -31,7 +31,9 @@ def slparams(nbands: int, comm: MPIComm) -> tuple[MPIComm, int, int, int]:
     ncores = int(floor(ncores**0.5) * ceil(ncores**0.5))
     if ncores < comm.size:
         comm = comm.new_communicator(range(ncores))
-    return (comm, *suggest_blocking(nbands, comm.size))
+    else:
+        ncores = comm.size
+    return (comm, *suggest_blocking(nbands, ncores))
 
 
 class PWFDEigensolver(Eigensolver):

@@ -2,26 +2,26 @@ from ase.build import molecule
 from gpaw import GPAW
 
 a = 8.0
-h = 0.2
+ecut = 400
 
 energies = {}
-with open(f'results-{h:.2f}.txt', 'w') as resultfile:
+with open(f'results-{ecut:3.0f}.txt', 'w') as resultfile:
 
     for name in ['H2O', 'H', 'O']:
-        system = molecule(name)
-        system.set_cell((a, a, a))
-        system.center()
+        atoms = molecule(name)
+        atoms.set_cell((a, a, a))
+        atoms.center()
 
         if name in ['H', 'O']:
             hund = True
         else:
             hund = False
-        calc = GPAW(mode='fd', h=h, hund=hund,
-                    txt=f'gpaw-{name}-{h:.2f}.txt')
 
-        system.calc = calc
+        calc = GPAW(mode={'name': 'pw', 'ecut': ecut}, hund=hund,
+                    txt=f'gpaw-{name}-{ecut:3.0f}.txt')
+        atoms.calc = calc
 
-        energy = system.get_potential_energy()
+        energy = atoms.get_potential_energy()
         energies[name] = energy
         print(name, energy, file=resultfile)
 
