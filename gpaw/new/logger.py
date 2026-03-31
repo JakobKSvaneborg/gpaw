@@ -53,9 +53,11 @@ class Logger:
 
         self.use_colors = can_colorize(file=self.fd)
         if self.use_colors:
+            self.red = RED
             self.green = GREEN
             self.reset = RESET
         else:
+            self.red = ''
             self.green = ''
             self.reset = ''
         self.table_line = ''
@@ -115,11 +117,11 @@ class Logger:
             widths.append(max(len(h), max(len(row[i]) for row in rows)))
         if not allign:
             allign = '>' * len(header)
-        fmt = '|' + '|'.join(
-            f'{{{i}:{allign}{width}}}'
-            for i, (a, width) in enumerate(zip(allign, widths))) + '|'
+        fmt = '| ' + ' | '.join(
+            f'{{{i}:{a}{width}}}'
+            for i, (a, width) in enumerate(zip(allign, widths))) + ' |'
         self(fmt.format(*header))
-        self(fmt.format(*['-' * width for width in widths]))
+        self('|' + '|'.join('-' * (width + 2) for width in widths) + '|')
         if comments is None:
             for row in rows:
                 self(fmt.format(*row))

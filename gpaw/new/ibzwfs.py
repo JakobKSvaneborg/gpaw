@@ -129,7 +129,7 @@ class IBZWaveFunctions(Generic[WFT]):
         assert fl is not None and len(fl) == 1
         return fl[0]
 
-    def __str__(self):
+    def summary(self, log):
         shape = self.get_max_shape(global_shape=True)
         wfs = self._wfs_u[0]
         nbytes = (len(self.ibz) *
@@ -148,25 +148,24 @@ class IBZWaveFunctions(Generic[WFT]):
         else:
             projectors_text = ''
 
-        return (f'{self.ibz.symmetries}\n'
-                f'{self.ibz}\n'
-                f'{wfs._short_string(shape)}\n'
-                f'Spin-components: {self.ncomponents}'
-                ' (' +
-                ('' if self.collinear else 'non-') + 'collinear spins)\n'
-                f'Bands:           {self.nbands}\n'
-                f'Projectors:      {nproj}\n'
-                f'Spin-degeneracy: {self.spin_degeneracy}\n'
-                f'Datatype:        {self.dtype}\n\n'
-                'Memory:\n'
-                f'  Storage: {"CPU" if self.xp is np else "GPU"}\n'
-                f'  Wave functions: {nbytes:_} bytes '
-                f'({nbytes // ncores:_} per core)\n' +
-                projectors_text +
-                '\nParallelization:\n'
-                f'  kpt:    {self.kpt_comm.size}\n'
-                f'  domain: {self.domain_comm.size}\n'
-                f'  band:   {self.band_comm.size}\n')
+        self.ibz.symmetries.summary(log)
+        self.ibz.summary(log)
+        log(f'{wfs._short_string(shape)}\n'
+            f'Spin-components: {self.ncomponents}'
+            ' (' + ('' if self.collinear else 'non-') + 'collinear spins)\n'
+            f'Bands:           {self.nbands}\n'
+            f'Projectors:      {nproj}\n'
+            f'Spin-degeneracy: {self.spin_degeneracy}\n'
+            f'Datatype:        {self.dtype}\n\n'
+            'Memory:\n'
+            f'  Storage: {"CPU" if self.xp is np else "GPU"}\n'
+            f'  Wave functions: {nbytes:_} bytes '
+            f'({nbytes // ncores:_} per core)\n' +
+            projectors_text +
+            '\nParallelization:\n'
+            f'  kpt:    {self.kpt_comm.size}\n'
+            f'  domain: {self.domain_comm.size}\n'
+            f'  band:   {self.band_comm.size}\n')
 
     def __iter__(self) -> Generator[WFT]:
         yield from self._wfs_u

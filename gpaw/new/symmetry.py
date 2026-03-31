@@ -385,19 +385,15 @@ class Symmetries:
     def __len__(self):
         return len(self.rotation_scc)
 
-    def __str__(self):
-        lines = [f'Number of symmetries: {len(self)}',
-                 'Symmetry operations']
-        header = 'kind               matrix                    '
+    def summary(self, log):
+        log(f'Number of symmetries: {len(self)}')
+        header = ['kind', 'matrix']
         nt = self.translation_sc.any(1).sum()
         if nt > 0:
-            lines.append(f'  number of symmetries with translation: {nt}')
-            header += '           translation'
-        lines += ['-' * len(header),
-                  header,
-                  '-' * len(header)]
-        kinds = []
-        for rot_cc in self.rotation_scc:
+            log(f'Number of symmetries with translation: {nt}')
+            header.append('translation')
+        rows = []
+        for rot_cc, t_c in (self.rotation_scc, self.translation_sc):
             d = np.linalg.det(rot_cc)
             if d == 1:
                 if (rot_cc == np.eye(3)).all():
@@ -409,19 +405,12 @@ class Symmetries:
                     kind = 'I'
                 else:
                     kind = 'M'
-            kinds.append(kind)
-        if nt > 0:
-            for kind, rot_cc, t_c in zips(kinds,
-                                          self.rotation_scc,
-                                          self.translation_sc):
+            row = [kind, mat(rot_cc)]
+            if nt > 0:
                 a, b, c = t_c
-                lines.append(f'{kind}  {mat(rot_cc)} '
-                             f'({a:6.3f}, {b:6.3f}, {c:6.3f})')
-        else:
-            for kind, rot_cc in zip(kinds, self.rotation_scc):
-                lines.append(f'{kind}  {mat(rot_cc)}')
-        lines.append('-' * len(header))
-        return '\n'.join(lines) + '\n'
+                row.append(f'({a:6.3f}, {b:6.3f}, {c:6.3f})')
+            rows.apend(row)
+        log.table('Symmetry operations', header=header, rows=rows)
 
     def check_positions(self, fracpos_ac):
         for U_cc, t_c, b_a in zip(self.rotation_scc,

@@ -20,7 +20,7 @@ from gpaw.gpu import cupy as cp
 from gpaw.mpi import MPIComm
 from gpaw.mpi import broadcast as bcast
 from gpaw.mpi import broadcast_float, receive, send, serial_comm
-from gpaw.new import trace, zips
+from gpaw.new import trace
 from gpaw.new.density import Density
 from gpaw.new.energies import DFTEnergies
 from gpaw.new.gpw import read_gpw
@@ -143,7 +143,7 @@ class DFTCalculation:
             ibzwfs.calculate_occs(scf_loop.occ_calc, nelectrons)
 
         write_atoms(atoms, builder.initial_magmom_av, builder.grid, log)
-        log(ibzwfs)
+        ibzwfs.summary(log)
         log(density)
         log(potential)
         log(builder.setups)
@@ -673,7 +673,7 @@ class DFTCalculation:
             comm=self.comm)
 
         write_atoms(atoms, builder.initial_magmom_av, builder.grid, log)
-        log(ibzwfs)
+        ibzwfs.summary(log)
         log(density)
         log(potential)
         log(builder.setups)
@@ -805,20 +805,17 @@ def write_atoms(atoms: Atoms,
         rows=rows)
 
     par = cell_to_cellpar(atoms.cell)
-    rows = []
-    for p, (x, y, z), L, A in zip(atoms.pbc,
-                                  atoms.cell,
-                                  par[:3],
-                                  par[3:]):
-        rows.append(
-            ['yes' if p else ' no',
-             f'{x:.6f}', f'{y:.6f}', f'{z:.6f}',
-             f'{L:.6f}', f'{A:.6f}'])
     log.table(
         '\nUnit cell',
         comment='Å',
-        header='periodic,x,y,z,lengths,angles',
-        rows=rows)
+        header='periodic,x,y,z,lengths,angles'.split(','),
+        rows=[['yes' if p else ' no',
+               f'{x:.6f}', f'{y:.6f}', f'{z:.6f}',
+               f'{L:.6f}', f'{A:.6f}']
+              for p, (x, y, z), L, A in zip(atoms.pbc,
+                                            atoms.cell,
+                                            par[:3],
+                                            par[3:])])
     log()
 
 
