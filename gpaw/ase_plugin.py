@@ -34,8 +34,8 @@ def read_gpaw_log(filedesc, index):
         atoms = Atoms(
             symbols,
             positions,
-            cell=[axis for _, axis, _, _ in dct['unit_cell']],
-            pbc=[pbc == 'yes' for pbc, _, _, _ in dct['unit_cell']],
+            cell=[axis for _, *axis, _, _ in dct['unit_cell']],
+            pbc=[pbc == 'yes' for pbc, *_ in dct['unit_cell']],
             magmoms=initial_magmoms)
 
         kwargs = {}

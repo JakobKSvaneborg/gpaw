@@ -61,13 +61,15 @@ def line_iter(lines: Iterable[str]) -> Generator[str, None, None]:
         line = rawline.lstrip()
         if line:
             i = len(rawline) - len(line)
+            if i > indent:
+                continue
             while i < indent:
                 yield 'DEDENT'
                 indent -= 2
             line = line.split('#')[0].rstrip()
             if line.endswith(':'):
                 indent += 2
-            yield line
+        yield line
     while indent >= 0:
         yield 'DEDENT'
         indent -= 2
@@ -127,7 +129,7 @@ def table(lines: list[str]) -> list[list]:
         parts = line[1:-1].split('|')
         if len(parts) == 1 and parts[0].strip() == '...':
             continue
-        rows.append([parse_str(x) for x in parts])
+        rows.append([parse_str(x.strip()) for x in parts])
     return rows
 
 

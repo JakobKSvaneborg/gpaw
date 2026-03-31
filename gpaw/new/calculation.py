@@ -801,7 +801,7 @@ def write_atoms(atoms: Atoms,
     log.table(
         '\nAtoms',
         comment='Å, Bohr magnetons',
-        header='symbol,x,y,z,initial magnetic moments'.split(','),
+        header=',symbol,x,y,z,initial magnetic moments'.split(','),
         rows=rows)
 
     par = cell_to_cellpar(atoms.cell)

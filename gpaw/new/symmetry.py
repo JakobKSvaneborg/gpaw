@@ -388,12 +388,14 @@ class Symmetries:
     def summary(self, log):
         log(f'Number of symmetries: {len(self)}')
         header = ['kind', 'matrix']
+        allign = '^^'
         nt = self.translation_sc.any(1).sum()
         if nt > 0:
             log(f'Number of symmetries with translation: {nt}')
             header.append('translation')
+            allign += '>'
         rows = []
-        for rot_cc, t_c in (self.rotation_scc, self.translation_sc):
+        for rot_cc, t_c in zip(self.rotation_scc, self.translation_sc):
             d = np.linalg.det(rot_cc)
             if d == 1:
                 if (rot_cc == np.eye(3)).all():
@@ -409,8 +411,11 @@ class Symmetries:
             if nt > 0:
                 a, b, c = t_c
                 row.append(f'({a:6.3f}, {b:6.3f}, {c:6.3f})')
-            rows.apend(row)
-        log.table('Symmetry operations', header=header, rows=rows)
+            rows.append(row)
+        log.table('Symmetry operations',
+                  header=header,
+                  rows=rows,
+                  allign=allign)
 
     def check_positions(self, fracpos_ac):
         for U_cc, t_c, b_a in zip(self.rotation_scc,
@@ -605,9 +610,9 @@ def mat(rot_cc) -> str:
     '((-1,  0,  0), ( 0,  1,  0), ( 0,  0,  1))'
 
     """
-    return '((' + '), ('.join(', '.join(f'{r:2}'
-                                        for r in rot_c)
-                              for rot_c in rot_cc) + '))'
+    return ', '.join(','.join(f'{r:2}'
+                              for r in rot_c)
+                     for rot_c in rot_cc)
 
 
 def integer_ids(ids: Iterable) -> list[int]:
