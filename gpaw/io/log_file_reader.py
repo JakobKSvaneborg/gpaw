@@ -9,13 +9,12 @@ Example:
 ... Indented block:
 ...   a: (1, 2)
 ...
-... table
-... --------------
-... ignored header
-... --------------
-... a      1     2
-... b      3     4
-... --------------
+... Table
+... |ignored|header|  |
+... |-------|------|--|
+... |a      |1     |2 |
+... |b      |3     |4 |
+...
 ... ''')
 >>> for k, v in d[0].items():
 ...     print(k, v)
@@ -114,28 +113,21 @@ def parse_str(s: str) -> Any:
     return s
 
 
-def table(lines: list[str]) -> list[list] | dict[int, list]:
+def table(lines: list[str]) -> list[list]:
     """Parse table lines.
 
-    >>> table(['1 1.1 a', '2 2.2 b', '3 3.3 c'])
-    [[1, 1.1, 'a'], [2, 2.2, 'b'], [3, 3.3, 'c']]
-    >>> table(['1 1.1 a', '...', '3 3.3 c'])
-    {1: [1.1, 'a'], 3: [3.3, 'c']}
+    >>> table(['|1|1.1 |a|',
+    ...        '|2|2.2 |b|',
+    ...        '|  ...   |',
+    ...        '|9|9.01|c|'])
+    [[1, 1.1, 'a'], [2, 2.2, 'b'], [9, 9.01, 'c']]
     """
     rows = []
-    missing_lines = False
     for line in lines:
-        if line == '...':
-            missing_lines = True
-        else:
-            line = re.sub(r',\s+', ',', line)
-            line = re.sub(r'\(\s+', '(', line)
-            rows.append([parse_str(x) for x in line.split()])
-    if missing_lines:
-        dct = {}
-        for key, *row in rows:
-            dct[key] = row
-        return dct
+        parts = line[1:-1].split('|')
+        if len(parts) == 1 and parts[0].strip() == '...':
+            continue
+        rows.append([parse_str(x) for x in parts])
     return rows
 
 
@@ -168,13 +160,13 @@ def _parse(lines: Iterator[str],
                 # skip parsing:
                 key = None
                 continue
-        elif line.startswith('--') and key is not None:
+        elif line.startswith('|') and key is not None:
             # table:
             key = normalize_key(key)
-            while not next(lines).startswith('--'):
+            while not next(lines).startswith('|-'):
                 pass
             rows = []
-            while not (line := next(lines)).startswith('--'):
+            while (line := next(lines)).startswith('|'):
                 rows.append(line)
             if keys is None or key in keys:
                 value = table(rows)

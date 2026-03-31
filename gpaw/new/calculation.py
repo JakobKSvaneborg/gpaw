@@ -791,17 +791,19 @@ def write_atoms(atoms: Atoms,
                 magmom_av: Array2D,
                 grid: UGDesc,
                 log) -> None:
-    log.begin_table(
-        '\nAtoms  # Å, Bohr magnetons',
-        '   symbol           x           y           z'
-        '       initial magnetic moments')
+    log('\nAtoms  # Å, Bohr magnetons')
     symbols = atoms.get_chemical_symbols()
+    rows = []
     for a, (x, y, z) in enumerate(atoms.positions):
         symbol = symbols[a]
         X, Y, Z = magmom_av[a]
-        log(f'{a:3}  {symbol:>4} {x:11.6f} {y:11.6f} {z:11.6f}'
-            f'    ({X:7.4f}, {Y:7.4f}, {Z:7.4f})')
-    log.end_table()
+        rows.append([f'{a}',
+                     symbol,
+                     f'{x:.6f}', f'{y:.6f}', f'{z:.6f}',
+                     f'({X:7.4f}, {Y:7.4f}, {Z:7.4f})'])
+    log.table(
+        header='symbol,x,y,z,initial magnetic moments'.split(','),
+        rows=rows)
 
     log.begin_table(
         '\nUnit cell  # Å',
