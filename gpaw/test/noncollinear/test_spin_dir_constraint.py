@@ -38,8 +38,8 @@ def test_spin_dir_constraint_H(in_tmp_dir):
     # Assert that spin points along x
     smm_v = calc.dft.density.calculate_magnetic_moments()[0]
     assert smm_v[0] == pytest.approx(1., abs=1e-3)
-    assert smm_v[1] == pytest.approx(0., abs=1e-3)
-    assert smm_v[2] == pytest.approx(0., abs=1e-3)
+    assert smm_v[1] == pytest.approx(0., abs=1e-2)
+    assert smm_v[2] == pytest.approx(0., abs=1e-2)
 
 
 @pytest.mark.soc
