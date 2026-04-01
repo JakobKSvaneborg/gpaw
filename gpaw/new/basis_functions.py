@@ -343,8 +343,8 @@ class GeometryHelpers:
             or np.any(block_coords >= self.num_blocks_c)):
             raise ValueError("Invalid block coords (must be domain-relative)")
 
-        start_c = self.block_start_Bc[*block]
-        end_c = self.block_end_Bc[*block]
+        start_c = self.block_start_Bc[block]
+        end_c = self.block_end_Bc[block]
         indices_Rc = (
             np.indices(tuple(end_c - start_c)).transpose((1, 2, 3, 0)))
         indices_Rc += start_c
