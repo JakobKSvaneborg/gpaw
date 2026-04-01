@@ -394,9 +394,70 @@ class GPAW(Calculator):
                 kpt.projections = kpt.projections.redist(new_atom_partition)
         self.wfs.atom_partition = new_atom_partition
 
+        self.hamiltonian.xc.set_positions(self.spos_ac)
         self.hamiltonian.xc.read(reader)
 
+        self._initialize_eigensolver_after_read(new_atom_partition)
+
         return reader
+
+    def _initialize_eigensolver_after_read(self, atom_partition):
+        """Initialize ETDM eigensolver after reading from file.
+
+        Localization is skipped because the saved orbitals are already
+        in their converged state (canonical or optimal). Re-localizing
+        from a different starting point can converge to a different
+        minimum.
+
+        For LCAO, wfs.set_positions() computes overlap matrices (S_MM)
+        and projections, then dm_helper is created with minimal
+        initialization. Orbital sorting, localization, and MOM
+        re-initialization are skipped to preserve the orbital ordering
+        from the .gpw file. LCAO coefficients (C_nM) are not modified
+        because wfs.spos_ac is None at this point (no phase update).
+
+        Density and hamiltonian are NOT re-initialized here because
+        density.set_positions() clears fine-grid arrays needed for
+        cached force computations. Code that needs full position-
+        dependent state (e.g. numerical derivatives) should call
+        calc.set_positions() explicitly.
+
+        For FDPW, full initialization is deferred to the SCF loop
+        because wave functions are lazy-loaded (NDArrayReader) during
+        read() and cannot be accessed yet.
+        """
+        name = getattr(self.wfs.eigensolver, 'name', None)
+        if name in ('etdm-lcao', 'etdm-fdpw'):
+            self.wfs.eigensolver.need_localization = False
+        if name == 'etdm-lcao':
+            self.wfs.set_positions(self.spos_ac, atom_partition)
+            self._init_lcao_etdm_from_file()
+
+    def _init_lcao_etdm_from_file(self):
+        """Minimal LCAO-ETDM dm_helper initialization for restart.
+
+        Creates ETDMHelperLCAO and sets variable matrices and reference
+        orbitals, but skips occupation recalculation, orbital sorting,
+        localization, and MOM re-initialization. This preserves the
+        orbital ordering saved in the .gpw file.
+        """
+        from gpaw.directmin.lcao.etdm_helper_lcao import ETDMHelperLCAO
+
+        solver = self.wfs.eigensolver
+        solver.log = self.log
+        solver.eg_count = 0
+        solver.globaliters = 0
+        solver.check_assertions(self.wfs, self.density)
+
+        solver.dm_helper = ETDMHelperLCAO(
+            self.wfs, self.density, self.hamiltonian, solver.nkpts,
+            solver.func_settings,
+            orthonormalization=solver.orthonormalization,
+            need_init_orbs=False)
+
+        solver.set_variable_matrices(self.wfs.kpt_u)
+        solver.dm_helper.set_reference_orbitals(self.wfs, solver.n_dim)
+        solver.initialized = True
 
     def check_state(self, atoms, tol=1e-12):
         system_changes = super().check_state(atoms, tol)

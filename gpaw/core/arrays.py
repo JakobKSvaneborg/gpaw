@@ -290,7 +290,7 @@ class XArray(Generic[DomainType], XP):
         a_xX = self.gather()  # gather X (grid-points or plane-waves)
         if a_xX is not None:
             m_xX = a_xX.matrix.gather()  # gather x
-            if m_xX.dist.comm.rank == 0:
+            if m_xX is not None:
                 data = m_xX.data
                 if a_xX.data.dtype != data.dtype:
                     data = data.view(complex)

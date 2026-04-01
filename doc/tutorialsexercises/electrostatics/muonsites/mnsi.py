@@ -8,10 +8,7 @@ mnsi = crystal(['Mn', 'Si'],
                spacegroup=198,
                cellpar=[a, a, a, 90, 90, 90])
 
-
-for atom in mnsi:
-    if atom.symbol == 'Mn':
-        atom.magmom = 0.5
+mnsi.set_initial_magnetic_moments([1.0, ] * len(mnsi))
 
 mnsi.calc = GPAW(xc='PBE',
                  kpts=(2, 2, 2),

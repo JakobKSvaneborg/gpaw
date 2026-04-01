@@ -10,7 +10,17 @@ Git master branch
 
 :git:`master <>`.
 
+* Fixed bug in BSE code for systems without inversion symmetry.
+  Some off-diagonal elements of `W_{GG'}` were wrongly conjugated,
+  resulting in the BSE Hamiltonian not being Hermitian under
+  the Tamm-Dancoff approximation.
+  Systems with inversion symmetry and calculations with ``symmetry='off'``
+  were not affected by this bug.
+
 * Minimum version requirements: Python 3.10, ASE 3.27.0.
+
+* PW and FD eigensolvers will now automatically use Scalapack for sub-space
+  diagonalization when we have 1000 or more bands.
 
 * `pybind11 <https://pybind11.readthedocs.io/en/stable/>`__ is now a required
   dependency when building GPAW with GPU support. It should be installed
@@ -92,6 +102,9 @@ Git master branch
   If you know of a project which should be listed here, but isn’t,
   please open a merge request adding link and descriptive paragraph.
 
+* Introducing a new mixer backend: The MSR1 mixer which promises faster and
+  more stable convergence in most cases, see :ref:`density mixing <densitymix>`
+  and https://pubs.acs.org/doi/full/10.1021/acs.jctc.1c00630 for more details.
 
 Version 25.7.0
 ==============

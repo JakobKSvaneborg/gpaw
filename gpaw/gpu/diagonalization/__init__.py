@@ -1,3 +1,4 @@
+from __future__ import annotations
 # Tight coupling with matrix.py... so need to be careful with circular imports
 from typing import TYPE_CHECKING
 
@@ -13,8 +14,8 @@ if TYPE_CHECKING:
     from gpaw.core.matrix import Matrix
 
 
-def suggest_diagonalizer(matrix: "Matrix") -> tuple[GPUDiagonalizer,
-                                                    DiagonalizerOptions]:
+def suggest_diagonalizer(matrix: Matrix) -> tuple[GPUDiagonalizer,
+                                                  DiagonalizerOptions]:
     """Attempts to choose a good GPU diagonalizer backend and options for the
     given matrix.
     """

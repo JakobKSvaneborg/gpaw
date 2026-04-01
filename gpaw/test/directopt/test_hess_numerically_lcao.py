@@ -16,13 +16,11 @@ def test_hess_numerically_lcao(in_tmp_dir, gpw_files):
     """
 
     calc = GPAW(gpw_files['h_hess_num_lcao'])
-    calc.set_positions()
-    calc.wfs.eigensolver.initialize_dm_helper(
-        calc.wfs, calc.hamiltonian,
-        calc.density, calc.log
-    )
     atoms = calc.atoms
     atoms.calc = calc
+    # Numerical derivatives need full position-dependent state (nct_G,
+    # vbar, etc.) which read() does not provide for density/hamiltonian.
+    calc.initialize_positions()
     numder = Derivatives(calc.wfs.eigensolver, calc.wfs)
 
     hess_n = numder.get_numerical_derivatives(

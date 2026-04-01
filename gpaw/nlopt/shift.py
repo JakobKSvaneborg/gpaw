@@ -3,7 +3,6 @@ from ase.parallel import parprint
 from ase.units import Ha, J, _e, _hbar
 from ase.utils.timing import Timer
 
-from gpaw.mpi import normalize_communicator
 from gpaw.nlopt.matrixel import get_derivative, get_rml
 from gpaw.utilities.progressbar import ProgressBar
 
@@ -16,8 +15,7 @@ def get_shift(
         eshift=0.0,
         ftol=1e-4, Etol=1e-6,
         band_n=None,
-        out_name='shift.npy',
-        world=None):
+        out_name='shift.npy'):
     """
     Calculate RPA shift current for nonmagnetic semiconductors.
 
@@ -44,12 +42,12 @@ def get_shift(
         Numpy array containing the spectrum and frequencies.
 
     """
-    world = normalize_communicator(world)
+    comm = nlodata.comm
 
     # Start a timer
     timer = Timer()
-    parprint(f'Calculating shift current (in {world.size:d} cores).',
-             comm=world)
+    parprint(f'Calculating shift current (in {comm.size:d} cores).',
+             comm=comm)
 
     # Covert inputs in eV to Ha
     nw = len(freqs)
@@ -60,7 +58,7 @@ def get_shift(
     # Useful variables
     pol_v = ['xyz'.index(ii) for ii in pol]
 
-    parprint(f'Calculation for element {pol}.', comm=world)
+    parprint(f'Calculation for element {pol}.', comm=comm)
 
     # Load the required data
     with timer('Load and distribute the data'):
@@ -68,17 +66,17 @@ def get_shift(
         if k_info:
             tmp = list(k_info.values())[0]
             nb = len(tmp[1])
-            nk = len(k_info) * world.size  # Approximately
+            nk = len(k_info) * comm.size  # Approximately
             if band_n is None:
                 band_n = list(range(nb))
             mem = 6 * 3 * nk * nb**2 * 16 / 2**20
             parprint(f'At least {mem:.2f} MB of memory is required.',
-                     comm=world)
+                     comm=comm)
 
     # Initial call to print 0% progress
     count = 0
     ncount = len(k_info)
-    if world.rank == 0:
+    if comm.rank == 0:
         pb = ProgressBar()
 
     # Initialize the outputs
@@ -101,15 +99,15 @@ def get_shift(
         sum2_l += tmp * we
 
         # Print the progress
-        if world.rank == 0:
+        if comm.rank == 0:
             pb.update(count / ncount)
         count += 1
 
-    if world.rank == 0:
+    if comm.rank == 0:
         pb.finish()
 
     with timer('Gather data from cores'):
-        world.sum(sum2_l)
+        comm.sum(sum2_l)
 
     # Multiply prefactors
     prefactor = 1 / (2 * (2.0 * np.pi)**3)
@@ -122,7 +120,7 @@ def get_shift(
     shift = np.vstack((freqs, sigma_l))
 
     # Save it to the file
-    if world.rank == 0:
+    if comm.rank == 0:
         np.save(out_name, shift)
 
         # Print the timing

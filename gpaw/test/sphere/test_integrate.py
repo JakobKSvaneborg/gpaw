@@ -59,6 +59,7 @@ def generate_analytical_integrals():
 
 @pytest.mark.parametrize('analytical_integral',
                          generate_analytical_integrals())
+@pytest.mark.serial
 def test_radial_trapz(analytical_integral):
     func, integrate, rtol = analytical_integral
     # Create radial grid and evaluate the function
@@ -74,6 +75,7 @@ def test_radial_trapz(analytical_integral):
 
 
 @pytest.mark.parametrize('rc', np.linspace(0.5, 4.5, 9))
+@pytest.mark.serial
 def test_smooth_truncation_function(rc):
     # Define radial grid
     r_g = np.linspace(0., 5.0, 501)

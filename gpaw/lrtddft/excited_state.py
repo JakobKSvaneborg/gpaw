@@ -95,7 +95,7 @@ class ExcitedState(GPAW):
     def write(self, dirname, mode=''):
         """Write yourself to a directory
 
-        Paramaters
+        Parameters
         ----------
         dirname: string or path
           Write the files to the directory dirname. The directory

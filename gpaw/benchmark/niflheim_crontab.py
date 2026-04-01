@@ -56,7 +56,7 @@ def update(root: Path):
         s = round(s, 2)
         print(mode, s, n)
         data['scores'][mode.upper()].append([date, s])
-    file.write_text(json.dumps(data))
+    file.write_text(json.dumps(data, indent=2))
     for path in root.glob('*/*.out'):
         path.unlink()
     for path in root.glob('*/*.err'):

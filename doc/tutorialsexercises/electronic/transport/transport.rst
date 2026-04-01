@@ -203,9 +203,3 @@ eV.
 Which orbital do you think is responsible for the high conductance?
 Try to cut the relevant orbitals from the basis set, as we did for the
 TB model.
-
-The TransportCalculator class
------------------------------
-
-.. autoclass:: ase.transport.calculators.TransportCalculator
-

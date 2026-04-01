@@ -2,9 +2,6 @@
 Basics of GPAW calculations
 ===========================
 
-Atomization energy revisited
-============================
-
 The below script calculates the total energies of :mol:`H_2O`, H and O.
 
 .. literalinclude:: h2o.py
@@ -27,12 +24,12 @@ Read the script and try to understand what it does.  A few notes:
  * By setting the ``txt`` parameter, we specify a file where GPAW will save
    the calculation log.
 
- * The expression ``'results-%.2f.txt' % h`` inserts the value of ``h``
-   in place of the *substitution code* ``%.2f`` (floating point number
-   with 2 decimals).  Thus the result file name evaluates to
-   ``results-0.20.txt``.  Similarly, ``'gpaw-%s-%.2f.txt' % (name, h)``
-   evaluates to ``gpaw-H2O-0.20.txt`` in the first loop iteration
-   (``%s`` is a substitution code for a string).
+ * The expression ``f'results-{ecut:3.0f}.txt'`` inserts the value of ``ecut``
+   in place of the *substitution code* ``3.0f`` (floating point number
+   with no decimals).  Thus the result filename evaluates to
+   ``results-400.txt``.  Similarly, ``f'gpaw-{name}-{ecut:3.0f}.txt'``
+   evaluates to ``gpaw-H2O-400.txt`` in the first loop iteration
+   (the format substitution code for the ``name`` string can be left out).
 
  * The call to ``open`` opens a file.  The parameter ``'w'`` signifies that
    the file is opened in write mode (deleting any previous file with that
@@ -41,9 +38,9 @@ Read the script and try to understand what it does.  A few notes:
    exercise, but file handling will come in handy below.
 
 Run the script.  You can monitor the progress by opening one of the
-log files (e.g. ``gpaw.H2O.txt``).  The command :samp:`tail -f
+logfiles (e.g. ``gpaw.H2O.txt``).  The command :samp:`tail -f
 {filename}` can be used to view the output in real-time.  The calculated
-atomization energy can be found in the ``results-0.20.txt`` file.
+atomization energy can be found in the ``results-400.txt`` file.
 
 
 Parallelization
@@ -61,62 +58,65 @@ that only one process writes.  ASE provides the handy
 
   from ase.parallel import paropen
   ...
-  resultfile = paropen('results-%.2f.txt' % h, 'w')
+  resultfile = paropen('results-{ecut:3.0f}.txt', 'w')
 
 Apply the above modifications to the script and run it in parallel
 e.g. on four CPUs::
 
-    $ mpiexec -np 4 gpaw python script.py
+    $ gpaw -P 4 python script.py
 
-Verify by checking the log file that GPAW is actually using multiple
-CPUs.  The log file should reveal that the :mol:`H_2O` calculation
+Verify by checking the logfile that GPAW is actually using multiple
+CPUs.  The logfile should reveal that the :mol:`H_2O` calculation
 uses domain-decomposed with four domains, while the two atomic
 calculations should parallelize over the two spins and two domains.
 
-
 .. _convergence_checks:
 
-Convergence checks
-==================
+Plane-wave convergence
+======================
 
-It is essential that the calculations use a sufficiently fine grid
-spacing, and that the cell is sufficiently large not to affect the
+In plane-wave mode wavefunctions are expanded in plane-wave coefficients `C_{n\vec{k}\vec{G}}`
+
+.. math::
+    \psi_{n\vec{k}}(\vec{r}) = \frac{1}{V} \sum_{\vec{G}} C_{n\vec{k}\vec{G}} e^{i(\vec{k} + \vec{G}) \vec{r}},
+
+where `V` is the cell volume, `n` the orbital quantum number, `\vec{k}` the Bloch vector within the Brillouin zone and `\vec{G}` are the reciprocal lattice vectors.
+It is essential that the calculations use a sufficiently large number of
+plane-wave cofficients, and that the cell is sufficiently large not to affect the
 result.  For this reason, convergence with respect to these parameters
 should generally be checked.  For now we shall only bother to check
-the grid spacings.
+the number of plane-wave coefficients which is controlled by the plane-wave energy cutoff `E_{cut}`
 
-Modify the above script to include a loop over different grid
-spacings.  For :ref:`technical reasons <poisson_performance>`, GPAW
-will always use a number of grid points divisible by four along each
-direction.  Use a loop structure like::
+.. math::
+    \frac{\hbar^2}{2 m} | \vec{G} + \vec{k} |^2 ≤ E_{cut}.
 
-  for symbol in [...]:
+Modify the above script to include a loop over different energy cutoff.
+Use a loop structure like::
+
+  for ecut in [300, 400, 500, ...]:
+      ...
+      calc = GPAW(mode={'name': 'pw', 'ecut': ecut}, hund=hund,
+                  txt=f'gpaw-{name}-{ecut:3.0f}.txt')
+      atoms.calc = calc
+
+      energy = atoms.get_potential_energy()
       ...
 
-      for ngridpoints in [24, 28, ...]:
-          h = a / ngridpoints
-          calc.set(h=h)
-          energy = system.get_potential_energy()
-          ...
-
-
-The ``set`` method can be used to change the parameters of a
-calculator without creating a new one.  Make sure that the numbers of
-grid points are chosen to cover `0.15<h<0.25`.  While performing
-this convergence check, the other parameters do not need to be
+For each new parameter set we generate a new calculator object.
+While performing this convergence check, the other parameters do not need to be
 converged - you can reduce the cell size to e.g. ``a = 6.0`` to
 improve performance.  You may wish to run the calculation in parallel.
 
- * How do the total energies converge with respect to grid spacing?
+ * How do the total energies converge with respect to plane-wave cutoff?
  * How does the atomization energy converge?
 
-Total energies (maybe surprisingly) do not drop
-as the grid is refined.  This would be the case in plane-wave methods,
-where increase of the planewave cutoff strictly increases the quality
-of the basis.  Grid-based methods rely on *finite-difference
-stencils*, where the gradient in one point is calculated from the
-surrounding points.  This makes the grid strictly inequivalent to a
-basis, and thus not (necessarily) variational.
+Total energies drop as the cutoff is refined.  This is the case in plane-wave methods,
+because the plane-wave cutoff strictly increases the quality
+of the basis.
+Try to look at the text output and see if you can find the number of
+plane-waves used.
+
+The following script performs the plane-wave convergeence calculations for :mol:`H_2O`: :download:`h2o_ecut.py`.
 
 
 LCAO calculations
@@ -144,7 +144,7 @@ This will pick out only one function per valence state
 ("single-zeta"), making the calculation even faster but less precise.
 
 Calculate the atomization energy of :mol:`H_2O` using different basis
-sets.  Instead of looping over grid spacing, use a loop over basis keywords::
+sets.  Instead of looping over plane-wave cutoff, use a loop over basis keywords::
 
   for basis in ['sz(dzp)', 'szp(dzp)', 'dzp']:
       ...
@@ -152,26 +152,29 @@ sets.  Instead of looping over grid spacing, use a loop over basis keywords::
                   basis=basis,
                   ...)
 
-Compare the calculated energies to those calculated in grid mode.  Do
+Compare the calculated energies to those calculated in plane-wave mode.  Do
 the energies deviate a lot?  What about the atomization energy?  Is
 the energy variational with respect to the quality of the basis?
 
-LCAO calculations do not in fact produce very precise binding energies
-(although these can be improved considerably by manually generating
-optimized basis functions) - however the method is well suited
-to calculate geometries, and for applications that require a small basis
-set, such as electron transport calculations.
+.. note:: 
+    Binding energies from LCAO calculation should be considered with caution
+    (although these can be improved considerably by manually generating
+    optimized basis functions) - however the method is well suited
+    to calculate geometries, band structures, and for applications that require a small basis
+    set, such as electron transport calculations.
 
 
-Plane-wave calculations
-=======================
+Finite difference calculations
+==============================
 
-For systems with small unit-cells, it can be much faster to expand the
-wave-functions in :ref:`plane-waves <manual_mode>`.  Try running a calculation
-for a water molecule with a plane-wave cutoff of 350 eV using this::
+For some applications, e.g. solvent models, real-time TDDFT and Ehrenfest dynamics, it can be beneficial to expand the wave-functions on a finite-difference :ref:`real-space grid <grids>`.
+Try running a calculation for a water molecule with grid spacing ``h=0.2``::
 
-    from gpaw import GPAW, PW
-    calc = GPAW(mode=PW(350), ...)
+    calc = GPAW(mode='fd', h=0.2)
 
-Try to look at the text output and see if you can find the number of
-plane-waves used.
+.. note::
+
+    Grid-based methods rely on *finite-difference
+    stencils*, where the gradient in one point is calculated from the
+    surrounding points.  This makes the grid strictly inequivalent to a
+    basis, and thus not (necessarily) variational.

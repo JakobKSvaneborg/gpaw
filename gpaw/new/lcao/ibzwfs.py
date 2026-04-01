@@ -86,6 +86,7 @@ class LCAOIBZWaveFunctions(IBZWaveFunctions):
                 setups=lcaowfs.setups,
                 relpos_ac=lcaowfs.relpos_ac,
                 atomdist=lcaowfs.atomdist,
+                domain_band_comm=lcaowfs.domain_band_comm,
                 ncomponents=self.ncomponents,
                 qspiral_v=qspiral_v)
             wfs.eig_n = eig_n

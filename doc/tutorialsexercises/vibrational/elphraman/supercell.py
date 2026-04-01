@@ -11,6 +11,7 @@ def get_lcao_calc(gpt, kpts):
                 gpts=gpt,
                 kpts=kpts,
                 occupations=FermiDirac(0.02),
+                convergence={'density': 1e-6},
                 symmetry={'point_group': False},
                 txt='supercell.txt')
 
