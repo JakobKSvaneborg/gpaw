@@ -11,6 +11,7 @@ from ase.utils.filecache import MultiFileJSONCache
 
 from gpaw.lcao.tightbinding import TightBinding
 from gpaw.dft import GPAW
+from gpaw.new.ase_interface import ASECalculator
 from gpaw.typing import ArrayND
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.tools import tri2full
@@ -52,18 +53,18 @@ class Supercell:
         else:
             self.indices = indices
 
-    def _create_gpaw_calculator(self, calcdict, fd_name='elph'):
+    def _create_gpaw_calculator(self, calcdict, fd_name='elph') -> ASECalculator:
         """Create empty LCAO calculator to give us projectors"""
-        kpts = calcdict.get('kpts', (1,1,1))
+        kpts = calcdict.get('kpts', (1, 1, 1))
         basis = calcdict.get('basis', 'dzp')
         comm = calcdict.get('comm', None)
 
         cache = MultiFileJSONCache(fd_name)
         pot_shape = list(np.array(cache['eq']['Vt_sG']).shape)
-        assert pot_shape[0] in (1, 2) , "only colinear spins"
+        assert pot_shape[0] in (1, 2), "only colinear spins"
         calc = GPAW(mode='lcao', basis=basis, kpts=kpts,
                     gpts=pot_shape[1:],
-                    spinpol= pot_shape[0] == 2, # i hope
+                    spinpol=pot_shape[0] == 2,  # i hope
                     symmetry={'point_group': False},
                     parallel={'domain': 1, 'band': 1},
                     communicator=comm)
@@ -84,16 +85,17 @@ class Supercell:
         g_sqMM = np.zeros((nspins, len(kpt_u) // nspins, nao, nao), dtype)
 
         timer.start('Potential matrix')
-        V1t_sxMM = np.array([bfs.calculate_potential_matrices(vt_G)
+        V1t_sxMM = np.array([bfs.calculate_potential_matrices(v1t_G)
                              for v1t_G in V1t_sG])
         for kpt in kpt_u:
             V_xMM = V1t_sxMM[kpt.s]
-            geff_MM = np.array(V_xMM[0], dtype=dtype)  # same-cell (lower triangle)
+            # same-cell (lower triangle)
+            geff_MM = np.array(V_xMM[0], dtype=dtype)
             if dtype == complex:
-                kpt_c = wfs.kd.ibzk_kc[kpt.k]          # k-point coordinates
+                kpt_c = wfs.kd.ibzk_kc[kpt.k]  # k-point coordinates
                 phase_x = np.exp(-2j * np.pi * bfs.sdisp_xc[1:] @ kpt_c)
                 geff_MM += np.einsum('x,xMN->MN', 2 * phase_x, V_xMM[1:],
-                             optimize=True)
+                                     optimize=True)
             tri2full(geff_MM, 'L')
             g_sqMM[kpt.s, kpt.q] += geff_MM
         timer.stop('Potential matrix')
@@ -143,7 +145,8 @@ class Supercell:
         return g_sqMM
 
     def calculate_supercell_matrix(
-        self, calc: Union[GPAW, dict], fd_name: str = "elph", filter: str = None
+        self, calc: Union[ASECalculator, dict], fd_name: str = "elph",
+        filter: str = None
     ) -> None:
         """Calculate matrix elements of the el-ph coupling in the LCAO basis.
 
@@ -167,7 +170,6 @@ class Supercell:
             specified components (``normal`` or ``umklapp``) are removed
             (default: None).
         """
-
 
         # Supercell atoms
         atoms_N = self.atoms * self.supercell
@@ -239,7 +241,7 @@ class Supercell:
                 xoutput = 3 * a + v
                 xinput = 3 * i + v
 
-                print(i,a,v)
+                print(i, a, v)
 
                 # If exist already, don't recompute
                 with supercell_cache.lock(str(xoutput)) as handle:
@@ -251,7 +253,8 @@ class Supercell:
 
                     with timer('Supercell entry'):
                         g_sqMM = self._calculate_supercell_entry(
-                                a, v, V1t_xsG[xinput], dH1_xasp[xinput], wfs, dH_asp, timer)
+                            a, v, V1t_xsG[xinput], dH1_xasp[xinput],
+                            wfs, dH_asp, timer)
                     # Extract R_c=(0, 0, 0) block by Fourier transforming
                     if kd.gamma or kd.N_c is None:
                         g_sMM = g_sqMM[:, 0]
