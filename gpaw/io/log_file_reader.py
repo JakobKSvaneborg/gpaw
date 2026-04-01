@@ -58,6 +58,7 @@ def line_iter(lines: Iterable[str]) -> Generator[str, None, None]:
     """
     indent = 0
     for rawline in lines:
+        rawline = rawline.split('#')[0].rstrip()
         line = rawline.lstrip()
         if line:
             i = len(rawline) - len(line)
@@ -66,7 +67,6 @@ def line_iter(lines: Iterable[str]) -> Generator[str, None, None]:
             while i < indent:
                 yield 'DEDENT'
                 indent -= 2
-            line = line.split('#')[0].rstrip()
             if line.endswith(':'):
                 indent += 2
         yield line
@@ -148,8 +148,13 @@ def _parse(lines: Iterator[str],
                 value = _parse(lines, indents + 1)
             else:
                 # skip parsing:
-                while next(lines) != 'DEDENT':
-                    pass
+                i = 1
+                while i:
+                    line = next(lines)
+                    if line == 'DEDENT':
+                        i -= 1
+                    elif line.endswith(':'):
+                        i += 1
                 key = None
                 continue
         elif ':' in line:
@@ -203,6 +208,7 @@ def main():
     for n, dct in enumerate(blocks):
         print(n, '=' * 70)
         pprint.pp(dct)
+    print('=' * 70)
 
 
 def h2():

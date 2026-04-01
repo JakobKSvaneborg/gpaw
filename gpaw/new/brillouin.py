@@ -113,7 +113,7 @@ class IBZ:
         return (f'IBZ(<points: {len(self)}, '
                 f'symmetries: {len(self.symmetries)}>)')
 
-    def summary(self, log):
+    def summary(self, log, verbose=True):
         N = len(self)
         log('BZ-sampling:\n'
             f'  Number of BZ points: {len(self.bz)}\n'
@@ -125,6 +125,9 @@ class IBZ:
 
         if isinstance(self.bz, MonkhorstPackKPoints):
             log('  ' + str(self.bz).replace('\n', '\n  ', 1))
+
+        if not verbose:
+            return
 
         rows = []
         k = 0

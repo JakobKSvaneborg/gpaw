@@ -385,17 +385,20 @@ class Symmetries:
     def __len__(self):
         return len(self.rotation_scc)
 
-    def summary(self, log):
+    def summary(self, log, verbose=True):
         log(f'Number of symmetries: {len(self)}')
-        header = ['kind', 'matrix']
-        allign = '^^'
+        header = ['', 'kind', 'matrix']
+        allign = '>^^'
         nt = self.translation_sc.any(1).sum()
         if nt > 0:
             log(f'Number of symmetries with translation: {nt}')
             header.append('translation')
             allign += '>'
+        if not verbose:
+            return
         rows = []
-        for rot_cc, t_c in zip(self.rotation_scc, self.translation_sc):
+        for s, (rot_cc, t_c) in enumerate(zip(self.rotation_scc,
+                                              self.translation_sc)):
             d = np.linalg.det(rot_cc)
             if d == 1:
                 if (rot_cc == np.eye(3)).all():
@@ -407,7 +410,7 @@ class Symmetries:
                     kind = 'i'
                 else:
                     kind = 'σ'
-            row = [kind, mat(rot_cc)]
+            row = [str(s), kind, mat(rot_cc)]
             if nt > 0:
                 a, b, c = t_c
                 row.append(f'({a:6.3f}, {b:6.3f}, {c:6.3f})')
@@ -607,7 +610,7 @@ def mat(rot_cc) -> str:
     """Convert 3x3 matrix to str.
 
     >>> mat([[-1, 0, 0], [0, 1, 0], [0, 0, 1]])
-    '((-1,  0,  0), ( 0,  1,  0), ( 0,  0,  1))'
+    '-1, 0, 0,  0, 1, 0,  0, 0, 1'
 
     """
     return ', '.join(','.join(f'{r:2}'

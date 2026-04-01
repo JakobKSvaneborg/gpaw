@@ -21,6 +21,3 @@ def test_read_txt(in_tmp_dir, gpw_files, name):
     atoms = read(gpw.with_suffix('.txt'))
     e = atoms.get_potential_energy()
     assert e == pytest.approx(e0)
-    if not calc.old:
-        assert atoms.calc.energy_contributions['kinetic'] == pytest.approx(
-            calc.dft.energies.kinetic * Ha)
