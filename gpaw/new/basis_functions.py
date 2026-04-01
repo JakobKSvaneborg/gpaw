@@ -219,7 +219,6 @@ def build_lfc_system(setups: Setups,
     suitable for the new BasisFunctionCollection constructor.
     """
 
-    atoms = []
     num_atoms = len(setups)
 
     relpos_ac = np.asanyarray(relpos_ac)
@@ -233,6 +232,8 @@ def build_lfc_system(setups: Setups,
     """
     unique_spline_lists: list[list[Spline]] = []
     unique_phi_descs: list[list[BasisFunctionDesc]] = []
+    phi_aj: list[list[BasisFunctionDesc]] = []
+
     for atom_idx, setup in enumerate(setups):
         setup = cast(Setup, setup)
 
@@ -250,11 +251,11 @@ def build_lfc_system(setups: Setups,
         else:
             idx = unique_spline_lists.index(my_splines)
             phi_descs = unique_phi_descs[idx]
+        phi_aj.append(phi_descs)
 
-    assert len(atoms) == num_atoms
     assert len(unique_phi_descs) == len(unique_spline_lists)
 
-    return LFCSystemDesc(grid, unique_phi_descs, relpos_ac)
+    return LFCSystemDesc(grid, phi_aj, relpos_ac)
 
 
 @dataclass
@@ -437,9 +438,8 @@ class GeometryHelpers:
         aabb_max_Bv = self.block_corners_Biv.max(axis=-2)
 
         # Let N = num_spheres
-        N = len(spheres.position_iv)
-        r2 = spheres.radius**2
 
+        r2 = spheres.radius**2
         pos_iv = spheres.position_iv
         # Broadcast sphere centers over block grid
         pos_iBv = pos_iv[:, None, None, None, :]  # (N, 1, 1, 1, 3)
@@ -842,6 +842,7 @@ class BasisFunctionCollectionBase(ABC):
         every time atoms move, due to changes in periodic overlaps.
         """
         relpos_ac = np.asanyarray(relpos_ac)
+
         if len(relpos_ac) != self.num_atoms or relpos_ac.ndim != 2 \
                 or relpos_ac.shape[1] != 3:
             raise ValueError("Wrong atom position array shape")
