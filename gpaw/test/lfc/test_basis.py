@@ -424,7 +424,7 @@ def test_domain_decomposition(
     serial_basis = make_basis(serial_system, xp, purepython, fixt_block_size)
 
     assert serial_basis.num_atoms == basis.num_atoms
-    assert serial_basis.num_basis_functions() == basis.num_basis_functions()
+    assert serial_basis.mu_range == basis.mu_range
 
     # add_to_density. We want to compare against a pure-serial computation,
     # so each rank should use the same f_asi input => use same seed
