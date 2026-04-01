@@ -53,7 +53,8 @@ class Supercell:
         else:
             self.indices = indices
 
-    def _create_gpaw_calculator(self, calcdict, fd_name='elph') -> ASECalculator:
+    def _create_gpaw_calculator(
+            self, calcdict, fd_name='elph') -> ASECalculator:
         """Create empty LCAO calculator to give us projectors"""
         kpts = calcdict.get('kpts', (1, 1, 1))
         basis = calcdict.get('basis', 'dzp')
