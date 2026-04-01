@@ -105,7 +105,9 @@ class Logger:
         self(name)
         widths = []
         for i, h in enumerate(header):
-            widths.append(max(len(h), max(len(row[i]) for row in rows)))
+            widths.append(max(len(h),
+                              max((len(row[i]) for row in rows),
+                                  default=0)))
         if not allign:
             allign = '>' * len(header)
         fmt = '| ' + ' | '.join(
