@@ -216,9 +216,8 @@ Some suitable parameters for the NEB are given below:
 
 # %%
 # teacher:
-from gpaw import GPAW, PW, Mixer
-from ase.visualize import view
-from ase.optimize import BFGS
+from gpaw.dft import GPAW, PW
+from ase.optimize import FIRE
 from gpaw.mpi import world
 
 initial = read('N2Ru.traj')
@@ -241,18 +240,16 @@ for i in range(N):
         calc = GPAW(xc='PBE',
                     mode=PW(350),
                     nbands='130%',
-                    mixer=Mixer(beta=0.05, nmaxold=5, weight=50),
                     communicator=world.new_communicator(ranks),
                     txt=f'{i}.txt',
-                    kpts={'size': (4, 4, 1), 'gamma': True},
-                    convergence={'eigenstates': 1e-7})
+                    kpts={'size': (4, 4, 1), 'gamma': True})
         image.calc = calc
     images.append(image)
 images.append(final)
 
 neb = NEB(images, k=1.0, parallel=True, method='improvedtangent')
 neb.interpolate()
-qn = BFGS(neb, logfile='neb.log', trajectory='neb.traj')
+qn = FIRE(neb, logfile='neb.log', trajectory='neb.traj')
 qn.run(fmax=0.1)
 neb.climb = True
 qn.run(fmax=0.05)
