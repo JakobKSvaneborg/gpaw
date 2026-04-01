@@ -9,8 +9,6 @@ CORES = [1, 4, 8, 16, 14, 40, 48, 56, 72, 96, 120, 168]
 
 def workflow():
     for name, (atoms, params) in create_test_systems().items():
-        if name == 'biimtf':
-            continue
         cores = len(atoms)**2 / 10
         # Find best match:
         _, cores = min((abs(cores - c), c) for c in CORES)
@@ -27,7 +25,8 @@ def workflow():
 def calculate(name, atoms, params):
     """Do one-shot energy calculation."""
     atoms.calc = GPAW(**params,
-                      mixer=MixerFull(),
+                      legacy_gpaw=False,
+                      mixer={'backend': 'msr1'},
                       txt=name + '.txt')
     atoms.get_potential_energy()
 
