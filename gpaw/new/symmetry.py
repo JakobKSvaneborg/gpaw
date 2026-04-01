@@ -399,14 +399,14 @@ class Symmetries:
             d = np.linalg.det(rot_cc)
             if d == 1:
                 if (rot_cc == np.eye(3)).all():
-                    kind = '1'
+                    kind = 'E'
                 else:
-                    kind = 'R'
+                    kind = 'Cn'
             else:
                 if (rot_cc == -np.eye(3)).all():
-                    kind = 'I'
+                    kind = 'i'
                 else:
-                    kind = 'M'
+                    kind = 'σ'
             row = [kind, mat(rot_cc)]
             if nt > 0:
                 a, b, c = t_c

@@ -93,15 +93,6 @@ class Logger:
                     self(receive_string(rank, comm=self.comm),
                          end=end, flush=flush, parallel=False)
 
-    def begin_table(self, title, header):
-        bar = '-' * max((len(line) for line in header.splitlines()))
-        self(f'{title}\n{bar}\n{header}\n{bar}')
-        self.table_line = bar
-
-    def end_table(self):
-        self(self.table_line)
-        self.table_line = ''
-
     def table(self,
               name: str,
               header: list[str],
@@ -118,8 +109,8 @@ class Logger:
         if not allign:
             allign = '>' * len(header)
         fmt = '| ' + ' | '.join(
-            f'{{{i}:{a}{width}}}'
-            for i, (a, width) in enumerate(zip(allign, widths))) + ' |'
+            f'{{:{a}{width}}}'
+            for a, width in zip(allign, widths)) + ' |'
         self(fmt.format(*header))
         self('|' + '|'.join('-' * (width + 2) for width in widths) + '|')
         if comments is None:
@@ -128,6 +119,7 @@ class Logger:
         else:
             for row, comment in zip(rows, comments):
                 self(fmt.format(*row) + f'  # {comment}')
+        self()
 
 
 def can_colorize(*, file: IO[str] | IO[bytes] | None = None) -> bool:
