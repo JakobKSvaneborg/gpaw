@@ -1,13 +1,16 @@
 """Module for electron-phonon supercell properties."""
 
 import numpy as np
+
+from typing import Union
+
 from ase import Atoms
 from ase.parallel import parprint
 from ase.units import Bohr
 from ase.utils.filecache import MultiFileJSONCache
 
 from gpaw.lcao.tightbinding import TightBinding
-from gpaw.old.calculator import GPAW
+from gpaw.dft import GPAW
 from gpaw.typing import ArrayND
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.tools import tri2full
@@ -49,8 +52,27 @@ class Supercell:
         else:
             self.indices = indices
 
+    def _create_gpaw_calculator(self, calcdict, fd_name='elph'):
+        """Create empty LCAO calculator to give us projectors"""
+        kpts = calcdict.get('kpts', (1,1,1))
+        basis = calcdict.get('basis', 'dzp')
+        comm = calcdict.get('comm', None)
+
+        cache = MultiFileJSONCache(fd_name)
+        pot_shape = list(np.array(cache['eq']['Vt_sG']).shape)
+        assert pot_shape[0] in (1, 2) , "only colinear spins"
+        calc = GPAW(mode='lcao', basis=basis, kpts=kpts,
+                    gpts=pot_shape[1:],
+                    spinpol= pot_shape[0] == 2, # i hope
+                    symmetry={'point_group': False},
+                    parallel={'domain': 1, 'band': 1},
+                    communicator=comm)
+        calc.create_new_calculation(self.atoms * self.supercell)
+        return calc
+
     def _calculate_supercell_entry(self, a, v, V1t_sG, dH1_asp, wfs,
-                                   dH_asp) -> ArrayND:
+                                   dH_asp, timer) -> ArrayND:
+
         kpt_u = wfs.kpt_u
         setups = wfs.setups
         nao = setups.nao
@@ -61,25 +83,29 @@ class Supercell:
         # Array for different k-point components
         g_sqMM = np.zeros((nspins, len(kpt_u) // nspins, nao, nao), dtype)
 
-        # 1) Gradient of effective potential
+        timer.start('Potential matrix')
+        V1t_sxMM = np.array([bfs.calculate_potential_matrices(vt_G)
+                             for v1t_G in V1t_sG])
         for kpt in kpt_u:
-            # Matrix elements
-            # Note: somehow this part does not work with gd-parallelisation
-            geff_MM = np.zeros((nao, nao), dtype)
-            bfs.calculate_potential_matrix(V1t_sG[kpt.s], geff_MM, q=kpt.q)
-            tri2full(geff_MM, "L")
-            # wfs.gd.comm.sum(geff_MM)
-            # print(world.rank, a, v, kpt.k, geff_MM)
+            V_xMM = V1t_sxMM[kpt.s]
+            geff_MM = np.array(V_xMM[0], dtype=dtype)  # same-cell (lower triangle)
+            if dtype == complex:
+                kpt_c = wfs.kd.ibzk_kc[kpt.k]          # k-point coordinates
+                phase_x = np.exp(-2j * np.pi * bfs.sdisp_xc[1:] @ kpt_c)
+                geff_MM += np.einsum('x,xMN->MN', 2 * phase_x, V_xMM[1:],
+                             optimize=True)
+            tri2full(geff_MM, 'L')
             g_sqMM[kpt.s, kpt.q] += geff_MM
-            # print(wfs.kd.comm.rank, wfs.gd.comm.rank, wfs.bd.comm.rank,
-            #       "\n", geff_MM)
+        timer.stop('Potential matrix')
 
+        gp_MM = np.zeros((nao, nao), dtype)
+        timer.start("Non-Local 1")
         # 2) Gradient of non-local part (projectors)
         P_aqMi = getattr(wfs, 'P_aqMi', None)
         # 2a) dH^a part has contributions from all atoms
         for kpt in kpt_u:
             # Matrix elements
-            gp_MM = np.zeros((nao, nao), dtype)
+            gp_MM[:] = 0.0
             for a_, dH1_sp in dH1_asp.items():
                 if a_ not in bfs.my_atom_indices:
                     continue
@@ -91,14 +117,16 @@ class Supercell:
                 gp_MM += P_Mi.conj() @ dH1_ii @ P_Mi.T
             # wfs.gd.comm.sum(gp_MM)
             g_sqMM[kpt.s, kpt.q] += gp_MM
+        timer.stop("Non-Local 1")
 
+        timer.start("Non-Local 2")
         # 2b) dP^a part has only contributions from the same atoms
         # For the contribution from the derivative of the projectors
         manytci = wfs.manytci
         dPdR_aqvMi = manytci.P_aqMi(bfs.my_atom_indices, derivative=True)
-        dH_ii = unpack_hermitian(dH_asp[a][kpt.s])
         for kpt in kpt_u:
-            gp_MM = np.zeros((nao, nao), dtype)
+            gp_MM[:] = 0.0
+            dH_ii = unpack_hermitian(dH_asp[a][kpt.s])
             if a in bfs.my_atom_indices:
                 if P_aqMi is None:
                     P_Mi = kpt.P_aMi[a]
@@ -111,11 +139,11 @@ class Supercell:
             # wfs.gd.comm.sum(gp_MM)
             # print(world.rank, a,v, kpt.k, bfs.my_atom_indices, gp_MM)
             g_sqMM[kpt.s, kpt.q] += gp_MM
-
+        timer.stop("Non-Local 2")
         return g_sqMM
 
     def calculate_supercell_matrix(
-        self, calc: GPAW, fd_name: str = "elph", filter: str = None
+        self, calc: Union[GPAW, dict], fd_name: str = "elph", filter: str = None
     ) -> None:
         """Calculate matrix elements of the el-ph coupling in the LCAO basis.
 
@@ -140,21 +168,22 @@ class Supercell:
             (default: None).
         """
 
-        assert calc.wfs.mode == "lcao", "LCAO mode required."
-        assert not calc.symmetry.point_group, \
-            "Point group symmetry not supported"
-
-        # JSON cache
-        supercell_cache = MultiFileJSONCache(self.supercell_name)
 
         # Supercell atoms
         atoms_N = self.atoms * self.supercell
 
-        # Initialize calculator if required and extract useful quantities
-        if (not hasattr(calc.wfs, "S_qMM") or
-            not hasattr(calc.wfs.basis_functions, "M_a")):
-            calc.initialize(atoms_N)
-            calc.initialize_positions(atoms_N)
+        if isinstance(calc, dict):
+            calc = self._create_gpaw_calculator(calc, fd_name)
+        else:
+            if not calc.initialized:
+                calc.initialize(atoms_N)
+                calc.initialize_positions(atoms_N)
+                assert calc.wfs.mode == "lcao", "LCAO mode required."
+                assert not calc.symmetry.point_group, \
+                    "Point group symmetry not supported"
+
+        # JSON cache
+        supercell_cache = MultiFileJSONCache(self.supercell_name)
 
         # Extract useful objects from the calculator
         wfs = calc.wfs
@@ -168,11 +197,14 @@ class Supercell:
         # FIXME: Band parallelisation broken - M is band parallel
         assert bd.comm.size == 1
 
+        timer = calc.timer
+
         # Calculate finite-difference gradients (in Hartree / Bohr)
         V1t_xsG, dH1_xasp = self.calculate_gradient(fd_name, self.indices)
 
         # Equilibrium atomic Hamiltonian matrix (projector coefficients)
         fd_cache = MultiFileJSONCache(fd_name)
+        assert tuple(self.supercell) == tuple(fd_cache["info"]["supercell"])
         dH_asp = fd_cache["eq"]["dH_all_asp"]
 
         # Check that the grid is the same as in the calculator
@@ -207,6 +239,8 @@ class Supercell:
                 xoutput = 3 * a + v
                 xinput = 3 * i + v
 
+                print(i,a,v)
+
                 # If exist already, don't recompute
                 with supercell_cache.lock(str(xoutput)) as handle:
                     if handle is None:
@@ -215,10 +249,9 @@ class Supercell:
                     parprint("%s-gradient of atom %u" %
                              (["x", "y", "z"][v], a))
 
-                    g_sqMM = self._calculate_supercell_entry(
-                        a, v, V1t_xsG[xinput], dH1_xasp[xinput], wfs, dH_asp
-                    )
-
+                    with timer('Supercell entry'):
+                        g_sqMM = self._calculate_supercell_entry(
+                                a, v, V1t_xsG[xinput], dH1_xasp[xinput], wfs, dH_asp, timer)
                     # Extract R_c=(0, 0, 0) block by Fourier transforming
                     if kd.gamma or kd.N_c is None:
                         g_sMM = g_sqMM[:, 0]
@@ -240,6 +273,7 @@ class Supercell:
                     g_sNMNM = g_sMM.reshape((nspins, N, nao_cell, N, nao_cell))
                     g_sNNMM = g_sNMNM.swapaxes(2, 3).copy()
                     handle.save(g_sNNMM)
+
                 if xinput == 0:
                     with supercell_cache.lock("info") as handle:
                         if handle is not None:

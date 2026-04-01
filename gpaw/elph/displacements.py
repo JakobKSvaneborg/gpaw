@@ -36,7 +36,7 @@ DFT Hamiltonian.
 
 Note: It is a bit difficult to find good references for how spin-polarisation
 is supposed to be handled. Here we just handle the spin channels separately.
-Use with care.
+Use with care. Non-collinear calculations are not supported at this point in time.
 
 """
 from __future__ import annotations
@@ -51,7 +51,6 @@ from gpaw.utilities import pack_hermitian
 
 dr_version = 1
 # v1: saves natom, supercell, delta
-
 
 class DisplacementRunner(Displacement):
     """Class for calculating the changes in effective potential.
@@ -86,7 +85,7 @@ class DisplacementRunner(Displacement):
         delta: float
             Magnitude of displacements. (default: 0.01 A)
         calculate_forces: bool
-            If true, also calculate and store the dynamical matrix.
+            If true, also calculate and store the forces.
         """
 
         # Init base class and make the center cell in the supercell the
