@@ -118,16 +118,16 @@ def parse_str(s: str) -> Any:
 def table(lines: list[str]) -> list[list]:
     """Parse table lines.
 
-    >>> table(['|1|1.1 |a|',
-    ...        '|2|2.2 |b|',
-    ...        '|  ...   |',
-    ...        '|9|9.01|c|'])
+    >>> table(['| 1 |1.1 |a|',
+    ...        '| 2 |2.2 |b|',
+    ...        '|...|    | |',
+    ...        '| 9 |9.01|c|'])
     [[1, 1.1, 'a'], [2, 2.2, 'b'], [9, 9.01, 'c']]
     """
     rows = []
     for line in lines:
         parts = line[1:-1].split('|')
-        if len(parts) == 1 and parts[0].strip() == '...':
+        if parts[0].strip() == '...':
             continue
         rows.append([parse_str(x.strip()) for x in parts])
     return rows

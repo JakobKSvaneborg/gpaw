@@ -134,7 +134,7 @@ class IBZ:
         while k < N:
             if k == 10:
                 if N > 10:
-                    rows.append(['...'])
+                    rows.append(['...', '', ''])
                 k = N - 1
             a, b, c = self.kpt_kc[k]
             w = self.weight_k[k]
