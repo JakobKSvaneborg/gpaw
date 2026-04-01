@@ -238,10 +238,21 @@ def test_basis_creation(fixt_lfc_system: LFCSystemDesc, xp, purepython: bool,
     has_duplicate_phi = len({id(phi) for phi in all_phi}) != len(all_phi)
     assert not has_duplicate_phi
 
-    # If all boundaries are non-periodic, shouldn't have any "image" phis
-    if np.all(~system.grid.pbc_c):
-        num_phi_expected = sum(len(phi_j) for phi_j in system.phi_aj)
-        assert len(basis.get_phi_instances()) == num_phi_expected
+    # check that there are no "image phis" in directions that are non-periodic
+    non_pbc_c = ~system.grid.pbc_c
+    if np.any(non_pbc_c):
+        all_pos_iv = np.array([phi.position for phi in all_phi])
+        all_coords_ic = np.array([phi.cell_coords for phi in all_phi])
+
+        assert np.all(all_coords_ic[:, non_pbc_c] == 0), \
+            "A phi instance has nonzero cell shift in non-periodic direction"
+
+        pos_ic = all_pos_iv @ system.grid.icell.T
+        is_within_bounds = (pos_ic[:, non_pbc_c] >= 0.0) & \
+                           (pos_ic[:, non_pbc_c] < 1.0)
+
+        assert np.all(is_within_bounds), \
+            "Phi frac positions must be within [0, 1) in non-periodic dirs"
 
 
 @pytest.mark.skipif(world.size > 1, reason="TODO, probably")
