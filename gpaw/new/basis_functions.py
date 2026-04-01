@@ -394,7 +394,12 @@ class GeometryHelpers:
         image_pos_ic = pos_c + shifts
         image_pos_iv = image_pos_ic @ self.grid.cell_cv
 
-        return ImageSphereData(image_pos_iv, shifts, radius)
+        # Flatten the output so that image_pos_iv[i] gives the position of
+        # i.th sphere, and so on
+        return ImageSphereData(
+            image_pos_iv.reshape(-1, 3),
+            shifts.reshape(-1, 3),
+            radius)
 
     def cull_spheres_domain_aabb(
         self,
@@ -405,7 +410,7 @@ class GeometryHelpers:
                              self.domain_aabb_min_v, self.domain_aabb_max_v)
         dist2_aabb = np.sum((spheres.position_iv - closest_iv)**2,
                             axis=-1)
-        in_range = dist2_aabb < spheres.radius**2
+        in_range = dist2_aabb <= spheres.radius**2
 
         return ImageSphereData(
             spheres.position_iv[in_range],
@@ -433,6 +438,7 @@ class GeometryHelpers:
 
         # Let N = num_spheres
         N = len(spheres.position_iv)
+        r2 = spheres.radius**2
 
         pos_iv = spheres.position_iv
         # Broadcast sphere centers over block grid
@@ -441,32 +447,40 @@ class GeometryHelpers:
             pos_iBv, aabb_min_Bv, aabb_max_Bv)  # (N, Bx, By, Bz, 3)
         dist2_iB = np.sum(
             (pos_iBv - closest_iBv)**2, axis=-1)      # (N, Bx, By, Bz)
-        block_aabb_mask = (dist2_iB <= spheres.radius**2)
+        aabb_mask_iB = (dist2_iB <= spheres.radius**2)
 
         # Step 2: Calculate which spheres really overlap with which blocks.
         # Do this with an exact distance computation at each grid point
 
-        sphere_idx_to_blocks: dict[int, list[BlockCoords]] = defaultdict(list)
-        block_to_sphere_indices: dict[BlockCoords, list[int]] \
-            = defaultdict(list)
+        exact_mask_iB = np.zeros_like(aabb_mask_iB)
 
-        sphere_has_overlap = np.zeros(N, dtype=bool)
-
-        for i, bx, by, bz in zip(*np.where(block_aabb_mask)):
+        for bx, by, bz in zip(*np.where(aabb_mask_iB.any(axis=0))):
+            # Mask spheres that survived the AABB culling (count: C):
+            candidates = np.where(aabb_mask_iB[:, bx, by, bz])[0]   # (C,)
             points_Rv = self.get_grid_points_xyz(
-                (int(bx), int(by), int(bz)))
+                (int(bx), int(by), int(bz))).reshape(-1, 3)
+            diff_CGv = pos_iv[candidates, None, :] - points_Rv[None, :, :]
+            hits = np.sum(diff_CGv ** 2, axis=-1).min(axis=-1) <= r2  # (C,)
+            exact_mask_iB[candidates[hits], bx, by, bz] = True
 
-            dist2_R = np.sum((points_Rv - pos_iv[i])**2, axis=-1)
-            if np.any(dist2_R <= spheres.radius**2):
-                block = (bx, by, bz)
-                sphere_idx_to_blocks[i].append(block)
-                block_to_sphere_indices[block].append(i)
-                sphere_has_overlap[i] = True
+        # Final sphere culling
+        sphere_has_overlap = exact_mask_iB.any(axis=(1, 2, 3))
+        culled_mask_iB = exact_mask_iB[sphere_has_overlap]
 
         culled_spheres = ImageSphereData(
             spheres.position_iv[sphere_has_overlap],
             spheres.cell_shifts_ic[sphere_has_overlap],
             spheres.radius)
+
+        # Build sphere <-> block lookups
+        sphere_idx_to_blocks: dict[int, list[BlockCoords]] = defaultdict(list)
+        block_to_sphere_indices: dict[BlockCoords, list[int]] \
+            = defaultdict(list)
+
+        for new_i, bx, by, bz in zip(*np.where(culled_mask_iB)):
+            block = (int(bx), int(by), int(bz))
+            sphere_idx_to_blocks[int(new_i)].append(block)
+            block_to_sphere_indices[block].append(int(new_i))
 
         return culled_spheres, sphere_idx_to_blocks, block_to_sphere_indices
 
@@ -836,7 +850,7 @@ class BasisFunctionCollectionBase(ABC):
         has_changes_a = np.zeros((self.num_atoms), dtype=bool)
         old_relpos_ac = self.get_atom_positions(True)
 
-        for a in range(self.num_atoms):
+        for a in self.atom_indices:
 
             new_relpos = relpos_ac[a]
             if np.array_equal(old_relpos_ac, new_relpos) and not force_update:
