@@ -134,20 +134,11 @@ def write_header(log, world):
 
     log('\nVersions:')
     log(f'  Python: {sys.version.split()[0]}')
+    log(f'  ASE:    {ase_version}')
     log(f'  Numpy:  {np.version.version}')
     import scipy as sp
     log(f'  Scipy:  {sp.version.version}')
     log('  Libxc: ', getattr(cgpaw, 'libxc_version', '2.x.y'))
-
-    log('\nGit-hashes:')
-    githash = search_current_git_hash(gpaw, world)
-    if githash is not None:
-        log(f'  gpaw:  {githash:.10}')
-    if hasattr(cgpaw, 'githash'):
-        log(f'  _gpaw: {cgpaw.githash():.10}')
-    githash = search_current_git_hash(ase, world)
-    if githash is not None:
-        log(f'  ase:   {githash:.10}')
 
     log('\nPaths:')
     log('  gpaw: ', os.path.dirname(gpaw.__file__))
@@ -159,6 +150,16 @@ def write_header(log, world):
     # Explicitly deleting SciPy seems to remove garbage collection
     # problem of unknown cause
     del sp
+
+    log('\nGit-hashes:')
+    githash = search_current_git_hash(gpaw, world)
+    if githash is not None:
+        log(f'  gpaw:  {githash:.10}')
+    if hasattr(cgpaw, 'githash'):
+        log(f'  _gpaw: {cgpaw.githash():.10}')
+    githash = search_current_git_hash(ase, world)
+    if githash is not None:
+        log(f'  ase:   {githash:.10}')
 
     log('\nOMP_NUM_THREADS:', os.environ.get('OMP_NUM_THREADS', ''))
     if gpaw.debug:

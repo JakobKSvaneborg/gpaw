@@ -225,4 +225,4 @@ def h2():
 
 
 if __name__ == '__main__':
-    h2()#main()
+    main()

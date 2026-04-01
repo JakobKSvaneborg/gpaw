@@ -131,7 +131,7 @@ class IBZ:
         while k < N:
             if k == 10:
                 if N > 10:
-                    rows.apend(['...'])
+                    rows.append(['...'])
                 k = N - 1
             a, b, c = self.kpt_kc[k]
             w = self.weight_k[k]
@@ -140,7 +140,7 @@ class IBZ:
                          f'{w:.8f}'])
             k += 1
         log.table(
-            'Points',
+            'K-points',
             comment='in reciprocal-cell coordinates',
             header=['', 'coordinates', 'weight'],
             rows=rows)
