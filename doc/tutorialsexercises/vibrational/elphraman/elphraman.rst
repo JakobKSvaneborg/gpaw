@@ -28,19 +28,15 @@ calculator object need to be good for the supercell, not the primitive cell.
 .. literalinclude:: displacement.py
 
 This calculation merely dumped the effective potential at various displacements
-onto the harddrive. We now need to calculate the actual derivative and project them onto a set of LCAO basis functions.
-
-For this we first need to complete a ground-state calculation for the supercell. This calculation needs to be done in LCAO mode with
-parallelization over domains and bands disabled. (:git:`~doc/tutorialsexercises/vibrational/elphraman/supercell.py`)
+onto the harddrive. We now need to calculate the actual derivative and project them onto a set of LCAO basis functions. (:git:`~doc/tutorialsexercises/vibrational/elphraman/supercell.py`)
 
 .. literalinclude:: supercell.py
 
+You need to provide a dictionary with the basis and supercell k-point grid used for the internally created GPAW object.
 The ``calculate_supercell_matrix()`` method will then compute the gradients and
 calculate the matrix elements. The results are saved in a file cache in a
-basis of LCAO orbitals and supercell indices.
+basis of LCAO orbitals and supercell indices. This step should only take a few minutes as no self-consistent calculation is performed.
 
-
-If you use the planewave mode for the displacement calculation, please see the note in :ref:`elph`.
 
 Phonons
 =======
