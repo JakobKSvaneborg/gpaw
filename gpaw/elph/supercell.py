@@ -59,6 +59,7 @@ class Supercell:
         kpts = calcdict.get('kpts', (1, 1, 1))
         basis = calcdict.get('basis', 'dzp')
         comm = calcdict.get('comm', None)
+        txt = calcdict.get('txt', None)
 
         cache = MultiFileJSONCache(fd_name)
         pot_shape = list(np.array(cache['eq']['Vt_sG']).shape)
@@ -68,7 +69,8 @@ class Supercell:
                     spinpol=pot_shape[0] == 2,  # i hope
                     symmetry={'point_group': False},
                     parallel={'domain': 1, 'band': 1},
-                    communicator=comm)
+                    communicator=comm,
+                    txt=txt)
         calc.create_new_calculation(self.atoms * self.supercell)
         return calc
 
