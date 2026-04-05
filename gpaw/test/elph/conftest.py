@@ -40,16 +40,17 @@ def elph_cache(module_tmp_path):
 @pytest.fixture(scope='module')
 def supercell_cache(module_tmp_path, elph_cache):
     atoms = bulk('Li', crystalstructure='bcc', a=3.51, cubic=True)
-    atoms_N = atoms * SUPERCELL
     elph_cache
     calc = get_calc(parallel={'domain': 1, 'band': 1},
                     # parallel={'sl_auto': True, 'augment_grids':True,
                     #          'band': 2, 'kpt': 1, 'domain': 1 },
                     txt='gs_li.txt')
-    atoms_N.calc = calc
-    atoms_N.get_potential_energy()
 
     # create supercell cache
     sc = Supercell(atoms, supercell=SUPERCELL)
+    # use calc or calcdict
+    # calcdict = dict(basis='sz(dzp)',
+    #                 kpts={'size': (1, 2, 2), 'gamma': False},
+    #                 txt='gs_li.txt')
     sc.calculate_supercell_matrix(calc)
     return sc

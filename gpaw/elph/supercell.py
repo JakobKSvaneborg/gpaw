@@ -14,7 +14,6 @@ from gpaw.dft import GPAW
 from gpaw.new.ase_interface import ASECalculator
 from gpaw.typing import ArrayND
 from gpaw.utilities import unpack_hermitian
-from gpaw.utilities.tools import tri2full
 
 from .filter import fourier_filter
 
