@@ -97,9 +97,11 @@ class Supercell:
             if dtype == complex:
                 kpt_c = wfs.kd.ibzk_kc[kpt.k]  # k-point coordinates
                 phase_x = np.exp(-2j * np.pi * bfs.sdisp_xc[1:] @ kpt_c)
-                geff_MM += np.einsum('x,xMN->MN', 2 * phase_x, V_xMM[1:],
+                geff_MM += np.einsum('x,xMN->MN', phase_x, V_xMM[1:],
                                      optimize=True)
-            tri2full(geff_MM, 'L')
+                geff_MM += np.einsum('x,xMN->NM', phase_x.conj(), V_xMM[1:],
+                                     optimize=True)
+
             g_sqMM[kpt.s, kpt.q] += geff_MM
         timer.stop('Potential matrix')
 
