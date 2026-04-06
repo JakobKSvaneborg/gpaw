@@ -3,6 +3,10 @@ from __future__ import annotations
 from math import pi, sqrt
 
 import numpy as np
+
+# Pre-computed mathematical constants for performance
+_SQRT_4PI = sqrt(4 * pi)
+_SQRT_4PI_OVER_3 = sqrt(4 * pi / 3)
 from ase.units import Bohr, Ha
 
 from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
@@ -208,7 +212,7 @@ class Density:
                                      self.delta_aiiL[a][:, :, 0])
             comp_charge += self.delta0_a[a]
         # comp_charge could be cupy.ndarray:
-        comp_charge = float(comp_charge) * sqrt(4 * pi)
+        comp_charge = float(comp_charge) * _SQRT_4PI
         comp_charge = self.nt_sR.desc.comm.sum_scalar(comp_charge)
         charge = comp_charge + self.charge - background_charge
         pseudo_charge = self.nt_sR[:self.ndensities].integrate().sum()
@@ -307,10 +311,10 @@ class Density:
         pos_av = relpos_ac @ self.nt_sR.desc.cell_cv
         for a, ccc_L in ccc_aL.items():
             c = ccc_L[0]
-            dip_v -= c * (4 * pi)**0.5 * pos_av[a]
+            dip_v -= c * _SQRT_4PI * pos_av[a]
             if len(ccc_L) > 1:
                 y, z, x = ccc_L[1:4]
-                dip_v -= np.array([x, y, z]) * (4 * pi / 3)**0.5
+                dip_v -= np.array([x, y, z]) * _SQRT_4PI_OVER_3
         self.nt_sR.desc.comm.sum(dip_v)
         for nt_R in self.nt_sR[:self.ndensities]:
             dip_v -= as_np(nt_R.moment())
@@ -344,7 +348,7 @@ class Density:
                 magmom_av[a, 2] = np.einsum('ij, ij ->', M_ii, self.N0_aii[a])
                 delta_ii = as_np(self.delta_aiiL[a][:, :, 0])
                 magmom_v[2] += (np.einsum('ij, ij ->', M_ii, delta_ii) *
-                                sqrt(4 * pi))
+                                _SQRT_4PI)
             domain_comm.sum(magmom_av)
             domain_comm.sum(magmom_v)
 
@@ -358,7 +362,7 @@ class Density:
                                          M_vii, self.N0_aii[a])
                 magmom_v += (np.einsum('vij, ij -> v', M_vii,
                                        self.delta_aiiL[a][:, :, 0]) *
-                             sqrt(4 * pi))
+                             _SQRT_4PI)
             domain_comm.sum(magmom_av)
             domain_comm.sum(magmom_v)
             magmom_v += self.nt_sR.integrate()[1:]

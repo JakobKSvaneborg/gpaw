@@ -234,6 +234,8 @@ class LocalizedFunctionsCollection(BaseLFC):
         self.dtype = dtype
         self.Mmax = None
         self.xp = xp
+        # Cache contiguous h_cv to avoid repeated conversions
+        self._h_cv_contig = np.ascontiguousarray(gd.h_cv)
 
         # There is a legacy GPU LFC object code for two functions,
         # this enables them.
@@ -564,7 +566,7 @@ class LocalizedFunctionsCollection(BaseLFC):
 
         gd = self.gd
 
-        self.lfc.add_derivative(c_xM, a_xG, np.ascontiguousarray(gd.h_cv),
+        self.lfc.add_derivative(c_xM, a_xG, self._h_cv_contig,
                                 gd.n_c, cspline_M,
                                 gd.beg_c, self.pos_Wv, a, v, q)
 
@@ -698,7 +700,7 @@ class LocalizedFunctionsCollection(BaseLFC):
                 cspline_M.extend([spline.spline] * nm)
 
         gd = self.gd
-        self.lfc.derivative(a_xG, c_xMv, np.ascontiguousarray(gd.h_cv),
+        self.lfc.derivative(a_xG, c_xMv, self._h_cv_contig,
                             gd.n_c, cspline_M,
                             gd.beg_c, self.pos_Wv, q)
 
@@ -802,7 +804,7 @@ class LocalizedFunctionsCollection(BaseLFC):
                 cspline_M.extend([spline.spline] * nm)
         gd = self.gd
         self.lfc.normalized_derivative(a_G, c_Mv,
-                                       np.ascontiguousarray(gd.h_cv), gd.n_c,
+                                       self._h_cv_contig, gd.n_c,
                                        cspline_M,
                                        gd.beg_c, self.pos_Wv)
 
@@ -899,7 +901,7 @@ class LocalizedFunctionsCollection(BaseLFC):
 
         gd = self.gd
 
-        self.lfc.second_derivative(a_xG, c_Mvv, np.ascontiguousarray(gd.h_cv),
+        self.lfc.second_derivative(a_xG, c_Mvv, self._h_cv_contig,
                                    gd.n_c, cspline_M,
                                    gd.beg_c, self.pos_Wv, q)
 
@@ -1195,7 +1197,7 @@ class BasisFunctions(LocalizedFunctionsCollection):
         for v in range(3):
             self.lfc.calculate_potential_matrix_derivative(
                 vt_G, DVt_vMM[v],
-                np.ascontiguousarray(gd.h_cv),
+                self._h_cv_contig,
                 gd.n_c, q, v,
                 np.array(cspline_M),
                 gd.beg_c,
@@ -1233,7 +1235,7 @@ class BasisFunctions(LocalizedFunctionsCollection):
         for v in range(3):
             self.lfc.calculate_potential_matrix_force_contribution(
                 vt_G, rhoT_MM, F_vM[v],
-                np.ascontiguousarray(gd.h_cv),
+                self._h_cv_contig,
                 gd.n_c, q, v,
                 np.array(cspline_M),
                 gd.beg_c,
