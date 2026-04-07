@@ -232,7 +232,7 @@ class FakeWFS:
         if self.mode == 'fd':
             return self.gd.integrate(a_nX, b_nX, global_integral)
         x = self.pd.integrate(a_nX, b_nX, global_integral)
-        return self.ngpts**2 * x
+        return x#return self.ngpts**2 * x
 
     def calculate_density_matrix(self, f_n, C_nM, rho_MM=None):
         assert self.ibzwfs.band_comm.size == 1

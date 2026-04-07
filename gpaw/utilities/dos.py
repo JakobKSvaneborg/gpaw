@@ -2,7 +2,7 @@ from math import pi, sqrt
 
 import numpy as np
 from ase.parallel import paropen
-
+from ase.units import Ha
 from gpaw.analyse.wignerseitz import wignerseitz
 from gpaw.gauss import Gauss
 from gpaw.io.fmf import FMF
@@ -211,7 +211,8 @@ def all_electron_LDOS(paw, mol, spin, lc=None, wf_k=None, P_aui=None):
         # for k, kpt in enumerate(kpt_s[spin] for kpt_s in paw.wfs.kpt_qs):
         for k, kpt in enumerate(kpt for kpt in paw.wfs.kpt_u if kpt.s == spin):
             for n in range(nb):
-                P_kn[k][n] = paw.wfs.integrate(wf_k[k], kpt.psit_nG[n])
+                P_kn[k][n] = paw.wfs.integrate(wf_k[k], kpt.psit_nG[n],
+                                               global_integral=True)
                 for a, b in zip(mol, range(len(mol))):
                     atom = paw.wfs.setups[a]
                     p_i = kpt.P_ani[a][n]
@@ -231,7 +232,7 @@ def all_electron_LDOS(paw, mol, spin, lc=None, wf_k=None, P_aui=None):
             weights[x:x + nb] = w * abs(P_kn[k])**2
         x += nb
 
-    return energies, weights
+    return energies * Ha, weights
 
 
 def get_all_electron_IPR(paw):
