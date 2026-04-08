@@ -292,7 +292,7 @@ class KPT:
             self.psit_nX = wfs.psit_nX
         else:
             self.C_nM = wfs.C_nM.data
-            self.S_MM = wfs.S_MM.data
+            self.S_MM = wfs.S_MM.data.conj()
             self.P_aMi = wfs.P_aMi
         if mode == 'fd':
             self.phase_cd = wfs.psit_nX.desc.phase_factor_cd

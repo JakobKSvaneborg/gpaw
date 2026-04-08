@@ -1,19 +1,17 @@
 # web-page: lcaodos.png
 import matplotlib.pyplot as plt
 import numpy as np
-from ase.io import read
 from ase.units import Hartree
 
 from gpaw import GPAW
-from gpaw.utilities.dos import RestartLCAODOS, fold
+from gpaw.utilities.dos import LCAODOS, fold
 
 
 name = 'HfS2'
-calc = GPAW(name + '.gpw', txt=None)
-atoms = read(name + '.gpw')
+calc = GPAW(name + '.gpw', legacy_gpaw=False)
 ef = calc.get_fermi_level()
 
-dos = RestartLCAODOS(calc)
+dos = LCAODOS(calc)
 energies, weights = dos.get_subspace_pdos(range(51))
 e, w = fold(energies * Hartree, weights, 2000, 0.1)
 

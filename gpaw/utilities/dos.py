@@ -562,6 +562,9 @@ class LCAODOS:
     account."""
     def __init__(self, calc):
         self.calc = calc
+        if not calc.old:
+            from gpaw.new.lcao.eigensolver import make_sure_we_have_lcao_coefs
+            make_sure_we_have_lcao_coefs(calc.dft)
 
     def get_orbital_pdos(self, M, ravel=True):
         """Get projected DOS from LCAO basis function M."""
