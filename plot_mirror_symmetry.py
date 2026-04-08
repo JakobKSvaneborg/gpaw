@@ -140,15 +140,19 @@ r_vxyz = calc.wfs.gd.get_grid_point_coordinates()
 G_Gv = pd.get_reciprocal_vectors(q=u, add_q=True)
 N_c = calc.wfs.gd.N_c
 
-# Sweep grid axis 1 (Cart. x) at fixed grid axis 0 and 2
-dx = cart_x[1] - cart_x[0]
+# Sweep grid axis 1 (Cart. x) over exactly one full period [0, a2).
+# The evaluation positions and plotting positions must match exactly,
+# otherwise the apparent mirror center drifts at k-points with fast
+# Bloch oscillations.
 Npoints = 400
-r_vx = linspace3d(
-    r_vxyz[:, i_a1, 0, i_a3],
-    r_vxyz[:, i_a1, -1, i_a3],
-    Npoints,
-).T
-xfine = np.linspace(cart_x.min(), cart_x.max() + dx, Npoints, endpoint=False)
+cell_cv = calc.wfs.gd.cell_cv          # cell in Bohr, rows = lattice vectors
+a2_v = cell_cv[1]                       # 2nd lattice vector (Cart. x direction)
+La2 = np.linalg.norm(a2_v)             # |a2| in Bohr
+
+r0_v = r_vxyz[:, i_a1, 0, i_a3]        # anchor: Cart. position at grid axis 1 = 0
+frac = np.linspace(0, 1, Npoints, endpoint=False)  # fractional coords along a2
+r_vx = r0_v[:, np.newaxis] + frac[np.newaxis, :] * a2_v[:, np.newaxis]
+xfine = frac * La2                      # matching x-axis in Bohr
 
 phase_Gx = np.exp(1j * G_Gv @ r_vx)
 psi78_x = psit78_G @ phase_Gx / N_c.prod() / Bohr**(3 / 2)
