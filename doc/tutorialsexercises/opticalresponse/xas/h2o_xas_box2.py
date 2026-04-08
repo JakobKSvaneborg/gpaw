@@ -12,7 +12,7 @@ dks_energy = 532.774  # from dks calcualtion
 
 offset = 0.0
 for L in np.arange(4, 14, 2) * 8 * h:
-    calc = GPAW(f'h2o_hch_{L:.1f}.gpw')
+    calc = GPAW(f'h2o_hch_{L:.1f}.gpw', legacy_gpaw=True)
     xas = XAS(calc)
     x, y = xas.get_spectra(fwhm=0.4, dks=dks_energy)
     plt.plot(x, sum(y) + offset, label=f'{L:.1f}')
