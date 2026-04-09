@@ -2,26 +2,28 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import pi
+from pathlib import Path
 from time import time
-from typing import Callable
+from typing import IO, Callable
 
 import numpy as np
-from scipy.linalg.blas import get_blas_funcs
-
 from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
 from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.pwacf import PWAtomCenteredFunctions
 from gpaw.mpi import broadcast
 from gpaw.new import zips as zip
+from gpaw.new.calculation import DFTCalculation
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.logger import Logger
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
+from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.utilities import unpack_hermitian
 from gpaw.utilities.blas import mmm
+from scipy.linalg.blas import get_blas_funcs
 
 
 @dataclass
@@ -527,3 +529,34 @@ def forces(ghat_aLG, vrhot2_nG, P2_ani, Q2_anL, f1, f2_n, nbzk, delta_aiiL,
                                        dP_anvi[a][n1],
                                        P2_ani[a].conj(),
                                        f12_n).real
+
+
+def non_self_consistent_hybrid_xc_energy(
+    dft: DFTCalculation,
+    xc: str,
+    *,
+    log: str | Path | IO[str] | None = '-') -> float:
+    from gpaw.hybrids import parse_name
+    ibzwfs = dft.ibzwfs
+    semilocal_xc_name, exx_fraction, exx_omega, yukawa = parse_name(xc)
+    xcobj = create_functional(semilocal_xc_name)
+    hybham = PWHybridHamiltonian(
+        dft.density.grid,
+        next(ibzwfs).psit_nX.desc,
+        xcobj,
+        ibzwfs.setups,
+        dft.relpos_ac,
+        dft.atomdist,
+        log,
+        ibzwfs.ibz.bz,
+        ibzwfs.kpt_comm,
+        ibzwfs.band_comm,
+        dft.comm)
+    hybham.update_wave_functions(ibzwfs)
+    for wfs in ibzwfs:
+        hybham.apply_orbital_dependent(
+            ibzwfs,
+            dft.density.D_asii,
+            wfs.psit_nX,
+            spin=wfs.spin)
+    
