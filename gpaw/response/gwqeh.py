@@ -184,7 +184,7 @@ class GWQEHCorrection:
                 dW_qw = self.calculate_W_QEH(structure, d, layer)
         else:
             self.qqeh = qqeh
-            self.wqeh = None  # wqeh
+            self.wqeh = wqeh
 
         self.dW_qw = self.get_W_on_grid(dW_qw, include_q0=include_q0,
                                         metal=metal)
@@ -588,7 +588,7 @@ class GWQEHCorrection:
         # Difference in screened potential:
         dW_qw = W_qw - W0_qw
         self.wqeh = HS.hs.omega_w
-        self.qqeh = HS.hs.q_q
+        self.qqeh = HS.hs.qcomm.all_gather_qX(HS.hs.q_q)
 
         if self.world.rank == 0:
             data = {'qqeh': self.qqeh,
