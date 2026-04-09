@@ -9,6 +9,7 @@ to account for this produces a non-Hermitian BSE matrix.
 import numpy as np
 import pytest
 
+from gpaw.mpi import broadcast_float
 from gpaw.response.bse import BSE
 
 
@@ -18,6 +19,8 @@ def _build_bse_matrix(gpwfile, conjugate_W_for_time_reversal):
     When conjugate_W_for_time_reversal=True, this is the correct behavior.
     When False, it reproduces the old (buggy) behavior where W was never
     conjugated for time-reversed symmetry operations.
+
+    Returns the BSE object and the (distributed) H_sS matrix.
     """
     bse = BSE(gpwfile,
               ecut=10,
@@ -40,7 +43,7 @@ def _build_bse_matrix(gpwfile, conjugate_W_for_time_reversal):
         bse.get_density_matrix = _patched
 
     bse_matrix = bse.get_bse_matrix(optical=True)
-    return bse_matrix.H_sS
+    return bse, bse_matrix.H_sS
 
 
 @pytest.mark.response
@@ -48,28 +51,41 @@ def test_bse_hermiticity(in_tmp_dir, gpw_files):
     """Check that the TDA BSE matrix H_sS is Hermitian for MoS2."""
     gpwfile = gpw_files['mos2_5x5_pw']
 
-    # --- 1. With the fix: matrix must be Hermitian ---
-    H_fixed = _build_bse_matrix(gpwfile,
-                                conjugate_W_for_time_reversal=True)
-    assert H_fixed.shape[0] == H_fixed.shape[1], 'Test must run in serial'
+    # Build both matrices and gather from distributed to full on rank 0
+    bse_fixed, H_fixed_sS = _build_bse_matrix(
+        gpwfile, conjugate_W_for_time_reversal=True)
+    bse_broken, H_broken_sS = _build_bse_matrix(
+        gpwfile, conjugate_W_for_time_reversal=False)
 
-    deviation_fixed = np.abs(H_fixed - H_fixed.conj().T).max()
+    # Gather distributed matrices to rank 0 and compute deviations
+    comm = bse_fixed.context.comm
+    H_fixed = bse_fixed.collect_A_SS(H_fixed_sS)
+    H_broken = bse_broken.collect_A_SS(H_broken_sS)
+
+    if comm.rank == 0:
+        deviation_fixed = np.abs(H_fixed - H_fixed.conj().T).max()
+        deviation_broken = np.abs(H_broken - H_broken.conj().T).max()
+        diff = np.abs(H_fixed - H_broken).max()
+    else:
+        deviation_fixed = deviation_broken = diff = 0.0
+
+    # Broadcast so all ranks assert together (avoids MPI deadlock on failure)
+    deviation_fixed = broadcast_float(deviation_fixed, comm)
+    deviation_broken = broadcast_float(deviation_broken, comm)
+    diff = broadcast_float(diff, comm)
+
+    # --- 1. With the fix: matrix must be Hermitian ---
     assert deviation_fixed < 1e-12, (
         f'BSE matrix is not Hermitian with fix: '
         f'max|H - H†| = {deviation_fixed:.2e}')
 
     # --- 2. Without the fix: matrix must NOT be Hermitian ---
-    H_broken = _build_bse_matrix(gpwfile,
-                                 conjugate_W_for_time_reversal=False)
-
-    deviation_broken = np.abs(H_broken - H_broken.conj().T).max()
     assert deviation_broken > 1e-6, (
         f'Expected non-Hermitian matrix without fix, but '
         f'max|H - H†| = {deviation_broken:.2e} is too small. '
         f'The test may not be exercising time-reversed q-points.')
 
     # --- 3. The fix and the broken version should differ ---
-    diff = np.abs(H_fixed - H_broken).max()
     assert diff > 1e-6, (
         f'Fixed and broken matrices are identical (diff={diff:.2e}). '
         f'The fix may not be active for this system.')

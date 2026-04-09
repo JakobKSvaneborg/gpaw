@@ -1055,10 +1055,12 @@ class BSEBackend:
             A_SS[:len(A_sS)] = A_sS
             Ntot = len(A_sS)
             for rank in range(1, comm.size):
-                buf = np.empty((self.ns, self.nS), dtype=complex)
+                _, myKsize = self.parallelisation_kpoints(rank)
+                nrows = myKsize * self.nv * self.nc
+                buf = np.empty((nrows, self.nS), dtype=complex)
                 comm.receive(buf, rank, tag=123)
-                A_SS[Ntot:Ntot + self.ns] = buf
-                Ntot += self.ns
+                A_SS[Ntot:Ntot + nrows] = buf
+                Ntot += nrows
         else:
             comm.send(A_sS, 0, tag=123)
         comm.barrier()
