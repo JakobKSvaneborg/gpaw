@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 from ase import Atoms
-from ase.units import Ha
+from ase.units import Bohr, Ha
 
 from gpaw import __version__
 from gpaw.core import UGArray
@@ -761,6 +761,11 @@ class ASECalculator:
         indices), this accepts BZ k-point indices and transparently
         handles symmetry-unfolding from the IBZ.
 
+        The returned array has the same units and grid conventions as
+        ``get_pseudo_wave_function(..., pad=True)`` — padded for
+        non-PBC directions, Angstrom units.  When symmetry is off
+        (IBZ == BZ), the two functions return identical results.
+
         Parameters
         ----------
         band : int
@@ -772,13 +777,21 @@ class ASECalculator:
 
         Returns
         -------
-        ndarray
+        ndarray or None
             Pseudo wave function on the real-space grid.
         """
-        from gpaw.new.wannier import get_bz_pseudo_wave_function
+        from gpaw.new.wannier import _get_bz_wfs
         grid = self.dft.density.nt_sR.desc
-        return get_bz_pseudo_wave_function(
-            self.dft.ibzwfs, grid, band, kpt, spin)
+        self.dft.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
+        wfs = _get_bz_wfs(self.dft.ibzwfs, kpt, spin, grid)
+        psit_nR = wfs.psit_nX
+        if not psit_nR.desc.pbc.all():
+            psit_nR = psit_nR.to_pbc_grid()
+        psit_nR = psit_nR.gather()
+        if psit_nR is None:
+            return None
+        psit_nR = psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
+        return psit_nR.data[band]
 
     def initialize_positions(self, atoms=None):
         pass

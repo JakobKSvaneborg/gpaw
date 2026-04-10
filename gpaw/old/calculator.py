@@ -1915,6 +1915,33 @@ class GPAW(Calculator):
         elif self.wfs.world.rank == 0:
             return psit_G / Bohr**1.5
 
+    def get_bz_pseudo_wave_function(self, band, kpt, spin=0):
+        """Get pseudo wave function at a BZ k-point.
+
+        When symmetry is off (IBZ == BZ) this returns the same result
+        as ``get_pseudo_wave_function(band, kpt, spin, pad=True)``.
+
+        When symmetry is on, BZ k-point indices are mapped to their
+        IBZ representative automatically.
+
+        Parameters
+        ----------
+        band : int
+            Band index.
+        kpt : int
+            BZ k-point index.
+        spin : int
+            Spin channel.
+
+        Returns
+        -------
+        ndarray or None
+            Pseudo wave function on the real-space grid.
+        """
+        k_ibz = self.wfs.kd.bz2ibz_k[kpt]
+        return self.get_pseudo_wave_function(
+            band=band, kpt=k_ibz, spin=spin, pad=True)
+
     def get_eigenvalues(self, kpt=0, spin=0, broadcast=True):
         """Return eigenvalue array."""
         assert 0 <= kpt < self.wfs.kd.nibzkpts, kpt
