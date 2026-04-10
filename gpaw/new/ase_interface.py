@@ -754,6 +754,32 @@ class ASECalculator:
                                initialwannier, kpointgrid, fixedstates,
                                edf, spin, nbands)
 
+    def get_bz_pseudo_wave_function(self, band, kpt, spin=0):
+        """Get pseudo wave function at a BZ k-point (symmetry-aware).
+
+        Unlike ``get_pseudo_wave_function`` (which uses IBZ k-point
+        indices), this accepts BZ k-point indices and transparently
+        handles symmetry-unfolding from the IBZ.
+
+        Parameters
+        ----------
+        band : int
+            Band index.
+        kpt : int
+            BZ k-point index.
+        spin : int
+            Spin channel.
+
+        Returns
+        -------
+        ndarray
+            Pseudo wave function on the real-space grid.
+        """
+        from gpaw.new.wannier import get_bz_pseudo_wave_function
+        grid = self.dft.density.nt_sR.desc
+        return get_bz_pseudo_wave_function(
+            self.dft.ibzwfs, grid, band, kpt, spin)
+
     def initialize_positions(self, atoms=None):
         pass
 
