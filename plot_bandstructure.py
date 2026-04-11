@@ -2,25 +2,30 @@ import numpy as np
 import matplotlib.pyplot as plt
 from gpaw.new.ase_interface import GPAW
 
+# --- Configuration ---
+use_soc = True    # Set to False for scalar-relativistic bands
+soc_bands = 30    # Number of bands to include in SOC (should match convergence)
+
 # --- Band structure calculation ---
 gs_gpw = 'gs_scs.gpw'
 calc = GPAW(gs_gpw).fixed_density(
     nbands=60,
     symmetry='off',
     kpts={'path': 'GKMG', 'npoints': 200},
-    convergence={'bands': 30},
+    convergence={'bands': soc_bands},
 )
 calc.write('bs.gpw', mode='all')  # mode='all' saves LCAO coefficients
 
-# --- Get band structure object (energies, path, reference) ---
+# --- Get band structure path info ---
 bs = calc.band_structure()
-energies = bs.energies  # (nspins, nkpts, nbands)
-nspins, nkpts, nbands = energies.shape
+xcoords, label_xcoords, orig_labels = bs.get_labels()
+label_xcoords = list(label_xcoords)
 
-# --- Compute layer projections from LCAO coefficients ---
+# --- LCAO setup (needed for layer projections in both cases) ---
 ibzwfs = calc.dft.ibzwfs
 setups = ibzwfs._wfs_u[0].setups
 nao = setups.nao
+nkpts = len(ibzwfs.ibz)
 
 # Build boolean masks for basis functions on each layer
 tags = calc.atoms.get_tags()
@@ -34,32 +39,69 @@ for a, tag in enumerate(tags):
     else:
         layer1_mask[M_slice] = True
 
-# Compute Mulliken weights for each (spin, kpt, band)
-weights_layer0 = np.zeros((nspins, nkpts, nbands))
-weights_layer1 = np.zeros((nspins, nkpts, nbands))
+if use_soc:
+    # --- SOC eigenstates ---
+    from gpaw.spinorbit import soc_eigenstates
 
-for wfs in ibzwfs:
-    s, k = wfs.spin, wfs.k
-    C_nM = wfs.C_nM.gather(broadcast=True).data  # (nbands, nao)
-    S_MM = wfs.S_MM.gather(broadcast=True).data   # (nao, nao)
+    soc = soc_eigenstates(calc, n2=soc_bands)
+    soc_eigs = soc.eigenvalues()      # (nkpts, 2*soc_bands), eV
+    soc_vecs = soc.eigenvectors()     # (nkpts, 2*soc_bands, 2*soc_bands)
+    fermi = soc.fermi_level           # eV
+    nsoc = 2 * soc_bands
 
-    # Mulliken decomposition: w_nM = Re((C @ S) * C*)
-    CS_nM = C_nM @ S_MM
-    w_nM = np.real(CS_nM * C_nM.conj())
+    # Compute SOC layer projections using LCAO coefficients + SOC eigenvectors
+    weights_layer0 = np.zeros((nkpts, nsoc))
 
-    weights_layer0[s, k] = w_nM[:, layer0_mask].sum(axis=1)
-    weights_layer1[s, k] = w_nM[:, layer1_mask].sum(axis=1)
+    for wfs in ibzwfs:
+        k = wfs.k
+        C_nM = wfs.C_nM.gather(broadcast=True).data[:soc_bands]  # (soc_bands, nao)
+        S_MM = wfs.S_MM.gather(broadcast=True).data               # (nao, nao)
+        v_mn = soc_vecs[k]                                        # (nsoc, nsoc)
 
-# Sanity check: Mulliken weights should sum to ~1
-total = weights_layer0 + weights_layer1
-print(f'Mulliken weight sum: min={total.min():.6f}, max={total.max():.6f}')
+        # SOC state m = sum_j v_mn[m, 2j] * |j,up> + v_mn[m, 2j+1] * |j,dn>
+        # For non-spin-polarized: C_jM is the same for both spins
+        C_up_mM = v_mn[:, ::2] @ C_nM     # (nsoc, nao), spin-up component
+        C_dn_mM = v_mn[:, 1::2] @ C_nM    # (nsoc, nao), spin-down component
 
-# --- Set up matplotlib figure (replicating bs.plot() layout) ---
+        # Mulliken decomposition with both spin components
+        w_up = np.real((C_up_mM @ S_MM) * C_up_mM.conj())
+        w_dn = np.real((C_dn_mM @ S_MM) * C_dn_mM.conj())
+        w_mM = w_up + w_dn
+
+        weights_layer0[k] = w_mM[:, layer0_mask].sum(axis=1)
+
+    # Sanity check
+    total = w_mM.sum(axis=1)
+    print(f'Mulliken weight sum (last k): min={total.min():.6f}, max={total.max():.6f}')
+
+    # Data for plotting
+    plot_eigs = soc_eigs         # (nkpts, nsoc)
+    plot_weights = weights_layer0  # (nkpts, nsoc)
+    plot_ref = fermi
+
+else:
+    # --- Scalar-relativistic bands ---
+    energies = bs.energies  # (nspins, nkpts, nbands)
+    nspins, _, nbands = energies.shape
+
+    weights_layer0 = np.zeros((nspins, nkpts, nbands))
+
+    for wfs in ibzwfs:
+        s, k = wfs.spin, wfs.k
+        C_nM = wfs.C_nM.gather(broadcast=True).data  # (nbands, nao)
+        S_MM = wfs.S_MM.gather(broadcast=True).data   # (nao, nao)
+
+        CS_nM = C_nM @ S_MM
+        w_nM = np.real(CS_nM * C_nM.conj())
+        weights_layer0[s, k] = w_nM[:, layer0_mask].sum(axis=1)
+
+    # Data for plotting (use first spin channel)
+    plot_eigs = energies[0]         # (nkpts, nbands)
+    plot_weights = weights_layer0[0]  # (nkpts, nbands)
+    plot_ref = bs.reference
+
+# --- Set up matplotlib figure ---
 fig, ax = plt.subplots()
-
-# K-path x-coordinates and high-symmetry labels
-xcoords, label_xcoords, orig_labels = bs.get_labels()
-label_xcoords = list(label_xcoords)
 
 
 def pretty(kpt):
@@ -86,8 +128,8 @@ while i < len(labels):
 for x in label_xcoords[1:-1]:
     ax.axvline(x, color='0.5')
 
-# Fermi level / reference energy
-ax.axhline(bs.reference, color='k', ls=':')
+# Reference energy (Fermi level)
+ax.axhline(plot_ref, color='k', ls=':')
 
 # Axis labels and limits
 ax.set_xticks(label_xcoords)
@@ -96,13 +138,11 @@ ax.set_ylabel('Energy [eV]')
 ax.axis(xmin=0, xmax=xcoords[-1], ymin=-7, ymax=-3)
 
 # --- Scatter plot colored by layer 0 weight ---
-for s in range(nspins):
-    X = np.tile(xcoords, (nbands, 1)).T       # (nkpts, nbands)
-    E = energies[s]                            # (nkpts, nbands)
-    W = weights_layer0[s]                      # (nkpts, nbands)
+nbands_plot = plot_eigs.shape[1]
+X = np.tile(xcoords, (nbands_plot, 1)).T   # (nkpts, nbands_plot)
 
-    sc = ax.scatter(X.ravel(), E.ravel(), c=W.ravel(),
-                    cmap='coolwarm', vmin=0, vmax=1, s=1)
+sc = ax.scatter(X.ravel(), plot_eigs.ravel(), c=plot_weights.ravel(),
+                cmap='coolwarm', vmin=0, vmax=1, s=1)
 
 fig.colorbar(sc, ax=ax, label='Layer 0 weight')
 fig.savefig('bandstructure.png', dpi=200)
