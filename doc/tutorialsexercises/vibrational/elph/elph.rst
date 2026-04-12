@@ -20,7 +20,12 @@ In the second step we map the gradient of the effective potential to the LCAO or
 
 .. literalinclude:: supercell.py
 
-This does not require a full GPAW calculation and should not take too long. You need to specify two options as a dictonary, which will be used to create a GPAW object internally:  The size of the LCAO basis and the size of the k-point grid. The last line invokes the calculation of the supercell matrix, which is stored in the `supercell` file cache.
+This does not require a full GPAW calculation and should not take too long. You need to specify two options as a dictonary, which will be used to create a GPAW object internally:  The size of the LCAO basis and the size of the k-point grid. The last line invokes the calculation of the supercell matrix, which is stored in the `supercell` file cache. It is also possible to pass a full GPAW calculator instead of a dictonary.
+
+.. note::
+
+    If you give a full GPAW calculator instead of a dictonary to ``calculate_supercell_matrix`` you need to consider a few things. ``calculate_supercell_matrix`` currently only works for k-point parallelization, so you need to include ``parallel={'domain': 1, 'band': 1}`` in your script. Also, the real space grids used in the finite displacement calculations needs to be the same as the one used in the supercell matrix calculation. If you use planewave mode for the finite displacement calculation you should set the required grid manually, for example by adding ``gpts=(nx, ny, nz)`` where ``nx, ny, nz`` need be substituted with the required number of grid points in each direction. You can use ``python3 -m gpaw.elph.gpts`` to get help with this.
+
 
 After both calculations are finished the final electron-phonon matrix can be constructed. (:git:`~doc/tutorialsexercises/vibrational/elph/gmatrix.py`)
 
