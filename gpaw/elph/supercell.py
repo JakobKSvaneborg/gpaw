@@ -93,7 +93,7 @@ class Supercell:
             V_xMM = V1t_sxMM[kpt.s]
             # same-cell (lower triangle)
             geff_MM = np.array(V_xMM[0], dtype=dtype)
-            if dtype == complex:
+            if np.issubdtype(dtype, np.complexfloating):
                 kpt_c = wfs.kd.ibzk_kc[kpt.k]  # k-point coordinates
                 phase_x = np.exp(-2j * np.pi * bfs.sdisp_xc[1:] @ kpt_c)
                 geff_MM += np.einsum('x,xMN->MN', phase_x, V_xMM[1:],
@@ -244,8 +244,6 @@ class Supercell:
                 # Corresponding array index
                 xoutput = 3 * a + v
                 xinput = 3 * i + v
-
-                print(i, a, v)
 
                 # If exist already, don't recompute
                 with supercell_cache.lock(str(xoutput)) as handle:
