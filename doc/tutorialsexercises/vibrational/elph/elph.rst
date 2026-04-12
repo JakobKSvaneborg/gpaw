@@ -11,6 +11,11 @@ At the heart of the electron-phonon coupling is the calculation of the gradient 
 This script executes `2*3*N` displacements and saves the change in total energy and effective potential into a file cache in the directory `elph`.
 The phonon/effective potential calculation can take quite some time, but can be distributed over several images. The :meth:`~gpaw.elph.DisplacementRunner` class is based on ASEs ``ase.phonon.Displacement`` class, which allows to select atoms to be displaced using the ``set_atoms`` function.
 
+.. note::
+
+    If you use the ``calculate_forces=True`` option, you can load the phonon part of the cache using ``Phonons(..., name='elph', center_refcell=True)``, with ``center_refcell=True`` being crucial. Else calculated phonon energies will be wrong, as ``ase.phonons.Phonons`` defaults to ``center_refcell=False``.
+
+
 In the second step we map the gradient of the effective potential to the LCAO orbitals of the supercell (:git:`~doc/tutorialsexercises/vibrational/elph/supercell.py`).
 
 .. literalinclude:: supercell.py

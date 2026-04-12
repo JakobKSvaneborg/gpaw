@@ -52,6 +52,8 @@ obtain accurate phonon frequencies. We already calculated the forces in the prev
     :start-at: # Phonon calculation
     :end-at: np.save
 
+The ``center_refcell=True`` parameter is crucial when using a phonon cache created with the electron-phonon module.
+
 As exercise, check the dependence of the phonon frequencies with the calculation
 mode, supercell size and convergence parameters.
 
