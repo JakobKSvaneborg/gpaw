@@ -1918,11 +1918,16 @@ class GPAW(Calculator):
     def get_bz_pseudo_wave_function(self, band, kpt, spin=0):
         """Get pseudo wave function at a BZ k-point.
 
-        When symmetry is off (IBZ == BZ) this returns the same result
+        When symmetry is off (IBZ == BZ), this returns the same result
         as ``get_pseudo_wave_function(band, kpt, spin, pad=True)``.
 
-        When symmetry is on, BZ k-point indices are mapped to their
-        IBZ representative automatically.
+        K-point symmetry reduction is not supported in the old GPAW
+        code path — use the new GPAW (``legacy_gpaw=False``) with PW
+        mode to exploit symmetry for Wannier calculations.  Passing a
+        non-IBZ k-point index while symmetry is active raises
+        ``NotImplementedError`` rather than silently returning a
+        wave function that has not been rotated by the corresponding
+        symmetry operation.
 
         Parameters
         ----------
@@ -1938,7 +1943,16 @@ class GPAW(Calculator):
         ndarray or None
             Pseudo wave function on the real-space grid.
         """
-        k_ibz = self.wfs.kd.bz2ibz_k[kpt]
+        kd = self.wfs.kd
+        if kd.nibzkpts != kd.nbzkpts:
+            raise NotImplementedError(
+                'K-point symmetry unfolding is not supported in the '
+                "old GPAW code path.  Use the new GPAW (set the "
+                'environment variable ``GPAW_NEW=1`` or pass '
+                "``legacy_gpaw=False``) with ``mode='pw'`` to exploit "
+                "symmetry, or set ``symmetry='off'`` when running the "
+                'ground-state calculation.')
+        k_ibz = kd.bz2ibz_k[kpt]
         return self.get_pseudo_wave_function(
             band=band, kpt=k_ibz, spin=spin, pad=True)
 

@@ -91,40 +91,6 @@ def get_wannier_integrals(ibzwfs: IBZWaveFunctions,
     return Z_nn
 
 
-def get_bz_pseudo_wave_function(ibzwfs: IBZWaveFunctions,
-                                grid,
-                                band: int,
-                                K: int,
-                                spin: int) -> np.ndarray:
-    """Get pseudo wave function on a real-space grid at a BZ k-point.
-
-    Unlike the standard ``get_pseudo_wave_function`` (which uses IBZ
-    indices), this accepts BZ k-point indices and handles
-    symmetry-unfolding transparently.
-
-    Parameters
-    ----------
-    ibzwfs : IBZWaveFunctions
-        Wave functions stored for IBZ k-points.
-    grid
-        Uniform grid descriptor.
-    band : int
-        Band index.
-    K : int
-        BZ k-point index.
-    spin : int
-        Spin channel.
-
-    Returns
-    -------
-    ndarray
-        Pseudo wave function on the real-space grid.
-    """
-    ibzwfs.make_sure_wfs_are_read_from_gpw_file()
-    wfs = _get_bz_wfs(ibzwfs, K, spin, grid)
-    return wfs.psit_nX.data[band]
-
-
 def add_wannier_correction(Z_nn, G_c, wfs, wfs1, nbands):
     r"""Calculate the correction to the wannier integrals.
 

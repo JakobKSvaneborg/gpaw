@@ -407,7 +407,8 @@ class DFTCalculation:
     def wave_functions(self, n1=0, n2=None, kpt=0, spin=None,
                        periodic=False,
                        broadcast=True,
-                       _pad=True) -> UGArray | None:
+                       _pad=True,
+                       _unfold_bz=False) -> UGArray | None:
         ibzwfs = self.ibzwfs
         collinear = ibzwfs.collinear
         if collinear:
@@ -417,10 +418,33 @@ class DFTCalculation:
             assert spin is None or spin == 0
             spin = 0
 
+        # When ``_unfold_bz`` is True, ``kpt`` is a BZ k-point index.
+        # Map it to the IBZ representative; the symmetry operation
+        # connecting them is applied below.
+        if _unfold_bz:
+            ibz = ibzwfs.ibz
+            ibz_kpt = int(ibz.bz2ibz_K[kpt])
+            s_op = int(ibz.s_K[kpt])
+            tr = bool(ibz.time_reversal_K[kpt])
+        else:
+            ibz_kpt = kpt
+
         kpt_comm = ibzwfs.kpt_comm
-        krank = ibzwfs.rank_ks[kpt][spin]
+        krank = ibzwfs.rank_ks[ibz_kpt][spin]
         if krank == kpt_comm.rank:
-            wfs = ibzwfs._get_wfs(kpt, spin)
+            wfs = ibzwfs._get_wfs(ibz_kpt, spin)
+            if _unfold_bz and not (s_op == 0 and not tr):
+                # Apply symmetry operation to get BZ wfs from IBZ wfs.
+                # Currently only implemented for plane-wave mode.
+                from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
+                if not hasattr(wfs.psit_nX, 'transform'):
+                    raise NotImplementedError(
+                        'K-point symmetry unfolding requires '
+                        "plane-wave (PW) mode.  Use mode='pw' or "
+                        "set symmetry='off' for FD/LCAO mode.")
+                U_cc = ibz.symmetries.rotation_scc[s_op]
+                psit_nG_bz = wfs.psit_nX.transform(U_cc, tr)
+                wfs = PWFDWaveFunctions.from_wfs(wfs, psit_nG_bz)
             wfs = wfs.collect_bands(n1, n2)
             if wfs is not None:
                 basis = getattr(self.scf_loop.hamiltonian, 'basis', None)

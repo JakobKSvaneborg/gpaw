@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 from ase import Atoms
-from ase.units import Bohr, Ha
+from ase.units import Ha
 
 from gpaw import __version__
 from gpaw.core import UGArray
@@ -754,44 +754,26 @@ class ASECalculator:
                                initialwannier, kpointgrid, fixedstates,
                                edf, spin, nbands)
 
-    def get_bz_pseudo_wave_function(self, band, kpt, spin=0):
+    def get_bz_pseudo_wave_function(self, band, kpt=0, spin=None,
+                                    periodic=False,
+                                    broadcast=True,
+                                    pad=True) -> Array3D | None:
         """Get pseudo wave function at a BZ k-point (symmetry-aware).
 
-        Unlike ``get_pseudo_wave_function`` (which uses IBZ k-point
-        indices), this accepts BZ k-point indices and transparently
-        handles symmetry-unfolding from the IBZ.
-
-        The returned array has the same units and grid conventions as
-        ``get_pseudo_wave_function(..., pad=True)`` — padded for
-        non-PBC directions, Angstrom units.  When symmetry is off
-        (IBZ == BZ), the two functions return identical results.
-
-        Parameters
-        ----------
-        band : int
-            Band index.
-        kpt : int
-            BZ k-point index.
-        spin : int
-            Spin channel.
-
-        Returns
-        -------
-        ndarray or None
-            Pseudo wave function on the real-space grid.
+        Same as ``get_pseudo_wave_function`` except ``kpt`` is a
+        full-BZ k-point index rather than an IBZ index.  When
+        symmetry is off (IBZ == BZ), the two functions return
+        identical results.
         """
-        from gpaw.new.wannier import _get_bz_wfs
-        grid = self.dft.density.nt_sR.desc
-        self.dft.ibzwfs.make_sure_wfs_are_read_from_gpw_file()
-        wfs = _get_bz_wfs(self.dft.ibzwfs, kpt, spin, grid)
-        psit_nR = wfs.psit_nX
-        if not psit_nR.desc.pbc.all():
-            psit_nR = psit_nR.to_pbc_grid()
-        psit_nR = psit_nR.gather()
-        if psit_nR is None:
-            return None
-        psit_nR = psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
-        return psit_nR.data[band]
+        psit_1R = self.dft.wave_functions(n1=band, n2=band + 1,
+                                          kpt=kpt, spin=spin,
+                                          periodic=periodic,
+                                          broadcast=broadcast,
+                                          _pad=pad,
+                                          _unfold_bz=True)
+        if psit_1R is not None:
+            return psit_1R[0].data
+        return None
 
     def initialize_positions(self, atoms=None):
         pass
