@@ -1,20 +1,31 @@
+from pathlib import Path
+
 import numpy as np
 import matplotlib.pyplot as plt
 from gpaw.new.ase_interface import GPAW
 
 # --- Configuration ---
-use_soc = True    # Set to False for scalar-relativistic bands
-soc_bands = 30    # Number of bands to include in SOC (should match convergence)
+use_soc = True       # Set to False for scalar-relativistic bands
+soc_bands = 30       # Number of bands to include in SOC (should match convergence)
+use_cache = True     # If True, reuse existing bs.gpw instead of recomputing
+spin = 'both'        # 'both', 'up' or 'down' -- selects spin character to plot.
+                     # Linearly polarized light couples electrons/holes of the
+                     # same spin, so filtering to 'up' or 'down' shows only
+                     # bands relevant for singlet excitations.
 
-# --- Band structure calculation ---
+# --- Band structure calculation (cached) ---
 gs_gpw = 'gs_scs.gpw'
-calc = GPAW(gs_gpw).fixed_density(
-    nbands=60,
-    symmetry='off',
-    kpts={'path': 'GKMG', 'npoints': 200},
-    convergence={'bands': soc_bands},
-)
-calc.write('bs.gpw', mode='all')  # mode='all' saves LCAO coefficients
+bs_gpw = 'bs.gpw'
+if use_cache and Path(bs_gpw).is_file():
+    calc = GPAW(bs_gpw)
+else:
+    calc = GPAW(gs_gpw).fixed_density(
+        nbands=60,
+        symmetry='off',
+        kpts={'path': 'GKMG', 'npoints': 200},
+        convergence={'bands': soc_bands, 'eigenvalues': 1e-6},
+    )
+    calc.write(bs_gpw, mode='all')  # mode='all' saves LCAO coefficients
 
 # --- Get band structure path info ---
 bs = calc.band_structure()
@@ -49,9 +60,13 @@ if use_soc:
     fermi = soc.fermi_level           # eV
     nsoc = 2 * soc_bands
 
-    # Compute SOC layer projections using LCAO coefficients + SOC eigenvectors
-    weights_layer0 = np.zeros((nkpts, nsoc))
-    total_mk = np.zeros((nkpts, nsoc))
+    # Compute SOC layer projections using LCAO coefficients + SOC eigenvectors.
+    # Track each (spin, layer) Mulliken partial weight separately so we can
+    # build normalized plot weights when filtering to a single spin channel.
+    wup_L0_km = np.zeros((nkpts, nsoc))
+    wup_L1_km = np.zeros((nkpts, nsoc))
+    wdn_L0_km = np.zeros((nkpts, nsoc))
+    wdn_L1_km = np.zeros((nkpts, nsoc))
 
     for wfs in ibzwfs:
         k = wfs.k
@@ -71,21 +86,25 @@ if use_soc:
         # Re((C @ S.conj()) * C.conj()).
         w_up = np.real((C_up_mM @ S_MM.T) * C_up_mM.conj())
         w_dn = np.real((C_dn_mM @ S_MM.T) * C_dn_mM.conj())
-        w_mM = w_up + w_dn
 
-        weights_layer0[k] = w_mM[:, layer0_mask].sum(axis=1)
-        total_mk[k] = w_mM.sum(axis=1)
+        wup_L0_km[k] = w_up[:, layer0_mask].sum(axis=1)
+        wup_L1_km[k] = w_up[:, layer1_mask].sum(axis=1)
+        wdn_L0_km[k] = w_dn[:, layer0_mask].sum(axis=1)
+        wdn_L1_km[k] = w_dn[:, layer1_mask].sum(axis=1)
 
     # In parallel each kpt_comm rank only fills its own k-points; aggregate
     # across k-point groups so every rank has the full arrays before plotting
     # and before the normalization assertion.
-    ibzwfs.kpt_comm.sum(weights_layer0)
-    ibzwfs.kpt_comm.sum(total_mk)
+    ibzwfs.kpt_comm.sum(wup_L0_km)
+    ibzwfs.kpt_comm.sum(wup_L1_km)
+    ibzwfs.kpt_comm.sum(wdn_L0_km)
+    ibzwfs.kpt_comm.sum(wdn_L1_km)
 
     # Mulliken weights must sum to 1 for each SOC state: LCAO orthonormality
     # (C^dag S C = I) + unitarity of v_mn (rows are unit vectors from eigh)
     # guarantee this by construction. Assert loudly so a violation surfaces
     # instead of silently producing a misleading colormap.
+    total_mk = wup_L0_km + wup_L1_km + wdn_L0_km + wdn_L1_km
     print(f'Mulliken weight sum: '
           f'min={total_mk.min():.6f}, max={total_mk.max():.6f}')
     assert np.allclose(total_mk, 1.0, atol=1e-6), (
@@ -93,9 +112,35 @@ if use_soc:
         f'min={total_mk.min():.6f}, max={total_mk.max():.6f}'
     )
 
+    # Build plot weights. For spin='both' the denominator is 1 (total Mulliken
+    # weight) and we get the usual layer-0 fraction. For spin='up'/'down' we
+    # normalize by the weight of the selected spin only -- this is the
+    # conditional probability "given the state has the selected spin, what
+    # fraction sits on layer 0?". The absolute weight of the selected spin is
+    # kept in `spin_weight` and used as per-point alpha so bands dominated by
+    # the other spin fade out of the plot.
+    if spin == 'both':
+        num = wup_L0_km + wdn_L0_km
+        den = total_mk
+    elif spin == 'up':
+        num = wup_L0_km
+        den = wup_L0_km + wup_L1_km
+    elif spin == 'down':
+        num = wdn_L0_km
+        den = wdn_L0_km + wdn_L1_km
+    else:
+        raise ValueError(f"spin must be 'both', 'up' or 'down', got {spin!r}")
+
+    # Safe division: where the selected spin has essentially zero weight, the
+    # ratio is ill-defined; paint those points neutral (0.5) -- they'll be
+    # invisible anyway thanks to the alpha.
+    plot_weights = np.divide(num, den,
+                             out=np.full_like(num, 0.5),
+                             where=den > 1e-10)
+    spin_weight = den  # used as alpha when spin != 'both'
+
     # Data for plotting
-    plot_eigs = soc_eigs         # (nkpts, nsoc)
-    plot_weights = weights_layer0  # (nkpts, nsoc)
+    plot_eigs = soc_eigs          # (nkpts, nsoc)
     plot_ref = fermi
 
 else:
@@ -112,7 +157,7 @@ else:
         S_MM = wfs.S_MM.gather(broadcast=True).data   # (nao, nao)
 
         # Mulliken: w_nM = Re((C @ S.T) * C.conj()). The .T is needed at
-        # complex k-points — using plain S pairs the summed index wrongly
+        # complex k-points -- using plain S pairs the summed index wrongly
         # on the overlap and the sum only equals 1 when S is real-symmetric.
         CS_nM = C_nM @ S_MM.T
         w_nM = np.real(CS_nM * C_nM.conj())
@@ -131,9 +176,20 @@ else:
         f'min={total_skn.min():.6f}, max={total_skn.max():.6f}'
     )
 
-    # Data for plotting (use first spin channel)
-    plot_eigs = energies[0]         # (nkpts, nbands)
-    plot_weights = weights_layer0[0]  # (nkpts, nbands)
+    # Scalar-relativistic: 'up'/'down' map to spin channels 0/1 when present;
+    # otherwise fall back to the single available channel.
+    if spin == 'both' or nspins == 1:
+        plot_eigs = energies[0]
+        plot_weights = weights_layer0[0]
+    elif spin == 'up':
+        plot_eigs = energies[0]
+        plot_weights = weights_layer0[0]
+    elif spin == 'down':
+        plot_eigs = energies[1]
+        plot_weights = weights_layer0[1]
+    else:
+        raise ValueError(f"spin must be 'both', 'up' or 'down', got {spin!r}")
+    spin_weight = np.ones_like(plot_weights)  # no fading in scalar case
     plot_ref = bs.reference
 
 # --- Set up matplotlib figure ---
@@ -167,19 +223,41 @@ for x in label_xcoords[1:-1]:
 # Reference energy (Fermi level)
 ax.axhline(plot_ref, color='k', ls=':')
 
+# VBM/CBM indicator lines.  With SOC every band holds one electron, so
+# cbm_idx = N_e; without SOC bands are spin-degenerate and hold two, so
+# cbm_idx = N_e // 2.
+n_electrons = int(calc.get_number_of_electrons())
+cbm_idx = n_electrons if use_soc else n_electrons // 2
+vbm_idx = cbm_idx - 1
+E_cbm = plot_eigs[:, cbm_idx].min()
+E_vbm = plot_eigs[:, vbm_idx].max()
+ax.axhline(E_cbm, color='k', ls=':')
+ax.axhline(E_vbm, color='k', ls=':')
+
 # Axis labels and limits
 ax.set_xticks(label_xcoords)
 ax.set_xticklabels(labels)
 ax.set_ylabel('Energy [eV]')
 ax.axis(xmin=0, xmax=xcoords[-1], ymin=-7, ymax=-3)
 
-# --- Scatter plot colored by layer 0 weight ---
+# --- Scatter plot colored by (normalized) layer 0 weight ---
 nbands_plot = plot_eigs.shape[1]
 X = np.tile(xcoords, (nbands_plot, 1)).T   # (nkpts, nbands_plot)
 
-sc = ax.scatter(X.ravel(), plot_eigs.ravel(), c=plot_weights.ravel(),
-                cmap='coolwarm', vmin=0, vmax=1, s=1)
+# When filtering to a single spin channel, fade bands of the opposite spin
+# using `spin_weight` (the absolute Mulliken weight of the selected spin on
+# each SOC state) as the per-point alpha.
+if use_soc and spin != 'both':
+    alpha = np.clip(spin_weight.ravel(), 0.0, 1.0)
+    color_label = f'Layer 0 fraction (spin {spin})'
+else:
+    alpha = 1.0
+    color_label = 'Layer 0 weight'
 
-fig.colorbar(sc, ax=ax, label='Layer 0 weight')
-fig.savefig('bandstructure.png', dpi=200)
-print('Saved bandstructure.png')
+sc = ax.scatter(X.ravel(), plot_eigs.ravel(), c=plot_weights.ravel(),
+                cmap='coolwarm', vmin=0, vmax=1, s=1, alpha=alpha)
+
+fig.colorbar(sc, ax=ax, label=color_label)
+bs_filename = f'bandstructure_spin_{spin}.png'
+fig.savefig(bs_filename, dpi=200)
+print(f'Saved {bs_filename}')
