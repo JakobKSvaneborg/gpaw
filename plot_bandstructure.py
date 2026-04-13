@@ -64,9 +64,13 @@ if use_soc:
         C_up_mM = v_mn[:, ::2] @ C_nM     # (nsoc, nao), spin-up component
         C_dn_mM = v_mn[:, 1::2] @ C_nM    # (nsoc, nao), spin-down component
 
-        # Mulliken decomposition with both spin components
-        w_up = np.real((C_up_mM @ S_MM) * C_up_mM.conj())
-        w_dn = np.real((C_dn_mM @ S_MM) * C_dn_mM.conj())
+        # Mulliken decomposition: w_nM = Re( C_nM* · sum_v S_{Mv} · C_nv )
+        # which in matrix form is Re((C @ S.T) * C.conj()). Using S.T (not S)
+        # is required at complex k-points; the two coincide only when S is
+        # real-symmetric (Gamma). For Hermitian S this is equivalent to
+        # Re((C @ S.conj()) * C.conj()).
+        w_up = np.real((C_up_mM @ S_MM.T) * C_up_mM.conj())
+        w_dn = np.real((C_dn_mM @ S_MM.T) * C_dn_mM.conj())
         w_mM = w_up + w_dn
 
         weights_layer0[k] = w_mM[:, layer0_mask].sum(axis=1)
@@ -101,7 +105,10 @@ else:
         C_nM = wfs.C_nM.gather(broadcast=True).data  # (nbands, nao)
         S_MM = wfs.S_MM.gather(broadcast=True).data   # (nao, nao)
 
-        CS_nM = C_nM @ S_MM
+        # Mulliken: w_nM = Re((C @ S.T) * C.conj()). The .T is needed at
+        # complex k-points — using plain S pairs the summed index wrongly
+        # on the overlap and the sum only equals 1 when S is real-symmetric.
+        CS_nM = C_nM @ S_MM.T
         w_nM = np.real(CS_nM * C_nM.conj())
         weights_layer0[s, k] = w_nM[:, layer0_mask].sum(axis=1)
         total_skn[s, k] = w_nM.sum(axis=1)
