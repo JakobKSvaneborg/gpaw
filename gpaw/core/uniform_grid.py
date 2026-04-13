@@ -588,6 +588,7 @@ class UGArray(XArray[UGDesc]):
             self.data *= self.desc.eikr(kpt_c, xp=self.xp)
 
     def interpolate(self,
+                    *,
                     plan1: fftw.FFTPlans | None = None,
                     plan2: fftw.FFTPlans | None = None,
                     grid: UGDesc | None = None,
@@ -616,8 +617,8 @@ class UGArray(XArray[UGDesc]):
         if self.desc.comm.size > 1:
             input = self.gather()
             if input is not None:
-                output = input.interpolate(plan1, plan2,
-                                           out.desc.new(comm=None))
+                output = input.interpolate(plan1=plan1, plan2=plan2,
+                                           out=out.desc.new(comm=None))
                 out.scatter_from(output.data)
             else:
                 out.scatter_from()
@@ -633,7 +634,7 @@ class UGArray(XArray[UGDesc]):
 
         if self.dims:
             for input, output in zips(self.flat(), out.flat()):
-                input.interpolate(plan1, plan2, grid, output)
+                input.interpolate(plan1=plan1, plan2=plan2, out=output)
             return out
 
         plan1.tmp_R[:] = self.data

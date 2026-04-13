@@ -7,6 +7,7 @@ from time import time
 from typing import IO, Callable
 
 import numpy as np
+from ase.units import Ha
 from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
 from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArrays
@@ -232,15 +233,18 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.coulomb = truncated_coulomb(
             grid.cell_cv, bz, xc.exx_omega, xc.exx_yukawa)
 
+        self.nupdates = 0
+
     def update_wave_functions(self,
                               ibzwfs: PWFDIBZWaveFunctions,
                               forces=False):
         """Compute BZ from IBZ and distribute over the entire world!"""
         self.mypsits, _ = ibz2bz(
             ibzwfs, self.setups, self.relpos_ac, self.grid_local, self.plan,
-            self.log if self.nbzk == 0 else None, forces)
+            self.log if self.nupdates == 0 else None, forces)
         self.xc.energies = {'hybrid_xc': 0.0,
                             'hybrid_kinetic_correction': 0.0}
+        self.nupdates += 1
 
     def move(self, relpos_av: np.ndarray) -> None:
         self.relpos_ac = relpos_av
@@ -535,28 +539,49 @@ def non_self_consistent_hybrid_xc_energy(
     dft: DFTCalculation,
     xc: str,
     *,
-    log: str | Path | IO[str] | None = '-') -> float:
-    from gpaw.hybrids import parse_name
+    log: str | Path | IO[str] | Logger | None = '-') -> float:
+    """"""
+    if not isinstance(log, Logger):
+        log = Logger(log, comm=dft.comm)
     ibzwfs = dft.ibzwfs
-    semilocal_xc_name, exx_fraction, exx_omega, yukawa = parse_name(xc)
-    xcobj = create_functional(semilocal_xc_name)
+    exx = create_functional({'name': xc, 'backend': 'pw'},
+                            dft.pot_calc.fine_grid)
     hybham = PWHybridHamiltonian(
         dft.density.grid,
-        next(ibzwfs).psit_nX.desc,
-        xcobj,
-        ibzwfs.setups,
+        next(iter(ibzwfs)).psit_nX.desc,
+        exx,
+        dft.setups,
         dft.relpos_ac,
-        dft.atomdist,
+        dft.density.D_asii.layout.atomdist,
         log,
         ibzwfs.ibz.bz,
         ibzwfs.kpt_comm,
         ibzwfs.band_comm,
         dft.comm)
+    ibzwfs.make_sure_wfs_are_read_from_gpw_file()
     hybham.update_wave_functions(ibzwfs)
     for wfs in ibzwfs:
         hybham.apply_orbital_dependent(
             ibzwfs,
             dft.density.D_asii,
             wfs.psit_nX,
-            spin=wfs.spin)
-    
+            spin=wfs.spin,
+            calculate_energy=True)
+    exx_energy = hybham.xc.energies['hybrid_xc'] * Ha
+    print(dft.energies)
+    semilocal_energy = _semilocal_xc_energy(dft, xc)
+    return exx_energy + semilocal_energy - ...
+
+
+def _semilocal_xc_energy(dft: DFTCalculation,
+                         xc: str) -> float:
+    from gpaw.hybrids import parse_name
+    semilocal_xc_name, exx_fraction, exx_omega, yukawa = parse_name(xc)
+    fine_grid = dft.pot_calc.fine_grid
+    slxc = create_functional(semilocal_xc_name, fine_grid)
+    nt_sr = dft.density.nt_sR.interpolate(grid=fine_grid)
+    energy, _ = slxc.calculate(nt_sr)
+    for a, D_sii in dft.density.D_asii.items():
+        energy += slxc.calculate_paw_correction(setups[a], D_sp)
+    exc = dens.finegd.comm.sum_scalar(exc)
+    return energy
