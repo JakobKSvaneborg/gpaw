@@ -542,7 +542,7 @@ def non_self_consistent_hybrid_xc_energy(
     dft: DFTCalculation,
     xc: str,
     *,
-    log: str | Path | IO[str] | Logger | None = '-') -> float:
+    log: str | Path | IO[str] | Logger | None = '-') -> np.ndarray:
     """
     The returned energy contributions are (in eV):
 
