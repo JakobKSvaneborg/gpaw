@@ -19,17 +19,17 @@ params = {'mode': {'name': 'pw', 'ecut': 400},
           'kpts': {'size': (2, 2, 2), 'gamma': False},
           'occupations': {'name': 'fermi-dirac', 'width': 0.01}}
 
-calc_charged = GPAW(charge=charge, **params)
-calc_neutral = GPAW(charge=0, **params)
 
 prim = bulk('GaAs', crystalstructure='zincblende', a=a0, cubic=True)
 pristine = prim * (N, N, N)
+calc_neutral = GPAW(charge=0, **params)
 pristine.calc = calc_neutral
 pristine.get_potential_energy()
 pristine.calc.write(prs_path)
 
 defect = pristine.copy()
 defect.pop(0)  # make a Ga vacancy
+calc_charged = GPAW(charge=charge, **params)
 defect.calc = calc_charged
 defect.get_potential_energy()
 defect.calc.write(def_path)
