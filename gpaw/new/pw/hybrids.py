@@ -308,9 +308,11 @@ class PWHybridHamiltonian(PWHamiltonian):
         V2_aii = V_aii.gather(broadcast=True)
 
         if calculate_energy:
+            if u==0
             nk = len(ibzwfs._wfs_u) / ibzwfs.nspins
             evv = domain_comm.sum_scalar(evv) / nk
             evc = domain_comm.sum_scalar(evc) / nk
+            evv=self.kpt_comm.sum_scalar(evv) / self.kpt_comm.size
         elif F1_av is not None and u == 0:
             for a, V_ii in V2_aii.items():
                 for psit in self.mypsits:
