@@ -76,6 +76,12 @@ if use_soc:
         weights_layer0[k] = w_mM[:, layer0_mask].sum(axis=1)
         total_mk[k] = w_mM.sum(axis=1)
 
+    # In parallel each kpt_comm rank only fills its own k-points; aggregate
+    # across k-point groups so every rank has the full arrays before plotting
+    # and before the normalization assertion.
+    ibzwfs.kpt_comm.sum(weights_layer0)
+    ibzwfs.kpt_comm.sum(total_mk)
+
     # Mulliken weights must sum to 1 for each SOC state: LCAO orthonormality
     # (C^dag S C = I) + unitarity of v_mn (rows are unit vectors from eigh)
     # guarantee this by construction. Assert loudly so a violation surfaces
@@ -112,6 +118,10 @@ else:
         w_nM = np.real(CS_nM * C_nM.conj())
         weights_layer0[s, k] = w_nM[:, layer0_mask].sum(axis=1)
         total_skn[s, k] = w_nM.sum(axis=1)
+
+    # In parallel each kpt_comm rank only fills its own k-points; aggregate.
+    ibzwfs.kpt_comm.sum(weights_layer0)
+    ibzwfs.kpt_comm.sum(total_skn)
 
     # Mulliken weights must sum to 1 for each band (LCAO orthonormality).
     print(f'Mulliken weight sum: '
