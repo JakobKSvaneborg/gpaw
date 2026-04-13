@@ -22,7 +22,7 @@ from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
-from gpaw.utilities import unpack_hermitian
+from gpaw.utilities import unpack_hermitian, pack_density
 from gpaw.utilities.blas import mmm
 from scipy.linalg.blas import get_blas_funcs
 
@@ -543,9 +543,12 @@ def non_self_consistent_hybrid_xc_energy(
     """"""
     if not isinstance(log, Logger):
         log = Logger(log, comm=dft.comm)
+
     ibzwfs = dft.ibzwfs
+
     exx = create_functional({'name': xc, 'backend': 'pw'},
                             dft.pot_calc.fine_grid)
+
     hybham = PWHybridHamiltonian(
         dft.density.grid,
         next(iter(ibzwfs)).psit_nX.desc,
@@ -558,8 +561,11 @@ def non_self_consistent_hybrid_xc_energy(
         ibzwfs.kpt_comm,
         ibzwfs.band_comm,
         dft.comm)
+
     ibzwfs.make_sure_wfs_are_read_from_gpw_file()
+
     hybham.update_wave_functions(ibzwfs)
+
     for wfs in ibzwfs:
         hybham.apply_orbital_dependent(
             ibzwfs,
@@ -567,10 +573,12 @@ def non_self_consistent_hybrid_xc_energy(
             wfs.psit_nX,
             spin=wfs.spin,
             calculate_energy=True)
+
     exx_energy = hybham.xc.energies['hybrid_xc'] * Ha
-    print(dft.energies)
+
     semilocal_energy = _semilocal_xc_energy(dft, xc)
-    return exx_energy + semilocal_energy - ...
+
+    return exx_energy + semilocal_energy - dft.energies._energies['xc']
 
 
 def _semilocal_xc_energy(dft: DFTCalculation,
@@ -580,8 +588,8 @@ def _semilocal_xc_energy(dft: DFTCalculation,
     fine_grid = dft.pot_calc.fine_grid
     slxc = create_functional(semilocal_xc_name, fine_grid)
     nt_sr = dft.density.nt_sR.interpolate(grid=fine_grid)
-    energy, _ = slxc.calculate(nt_sr)
+    energy, _, _ = slxc.calculate(nt_sr)
     for a, D_sii in dft.density.D_asii.items():
-        energy += slxc.calculate_paw_correction(setups[a], D_sp)
-    exc = dens.finegd.comm.sum_scalar(exc)
-    return energy
+        D_sp = np.array([pack_density(D_ii.real) for D_ii in D_sii])
+        energy += slxc.calculate_paw_correction(dft.setups[a], D_sp)
+    return dft.density.nt_sR.desc.comm.sum_scalar(energy)
