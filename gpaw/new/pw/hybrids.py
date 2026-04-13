@@ -242,7 +242,9 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.mypsits, _ = ibz2bz(
             ibzwfs, self.setups, self.relpos_ac, self.grid_local, self.plan,
             self.log if self.nupdates == 0 else None, forces)
-        self.xc.energies = {'hybrid_xc': 0.0,
+        self.xc.energies = {'hybrid_xc_cc': 0.0,
+                            'hybrid_xc_vc': 0.0,
+                            'hybrid_xc_vv': 0.0,
                             'hybrid_kinetic_correction': 0.0}
         self.nupdates += 1
 
@@ -332,12 +334,13 @@ class PWHybridHamiltonian(PWHamiltonian):
         ekin -= e
 
         if calculate_energy:
-            for name, e in [('hybrid_xc', evv + evc),
+            for name, e in [('hybrid_xc_vc', evc),
+                            ('hybrid_xc_vv', evv),
                             ('hybrid_kinetic_correction', ekin)]:
                 e *= ibzwfs.spin_degeneracy
                 self.xc.energies[name] += e
             if u == 0:
-                self.xc.energies['hybrid_xc'] += self.exx_cc
+                self.xc.energies['hybrid_xc_cc'] += self.exx_cc
 
         if F1_av is not None:
             assert F_av is not None
@@ -540,7 +543,16 @@ def non_self_consistent_hybrid_xc_energy(
     xc: str,
     *,
     log: str | Path | IO[str] | Logger | None = '-') -> float:
-    """"""
+    """
+    The returned energy contributions are (in eV):
+
+    1. DFT total free energy (not extrapolated to zero smearing)
+    2. minus DFT XC energy
+    3. Hybrid semi-local XC energy
+    4. EXX core-core energy
+    5. EXX valence-core energy
+    6. EXX valence-valence energy
+    """
     if not isinstance(log, Logger):
         log = Logger(log, comm=dft.comm)
 
@@ -564,7 +576,7 @@ def non_self_consistent_hybrid_xc_energy(
 
     ibzwfs.make_sure_wfs_are_read_from_gpw_file()
 
-    assert isinstance(ibz2bz, PWFDIBZWaveFunctions)
+    assert isinstance(ibzwfs, PWFDIBZWaveFunctions)
     hybham.update_wave_functions(ibzwfs)
 
     for wfs in ibzwfs:
@@ -575,11 +587,15 @@ def non_self_consistent_hybrid_xc_energy(
             spin=wfs.spin,
             calculate_energy=True)
 
-    exx_energy = hybham.xc.energies['hybrid_xc'] * Ha
-
     semilocal_energy = _semilocal_xc_energy(dft, xc)
 
-    return exx_energy + semilocal_energy - dft.energies._energies['xc']
+    return np.array(
+        [dft.energies.total_extrapolated,
+         -dft.energies._energies['xc'],
+         semilocal_energy,
+         hybham.xc.energies['hybrid_xc_cc'],
+         hybham.xc.energies['hybrid_xc_vc'],
+         hybham.xc.energies['hybrid_xc_vv']]) * Ha
 
 
 def _semilocal_xc_energy(dft: DFTCalculation,

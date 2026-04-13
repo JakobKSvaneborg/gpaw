@@ -5,7 +5,7 @@ from ase.units import Ha
 
 # Contributions to free energy:
 NAMES = ['kinetic', 'coulomb', 'zero', 'external', 'xc', 'entropy',
-         'spinorbit', 'hybrid_xc']
+         'spinorbit', 'hybrid_xc_cc', 'hybrid_xc_vc', 'hybrid_xc_vv']
 
 # Other allowed names:
 OTHERS = {'band', 'kinetic_correction', 'extrapolation',
