@@ -1,8 +1,24 @@
+import re
 from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
+from ase.formula import Formula
 from gpaw.new.ase_interface import GPAW
+
+
+def layer_formula(atoms, tag):
+    """Reduced stoichiometric formula of the atoms with the given tag,
+    metal-first (e.g. 'MoSe2', 'WSe2')."""
+    symbols = [s for s, t in zip(atoms.get_chemical_symbols(),
+                                 atoms.get_tags()) if t == tag]
+    reduced, _ = Formula.from_list(symbols).reduce()
+    return reduced.format('metal')
+
+
+def latexify(formula):
+    """Wrap integer counts in LaTeX subscripts: 'MoSe2' -> 'MoSe$_{2}$'."""
+    return re.sub(r'(\d+)', r'$_{\1}$', formula)
 
 # --- Configuration ---
 use_soc = True       # Set to False for scalar-relativistic bands
@@ -49,6 +65,13 @@ for a, tag in enumerate(tags):
         layer0_mask[M_slice] = True
     else:
         layer1_mask[M_slice] = True
+
+# Human-readable layer names derived from the tagged stoichiometry (e.g.
+# 'MoSe2' / 'WSe2' for a TMD bilayer).
+layer0_name = layer_formula(calc.atoms, 0)
+layer1_name = layer_formula(calc.atoms, 1)
+layer0_tex = latexify(layer0_name)
+layer1_tex = latexify(layer1_name)
 
 if use_soc:
     # --- SOC eigenstates ---
@@ -249,10 +272,15 @@ X = np.tile(xcoords, (nbands_plot, 1)).T   # (nkpts, nbands_plot)
 # each SOC state) as the per-point alpha.
 if use_soc and spin != 'both':
     alpha = np.clip(spin_weight.ravel(), 0.0, 1.0)
-    color_label = f'Layer 0 fraction (spin {spin})'
+    color_label = f'{layer0_tex} fraction (spin {spin})'
 else:
     alpha = 1.0
-    color_label = 'Layer 0 weight'
+    color_label = f'{layer0_tex} weight'
+
+if use_soc and spin != 'both':
+    ax.set_title(f'{layer0_tex}-{layer1_tex} spin {spin}')
+else:
+    ax.set_title(f'{layer0_tex}-{layer1_tex}')
 
 sc = ax.scatter(X.ravel(), plot_eigs.ravel(), c=plot_weights.ravel(),
                 cmap='coolwarm', vmin=0, vmax=1, s=1, alpha=alpha)
