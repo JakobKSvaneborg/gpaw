@@ -1,3 +1,4 @@
+import pickle
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import cached_property
@@ -9,7 +10,7 @@ from ase.units import Bohr, Hartree
 from scipy.linalg import eigh
 
 from gpaw.blacs import BlacsDescriptor, BlacsGrid, Redistributor
-from gpaw.mpi import normalize_communicator, serial_comm
+from gpaw.mpi import broadcast, normalize_communicator, serial_comm
 from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.response import ResponseContext
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
@@ -195,6 +196,151 @@ class ScreenedPotential:
     W_qGG: list
     qpd_q: list
 
+    # ------------------------------------------------------------------
+    # Persistence: pickle-stream W_file format
+    #
+    # A W_file is a single binary file consisting of:
+    #   - one pickle dump of a header dict (metadata)
+    #   - zero or more pickle dumps of per-q-point entry dicts, with keys
+    #     'iq', 'q_c', 'W_GG', 'pawcorr', 'qpd'.
+    # Entries are appended incrementally so W_GG for only one q-point is
+    # in memory at a time during both write and read.
+    # ------------------------------------------------------------------
+
+    _FILE_VERSION = 1
+
+    @staticmethod
+    def write_header(path, metadata, *, comm):
+        """Create a new W_file at `path` and write its header dict.
+
+        Called collectively; only rank 0 touches the filesystem.
+        """
+        if comm.rank == 0:
+            with open(path, 'wb') as fd:
+                header = dict(metadata)
+                header['version'] = ScreenedPotential._FILE_VERSION
+                pickle.dump(header, fd, pickle.HIGHEST_PROTOCOL)
+        comm.barrier()
+
+    @staticmethod
+    def append_qpoint(path, *, iq, q_c, W_GG, pawcorr, qpd, comm):
+        """Append one q-point entry to an existing W_file.
+
+        Called collectively; only rank 0 touches the filesystem. The
+        caller is responsible for ensuring `W_GG`, `pawcorr`, and `qpd`
+        are identical on all ranks (they are replicated by construction
+        in the current BSE code path).
+        """
+        if comm.rank == 0:
+            entry = {'iq': int(iq),
+                     'q_c': np.asarray(q_c, dtype=float),
+                     'W_GG': W_GG,
+                     'pawcorr': pawcorr,
+                     'qpd': qpd}
+            with open(path, 'ab') as fd:
+                pickle.dump(entry, fd, pickle.HIGHEST_PROTOCOL)
+        comm.barrier()
+
+    @staticmethod
+    def read_header(path):
+        """Return the header dict from a W_file (serial I/O)."""
+        with open(path, 'rb') as fd:
+            return pickle.load(fd)
+
+    @staticmethod
+    def open_for_reading(path, *, comm):
+        """Return a lazy, dict-like reader for a W_file.
+
+        Only one q-point entry is held in memory at a time across the
+        reader's lifetime. See `_ScreenedPotentialReader` for the API.
+        """
+        return _ScreenedPotentialReader(path, comm=comm)
+
+
+class _ScreenedPotentialReader:
+    """Lazy, dict-like reader for a W_file.
+
+    On construction (rank 0 only) the pickle stream is scanned once to
+    build an index `{q_c_tuple -> byte_offset}`; the header and index
+    are then broadcast to all other ranks. Each subsequent `get(q_c)`
+    call triggers a single `pickle.load` on rank 0, which is broadcast
+    to all other ranks.
+
+    Only one q-point entry (one `W_GG` array) is ever in memory at a
+    time.
+    """
+
+    _MATCH_TOL = 1e-8
+
+    def __init__(self, path, *, comm):
+        self.path = path
+        self.comm = comm
+
+        if comm.rank == 0:
+            header, index = self._scan(path)
+            version = header.get('version')
+            if version != ScreenedPotential._FILE_VERSION:
+                raise ValueError(
+                    f'W_file {path!r} has unsupported version '
+                    f'{version!r} (this gpaw expects '
+                    f'{ScreenedPotential._FILE_VERSION}).')
+            payload = (header, index)
+        else:
+            payload = None
+        payload = broadcast(payload, comm=comm)
+        self.header, self._index = payload
+
+    @staticmethod
+    def _scan(path):
+        """Scan the pickle stream and return (header, index).
+
+        `index` is a list of (q_c_tuple, byte_offset) pairs preserving
+        file order. Uses a list rather than a dict so lookups tolerate
+        small floating-point differences in q_c.
+        """
+        index = []
+        with open(path, 'rb') as fd:
+            header = pickle.load(fd)
+            while True:
+                offset = fd.tell()
+                try:
+                    entry = pickle.load(fd)
+                except EOFError:
+                    break
+                q_c = tuple(float(x) for x in entry['q_c'])
+                index.append((q_c, offset))
+                # `entry` (including its W_GG array) goes out of scope
+                # here and is freed before the next iteration.
+                del entry
+        return header, index
+
+    def _find_offset(self, q_c):
+        q_c_arr = np.asarray(q_c, dtype=float)
+        for stored_q_c, offset in self._index:
+            if np.max(np.abs(np.asarray(stored_q_c) - q_c_arr)) < \
+                    self._MATCH_TOL:
+                return offset
+        raise ValueError(
+            f'q_c={tuple(q_c_arr)} not found in W_file {self.path!r}. '
+            f'Available q-points: '
+            f'{[qc for qc, _ in self._index]}')
+
+    def get(self, q_c):
+        """Return (W_GG, pawcorr, qpd) for the requested q_c.
+
+        Collective across `self.comm`. Raises ValueError if no entry in
+        the file matches `q_c` within the reader's tolerance.
+        """
+        if self.comm.rank == 0:
+            offset = self._find_offset(q_c)
+            with open(self.path, 'rb') as fd:
+                fd.seek(offset)
+                entry = pickle.load(fd)
+            payload = (entry['W_GG'], entry['pawcorr'], entry['qpd'])
+        else:
+            payload = None
+        return broadcast(payload, comm=self.comm)
+
 
 class SpinorData:
     def __init__(self, con_m, val_m, e_km, f_km, v_kmn, soc_tol):
@@ -278,7 +424,8 @@ class BSEBackend:
                  q0_correction=False,
                  mode='BSE',
                  q_c=(0.0, 0.0, 0.0),
-                 direction=0):
+                 direction=0,
+                 W_file=None):
 
         integrate_gamma = GammaIntegrationMode(integrate_gamma)
 
@@ -347,7 +494,14 @@ class BSEBackend:
         self.gw_kn = gw_kn
         self.eshift = eshift
 
+        self.truncation = truncation
         self.coulomb = CoulombKernel.from_gs(self.gs, truncation=truncation)
+
+        # Lazy reader for a precomputed W_file (see precompute_W). None
+        # unless `W_file` was passed to the constructor; initialized on
+        # first use inside _compute_screened_potential_for_q.
+        self.W_file = W_file
+        self._W_reader = None
 
         # Distribution of kpoints
         self.myKrange, self.myKsize = self.parallelisation_kpoints()
@@ -869,13 +1023,24 @@ class BSEBackend:
         return ScreenedPotential(pawcorr_q, W_qGG, qpd_q)
 
     def _compute_screened_potential_for_q(self, q_c):
-        """Compute chi0, W_GG, PAW corrections, and PW descriptor for one
-        q-point.
+        """Obtain W_GG, PAW corrections, and PW descriptor for one q-point.
 
-        Returns (W_GG, pawcorr, qpd) tuple. This is used by the direct
-        kernel to process one IBZ q-point at a time without storing all
-        W_qGG in memory.
+        Returns a ``(W_GG, pawcorr, qpd)`` tuple. This is used by the
+        direct kernel to process one IBZ q-point at a time without
+        storing all W_qGG in memory.
+
+        If this BSE object was constructed with ``W_file=<path>``, the
+        data is loaded lazily from that file instead of recomputed from
+        chi0. The file header is validated against the current BSE
+        settings on first access.
         """
+        if self.W_file is not None:
+            if self._W_reader is None:
+                self._W_reader = ScreenedPotential.open_for_reading(
+                    self.W_file, comm=self.context.comm)
+                self._validate_W_file_header(self._W_reader.header)
+            return self._W_reader.get(q_c)
+
         chi0 = self._chi0calc.calculate(q_c)
         W_wGG = self._wcalc.calculate_W_wGG(chi0)
         assert W_wGG.shape[0] == 1  # there should only be 1 frequency point
@@ -883,6 +1048,84 @@ class BSEBackend:
         pawcorr = self._chi0calc.chi0_body_calc.pawcorr
         qpd = chi0.qpd
         return W_GG, pawcorr, qpd
+
+    def _W_file_metadata(self):
+        """Build the header dict stored at the start of a W_file.
+
+        The contents are later compared by _validate_W_file_header when
+        the file is loaded; changing keys here is a file-format change.
+        """
+        gim = self.integrate_gamma
+        return {
+            'ecut': float(self.ecut),
+            'nbands': self.nbands,
+            'integrate_gamma': {
+                'type': gim.type,
+                'reduced': gim.reduced,
+                'N': gim._N,
+            },
+            'q0_correction': bool(self.q0_correction),
+            'truncation': self.truncation,
+            'ibzk_kc': np.asarray(self.qd.ibzk_kc, dtype=float),
+            'nibzkpts': int(self.qd.nibzkpts),
+            'N_c': np.asarray(self.kd.N_c, dtype=int),
+        }
+
+    def _validate_W_file_header(self, header):
+        """Raise ValueError if `header` is incompatible with this BSE."""
+        expected = self._W_file_metadata()
+
+        def _fail(key, want, got):
+            raise ValueError(
+                f'W_file {self.W_file!r} is incompatible with this BSE '
+                f'calculation: {key} mismatch '
+                f'(expected {want!r}, got {got!r}).')
+
+        for key in ('ecut', 'nbands', 'q0_correction', 'truncation',
+                    'nibzkpts', 'integrate_gamma'):
+            if header.get(key) != expected[key]:
+                _fail(key, expected[key], header.get(key))
+
+        for key in ('ibzk_kc', 'N_c'):
+            got = np.asarray(header.get(key))
+            want = expected[key]
+            if got.shape != want.shape or not np.allclose(got, want):
+                _fail(key, want, got)
+
+    def precompute_W(self, path):
+        """Compute W for every IBZ q-point and stream it to `path`.
+
+        The W_file written here is subsequently consumable by a BSE
+        constructed with ``W_file=path`` (and otherwise matching
+        settings). W is computed and serialized one q-point at a time,
+        so peak memory stays at a single W_GG even while the full list
+        is being written.
+        """
+        assert self.W_file is None, (
+            'precompute_W should be called on a BSE constructed without '
+            'W_file; otherwise it would read from the file it is trying '
+            'to create.')
+
+        ScreenedPotential.write_header(
+            path, self._W_file_metadata(), comm=self.context.comm)
+
+        t0 = time()
+        self.context.print(
+            f'Precomputing screened potential to {path}')
+        for iq, q_c in enumerate(self.qd.ibzk_kc):
+            W_GG, pawcorr, qpd = self._compute_screened_potential_for_q(
+                q_c)
+            ScreenedPotential.append_qpoint(
+                path, iq=iq, q_c=q_c, W_GG=W_GG,
+                pawcorr=pawcorr, qpd=qpd, comm=self.context.comm)
+
+            if iq % (self.qd.nibzkpts // 5 + 1) == 2:
+                dt = time() - t0
+                tleft = dt * self.qd.nibzkpts / (iq + 1) - dt
+                self.context.print(
+                    '  Finished {} q-points in {} - Estimated {} left'.format(
+                        iq + 1, timedelta(seconds=round(dt)), timedelta(
+                            seconds=round(tleft))))
 
     @timer('diagonalize')
     def diagonalize_bse_matrix(self, bsematrix):
@@ -1261,6 +1504,14 @@ class BSE(BSEBackend):
             txt output
         mode: str
             Theory level used. can be RPA TDHF or BSE. Only BSE is screened.
+        W_file: str or Path or None
+            Path to a file containing a precomputed screened interaction
+            W_qGG, previously produced by :meth:`precompute_W`. When
+            provided, W is loaded lazily (one q-point at a time) from
+            this file instead of recomputed from chi0. The file header
+            is validated against the current BSE settings (ecut, nbands,
+            integrate_gamma, q0_correction, truncation, IBZ q-points)
+            and a mismatch raises ValueError. Default: None.
         """
         comm = normalize_communicator(comm)
         gs, context = get_gs_and_context(
