@@ -3,8 +3,19 @@ from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap, to_rgba
 from ase.formula import Formula
 from gpaw.new.ase_interface import GPAW
+
+
+# Tagged-layer colors (Paul Tol's 'vibrant' qualitative palette).
+PROJ_COLORS = {
+    'left': np.array(to_rgba('#0077BB')[:3]),
+    'right': np.array(to_rgba('#EE3377')[:3]),
+    'inter': np.array(to_rgba('#92D64E')[:3]),
+}
+# Layer 0 (e.g. MoSe2) takes the 'left' color, layer 1 (e.g. WSe2) the 'right'.
+LAYER_COLORS = (PROJ_COLORS['left'], PROJ_COLORS['right'])
 
 
 def layer_formula(atoms, tag):
@@ -81,6 +92,14 @@ assert projection_layer in (0, 1), 'projection_layer must be 0 or 1'
 proj_name = layer0_name if projection_layer == 0 else layer1_name
 proj_tex = layer0_tex if projection_layer == 0 else layer1_tex
 proj_mask = layer0_mask if projection_layer == 0 else layer1_mask
+
+# Colormap interpolating between the two layer colors. The colorbar shows the
+# *projected* layer's weight (0 -> 1), so the high end always carries that
+# layer's color and the low end the other layer's color.
+cmap = LinearSegmentedColormap.from_list(
+    'layer_proj',
+    [LAYER_COLORS[1 - projection_layer], LAYER_COLORS[projection_layer]],
+)
 
 if use_soc:
     # --- SOC eigenstates ---
@@ -297,7 +316,7 @@ else:
     ax.set_title(f'{layer0_tex}-{layer1_tex}')
 
 sc = ax.scatter(X.ravel(), plot_eigs.ravel(), c=plot_weights.ravel(),
-                cmap='coolwarm', vmin=0, vmax=1, s=1, alpha=alpha)
+                cmap=cmap, vmin=0, vmax=1, s=1, alpha=alpha)
 
 fig.colorbar(sc, ax=ax, label=color_label)
 bs_filename = f'bandstructure_{proj_name}_spin_{spin}.png'
