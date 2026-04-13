@@ -564,6 +564,7 @@ def non_self_consistent_hybrid_xc_energy(
 
     ibzwfs.make_sure_wfs_are_read_from_gpw_file()
 
+    assert isinstance(ibz2bz, PWFDIBZWaveFunctions)
     hybham.update_wave_functions(ibzwfs)
 
     for wfs in ibzwfs:
