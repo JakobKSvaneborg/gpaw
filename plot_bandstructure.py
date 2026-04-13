@@ -51,6 +51,7 @@ if use_soc:
 
     # Compute SOC layer projections using LCAO coefficients + SOC eigenvectors
     weights_layer0 = np.zeros((nkpts, nsoc))
+    total_mk = np.zeros((nkpts, nsoc))
 
     for wfs in ibzwfs:
         k = wfs.k
@@ -69,10 +70,18 @@ if use_soc:
         w_mM = w_up + w_dn
 
         weights_layer0[k] = w_mM[:, layer0_mask].sum(axis=1)
+        total_mk[k] = w_mM.sum(axis=1)
 
-    # Sanity check
-    total = w_mM.sum(axis=1)
-    print(f'Mulliken weight sum (last k): min={total.min():.6f}, max={total.max():.6f}')
+    # Mulliken weights must sum to 1 for each SOC state: LCAO orthonormality
+    # (C^dag S C = I) + unitarity of v_mn (rows are unit vectors from eigh)
+    # guarantee this by construction. Assert loudly so a violation surfaces
+    # instead of silently producing a misleading colormap.
+    print(f'Mulliken weight sum: '
+          f'min={total_mk.min():.6f}, max={total_mk.max():.6f}')
+    assert np.allclose(total_mk, 1.0, atol=1e-6), (
+        f'SOC Mulliken weights not normalized: '
+        f'min={total_mk.min():.6f}, max={total_mk.max():.6f}'
+    )
 
     # Data for plotting
     plot_eigs = soc_eigs         # (nkpts, nsoc)
@@ -85,6 +94,7 @@ else:
     nspins, _, nbands = energies.shape
 
     weights_layer0 = np.zeros((nspins, nkpts, nbands))
+    total_skn = np.zeros((nspins, nkpts, nbands))
 
     for wfs in ibzwfs:
         s, k = wfs.spin, wfs.k
@@ -94,6 +104,15 @@ else:
         CS_nM = C_nM @ S_MM
         w_nM = np.real(CS_nM * C_nM.conj())
         weights_layer0[s, k] = w_nM[:, layer0_mask].sum(axis=1)
+        total_skn[s, k] = w_nM.sum(axis=1)
+
+    # Mulliken weights must sum to 1 for each band (LCAO orthonormality).
+    print(f'Mulliken weight sum: '
+          f'min={total_skn.min():.6f}, max={total_skn.max():.6f}')
+    assert np.allclose(total_skn, 1.0, atol=1e-6), (
+        f'Mulliken weights not normalized: '
+        f'min={total_skn.min():.6f}, max={total_skn.max():.6f}'
+    )
 
     # Data for plotting (use first spin channel)
     plot_eigs = energies[0]         # (nkpts, nbands)
