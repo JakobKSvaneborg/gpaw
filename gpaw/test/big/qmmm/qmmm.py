@@ -29,7 +29,8 @@ for selection in [[0, 1, 2], [3, 4, 5]]:
          for i in range(3)])
 
     dimer.calc = EIQMMM(selection,
-                        GPAW(mode='fd', txt=name + '.txt', h=0.14),
+                        GPAW(mode='fd', txt=name + '.txt', h=0.14,
+                             legacy_gpaw=True),
                         TIP4P(),
                         interaction,
                         vacuum=4,
