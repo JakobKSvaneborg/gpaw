@@ -28,6 +28,9 @@ spin = 'both'        # 'both', 'up' or 'down' -- selects spin character to plot.
                      # Linearly polarized light couples electrons/holes of the
                      # same spin, so filtering to 'up' or 'down' shows only
                      # bands relevant for singlet excitations.
+projection_layer = 1 # 0 or 1 -- which layer's Mulliken weight colors the points
+                     # (the "high" / red end of the colormap). The other layer
+                     # ends up at the "low" / blue end.
 
 # --- Band structure calculation (cached) ---
 gs_gpw = 'gs_scs.gpw'
@@ -72,6 +75,12 @@ layer0_name = layer_formula(calc.atoms, 0)
 layer1_name = layer_formula(calc.atoms, 1)
 layer0_tex = latexify(layer0_name)
 layer1_tex = latexify(layer1_name)
+
+# Name of the projected-onto layer (high end of the colormap).
+assert projection_layer in (0, 1), 'projection_layer must be 0 or 1'
+proj_name = layer0_name if projection_layer == 0 else layer1_name
+proj_tex = layer0_tex if projection_layer == 0 else layer1_tex
+proj_mask = layer0_mask if projection_layer == 0 else layer1_mask
 
 if use_soc:
     # --- SOC eigenstates ---
@@ -136,20 +145,25 @@ if use_soc:
     )
 
     # Build plot weights. For spin='both' the denominator is 1 (total Mulliken
-    # weight) and we get the usual layer-0 fraction. For spin='up'/'down' we
-    # normalize by the weight of the selected spin only -- this is the
-    # conditional probability "given the state has the selected spin, what
-    # fraction sits on layer 0?". The absolute weight of the selected spin is
-    # kept in `spin_weight` and used as per-point alpha so bands dominated by
-    # the other spin fade out of the plot.
+    # weight) and we get the usual projected-layer fraction. For
+    # spin='up'/'down' we normalize by the weight of the selected spin only --
+    # the conditional probability "given the state has the selected spin, what
+    # fraction sits on the projected layer?". The absolute weight of the
+    # selected spin is kept in `spin_weight` and used as per-point alpha so
+    # bands dominated by the other spin fade out of the plot.
+    if projection_layer == 0:
+        wup_P_km, wdn_P_km = wup_L0_km, wdn_L0_km
+    else:
+        wup_P_km, wdn_P_km = wup_L1_km, wdn_L1_km
+
     if spin == 'both':
-        num = wup_L0_km + wdn_L0_km
+        num = wup_P_km + wdn_P_km
         den = total_mk
     elif spin == 'up':
-        num = wup_L0_km
+        num = wup_P_km
         den = wup_L0_km + wup_L1_km
     elif spin == 'down':
-        num = wdn_L0_km
+        num = wdn_P_km
         den = wdn_L0_km + wdn_L1_km
     else:
         raise ValueError(f"spin must be 'both', 'up' or 'down', got {spin!r}")
@@ -171,7 +185,7 @@ else:
     energies = bs.energies  # (nspins, nkpts, nbands)
     nspins, _, nbands = energies.shape
 
-    weights_layer0 = np.zeros((nspins, nkpts, nbands))
+    weights_P = np.zeros((nspins, nkpts, nbands))
     total_skn = np.zeros((nspins, nkpts, nbands))
 
     for wfs in ibzwfs:
@@ -184,11 +198,11 @@ else:
         # on the overlap and the sum only equals 1 when S is real-symmetric.
         CS_nM = C_nM @ S_MM.T
         w_nM = np.real(CS_nM * C_nM.conj())
-        weights_layer0[s, k] = w_nM[:, layer0_mask].sum(axis=1)
+        weights_P[s, k] = w_nM[:, proj_mask].sum(axis=1)
         total_skn[s, k] = w_nM.sum(axis=1)
 
     # In parallel each kpt_comm rank only fills its own k-points; aggregate.
-    ibzwfs.kpt_comm.sum(weights_layer0)
+    ibzwfs.kpt_comm.sum(weights_P)
     ibzwfs.kpt_comm.sum(total_skn)
 
     # Mulliken weights must sum to 1 for each band (LCAO orthonormality).
@@ -203,13 +217,13 @@ else:
     # otherwise fall back to the single available channel.
     if spin == 'both' or nspins == 1:
         plot_eigs = energies[0]
-        plot_weights = weights_layer0[0]
+        plot_weights = weights_P[0]
     elif spin == 'up':
         plot_eigs = energies[0]
-        plot_weights = weights_layer0[0]
+        plot_weights = weights_P[0]
     elif spin == 'down':
         plot_eigs = energies[1]
-        plot_weights = weights_layer0[1]
+        plot_weights = weights_P[1]
     else:
         raise ValueError(f"spin must be 'both', 'up' or 'down', got {spin!r}")
     spin_weight = np.ones_like(plot_weights)  # no fading in scalar case
@@ -272,10 +286,10 @@ X = np.tile(xcoords, (nbands_plot, 1)).T   # (nkpts, nbands_plot)
 # each SOC state) as the per-point alpha.
 if use_soc and spin != 'both':
     alpha = np.clip(spin_weight.ravel(), 0.0, 1.0)
-    color_label = f'{layer0_tex} fraction (spin {spin})'
+    color_label = f'{proj_tex} fraction (spin {spin})'
 else:
     alpha = 1.0
-    color_label = f'{layer0_tex} weight'
+    color_label = f'{proj_tex} weight'
 
 if use_soc and spin != 'both':
     ax.set_title(f'{layer0_tex}-{layer1_tex} spin {spin}')
@@ -286,6 +300,6 @@ sc = ax.scatter(X.ravel(), plot_eigs.ravel(), c=plot_weights.ravel(),
                 cmap='coolwarm', vmin=0, vmax=1, s=1, alpha=alpha)
 
 fig.colorbar(sc, ax=ax, label=color_label)
-bs_filename = f'bandstructure_spin_{spin}.png'
+bs_filename = f'bandstructure_{proj_name}_spin_{spin}.png'
 fig.savefig(bs_filename, dpi=200)
 print(f'Saved {bs_filename}')
