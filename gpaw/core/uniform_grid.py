@@ -618,7 +618,7 @@ class UGArray(XArray[UGDesc]):
             input = self.gather()
             if input is not None:
                 output = input.interpolate(plan1=plan1, plan2=plan2,
-                                           out=out.desc.new(comm=None))
+                                           grid=out.desc.new(comm=None))
                 out.scatter_from(output.data)
             else:
                 out.scatter_from()
