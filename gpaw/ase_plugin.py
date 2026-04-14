@@ -42,7 +42,7 @@ def read_gpaw_log(filedesc, index):
         if 'energy_contributions' in dct:
             kwargs['energy'] = dct['energy_contributions']['extrapolated']
         if 'forces' in dct:
-            kwargs['forces'] = [(x, y, z) for _, x, y, z in dct['forces']]
+            kwargs['forces'] = dct['forces']
         if 'stress' in dct:
             kwargs['stress'] = dct['stress']
         if 'magnetic_moments' in dct:
