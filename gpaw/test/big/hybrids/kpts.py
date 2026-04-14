@@ -67,6 +67,8 @@ def main():
                                'PBE0', 'HSE06']:
                         print(i, spinpol, setup, symmetry, kpts, xc,
                               len(atoms.calc.wfs.kpt_u))
+                        if xc != 'HSE06' and isinstance(kpts, list):
+                            continue
                         check(atoms, xc, i)
                         i += 1
 

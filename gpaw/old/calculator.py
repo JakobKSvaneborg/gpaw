@@ -1944,7 +1944,7 @@ class GPAW(Calculator):
 
         energies, weights = all_electron_LDOS(self, mol, spin,
                                               lc=lc, wf_k=wf_k, P_aui=P_aui)
-        return fold(energies * Ha, weights, npts, width)
+        return fold(energies, weights, npts, width)
 
     def get_pseudo_wave_function(self, band=0, kpt=0, spin=0, broadcast=True,
                                  pad=True, periodic=False):

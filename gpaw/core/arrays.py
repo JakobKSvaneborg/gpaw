@@ -323,6 +323,7 @@ class XArray(Generic[DomainType], XP):
         return result
 
     def interpolate(self,
+                    *,
                     plan1: fftw.FFTPlans | None = None,
                     plan2: fftw.FFTPlans | None = None,
                     grid: UGDesc | None = None,
