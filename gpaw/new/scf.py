@@ -237,7 +237,7 @@ def write_iteration(criteria, converged_items, entries, ctx, log):
             print_iloop = True
 
     if ctx.niter == 1:
-        header = '|iter     |     time |      energy | eigst | dens |'
+        header = '|iter     |     time |      energy | eigst |  dens |'
         for name in custom:
             criterion = criteria[name]
             header += f'{criterion.tablename:>5s} |'
@@ -268,7 +268,7 @@ def write_iteration(criteria, converged_items, entries, ctx, log):
     line += format_conv('{:>6s}', 'eigenstates')
 
     # Density.
-    line += format_conv('{:>5s}', 'density')
+    line += format_conv('{:>6s}', 'density')
 
     # Custom criteria (optional).
     for name in custom:

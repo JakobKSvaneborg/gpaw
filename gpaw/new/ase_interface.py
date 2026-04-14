@@ -179,7 +179,7 @@ class ASECalculator:
 
         scftime = scftimer()
 
-        self.log(f'Converged in {ctx.niter} steps')
+        self.log(f'\nConverged in {ctx.niter} steps')
         self.log(f'SCF loop duration: {scftime:.3f} s '
                  f'({scftime / ctx.niter:.3f} s/step)')
 
