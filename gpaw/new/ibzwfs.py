@@ -480,7 +480,7 @@ class IBZWaveFunctions(Generic[WFT]):
                     skipping = False
                 else:
                     if not skipping:
-                        rows.append(['...'])
+                        rows.append(['...', '', ''])
                         skipping = True
         else:
             header = ['band index',
@@ -500,7 +500,7 @@ class IBZWaveFunctions(Generic[WFT]):
                     skipping = False
                 else:
                     if not skipping:
-                        rows.append(['...'])
+                        rows.append(['...', '', '', '', ''])
                         skipping = True
 
         x, y, z = ibz.kpt_kc[k]
