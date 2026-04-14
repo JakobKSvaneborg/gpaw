@@ -290,29 +290,29 @@ class PWHybridHamiltonian(PWHamiltonian):
             D_aii = D_aii.copy()
             D_aii.data *= 0.5
 
-        evv = 0.0  # valence-valence contribution
-        evc = 0.0  # valence-core contribution
+        # PAW-corrections:
+        devv = 0.0  # valence-valence contribution
+        devc = 0.0  # valence-core contribution
         V_aii = D_aii.new()
         for a, D_ii in D_aii.items():
             VV_ii = pawexxvv(self.VV_app[a], D_ii)
             VC_ii = self.VC_aii[a]
             V_ii = -VC_ii - 2 * VV_ii
             V_aii[a] = V_ii
-            if calculate_energy:
+            if calculate_energy and wfs.k == 0:  # doesn't depend on k
                 ec = (D_ii * VC_ii).sum()
                 ev = (D_ii * VV_ii).sum()
-                evv -= ev
-                evc -= ec
+                devv -= ev
+                devc -= ec
 
         # distribute V_aii
         V2_aii = V_aii.gather(broadcast=True)
 
         if calculate_energy:
-            if u==0
-            nk = len(ibzwfs._wfs_u) / ibzwfs.nspins
-            evv = domain_comm.sum_scalar(evv) / nk
-            evc = domain_comm.sum_scalar(evc) / nk
-            evv=self.kpt_comm.sum_scalar(evv) / self.kpt_comm.size
+            # nk = len(ibzwfs._wfs_u) / ibzwfs.nspins
+            devv = domain_comm.sum_scalar(devv)
+            devc = domain_comm.sum_scalar(devc)
+            # evv=self.kpt_comm.sum_scalar(evv) / self.kpt_comm.size
         elif F1_av is not None and u == 0:
             for a, V_ii in V2_aii.items():
                 for psit in self.mypsits:
@@ -325,7 +325,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                     force_v = 2 / self.nbzk * force_v
                     F1_av[a] += force_v
 
-        ekin = -evc - 2 * evv
+        ekin = -evc - 2 * evv ....
 
         e = self._apply1(spin, D_aii, pt_aiG,
                          psit2_nG, Htpsit2_nG,
