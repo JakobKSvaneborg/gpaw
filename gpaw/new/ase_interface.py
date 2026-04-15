@@ -384,7 +384,24 @@ class ASECalculator:
     def get_pseudo_wave_function(self, band, kpt=0, spin=None,
                                  periodic=False,
                                  broadcast=True,
-                                 pad=True) -> Array3D | None:
+                                 pad=True,
+                                 bz=False) -> Array3D | None:
+        """Return the pseudo wave function for *band* at k-point *kpt*.
+
+        When ``bz=False`` (default) *kpt* is an index into the IBZ and
+        the behavior matches earlier releases.  When ``bz=True`` *kpt*
+        is interpreted as an index into the full BZ and the wave
+        function is obtained by applying the relevant symmetry
+        operation to the IBZ representative (plane-wave mode only).
+        """
+        if bz:
+            from gpaw.new.wannier import get_bz_pseudo_wave_function
+            if spin is None:
+                spin = 0
+            grid = self.dft.density.nt_sR.desc
+            return get_bz_pseudo_wave_function(
+                self.dft.ibzwfs, grid, band=band, K=kpt, spin=spin,
+                periodic=periodic, pad=pad)
         psit_1R = self.dft.wave_functions(n1=band, n2=band + 1,
                                           kpt=kpt, spin=spin,
                                           periodic=periodic,
