@@ -325,19 +325,19 @@ class PWHybridHamiltonian(PWHamiltonian):
                     force_v = 2 / self.nbzk * force_v
                     F1_av[a] += force_v
 
-        ekin = -evc - 2 * evv ....
+        ekin = -devc - 2 * devv# ....
 
         e = self._apply1(spin, D_aii, pt_aiG,
                          psit2_nG, Htpsit2_nG,
                          kweight, wfs.myocc_n, V_aii,
                          calculate_energy, F1_av)
 
-        evv += 0.5 * e
+        devv += 0.5 * e
         ekin -= e
 
         if calculate_energy:
-            for name, e in [('hybrid_xc_vc', evc),
-                            ('hybrid_xc_vv', evv),
+            for name, e in [('hybrid_xc_vc', devc),
+                            ('hybrid_xc_vv', devv),
                             ('hybrid_kinetic_correction', ekin)]:
                 e *= ibzwfs.spin_degeneracy
                 self.xc.energies[name] += e
