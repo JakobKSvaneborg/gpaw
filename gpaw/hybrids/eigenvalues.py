@@ -59,10 +59,14 @@ def non_self_consistent_eigenvalues(
                     np.zeros((1, 1, 1)),
                     np.zeros((1, 1, 1)))
         calc = GPAW(calc,  # type: ignore
-                    txt=None,
-                    parallel={'band': 1, 'kpt': 1})
+                    legacy_gpaw=False)
 
-    assert isinstance(calc, (GPAWOld, ASECalculator))
+    if not calc.old:
+        from gpaw.new.pw.nschse import NonSelfConsistentHybridXCCalculator
+        hybcalc = NonSelfConsistentHybridXCCalculator.from_dft_calculation(
+            calc.dft, xcname)
+        return hybcalc.calculate(calc.dft.ibzwfs, n1, n2, kpt_indices)
+
     wfs = calc.wfs
 
     if n2 <= 0:
