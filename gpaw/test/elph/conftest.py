@@ -1,10 +1,28 @@
+import os
 import pytest
+
 from ase.build import bulk
 
 from gpaw import GPAW
 from gpaw.elph import DisplacementRunner, Supercell
+from gpaw.mpi import broadcast, world
 
 SUPERCELL = (2, 1, 1)
+
+
+@pytest.fixture(scope='session')
+def session_tmp_path(tmp_path_factory):
+    if world.rank == 0:
+        path = tmp_path_factory.mktemp('elph_session')
+    else:
+        path = None
+    path = broadcast(path, comm=world)
+    cwd = os.getcwd()
+    os.chdir(path)
+    try:
+        yield path
+    finally:
+        os.chdir(cwd)
 
 
 def get_calc(txt, parallel={}):
@@ -17,9 +35,9 @@ def get_calc(txt, parallel={}):
                 txt=txt)
 
 
-# NOTE: This fixture might need a proper scope assigned
-@pytest.fixture(scope='module')
-def elph_cache(module_tmp_path):
+# elph_cache should only be calculated once per session
+@pytest.fixture(scope='session')
+def elph_cache(session_tmp_path):
     """Minimum elph cache for Li
 
     Uses 1x2x2 k-points and 2x1x1 SC to allow for parallelisaiton
@@ -36,9 +54,9 @@ def elph_cache(module_tmp_path):
     return elph
 
 
-# NOTE: This fixture might need a proper scope assigned
-@pytest.fixture(scope='module')
-def supercell_cache(module_tmp_path, elph_cache):
+# supercell_cache should only be calculated once per session
+@pytest.fixture(scope='session')
+def supercell_cache(session_tmp_path, elph_cache):
     atoms = bulk('Li', crystalstructure='bcc', a=3.51, cubic=True)
     elph_cache
     calc = get_calc(parallel={'domain': 1, 'band': 1},
