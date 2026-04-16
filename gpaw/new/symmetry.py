@@ -489,11 +489,11 @@ def symmetry_symbol(M_cc: np.ndarray) -> str:
     d = np.linalg.det(M_cc)
     t = np.linalg.trace(M_cc)
     if d == 1:
-        if (M_cc == np.eye(3)).all():
+        if t == 3:
             return 'E'
         n = int(round(2 * np.pi / np.acos((t - 1) / 2)))
         return f'C{n}'
-    if (M_cc == -np.eye(3)).all():
+    if t == -3:
         return 'i'
     if t == 1:
         return 'σ'
