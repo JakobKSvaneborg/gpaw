@@ -10,9 +10,9 @@ from myqueue.workflow import run
 def workflow():
     with run(script='s26_set.py', cores=8, tmax='1d'):
         run(function=check_s26)
-    run(script='hydrogen_atom.py', cores=16)
+    run(script='hydrogen_atom.py')
     if compiled_with_libvdwxc():
-        run(script='libvdwxc-example.py')
+        run(script='libvdwxc-example.py', cores=2)
         if libvdwxc_has_pfft():
             run(script='libvdwxc-pfft-example.py', cores=8)
     run(script='rsf_gamma.py', cores=8)

@@ -427,7 +427,7 @@ class IBZWaveFunctions(Generic[WFT]):
                 if rank == self.kpt_comm.rank:
                     wfs = self._get_wfs(k, spin)
                     coef_nX = wfs.gather_wave_function_coefficients()
-                    if coef_nX is not None:
+                    if wfs.domain_band_comm.rank == 0:
                         coef_nX = as_np(coef_nX)
                         if self.mode == 'pw':
                             x = coef_nX.shape[-1]

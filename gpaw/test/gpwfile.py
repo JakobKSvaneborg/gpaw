@@ -1290,7 +1290,7 @@ class GPWFiles(CachedFilesHandler):
         si = bulk('Si', 'diamond', a=5.43)
         k = 3
         si.calc = self.GPAW(
-            mode='fd', kpts=(k, k, k,),
+            mode='fd', kpts=(k, k, k),
             symmetry={'point_group': False,
                       'time_reversal': False},
             txt=self.folder / 'si_fd_bz.txt')

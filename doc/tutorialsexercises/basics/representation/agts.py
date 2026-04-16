@@ -20,6 +20,5 @@ def workflow():
     from myqueue.workflow import run
     with run(script='h2o.py'):
         run(function=test)
-
-    with run(script='h2o_ecut.py'):
-        run(function=test_ecut)
+        with run(script='h2o_ecut.py'):
+            run(function=test_ecut)

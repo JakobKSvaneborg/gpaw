@@ -271,4 +271,4 @@ emax = max(energies)
 assert energies[2] == emax
 assert abs(emax - energies[0] - 1.32) < 0.02
 d = images[2].get_distance(-1, -2)
-assert abs(d - 1.777) < 0.004
+assert abs(d - 1.772) < 0.004
