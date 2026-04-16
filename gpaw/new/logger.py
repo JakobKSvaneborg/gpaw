@@ -123,6 +123,11 @@ class Logger:
                 self(fmt.format(*row) + f'  # {comment}')
         self()
 
+    def dict(self, dct):
+        n = max(len(name) for name in dct)
+        for name, value in dct.items():
+            self(f'{name + ":":{n + 1}} {value}')
+
 
 def can_colorize(*, file: IO[str] | IO[bytes] | None = None) -> bool:
     """Code from Python 3.14b1: cpython/Lib/_colorize.py."""

@@ -41,13 +41,15 @@ def write_header(log: Logger, params: Parameters) -> None:
     header(log, log.comm)
     with log.indent('\nEnvironment variables:'):
         import gpaw
+        envvars = {}
         for name in sorted(gpaw.allowed_envvars):
             try:
                 value = getattr(gpaw, name)
             except AttributeError:
                 continue
-            log(f'  {name}: {value}')
-    with log.indent('Input parameters:'):
+            envvars[name] = value
+        log.dict(envvars)
+    with log.indent('\nInput parameters:'):
         log(params)
 
 
