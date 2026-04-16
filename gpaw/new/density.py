@@ -131,11 +131,11 @@ class Density:
         return f'Density({self.nt_sR}, {self.D_asii}, charge={self.charge})'
 
     def __str__(self) -> str:
-        return (f'density:\n'
-                f'  valence electrons: {self.nvalence}\n'
-                f'  components: {self.ncomponents}\n'
-                f'  grid points: {self.nt_sR.desc.size}\n'
-                f'  charge: {self.charge}  # |e|\n')
+        return (f'Density:\n'
+                f'  Valence electrons: {self.nvalence}\n'
+                f'  Components: {self.ncomponents}\n'
+                f'  Grid points: {self.nt_sR.desc.size}\n'
+                f'  Charge: {self.charge}  # |e|\n')
 
     @property
     def nct_R(self):

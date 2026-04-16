@@ -111,7 +111,7 @@ class UGDesc(Domain['UGArray']):
             zbc)
 
     def _short_string(self, global_shape):
-        return f'uniform wave function grid shape: {global_shape}'
+        return f'Uniform wave function grid shape: {global_shape}'
 
     @cached_property
     def phase_factor_cd(self):
