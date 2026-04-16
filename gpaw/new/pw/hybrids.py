@@ -606,8 +606,10 @@ def _semilocal_xc_energy(dft: DFTCalculation,
     fine_grid = dft.pot_calc.fine_grid
     slxc = create_functional(semilocal_xc_name, fine_grid)
     nt_sr = dft.density.nt_sR.interpolate(grid=fine_grid)
-    energy, _, _ = slxc.calculate(nt_sr)
+    energy = 0.0
     for a, D_sii in dft.density.D_asii.items():
         D_sp = np.array([pack_density(D_ii.real) for D_ii in D_sii])
         energy += slxc.calculate_paw_correction(dft.setups[a], D_sp)
-    return dft.density.nt_sR.desc.comm.sum_scalar(energy)
+    energy = dft.density.nt_sR.desc.comm.sum_scalar(energy)
+    energy += slxc.calculate(nt_sr)[0]
+    return energy
