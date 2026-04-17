@@ -215,7 +215,7 @@ if _num_build_jobs > 1:
     makefile_build = True
 
 if use_cpp:
-    print("EXPERIMENTAL: Compiling entire GPAW as C++.")
+    print("Compiling entire GPAW as C++. NOTE: This will become required in the next GPAW version!")
     ensure_cpp_standard(extra_compile_args)
 
 # Deprecation check

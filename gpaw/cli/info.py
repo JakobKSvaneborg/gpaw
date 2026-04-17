@@ -101,7 +101,13 @@ def info(comm=None) -> None:
     have_mpi = hasattr(cgpaw, 'Communicator')
     results.append(('MPI enabled', have_mpi))
     results.append(('OpenMP enabled', cgpaw.have_openmp))
-    results.append(('Compiled as C++ (experimental)', GPAW_IS_CPP))
+    results.append(('Compiled as C++', GPAW_IS_CPP))
+    if not GPAW_IS_CPP:
+        warnings['C++ required'] = (
+            'Next version of GPAW will start requiring a C++ compiler. '
+            'Please modify your siteconfig.py and set `compiler` to a valid '
+            'C++ compiler. For example, change `gcc` to `g++`, or `mpicc` to '
+            '`mpicxx`, or `cc` to `CC`')
     results.append(('GPU enabled', GPU_ENABLED))
     results.append(('GPU-aware MPI', GPU_AWARE_MPI))
     cupy_version = 'cupy-' + cupy.__version__
