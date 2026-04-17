@@ -487,7 +487,7 @@ def symmetry_symbol(M_cc: np.ndarray) -> str:
     'S3'
     """
     d = np.linalg.det(M_cc)
-    t = np.linalg.trace(M_cc)
+    t = np.trace(M_cc)
     if d == 1:
         if t == 3:
             return 'E'
