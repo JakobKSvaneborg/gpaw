@@ -34,14 +34,14 @@ def test_all(kb):
         xc='HSE06')
     a.calc = GPAW(
         kpts={'size': (1, 1, 4), 'gamma': True},
-        txt=f'Li2-{world.size}.txt',
+        #txt=f'Li2-{world.size}.txt',
         parallel={'kpt': k, 'band': b},
         **kwargs)
     e1 = a.get_potential_energy()
-    f1 = a.get_forces()
     print(e1)
-    print(f1)
     assert e1 == pytest.approx(-2.6074285563393125)
+    f1 = a.get_forces()
+    print(f1)
     assert f1[0, 0] == pytest.approx(-1.44417016, abs=5e-6)
     assert f1[0, 0] == pytest.approx(f1[0, 1])
     assert f1[0, 0] == pytest.approx(-f1[1, 0])

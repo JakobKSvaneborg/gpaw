@@ -244,7 +244,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.mypsits, _ = ibz2bz(
             ibzwfs, self.setups, self.relpos_ac, self.grid_local, self.plan,
             self.log if self.nupdates == 0 else None, forces)
-        self.xc.energies = {'hybrid_xc_cc': 0.0,
+        self.xc.energies = {'hybrid_xc_cc': self.exx_cc,
                             'hybrid_xc_vc': 0.0,
                             'hybrid_xc_vv': 0.0,
                             'hybrid_kinetic_correction': 0.0}
@@ -268,7 +268,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         assert isinstance(psit2_nG, PWArray)
         assert Htpsit2_nG is None or isinstance(Htpsit2_nG, PWArray)
         assert isinstance(ibzwfs, PWFDIBZWaveFunctions)
-        assert len(ibzwfs.ibz) * ibzwfs.nspins % self.kpt_comm.size == 0
+        #assert len(ibzwfs.ibz) * ibzwfs.nspins % self.kpt_comm.size == 0
 
         # domain_comm = psit2_nG.desc.comm
 
@@ -301,17 +301,17 @@ class PWHybridHamiltonian(PWHamiltonian):
             VC_ii = self.VC_aii[a]
             V_ii = -VC_ii - 2 * VV_ii
             V_aii[a] = V_ii
-            if calculate_energy and wfs.k == 0 and self.band_comm.rank == 0:
+            if calculate_energy and wfs.k == 0 and self.band_comm.rank == 0 and wfs.weight != 0.0:
                 # doesn't depend on k
                 ec = (D_ii * VC_ii).sum()
                 ev = (D_ii * VV_ii).sum()
-                self.devv -= ev
-                self.devc -= ec
+                self.devv -= ev * ibzwfs.spin_degeneracy
+                self.devc -= ec * ibzwfs.spin_degeneracy
 
         # distribute V_aii
         V2_aii = V_aii.gather(broadcast=True)
 
-        if F1_av is not None and u == 0:
+        if F1_av is not None and u == 0 and wfs.weight != 0.0:
             for a, V_ii in V2_aii.items():
                 for psit in self.mypsits:
                     dP_anvi = psit.dP_anvi
@@ -328,15 +328,15 @@ class PWHybridHamiltonian(PWHamiltonian):
                            kweight, wfs.myocc_n, V_aii,
                            calculate_energy, F1_av)
         evv *= 0.5 * ibzwfs.spin_degeneracy
-
         if calculate_energy:
             self.xc.energies['hybrid_xc_vv'] += evv
             self.xc.energies['hybrid_kinetic_correction'] -= 2 * evv
-            if u == len(ibzwfs._wfs_u) - 1:
-                devv = self.comm.sum_scalar(self.devv) * ibzwfs.spin_degeneracy
-                devc = self.comm.sum_scalar(self.devc) * ibzwfs.spin_degeneracy
-                dekin = -devc - 2 * devv
+            if 0:  # u == 0:
                 self.xc.energies['hybrid_xc_cc'] += self.exx_cc
+            if 0:  # u == len(ibzwfs._wfs_u) - 1:
+                devv =0# self.comm.sum_scalar(self.devv)
+                devc =0# self.comm.sum_scalar(self.devc)
+                dekin = -devc - 2 * devv
                 self.xc.energies['hybrid_xc_vc'] += devc
                 self.xc.energies['hybrid_xc_vv'] += devv
                 self.xc.energies['hybrid_kinetic_correction'] += dekin
