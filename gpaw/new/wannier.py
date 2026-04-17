@@ -13,6 +13,10 @@ from gpaw.typing import Array2D
 
 
 def _bz_wfs(ibzwfs: IBZWaveFunctions, K: int, spin: int):
+    # TODO: consolidate with gpaw/response/symmetry.py (filters
+    # non-symmorphic ops) and gpaw/new/pw/hybrids.py (symmorphic only).
+    # This is the first code path in GPAW that handles non-symmorphic
+    # symmetry for wave functions in PW space.
     """Construct BZ wave functions and PAW projections at BZ k-point *K*.
 
     Parameters
@@ -55,6 +59,9 @@ def _bz_wfs(ibzwfs: IBZWaveFunctions, K: int, spin: int):
     # Fast path: identity rotation, no time reversal, no translation,
     # and the IBZ representative is this BZ k-point.  This also covers
     # non-PW modes (FD, LCAO) when no symmetry reduction is in use.
+    # The ibz2bz check is defensive: it is implied by the other three
+    # conditions (U=I, τ=0, no TR make k_bz = k_ibz), but guards
+    # against floating-point near-misses in BZ k-point matching.
     identity = (np.array_equal(U_cc, np.eye(3, dtype=int))
                 and not time_reversal
                 and not tau_c.any()
@@ -255,33 +262,3 @@ def get_projections(ibzwfs: IBZWaveFunctions,
         f_bnl = lf_blX.integrate(psit_nX)
         f_KnB[K] = f_bnl.data
     return f_KnB.conj()
-
-
-def get_bz_pseudo_wave_function(ibzwfs: IBZWaveFunctions,
-                                grid,
-                                band: int,
-                                K: int,
-                                spin: int = 0,
-                                periodic: bool = False,
-                                pad: bool = True) -> np.ndarray:
-    """Pseudo wave function at a BZ k-point (single band).
-
-    Mirrors :meth:`gpaw.new.calculation.DFTCalculation.wave_functions`
-    but takes a BZ index *K* and applies the IBZ -> BZ unfolding via
-    :func:`_bz_wfs`.  Returns a real-space array on *grid* for one
-    band, with the same scaling (Bohr**-1.5) as
-    :meth:`ASECalculator.get_pseudo_wave_function`.
-    """
-    assert ibzwfs.comm.size == 1
-    wfs = _bz_wfs(ibzwfs, K, spin)
-    psit_nX = wfs.psit_nX
-    # Keep only the one band we care about.
-    one_band = psit_nX.desc.from_data(psit_nX.data[band:band + 1])
-    target = grid.new(kpt=psit_nX.desc.kpt_c, dtype=psit_nX.desc.dtype)
-    psit_nR = one_band.ifft(grid=target, periodic=False)
-    if not psit_nR.desc.pbc.all() and pad:
-        psit_nR = psit_nR.to_pbc_grid()
-    if periodic:
-        psit_nR.multiply_by_eikr(-psit_nR.desc.kpt_c)
-    psit_nR = psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)
-    return psit_nR.data[0]

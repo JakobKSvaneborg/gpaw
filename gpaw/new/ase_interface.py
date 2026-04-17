@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 from ase import Atoms
-from ase.units import Ha
+from ase.units import Bohr, Ha
 
 from gpaw import __version__
 from gpaw.core import UGArray
@@ -395,13 +395,22 @@ class ASECalculator:
         operation to the IBZ representative (plane-wave mode only).
         """
         if bz:
-            from gpaw.new.wannier import get_bz_pseudo_wave_function
+            from gpaw.new.wannier import _bz_wfs
             if spin is None:
                 spin = 0
+            ibzwfs = self.dft.ibzwfs
             grid = self.dft.density.nt_sR.desc
-            return get_bz_pseudo_wave_function(
-                self.dft.ibzwfs, grid, band=band, K=kpt, spin=spin,
-                periodic=periodic, pad=pad)
+            wfs = _bz_wfs(ibzwfs, kpt, spin)
+            wfs = wfs.to_uniform_grid_wave_functions(grid, None)
+            psit_nR = wfs.psit_nX
+            if not psit_nR.desc.pbc.all() and pad:
+                psit_nR = psit_nR.to_pbc_grid()
+            if periodic:
+                psit_nR.multiply_by_eikr(-psit_nR.desc.kpt_c)
+            psit_nR = psit_nR.gather(broadcast=broadcast)
+            if psit_nR is None:
+                return None
+            return psit_nR.scaled(cell=Bohr, values=Bohr**-1.5)[band].data
         psit_1R = self.dft.wave_functions(n1=band, n2=band + 1,
                                           kpt=kpt, spin=spin,
                                           periodic=periodic,
