@@ -112,9 +112,12 @@ Do the following in a clean terminal session and exit afterwards!
   module load partition/G
   module load EasyBuild-user
 
+  # Get updated build recipes
+  git clone -b update-gpaw-deps https://github.com/cschpc/LUMI-EasyBuild-contrib.git
+
   # Install
-  eb CuPy-13.5.1-cpeGNU-25.03-rocm.eb -r
-  eb magma-2.9.0-cpeAMD-25.03-rocm.eb -r
+  eb CuPy-13.6.0-cpeGNU-25.03-rocm.eb -r LUMI-EasyBuild-contrib/easybuild/easyconfigs/
+  eb magma-2.8.0-cpeGNU-25.03-rocm.eb -r LUMI-EasyBuild-contrib/easybuild/easyconfigs/
   eb libxc-7.0.0-cpeGNU-25.03-FHC.eb -r
 
   # Exit the terminal after easybuild installations!
@@ -146,8 +149,8 @@ Then, the following steps build GPAW in a Python virtual environment:
   module load rocm/6.3.4
   module load cray-fftw/3.3.10.10
   module load buildtools-python/25.03-cray-python3.11
-  module load CuPy/13.5.1-cpeGNU-25.03-rocm             # from EBU_USER_PREFIX
-  module load magma/2.9.0-cpeGNU-25.03-rocm             # from EBU_USER_PREFIX
+  module load CuPy/13.6.0-cpeGNU-25.03-rocm             # from EBU_USER_PREFIX
+  module load magma/2.8.0-cpeGNU-25.03-rocm             # from EBU_USER_PREFIX
   module load libxc/7.0.0-cpeGNU-25.03-FHC              # from EBU_USER_PREFIX
   export MPICH_GPU_SUPPORT_ENABLED=1
   export HIPCC_COMPILE_FLAGS_APPEND="--offload-arch=gfx90a $(CC --cray-print-opts=cflags)"
