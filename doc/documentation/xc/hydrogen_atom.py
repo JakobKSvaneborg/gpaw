@@ -14,8 +14,7 @@ atoms.center(vacuum=5.0)
 
 # Self-consistent calculation:
 atoms.calc = GPAW(mode=PW(600),
-                  xc={'name': 'EXX', 'backend': 'pw'},
-                  legacy_gpaw=True)
+                  xc={'name': 'EXX', 'backend': 'pw'})
 eexx = atoms.get_potential_energy() + atoms.calc.get_reference_energy()
 
 # Check energy

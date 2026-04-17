@@ -7,7 +7,7 @@ from gpaw.lcaotddft.densitymatrix import DensityMatrix
 from gpaw.lcaotddft.frequencydensitymatrix import FrequencyDensityMatrix
 
 # Load the objects
-calc = GPAW('unocc.gpw', txt=None)
+calc = GPAW('unocc.gpw', legacy_gpaw=True)
 calc.initialize_positions()  # Initialize in order to calculate density
 dmat = DensityMatrix(calc)
 fdm = FrequencyDensityMatrix(calc, dmat, 'fdm.ulm')

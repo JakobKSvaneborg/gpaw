@@ -1,12 +1,11 @@
 import numpy as np
 import pytest
 
-from gpaw.mpi import world
 from gpaw.nlopt.basic import NLOData
 from gpaw.nlopt.shift import get_shift
 
 
-def test_shift_spinpol(mme_files, in_tmp_dir):
+def test_shift_spinpol(mme_files, in_tmp_dir, comm):
     shift_values = np.array([98.0118706 + 0.j,
                              98.89282526 + 0.j,
                              99.78333556 + 0.j,
@@ -25,12 +24,12 @@ def test_shift_spinpol(mme_files, in_tmp_dir):
         tag = '_spinpol' if spinpol == 'spinpol' else ''
 
         # Get pre-calculated nlodata from SiC fixtures
-        nlodata = NLOData.load(mme_files[f'sic_pw{tag}'], comm=world)
+        nlodata = NLOData.load(mme_files[f'sic_pw{tag}'], comm=comm)
 
         # Calculate 'xyz' tensor element of shift spectra
         get_shift(nlodata, freqs=freqs, eta=0.025, pol='xyz',
                   out_name=f'shift_xyz{tag}.npy')
-        world.barrier()
+        comm.barrier()
 
         # Load the calculated SHG spectra (in units of nm/V)
         shift[spinpol] = np.load(f'shift_xyz{tag}.npy')[1] * 1e9

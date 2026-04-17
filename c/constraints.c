@@ -1,4 +1,5 @@
 #include "python_utils.h"
+#include "array.h"
 #include "extensions.h"
 
 #define VELOCITY_VERLET_ADJUST_POSITION_TOL 1e-13
@@ -233,6 +234,11 @@ PyObject* adjust_positions(PyObject *self, PyObject *args)
       return NULL;
     }
 
+  CHK_ARRAY(arraylen_x);
+  CHK_ARRAY(arraymass_i);
+  CHK_ARRAY(arrayR_niv);
+  CHK_ARRAY(arraynewR_niv);
+
   unsigned int NA = PyArray_DIM(arrayR_niv, 0);
 
   if (NA % 3 != 0)
@@ -373,6 +379,10 @@ PyObject* adjust_momenta(PyObject *self, PyObject *args)
       return NULL;
     }
 
+  CHK_ARRAY(arraymass_i);
+  CHK_ARRAY(arrayR_niv);
+  CHK_ARRAY(arraynewP_niv);
+
   unsigned int NA = PyArray_DIM(arrayR_niv, 0);
 
   if (NA % 3 != 0)
@@ -498,6 +508,12 @@ PyObject* calculate_forces_H2O(PyObject *self, PyObject *args)
     {
       return NULL;
     }
+
+  CHK_ARRAY(arraypbc);
+  CHK_ARRAY(arraycell);
+  CHK_ARRAY(arrayZ_i);
+  CHK_ARRAY(arrayR_niv);
+  CHK_ARRAY(arrayF_niv);
 
   if (!(PyArray_NDIM(arraypbc) == 1 &&
         PyArray_DIM(arraypbc,0) == 3)) {

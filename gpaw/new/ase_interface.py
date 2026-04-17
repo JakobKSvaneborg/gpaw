@@ -25,14 +25,10 @@ from gpaw.new.xc import create_functional
 from gpaw.typing import Array1D, Array2D, Array3D
 from gpaw.utilities import pack_density
 from gpaw.utilities.memory import maxrss
+from gpaw.utilities.timing import simpletimer
 
-LOGO = """\
-  ___ ___ ___ _ _ _
- |   |   |_  | | | |
- | | | | | . | | | |
- |__ |  _|___|_____| - {version}
- |___|_|
-"""
+
+LOGO = '  __  _  _\n | _ |_)|_||  |\n |__||  | ||/\\| - {version}\n'
 
 
 def GPAW(*args, **kwargs):
@@ -43,18 +39,18 @@ def write_header(log: Logger, params: Parameters) -> None:
     from gpaw.old.logger import write_header as header
     log(LOGO.format(version=__version__))
     header(log, log.comm)
-    with log.indent('input parameters:'):
-        log(params)
-    with log.indent('\nenvironment variables:'):
+    with log.indent('\nEnvironment variables:'):
         import gpaw
-        parts = []
+        envvars = {}
         for name in sorted(gpaw.allowed_envvars):
             try:
                 value = getattr(gpaw, name)
             except AttributeError:
                 continue
-            parts.append(f'{name}={value!r}')
-        log(',\n'.join(parts))
+            envvars[name] = value
+        log.dict(envvars)
+    with log.indent('\nInput parameters:'):
+        log(params)
 
 
 def compare_atoms(a1: Atoms, a2: Atoms) -> set[str]:
@@ -121,6 +117,9 @@ class ASECalculator:
         Will also calculate "cheap" properties: energy, magnetic moments
         and dipole moment.
         """
+
+        inittimer = simpletimer()
+
         if atoms is None:
             atoms = self.atoms
         else:
@@ -170,6 +169,9 @@ class ASECalculator:
             self.create_new_calculation(atoms)
 
         assert self.hooks.keys() <= {'scf_step', 'converged'}
+        self.log(f'Initialization done in: {inittimer():.3f} s\n')
+
+        scftimer = simpletimer()
 
         with self.timer('SCF'):
             for ctx in self.dft.iconverge(
@@ -177,7 +179,11 @@ class ASECalculator:
                 yield ctx
                 self.hooks.get('scf_step', lambda ctx: None)(ctx)
 
-        self.log(f'Converged in {ctx.niter} steps')
+        scftime = scftimer()
+
+        self.log(f'\nConverged in {ctx.niter} steps')
+        self.log(f'SCF loop duration: {scftime:.3f} s '
+                 f'({scftime / ctx.niter:.3f} s/step)')
 
         # Calculate all the cheap things:
         self.dft.calculate_energy()

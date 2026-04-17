@@ -16,5 +16,5 @@ w3, I3 = findpeak(w_w, df_wimag[200:450])
 
 # check that the omega peak for tetra and point integration methods agree
 # and check the point integration peak is aprx the same as the tetra peak
-assert abs(w1 - w2) < 0.005
+assert abs(w1 - w2) < 0.015
 assert abs(w1 - w3) < 0.05

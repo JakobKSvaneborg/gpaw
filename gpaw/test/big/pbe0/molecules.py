@@ -2,7 +2,6 @@ import numpy as np
 from ase import Atoms
 
 from gpaw import GPAW, GPAW_NEW, PW, RMMDIIS
-from gpaw.hybrids import HybridXC
 from gpaw.mpi import world
 
 
@@ -16,7 +15,7 @@ def run(symbol, d0, M, ecut, L):
         a.set_distance(0, 1, d)
         a.calc = GPAW(
             mode=PW(ecut),
-            xc='PBE0' if GPAW_NEW else HybridXC('PBE0'),
+            xc={'name': 'PBE0', 'backend': 'pw'},
             nbands=0,
             # eigensolver='rmm-diis',
             txt=f'{symbol}2-{d / d0:.2f}-{ecut}-{L}.txt')
@@ -34,9 +33,9 @@ def run(symbol, d0, M, ecut, L):
     a.calc = GPAW(
         mode=PW(ecut),
         txt=f'{symbol}-{ecut}-{L}.txt',
-        **(dict(xc='PBE0') if GPAW_NEW else
-           dict(xc=HybridXC('PBE0'),
-                eigensolver=RMMDIIS(niter=1),
+        xc={'name': 'PBE0', 'backend': 'pw'},
+        **(dict() if GPAW_NEW else
+           dict(eigensolver=RMMDIIS(niter=1),
                 parallel={'band': 1, 'kpt': 1})))
     e1 = a.get_potential_energy()
 

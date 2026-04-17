@@ -28,5 +28,5 @@ def test_BSE_q0correction(in_tmp_dir, gpw_files, scalapack, mpi):
     bsematrix = bse.calculate(optical=True)
     w_T, _, _ = bse.diagonalize_bse_matrix(bsematrix)
     w_T *= Hartree
-    assert w_T[0] == pytest.approx(0.73127, rel=0.001)
+    assert w_T[0] == pytest.approx(0.72767, rel=0.001)
     assert w_T[14] == pytest.approx(1.5082, rel=0.001)

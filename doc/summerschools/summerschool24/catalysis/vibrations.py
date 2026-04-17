@@ -241,7 +241,7 @@ calc = GPAW(xc='PBE',
             kpts={'size': (6, 6, 1), 'gamma': True})
 ts.calc = calc
 
-neb = NEB(images, k=1.0, climb=True)
+neb = NEB(images, k=1.0, climb=True, method='improvedtangent')
 qn = BFGS(neb, logfile='neb.log')
 traj = Trajectory('ts.traj', 'w', ts)
 qn.attach(traj)

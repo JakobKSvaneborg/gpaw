@@ -94,7 +94,7 @@ class NonSelfConsistentHybridXCCalculator:
         mp = ibzwfs.ibz.bz
         assert isinstance(mp, MonkhorstPackKPoints)
         self.coulomb = truncated_coulomb(
-            self.grid.cell_cv, mp.size_c, exx_omega, yukawa)
+            self.grid.cell_cv, mp, exx_omega, yukawa)
 
     def calculate(self,
                   ibzwfs: PWFDIBZWaveFunctions,

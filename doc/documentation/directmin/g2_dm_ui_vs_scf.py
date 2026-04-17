@@ -19,7 +19,8 @@ calc_args = {'xc': 'PBE',
              'basis': {'default': 'dzp',
                        'Be': 'pvalence.dz'},
              'mode': LCAO(),
-             'symmetry': 'off'}
+             'symmetry': 'off',
+             'legacy_gpaw': True}
 
 eig_string = ['scf', 'dm']
 with paropen('dm-g2-results.txt', 'w') as fdm, \

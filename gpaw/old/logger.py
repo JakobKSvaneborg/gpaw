@@ -113,6 +113,9 @@ class GPAWLogger:
 
         self.iocontext.close()
 
+    def begin_table(self, title, header):
+        pass
+
 
 def write_header(log, world):
     # We use os.uname() here bacause platform.uname() starts a subprocess,
@@ -125,45 +128,42 @@ def write_header(log, world):
     log('Arch:  ', machine)
     log('Pid:   ', os.getpid())
     log('CWD:   ', os.getcwd())
-    log('Python: {}.{}.{}'.format(*sys.version_info[:3]))
-    # GPAW
-    line = os.path.dirname(gpaw.__file__)
-    githash = search_current_git_hash(gpaw, world)
-    if githash is not None:
-        line += f' ({githash:.10})'
-    log('gpaw:  ', line)
+    log('units:  Angstrom and eV')
+    log('cores: ', world.size)
+    log('OpenMP:', cgpaw.have_openmp)
 
-    # Find C-code:
-    line = os.path.normpath(cgpaw.get_extension_module_path())
-    if hasattr(cgpaw, 'githash'):
-        line += f' ({cgpaw.githash():.10})'
-    log('_gpaw: ', cut(line))
-
-    # ASE
-    line = f'{os.path.dirname(ase.__file__)} (version {ase_version}'
-    githash = search_current_git_hash(ase, world)
-    if githash is not None:
-        line += f'-{githash:.10}'
-    line += ')'
-    log('ase:   ', line)
-
-    log('numpy:  %s (version %s)' %
-        (os.path.dirname(np.__file__), np.version.version))
+    log('\nVersions:')
+    log(f'  Python: {sys.version.split()[0]}')
+    log(f'  ASE:    {ase_version}')
+    log(f'  Numpy:  {np.version.version}')
     import scipy as sp
-    log('scipy:  %s (version %s)' %
-        (os.path.dirname(sp.__file__), sp.version.version))
+    log(f'  Scipy:  {sp.version.version}')
+    log('  Libxc: ', getattr(cgpaw, 'libxc_version', '2.x.y'))
+
+    log('\nPaths:')
+    log('  gpaw: ', os.path.dirname(gpaw.__file__))
+    line = os.path.normpath(cgpaw.get_extension_module_path())
+    log('  _gpaw:', cut(line))
+    log(f'  ase:   {os.path.dirname(ase.__file__)}')
+    log(f'  numpy: {os.path.dirname(np.__file__)}')
+    log(f'  scipy: {os.path.dirname(sp.__file__)}')
     # Explicitly deleting SciPy seems to remove garbage collection
     # problem of unknown cause
     del sp
-    log('libxc: ', getattr(cgpaw, 'libxc_version', '2.x.y'))
-    log('units:  Angstrom and eV')
-    log('cores:', world.size)
-    log('OpenMP:', cgpaw.have_openmp)
-    log('OMP_NUM_THREADS:', os.environ.get('OMP_NUM_THREADS', ''))
 
+    log('\nGit-hashes:')
+    githash = search_current_git_hash(gpaw, world)
+    if githash is not None:
+        log(f'  gpaw:  {githash:.10}')
+    if hasattr(cgpaw, 'githash'):
+        log(f'  _gpaw: {cgpaw.githash():.10}')
+    githash = search_current_git_hash(ase, world)
+    if githash is not None:
+        log(f'  ase:   {githash:.10}')
+
+    log('\nOMP_NUM_THREADS:', os.environ.get('OMP_NUM_THREADS', ''))
     if gpaw.debug:
         log('DEBUG-MODE: true')
-
     log()
 
 

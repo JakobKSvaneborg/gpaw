@@ -26,6 +26,7 @@ calc = GPAW(xc='LDA',
             mode=PW(800),
             kpts={'size': (16, 16, 16), 'gamma': True},
             # We converge the ground state density tightly
+            mixer={'method': 'difference'},
             convergence={'density': 1.e-8},
             occupations=FermiDirac(0.001),
             txt='Fe_gs.txt')

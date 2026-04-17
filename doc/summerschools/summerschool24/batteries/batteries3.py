@@ -96,7 +96,7 @@ It this point `images` consist of 6 copies of `initial` and one entry of `final`
 """
 
 # %%
-neb = NEB(images)
+neb = NEB(images, method='improvedtangent')
 neb.interpolate()
 
 # %%
@@ -190,7 +190,7 @@ images = [initial]
 images += [initial.copy() for i in range(5)]  #These will become the minimum energy path images.
 images += [final]
 
-neb = NEB(images)
+neb = NEB(images, method='improvedtangent')
 neb.interpolate()
 
 for image in images[0:7]:

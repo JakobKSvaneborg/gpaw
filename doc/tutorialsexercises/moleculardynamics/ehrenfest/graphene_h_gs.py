@@ -47,6 +47,7 @@ if charge == 0:
     calc = GPAW(mode='fd',
                 gpts=h2gpts(0.2, gra.get_cell(), idiv=8),
                 nbands=110,
+                mixer={'beta': 0.15},
                 xc='LDA',
                 txt=name + '_gs.txt',
                 convergence=conv_par,

@@ -103,8 +103,8 @@ class PWDesc(Domain['PWArray']):
             f'PWDesc(ecut={self.ecut} <coefs={m}/{n}>, ')
 
     def _short_string(self, global_shape):
-        return (f'plane wave coefficients: {global_shape[-1]}\n'
-                f'cutoff: {self.ecut * Ha} eV\n')
+        return (f'Plane wave coefficients: {global_shape[-1]}\n'
+                f'Cutoff: {self.ecut * Ha} eV\n')
 
     def global_shape(self) -> tuple[int, ...]:
         """Tuple with one element: number of plane waves."""
@@ -177,8 +177,9 @@ class PWDesc(Domain['PWArray']):
             #     shape = (shape[0], shape[1], shape[2] // 2 + 1)
             Q_G = np.ravel_multi_index(self.indices_cG, shape,  # type: ignore
                                        mode='wrap').astype(np.int32)
-            if debug:
-                assert (Q_G[1:] > Q_G[:-1]).all()
+            if (np.diff(Q_G) < 0).any():
+                a, b, c = shape
+                raise ValueError(f'{a}x{b}x{c} grid too small!')
             self._indices_cache[shape] = Q_G
         return Q_G
 

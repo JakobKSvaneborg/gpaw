@@ -183,8 +183,9 @@ def write_iteration(criteria, converged_items, entries, ctx, log):
         if print_iloop:
             header1 += '{:>12s} '.format('iter')
             header2 += '{:>12s} '.format('inner loop')
-        log(header1.rstrip())
-        log(header2.rstrip())
+        log.begin_table(
+            title='SCF iterations',
+            header=header1.rstrip() + '\n' + header2.rstrip())
 
     def format_conv(fmt: str, name: str) -> str:
         """Add "c" to number and color it green if converged."""

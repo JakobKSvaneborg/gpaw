@@ -19,7 +19,7 @@ Test systems
     :header-rows: 1
 
 
-Paramaters
+Parameters
 ==========
 
 * PBE

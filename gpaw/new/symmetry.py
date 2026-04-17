@@ -385,23 +385,40 @@ class Symmetries:
     def __len__(self):
         return len(self.rotation_scc)
 
-    def __str__(self):
-        lines = ['symmetry:',
-                 f'  number of symmetries: {len(self)}']
-        if self.symmorphic:
-            lines.append('  rotations: [')
-            for rot_cc in self.rotation_scc:
-                lines.append(f'    {mat(rot_cc)},')
-        else:
-            nt = self.translation_sc.any(1).sum()
-            lines.append(f'  number of symmetries with translation: {nt}')
-            lines.append('  rotations and translations: [')
-            for rot_cc, t_c in zips(self.rotation_scc, self.translation_sc):
+    def summary(self, log, verbose=True):
+        log(f'Number of symmetries: {len(self)}')
+        header = ['', 'kind', 'matrix']
+        allign = '>^^'
+        nt = self.translation_sc.any(1).sum()
+        if nt > 0:
+            log(f'Number of symmetries with translation: {nt}')
+            header.append('translation')
+            allign += '>'
+        if not verbose:
+            return
+        rows = []
+        for s, (rot_cc, t_c) in enumerate(zip(self.rotation_scc,
+                                              self.translation_sc)):
+            d = np.linalg.det(rot_cc)
+            if d == 1:
+                if (rot_cc == np.eye(3)).all():
+                    kind = 'E'
+                else:
+                    kind = 'Cn'
+            else:
+                if (rot_cc == -np.eye(3)).all():
+                    kind = 'i'
+                else:
+                    kind = 'σ'
+            row = [str(s), kind, mat(rot_cc)]
+            if nt > 0:
                 a, b, c = t_c
-                lines.append(f'    [{mat(rot_cc)}, '
-                             f'[{a:6.3f}, {b:6.3f}, {c:6.3f}]],')
-        lines[-1] = lines[-1][:-1] + ']\n'
-        return '\n'.join(lines)
+                row.append(f'({a:6.3f}, {b:6.3f}, {c:6.3f})')
+            rows.append(row)
+        log.table('Symmetry operations',
+                  header=header,
+                  rows=rows,
+                  allign=allign)
 
     def check_positions(self, fracpos_ac):
         for U_cc, t_c, b_a in zip(self.rotation_scc,
@@ -593,12 +610,12 @@ def mat(rot_cc) -> str:
     """Convert 3x3 matrix to str.
 
     >>> mat([[-1, 0, 0], [0, 1, 0], [0, 0, 1]])
-    '[[-1,  0,  0], [ 0,  1,  0], [ 0,  0,  1]]'
+    '-1, 0, 0,  0, 1, 0,  0, 0, 1'
 
     """
-    return '[[' + '], ['.join(', '.join(f'{r:2}'
-                                        for r in rot_c)
-                              for rot_c in rot_cc) + ']]'
+    return ', '.join(','.join(f'{r:2}'
+                              for r in rot_c)
+                     for rot_c in rot_cc)
 
 
 def integer_ids(ids: Iterable) -> list[int]:

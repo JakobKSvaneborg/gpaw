@@ -6,6 +6,7 @@ from gpaw.core import PWDesc, UGDesc
 from gpaw.core.atom_arrays import AtomArraysLayout, AtomDistribution
 from gpaw.mpi import world
 from gpaw.new.pw.hybrids import Psit, PWHybridHamiltonian
+from gpaw.new.brillouin import MonkhorstPackKPoints
 from gpaw.setup import Setups
 
 
@@ -23,13 +24,13 @@ def test_apply3(a=5.0, N=10, dtype=float, calculate_energy=True):
         pw2 = pw
         pw12 = pw
         kpt1_c = np.zeros(3)
-        nkpt_c = np.ones(3, int)
+        bz = MonkhorstPackKPoints(np.ones(3, int))
     else:
         kpt1_c = np.array([0.5, 0.5, 0.0])
         kpt2_c = np.array([0.25, 0.25, 0.0])
         pw2 = pw.new(kpt=[0.25, 0.25, 0.0], dtype=dtype)
         pw12 = pw.new(kpt=kpt2_c - kpt1_c, dtype=dtype)
-        nkpt_c = np.array([4, 4, 1])
+        bz = MonkhorstPackKPoints(np.array([4, 4, 1]))
 
     ham = PWHybridHamiltonian(
         grid, pw, xc,
@@ -37,7 +38,7 @@ def test_apply3(a=5.0, N=10, dtype=float, calculate_energy=True):
         relpos_ac,
         atomdist=AtomDistribution.from_number_of_atoms(N),
         log=print,
-        nkpt_c=nkpt_c,
+        bz=bz,
         kpt_comm=world,
         band_comm=world,
         comm=world)

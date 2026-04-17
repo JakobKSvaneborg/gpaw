@@ -1,12 +1,11 @@
 import numpy as np
 import pytest
 
-from gpaw.mpi import world
 from gpaw.nlopt.basic import NLOData
 from gpaw.nlopt.linear import get_chi_tensor
 
 
-def test_chi_spinpol(mme_files, in_tmp_dir):
+def test_chi_spinpol(mme_files, in_tmp_dir, comm):
     chi_values = np.array([7.97619464 + 0.06564128j,
                            7.98936984 + 0.06620975j,
                            8.00265916 + 0.06678416j,
@@ -25,12 +24,12 @@ def test_chi_spinpol(mme_files, in_tmp_dir):
         tag = '_spinpol' if spinpol == 'spinpol' else ''
 
         # Get pre-calculated nlodata from SiC fixtures
-        nlodata = NLOData.load(mme_files[f'sic_pw{tag}'], comm=world)
+        nlodata = NLOData.load(mme_files[f'sic_pw{tag}'], comm=comm)
 
         # Calculate tensor elements of susceptibility spectra
         get_chi_tensor(nlodata, freqs=freqs,
                        eta=0.05, out_name=f'chi{tag}.npy')
-        world.barrier()
+        comm.barrier()
 
         # Load the calculated susceptibility
         chi_xx[spinpol] = np.load(f'chi{tag}.npy')[1]

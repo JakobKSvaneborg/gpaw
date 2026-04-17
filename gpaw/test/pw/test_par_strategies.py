@@ -64,4 +64,4 @@ def test_pw_par_strategies(in_tmp_dir, d, k, gpu, gpaw_new):
 
 
 if __name__ == '__main__':
-    test_pw_par_strategies(None, 1, 1, True, True)
+    test_pw_par_strategies(None, 2, 1, True, True)

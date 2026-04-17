@@ -25,7 +25,8 @@ calc_args = {'xc': 'PBE', 'h': 0.2,
                              'eigenstates': 100},
              'maxiter': 333, 'basis': 'tzdp',
              'mode': LCAO(), 'symmetry': 'off',
-             'parallel': {'domain': world.size}}
+             'parallel': {'domain': world.size},
+             'legacy_gpaw': True}
 # Results (total energy, number of iterations) obtained
 # in a previous calculation. Used to compare with the
 # current results.

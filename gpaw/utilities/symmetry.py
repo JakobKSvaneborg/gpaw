@@ -14,7 +14,7 @@ from gpaw.typing import Array2D, Array3D
 def find_set_of_lattice_symmetries(
         cell_cv: Array2D,
         pbc_c: np.ndarray,
-        tol: float,
+        tolerance: float,
         guarantee_group: bool = True,
         _backwards_compatible: bool = False) -> Array3D:
     """Determine set of fixed-point symmetry
@@ -28,10 +28,10 @@ def find_set_of_lattice_symmetries(
                            optimize=True)
     if _backwards_compatible:
         # Wrong units, tolerance is in Å and metric is in lattice basis.
-        mask_s = abs(metric_scc - metric_cc).sum(2).sum(1) <= tol
+        mask_s = abs(metric_scc - metric_cc).sum(2).sum(1) <= tolerance
     else:
         L_c = metric_cc.diagonal()**0.5
-        tol_cc = np.add.outer(L_c, L_c) * tol
+        tol_cc = np.add.outer(L_c, L_c) * tolerance
         err_scc = abs(metric_scc - metric_cc)
         mask_s = (err_scc <= tol_cc).all(axis=(1, 2))
     U_scc = U_scc[mask_s]
@@ -204,7 +204,7 @@ def prune_symmetries(rotation_scc: Array3D,
                      cell_cv: Array2D,
                      relpos_ac: Array2D,
                      id_a: Sequence[int],
-                     tol: float,
+                     tolerance: float,
                      symmorphic: bool = True,
                      _backwards_compatible: bool = False):
     """Remove symmetries that are not satisfied by the atoms."""
@@ -224,7 +224,7 @@ def prune_symmetries(rotation_scc: Array3D,
     def check(rotation_cc, translation_c):
         return check_one_symmetry(rotation_cc, translation_c, cell_cv,
                                   relpos_ac, a_ib,
-                                  tol, _backwards_compatible)
+                                  tolerance, _backwards_compatible)
 
     # if supercell disable fractional translations:
     if not symmorphic:
@@ -267,7 +267,7 @@ def prune_symmetries(rotation_scc: Array3D,
 
 
 def check_one_symmetry(rotation_cc, translation_c, cell_cv, relpos_ac, a_ib,
-                       tol, _backwards_compatible):
+                       tolerance, _backwards_compatible):
     """Checks whether atoms satisfy one given symmetry operation."""
 
     a_a = np.zeros(len(relpos_ac), int)
@@ -278,10 +278,10 @@ def check_one_symmetry(rotation_cc, translation_c, cell_cv, relpos_ac, a_ib,
             diff_bc = relpos_c - relpos_bc - translation_c
             diff_bc -= diff_bc.round()
             if _backwards_compatible:
-                indices = np.where(abs(diff_bc).max(1) < tol)[0]
+                indices = np.where(abs(diff_bc).max(1) < tolerance)[0]
             else:
                 diff_bv = diff_bc @ cell_cv
-                indices = np.where((diff_bv**2).sum(1) < tol**2)[0]
+                indices = np.where((diff_bv**2).sum(1) < tolerance**2)[0]
             if len(indices) == 1:
                 b = indices[0]
                 a_a[a] = a_b[b]

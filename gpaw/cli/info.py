@@ -12,7 +12,7 @@ import gpaw.cgpaw as cgpaw
 import gpaw.fftw as fftw
 from gpaw.gpu import __file__ as gpaw_gpu_filename
 from gpaw.gpu import cupy, cupy_is_fake
-from gpaw.mpi import have_mpi, normalize_communicator
+from gpaw.mpi import normalize_communicator
 from gpaw.new.c import GPU_AWARE_MPI, GPU_ENABLED, GPAW_IS_CPP
 from gpaw.utilities import compiled_with_libvdwxc, compiled_with_sl
 from gpaw.utilities.elpa import LibElpa
@@ -98,6 +98,7 @@ def info(comm=None) -> None:
     results.append(('_gpaw' + githash,
                     os.path.normpath(cgpaw.get_extension_module_path())))
 
+    have_mpi = hasattr(cgpaw, 'Communicator')
     results.append(('MPI enabled', have_mpi))
     results.append(('OpenMP enabled', cgpaw.have_openmp))
     results.append(('Compiled as C++ (experimental)', GPAW_IS_CPP))
@@ -154,15 +155,15 @@ def info(comm=None) -> None:
              for a, b in results]
     n1 = max(len(a) for a, _ in lines)
     n2 = max(len(b) for _, b in lines)
-    output_width = n1 + 6 + n2
-    box_edge = ' ' + '-' * (output_width - 2)
+    output_width = n1 + 1 + n2
+    box_edge = '-' * output_width
     print(box_edge)
     for a, b in lines:
         if a in warnings:
             a, b = warn(a, width=n1), warn(b, width=n2)
         else:
             a, b = f'{a:{n1}}', f'{b:{n2}}'
-        print(f'| {a}  {b} |')
+        print(f'{a} {b}')
     print(box_edge)
 
     if not warnings:

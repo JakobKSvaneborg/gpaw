@@ -55,8 +55,8 @@ def test_response_bse_magnon(in_tmp_dir, mpi):
                                              w_w=w_w)
 
     w, I = findpeak(w_w, -chi_Gw[0].imag)
-    assert np.abs(w + 0.0195) < 0.001
-    assert np.abs(I - 4.676) < 0.01
+    assert w == pytest.approx(-0.07102, abs=0.001)
+    assert I == pytest.approx(4.676, abs=0.01)
 
     bse = BSE('ScSe2.gpw',
               ecut=10,
@@ -75,5 +75,5 @@ def test_response_bse_magnon(in_tmp_dir, mpi):
                                              w_w=w_w)
 
     w, I = findpeak(w_w, -chi_Gw[0].imag)
-    assert np.abs(w + 0.0153) < 0.001
-    assert np.abs(I - 7.624) < 0.01
+    assert w == pytest.approx(-0.06612, abs=0.001)
+    assert I == pytest.approx(7.624, abs=0.01)

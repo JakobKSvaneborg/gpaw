@@ -2,26 +2,29 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import pi
+from pathlib import Path
 from time import time
-from typing import Callable
+from typing import IO, Callable
 
 import numpy as np
-from scipy.linalg.blas import get_blas_funcs
-
+from ase.units import Ha
 from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
 from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.pwacf import PWAtomCenteredFunctions
 from gpaw.mpi import broadcast
 from gpaw.new import zips as zip
+from gpaw.new.calculation import DFTCalculation
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.logger import Logger
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
+from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
-from gpaw.utilities import unpack_hermitian
+from gpaw.utilities import unpack_hermitian, pack_density
 from gpaw.utilities.blas import mmm
+from scipy.linalg.blas import get_blas_funcs
 
 
 @dataclass
@@ -36,7 +39,7 @@ class Psit:
 
 
 def truncated_coulomb(cell_cv,
-                      nkpt_c,
+                      bz,
                       omega: float = 0.11,
                       yukawa: bool = False) -> Callable[[PWDesc], np.ndarray]:
     """Fourier transform of truncated Coulomb.
@@ -71,7 +74,7 @@ def truncated_coulomb(cell_cv,
             return v_G
         return f
 
-    wstc = WignerSeitzTruncatedCoulomb(cell_cv, nkpt_c)
+    wstc = WignerSeitzTruncatedCoulomb(cell_cv, bz.size_c)
     return lambda pw: wstc.get_potential_new(pw)
 
 
@@ -197,7 +200,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                  relpos_ac,
                  atomdist,
                  log,
-                 nkpt_c,
+                 bz,
                  kpt_comm,
                  band_comm,
                  comm):
@@ -212,7 +215,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.delta_aiiL = [setup.Delta_iiL for setup in setups]
         self.relpos_ac = relpos_ac
         self.setups = setups
-        self.nbzk = np.prod(nkpt_c)
+        self.nbzk = len(bz)
         self.real = np.issubdtype(pw.dtype, np.floating)
         self.zaxpy = get_blas_funcs('axpy', dtype=complex)
 
@@ -228,7 +231,9 @@ class PWHybridHamiltonian(PWHamiltonian):
 
         # Cached potential for gamma-point calculation:
         self.coulomb = truncated_coulomb(
-            grid.cell_cv, nkpt_c, xc.exx_omega, xc.exx_yukawa)
+            grid.cell_cv, bz, xc.exx_omega, xc.exx_yukawa)
+
+        self.nupdates = 0
 
     def update_wave_functions(self,
                               ibzwfs: PWFDIBZWaveFunctions,
@@ -236,9 +241,10 @@ class PWHybridHamiltonian(PWHamiltonian):
         """Compute BZ from IBZ and distribute over the entire world!"""
         self.mypsits, _ = ibz2bz(
             ibzwfs, self.setups, self.relpos_ac, self.grid_local, self.plan,
-            self.log if self.nbzk == 0 else None, forces)
+            self.log if self.nupdates == 0 else None, forces)
         self.xc.energies = {'hybrid_xc': 0.0,
                             'hybrid_kinetic_correction': 0.0}
+        self.nupdates += 1
 
     def move(self, relpos_av: np.ndarray) -> None:
         self.relpos_ac = relpos_av
@@ -527,3 +533,64 @@ def forces(ghat_aLG, vrhot2_nG, P2_ani, Q2_anL, f1, f2_n, nbzk, delta_aiiL,
                                        dP_anvi[a][n1],
                                        P2_ani[a].conj(),
                                        f12_n).real
+
+
+def non_self_consistent_hybrid_xc_energy(
+    dft: DFTCalculation,
+    xc: str,
+    *,
+    log: str | Path | IO[str] | Logger | None = '-') -> float:
+    """"""
+    if not isinstance(log, Logger):
+        log = Logger(log, comm=dft.comm)
+
+    ibzwfs = dft.ibzwfs
+
+    exx = create_functional({'name': xc, 'backend': 'pw'},
+                            dft.pot_calc.fine_grid)
+
+    hybham = PWHybridHamiltonian(
+        dft.density.grid,
+        next(iter(ibzwfs)).psit_nX.desc,
+        exx,
+        dft.setups,
+        dft.relpos_ac,
+        dft.density.D_asii.layout.atomdist,
+        log,
+        ibzwfs.ibz.bz,
+        ibzwfs.kpt_comm,
+        ibzwfs.band_comm,
+        dft.comm)
+
+    ibzwfs.make_sure_wfs_are_read_from_gpw_file()
+
+    assert isinstance(ibz2bz, PWFDIBZWaveFunctions)
+    hybham.update_wave_functions(ibzwfs)
+
+    for wfs in ibzwfs:
+        hybham.apply_orbital_dependent(
+            ibzwfs,
+            dft.density.D_asii,
+            wfs.psit_nX,
+            spin=wfs.spin,
+            calculate_energy=True)
+
+    exx_energy = hybham.xc.energies['hybrid_xc'] * Ha
+
+    semilocal_energy = _semilocal_xc_energy(dft, xc)
+
+    return exx_energy + semilocal_energy - dft.energies._energies['xc']
+
+
+def _semilocal_xc_energy(dft: DFTCalculation,
+                         xc: str) -> float:
+    from gpaw.hybrids import parse_name
+    semilocal_xc_name, exx_fraction, exx_omega, yukawa = parse_name(xc)
+    fine_grid = dft.pot_calc.fine_grid
+    slxc = create_functional(semilocal_xc_name, fine_grid)
+    nt_sr = dft.density.nt_sR.interpolate(grid=fine_grid)
+    energy, _, _ = slxc.calculate(nt_sr)
+    for a, D_sii in dft.density.D_asii.items():
+        D_sp = np.array([pack_density(D_ii.real) for D_ii in D_sii])
+        energy += slxc.calculate_paw_correction(dft.setups[a], D_sp)
+    return dft.density.nt_sR.desc.comm.sum_scalar(energy)

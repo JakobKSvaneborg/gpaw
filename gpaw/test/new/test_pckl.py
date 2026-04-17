@@ -1,13 +1,15 @@
 import pickle
 
 import numpy as np
-
+import pytest
 from gpaw.core import PWDesc, UGDesc
 from gpaw.core.atom_arrays import AtomDistribution
+from gpaw.mpi import serial_comm
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.setup import Setups
 
 
+@pytest.mark.serial
 def test_pckl(in_tmp_dir):
     g1 = UGDesc(cell=[1, 2, 3], size=(5, 10, 15)).zeros((1, 2))
     p1 = PWDesc(cell=g1.desc.cell, ecut=5.0).zeros(2)
@@ -21,6 +23,7 @@ def test_pckl(in_tmp_dir):
         k=0,
         setups=Setups([1], {}, {}, 'LDA'),
         relpos_ac=np.zeros((1, 3)),
-        atomdist=AtomDistribution([0]))
+        atomdist=AtomDistribution([0]),
+        domain_band_comm=serial_comm)
     wfs2 = pickle.loads(pickle.dumps(wfs1))
     assert wfs2.psit_nX.data[0, 0] == 117

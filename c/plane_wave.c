@@ -1,4 +1,5 @@
 #include "python_utils.h"
+#include "array.h"
 #include "extensions.h"
 #include <stdlib.h>
 
@@ -29,9 +30,15 @@ PyObject *pw_insert(PyObject *self, PyObject *args)
 {
     PyArrayObject *c_G_obj, *Q_G_obj, *tmp_Q_obj;
     double scale;
+
     if (!PyArg_ParseTuple(args, "OOdO",
                           &c_G_obj, &Q_G_obj, &scale, &tmp_Q_obj))
         return NULL;
+
+    CHK_ARRAY(c_G_obj);
+    CHK_ARRAY(Q_G_obj);
+    CHK_ARRAY(tmp_Q_obj);
+
     double_complex *c_G = (double_complex*) PyArray_DATA(c_G_obj);
     npy_int32 *Q_G = (npy_int32*) PyArray_DATA(Q_G_obj);
     double_complex *tmp_Q = (double_complex*) PyArray_DATA(tmp_Q_obj);
@@ -52,6 +59,10 @@ PyObject *pw_precond(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "OOdO",
                           &G2_G_obj, &R_G_obj, &ekin, &out_G_obj))
         return NULL;
+
+    CHK_ARRAY_RO(G2_G_obj);
+    CHK_ARRAY_RO(R_G_obj);
+    CHK_ARRAY(out_G_obj);
 
     double *G2_G = (double*) PyArray_DATA(G2_G_obj);
     double_complex *R_G = (double_complex*) PyArray_DATA(R_G_obj);
@@ -88,6 +99,16 @@ PyObject *pwlfc_expand(PyObject *self, PyObject *args)
                           &l_s_obj, &a_J_obj, &s_J_obj,
                           &cc, &f_GI_obj))
         return NULL;
+
+    CHK_ARRAY(f_Gs_obj);
+    CHK_ARRAY(GK_Gv_obj);
+    CHK_ARRAY(GK_Gv_obj);
+    CHK_ARRAY(eikR_a_obj);
+    CHK_ARRAY(Y_GL_obj);
+    CHK_ARRAY(l_s_obj);
+    CHK_ARRAY(a_J_obj);
+    CHK_ARRAY(s_J_obj);
+    CHK_ARRAY(f_GI_obj);
 
     double *f_Gs = (double*) PyArray_DATA(f_Gs_obj);
     double *GK_Gv = (double*) PyArray_DATA(GK_Gv_obj);
@@ -187,6 +208,14 @@ PyObject *pwlfc_expand_old(PyObject *self, PyObject *args)
                           &cc, &f_GI_obj))
         return NULL;
 
+    CHK_ARRAY(f_Gs_obj);
+    CHK_ARRAY(emiGR_Ga_obj);
+    CHK_ARRAY(Y_GL_obj);
+    CHK_ARRAY(l_s_obj);
+    CHK_ARRAY(a_J_obj);
+    CHK_ARRAY(s_J_obj);
+    CHK_ARRAY(f_GI_obj);
+
     double *f_Gs = (double*) PyArray_DATA(f_Gs_obj);
     double_complex *emiGR_Ga = (double_complex*) PyArray_DATA(emiGR_Ga_obj);
     double *Y_GL = (double*) PyArray_DATA(Y_GL_obj);
@@ -255,9 +284,17 @@ PyObject *plane_wave_grid(PyObject *self, PyObject *args)
   PyArrayObject* k_c;
   PyArrayObject* r0_c;
   PyArrayObject* pw_g;
+
   if (!PyArg_ParseTuple(args, "OOOOOO", &beg_c, &end_c, &h_c,
                         &k_c, &r0_c, &pw_g))
     return NULL;
+
+  CHK_ARRAY(beg_c);
+  CHK_ARRAY(end_c);
+  CHK_ARRAY(h_c);
+  CHK_ARRAY(k_c);
+  CHK_ARRAY(r0_c);
+  CHK_ARRAY(pw_g);
 
   long *beg = LONGP(beg_c);
   long *end = LONGP(end_c);
@@ -291,8 +328,12 @@ PyObject* pawexxvv(PyObject *self, PyObject *args)
 {
   PyArrayObject* M_pp_obj;
   PyArrayObject* D_ii_obj;
+
   if (!PyArg_ParseTuple(args, "OO", &M_pp_obj, &D_ii_obj))
       return NULL;
+
+  CHK_ARRAY(M_pp_obj);
+  CHK_ARRAY(D_ii_obj);
 
   if ((PyArray_ITEMSIZE(M_pp_obj) != 8) ||
       (PyArray_ITEMSIZE(D_ii_obj) != 8))

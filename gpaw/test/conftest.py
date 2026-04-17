@@ -401,15 +401,6 @@ def require_real_mpi(_not_world):
         pytest.skip('This test requires actual MPI to be enabled')
 
 
-@pytest.fixture
-def needs_ase_master():
-    from ase.utils.filecache import MultiFileJSONCache
-    try:
-        MultiFileJSONCache('bla-bla', comm=None)
-    except TypeError:
-        pytest.skip('ASE is too old')
-
-
 def pytest_report_header(config, start_path):
     # Use this to add custom information to the pytest printout.
     yield f'GPAW MPI rank={world.rank}, size={world.size}'

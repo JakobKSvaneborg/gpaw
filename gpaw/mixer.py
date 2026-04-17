@@ -109,7 +109,6 @@ class BaseMixer:
         R_isG = self.R_isG
         D_iasp = self.D_iasp
         dD_iasp = self.dD_iasp
-        spin = len(nt_sG)
         iold = len(self.nt_isG)
         dNt = np.inf
         if iold > 0:
@@ -129,27 +128,20 @@ class BaseMixer:
             R_sG = nt_sG - nt_isG[-1]
             dNt = self.calculate_charge_sloshing(R_sG)
             R_isG.append(R_sG)
+
             dD_iasp.append([])
             for D_sp, D_isp in zip(D_asp, D_iasp[-1]):
                 dD_iasp[-1].append(D_sp - D_isp)
 
-            if self.metric is None:
-                mR_sG = R_sG
-            else:
-                mR_sG = np.empty_like(R_sG)
-                for s in range(spin):
-                    self.metric(R_sG[s], mR_sG[s])
-
-            if g_ss is not None:
-                mR_sG = np.tensordot(g_ss, mR_sG, axes=(1, 0))
+            mR_sG, mD_asp = self.apply_metric(R_sG, dD_iasp[-1], g_ss)
 
             # Update matrix:
             A_ii = np.zeros((iold, iold))
             i2 = iold - 1
 
             for i1, R_1sG in enumerate(R_isG):
-                a = self.gd.comm.sum_scalar(
-                    self.dotprod(R_1sG, mR_sG, dD_iasp[i1], dD_iasp[-1]))
+                a = self.dotprod(
+                    R_1sG, mR_sG, dD_iasp[i1], mD_asp, self.gd)
                 A_ii[i1, i2] = a
                 A_ii[i2, i1] = a
             A_ii[:i2, :i2] = self.A_ii[-i2:, -i2:]
@@ -188,9 +180,53 @@ class BaseMixer:
             D_iasp[-1].append(D_sp.copy())
         return dNt
 
-    # may presently be overridden by passing argument in constructor
-    def dotprod(self, R1_G, R2_G, dD1_ap, dD2_ap):
-        return np.vdot(R1_G, R2_G).real
+    def dotprod(self, R1_isG, R2_isG, dD1_iasp, dD2_iasp, gd, mode='scalar'):
+        comm = gd.comm
+
+        if mode == 'scalar':
+            R1_isG = [R1_isG, ]
+            dD1_iasp = [dD1_iasp, ]
+            R2_isG = [R2_isG, ]
+            dD2_iasp = [dD2_iasp, ]
+
+        if mode == 'gemm':
+            shape1 = np.array(R1_isG).shape
+            shape2 = np.array(R2_isG).shape
+            prod = np.reshape(R1_isG, (shape1[0], -1)).conj() \
+                @ np.reshape(R2_isG, (shape2[0], -1)).T
+        elif mode == 'vecdot' or mode == 'scalar':
+            assert len(R1_isG) == len(R2_isG)
+            if hasattr(np, 'vecdot'):  # numpy 2.0+
+                prod = np.vecdot(
+                    np.reshape(R1_isG, (len(R1_isG), -1)),
+                    np.reshape(R2_isG, (len(R2_isG), -1))
+                )
+            else:
+                prod = np.einsum(
+                    'ix, ix -> i',
+                    np.reshape(R1_isG, (len(R1_isG), -1)).conj(),
+                    np.reshape(R2_isG, (len(R2_isG), -1))
+                )
+        prod *= gd.dv
+        comm.sum(prod)
+        assert (prod.imag < 1e-10).all()
+        prod = prod.real
+        return prod[0] if mode == 'scalar' else prod
+
+    def apply_metric(self, R_sG, dD_asp, g_ss):
+        mR_sG = R_sG.copy()
+        if self.metric is not None:
+            for R_G, mR_G in zip(R_sG, mR_sG):
+                self.metric(R_G, mR_G)
+        mD_asp = []
+        if g_ss is not None:
+            mR_sG[:] = np.tensordot(g_ss, mR_sG, axes=(1, 0))
+        for dD_sp in dD_asp:
+            if g_ss is not None:
+                mD_asp.append(np.tensordot(g_ss, dD_sp, axes=(1, 0)))
+            else:
+                mD_asp.append(dD_sp.copy())
+        return mR_sG, mD_asp
 
     def estimate_memory(self, mem, gd):
         gridbytes = gd.bytecount()
@@ -203,35 +239,516 @@ class BaseMixer:
         return string
 
 
-class ExperimentalDotProd:
-    def __init__(self, calc):
-        self.calc = calc
+class MSR1Mixer(BaseMixer):
+    name = 'msr1'
 
-    def __call__(self, R1_G, R2_G, dD1_ap, dD2_ap):
-        prod = np.vdot(R1_G, R2_G).real
-        setups = self.calc.wfs.setups
-        # okay, this is a bit nasty because it depends on dD1_ap
-        # and its friend having come from D_asp.values() and the dictionaries
-        # not having been modified.  This is probably true... for now.
-        avalues = self.calc.density.D_asp.keys()
-        for a, dD1_p, dD2_p in zip(avalues, dD1_ap, dD2_ap):
-            I4_pp = setups[a].four_phi_integrals()
-            dD4_pp = np.outer(dD1_p, dD2_p)  # not sure if corresponds quite
-            prod += (I4_pp * dD4_pp).sum()
-        return prod
+    def __init__(self,
+                 beta=0.035,
+                 nmaxold=8,
+                 weight=70,
+                 trust_scalar=8.0,
+                 soft_bad_lim=1.5,
+                 hard_bad_lim=2.0,
+                 gb_scale=0.9):
+        """
+        This is an implementation of the MSR1 mixer.
+        References:
+          -  DOI: https://doi.org/10.1021/acs.jctc.1c00630
+          -  http://www.wien2k.at/reg_user/textbooks/Mixing_For_Dummies.pdf
+          -  and other mixer related papers by Laurence Marks (wien2k dev)
+        """
+        super().__init__(beta, nmaxold, weight)
+        self.mR_isG = []
+        self.mD_iasp = []
+        self.gb_scale = gb_scale
+        self.soft_bad_lim = soft_bad_lim
+        self.hard_bad_lim = hard_bad_lim
+        self.trust_scalar = trust_scalar
+
+    def reset(self):
+        super().reset()
+        self.mR_isG = []
+        self.mD_iasp = []
+        self.last_dNt = np.inf
+
+    def mix_density(self, nt_sG, D_asp, g_ss=None):
+        nt_isG = self.nt_isG
+        R_isG = self.R_isG
+        mR_isG = self.mR_isG
+        D_iasp = self.D_iasp
+        dD_iasp = self.dD_iasp
+        mD_iasp = self.mD_iasp
+        iold = len(self.nt_isG)
+        dNt = np.inf
+        if iold > 0:
+            # Calculate new residual (difference between input and
+            # output density):
+            R_sG = nt_sG - nt_isG[-1]
+            dNt = self.calculate_charge_sloshing(R_sG)
+            R_isG.append(R_sG)
+            dD_iasp.append([])
+            for D_sp, D_isp in zip(D_asp, D_iasp[-1]):
+                dD_iasp[-1].append(D_sp - D_isp)
+            mR_sG, mD_asp = self.apply_metric(R_sG, dD_iasp[-1], g_ss)
+            mR_isG.append(mR_sG)
+            mD_iasp.append(mD_asp)
+
+            while (iold > self.nmaxold and dNt
+                   <= self.last_dNt * self.soft_bad_lim) \
+                    or (iold > self.nmaxold):
+                # Throw away too old stuff:
+                to_del = 0
+                del nt_isG[to_del]
+                del R_isG[to_del]
+                del mR_isG[to_del]
+                del D_iasp[to_del]
+                del dD_iasp[to_del]
+                del mD_iasp[to_del]
+                iold = len(nt_isG)
+
+        if iold > 1:
+            backtracked = False
+            last_step = -2
+            del_oldest = False
+            if dNt > self.last_dNt * self.soft_bad_lim:
+                reduction = dNt / self.last_dNt
+                del_oldest = True if reduction > self.hard_bad_lim else False
+                insert_pos = 0 if del_oldest else -2
+                last_step = -1
+                tmp = nt_isG.pop()
+                nt_isG.insert(insert_pos, tmp)
+                tmp = R_isG.pop()
+                R_isG.insert(insert_pos, tmp)
+                tmp = mR_isG.pop()
+                mR_isG.insert(insert_pos, tmp)
+                tmp = mD_iasp.pop()
+                mD_iasp.insert(insert_pos, tmp)
+                tmp = D_iasp.pop()
+                D_iasp.insert(insert_pos, tmp)
+                tmp = dD_iasp.pop()
+                dD_iasp.insert(insert_pos, tmp)
+                dNt = self.last_dNt * 1.1  # Avoid infinite loop
+
+                R_sG = R_isG[-1]
+                mR_sG = mR_isG[-1]
+                mD_asp = mD_iasp[-1]
+                backtracked = True
+
+            # 1st order norm
+            ntnorm = self.calculate_charge_sloshing(nt_isG[-1])
+            dNt_normed = dNt / ntnorm
+
+            # Here are some hardcoded parameters for the mixer.
+            # I have collected them all here, for simplicity,
+            # however, the idea is not that these should be
+            # changeable by the user.
+            # Maybe at some point, someone, wants to try and
+            # optimize them - if so - good luck and have fun.
+            dampen = 1  # Dampen the greeds
+            # How much to reduce greed when backtracing
+            punishment_factor = 0.8 if del_oldest else 1.0
+            # Scaling factor for the trust radius.
+            trust_scalar = self.trust_scalar
+            abs_gb_lim = 20  # Maximum value of good Broyden.
+            # Scaling factor for maximum good Broyden.
+            max_gb_fact = self.gb_scale * np.clip(
+                (2e-2 / dNt_normed), 0.05, 1)
+            # Scaling factor for the final amount of good Broyden
+            post_gb_fact = 0.9 if del_oldest else (
+                0.9 if backtracked else 0.9)
+            weight = 8e-4  # Weight for regularization.
+            B0_boost = 1e-1  # Favor the predicted greed towards 1
+            B0_lims = [0.4, 1.0]   # Limits for predicted greed
+            A0_lims = [0.015, 0.45]   # Limits for unpredicted greed
+            rate_ratio = [  # Rate ratio for clipping
+                0.7, 1.3 if not backtracked else punishment_factor]
+            initial_B0 = 1.0
+
+            # Calculate the multi-secants:
+            s_isG = (nt_isG[:-1] - nt_isG[-1])
+            y_isG = -(R_isG[:-1] - R_isG[-1])
+            ty_isG = -(mR_isG[:-1] - mR_isG[-1])
+
+            sD_iasp = []
+            yD_iasp = []
+            tyD_iasp = []
+            for i1 in range(len(D_iasp) - 1):
+                sD_asp = []
+                yD_asp = []
+                tyD_asp = []
+                for a1 in range(len(D_iasp[i1])):
+                    sD_asp.append((D_iasp[i1][a1] - D_iasp[-1][a1]))
+                    yD_asp.append(-(dD_iasp[i1][a1] - dD_iasp[-1][a1]))
+                    tyD_asp.append(-(mD_iasp[i1][a1] - mD_iasp[-1][a1]))
+                sD_iasp.append(sD_asp)
+                yD_iasp.append(yD_asp)
+                tyD_iasp.append(tyD_asp)
+
+            # 2023 paper eq 22 - Limit good_broydenness
+            Ay_ii = self.dotprod(y_isG, ty_isG, yD_iasp,
+                                 tyD_iasp, self.gd, mode='gemm')
+            As_ii = self.dotprod(s_isG, ty_isG, sD_iasp,
+                                 tyD_iasp, self.gd, mode='gemm')
+
+            YY_LIM = np.linalg.norm(Ay_ii, ord='fro')
+            YS_LIM = np.linalg.norm(As_ii, ord='fro')
+            max_gb = min(max(YY_LIM / YS_LIM * max_gb_fact, 1), abs_gb_lim)
+
+            # Choose max good_broydenness s.t. A_ii is positive definite
+            # for good_broydenness in good_broydenness_range:
+            # binary search 2**(-11) accuracy:
+            # Calculate norms for determining good-broydenness
+            y_norm = np.diag(Ay_ii)
+            s_norm = np.diag(As_ii)
+            fracs_i = y_norm / s_norm
+            if (fracs_i <= 0).any():
+                # Handle negative values in fracs_i
+                # Set max_gb to a safe value
+                max_gb = min(
+                    max_gb,
+                    np.min(-fracs_i[fracs_i <= 0])
+                )
+
+            good_broydenness = 0.5 * max_gb
+            for iter in range(2, 12):
+                norm_vec = 1 / np.sqrt(
+                    y_norm + s_norm * good_broydenness)
+                A_ii = Ay_ii + As_ii * good_broydenness
+                A_ii *= norm_vec[None, :]
+                A_ii *= norm_vec[:, None]
+                try:
+                    eigs = np.linalg.eigvals(A_ii)
+                    min_real = np.min(eigs.real)
+                    max_imag = np.max(np.abs(eigs.imag))
+                except np.linalg.LinAlgError:
+                    good_broydenness -= 2**(-iter) * max_gb
+                    continue
+                if min_real > max(1e-9, max_imag):
+                    good_broydenness += 2**(-iter) * max_gb
+                else:
+                    good_broydenness -= 2**(-iter) * max_gb
+            good_broydenness -= 2**(- iter) * max_gb
+            good_broydenness *= post_gb_fact
+
+            # Re-Scale the problem!
+            t_norm = y_norm + good_broydenness * s_norm
+            if (t_norm < 0).any():
+                good_broydenness = 0
+                t_norm = y_norm  # When things are real bad.
+            t_norm = 1 / np.sqrt(t_norm)
+            t_norm_expanded = np.expand_dims(
+                t_norm, axis=tuple(np.arange(1, y_isG.ndim)))
+            y_isG *= t_norm_expanded
+            ty_isG *= t_norm_expanded
+            s_isG *= t_norm_expanded
+            for i, (sD_asp, yD_asp, tyD_asp) in enumerate(
+                    zip(sD_iasp, yD_iasp, tyD_iasp)):
+                for sD_sp, yD_sp, tyD_sp in zip(sD_asp, yD_asp, tyD_asp):
+                    sD_sp *= t_norm[i]
+                    yD_sp *= t_norm[i]
+                    tyD_sp *= t_norm[i]
+
+            t_isG = y_isG + good_broydenness * s_isG
+            tD_iasp = []
+            for i in range(iold - 1):
+                tD_asp = []
+                for a in range(len(D_iasp[0])):
+                    tD_asp.append(
+                        yD_iasp[i][a] + good_broydenness * sD_iasp[i][a])
+                tD_iasp.append(tD_asp)
+
+            A_ii = self.dotprod(t_isG, ty_isG, tD_iasp,
+                                tyD_iasp, self.gd, mode='gemm')
+            B_ii = self.dotprod(t_isG, s_isG, tD_iasp,
+                                sD_iasp, self.gd, mode='gemm')
+
+            A_diag = np.mean(np.diag(A_ii))
+            B_diag = np.mean(np.diag(B_ii))
+
+            # SVD Regularization:
+            S, V, D = np.linalg.svd(B_ii)
+            V = V / (V**2 + B_diag**2 * weight**2)
+            B_ii = D.T @ np.diag(V) @ S.T
+
+            S, V, D = np.linalg.svd(A_ii)
+            A_i = V / (V**2 + A_diag**2 * weight**2)
+            A_ii = D.T @ np.diag(A_i) @ S.T
+
+            alpha_i = self.dotprod(t_isG, [mR_sG, ], tD_iasp, [mD_asp, ],
+                                   self.gd, mode='gemm')[:, 0]
+            alpha_i = A_ii @ alpha_i
+            if self.world:
+                self.world.broadcast(alpha_i, 0)
+
+            # Stuff for predicting mixing coefficients:
+            uRnoD_asp = []
+            for uD_sp, R_sp in zip(self.uD_asp, dD_iasp[last_step]):
+                uRnoD_asp.append(R_sp - uD_sp)
+
+            A1 = self.dotprod(self.uk_sG, self.uk_sG, self.uD_asp, self.uD_asp,
+                              self.gd, mode='scalar')
+
+            B1 = self.dotprod(self.R_isG[last_step] - self.uk_sG,
+                              self.R_isG[last_step] - self.uk_sG,
+                              uRnoD_asp, uRnoD_asp, self.gd, mode='scalar')
+
+            # From Eq 18 from dft mixing for dumies:
+            A2_i = self.dotprod(
+                t_isG, [self.uk_sG, ], tD_iasp, [self.uD_asp, ], self.gd,
+                mode='gemm')[:, 0]
+            A3_i = self.dotprod(
+                [self.uk_sG, ], y_isG, [self.uD_asp, ], yD_iasp, self.gd,
+                mode='gemm')[0, :]
+
+            B2_i = self.dotprod(
+                t_isG, [self.pk_sG, ], tD_iasp,
+                [self.pD_asp, ], self.gd, mode='gemm')[:, 0]
+            B3_i = self.dotprod(
+                [self.R_isG[last_step] - self.uk_sG, ], y_isG, [uRnoD_asp, ],
+                yD_iasp, self.gd, mode='gemm')[0, :]
+
+            A2 = A3_i @ B_ii @ A2_i * dampen
+            B2 = B3_i @ B_ii @ B2_i
+
+            A0_target = np.clip(
+                np.abs(A1 / A2),
+                *A0_lims
+            )
+            if self.A0 is not None:
+                if B2 == 0 and B1 == 0:
+                    B2 = 1
+                    B1 = 1
+                B0_ratio = (
+                    B0_boost + self.B0 + np.clip(np.abs(B1 / B2), *B0_lims)
+                ) / (2 * self.B0)
+                self.B0 *= np.clip(B0_ratio, 3 / 5, 5 / 3)
+                self.B0 = np.clip(self.B0, *B0_lims)
+                A0_ratio_GEOM = np.sqrt(A0_target * self.A0) / self.A0
+                self.A0 *= np.clip(A0_ratio_GEOM, *rate_ratio)
+            else:
+                self.B0 = initial_B0
+                self.A0 = np.sqrt(A0_target * self.beta)
+
+            A0 = self.A0
+            B0 = self.B0
+
+            trust_step = (A0 * self.uk_sG + B0 * self.pk_sG)
+            dstep_asp = []
+            for uD_sp, pD_sp in zip(self.uD_asp, self.pD_asp):
+                dstep_asp.append(A0 * uD_sp + B0 * pD_sp)
+            trust_radius = self.dotprod(trust_step, trust_step, dstep_asp,
+                                        dstep_asp, self.gd, mode='scalar')
+            trust_radius = trust_scalar * trust_radius**0.5
+
+            if self.trust_radius is not None:
+                trust_radius_factor = (
+                    self.trust_radius * trust_radius
+                ) ** 0.5 / self.trust_radius
+                self.trust_radius *= np.clip(trust_radius_factor, *rate_ratio)
+            else:
+                self.trust_radius = trust_radius
+
+            # Clear previous step, so we can make a new one
+            self.uk_sG = np.zeros_like(nt_sG)
+            self.pk_sG = np.zeros_like(nt_sG)
+
+            for pD_sp in self.pD_asp:
+                pD_sp[:] = 0
+
+            for i1, alpha in enumerate(alpha_i):
+                self.uk_sG -= alpha * y_isG[i1]
+                self.pk_sG += alpha * s_isG[i1]
+
+                for a1, sD_sp in enumerate(sD_iasp[i1]):
+                    self.pD_asp[a1] += alpha * sD_sp
+
+            self.uk_sG += R_sG
+
+            predicted_size = B0 * self.dotprod(
+                self.pk_sG, self.pk_sG, self.pD_asp, self.pD_asp,
+                self.gd, mode='scalar')**0.5
+
+            beta_i = alpha_i.copy()
+
+            # Trust radius control:
+            if predicted_size > self.trust_radius * 1.02:
+                BR_i = self.dotprod(t_isG, [mR_sG, ], tD_iasp,
+                                    [mD_asp, ], self.gd, mode='gemm')[:, 0]
+                s_ii = self.dotprod(s_isG, s_isG, sD_iasp,
+                                    sD_iasp, self.gd, mode='gemm') * B0**2
+
+                A_ii = np.linalg.inv(A_ii)
+                # Optimize (ridge regression):
+
+                def err_fct(lamb):
+                    beta_i = np.linalg.solve(
+                        A_ii + lamb * np.eye(iold - 1), BR_i
+                    )
+                    return (beta_i @ s_ii @ beta_i) - self.trust_radius**2
+
+                from scipy.optimize import root_scalar
+                try:
+                    lamb = root_scalar(err_fct, bracket=[0, 500 * A_diag])
+                    root = lamb.root
+                except ValueError:
+                    root = 500 * A_diag
+                beta_i = np.linalg.solve(
+                    A_ii + root * np.eye(iold - 1), BR_i
+                )
+                if self.world:
+                    self.world.broadcast(beta_i, 0)
+
+                uk_sG = R_sG.copy()
+                pk_sG = np.zeros_like(self.pk_sG)
+
+                alpha_i[:] = beta_i
+
+                for i1, (alpha, beta) in enumerate(zip(alpha_i, beta_i)):
+                    uk_sG -= y_isG[i1] * alpha
+                    pk_sG += s_isG[i1] * beta
+
+                new_step_size = self.trust_radius
+                scale_factor = (new_step_size / predicted_size)
+                A0 *= np.clip(scale_factor, 0, 1)
+                A0 = max(A0, min(self.A0, A0_lims[0]))
+            else:
+                uk_sG = self.uk_sG
+                pk_sG = self.pk_sG
+
+            step_sG = A0 * uk_sG + B0 * pk_sG
+
+            nt_sG[:] = nt_isG[-1] + step_sG
+
+            self.uD_asp = []
+            self.pD_asp = []
+            for a1, D_sp in enumerate(D_asp):
+                D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1]
+                self.uD_asp.append(dD_iasp[-1][a1].copy())
+                self.pD_asp.append(np.zeros_like(D_sp))
+
+            for i1, (alpha, beta) in enumerate(zip(alpha_i, beta_i)):
+                for a1, D_sp in enumerate(D_asp):
+                    D_sp -= A0 * alpha * yD_iasp[i1][a1]
+                    D_sp += B0 * beta * sD_iasp[i1][a1]
+                    self.uD_asp[a1] -= alpha * yD_iasp[i1][a1]
+                    self.pD_asp[a1] += beta * sD_iasp[i1][a1]
+
+            # Sync the density, because apparantly they cant agree...
+            if self.world:
+                nt_sR = self.gd.collect(nt_sG, broadcast=True)
+                self.world.broadcast(nt_sR, 0)
+                nt_sG[:] = self.gd.distribute(nt_sR)
+
+            # If last step was really bad, we should just get rid of it
+            if del_oldest:
+                del nt_isG[0]
+                del R_isG[0]
+                del dD_iasp[0]
+                del D_iasp[0]
+                del mR_isG[0]
+                del mD_iasp[0]
+
+        elif iold > 0:
+            # Pratt step
+            self.trust_radius = None
+            self.A0 = None
+            A0 = self.beta
+            self.uk_sG = R_sG
+            self.pk_sG = np.zeros_like(self.uk_sG)
+            nt_sG[:] = nt_isG[-1] + A0 * self.uk_sG
+            self.uD_asp = []
+            self.pD_asp = []
+            for a1, D_sp in enumerate(D_asp):
+                D_sp[:] = D_iasp[-1][a1] + A0 * dD_iasp[-1][a1]
+                self.uD_asp.append(dD_iasp[-1][a1].copy())
+                self.pD_asp.append(np.zeros_like(D_sp))
+
+        # Store new input density (and new atomic density matrices):
+        nt_isG.append(nt_sG.copy())
+        D_iasp.append([])
+        for D_sp in D_asp:
+            D_iasp[-1].append(D_sp.copy())
+        self.last_dNt = dNt
+        return dNt
+
+
+class ExperimentalDotProd:
+    def __init__(self, setups, atomdist):
+        self.setups = setups
+        self.atomdist = atomdist
+
+    def __call__(self, R1_isG, R2_isG, dD1_iasp, dD2_iasp, gd, mode='scalar'):
+        from gpaw.utilities import unpack_hermitian
+        setups = self.setups
+        comm = gd.comm
+
+        if mode == 'scalar':
+            R1_isG = [R1_isG, ]
+            dD1_iasp = [dD1_iasp, ]
+            R2_isG = [R2_isG, ]
+            dD2_iasp = [dD2_iasp, ]
+
+        if mode == 'gemm':
+            shape1 = np.array(R1_isG).shape
+            shape2 = np.array(R2_isG).shape
+            prod = np.reshape(R1_isG, (shape1[0], -1)).conj() \
+                @ np.reshape(R2_isG, (shape2[0], -1)).T
+        elif mode == 'vecdot' or mode == 'scalar':
+            assert len(R1_isG) == len(R2_isG)
+            if hasattr(np, 'vecdot'):  # numpy 2.0+
+                prod = np.vecdot(
+                    np.reshape(R1_isG, (len(R1_isG), -1)),
+                    np.reshape(R2_isG, (len(R2_isG), -1))
+                )
+            else:
+                prod = np.einsum(
+                    'ix, ix -> i',
+                    np.reshape(R1_isG, (len(R1_isG), -1)).conj(),
+                    np.reshape(R2_isG, (len(R2_isG), -1))
+                )
+        prod *= gd.dv
+        assert self.atomdist.comm.rank == comm.rank
+        my_atoms_inds = np.where(self.atomdist.rank_a == comm.rank)[0]
+        for a, a_s in enumerate(my_atoms_inds):
+            setup = setups[a_s]
+            ni = setup.ni
+            I4_pp = setup.four_phi_integrals()
+            I4_pp = unpack_hermitian(I4_pp).reshape(-1, ni**2).T.copy()
+            I4_pp = unpack_hermitian(I4_pp).reshape(ni**2, ni**2)
+
+            if mode == 'gemm':
+                for i1, dD1_asp in enumerate(dD1_iasp):
+                    dD1_sp = dD1_asp[a].conj()
+                    for i2, dD2_asp in enumerate(dD2_iasp):
+                        dD2_sp = dD2_asp[a]
+                        for dD1_p, dD2_p in zip(dD1_sp, dD2_sp):
+                            prod[i1, i2] += dD1_p @ I4_pp @ dD2_p
+            elif mode == 'vecdot' or mode == 'scalar':
+                for i, (dD1_asp, dD2_asp) in enumerate(
+                        zip(dD1_iasp, dD2_iasp)):
+                    dD1_sp = dD1_asp[a].conj()
+                    dD2_sp = dD2_asp[a]
+                    for dD1_p, dD2_p in zip(dD1_sp, dD2_sp):
+                        prod[i] += dD1_p @ I4_pp @ dD2_p
+        comm.sum(prod)
+        assert (prod.imag < 1e-10).all()
+        prod = prod.real
+        if mode == 'scalar':
+            assert prod.size == 1
+        return prod[0] if mode == 'scalar' else prod
 
 
 class ReciprocalMetric:
-    def __init__(self, weight, k2_Q):
-        self.k2_Q = k2_Q
-        k2_min = np.min(self.k2_Q)
+    def __init__(self, weight, k2_Q, gd):
+        k2_min = np.min(k2_Q)
         self.q1 = (weight - 1) * k2_min
+        self.k2_Q = gd.distribute(k2_Q)
 
     def __call__(self, R_Q, mR_Q):
         mR_Q[:] = R_Q * (1.0 + self.q1 / self.k2_Q)
 
 
-class FFTBaseMixer(BaseMixer):
+class FFTBaseMixer(BaseMixer):  # This should be able to wrap MSR1
     name = 'fft'
 
     """Mix the density in Fourier space"""
@@ -242,36 +759,37 @@ class FFTBaseMixer(BaseMixer):
     def initialize_metric(self, gd):
         self.gd = gd
 
-        if gd.comm.rank == 0:
-            self.gd1 = gd.new_descriptor(comm=mpi.serial_comm)
-            k2_Q, _ = construct_reciprocal(self.gd1)
-            self.metric = ReciprocalMetric(self.weight, k2_Q)
-        else:
-            self.metric = lambda R_Q, mR_Q: None
+        self.gd1 = gd.new_descriptor(comm=mpi.serial_comm)
+        k2_Q, _ = construct_reciprocal(self.gd1)
+        self.metric = ReciprocalMetric(self.weight, k2_Q, self.gd)
 
     def calculate_charge_sloshing(self, R_sQ):
-        if self.gd.comm.rank == 0:
-            assert R_sQ.ndim == 4  # and len(R_sQ) == 1
-            cs = sum(self.gd1.integrate(np.fabs(ifftn(R_Q).real))
-                     for R_Q in R_sQ)
-        else:
-            cs = 0.0
+        assert R_sQ.ndim == 4  # and len(R_sQ) == 1
+        cs = 0.0
+        for R_Q in R_sQ:
+            R_X = self.gd.collect(R_Q)
+            if self.gd.comm.rank == 0:
+                cs += self.gd1.integrate(np.abs(ifftn(R_X, norm='ortho')).real)
+
         return self.gd.comm.sum_scalar(cs)
 
     def mix_density(self, nt_sR, D_asp, g_ss=None):
         # Transform real-space density to Fourier space
         nt1_sR = [self.gd.collect(nt_R) for nt_R in nt_sR]
         if self.gd.comm.rank == 0:
-            nt1_sG = np.ascontiguousarray([fftn(nt_R) for nt_R in nt1_sR])
+            nt1_sG = np.ascontiguousarray(
+                [fftn(nt_R, norm='ortho') for nt_R in nt1_sR])
         else:
             nt1_sG = np.empty((len(nt_sR), 0, 0, 0), dtype=complex)
+        nt_sG = np.array([self.gd.distribute(nt1_G) for nt1_G in nt1_sG])
 
-        dNt = super().mix_density(nt1_sG, D_asp)
+        dNt = super().mix_density(nt_sG, D_asp)
 
+        nt1_sG = [self.gd.collect(nt_G) for nt_G in nt_sG]
         # Return density in real space
         for nt_G, nt_R in zip(nt1_sG, nt_sR):
             if self.gd.comm.rank == 0:
-                nt1_R = ifftn(nt_G).real
+                nt1_R = ifftn(nt_G, norm='ortho').real
             else:
                 nt1_R = None
             self.gd.distribute(nt1_R, nt_R)
@@ -466,7 +984,7 @@ class NotMixingMixer:
 class SeparateSpinMixerDriver:
     name = 'separate'
 
-    def __init__(self, basemixerclass, beta, nmaxold, weight):
+    def __init__(self, basemixerclass, beta, nmaxold, weight, *args, **kwargs):
         self.basemixerclass = basemixerclass
 
         self.beta = beta
@@ -642,7 +1160,7 @@ class FullSpinMixerDriver:
     def mix(self, basemixers, nt_sG, D_asp):
         D_asp = D_asp.values()
         basemixer = basemixers[0]
-        if self.g_ss is None:
+        if self.g_ss is None or len(self.g_ss) != len(nt_sG):
             self.g_ss = np.identity(len(nt_sG))
 
         dNt = basemixer.mix_density(nt_sG, D_asp, self.g_ss)
@@ -653,7 +1171,8 @@ class FullSpinMixerDriver:
 # Dictionaries to get mixers by name:
 _backends = {}
 _methods = {}
-for cls in [FFTBaseMixer, BroydenBaseMixer, BaseMixer, NotMixingMixer]:
+for cls in [FFTBaseMixer, BroydenBaseMixer, BaseMixer,
+            NotMixingMixer, MSR1Mixer]:
     _backends[cls.name] = cls  # type:ignore
 for dcls in [SeparateSpinMixerDriver, SpinSumMixerDriver,
              FullSpinMixerDriver, SpinSumMixerDriver2,

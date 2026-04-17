@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from types import ModuleType
+from typing import overload, Literal
 
 import numpy as np
 import scipy.linalg as sla
@@ -291,76 +292,54 @@ class Matrix(XP):
         `other` is the output, newly distributed matrix."""
         if self is other:
             return
+
         d1 = self.dist
         d2 = other.dist
         n1 = d1.rows * d1.columns
         n2 = d2.rows * d2.columns
+
         if n1 == n2 == 1:
             other.data[:] = self.data
             return
 
-        if d2.all_data_on_rank_zero and d1.simple:
-            comm = d1.comm
-            if comm.rank == 0:
-                M = self.shape[0]
-                m = (M + comm.size - 1) // comm.size
-                other.data[:m] = self.data
-                for r in range(1, comm.size):
-                    m1 = min(r * m, M)
-                    m2 = min(m1 + m, M)
-                    comm.receive(other.data[m1:m2], r)
-            else:
-                comm.send(self.data, 0)
-            return
+        d1.redist(d2, self.data, other.data)
 
-        if d1.all_data_on_rank_zero and d2.simple:
-            comm = d2.comm
-            if comm.rank == 0:
-                M = self.shape[0]
-                m = (M + comm.size - 1) // comm.size
-                other.data[:] = self.data[:m]
-                for r in range(1, comm.size):
-                    m1 = min(r * m, M)
-                    m2 = min(m1 + m, M)
-                    comm.send(self.data[m1:m2], r)
-            else:
-                comm.receive(other.data, 0)
-            return
+    @overload
+    def gather(self, broadcast: Literal[True] = True) -> Matrix:
+        ...
 
-        assert self.xp is np
-        c = d1.comm if d1.comm.size > d2.comm.size else d2.comm
-        n = max(n1, n2)
-        if n < c.size:
-            c = c.new_communicator(np.arange(n))
-        if c is not None:
-            M, N = self.shape
-            d1 = create_distribution(M, N, c,
-                                     d1.rows, d1.columns, d1.br, d1.bc)
-            d2 = create_distribution(M, N, c,
-                                     d2.rows, d2.columns, d2.br, d2.bc)
-            if n1 == n:
-                ctx = d1.desc[1]
-            else:
-                ctx = d2.desc[1]
-            redist(d1, self.data, d2, other.data, ctx)
+    @overload
+    def gather(self, broadcast: Literal[False] = False) -> Matrix | None:
+        ...
 
-    def gather(self, root: int = 0, *, broadcast=False) -> Matrix:
-        """Gather the Matrix on the root rank.
-
-        Returns a new Matrix distributed so that all data is on the root rank
-        """
-        assert root == 0
-
-        if self.dist.comm.size == 1:
+    def gather(self, broadcast: bool = False) -> Matrix | None:
+        """Gather the Matrix on rank zero."""
+        comm = self.dist.comm
+        if comm.size == 1:
             return self
-
-        S = self.new(dist=(self.dist.comm, 1, 1, *self.shape))
-        self.redist(S)
+        if self.dist.all_data_on_rank_zero:
+            M = self
+        else:
+            M = self.new(dist=(comm, 1, 1, *self.shape))
+            self.redist(M)
+        if comm.rank == 0:
+            M = self.new(dist=None, data=M.data)
+            if broadcast:
+                comm.broadcast(M.data, 0)
+            return M
         if broadcast:
-            if self.dist.comm.rank != 0:
-                S = self.new(dist=None)
-            self.dist.comm.broadcast(S.data, 0)
-        return S
+            M = self.new(dist=None)
+            comm.broadcast(M.data, 0)
+            return M
+        return None
+
+    def scatter_from(self, other: Matrix | None) -> None:
+        """Scatter from rank-0."""
+        if other is self:
+            return
+        M = self.new(dist=(self.dist.comm, 1, 1, *self.shape),
+                     data=other.data if other is not None else None)
+        M.redist(self)
 
     @staticmethod
     def scatter(data: Array2D,
@@ -382,7 +361,7 @@ class Matrix(XP):
         non_distributed_matrix.redist(matrix)
         return matrix
 
-    def inv(self, uplo='L'):
+    def inv(self, uplo='L') -> None:
         """Inplace inversion."""
         assert uplo == 'L'
         M, N = self.shape
@@ -418,7 +397,7 @@ class Matrix(XP):
                [-0.10050378,  1.00503782]])
         """
         S = self.gather()
-        if self.dist.comm.rank == 0:
+        if S is not None:
             if isinstance(S.data, np.ndarray):
                 if debug:
                     S.data[np.triu_indices(S.shape[0], 1)] = 42.0
@@ -434,14 +413,13 @@ class Matrix(XP):
                 L_nn = cp.linalg.cholesky(S.data)
                 S.data[:] = cp.linalg.inv(L_nn)
 
-        if S is not self:
-            S.redist(self)
+        self.scatter_from(S)
 
     def eigh(self,
-             S=None,
+             S: Matrix | None = None,
              *,
-             cc=False,
-             scalapack=(None, 1, 1, 0),
+             cc: bool = False,
+             scalapack: tuple[MPIComm, int, int, int] = (serial_comm, 1, 1, 0),
              limit: int | None = None) -> Array1D:
         """Calculate eigenvectors and eigenvalues.
 
@@ -458,131 +436,48 @@ class Matrix(XP):
         limit:
             Number of eigenvector and values to find.  Defaults to all.
         """
-        if self.xp is cp:
-            # use MAGMA here?
-            scalapack = None, 1, 1, 0
 
-        slcomm, rows, columns, blocksize = scalapack
-        assert blocksize is not None
-        slcomm = slcomm or self.dist.comm
-        dist = (slcomm, rows, columns, blocksize)
-
-        redist = (rows != self.dist.rows or
-                  columns != self.dist.columns or
-                  blocksize != self.dist.br or
-                  blocksize != self.dist.bc)
-
-        if redist:
-            H = self.new(dist=dist)
-            self.redist(H)
-            if S is not None:
-                S0 = S
-                S = S0.new(dist=dist)
-                S0.redist(S)
-        else:
-            assert self.dist.comm.size == slcomm.size
-            H = self
-
-        # ---- GPU case
-        if self.xp is not np:
-            assert isinstance(H.data, cp.ndarray)
-
-            if cc and np.issubdtype(H.dtype, np.complexfloating):
-                cp.negative(H.data.imag, H.data.imag)
-            if debug and not H.is_distributed():
-                # Set upper triangle to a cool number.
-                # But no easy way of doing this for distributed matrices
-                H.data[cp.triu_indices(H.shape[0], 1)] = 42.0
-
-            # Handle generalized eigenproblem
-            if S is not None:
-                if self.is_distributed():
-                    raise NotImplementedError("GPU generalized eigh "
-                                              "for distributed matrices")
-                S.invcholesky()
-                self.tril2full()
-                eigs = self.dist.eighl(self, S)
-                self.data[:] = self.data.T.copy()
-                return eigs
-
-            # TODO some way for the caller to specify options/backend
-            diagonalizer, options = suggest_diagonalizer(H)
-            options.uplo = 'L'
-            options.inplace = True
-            eigvals, H = diagonalizer.eigh(H, options)
-
-            # Back to original layout
-            if redist:
-                H.redist(self)
-
-            # GPU case done, return here for clarity
-            return eigvals
-
-        # ---- CPU case
-        if limit == H.shape[0]:
+        if limit == self.shape[0]:
             limit = None
 
         if limit:
-            eps = self.xp.empty(limit)
+            eigs = self.xp.empty(limit)
         else:
-            eps = self.xp.empty(H.shape[0])
+            eigs = self.xp.empty(self.shape[0])
 
-        if rows * columns == 1:
-            if self.dist.comm.rank == 0:
-                if cc and np.issubdtype(H.dtype, np.complexfloating):
-                    np.negative(H.data.imag, H.data.imag)
-                if debug:
-                    H.data[np.triu_indices(H.shape[0], 1)] = 42.0
-                if S is None:
-                    eps[:], H.data.T[:] = sla.eigh(
-                        H.data,
-                        lower=True,
-                        overwrite_a=True,
-                        check_finite=debug,
-                        driver='evx' if H.data.size == 1 else 'evd')
-                else:
-                    if debug:
-                        S.data[self.xp.triu_indices(H.shape[0], 1)] = 42.0
-                    eps, evecs = sla.eigh(
-                        H.data,
-                        S.data,
-                        lower=True,
-                        overwrite_a=True,
-                        overwrite_b=True,
-                        check_finite=debug,
-                        subset_by_index=(0, limit - 1) if limit else None)
-                    limit = limit or len(eps)
-                    H.data.T[:, :limit] = evecs
-            self.dist.comm.broadcast(eps, 0)
-        else:
-            if slcomm.rank < rows * columns:
-                array = H.data.copy()
-                if not cc and np.issubdtype(H.dtype, np.complexfloating):
-                    np.negative(array.imag, array.imag)
-                eps0 = np.empty(H.shape[0]) if limit else eps
-                if S is None:
-                    info = cgpaw.scalapack_diagonalize_dc(
-                        array, H.dist.desc, 'U', H.data, eps0)
-                else:
-                    sarray = S.data
-                    if not cc and np.issubdtype(H.dtype, np.complexfloating):
-                        np.negative(sarray.imag, sarray.imag)
-                    info = cgpaw.scalapack_general_diagonalize_dc(
-                        array, H.dist.desc, 'U', sarray, H.data, eps0)
-                if limit:
-                    eps[:] = eps0[:limit]
-                assert info == 0, info
+        slcomm, rows, columns, blocksize = scalapack
+        serial = rows * columns == 1 or self.xp is cp
 
-            # necessary to broadcast eps when some ranks are not used
-            # in current scalapack parameter set
-            # eg. (2, 1, 2) with 4 processes
-            if rows * columns < slcomm.size:
-                H.dist.comm.broadcast(eps, 0)
+        if serial:
+            H = self.gather()
+            if S is not None:
+                S = S.gather()
+            if H is not None:
+                H.dist.eigh_serial(H, S, eigs, cc, limit)
+            self.dist.comm.broadcast(eigs, 0)
+            self.scatter_from(H)
+            return eigs
 
-        if redist:
-            H.redist(self)
+        H = self.new(dist=scalapack)
+        self.redist(H)
+        if S is not None:
+            S0 = S
+            S = H.new()
+            S0.redist(S)
 
-        return eps
+        if self.dist.comm.rank < rows * columns:
+            eigh_parallel(H, S, eigs, cc, limit)
+
+        # necessary to broadcast eps when some ranks are not used
+        # in current scalapack parameter set
+        # eg. (2, 1, 2) with 4 processes
+        if 1:  # rows * columns < self.dist.comm.size:
+            # looks like scalapack_general_diagonalize_dc needs this
+            # always!  Not sure about scalapack_diagonalize_dc?
+            self.dist.comm.broadcast(eigs, 0)
+
+        H.redist(self)
+        return eigs
 
     def eighl(self,
               L: Matrix,
@@ -657,7 +552,7 @@ class Matrix(XP):
 
         dist = self.dist
 
-        if dist.comm.size == 1 or dist.rows == 1 and dist.columns == 1:
+        if dist.all_data_on_rank_zero:
             if dist.comm.rank == 0:
                 lower = self.xp.tri(M, k=-1, dtype=bool)
                 self.data.T[lower] = self.data[lower].conj()
@@ -703,14 +598,6 @@ def _matrix(M):
     if isinstance(M, Matrix):
         return M
     return _matrix(M.matrix)
-
-
-def redist(dist1, M1, dist2, M2, context):
-    cgpaw.scalapack_redist(dist1.desc, dist2.desc,
-                           M1, M2,
-                           dist1.desc[2], dist1.desc[3],
-                           1, 1, 1, 1,  # 1-indexing
-                           context, 'G')
 
 
 def create_distribution(M: int,
@@ -796,6 +683,68 @@ class MatrixDistribution:
     def add_hermitian_conjugate(self,
                                 a: Matrix,
                                 scale: float) -> None:
+        raise NotImplementedError
+
+    def eigh_serial(self,
+                    H: Matrix,
+                    S: Matrix | None,
+                    eigs: np.ndarray,
+                    cc: bool = False,
+                    limit: int | None = None) -> None:
+        if cc and np.issubdtype(H.dtype, np.complexfloating):
+            np.negative(H.data.imag, H.data.imag)
+        if debug:
+            H.data[np.triu_indices(H.shape[0], 1)] = 42.0
+        if S is None:
+            eigs[:], H.data.T[:] = sla.eigh(
+                H.data,
+                lower=True,
+                overwrite_a=True,
+                check_finite=debug,
+                driver='evx' if H.data.size == 1 else 'evd')
+        else:
+            if debug:
+                S.data[np.triu_indices(H.shape[0], 1)] = 42.0
+            eigs[:], evecs = sla.eigh(
+                H.data,
+                S.data,
+                lower=True,
+                overwrite_a=True,
+                overwrite_b=True,
+                check_finite=debug,
+                subset_by_index=(0, limit - 1) if limit else None)
+            limit = limit or len(eigs)
+            H.data.T[:, :limit] = evecs
+
+    def redist(self, other, m1data, m2data):
+        if other.all_data_on_rank_zero and self.simple:
+            comm = self.comm
+            if comm.rank == 0:
+                M = self.full_shape[0]
+                m = (M + self.rows - 1) // self.rows
+                m2data[:m] = m1data
+                for r in range(1, self.rows):
+                    m1 = min(r * m, M)
+                    m2 = min(m1 + m, M)
+                    comm.receive(m2data[m1:m2], r * self.columns)
+            elif comm.rank % self.columns == 0:
+                comm.send(m1data, 0)
+            return
+
+        if self.all_data_on_rank_zero and other.simple:
+            comm = other.comm
+            if comm.rank == 0:
+                M = self.full_shape[0]
+                m = (M + other.rows - 1) // other.rows
+                m2data[:] = m1data[:m]
+                for r in range(1, other.rows):
+                    m1 = min(r * m, M)
+                    m2 = min(m1 + m, M)
+                    comm.send(m1data[m1:m2], r * other.columns)
+            elif comm.rank % other.columns == 0:
+                comm.receive(m2data, 0)
+            return
+
         raise NotImplementedError
 
 
@@ -958,6 +907,46 @@ class BLACSDistribution(MatrixDistribution):
             *self.full_shape,
             self.comm, self.rows, self.columns, self.br, self.bc)
 
+    def redist(self, other, m1data, m2data):
+        c = self.comm if self.comm.size > other.comm.size else other.comm
+        M, N = self.full_shape
+        d1 = create_distribution(M, N, c,
+                                 self.rows, self.columns, self.br, self.bc)
+        d2 = create_distribution(M, N, c,
+                                 other.rows, other.columns, other.br, other.bc)
+        if d1.rows * d1.columns >= d2.rows * d2.columns:
+            ctx = d1.desc[1]
+        else:
+            ctx = d2.desc[1]
+        cgpaw.scalapack_redist(d1.desc, d2.desc,
+                               m1data, m2data,
+                               d1.desc[2], d1.desc[3],
+                               1, 1, 1, 1,  # 1-indexing
+                               ctx, 'G')
+
+
+def eigh_parallel(H: Matrix,
+                  S: Matrix | None,
+                  eigs: np.ndarray,
+                  cc: bool = False,
+                  limit: int | None = None) -> None:
+    array = H.data.copy()
+    if not cc and np.issubdtype(H.dtype, np.complexfloating):
+        np.negative(array.imag, array.imag)
+    eigs0 = np.empty(H.shape[0]) if limit else eigs
+    if S is None:
+        info = cgpaw.scalapack_diagonalize_dc(
+            array, H.dist.desc, 'U', H.data, eigs0)
+    else:
+        sarray = S.data
+        if not cc and np.issubdtype(H.dtype, np.complexfloating):
+            np.negative(sarray.imag, sarray.imag)
+        info = cgpaw.scalapack_general_diagonalize_dc(
+            array, H.dist.desc, 'U', sarray, H.data, eigs0)
+    if limit:
+        eigs[:] = eigs0[:limit]
+    assert info == 0, info
+
 
 def cublas_mmm(alpha, a, opa, b, opb, beta, c):
     if c.size == 0:
@@ -974,14 +963,14 @@ class CuPyDistribution(MatrixDistribution):
         self.rows = r
         self.columns = c
         self.full_shape = (M, N)
-        assert c == 1
         self.br = br
         self.bc = bc
         assert bc == max(1, N)
+        row = comm.rank // c
         if br >= M:
-            m = M if comm.rank == 0 else 0
+            m = M if row == 0 else 0
         elif br == (M + r - 1) // r:
-            m = min((comm.rank + 1) * br, M) - min(comm.rank * br, M)
+            m = min((row + 1) * br, M) - min(row * br, M)
             self.all_data_on_rank_zero = False
         else:
             raise ValueError
@@ -1024,10 +1013,12 @@ class CuPyDistribution(MatrixDistribution):
                 # Quick'n'dirty hack:
                 a = a.gather()
                 b = b.gather()
-                c0 = b.new()
                 if self.comm.rank == 0:
+                    c0 = b.new()
                     cublas_mmm(alpha, a.data, opa, b.data, opb, beta, c0.data)
-                c0.redist(c)
+                else:
+                    c0 = None
+                c.scatter_from(c0)
                 return c
             1 / 0
 
@@ -1069,6 +1060,30 @@ class CuPyDistribution(MatrixDistribution):
         b = a.to_cpu()
         b.add_hermitian_conjugate(scale)
         a.data[:] = b.to_xp(cp).data
+
+    def eigh_serial(self,
+                    H: Matrix,
+                    S: Matrix | None,
+                    eigs: np.ndarray,
+                    cc: bool = False,
+                    limit: int | None = None) -> None:
+        assert isinstance(H.data, cp.ndarray)
+        if cc and np.issubdtype(H.dtype, np.complexfloating):
+            cp.negative(H.data.imag, H.data.imag)
+        # Handle generalized eigenproblem
+        if S is not None:
+            S.invcholesky()
+            H.tril2full()
+            limit = limit or self.shape[0]
+            eigs[:] = self.eighl(H, S)[:limit]
+            H.data[:limit] = H.data.T[:limit].copy()
+            return
+
+        # TODO some way for the caller to specify options/backend
+        diagonalizer, options = suggest_diagonalizer(H)
+        options.uplo = 'L'
+        options.inplace = True
+        eigs[:], _ = diagonalizer.eigh(H, options)
 
     def eighl(self, H, L):
         """

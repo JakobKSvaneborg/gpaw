@@ -2,7 +2,7 @@ from ase.io import read
 from numpy import dot, reshape
 
 import gpaw.dscf as dscf
-from gpaw import GPAW, GPAW_NEW
+from gpaw import GPAW
 from gpaw.mixer import MixerSum
 
 filename = 'excited'
@@ -12,7 +12,7 @@ c_mol = GPAW(mode='fd',
              h=0.2,
              xc='RPBE',
              kpts=(4, 6, 1),
-             eigensolver='ppcg' if GPAW_NEW else 'cg',
+             eigensolver='cg',
              spinpol=True,
              convergence={'bands': -2},
              txt='CO.txt',
@@ -24,7 +24,7 @@ calc = GPAW(mode='fd',
             xc='RPBE',
             kpts=(4, 6, 1),
             setups={'Pt': '10'},
-            eigensolver='ppcg' if GPAW_NEW else 'cg',
+            eigensolver='cg',
             spinpol=True,
             mixer=MixerSum(nmaxold=5, beta=0.1, weight=100),
             convergence={'eigenstates': 1.0e-4,

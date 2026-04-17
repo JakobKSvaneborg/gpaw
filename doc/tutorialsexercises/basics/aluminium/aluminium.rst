@@ -1,10 +1,10 @@
 .. _aluminium_exercise:
 
-=============
-Bulk aluminum
-=============
+==============
+Bulk aluminium
+==============
 
-We will look at bulk fcc aluminum and make a single energy calculation at the
+We will look at bulk fcc aluminium and make a single energy calculation at the
 experimental lattice constant `a_0` = 4.05 Å. For the first example, we
 choose a plane-wave cutoff energy of 300 eV and 4 x 4 x 4 **k**-points.  Copy
 this :download:`Al_fcc.py` to a place in your file area:
@@ -68,7 +68,7 @@ Equilibrium lattice properties
 ==============================
 
 We now proceed to calculate some equilibrium lattice properties of
-bulk Aluminum.
+bulk Aluminium.
 
 * First map out the cohesive curve `E(a)` for Al(fcc), i.e.  the
   total energy as function of lattice constant `a`, around the
@@ -129,7 +129,7 @@ Convergence in number of **k**-points
 -------------------------------------
 
 Now we will investigate the necessary **k**-point sampling for bulk
-fcc Aluminum; this is a standard first step in all DFT calculations.
+fcc Aluminium; this is a standard first step in all DFT calculations.
 
 * Repeat the calculation above for the equilibrium lattice constant
   for more dense Brillouin zone samplings (try ``k=6,8,10,...``).
@@ -143,7 +143,7 @@ fcc Aluminum; this is a standard first step in all DFT calculations.
   accurate value for the lattice constant.
 
 * Do you expect that this **k**-point test is universal for all other
-  Aluminum structures than fcc?  What about other chemical elements ?
+  Aluminium structures than fcc?  What about other chemical elements ?
 
 
 Equilibrium lattice properties for bcc

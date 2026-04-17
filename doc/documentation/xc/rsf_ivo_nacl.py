@@ -33,6 +33,8 @@ def calc_me(atoms, nbands):
                 nbands=nbands,
                 txt=fname + '.log',
                 occupations=FermiDirac(0.0, fixmagmom=True),
+                mixer={'method': 'difference',
+                       'nmaxold': 3},
                 convergence={
                     'energy': 0.005,
                     'bands': nbands,

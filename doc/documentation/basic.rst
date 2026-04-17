@@ -45,16 +45,21 @@ In Python code, it looks like this:
 .. literalinclude:: h2.py
     :start-after: creates
 
-If the above code was executed, a calculation for a single `\rm{H}_2`
-molecule would be started.  The calculation would be done using a
-supercell of size `6.0 \times 6.0 \times 6.0` Å with cluster
-boundary conditions.  The parameters for the PAW calculation are:
+If the above code was executed, a plane-wave (``pw``) calculation
+for a single :mol:`H_2` molecule would be started.
+The calculation would be done using a cell of size
+`6.0 \times 6.0 \times 6.0` Å with open boundary conditions.
 
-* 2 electronic bands.
+.. note::
+   For plane-waves mode GPAW will always use periodic boundary conditions.
+
+The other (default) parameters for the PAW calculation are:
+
+* Plane-wave cutoff ``ecut`` 340 eV.
+* ``nbands`` 2 electronic bands.
 * Local density approximation (LDA)\ [#LDA]_ for the
-  exchange-correlation functional.
+  exchange-correlation functional ``xc``.
 * Spin-paired calculation.
-* `32 \times 32 \times 32` grid points.
 
 The values of these parameters can be found in the text output file:
 :download:`h2.txt`.
@@ -65,12 +70,11 @@ like this:
 
 >>> calc = GPAW(mode='fd',
 ...             nbands=1,
-...             xc='PBE',
-...             gpts=(24, 24, 24))
+...             xc='PBE')
 
-Here, we want to use one electronic band, the Perdew, Burke, Ernzerhof
-(PBE)\ [#PBE]_ exchange-correlation functional and 24 grid points in
-each direction.
+Here, we want to use finite difference (``fd``) mode,
+one electronic band and the Perdew, Burke, Ernzerhof
+(PBE)\ [#PBE]_ exchange-correlation functional.
 
 .. _parameters:
 

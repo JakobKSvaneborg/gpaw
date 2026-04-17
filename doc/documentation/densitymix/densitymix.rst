@@ -113,6 +113,18 @@ A comparison of the two metrics is displayed in the figure below
   :align: center
 
 
+Advanced mixing: The MSR1 algorithm
+-----------------------------------
+
+GPAW also supports other mixer backends, prevalent among these is the
+new MSR1 mixer [#MSR1]_ which promises faster and more stable convergence
+in most cases. When using this mixer we recommend the settings::
+
+    mixer = {'backend': 'msr1',
+             'beta': 0.035,
+             'nmaxold': 8}
+
+
 Specifying a Mixing Scheme in GPAW
 ----------------------------------
 
@@ -156,3 +168,4 @@ References
 
 .. [#Pulay1980] Pulay, Chem. Phys. Let. **73**, 393 (1980)
 .. [#Kresse1996] Kresse, Phys. Rev. B **54**, 11169 (1996)
+.. [#MSR1] Marks, J. Chem. Theory Comput. **17**, 5715 (2021)

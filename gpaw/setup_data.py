@@ -172,37 +172,39 @@ class SetupData:
             text(self.symbol + ':')
         else:
             text(f'{self.symbol}:  # ({self.fcorehole:.1f} core hole)')
-        text('  name:', atomic_names[atomic_numbers[self.symbol]])
-        text('  id:', self.fingerprint)
-        text('  Z:', self.Z)
+        text('  name:   ', atomic_names[atomic_numbers[self.symbol]])
+        text('  id:     ', self.fingerprint)
+        text('  Z:      ', self.Z)
         text('  valence:', self.Nv)
         if self.phicorehole_g is None:
-            text('  core: %d' % self.Nc)
+            text('  core:    %d' % self.Nc)
         else:
-            text(f'  core: {self.Nc:.1f}')
-        text('  charge:', self.Z - self.Nv - self.Nc)
+            text(f'  core:    {self.Nc:.1f}')
+        text('  charge: ', self.Z - self.Nv - self.Nc, ' # [|e|]')
         if setup.hubbard_u is not None:
             description = ''.join([f'  {line}' for line
                                    in setup.hubbard_u.descriptions()])
             text(description)
-        text('  file:', self.filename)
+        text('  file:   ', self.filename)
         sf = self.shape_function
-        text(f'  compensation charges: {{type: {sf["type"]},\n'
-             f'                         rc: {sf["rc"] * Bohr:.2f},\n'
-             f'                         lmax: {setup.lmax}}}')
-        text(f'  cutoffs: {{filter: {setup.rcutfilter * Bohr:.2f},\n'
-             f'            core: {setup.rcore * Bohr:.2f}}}')
-        text('  projectors:')
-        text('    #              energy  rcut')
+        text(f'  compensation charges:\n'
+             f'    type: {sf["type"]}\n'
+             f'    rc: {sf["rc"] * Bohr:.2f}  # [Å]\n'
+             f'    lmax: {setup.lmax}')
+        text(f'  cutoffs:\n'
+             f'    filter: {setup.rcutfilter * Bohr:.2f}  # [Å]\n'
+             f'    core: {setup.rcore * Bohr:.2f}  # [Å]')
+        text('  projectors')
+        text('  | kind |    occ | energy [eV] | rcut [Å] |')
+        text('  |------|--------|-------------|----------|')
         j = 0
         for n, l, f, eps in zip(self.n_j, self.l_j, self.f_j, self.eps_j):
             if n > 0:
-                f = f'({f:.2f})'
-                text('    - %d%s%-5s %9.3f   %5.3f' % (
-                    n, 'spdf'[l], f, eps * Ha, self.rcut_j[j] * Bohr))
+                text(f'  | {n:3}{"spdf"[l]} | {f:6.3f} |'
+                     f' {eps * Ha:11.3f} | {self.rcut_j[j] * Bohr:8.3f} |')
             else:
-                text('    -  {}       {:9.3f}   {:5.3f}'.format(
-                    'spdf'[l], eps * Ha, self.rcut_j[j] * Bohr))
+                text(f'  |    {"spdf"[l]} |        |'
+                     f' {eps * Ha:11.3f} | {self.rcut_j[j] * Bohr:8.3f} |')
             j += 1
         text()
 

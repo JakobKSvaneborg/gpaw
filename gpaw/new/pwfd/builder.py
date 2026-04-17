@@ -31,14 +31,16 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
             self.nbands,
             self.wf_desc,
             self.communicators['b'],
+            self.communicators['K'],
+            self.params.parallel.get('sl_diagonalize'),
             hamiltonian,
             self.params.convergence,
             self.setups,
             self.atoms)
 
     def read_ibz_wave_functions(self, reader):
-        kpt_comm, band_comm, domain_comm = (self.communicators[x]
-                                            for x in 'kbd')
+        kpt_comm, band_comm, domain_band_comm = (self.communicators[x]
+                                                 for x in 'kbK')
 
         def create_wfs(spin: int, q: int, k: int, kpt_c, weight: float):
             psit_nG = XArrayWithNoData(
@@ -55,6 +57,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                 setups=self.setups,
                 relpos_ac=self.relpos_ac,
                 atomdist=self.atomdist,
+                domain_band_comm=domain_band_comm,
                 ncomponents=self.ncomponents,
                 qspiral_v=self.qspiral_v)
 
@@ -64,7 +67,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
             ibz=self.ibz,
             ncomponents=self.ncomponents,
             create_wfs_func=create_wfs,
-            kpt_comm=self.communicators['k'],
+            kpt_comm=kpt_comm,
             kpt_band_comm=self.communicators['D'],
             comm=self.communicators['w'])
 
@@ -130,6 +133,7 @@ class PWFDDFTComponentsBuilder(DFTComponentsBuilder):
                 setups=self.setups,
                 relpos_ac=self.relpos_ac,
                 atomdist=self.atomdist,
+                domain_band_comm=self.communicators['K'],
                 ncomponents=self.ncomponents,
                 qspiral_v=self.qspiral_v)
 
