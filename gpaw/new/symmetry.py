@@ -491,13 +491,13 @@ def symmetry_symbol(M_cc: np.ndarray) -> str:
     if d == 1:
         if t == 3:
             return 'E'
-        n = int(round(2 * np.pi / np.acos((t - 1) / 2)))
+        n = int(round(2 * np.pi / np.arccos((t - 1) / 2)))
         return f'C{n}'
     if t == -3:
         return 'i'
     if t == 1:
         return 'σ'
-    n = int(round(2 * np.pi / np.acos((t + 1) / 2)))
+    n = int(round(2 * np.pi / np.arccos((t + 1) / 2)))
     return f'S{n}'
 
 
