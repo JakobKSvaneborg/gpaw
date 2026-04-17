@@ -399,17 +399,7 @@ class Symmetries:
         rows = []
         for s, (rot_cc, t_c) in enumerate(zip(self.rotation_scc,
                                               self.translation_sc)):
-            d = np.linalg.det(rot_cc)
-            if d == 1:
-                if (rot_cc == np.eye(3)).all():
-                    kind = 'E'
-                else:
-                    kind = 'Cn'
-            else:
-                if (rot_cc == -np.eye(3)).all():
-                    kind = 'i'
-                else:
-                    kind = 'σ'
+            kind = symmetry_symbol(rot_cc)
             row = [str(s), kind, mat(rot_cc)]
             if nt > 0:
                 a, b, c = t_c
@@ -480,6 +470,35 @@ class Symmetries:
                 else:  # no break
                     raise SymmetryAnalysisBug(
                         'Sorry!  Try using spglib.standardize_cell(...)')
+
+
+def symmetry_symbol(M_cc: np.ndarray) -> str:
+    """Convert symmetry operation to string.
+
+    >>> symmetry_symbol(np.eye(3))
+    'E'
+    >>> symmetry_symbol(-np.eye(3))
+    'i'
+    >>> symmetry_symbol([[0, 1, 0], [-1, 0, 0], [0, 0, 1]])
+    'C4'
+    >>> symmetry_symbol([[-1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    'σ'
+    >>> symmetry_symbol([[0, 1, 0], [-1, -1, 0], [0, 0, -1]])
+    'S3'
+    """
+    d = np.linalg.det(M_cc)
+    t = np.linalg.trace(M_cc)
+    if d == 1:
+        if t == 3:
+            return 'E'
+        n = int(round(2 * np.pi / np.acos((t - 1) / 2)))
+        return f'C{n}'
+    if t == -3:
+        return 'i'
+    if t == 1:
+        return 'σ'
+    n = int(round(2 * np.pi / np.acos((t + 1) / 2)))
+    return f'S{n}'
 
 
 class SymmetrizationPlan:
