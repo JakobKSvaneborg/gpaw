@@ -54,8 +54,9 @@ for i, arg in enumerate(sys.argv):
 # Globals that can be replaced by values in user siteconfig.py
 
 # temp flag for choosing different options for C/C++ builds.
-# Currently this must be set to true in siteconfig.py if compiling as C++
-use_cpp = False
+# We're deprecating non-C++ builds now so True is now default.
+# Fallback to False (below) if the user explicitly chose a C compiler
+use_cpp = True
 
 libraries = ['xc']
 library_dirs = []
@@ -186,6 +187,12 @@ else:  # no break
     if not noblas:
         libraries.append('blas')
 # ########### USER SITECONFIG DONE ###########
+
+# Fallback to legacy C build if the user siteconfig explicitly chose a C compiler.
+# Will be removed after deprecation period
+if compiler in ['gcc', 'clang', 'mpicc', 'cc', 'icc', 'icx']:
+    use_cpp = False
+
 
 GPAW_BUILD_JOBS = os.environ.get('GPAW_BUILD_JOBS')
 """
