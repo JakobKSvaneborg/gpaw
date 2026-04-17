@@ -6,7 +6,7 @@ from gpaw.mpi import world
 
 def par(size):
     kb = []
-    for k in range(1, size + 1):
+    for k in range(1, 3):
         if size % k != 0:
             continue
         for b in range(1, size // k + 1):
@@ -15,11 +15,11 @@ def par(size):
     return kb
 
 
-@pytest.mark.parametrize('kb', par(world.size))
+@pytest.mark.parametrize(
+    'kb',
+    [pytest.param((k, b), id=f'k{k}b{b}') for k, b in par(world.size)])
 def test_all(kb):
     k, b = kb
-    if 3 % k != 0:
-        pytest.skip()
     L = 2.6
     a = Atoms('Li2',
               [[0, 0, 0], [0.9, 0.9, 0]],
