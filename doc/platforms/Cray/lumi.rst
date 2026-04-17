@@ -113,11 +113,11 @@ Do the following in a clean terminal session and exit afterwards!
   module load EasyBuild-user
 
   # Get updated build recipes
-  git clone -b update-gpaw-deps https://github.com/cschpc/LUMI-EasyBuild-contrib.git
+  git clone -b update-gpaw-deps https://github.com/cschpc/LUMI-EasyBuild-contrib.git cschpc-LUMI-recipes
 
   # Install
-  eb CuPy-13.6.0-cpeGNU-25.03-rocm.eb -r LUMI-EasyBuild-contrib/easybuild/easyconfigs/
-  eb magma-2.8.0-cpeGNU-25.03-rocm.eb -r LUMI-EasyBuild-contrib/easybuild/easyconfigs/
+  eb CuPy-13.6.0-cpeGNU-25.03-rocm.eb -r cschpc-LUMI-recipes/easybuild/easyconfigs/
+  eb magma-2.8.0-cpeGNU-25.03-rocm.eb -r cschpc-LUMI-recipes/easybuild/easyconfigs/
   eb libxc-7.0.0-cpeGNU-25.03-FHC.eb -r
 
   # Exit the terminal after easybuild installations!
