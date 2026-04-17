@@ -1,10 +1,7 @@
 from gpaw.core import UGArray, UGDesc
 from gpaw.lfc import BasisFunctions
-from gpaw.new.basis_functions import (BasisFunctionDesc,
-                                      BasisFunctionCollectionBase,
-                                      LFCAtomDesc,
-                                      LFCSystemDesc)
-
+from gpaw.new.basis_functions import (
+    BasisFunctionDesc, BasisFunctionCollectionBase, LFCSystemDesc)
 
 from gpaw.new.basis_functions_purepython \
     import BasisFunctionCollectionPurePython
@@ -16,7 +13,7 @@ from gpaw.mpi import world, MPIComm
 import numpy as np
 import pytest
 import copy
-import itertools
+from collections import namedtuple
 from typing import cast
 
 
@@ -53,11 +50,6 @@ def parametrize_purepython():
     #         )]
 
 
-def parametrize_blocksize():
-    """"""
-    return [None, 8]
-
-
 def make_random_phi(
         l: int,
         cutoff: float,
@@ -70,19 +62,82 @@ def make_random_phi(
     return BasisFunctionDesc(l, cutoff, values)
 
 
-def make_test_system() -> LFCSystemDesc:
+# Generate a bunch of different grid fixtures:
+GridShape = namedtuple("GridShape", ["cell", "size"])
+# Can (must?) separately specify periodic and zero-boundaries
+BoundaryConds = namedtuple("BoundaryConds", ["pbc", "zerobc"])
+
+
+@pytest.fixture(params=[
+    pytest.param(
+        GridShape(cell=[3, 3, 3], size=(14, 14, 14)),
+        id="UniformOrthorhombic",),
+    pytest.param(
+        GridShape(cell=[1, 2, 3], size=(16, 10, 11)),
+        id="NonUniformOrthorombic",
+        marks=pytest.mark.ci),
+    pytest.param(
+        GridShape(cell=[3, 2, 3], size=(5, 8, 9)),
+        id="SmallOrthorhombic"),
+    pytest.param(
+        GridShape(cell=[[0, 1, 1], [3, 0, 3], [2, 2, 0]], size=(16, 8, 7)),
+        id="WeirdShape"),
+    pytest.param(
+        GridShape(cell=[[1, 2, 3], [0, 0, 3], [2, 2, 0]], size=(16, 10, 7)),
+        id="VeryWeirdShape",
+        marks=pytest.mark.slow
+    )],
+    scope="module")
+def fixt_grid_shape(request) -> GridShape:
+    """Parametrized grid shape fixture, generates grids of different shapes
+    and sizes."""
+    return request.param
+
+
+@pytest.fixture(params=[
+    pytest.param(
+        BoundaryConds(pbc=[True, True, True], zerobc=[False, False, False]),
+        id="AllPeriodic"),
+    pytest.param(
+        BoundaryConds(pbc=[False, True, True], zerobc=[True, False, False]),
+        id="SomePeriodic"),
+    pytest.param(
+        BoundaryConds(pbc=[False, False, False], zerobc=[True, True, True]),
+        id="AllNonPeriodic")],
+    scope="module")
+def fixt_bc(request) -> BoundaryConds:
+    """Generates bunch of different boundary conditions for grids.
+    TODO: test cases combinations like "pbc = False and zerobc = False.
+    This wouldn't pass tests currently because we're comparing against the old
+    LFC code, which only has pbc (which is actually ~zerobc)"""
+    return request.param
+
+
+@pytest.fixture(scope="module", params=[
+    pytest.param(None, id="NoBlocking", marks=pytest.mark.slow),
+    pytest.param(8, id="Block8"),
+    pytest.param([5, 6, 7], id="Block567")
+])
+def fixt_block_size(request) -> int | tuple[int, int, int] | None:
     """"""
-    n = 22
-    a = 3.0  # grid size in Bohr units ("unit cell"). NOT the lattice spacing
+    return request.param
+
+
+@pytest.fixture(scope="module")
+def fixt_lfc_system(fixt_grid_shape, fixt_bc) -> LFCSystemDesc:
+    """"""
 
     # Grid does automatic domain decomp if running with MPI
     global world
     world = cast(MPIComm, world)
 
-    # test crazy cell shapes
-    # cell = [[0, a, a], [a, 0, a], [a, a, 0]]
+    grid_def: GridShape = fixt_grid_shape
 
-    grid = UGDesc(cell=[a, a, a], size=(n, n, n), comm=world)
+    grid = UGDesc(cell=grid_def.cell, size=grid_def.size, comm=world,
+                  pbc=fixt_bc.pbc, zerobc=fixt_bc.zerobc)
+
+    # helper for scaling radial cutoffs: length of the longest cell vector
+    a = float(np.max(np.linalg.norm([grid.cell_cv[c] for c in range(3)])))
 
     rng = np.random.default_rng(404)
 
@@ -90,28 +145,21 @@ def make_test_system() -> LFCSystemDesc:
     # Also give the other atom type a different number of basis funcs
     phi_lists = []
     for i in range(2):
-        s = make_random_phi(0, 0.98 * a, rng, num_points=100)
-        p = make_random_phi(1, 1.35 * a, rng, num_points=100)
+        s = make_random_phi(0, 0.78 * a, rng, num_points=100)
+        p = make_random_phi(1, 1.15 * a, rng, num_points=100)
         d = make_random_phi(2, 0.1 * a, rng, num_points=100)
 
         funcs = [s, p, d] if i == 0 else [s, d]
         phi_lists.append(funcs)
 
     relpos_ac = np.asarray([(0.5, 0.5, 0.25 + 0.25 * i) for i in [0, 1, 2]])
-    pos_av = relpos_ac @ grid.cell_cv
 
-    atom_instances = []
+    phi_aj = []
     for a in range(3):
         phi_list = phi_lists[0] if a < 2 else phi_lists[1]
-        atom_instances.append(LFCAtomDesc(phi_list, pos_av[a]))
+        phi_aj.append(phi_list)
 
-    return LFCSystemDesc(grid, atom_instances)
-
-
-@pytest.fixture(scope="module")
-def fixt_lfc_system() -> LFCSystemDesc:
-    """"""
-    return make_test_system()
+    return LFCSystemDesc(grid, phi_aj, relpos_ac)
 
 
 def make_legacy_basis_functions(lfc: BasisFunctionCollectionBase, xp) \
@@ -122,15 +170,27 @@ def make_legacy_basis_functions(lfc: BasisFunctionCollectionBase, xp) \
     phi_aj: list[list[Spline]] = []
 
     for a in range(lfc.num_atoms):
-        phi_datas = lfc.get_phi_data_for_atom(a)
+        phi_datas = lfc.atom_static_data.phi_aj[a]
         splines = [Spline.from_data(phi.l, phi.cutoff, phi.f_r)
                    for phi in phi_datas]
         phi_aj.append(splines)
 
+    # DON'T use grid._gd, it gets its pbc fixed as ~zerobc
+    from gpaw.old.grid_descriptor import GridDescriptor
+    legacy_grid = GridDescriptor(N_c=lfc.grid.size, cell_cv=lfc.grid.cell_cv,
+                                 comm=lfc.grid.comm, pbc_c=lfc.grid.pbc_c)
+
+    assert np.all(legacy_grid.pbc_c == lfc.grid.pbc_c)
+
+    # cut=True means non-periodic boundaries don't let basis funcs leak into
+    # other cells. With False such leaks would throw GridBoundsError.
+    # Old BasisFunctions has False as default, but apparently it's not really
+    # used because basis.py creates the object with True anyway.
     basis = BasisFunctions(
-        lfc.grid._gd,
+        legacy_grid,
         phi_aj,
-        xp=xp)
+        xp=xp,
+        cut=True)
 
     relpos_ac = lfc.get_atom_positions(grid_relative=True)
     basis.set_positions(relpos_ac)
@@ -159,81 +219,76 @@ def make_basis(system: LFCSystemDesc,
     return basis
 
 
-@pytest.mark.parametrize("block_size", parametrize_blocksize())
 @pytest.mark.parametrize("xp", xp_params_no_cpupy())
 @pytest.mark.parametrize("purepython", parametrize_purepython())
 def test_basis_creation(fixt_lfc_system: LFCSystemDesc, xp, purepython: bool,
-                        block_size: int | None):
+                        fixt_block_size):
     """"""
     if not purepython and xp is np:
         pytest.skip(reason="CPU + C++ is WIP")
 
     system = fixt_lfc_system
-    basis = make_basis(system, xp, purepython, block_size)
+    basis = make_basis(system, xp, purepython, fixt_block_size)
 
     assert basis.uses_gpu() == (xp is not np)
-    assert basis.num_atoms == len(system.atoms)
-
-    # TODO check index range if using multiple MPI ranks?
-    assert basis.mu_range.start == 0
+    assert basis.num_atoms == len(system.relpos_ac)
 
     # check that there are no duplicate phi
     all_phi = basis.get_phi_instances()
     has_duplicate_phi = len({id(phi) for phi in all_phi}) != len(all_phi)
     assert not has_duplicate_phi
 
-    for block in basis.get_relevant_blocks():
-        assert np.prod(block.shape) > 0
-        if block_size is None:
-            np.testing.assert_equal(block.shape, basis.grid.mysize_c)
+    # check that there are no "image phis" in directions that are non-periodic
+    non_pbc_c = ~system.grid.pbc_c
+    if np.any(non_pbc_c):
+        all_pos_iv = np.array([phi.position for phi in all_phi])
+        all_coords_ic = np.array([phi.cell_coords for phi in all_phi])
 
-    # TODO check that each phi overlaps with at least one block. But this
-    # will need to be domain aware: the overlap may happen in other MPI domain
-    # for phi in all_phi:
-    #     overlaps = phi.find_overlapping_points(basis.grid.xyz())
-    #     if overlaps.size == 0:
-    #         assert np.all(phi.phi_mG == 0.0)
+        assert np.all(all_coords_ic[:, non_pbc_c] == 0), \
+            "A phi instance has nonzero cell shift in non-periodic direction"
 
-    # Each grid point should appear at most in one block. Blocks that don't
-    # overlap with any basis functions are ignored, so it's OK for a point
-    # to not be present in any block.
-    seen_points = []
-    for block in basis.get_relevant_blocks():
-        for xyz in itertools.product(
-            range(block.start_c[0], block.end_c[0]),
-            range(block.start_c[1], block.end_c[1]),
-            range(block.start_c[2], block.end_c[2])
-        ):
-            assert xyz not in seen_points
-            seen_points.append(xyz)
+        pos_ic = all_pos_iv @ system.grid.icell.T
+        is_within_bounds = (pos_ic[:, non_pbc_c] >= 0.0) & \
+                           (pos_ic[:, non_pbc_c] < 1.0)
+
+        assert np.all(is_within_bounds), \
+            "Phi frac positions must be within [0, 1) in non-periodic dirs"
 
 
 @pytest.mark.skipif(world.size > 1, reason="TODO, probably")
 @pytest.mark.parametrize("xp", xp_params_no_cpupy())
 def test_no_blocking(fixt_lfc_system: LFCSystemDesc, xp):
-    """Some tests that blocking = None makes sense. Useful because under the
+    """Tests that blocking = None makes sense. Useful because under the
     hood the same blocking logic is still ran but with block_size == grid_size
     """
 
     basis = make_basis(fixt_lfc_system, xp, purepython=True, block_size=None)
-    blocks = basis.get_relevant_blocks()
+    block_to_phi = basis.get_block_to_phi_map()
 
-    # TODO mpi? some domain may be empty...
-    assert len(blocks) == 1
-    block = blocks[0]
+    # Should have only the (0, 0, 0) block
+    # TODO mpi? some domain may be empty
+    assert len(block_to_phi) == 1
+    assert (0, 0, 0) in block_to_phi.keys()
+    block_coords = (0, 0, 0)
+
+    # Check block index ranges
+    np.testing.assert_equal(basis.geometry.block_start_Bc[block_coords],
+                            basis.grid.start_c)
+    np.testing.assert_equal(basis.geometry.block_end_Bc[block_coords],
+                            basis.grid.end_c)
 
     # check that there are no duplicate phi in the block
-    has_duplicates = len({id(phi) for phi in block.phi_j}) != len(block.phi_j)
+    block_phi_j = block_to_phi[block_coords]
+    has_duplicates = len({id(phi) for phi in block_phi_j}) != len(block_phi_j)
     assert not has_duplicates
 
     # The block should have overlap with all phi
     all_phi = basis.get_phi_instances()
-    assert len(block.phi_j) == len(all_phi)
+    assert len(block_phi_j) == len(all_phi)
     # technically this is only airtight if we also check that all_phi has no
     # duplicates. But that is done in test_basis_creation()
 
 
-@pytest.mark.parametrize("block_size", parametrize_blocksize())
 @pytest.mark.parametrize("xp", xp_params_no_cpupy())
 @pytest.mark.parametrize("purepython", parametrize_purepython())
 @pytest.mark.parametrize("row_range", [None, range(1, 4), range(0, 100000)])
@@ -241,7 +296,7 @@ def test_potential_matrix(
     fixt_lfc_system: LFCSystemDesc,
     xp,
     purepython: bool,
-    block_size: int,
+    fixt_block_size,
     row_range: range | None
 ):
     """"""
@@ -249,7 +304,7 @@ def test_potential_matrix(
         pytest.skip(reason="CPU + C++ is WIP")
 
     system = fixt_lfc_system
-    basis = make_basis(system, xp, purepython, block_size)
+    basis = make_basis(system, xp, purepython, fixt_block_size)
 
     if row_range:
         assert row_range.step == 1
@@ -293,8 +348,17 @@ def test_potential_matrix(
                                rtol=1e-10,
                                atol=1e-12)
 
+    # Test also using the optional 'out' argument
+    V_MN_out = xp.empty_like(V_MN)
+    dummy_out = basis.calculate_potential_matrix(vt_G.data, out=V_MN_out)
+    assert dummy_out is V_MN_out
 
-@pytest.mark.parametrize("block_size", parametrize_blocksize())
+    xp.testing.assert_allclose(V_MN,
+                               V_MN_out,
+                               rtol=1e-10,
+                               atol=1e-12)
+
+
 @pytest.mark.parametrize("xp", xp_params_no_cpupy())
 @pytest.mark.parametrize("purepython", parametrize_purepython())
 @pytest.mark.parametrize("num_spins", [1, 2])
@@ -303,7 +367,7 @@ def test_add_to_density(
     xp,
     purepython: bool,
     num_spins: int,
-    block_size: int
+    fixt_block_size
 ):
     """"""
 
@@ -311,7 +375,7 @@ def test_add_to_density(
         pytest.skip(reason="CPU + C++ is WIP")
 
     system = fixt_lfc_system
-    basis = make_basis(system, xp, purepython, block_size)
+    basis = make_basis(system, xp, purepython, fixt_block_size)
     # Matrix distribution does not matter here.
     # TODO separate test that it indeed does not matter?
 
@@ -341,7 +405,6 @@ def test_add_to_density(
     xp.testing.assert_allclose(nt_sG, nt_sG_ref, rtol=1e-10, atol=1e-12)
 
 
-@pytest.mark.parametrize("block_size", parametrize_blocksize())
 @pytest.mark.parametrize("xp", xp_params_no_cpupy())
 @pytest.mark.parametrize("purepython", parametrize_purepython())
 @pytest.mark.parametrize("num_spins", [1, 2])
@@ -351,14 +414,14 @@ def test_domain_decomposition(
     xp,
     purepython: bool,
     num_spins: int,
-    block_size: int
+    fixt_block_size
 ):
     """"""
     if not purepython and xp is np:
         pytest.skip(reason="CPU + C++ is WIP")
 
     system = fixt_lfc_system
-    basis = make_basis(system, xp, purepython, block_size)
+    basis = make_basis(system, xp, purepython, fixt_block_size)
 
     global world
     world = cast(MPIComm, world)
@@ -369,10 +432,10 @@ def test_domain_decomposition(
 
     serial_system = copy.copy(system)
     serial_system.grid = system.grid.new(comm=serial_comm)
-    serial_basis = make_basis(serial_system, xp, purepython, block_size)
+    serial_basis = make_basis(serial_system, xp, purepython, fixt_block_size)
 
     assert serial_basis.num_atoms == basis.num_atoms
-    assert serial_basis.num_basis_functions() == basis.num_basis_functions()
+    assert serial_basis.mu_range == basis.mu_range
 
     # add_to_density. We want to compare against a pure-serial computation,
     # so each rank should use the same f_asi input => use same seed
@@ -396,28 +459,43 @@ def test_domain_decomposition(
 
     # Re-seed just in case
     rng = xp.random.default_rng(841)
-    nt_sG_serial = rng.random((num_spins, *system.grid.size))
-    # Decomposed density array:
-    sG_shape = (num_spins, *system.grid.mysize_c)
-    nt_sG = xp.empty(sG_shape)
 
-    def manual_scatter(full_nt_sG, decomp_nt_sG):
-        start_c = system.grid.start_c
-        end_c = system.grid.end_c
-        decomp_nt_sG[:] = full_nt_sG[:,
+    # Grid zerobc complications:
+    # - First grid point is implicitly deleted
+    # - mysize_c is aware of this, so is global_shape(), but size is not
+    # - start_c starts from 1 in the first MPI rank
+    # - Data arrays are smaller in first rank
+    # UGArray and UGDesc.empty, UGDesc.zeros are aware of some of this, but
+    # manual array ops are still complicated because of start_c.
+
+    shape_sR = (num_spins, *serial_basis.grid.global_shape())
+    nt_sR_serial = rng.random(shape_sR)
+    # Decomposed density array:
+    shape_decomp_sR = (num_spins, *basis.grid.myshape)
+    nt_sR = xp.empty(shape_decomp_sR)
+
+    def manual_scatter(full_nt_sR, decomp_nt_sR):
+        start_c = system.grid.start_c.copy()
+        end_c = system.grid.end_c.copy()
+        # handle first grid point missing if using zerobc
+        zerobc = system.grid.zerobc_c
+        start_c[zerobc] -= 1
+        end_c[zerobc] -= 1
+
+        decomp_nt_sR[:] = full_nt_sR[:,
                                      start_c[0]:end_c[0],
                                      start_c[1]:end_c[1],
                                      start_c[2]:end_c[2]]
 
-    manual_scatter(nt_sG_serial, nt_sG)
+    manual_scatter(nt_sR_serial, nt_sR)
 
-    basis.add_to_density(nt_sG, f_asi)
+    basis.add_to_density(nt_sR, f_asi)
     # Do the serial part separately in all ranks because this test doesn't
     # actually use MPI for scattering the reference result
-    serial_basis.add_to_density(nt_sG_serial, f_asi)
+    serial_basis.add_to_density(nt_sR_serial, f_asi)
 
-    nt_sG_ref = xp.empty_like(nt_sG)
+    nt_sG_ref = xp.empty_like(nt_sR)
     # Scatter the serial result back to all ranks
-    manual_scatter(nt_sG_serial, nt_sG_ref)
+    manual_scatter(nt_sR_serial, nt_sG_ref)
 
-    xp.testing.assert_allclose(nt_sG, nt_sG_ref, rtol=1e-10, atol=1e-12)
+    xp.testing.assert_allclose(nt_sR, nt_sG_ref, rtol=1e-10, atol=1e-12)
