@@ -53,11 +53,14 @@ class Logger:
 
         self.use_colors = can_colorize(file=self.fd)
         if self.use_colors:
+            self.red = RED
             self.green = GREEN
             self.reset = RESET
         else:
+            self.red = ''
             self.green = ''
             self.reset = ''
+        self.table_line = ''
 
     def __del__(self):
         self.close()
@@ -89,6 +92,41 @@ class Logger:
                 for rank in range(1, self.comm.size):
                     self(receive_string(rank, comm=self.comm),
                          end=end, flush=flush, parallel=False)
+
+    def table(self,
+              name: str,
+              header: list[str],
+              rows: list[list[str]],
+              allign: str = '',
+              comment: str = '',
+              comments: list[str] | None = None) -> None:
+        if comment:
+            name += f'  # {comment}'
+        self(name)
+        widths = []
+        for i, h in enumerate(header):
+            widths.append(max(len(h),
+                              max((len(row[i]) for row in rows),
+                                  default=0)))
+        if not allign:
+            allign = '>' * len(header)
+        fmt = '| ' + ' | '.join(
+            f'{{:{a}{width}}}'
+            for a, width in zip(allign, widths)) + ' |'
+        self(fmt.format(*header))
+        self('|' + '|'.join('-' * (width + 2) for width in widths) + '|')
+        if comments is None:
+            for row in rows:
+                self(fmt.format(*row))
+        else:
+            for row, comment in zip(rows, comments):
+                self(fmt.format(*row) + f'  # {comment}')
+        self()
+
+    def dict(self, dct):
+        n = max(len(name) for name in dct)
+        for name, value in dct.items():
+            self(f'{name + ":":{n + 1}} {value}')
 
 
 def can_colorize(*, file: IO[str] | IO[bytes] | None = None) -> bool:

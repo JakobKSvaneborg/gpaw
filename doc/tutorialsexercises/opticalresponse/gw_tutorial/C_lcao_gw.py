@@ -9,6 +9,7 @@ dft.write_gpw_file('C_pw_from_lcao_groundstate.gpw', include_wfs=True)
 gw = G0W0('C_pw_from_lcao_groundstate.gpw',
           integrate_gamma='WS',
           ecut=200,
+          nbands=26,
           kpts=[0],
           eta=0.1,
           bands=(3, 5),

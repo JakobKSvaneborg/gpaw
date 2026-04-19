@@ -131,7 +131,7 @@ class IBZWaveFunctions(Generic[WFT]):
         assert fl is not None and len(fl) == 1
         return fl[0]
 
-    def __str__(self):
+    def summary(self, log):
         shape = self.get_max_shape(global_shape=True)
         wfs = self._wfs_u[0]
         nbytes = (len(self.ibz) *
@@ -145,30 +145,29 @@ class IBZWaveFunctions(Generic[WFT]):
         nbytesproj = bytes_for_projectors(self)
         if nbytesproj != -1:
             projectors_text = (
-                f'    projectors: {nbytesproj:_} bytes '
+                f'  Projectors: {nbytesproj:_} bytes '
                 f'({nbytesproj * self.band_comm.size // ncores:_} per core)\n')
         else:
             projectors_text = ''
 
-        return (f'{self.ibz.symmetries}\n'
-                f'{self.ibz}\n'
-                f'{wfs._short_string(shape)}\n'
-                f'spin-components: {self.ncomponents}'
-                ' (' +
-                ('' if self.collinear else 'non-') + 'collinear spins)\n'
-                f'bands: {self.nbands}\n'
-                f'projectors: {nproj}\n'
-                f'spin-degeneracy: {self.spin_degeneracy}\n'
-                f'dtype: {self.dtype}\n\n'
-                'memory:\n'
-                f'    storage: {"CPU" if self.xp is np else "GPU"}\n'
-                f'    wave functions: {nbytes:_} bytes '
-                f'({nbytes // ncores:_} per core)\n' +
-                projectors_text +
-                '\nparallelization:\n'
-                f'    kpt:    {self.kpt_comm.size}\n'
-                f'    domain: {self.domain_comm.size}\n'
-                f'    band:   {self.band_comm.size}\n')
+        self.ibz.symmetries.summary(log)
+        self.ibz.summary(log)
+        log(f'{wfs._short_string(shape)}\n'
+            f'Spin-components: {self.ncomponents}'
+            ' (' + ('' if self.collinear else 'non-') + 'collinear spins)\n'
+            f'Bands:           {self.nbands}\n'
+            f'Projectors:      {nproj}\n'
+            f'Spin-degeneracy: {self.spin_degeneracy}\n'
+            f'Datatype:        {self.dtype}\n\n'
+            'Memory:\n'
+            f'  Storage: {"CPU" if self.xp is np else "GPU"}\n'
+            f'  Wave functions: {nbytes:_} bytes '
+            f'({nbytes // ncores:_} per core)\n' +
+            projectors_text +
+            '\nParallelization:\n'
+            f'  kpt:    {self.kpt_comm.size}\n'
+            f'  domain: {self.domain_comm.size}\n'
+            f'  band:   {self.band_comm.size}\n')
 
     def __iter__(self) -> Generator[WFT]:
         yield from self._wfs_u
@@ -478,37 +477,47 @@ class IBZWaveFunctions(Generic[WFT]):
         D = self.spin_degeneracy
         nbands = eig_skn.shape[2]
 
-        for k, (x, y, z) in enumerate(ibz.kpt_kc):
-            if k == 3:
-                log(f'(only showing first 3 out of {len(ibz)} k-points)')
-                break
+        k = 0  # only show one k-point
 
-            log(f'\nkpt = [{x:.3f}, {y:.3f}, {z:.3f}], '
-                f'weight = {ibz.weight_k[k]:.3f}:')
+        # First, last and +-8 bands window around Fermi level:
+        rows = []
+        skipping = False
+        if self.nspins == 1:
+            header = ['band index', 'eig [eV]', f'occ [0-{D}]']
+            eig_n = eig_skn[0, k]
+            n0 = (eig_n < fl[0]).sum() - 0.5
+            for n, (e, f) in enumerate(zips(eig_n, occ_skn[0, k])):
+                if n == 0 or abs(n - n0) < 8 or n == nbands - 1:
+                    rows.append([f'{n:4}', f'{e:13.3f}', f'{D * f:9.3f}'])
+                    skipping = False
+                else:
+                    if not skipping:
+                        rows.append(['...', '', ''])
+                        skipping = True
+        else:
+            header = ['band index',
+                      'eig [eV]', 'occ [0-1]',
+                      'eig [eV]', 'occ [0-1]']
+            eig1_n, eig2_n = eig_skn[:, k]
+            n0 = ((eig1_n < fl[0]).sum() / 2 +
+                  (eig2_n < fl[-1]).sum() / 2 - 0.5)
+            for n, (e1, f1, e2, f2) in enumerate(zips(eig1_n,
+                                                      occ_skn[0, k],
+                                                      eig2_n,
+                                                      occ_skn[1, k])):
+                if n == 0 or abs(n - n0) < 8 or n == nbands - 1:
+                    rows.append([f'{n:4}',
+                                 f'{e1:13.3f}', f'{f1:9.3f}',
+                                 f'{e2:13.3f}', f'{f2:9.3f}'])
+                    skipping = False
+                else:
+                    if not skipping:
+                        rows.append(['...', '', '', '', ''])
+                        skipping = True
 
-            if self.nspins == 1:
-                skipping = False
-                log(f'  Band      eig [eV]   occ [0-{D}]')
-                eig_n = eig_skn[0, k]
-                n0 = (eig_n < fl[0]).sum() - 0.5
-                for n, (e, f) in enumerate(zips(eig_n, occ_skn[0, k])):
-                    # First, last and +-8 bands window around Fermi level:
-                    if n == 0 or abs(n - n0) < 8 or n == nbands - 1:
-                        log(f'  {n:4} {e:13.3f}   {D * f:9.3f}')
-                        skipping = False
-                    else:
-                        if not skipping:
-                            log('   ...')
-                            skipping = True
-            else:
-                log('  Band      eig [eV]   occ [0-1]'
-                    '      eig [eV]   occ [0-1]')
-                for n, (e1, f1, e2, f2) in enumerate(zips(eig_skn[0, k],
-                                                          occ_skn[0, k],
-                                                          eig_skn[1, k],
-                                                          occ_skn[1, k])):
-                    log(f'  {n:4} {e1:13.3f}   {f1:9.3f}'
-                        f'    {e2:10.3f}   {f2:9.3f}')
+        x, y, z = ibz.kpt_kc[k]
+        title = f'Eigenvalues  # (at kpt = [{x:.3f}, {y:.3f}, {z:.3f}])'
+        log.table(title, header, rows)
 
         try:
             from ase.dft.bandgap import GapInfo
