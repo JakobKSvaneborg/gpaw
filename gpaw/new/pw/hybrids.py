@@ -327,6 +327,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                            psit2_nG, Htpsit2_nG,
                            kweight, wfs.myocc_n, V_aii,
                            calculate_energy, F1_av)
+
         evv *= 0.5 * ibzwfs.spin_degeneracy
         if calculate_energy:
             self.xc.energies['hybrid_xc_vv'] += evv

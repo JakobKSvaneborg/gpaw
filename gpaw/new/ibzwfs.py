@@ -355,7 +355,7 @@ class IBZWaveFunctions(Generic[WFT]):
             if isinstance(wfs, PWFDWaveFunctions):
                 hamiltonian.apply_orbital_dependent(
                     self, D_asii, wfs.psit_nX, wfs.spin,
-                    calculate_energy=False, F_av=F_av * 0 if wfs.weight == 0.0 else F_av)
+                    calculate_energy=False, F_av=F_av)
         self.kpt_band_comm.sum(F_av)
         return F_av
 
