@@ -134,14 +134,14 @@ def get_berry_phases(calc, spin=0, dir=0, check2d=False):
             # result
             k1 = indices_k[0]
             k1_c = kpts_kc[k1]
-            G_c = [0, 0, 1]
+            G_c = np.array([0, 0, 1])
             u1_nR = u_knR[k1]
             emiGr_R = np.exp(-2j * np.pi *
                              np.dot(np.indices(N_c).T, G_c / N_c).T)
             u2_nR = u1_nR * emiGr_R
 
             phase_shifted_dO_aii = get_phase_shifted_overlap_coefficients(
-                dO_aii, calc.spos_ac, -bG_c)
+                dO_aii, calc.spos_ac, -G_c)
             M_nn = get_overlap(bands, calc.wfs.gd, u1_nR, u2_nR,
                                proj_k[k1], proj_k[k1], phase_shifted_dO_aii)
 

@@ -474,7 +474,7 @@ class XAS:
         f_cn = f_cmn.sum(axis=1)
 
         # Fold
-        f_ci = np.zeros((3, len(energy_i)))
+        f_ci = np.zeros((f_cmn.shape[0], len(energy_i)))
         for n, eps in enumerate(eps_n):
             x = -alpha * (energy_i - eps) ** 2
             x = np.clip(x, -100.0, 100.0)
