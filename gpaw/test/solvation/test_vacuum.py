@@ -53,10 +53,7 @@ def test_solvation_vacuum():
             temperature=T),
         dielectric=LinearDielectric(epsinf=1.0))
     Etest = atoms.get_potential_energy()
-    if atoms.calc.old:
-        Eeltest = atoms.calc.get_electrostatic_energy()
-    else:
-        Eeltest = Etest - atoms.calc.dft.solvation.interaction_energy()
+    Eeltest = Etest - atoms.calc.dft.solvation.interaction_energy()
     Ftest = atoms.get_forces()
     assert Etest == pytest.approx(
         Eref, abs=energy_eps * atoms.calc.get_number_of_electrons())

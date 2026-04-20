@@ -7,7 +7,6 @@ from gpaw import GPAW
 from gpaw.external import ConstantElectricField, static_polarizability
 
 
-@pytest.mark.old_gpaw_only
 def test_ext_potential_constant_e_field(in_tmp_dir):
     """A proton in an electric field."""
     h = Atoms('H')
@@ -31,7 +30,6 @@ def test_ext_potential_constant_e_field(in_tmp_dir):
     assert abs(vext.field_v[2] - 1.0 * Bohr / Hartree) < 1e-13
 
 
-@pytest.mark.old_gpaw_only
 def test_polarizability(in_tmp_dir):
     H2 = Atoms('H2', positions=[(0, 0, 0), (0.7, 0, 0)])
     H2.center(vacuum=2.5)
@@ -39,10 +37,6 @@ def test_polarizability(in_tmp_dir):
 
     strength = 0.1  # V/Ang
     alpha_cc = static_polarizability(H2, strength)
-
-    # make sure no external potential is left over
-    if H2.calc.old:
-        assert H2.calc.parameters.external is None
 
     assert alpha_cc.shape == (3, 3)
     assert alpha_cc == pytest.approx(

@@ -53,17 +53,11 @@ def test_solvation_water_water(H2O, parameters):
 
     assert DGSol == pytest.approx(-6.3, abs=2.)
 
-    if H2O.calc.old:
-        Eelwater = H2O.calc.get_electrostatic_energy()
-        Esurfwater = H2O.calc.get_solvation_interaction_energy('surf')
-        assert Ewater == pytest.approx(Eelwater + Esurfwater, abs=1e-14)
-    else:
-        Esurfwater = H2O.calc.dft.solvation.interaction_energy()
+    Esurfwater = H2O.calc.dft.solvation.interaction_energy()
     assert Esurfwater == pytest.approx(0.058, abs=0.002)
 
 
 @pytest.mark.filterwarnings('ignore:unclosed file')
-@pytest.mark.old_gpaw_only
 def test_read(H2O, in_tmp_dir):
     """Read and check some basic properties"""
     fname = 'solvation.gpw'

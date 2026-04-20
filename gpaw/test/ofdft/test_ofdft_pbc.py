@@ -32,12 +32,7 @@ def test_ofdft_ofdft_pbc(in_tmp_dir):
 
     e = atoms.get_potential_energy()
 
-    if calc.old:
-        n = calc.get_all_electron_density()
-        dv = atoms.get_volume() / calc.get_number_of_grid_points().prod()
-        I = n.sum() * dv / 2**3
-    else:
-        I = calc.dft.densities().all_electron_densities().integrate()[0]
+    I = calc.dft.densities().all_electron_densities().integrate()[0]
 
     assert I == pytest.approx(electrons, abs=1.0e-6)
     assert e == pytest.approx(result, abs=1.0e-2)

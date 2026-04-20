@@ -41,7 +41,4 @@ def test_generic_move_across_cell(params):
 
     # We should be within the convergence criterion.
     # It runs a minimum of two/three iterations:
-    if not calc.old:
-        assert calc.dft.scf_loop.niter == 2
-    else:
-        assert calc.scf.niter == 3
+    assert calc.dft.scf_loop.niter == 2

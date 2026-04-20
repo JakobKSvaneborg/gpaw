@@ -10,7 +10,6 @@ from ase.units import Bohr
 from gpaw import GPAW, FermiDirac
 
 
-@pytest.mark.old_gpaw_only
 def test_generic_hydrogen(in_tmp_dir):
     a = 4.0
     h = 0.2
@@ -57,12 +56,11 @@ def test_generic_hydrogen(in_tmp_dir):
         for n, h in zip([1, 0], iread(name + '@:')):
             assert n == len(h)
 
-    if hydrogen.calc.old:
-        # Test parsing of GPAW's text output:
-        h = read('h.txt')
-        error = abs(h.calc.get_eigenvalues() -
-                    hydrogen.calc.get_eigenvalues()).max()
-        assert error < 1e-5, error
+    # Test parsing of GPAW's text output:
+    h = read('h.txt')
+    error = abs(h.calc.get_eigenvalues() -
+                hydrogen.calc.get_eigenvalues()).max()
+    assert error < 1e-5, error
 
     # Test get_electrostatic_potential() method
     v = hydrogen.calc.get_electrostatic_potential()
