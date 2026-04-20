@@ -164,8 +164,7 @@ def calculate_bootstrap_kernel(qpd, chi0_GG, context):
         dminvold_GG = dminv_GG.copy()
         Kxc_GG = K_GG + Kxc_GG
 
-        chi_GG = np.dot(np.linalg.inv(np.eye(nG, nG)
-                                      - np.dot(chi0_GG, Kxc_GG)), chi0_GG)
+        chi_GG = np.linalg.solve(np.eye(nG) - chi0_GG @ Kxc_GG, chi0_GG)
         dminv_GG = np.eye(nG, nG) + np.dot(K_GG, chi_GG)
 
         alpha = dminv_GG[0, 0] / (K_GG[0, 0] * chi0_GG[0, 0])

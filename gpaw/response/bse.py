@@ -864,8 +864,8 @@ class BSEBackend:
                 A_T = np.dot(rhot_S, v_St)
                 B_T = np.dot(rhot_S * dft_S, v_St)
                 tmp = np.dot(v_St.conj().T, v_St)
-                overlap_TT = np.linalg.inv(tmp)
-                C_T = np.dot(B_T.conj(), overlap_TT.T) * A_T
+                # B_T @ inv(tmp).T == solve(tmp, B_T) for 1D B_T
+                C_T = np.linalg.solve(tmp, B_T.conj()) * A_T
             comm.broadcast(C_T, 0)
 
         return w_T, C_T
@@ -959,8 +959,9 @@ class BSEBackend:
                 A_GT = rho_RG.T @ v_RT
                 B_GT = rho_RG.T * df_R[np.newaxis] @ v_RT
                 tmp = v_RT.conj().T @ v_RT
-                overlap_tt = np.linalg.inv(tmp)
-                C_tGG = ((B_GT.conj() @ overlap_tt.T).T)[..., np.newaxis] *\
+                # (B_GT.conj() @ inv(tmp).T).T == solve(tmp, B_GT.conj().T)
+                C_tGG = np.linalg.solve(
+                    tmp, B_GT.conj().T)[..., np.newaxis] *\
                     A_GT.T[:, np.newaxis]
                 C_tGG = C_tGG[:nR].reshape((nR, nG, nG))
                 flat_C_tGG = C_tGG.ravel()
