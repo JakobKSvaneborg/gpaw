@@ -3,9 +3,7 @@ from ase import Atoms
 
 
 @pytest.mark.serial
-def test_potential(gpaw_new, mpi):
-    if gpaw_new:
-        pytest.skip('Not implemented')
+def test_potential(mpi):
     for mode in ['fd', 'pw']:
         print(mode)
         hydrogen = Atoms('H',

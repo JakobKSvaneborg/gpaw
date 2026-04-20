@@ -9,10 +9,7 @@ from gpaw.mpi import world
 @pytest.mark.parametrize('mode', ['pw'])
 @pytest.mark.parametrize('eigensolver', ['ppcg', 'etdm-fdpw'])
 @pytest.mark.parametrize('setup', ['paw', 'ae'])
-def test_ae(mode, eigensolver, setup, gpaw_new):
-    if not gpaw_new:
-        pytest.skip('Only implemented for new GPAW')
-
+def test_ae(mode, eigensolver, setup):
     occupations = {'name': 'fermi-dirac', 'width': 0.01}
     mixer = {'backend': 'fft'}
     if eigensolver == 'etdm-fdpw':

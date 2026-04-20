@@ -9,10 +9,7 @@ from gpaw.mpi import world
 @pytest.mark.hybrids
 @pytest.mark.new_gpaw_ready
 @pytest.mark.parametrize('use_sym', [False, True])
-def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
-    if not gpaw_new and use_sym:
-        pytest.skip('Does not work')
-
+def test_exx_double_cell(in_tmp_dir, use_sym):
     L = 2.6
     a = Atoms('H2',
               [[0, 0, 0], [0.5, 0.5, 0]],

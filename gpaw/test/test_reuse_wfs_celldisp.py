@@ -9,7 +9,7 @@ from gpaw import Mixer
 # are handled correctly when unprojecting/reprojecting the wavefunctions.
 
 
-def test_reuse_wfs_celldisp(in_tmp_dir, gpaw_new, mpi):
+def test_reuse_wfs_celldisp(in_tmp_dir, mpi):
     def check(reuse):
         atoms = molecule('H2')
         atoms.pbc = 1
@@ -18,11 +18,6 @@ def test_reuse_wfs_celldisp(in_tmp_dir, gpaw_new, mpi):
         dz = 1e-2
         atoms.positions[:, 2] += dz
 
-        kwargs = {}
-        if not gpaw_new:
-            kwargs['experimental'] = {
-                'reuse_wfs_method': 'paw' if reuse else None}
-
         calc = mpi.GPAW(
             mode='pw',
             txt=f'gpaw-{reuse}.txt',
@@ -30,8 +25,7 @@ def test_reuse_wfs_celldisp(in_tmp_dir, gpaw_new, mpi):
             eigensolver='davidson',
             kpts=[[-0.3, 0.4, 0.2]],
             symmetry='off',
-            mixer=Mixer(0.7, 5, 50.0),
-            **kwargs)
+            mixer=Mixer(0.7, 5, 50.0))
         atoms.calc = calc
 
         for ctx in calc.icalculate(atoms):
@@ -41,7 +35,7 @@ def test_reuse_wfs_celldisp(in_tmp_dir, gpaw_new, mpi):
 
         atoms.positions[:, 2] -= 2 * dz
 
-        if not reuse and gpaw_new:
+        if not reuse:
             calc.dft.ibzwfs.move_wave_functions = lambda *args: None
 
         for ctx in calc.icalculate(atoms, system_changes=['positions']):

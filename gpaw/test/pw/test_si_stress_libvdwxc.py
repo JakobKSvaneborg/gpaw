@@ -19,7 +19,7 @@ else:
     skip_cond = True
 
 
-def _check_libvdwxc_stress(in_tmp_dir, gpaw_new, xc, setups, s_ref):
+def _check_libvdwxc_stress(in_tmp_dir, xc, setups, s_ref):
     assert libvdwxc_has_spin() and libvdwxc_has_stress()
     si = bulk('Si')
     si.calc = GPAW(mode=PW(200),
@@ -39,10 +39,6 @@ def _check_libvdwxc_stress(in_tmp_dir, gpaw_new, xc, setups, s_ref):
 
     si.get_potential_energy()
 
-    if not gpaw_new:
-        # Trigger nasty bug (fixed in !486):
-        si.calc.wfs.pt.blocksize = si.calc.wfs.pd.maxmyng - 1
-
     s_analytical = si.get_stress()
     if s_ref is None:
         s_ref = calculate_numerical_stress(si, 1e-5)
@@ -54,18 +50,18 @@ def _check_libvdwxc_stress(in_tmp_dir, gpaw_new, xc, setups, s_ref):
 
 @pytest.mark.stress
 @pytest.mark.skipif(skip_cond, reason=skip_reason)
-def test_pw_si_stress_libvdwxc_gga(in_tmp_dir, gpaw_new):
+def test_pw_si_stress_libvdwxc_gga(in_tmp_dir):
     s_ref = [-0.17538969, -0.08992427, -0.14401403,
              -0.05984851, -0.00058295, 0.04351124]
     xc = vdw_df()
-    _check_libvdwxc_stress(in_tmp_dir, gpaw_new, xc, "paw", s_ref)
+    _check_libvdwxc_stress(in_tmp_dir, xc, "paw", s_ref)
 
 
 @pytest.mark.stress
 @pytest.mark.skipif(skip_cond, reason=skip_reason)
-def test_pw_si_stress_libvdwxc_mgga(in_tmp_dir, gpaw_new):
+def test_pw_si_stress_libvdwxc_mgga(in_tmp_dir):
     setups = {'Si': gen('Si', xcname='PBEsol')}
     s_ref = [-0.13724147, -0.05995537, -0.11039066,
              -0.05893786, 0.01830188, 0.04031258]
     xc = {'name': 'mBEEF-vdW', 'backend': 'libvdwxc'}
-    _check_libvdwxc_stress(in_tmp_dir, gpaw_new, xc, setups, s_ref)
+    _check_libvdwxc_stress(in_tmp_dir, xc, setups, s_ref)

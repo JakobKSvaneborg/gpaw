@@ -7,7 +7,7 @@ from gpaw.mpi import ibarrier, world
 
 
 @pytest.mark.ci
-def test_fixdensity(in_tmp_dir, gpaw_new, mpi):
+def test_fixdensity(in_tmp_dir, mpi):
     a = 2.5
     slab = Atoms('Li', cell=(a, a, 2 * a), pbc=1)
     slab.calc = mpi.GPAW(
