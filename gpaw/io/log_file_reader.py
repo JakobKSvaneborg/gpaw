@@ -133,6 +133,9 @@ def table(lines: list[str]) -> list[list]:
     return rows
 
 
+SPECIAL = {'forces'}
+
+
 def _parse(lines: Iterator[str],
            indents: int = 0,
            dicts: list[dict] | None = None,
@@ -184,7 +187,7 @@ def _parse(lines: Iterator[str],
         else:
             key = line
             continue
-        if dicts is not None and key in dct:
+        if dicts is not None and key in dct and key not in SPECIAL:
             dicts.append(dct)
             dct = {}
         if re.match('[a-zA-Z_]+', key):
