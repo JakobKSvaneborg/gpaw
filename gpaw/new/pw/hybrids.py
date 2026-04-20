@@ -258,7 +258,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         dekin = -devc - 2 * devv
         energies = (self.exx_cc,
                     devc,
-                    self.devv + self.evv,
+                    devv + self.evv,
                     dekin + self.dekin)
         self.devc = np.nan
         self.devv = np.nan
