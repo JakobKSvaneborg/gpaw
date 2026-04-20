@@ -8,7 +8,7 @@ h = 0.25
 box = 3.0
 
 
-def test_spin_spin_contamination_B(gpaw_new, comm):
+def test_spin_spin_contamination_B(comm):
     # B should not have spin contamination
     s = Atoms('B')
     adjust_cell(s, box, h=h)
@@ -25,18 +25,14 @@ def test_spin_spin_contamination_B(gpaw_new, comm):
                                'energy': 0.1})
     s.get_potential_energy()
 
-    if gpaw_new:
-        dens = s.calc.dft.densities()
-        contamination = min(dens.spin_contamination(0),
-                            dens.spin_contamination(0))
-    else:
-        contamination = min(s.calc.density.get_spin_contamination(s, 0),
-                            s.calc.density.get_spin_contamination(s, 1))
+    dens = s.calc.dft.densities()
+    contamination = min(dens.spin_contamination(0),
+                        dens.spin_contamination(0))
 
     assert contamination == pytest.approx(0.0, abs=0.01)
 
 
-def test_spin_spin_contamination_H2(gpaw_new, comm):
+def test_spin_spin_contamination_H2(comm):
     # setup H2 at large distance with different spins for the atoms
     s = Atoms('H2', positions=[[0, 0, 0], [0, 0, 3.0]])
     adjust_cell(s, box, h=h)
@@ -51,12 +47,8 @@ def test_spin_spin_contamination_H2(gpaw_new, comm):
                                'energy': 0.1})
     s.get_potential_energy()
 
-    if gpaw_new:
-        dens = s.calc.dft.densities()
-        scont_s = [dens.spin_contamination(0), dens.spin_contamination(0)]
-    else:
-        scont_s = [s.calc.density.get_spin_contamination(s),
-                   s.calc.density.get_spin_contamination(s, 1)]
+    dens = s.calc.dft.densities()
+    scont_s = [dens.spin_contamination(0), dens.spin_contamination(0)]
 
     assert scont_s[0] == pytest.approx(scont_s[1], abs=2e-4)  # symmetry
     assert scont_s[0] == pytest.approx(0.967, abs=2e-3)

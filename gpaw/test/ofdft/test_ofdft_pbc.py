@@ -8,7 +8,7 @@ from gpaw.test import gen
 
 @pytest.mark.ofdft
 @pytest.mark.libxc
-def test_ofdft_ofdft_pbc(in_tmp_dir, gpaw_new):
+def test_ofdft_ofdft_pbc(in_tmp_dir):
     symbol = 'C'
     result = -224.206
     electrons = 48
@@ -25,7 +25,7 @@ def test_ofdft_ofdft_pbc(in_tmp_dir, gpaw_new):
                 xc=xcname,
                 setups={'C': g},
                 maxiter=120,
-                eigensolver='ppcg' if gpaw_new else 'cg',
+                eigensolver='ppcg',
                 mixer=mixer)
 
     atoms.calc = calc

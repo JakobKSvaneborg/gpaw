@@ -6,7 +6,7 @@ from gpaw import GPAW
 
 
 @pytest.mark.mgga
-def test_pw_fe_stress_mgga(gpw_files, gpaw_new):
+def test_pw_fe_stress_mgga(gpw_files):
     fe = GPAW(gpw_files['fe_pw_distorted']).get_atoms()
 
     s_analytical = fe.get_stress()

@@ -67,10 +67,7 @@ def test_ae(mode, eigensolver, setup):
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
 @pytest.mark.parametrize('element', ['Al', 'Si'])
 @pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg', 'etdm-fdpw'])
-def test_eigensolver(mode, element, eigensolver, gpaw_new):
-    if not gpaw_new:
-        pytest.skip('Only implemented for new GPAW')
-
+def test_eigensolver(mode, element, eigensolver):
     energy_tolerance = 1e-4
     eig_tolerance = 5e-3
     spinpol = False
