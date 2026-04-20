@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import cached_property
@@ -930,21 +931,34 @@ class BSEBackend:
 
     @timer('get_chi_wGG')
     def get_chi_wGG(self, w_w=None, eta=0.1, readfile=None, optical=True,
-                    irreducible=False):
+                    irreducible=False, write_eigenstates=False,
+                    read_eigenstates=False):
         """Returns chi_wGG'"""
 
-        self._cache_eig_data(irreducible, optical, w_w)
+        comm = self.context.comm
 
-        w_T, v_Rt, exclude_S = \
-            self.eig_data[0], self.eig_data[1], self.eig_data[2]
-        rho_SG = self.rho_SG
-        df_S = self.df_S
+        if read_eigenstates:
+            foldername = (
+                read_eigenstates
+                if isinstance(read_eigenstates, str)
+                else 'BSE_eigenstates'
+            )
+            w_T, v_Rt, rho_SG, df_S, exclude_S, nS, nR = (
+                read_bse_eigenstates(foldername, comm)
+            )
+        else:
+            self._cache_eig_data(irreducible, optical, w_w)
+
+            w_T, v_Rt, exclude_S = \
+                self.eig_data[0], self.eig_data[1], self.eig_data[2]
+            rho_SG = self.rho_SG
+            df_S = self.df_S
+            nR = self.nS - len(exclude_S)
+
         df_R = np.delete(df_S, exclude_S)
         rho_RG = np.delete(rho_SG, exclude_S, axis=0)
 
-        comm = self.context.comm
         nG = rho_RG.shape[-1]
-        nR = self.nS - len(exclude_S)
         nr = -(-nR // comm.size)
         # nr is the local size of the array
 
@@ -952,6 +966,16 @@ class BSEBackend:
                            'points' % len(w_w))
         self.blocks = Blocks1D(comm, len(w_T))
         w_t = w_T[self.blocks.myslice]
+
+        if write_eigenstates:
+            foldername = (
+                write_eigenstates
+                if isinstance(write_eigenstates, str)
+                else 'BSE_eigenstates'
+            )
+            write_bse_eigenstates(foldername, w_T, v_Rt,
+                                  exclude_S, self.rho_SG,
+                                  self.df_S, self.nS, self.blocks, comm)
 
         if not self.use_tammdancoff:
             if comm.rank == 0:
@@ -1137,6 +1161,19 @@ class BSEBackend:
             f'    Pair orbital decomposition           : {worldsize}'])
         self.context.print('\n'.join(isl))
 
+    def recreateA(self, foldername=True):
+        foldername = (
+            foldername
+            if isinstance(foldername, str)
+            else 'BSE_eigenstates'
+        )
+        w_T, v_Rt, rho_SG, df_S, exclude_S, nS, nR = (
+            read_bse_eigenstates(foldername, self.context.comm)
+        )
+        t = v_Rt.shape[-1]
+        v_Rt.reshape(self.nK, self.nv, self.nc, t)
+        return v_Rt
+
 
 class BSE(BSEBackend):
     def __init__(self, calc=None, timer=None, txt='-', comm=None, **kwargs):
@@ -1211,6 +1248,60 @@ def write_bse_eigenvalues(filename, mode, w_w, C_w):
 def read_bse_eigenvalues(filename):
     _, w_w, C_w = np.loadtxt(filename, unpack=True)
     return w_w, C_w
+
+
+def write_bse_eigenstates(foldername, w_T, v_Rt,
+                          exclude_S, rho_SG,
+                          df_S, nS, blocks, comm):
+
+    if comm.rank == 0:
+        if not os.path.exists(foldername):
+            os.makedirs(foldername)
+        np.save(os.path.join(foldername, 'w_T.npy'), w_T)
+        np.save(os.path.join(foldername, 'exclude_S.npy'), exclude_S)
+        np.save(os.path.join(foldername, 'nS.npy'), np.array([nS]))
+        np.save(os.path.join(foldername, 'rho_SG.npy'), rho_SG)
+        np.save(os.path.join(foldername, 'df_S.npy'), df_S)
+        np.save(os.path.join(foldername, 'nproc.npy'), np.array([comm.size]))
+
+    comm.barrier()
+
+    np.save(os.path.join(foldername, f'v_Rt_rank{comm.rank:04d}.npy'), v_Rt)
+    mystart, mystop = blocks.myslice.start, blocks.myslice.stop
+
+    np.save(os.path.join(foldername, f'slice_rank{comm.rank:04d}.npy'),
+            np.array([mystart, mystop], dtype=int))
+
+    comm.barrier()
+    if comm.rank == 0:
+        print(f'BSE eigenstates written to folder: {foldername}')
+
+
+def read_bse_eigenstates(foldername, comm):
+    w_T = np.load(os.path.join(foldername, 'w_T.npy'))
+    exclude_S = np.load(os.path.join(foldername, 'exclude_S.npy'))
+    nS = int(np.load(os.path.join(foldername, 'nS.npy')))
+    nR = nS - len(exclude_S)
+    rho_SG = np.load(os.path.join(foldername, 'rho_SG.npy'))
+    df_S = np.load(os.path.join(foldername, 'df_S.npy'))
+
+    nproc_saved = int(np.load(os.path.join(foldername, 'nproc.npy')))
+
+    v_RT = np.empty((nR, len(w_T)), dtype=np.complex128)
+
+    for rank in range(nproc_saved):
+        v_loaded = np.load(os.path.join(
+            foldername, f'v_Rt_rank{rank:04d}.npy'
+        ))
+        mystart, mystop = np.load(os.path.join(
+            foldername, f'slice_rank{rank:04d}.npy'
+        ))
+        v_RT[:, mystart:mystop] = v_loaded
+
+    blocks = Blocks1D(comm, len(w_T))
+    v_Rt = v_RT[:, blocks.myslice]
+
+    return w_T, v_Rt, rho_SG, df_S, exclude_S, nS, nR
 
 
 def write_spectrum(filename, w_w, A_w):
