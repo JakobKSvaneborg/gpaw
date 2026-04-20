@@ -4,6 +4,7 @@ from datetime import timedelta
 from functools import cached_property
 from time import ctime, time
 
+import ase.units as units
 import numpy as np
 from ase.dft import monkhorst_pack
 from ase.units import Bohr, Hartree
@@ -1161,18 +1162,210 @@ class BSEBackend:
             f'    Pair orbital decomposition           : {worldsize}'])
         self.context.print('\n'.join(isl))
 
-    def recreateA(self, foldername=True):
+    def recreateA(self, foldername=True, distribute=True):
         foldername = (
             foldername
             if isinstance(foldername, str)
             else 'BSE_eigenstates'
         )
         w_T, v_Rt, rho_SG, df_S, exclude_S, nS, nR = (
-            read_bse_eigenstates(foldername, self.context.comm)
+            read_bse_eigenstates(foldername, self.context.comm,
+                                 distribute=distribute)
         )
         t = v_Rt.shape[-1]
-        v_Rt.reshape(self.nK, self.nv, self.nc, t)
-        return v_Rt
+        v_Rt = v_Rt.reshape(self.nK, self.nv, self.nc, t)
+        return v_Rt, w_T
+
+    def construct_Kph(self, T, eta, g_unique_q, C_knm, w_phonon_unique_q,
+                      q_indices, A_foldername=True, eigidx=0):
+        comm = self.context.comm
+        nv = self.nv
+        nc = self.nc
+        nK = self.kd.nbzkpts
+        if comm.rank == 0:
+            print(f'{nK = }', flush=True)
+        A_kvct, w_T = self.recreateA(foldername=A_foldername,
+                                     distribute=False)
+        A_kvct = A_kvct[:, :, :, eigidx]
+        print(f'{A_kvct.shape = }')
+        print(f'{nv = }')
+        print(f'{nc = }')
+        w_T = w_T[eigidx]
+
+        def get_g_slmn(k, kp):
+            try:
+                C_left = C_knm[q_indices[k, kp]]["C"]
+            except IndexError:
+                print(f"IndexError: k={k}, kp={kp}")
+                print("q_indices shape:", q_indices.shape)
+                print("q value:", q_indices[k, kp])
+                print("attempted index:", (k, kp))
+                raise
+            C_right = C_knm[k]["C"]
+
+            Cvv_left_nm = C_left[:nv, :nv].conj()
+            Cvv_right_nm = C_right[:nv, :nv]
+
+            Ccc_left_nm = C_left[nv:nv + nc, nv:nv + nc].conj()
+            Ccc_right_nm = C_right[nv:nv + nc, nv:nv + nc]
+
+            gvv_slmn = g_unique_q[:, q_indices[k, kp], k, :, :nv, :nv]
+            gcc_slmn = g_unique_q[
+                :, q_indices[k, kp], k, :, nv:nv + nc, nv:nv + nc]
+
+            w_l_ha = get_w_ph(k, kp) / units.Hartree
+
+            w_l_safe = np.where(w_l_ha < 1e-8, 1e-8, w_l_ha)
+
+            total_mass_amu = sum(self.gs.atoms.get_masses())
+
+            amu = units._amu
+            me = units._me
+            mass_factor = total_mass_amu * (amu / me)
+
+            scale_factor = 1.0 / np.sqrt(2 * mass_factor * w_l_safe)
+
+            gvv_slmn = gvv_slmn * scale_factor[
+                :, np.newaxis, np.newaxis, np.newaxis]
+            gcc_slmn = gcc_slmn * scale_factor[
+                :, np.newaxis, np.newaxis, np.newaxis]
+
+            g_slvv = np.einsum('am, slab, bn->slmn',
+                               Cvv_left_nm, gvv_slmn, Cvv_right_nm)
+            g_slcc = np.einsum('am, slab, bn->slmn',
+                               Ccc_left_nm, gcc_slmn, Ccc_right_nm)
+
+            return g_slvv, g_slcc
+
+        def get_w_ph(k, kp):
+            return w_phonon_unique_q[q_indices[k, kp]]
+
+        def get_deps(k, kp):
+            k_value = K_point_values[k]
+            kp_value = K_point_values[kp]
+            q_c = (kp_value - k_value + 0.5) % 1.0 - 0.5
+            optical_limit = np.allclose(q_c, 0.0)
+            qpd0 = SingleQPWDescriptor.from_q(q_c, self.ecut, self.gs.gd)
+            pair0 = get_pair(qpd0, 0, k, self.vi, self.vf,
+                             self.ci, self.cf)
+
+            if self.gw_kn is not None:
+                if comm.rank == 0:
+                    print(f'{self.gw_kn = }')
+                epsv_m = self.gw_kn[k, :self.nv]
+                epsc_m = self.gw_kn[kp, self.nv:]
+                deps_vc = -(epsv_m[:, np.newaxis] - epsc_m)
+            elif self.add_soc:
+                deps_vc = self.spinors_data.get_deps(k, kp)
+            else:
+                deps_vc = -pair0.get_transition_energies()
+                if comm.rank == 0:
+                    print(f'{deps_vc = }')
+            if optical_limit:
+                deps_vc[np.where(deps_vc == 0)] = 1.0e-9
+            if self.eshift is not None:
+                pass
+            return deps_vc
+
+        def get_NB(w_phonon, T):
+            T_ha = T / units.Hartree
+            if comm.rank == 0:
+                print(f'{T_ha = }')
+            return 1 / (np.exp(w_phonon / T_ha) - 1)
+
+        self.myKrange, self.myKsize = self.parallelisation_kpoints()
+        print(f'{self.myKsize, self.myKrange = }', flush=True)
+        K_point_values = self.gs.kd.bzk_kc
+
+        context = ResponseContext(txt='pair.txt', timer=self.context.timer,
+                                  comm=serial_comm)
+        kptpair_factory = KPointPairFactory(gs=self.gs, context=context)
+        get_pair = kptpair_factory.get_kpoint_pair
+        my_Kph = np.zeros((len(w_T), len(w_T)), dtype=complex)
+        if comm.rank == 0:
+            print(f'{np.shape(my_Kph) = }')
+
+        my_M_abs = np.zeros((len(w_T), len(w_T)), dtype=complex)
+        my_M_emi = np.zeros((len(w_T), len(w_T)), dtype=complex)
+
+        for k in self.myKrange:
+            for kp in range(nK):
+                depskkp_vc = get_deps(k, kp)
+                depskpk_vc = get_deps(kp, k)
+                w_l = get_w_ph(k, kp) / Hartree
+                g_slvv, g_slcc = get_g_slmn(k, kp)
+                NB = get_NB(w_l, T)
+                Ap_vct = A_kvct[k].conj()
+                A_vct = A_kvct[kp]
+                n1_vcwl = (NB + 1) / (
+                    w_T[None, None, :, None]
+                    - depskkp_vc[:, :, None, None]
+                    - w_l[None, None, None, :] + 1j * eta)
+                n2_vcwl = (NB + 1) / (
+                    w_T[None, None, :, None]
+                    - depskpk_vc[:, :, None, None]
+                    - w_l[None, None, None, :] + 1j * eta)
+                n3_vcwl = NB / (
+                    w_T[None, None, :, None]
+                    - depskkp_vc[:, :, None, None]
+                    + w_l[None, None, None, :] + 1j * eta)
+                n4_vcwl = NB / (
+                    w_T[None, None, :, None]
+                    - depskpk_vc[:, :, None, None]
+                    + w_l[None, None, None, :] + 1j * eta)
+
+                nkkp_vcwl = n1_vcwl + n3_vcwl
+                nkpk_vcwl = n2_vcwl + n4_vcwl
+
+                M1_wt = np.einsum('vct, slca, slvb, bat, bctl -> t',
+                                  Ap_vct, g_slcc, g_slvv, A_vct,
+                                  nkkp_vcwl, optimize='optimal')
+
+                M2_wt = np.einsum('vct, slca, slvb, bat, vatl -> t',
+                                  Ap_vct, g_slcc, g_slvv, A_vct,
+                                  nkpk_vcwl, optimize='optimal')
+
+                M_abs_wt_1 = np.einsum('vct, slca, slvb, bat, bctl -> t',
+                                       Ap_vct, g_slcc, g_slvv, A_vct,
+                                       n3_vcwl, optimize='optimal')
+                M_abs_wt_2 = np.einsum('vct, slca, slvb, bat, vatl -> t',
+                                       Ap_vct, g_slcc, g_slvv, A_vct,
+                                       n4_vcwl, optimize='optimal')
+                M_emi_wt_1 = np.einsum('vct, slca, slvb, bat, bctl -> t',
+                                       Ap_vct, g_slcc, g_slvv, A_vct,
+                                       n1_vcwl, optimize='optimal')
+                M_emi_wt_2 = np.einsum('vct, slca, slvb, bat, vatl -> t',
+                                       Ap_vct, g_slcc, g_slvv, A_vct,
+                                       n2_vcwl, optimize='optimal')
+
+                del nkkp_vcwl, nkpk_vcwl, g_slvv, g_slcc
+
+                my_Kph -= (M1_wt + M2_wt)
+
+                my_M_abs += (M_abs_wt_1 + M_abs_wt_2)
+                my_M_emi += (M_emi_wt_1 + M_emi_wt_2)
+
+        comm.barrier()
+        comm.sum(my_Kph)
+        Kph_all = my_Kph
+
+        comm.sum(my_M_abs)
+        M_abs = my_M_abs
+        comm.sum(my_M_emi)
+        M_emi = my_M_emi
+
+        if comm.rank == 0:
+            M_abs_all = (M_abs / self.gs.volume) * units.Hartree * 1000
+            M_abs_all /= 2
+            print(f'{M_abs_all = }')
+            M_emi_all = (M_emi / self.gs.volume) * units.Hartree * 1000
+            M_emi_all /= 2
+            print(f'{M_emi_all = }')
+            Kph_all = Kph_all / self.gs.volume
+            Kph_meV = Kph_all * units.Hartree * 1000
+            return Kph_meV / 2
+        else:
+            return
 
 
 class BSE(BSEBackend):
@@ -1277,7 +1470,7 @@ def write_bse_eigenstates(foldername, w_T, v_Rt,
         print(f'BSE eigenstates written to folder: {foldername}')
 
 
-def read_bse_eigenstates(foldername, comm):
+def read_bse_eigenstates(foldername, comm, distribute=True):
     w_T = np.load(os.path.join(foldername, 'w_T.npy'))
     exclude_S = np.load(os.path.join(foldername, 'exclude_S.npy'))
     nS = int(np.load(os.path.join(foldername, 'nS.npy')))
@@ -1298,10 +1491,12 @@ def read_bse_eigenstates(foldername, comm):
         ))
         v_RT[:, mystart:mystop] = v_loaded
 
-    blocks = Blocks1D(comm, len(w_T))
-    v_Rt = v_RT[:, blocks.myslice]
-
-    return w_T, v_Rt, rho_SG, df_S, exclude_S, nS, nR
+    if distribute:
+        blocks = Blocks1D(comm, len(w_T))
+        v_Rt = v_RT[:, blocks.myslice]
+        return w_T, v_Rt, rho_SG, df_S, exclude_S, nS, nR
+    else:
+        return w_T, v_RT, rho_SG, df_S, exclude_S, nS, nR
 
 
 def write_spectrum(filename, w_w, A_w):
