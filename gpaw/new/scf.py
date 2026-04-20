@@ -89,19 +89,15 @@ class SCFLoop:
                 nelectrons,
                 fix_fermi_level=self.fix_fermi_level)
 
-            if hasattr(self.hamiltonian, 'devv'):
-                devv = self.comm.sum_scalar(self.hamiltonian.devv)
-                devc = self.comm.sum_scalar(self.hamiltonian.devc)
-                dekin = -devc - 2 * devv
-                xc = pot_calc.xc
-                xc.energies['hybrid_xc_vc'] += devc
-                xc.energies['hybrid_xc_vv'] += devv
-                xc.energies['hybrid_kinetic_correction'] += dekin
-                self.hamiltonian.devv = np.nan
-                self.hamiltonian.devc = np.nan
+            if hasattr(self.hamiltonian, 'hybrid_energy_contributions'):
+                ecc, evc, evv, dekin = (
+                    self.hamiltonian.hybrid_energy_contributions())
+                energies.set(hybrid_xc_cc=ecc,
+                             hybrid_xc_vc=evc,
+                             hybrid_xc_vv=evv,
+                             hybrid_kinetic_correction=dekin)
 
-            energies.set(**pot_calc.xc.energies,
-                         band=e_band,
+            energies.set(band=e_band,
                          entropy=e_entropy,
                          extrapolation=e_extrapolation)
 

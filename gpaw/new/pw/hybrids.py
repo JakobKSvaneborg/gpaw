@@ -234,23 +234,37 @@ class PWHybridHamiltonian(PWHamiltonian):
             grid.cell_cv, bz, xc.exx_omega, xc.exx_yukawa)
 
         self.nupdates = 0
-        self.devv = np.nan
         self.devc = np.nan
+        self.devv = np.nan
+        self.evv = np.nan
+        self.dekin = np.nan
 
     def update_wave_functions(self,
                               ibzwfs: PWFDIBZWaveFunctions,
-                              forces=False):
+                              forces=False) -> None:
         """Compute BZ from IBZ and distribute over the entire world!"""
         self.mypsits, _ = ibz2bz(
             ibzwfs, self.setups, self.relpos_ac, self.grid_local, self.plan,
             self.log if self.nupdates == 0 else None, forces)
-        self.xc.energies = {'hybrid_xc_cc': self.exx_cc,
-                            'hybrid_xc_vc': 0.0,
-                            'hybrid_xc_vv': 0.0,
-                            'hybrid_kinetic_correction': 0.0}
-        self.devv = 0.0
         self.devc = 0.0
+        self.devv = 0.0
+        self.evv = 0.0
+        self.dekin = 0.0
         self.nupdates += 1
+
+    def hybrid_energy_contributions(self) -> tuple[float, float, float, float]:
+        devc = self.comm.sum_scalar(self.devc)
+        devv = self.comm.sum_scalar(self.devv)
+        dekin = -devc - 2 * devv
+        energies = (self.exx_cc,
+                    devc,
+                    self.devv + self.evv,
+                    dekin + self.dekin)
+        self.devc = np.nan
+        self.devv = np.nan
+        self.evv = np.nan
+        self.dekin = np.nan
+        return energies
 
     def move(self, relpos_av: np.ndarray) -> None:
         self.relpos_ac = relpos_av
@@ -333,8 +347,8 @@ class PWHybridHamiltonian(PWHamiltonian):
 
         evv *= 0.5 * ibzwfs.spin_degeneracy
         if calculate_energy:
-            self.xc.energies['hybrid_xc_vv'] += evv
-            self.xc.energies['hybrid_kinetic_correction'] -= 2 * evv
+            self.evv += evv
+            self.dekin -= 2 * evv
 
         if F1_av is not None:
             assert F_av is not None
@@ -580,6 +594,7 @@ def non_self_consistent_hybrid_xc_energy(
             wfs.psit_nX,
             spin=wfs.spin,
             calculate_energy=True)
+    ecc, evc, evv, _ = hybham.hybrid_energy_contributions()
 
     semilocal_energy = _semilocal_xc_energy(dft, xc)
 
@@ -587,9 +602,9 @@ def non_self_consistent_hybrid_xc_energy(
         [dft.energies.total_extrapolated,
          -dft.energies._energies['xc'],
          semilocal_energy,
-         hybham.xc.energies['hybrid_xc_cc'],
-         hybham.xc.energies['hybrid_xc_vc'],
-         hybham.xc.energies['hybrid_xc_vv']]) * Ha
+         ecc,
+         evc,
+         evv]) * Ha
 
 
 def _semilocal_xc_energy(dft: DFTCalculation,
