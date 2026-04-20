@@ -268,9 +268,6 @@ class PWHybridHamiltonian(PWHamiltonian):
         assert isinstance(psit2_nG, PWArray)
         assert Htpsit2_nG is None or isinstance(Htpsit2_nG, PWArray)
         assert isinstance(ibzwfs, PWFDIBZWaveFunctions)
-        #assert len(ibzwfs.ibz) * ibzwfs.nspins % self.kpt_comm.size == 0
-
-        # domain_comm = psit2_nG.desc.comm
 
         if F_av is not None:
             F1_av = np.zeros_like(F_av)
@@ -301,12 +298,18 @@ class PWHybridHamiltonian(PWHamiltonian):
             VC_ii = self.VC_aii[a]
             V_ii = -VC_ii - 2 * VV_ii
             V_aii[a] = V_ii
-            if calculate_energy and wfs.k == 0 and self.band_comm.rank == 0 and wfs.weight != 0.0:
-                # doesn't depend on k
-                ec = (D_ii * VC_ii).sum()
-                ev = (D_ii * VV_ii).sum()
-                self.devv -= ev * ibzwfs.spin_degeneracy
-                self.devc -= ec * ibzwfs.spin_degeneracy
+            if not calculate_energy:
+                continue
+            if wfs.k > 0 or self.band_comm.rank > 0:
+                # Doesn't depend on k
+                continue
+            if wfs.weight == 0.0:
+                # zero-padding
+                continue
+            ec = (D_ii * VC_ii).sum()
+            ev = (D_ii * VV_ii).sum()
+            self.devv -= ev * ibzwfs.spin_degeneracy
+            self.devc -= ec * ibzwfs.spin_degeneracy
 
         # distribute V_aii
         V2_aii = V_aii.gather(broadcast=True)
@@ -332,17 +335,6 @@ class PWHybridHamiltonian(PWHamiltonian):
         if calculate_energy:
             self.xc.energies['hybrid_xc_vv'] += evv
             self.xc.energies['hybrid_kinetic_correction'] -= 2 * evv
-            if 0:  # u == 0:
-                self.xc.energies['hybrid_xc_cc'] += self.exx_cc
-            if 0:  # u == len(ibzwfs._wfs_u) - 1:
-                devv =0# self.comm.sum_scalar(self.devv)
-                devc =0# self.comm.sum_scalar(self.devc)
-                dekin = -devc - 2 * devv
-                self.xc.energies['hybrid_xc_vc'] += devc
-                self.xc.energies['hybrid_xc_vv'] += devv
-                self.xc.energies['hybrid_kinetic_correction'] += dekin
-                self.devv = np.nan
-                self.devc = np.nan
 
         if F1_av is not None:
             assert F_av is not None

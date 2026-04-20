@@ -34,7 +34,6 @@ def test_all(kb):
         xc='HSE06')
     a.calc = GPAW(
         kpts={'size': (1, 1, 4), 'gamma': True},
-        #txt=f'Li2-{world.size}.txt',
         parallel={'kpt': k, 'band': b},
         **kwargs)
     e1 = a.get_potential_energy()
