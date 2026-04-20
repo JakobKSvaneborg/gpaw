@@ -9,7 +9,7 @@ import numpy as np
 from gpaw.core.arrays import XArray
 from gpaw.core.atom_centered_functions import AtomArrays
 from gpaw.core.matrix import suggest_blocking
-from gpaw.mpi import MPIComm, broadcast_exception, serial_comm
+from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import trace, zips
 from gpaw.new.c import calculate_residuals_gpu
 from gpaw.new.eigensolver import Eigensolver, calculate_weights
@@ -18,6 +18,7 @@ from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.utilities import as_real_dtype
 from gpaw.utilities.blas import axpy
+from gpaw.new.pw.hybrids import PWHybridHamiltonian
 
 
 def slparams(nbands: int, comm: MPIComm) -> tuple[MPIComm, int, int, int]:
@@ -160,13 +161,18 @@ class PWFDEigensolver(Eigensolver):
 
         weight_un = calculate_weights(self.converge_bands, ibzwfs)
 
+        if isinstance(hamiltonian, PWHybridHamiltonian):
+            wfs_u = ibzwfs.zero_padded_iter()
+        else:
+            wfs_u = ibzwfs
+
         wfs_error = 0.0
         eig_error = 0.0
         # Loop over k-points:
-        for u, wfs in enumerate(ibzwfs.padded()):
+        for u, wfs in enumerate(wfs_u):
             if u < len(weight_un):
                 weight_n = weight_un[u]
-            else:
+            elif weight_n is not None:
                 weight_n *= 0.0
             Ht = partial(apply, spin=wfs.spin)
             temp_wfs_error, temp_eig_error = \

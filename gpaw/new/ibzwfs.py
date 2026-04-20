@@ -172,7 +172,8 @@ class IBZWaveFunctions(Generic[WFT]):
     def __iter__(self) -> Generator[WFT]:
         yield from self._wfs_u
 
-    def padded(self):
+    def zero_padded_iter(self):
+        """Load-balancing for kpt_comm when doing hybrid functionals."""
         for wfs in self._wfs_u:
             yield wfs
         npad = self.nu_r.max() - self.nu_r[self.kpt_comm.rank]
@@ -351,7 +352,7 @@ class IBZWaveFunctions(Generic[WFT]):
         for wfs in self:
             wfs.force_contribution(potential, F_av)
         hamiltonian.update_wave_functions(self, forces=True)
-        for wfs in self.padded():
+        for wfs in self.zero_padded_iter():
             if isinstance(wfs, PWFDWaveFunctions):
                 hamiltonian.apply_orbital_dependent(
                     self, D_asii, wfs.psit_nX, wfs.spin,
