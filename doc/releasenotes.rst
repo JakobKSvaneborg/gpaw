@@ -103,8 +103,20 @@ Git master branch
   please open a merge request adding link and descriptive paragraph.
 
 * Introducing a new mixer backend: The MSR1 mixer which promises faster and
-  more stable convergence in most cases, see :ref:`density mixing <densitymix>`
+  more stable convergence in most cases, see
+  :ref:`density mixing <densitymix>`
   and https://pubs.acs.org/doi/full/10.1021/acs.jctc.1c00630 for more details.
+
+* ASE will now :func:`~ase.io.read` GPAW's new log-files using a plugin
+  in GPAW (:mod:`gpaw.ase_plugin`).
+  Parsing the log-file is done with the new
+  :func:`gpaw.io.log_file_reader.parse` function.
+
+* Added symmetry labels to symmetry-matrices in log-file
+  (E, i, σ, C\ `_n`, S\ `_n`).
+
+* :ref:`newgpaw` is now the default!
+
 
 Version 25.7.0
 ==============
