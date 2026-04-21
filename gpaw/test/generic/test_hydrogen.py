@@ -6,8 +6,8 @@ from ase import Atoms
 from ase.db import connect
 from ase.io import iread, read, write
 from ase.units import Bohr
-
 from gpaw import GPAW, FermiDirac
+from gpaw.io.log_file_reader import parse_file
 
 
 def test_generic_hydrogen(in_tmp_dir):
@@ -57,10 +57,9 @@ def test_generic_hydrogen(in_tmp_dir):
             assert n == len(h)
 
     # Test parsing of GPAW's text output:
-    h = read('h.txt')
-    error = abs(h.calc.get_eigenvalues() -
-                hydrogen.calc.get_eigenvalues()).max()
-    assert error < 1e-5, error
+    eigs = [eig for _, eig, _ in
+            parse_file('h.txt', {'eigenvalues'})[0]['eigenvalues']]
+    assert eigs == pytest.approx(hydrogen.calc.get_eigenvalues(), abs=0.001)
 
     # Test get_electrostatic_potential() method
     v = hydrogen.calc.get_electrostatic_potential()
