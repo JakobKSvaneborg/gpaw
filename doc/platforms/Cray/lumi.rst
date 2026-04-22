@@ -153,8 +153,8 @@ Then, the following steps build GPAW in a Python virtual environment:
   module load magma/2.8.0-cpeGNU-25.03-rocm             # from EBU_USER_PREFIX
   module load libxc/7.0.0-cpeGNU-25.03-FHC              # from EBU_USER_PREFIX
   export MPICH_GPU_SUPPORT_ENABLED=1
-  export HIPCC_COMPILE_FLAGS_APPEND="--offload-arch=gfx90a $(CC --cray-print-opts=cflags)"
-  export HIPCC_LINK_FLAGS_APPEND=$(CC --cray-print-opts=libs)
+  export HIPCC_COMPILE_FLAGS_APPEND="--offload-arch=gfx90a \$(CC --cray-print-opts=cflags)"
+  export HIPCC_LINK_FLAGS_APPEND="\$(CC --cray-print-opts=libs)"
   EOF
   cat venv-gpaw-gpu/bin/activate.old >> venv-gpaw-gpu/bin/activate
 
