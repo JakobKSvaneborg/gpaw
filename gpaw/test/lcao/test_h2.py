@@ -3,7 +3,7 @@ from ase.build import molecule
 from gpaw.dft import DFT
 
 
-@pytest.mark.serial
+@pytest.mark.ci
 def test_h2(new=True):
     atoms = molecule('H2', cell=[3, 3, 3])
     atoms.center()

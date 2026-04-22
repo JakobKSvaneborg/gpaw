@@ -254,8 +254,8 @@ class NonSelfConsistentHybridXCCalculator:
                 self.ghat_aLR.add_to(rhot_nR, Q_anL)
                 rhot_nG = pw.empty(len(rhot_nR))
                 rhot_nR.fft(out=rhot_nG, plan=self.plan)
-            rhot_nG.data *= v_G**0.5
-            e_n += rhot_nG.norm2() * f1_n[n1]
+            for n, rhot_G in enumerate(rhot_nG.data):
+                e_n[n] += np.abs(rhot_G)**2 @ v_G * f1_n[n1] * pw.dv
         return e_n
 
     def _semi_local_xc_parts(self,
