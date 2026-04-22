@@ -587,6 +587,18 @@ def non_self_consistent_hybrid_xc_energy(
     assert isinstance(ibzwfs, PWFDIBZWaveFunctions)
     hybham.update_wave_functions(ibzwfs)
 
+    edft = dft.energies.total_extrapolated
+    exc = dft.energies._energies['xc']
+    log(f'DFT energy: {edft * Ha} eV')
+    log(f'minus DFT-XC energy: {-exc * Ha} eV')
+
+    log('Semi-local contribution:', end=' ', flush=True)
+    t1 = time()
+    semilocal_energy = _semilocal_xc_energy(dft, xc)
+    t2 = time()
+    log(f'{semilocal_energy * Ha:.3f} eV ({t2 - t1:.3f} seconds)')
+
+    log('Calculating EXX contributions:', end=' ', flush=True)
     for wfs in ibzwfs.zero_padded_iter():
         hybham.apply_orbital_dependent(
             ibzwfs,
@@ -594,9 +606,13 @@ def non_self_consistent_hybrid_xc_energy(
             wfs.psit_nX,
             spin=wfs.spin,
             calculate_energy=True)
-    ecc, evc, evv, _ = hybham.hybrid_energy_contributions()
+    t3 = time()
+    log(f'{t3 - t2:.3f} seconds')
 
-    semilocal_energy = _semilocal_xc_energy(dft, xc)
+    ecc, evc, evv, _ = hybham.hybrid_energy_contributions()
+    log(f'Core-core contribution:       {ecc * Ha:12.3f}')
+    log(f'Valence-core contribution:    {evc * Ha:12.3f}')
+    log(f'Valence-valence contribution: {evv * Ha:12.3f}', flush=True)
 
     return np.array(
         [dft.energies.total_extrapolated,
