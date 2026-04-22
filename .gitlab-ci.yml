@@ -45,7 +45,6 @@ stages:
 
 .build:
   stage: build
-  <<: *build_matrix
   before_script:
     - !reference [default, before_script]
     - pip install --user --no-deps git+https://gitlab.com/ase/ase.git
@@ -470,10 +469,8 @@ test-latest:
   image: $IMAGE_MAIN_LATEST
   extends:
     - .test
-  <<: *build_matrix
   needs:
     - job: build-latest
-      <<: *needs_corresponding_build
   script:
     - gpaw info
     - GPAW_DEBUG=1 pytest -v -m "ci or gpu" --cov=gpaw
@@ -489,10 +486,8 @@ test-latest-new:
   image: $IMAGE_MAIN_LATEST
   extends:
     - .test
-  <<: *build_matrix
   needs:
     - job: build-latest
-      <<: *needs_corresponding_build
   script:
     - gpaw info
     - GPAW_DEBUG=1 GPAW_NEW=1 pytest -v -m "ci and not old_gpaw_only"
@@ -544,10 +539,8 @@ test-cuda-mpi:
   image: $IMAGE_CUDA
   extends:
     - .test
-  <<: *build_matrix
   needs:
     - job: build-cuda
-      <<: *needs_corresponding_build
   tags:
     - cuda-mpi
   script:
@@ -561,10 +554,8 @@ test-cuda-mpi-makefile-build:
   image: $IMAGE_CUDA
   extends:
     - .test
-  <<: *build_matrix
   needs:
     - job: build-cuda-makefile
-      <<: *needs_corresponding_build
   tags:
     - cuda-mpi
   script:
