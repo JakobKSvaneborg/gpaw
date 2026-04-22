@@ -587,7 +587,7 @@ def non_self_consistent_hybrid_xc_energy(
     assert isinstance(ibzwfs, PWFDIBZWaveFunctions)
     hybham.update_wave_functions(ibzwfs)
 
-    for wfs in ibzwfs:
+    for wfs in ibzwfs.zero_padded_iter():
         hybham.apply_orbital_dependent(
             ibzwfs,
             dft.density.D_asii,
