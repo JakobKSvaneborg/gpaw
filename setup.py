@@ -53,10 +53,6 @@ for i, arg in enumerate(sys.argv):
 
 # Globals that can be replaced by values in user siteconfig.py
 
-# temp flag for choosing different options for C/C++ builds.
-# Currently this must be set to true in siteconfig.py if compiling as C++
-use_cpp = False
-
 libraries = ['xc']
 library_dirs = []
 include_dirs = []
@@ -187,6 +183,27 @@ else:  # no break
         libraries.append('blas')
 # ########### USER SITECONFIG DONE ###########
 
+if 'use_cpp' in locals():
+    print(
+        "\n"
+        "***********************************************************\n"
+        "WARNING: Your siteconfig.py had `use_cpp` flag defined.\n"
+        "This flag is now fully deprecated and has no effect. C++ is now the default build type.\n"
+        f"If you specifically want a C-build, set `compiler` to one of {['gcc', 'clang', 'mpicc', 'cc', 'icc', 'icx']}.\n"
+        "Note that a C++ compiler will be required in the next GPAW version.\n"
+        "***********************************************************\n"
+        "\n"
+    )
+
+# Fallback to legacy C build if the user siteconfig explicitly chose a C compiler.
+# Will be removed after deprecation period.
+if compiler in ['gcc', 'clang', 'mpicc', 'cc', 'icc', 'icx']:
+    use_cpp = False
+else:
+    use_cpp = True
+# use_cpp is a temp flag for controlling build during C -> C++ transition period,
+# will be fully removed in a later update.
+
 GPAW_BUILD_JOBS = os.environ.get('GPAW_BUILD_JOBS')
 """
 Check whether doing parallel build
@@ -215,7 +232,7 @@ if _num_build_jobs > 1:
     makefile_build = True
 
 if use_cpp:
-    print("EXPERIMENTAL: Compiling entire GPAW as C++.")
+    print("Compiling entire GPAW as C++. NOTE: This will become required in the next GPAW version!")
     ensure_cpp_standard(extra_compile_args)
 
 # Deprecation check

@@ -1,6 +1,5 @@
 """Custom GPAW siteconfig for LUMI-C."""
 
-use_cpp = True
 mpi = True
 compiler = 'CC'
 compiler_args = []  # remove all default args
