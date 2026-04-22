@@ -43,47 +43,21 @@ stages:
   - deploy
 
 
-# Build configurations that are built and tested separately in parallel.
-# Implemented as a YAML anchor for reusability.
-.build_matrix: &build_matrix
-  parallel:
-    matrix:
-      - LANG: ["c", "c++"]
-
-
-.needs_corresponding_build: &needs_corresponding_build
-  parallel:
-    matrix:
-      - LANG: ['$[[ matrix.LANG ]]']
-
-
 .build:
   stage: build
   <<: *build_matrix
   before_script:
     - !reference [default, before_script]
     - pip install --user --no-deps git+https://gitlab.com/ase/ase.git
-    - | # Set different siteconfig vars for C and C++
-      if [[ "$LANG" == "c++" ]]; then
-        compiler="mpic++"
-        std="-std=c++17"
-        cpp_specific="use_cpp = True"
-      else
-        compiler="mpicc"
-        std="-std=c99"
-        cpp_specific=""
-      fi
     - |
       cat << EOF > siteconfig.py
-      ${cpp_specific}
       mpi = True
       compiler = '${compiler}'
       libraries = []
       library_dirs = []
       include_dirs = []
 
-      extra_compile_args = ['${std}',
-                            '-fPIC',
+      extra_compile_args = ['-fPIC',
                             '-O3',
                             '-g',
                             '-fopenmp',
@@ -305,16 +279,8 @@ build-minimal:
     - .build
   script:
     - |
-      if [ "$LANG" == "c++" ]; then
-        compiler="g++"
-        cpp_specific="use_cpp = True"
-      else
-        compiler="gcc"
-        cpp_specific=""
-      fi
       cat << EOF > siteconfig.py
-      ${cpp_specific}
-      compiler = '${compiler}'
+      compiler = 'g++'
       mpi = False
       noblas = True
       nolibxc = True
@@ -333,16 +299,8 @@ build-cuda-minimal:
     - .build
   script:
     - |
-      if [ "$LANG" == "c++" ]; then
-        compiler="mpic++"
-        cpp_specific="use_cpp = True"
-      else
-        compiler="mpicc"
-        cpp_specific=""
-      fi
       cat << EOF > siteconfig.py
-      ${cpp_specific}
-      compiler = '${compiler}'
+      compiler = 'mpic++'
       mpi = True
       noblas = True
       nolibxc = True
@@ -461,11 +419,7 @@ build-libxc:
 gpwfiles:
   image: $IMAGE_MAIN_LATEST
   needs:
-    # Do this only for the C build
     - job: build-latest
-      parallel:
-        matrix:
-          - LANG: "c"
     - job: nightly-all
   stage: precalculate
   tags:
