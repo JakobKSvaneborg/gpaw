@@ -51,7 +51,7 @@ stages:
     - |
       cat << EOF > siteconfig.py
       mpi = True
-      compiler = '${compiler}'
+      compiler = 'mpic++'
       libraries = []
       library_dirs = []
       include_dirs = []
