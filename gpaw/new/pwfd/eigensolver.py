@@ -21,9 +21,14 @@ from gpaw.utilities.blas import axpy
 from gpaw.new.pw.hybrids import PWHybridHamiltonian
 
 
-def slparams(nbands: int, comm: MPIComm) -> tuple[MPIComm, int, int, int]:
+def slparams(nbands: int,
+             comm: MPIComm,
+             limit: int = 1000) -> tuple[MPIComm, int, int, int]:
     """Decide on scalapack parameters."""
-    if nbands < 1000:
+    # Scalapack diabled until item #1573 has been fixed:
+    limit = 100000000000000000000000
+
+    if nbands < limit:
         return serial_comm, 1, 1, 0
     # How much of comm should we use?
     # At least 30,000 numbers per core, approximately:
