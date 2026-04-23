@@ -116,7 +116,7 @@ def test_scf_criterion(in_tmp_dir, gpaw_mode):
                    'eigenstates': np.inf}
     if gpaw_new:
         convergence['eigenvalues'] = np.inf
-    atoms.calc = atoms.calc.new(convergence=convergence)
+    atoms.calc = atoms.calc.new(convergence=convergence, nbands=2)
     atoms.get_potential_energy()
     if gpaw_new:
         assert atoms.calc.dft.scf_loop.convergence['energy'].n_old == 4
