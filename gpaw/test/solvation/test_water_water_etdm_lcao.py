@@ -8,7 +8,6 @@ from gpaw.solvation import SolvationGPAW, get_HW14_water_kwargs
 from gpaw.utilities.adjust_cell import adjust_cell
 
 
-@pytest.mark.old_gpaw_only
 def test_solvation_water_water_etdm_lcao():
     SKIP_VAC_CALC = True
 

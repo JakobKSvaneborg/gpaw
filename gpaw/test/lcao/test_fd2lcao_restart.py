@@ -7,8 +7,6 @@ from ase import Atom, Atoms
 from gpaw import GPAW, FermiDirac, restart
 
 
-@pytest.mark.hmm
-@pytest.mark.old_gpaw_only
 def test_lcao_fd2lcao_restart(in_tmp_dir):
     energy_tolerance = 0.001
 

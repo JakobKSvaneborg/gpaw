@@ -216,7 +216,8 @@ class Jellium(ExtensionInput):
         mask_r = builder.fine_grid.zeros()
         self.update_mask(mask_r)
         # PW-mode needs this one:
-        pw = builder.electrostatic_potential_desc
+        # pw = builder.electrostatic_potential_desc
+        pw = builder.interpolation_desc
         return JelliumExtension(mask_r, charge=self.charge, pw=pw)
 
 

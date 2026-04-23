@@ -9,9 +9,7 @@ from gpaw import GPAW
     'gpu',
     [False,
      pytest.param(True, marks=[pytest.mark.gpu])])
-def test_symm_mgga(gpu, gpaw_new):
-    if gpu and not gpaw_new:
-        pytest.skip('No GPU calculations with old GPAW')
+def test_symm_mgga(gpu):
     a = 5.47
     b = a / 2
     si = Atoms('Si2',

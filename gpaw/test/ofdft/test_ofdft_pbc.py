@@ -8,7 +8,7 @@ from gpaw.test import gen
 
 @pytest.mark.ofdft
 @pytest.mark.libxc
-def test_ofdft_ofdft_pbc(in_tmp_dir, gpaw_new):
+def test_ofdft_ofdft_pbc(in_tmp_dir):
     symbol = 'C'
     result = -224.206
     electrons = 48
@@ -25,19 +25,14 @@ def test_ofdft_ofdft_pbc(in_tmp_dir, gpaw_new):
                 xc=xcname,
                 setups={'C': g},
                 maxiter=120,
-                eigensolver='ppcg' if gpaw_new else 'cg',
+                eigensolver='ppcg',
                 mixer=mixer)
 
     atoms.calc = calc
 
     e = atoms.get_potential_energy()
 
-    if calc.old:
-        n = calc.get_all_electron_density()
-        dv = atoms.get_volume() / calc.get_number_of_grid_points().prod()
-        I = n.sum() * dv / 2**3
-    else:
-        I = calc.dft.densities().all_electron_densities().integrate()[0]
+    I = calc.dft.densities().all_electron_densities().integrate()[0]
 
     assert I == pytest.approx(electrons, abs=1.0e-6)
     assert e == pytest.approx(result, abs=1.0e-2)

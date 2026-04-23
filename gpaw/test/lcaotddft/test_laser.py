@@ -16,7 +16,6 @@ N = 5 + N1
 kick_v = np.ones(3) * 1e-5
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 @pytest.mark.parametrize('pulse', [
     {'name': 'GaussianPulse', 'strength': 1e-5, 'time0': 0, 'frequency': 8.6,
@@ -64,7 +63,6 @@ def test_laser(gpw_files, in_tmp_dir, pulse):
         assert pulsedm_tv[:, v] == pytest.approx(pulsedmconv_t, abs=tol)
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_custom(gpw_files, in_tmp_dir):
     gpw_fname = gpw_files['na2_tddft_dzp']

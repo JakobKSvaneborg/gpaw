@@ -9,7 +9,6 @@ from gpaw.directmin.etdm_lcao import LCAOETDM
 from gpaw.typing import RNG
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.do
 def test_directmin_lcao(in_tmp_dir, gpw_files):
     """

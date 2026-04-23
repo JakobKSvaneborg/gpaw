@@ -1,11 +1,12 @@
 # web-page: fig2.png
-import numpy as np
+import json
+from pathlib import Path
 import matplotlib.pyplot as plt
+import numpy as np
 from ase.units import Bohr
-from gpaw import GPAW
+
 rs = 5.0 * Bohr
-calc = GPAW('surface.gpw', legacy_gpaw=True)
-density = calc.get_pseudo_density()[0, 0]
+density = np.array(json.loads(Path('surface.json').read_text()))
 h = 0.2
 a = 8 * h
 v = 3 * a

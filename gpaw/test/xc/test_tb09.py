@@ -8,7 +8,6 @@ from ase.dft.bandgap import bandgap
 from gpaw import GPAW, PW, Mixer
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.libxc
 @pytest.mark.mgga
 def test_xc_tb09(in_tmp_dir):

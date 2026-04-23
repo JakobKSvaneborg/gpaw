@@ -15,9 +15,7 @@ def calc_df(gpwfile, world):
     return df.get_dielectric_function()
 
 
-def test_si_scs(in_tmp_dir, gpw_files, gpaw_new, mpi):
-    if not gpaw_new:
-        pytest.skip()
+def test_si_scs(in_tmp_dir, gpw_files, mpi):
     _, eps_w = calc_df(gpw_files['si_pw'], world=mpi.comm)
     dft = mpi.NewGPAW(gpw_files['si_scs_lcao']).dft
     dft.change(eigensolver={})  # remove SCS solver which PW-mode doesn't like

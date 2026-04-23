@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from gpaw.mpi import world
 from gpaw import GPAW
@@ -7,8 +6,6 @@ from gpaw.test import gen
 from gpaw.xas import XAS, RecursionMethod
 
 
-@pytest.mark.old_gpaw_only
-@pytest.mark.hmm
 def test_corehole_si(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
     # restart from file
     calc = GPAW(gpw_files['si_corehole_pw'], legacy_gpaw=True)

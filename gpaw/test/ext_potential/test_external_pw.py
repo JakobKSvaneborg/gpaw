@@ -6,7 +6,6 @@ from gpaw import GPAW, PW
 from gpaw.external import ConstantElectricField, ConstantPotential
 
 
-@pytest.mark.old_gpaw_only
 def test_stark_pw():
     h = Atoms('H', pbc=(1, 1, 0), magmoms=[1])
     h.center(vacuum=3.0)
@@ -47,7 +46,6 @@ def test_stark_pw():
         # assert a == pytest.approx(aref, abs=0.1)
 
 
-@pytest.mark.old_gpaw_only
 def test_ext_potential_external_pw():
     ConstantPotential()
 

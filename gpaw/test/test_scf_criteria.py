@@ -29,9 +29,10 @@ class FourIterations(Criterion):
 
 
 @pytest.mark.parametrize('gpaw_mode', ['fd', 'lcao'])
-def test_scf_criterion(in_tmp_dir, gpaw_new, gpaw_mode):
+def test_scf_criterion(in_tmp_dir, gpaw_mode):
     """Tests different ways of setting SCF convergence criteria,
     and that it behaves consistenly with regard to the work function."""
+    gpaw_new = True
     convergence = {'eigenstates': 1.0,
                    'density': 1.0,
                    'energy': 1.0,
@@ -63,7 +64,7 @@ def test_scf_criterion(in_tmp_dir, gpaw_new, gpaw_mode):
                   cell=(5., 5., 9.),
                   pbc=(True, True, False))
     atoms.center()
-    if gpaw_new and gpaw_mode == 'lcao':
+    if gpaw_new and gpaw_mode == 'lcaooooooooooooooo':
         # XXX: Hotfix due to lcao mode in GPAW new being buggy.
         # See https://gitlab.com/gpaw/gpaw/-/issues/1354
         atoms.calc = GPAW(mode=gpaw_mode,
@@ -115,7 +116,7 @@ def test_scf_criterion(in_tmp_dir, gpaw_new, gpaw_mode):
                    'eigenstates': np.inf}
     if gpaw_new:
         convergence['eigenvalues'] = np.inf
-    atoms.calc = atoms.calc.new(convergence=convergence)
+    atoms.calc = atoms.calc.new(convergence=convergence, nbands=2)
     atoms.get_potential_energy()
     if gpaw_new:
         assert atoms.calc.dft.scf_loop.convergence['energy'].n_old == 4

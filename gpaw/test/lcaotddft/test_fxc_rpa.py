@@ -6,7 +6,6 @@ from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.mpi import world
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_lcaotddft_fxc_rpa(gpw_files, in_tmp_dir):
     # Time-propagation calculation with fxc
