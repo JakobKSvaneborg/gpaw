@@ -12,7 +12,6 @@ from gpaw.test.sic._utils import (MockWorld, extract_lagrange_section,
                                   mk_arr_from_str)
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.sic
 def test_mom_pwsic(in_tmp_dir, gpw_files):
     calc = GPAW(gpw_files["h2o_mom_pwsic"])

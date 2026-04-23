@@ -19,7 +19,6 @@ from gpaw.response.susceptibility import ChiFactory
 from gpaw.test import findpeak
 
 
-@pytest.mark.old_gpaw_only  # interpolate=3 for PW-mode not implemented!
 @pytest.mark.kspair
 @pytest.mark.response
 @pytest.mark.parametrize('from_file', [False, True])

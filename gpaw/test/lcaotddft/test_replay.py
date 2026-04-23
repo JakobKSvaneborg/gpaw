@@ -8,7 +8,6 @@ from gpaw.mpi import world
 from gpaw.tddft.spectrum import photoabsorption_spectrum
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_lcaotddft_replay(gpw_files, in_tmp_dir):
     # Time-propagation calculation

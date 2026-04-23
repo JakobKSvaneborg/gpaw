@@ -12,7 +12,6 @@ from gpaw import GPAW
 from gpaw.external import PointChargePotential
 
 
-@pytest.mark.old_gpaw_only
 def test_generic_proton(in_tmp_dir):
     a = 4.5
     H = Atoms('H', [(a / 2, a / 2, a / 2)],

@@ -7,7 +7,6 @@ from gpaw.cdft.cdft import CDFT
 from gpaw.cdft.cdft_coupling import CouplingParameters
 
 
-@pytest.mark.old_gpaw_only
 def test_cdft(in_tmp_dir, comm):
     distance = 2.5
     sys = Atoms('He2', positions=([0., 0., 0.], [0., 0., distance]))

@@ -32,7 +32,6 @@ def ikwargs():
                 yield dict(parallel=parallel)
 
 
-@pytest.mark.old_gpaw_only
 def test_lcao_kpts_many_combinations(in_tmp_dir, require_real_mpi):
     counter = count()
 
