@@ -7,7 +7,10 @@ import argparse
 import os
 import sys
 
+from ase.units import Ha
+
 from gpaw import GPAW
+from gpaw.dft import PW
 
 
 def convert(src, dst):
@@ -17,11 +20,13 @@ def convert(src, dst):
         print(f'{src}: mode is {mode!r}, nothing to do.')
         return
 
+    grid = dft.density.nt_sR.desc
+    ecut_eV = 0.49 * grid.ekin_max() * Ha
+
     dft.change(eigensolver={})
-    dft.change_mode('pw')
-    ecut_eV = dft.params.mode.ecut
+    dft.change_mode(PW(ecut=ecut_eV))
     print(f'Converted {src} -> {dst}')
-    print(f'  PW ecut = {ecut_eV:.3f} eV (default)')
+    print(f'  PW ecut = {ecut_eV:.3f} eV (derived from LCAO grid)')
     dft.write_gpw_file(dst, include_wfs=True)
 
 
