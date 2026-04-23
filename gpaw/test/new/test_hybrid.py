@@ -44,7 +44,6 @@ def test_hse06(dtype, eigensolver):
     assert f == pytest.approx(np.array([[0, 0, -f0], [0, 0, f0]]), abs=3e-4)
 
 
-@pytest.mark.new_gpaw_ready
 @pytest.mark.hybrids
 @pytest.mark.parametrize('dtype', [float, complex])
 @pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg'])
