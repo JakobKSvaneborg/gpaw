@@ -1,6 +1,3 @@
-import pytest
-
-
 def test_cavitylike(atoms):
     charge = 0.2
     atoms.calc.set(sj={'jelliumregion': {'bottom': 'cavity_like'},

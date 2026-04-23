@@ -4,7 +4,6 @@ Also, its interaction with an external potential in the form of a point charge
 is tested.
 """
 import numpy as np
-import pytest
 from ase import Atoms
 from ase.units import Bohr, Hartree
 

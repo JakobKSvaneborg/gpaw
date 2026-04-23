@@ -12,10 +12,11 @@ def mos2():
     atoms = mx2(formula='MoS2', kind='2H', a=3.184, thickness=3.13,
                 size=(1, 1, 1))
     atoms.center(vacuum=3.5, axis=2)
-    k = 6
+    k = 4
     atoms.calc = GPAW(mode={'name': 'pw', 'ecut': 400},
                       kpts=(k, k, 1),
-                      txt='lda.txt')
+                      xc='HSE06',
+                      txt='hse06.txt')
     atoms.get_potential_energy()
     return atoms
 
@@ -42,7 +43,7 @@ def bandstructure(gs_calc, bp):
 
 def run():
     atoms = mos2()
-    bp = atoms.cell.bandpath('GMKG', npoints=50)
+    bp = atoms.cell.bandpath('GM', npoints=5)
     lda_kn, hse_kn, fermi_level = bandstructure(atoms.calc, bp)
     if world.rank == 0:
         Path('bs.pckl').write_bytes(

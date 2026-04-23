@@ -1,6 +1,5 @@
 from itertools import count
 
-import pytest
 from ase.build import bulk
 
 from gpaw import GPAW

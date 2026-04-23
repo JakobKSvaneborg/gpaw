@@ -14,7 +14,6 @@ The numbers are compared to:
 import ase.db
 import numpy as np
 from ase.build import bulk
-from ase.dft.kpoints import monkhorst_pack
 
 from gpaw import GPAW, PW
 from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues as nsceigs

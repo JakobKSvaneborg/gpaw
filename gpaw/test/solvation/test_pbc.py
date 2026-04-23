@@ -1,6 +1,5 @@
 import warnings
 
-import pytest
 from ase.build import molecule
 
 from gpaw.solvation import (EffectivePotentialCavity, LinearDielectric,
