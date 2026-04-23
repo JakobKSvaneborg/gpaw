@@ -29,6 +29,7 @@ def test_solvation_swap_atoms(gpaw_new):
     adjust_cell(atoms, vac, h)
 
     calc = SolvationGPAW(
+        legacy_gpaw=not gpaw_new,
         mode='fd',
         xc='LDA',
         h=h,
