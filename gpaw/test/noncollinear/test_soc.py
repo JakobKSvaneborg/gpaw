@@ -4,8 +4,6 @@ See:
   https://doi.org/10.1103/PhysRevB.98.155433
 """
 
-from pathlib import Path
-
 import numpy as np
 import pytest
 from ase.build import mx2
