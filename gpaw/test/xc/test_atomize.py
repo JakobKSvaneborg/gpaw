@@ -7,6 +7,7 @@ from gpaw.xc.hybrid import HybridXC
 
 @pytest.mark.mgga
 @pytest.mark.libxc
+@pytest.mark.parametrize('gpaw_new', [False, True])
 def test_xc_atomize(in_tmp_dir, gpaw_new):
     def xc(name):
         return {'name': name, 'stencil': 1}
@@ -26,7 +27,8 @@ def test_xc_atomize(in_tmp_dir, gpaw_new):
                 eigensolver=Davidson(12),
                 mixer=Mixer(0.5, 5),
                 parallel=dict(kpt=1),
-                convergence=dict(eigenstates=3.3e-8))
+                convergence=dict(eigenstates=3.3e-8),
+                legacy_gpaw=not gpaw_new)
     atom.calc = calc
 
     e1 = atom.get_potential_energy()
