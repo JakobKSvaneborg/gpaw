@@ -14,6 +14,7 @@ build:
         mpi = False
         noblas = True
         nolibxc = True
+        compiler = 'c++'
         EOF
 
 sphinx:
