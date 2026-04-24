@@ -15,7 +15,7 @@ def run(symbol, d0, M, ecut, L):
         a.set_distance(0, 1, d)
         a.calc = GPAW(
             mode=PW(ecut),
-            xc={'name': 'PBE0', 'backend': 'pw'},
+            xc='PBE0',
             nbands=0,
             # eigensolver='rmm-diis',
             txt=f'{symbol}2-{d / d0:.2f}-{ecut}-{L}.txt')
@@ -33,7 +33,7 @@ def run(symbol, d0, M, ecut, L):
     a.calc = GPAW(
         mode=PW(ecut),
         txt=f'{symbol}-{ecut}-{L}.txt',
-        xc={'name': 'PBE0', 'backend': 'pw'})
+        xc='PBE0')
     e1 = a.get_potential_energy()
 
     if world.rank == 0:

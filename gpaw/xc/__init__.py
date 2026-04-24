@@ -61,7 +61,7 @@ def XC(kernel,
         name = kwargs.pop('name')
         backend = kwargs.pop('backend', None)
 
-        if (not legacy_gpaw and name in {'EXX', 'B3LYP'}
+        if (not legacy_gpaw and name in {'EXX', 'PBE0', 'B3LYP'}
             or backend == 'pw'
             or name in ['HSE03', 'HSE06', 'YS-PBE0']):
             # PW-mode hybrids:
