@@ -60,13 +60,14 @@ def main():
                              (1, 1, 3),
                              (1, 1, 4),
                              (2, 2, 1),
-                             [(0, 0, 0.5)],
-                             [(0, 0, 0), (0, 0, 0.5)]]:
+                             {'size': (1, 1, 2), 'gamma': True}]:
                     atoms = test(kpts, setup, spinpol, symmetry)
                     for xc in ['EXX',
                                'PBE0', 'HSE06']:
                         print(i, spinpol, setup, symmetry, kpts, xc,
                               len(atoms.calc.wfs.kpt_u))
+                        if xc != 'HSE06' and isinstance(kpts, list):
+                            continue
                         check(atoms, xc, i)
                         i += 1
 

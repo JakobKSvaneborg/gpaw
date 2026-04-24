@@ -1290,7 +1290,7 @@ class GPWFiles(CachedFilesHandler):
         si = bulk('Si', 'diamond', a=5.43)
         k = 3
         si.calc = self.GPAW(
-            mode='fd', kpts=(k, k, k,),
+            mode='fd', kpts=(k, k, k),
             symmetry={'point_group': False,
                       'time_reversal': False},
             txt=self.folder / 'si_fd_bz.txt')
@@ -1888,7 +1888,7 @@ class GPWFiles(CachedFilesHandler):
     def bi2i6_pw_nosym(self):
         return self._bi2i6(symmetry='off')
 
-    def _mos2(self, symmetry=None):
+    def _mos2(self, symmetry=None, legacy_gpaw=False):
         if symmetry is None:
             symmetry = {}
         from ase.build import mx2
@@ -1899,6 +1899,7 @@ class GPWFiles(CachedFilesHandler):
         nkpts = 6
         tag = '_nosym' if symmetry == 'off' else ''
         atoms.calc = self.GPAW(
+            legacy_gpaw=legacy_gpaw,
             mode=PW(ecut),
             xc='LDA',
             kpts={'size': (nkpts, nkpts, 1), 'gamma': True},
@@ -1915,7 +1916,11 @@ class GPWFiles(CachedFilesHandler):
 
     @gpwfile
     def mos2_pw_nosym(self):
-        return self._mos2(symmetry='off')
+        return self._mos2(
+            symmetry='off',
+            # The test_berryphase.py::test_polarization_phase[False]
+            # need this:
+            legacy_gpaw=True)
 
     @gpwfile
     def mos2_5x5_pw(self):

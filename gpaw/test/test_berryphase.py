@@ -96,6 +96,7 @@ def load_renormalized_data(name):
     return phi_km, S_km
 
 
+@pytest.mark.parametrize('gpaw_new', [False, True])
 def test_polarization_phase(in_tmp_dir, gpw_files, mpi, gpaw_new):
     pi2 = 2.0 * np.pi
     gpw_file = gpw_files['mos2_pw_nosym']

@@ -50,7 +50,11 @@ def non_self_consistent_energy(calc: ASECalculator | str | Path,
         return np.zeros(6)
 
     if isinstance(calc, (str, Path)):
-        calc = GPAW(calc, txt=None, parallel={'band': 1, 'kpt': 1})
+        calc = GPAW(calc, legacy_gpaw=False)
+
+    if not calc.old:
+        from gpaw.new.pw.hybrids import non_self_consistent_hybrid_xc_energy
+        return non_self_consistent_hybrid_xc_energy(calc.dft, xcname)
 
     assert not isinstance(calc, (str, Path))  # for mypy
     wfs = calc.wfs

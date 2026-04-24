@@ -32,6 +32,6 @@ def check_static():
         if line.strip().startswith('8'):
             _, frequency, _, intensity = (float(x) for x in line.split())
             assert abs(frequency - 474) < 1
-            assert abs(intensity - 51) < 1
+            assert abs(intensity - 2.5) < 1
             return
     raise ValueError

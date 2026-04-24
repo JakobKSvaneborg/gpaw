@@ -8,7 +8,6 @@ from gpaw.xc.hybrid import HybridXC
 
 
 @pytest.mark.do
-@pytest.mark.old_gpaw_only
 def test_hybridxc_restart_fd(in_tmp_dir):
     """Test that FD hybrid functional eigenvalues survive .gpw restart.
 

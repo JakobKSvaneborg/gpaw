@@ -7,7 +7,6 @@ from gpaw.analyse.multipole import Multipole
 from gpaw.utilities.adjust_cell import adjust_cell
 
 
-@pytest.mark.old_gpaw_only
 def test_multipoleH2O(in_tmp_dir, mpi):
     h = 0.3
 

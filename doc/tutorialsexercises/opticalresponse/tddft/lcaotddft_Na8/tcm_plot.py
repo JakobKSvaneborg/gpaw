@@ -10,7 +10,7 @@ from gpaw.lcaotddft.frequencydensitymatrix import FrequencyDensityMatrix
 from gpaw.lcaotddft.tcm import TCMPlotter
 
 # Load the objects
-calc = GPAW('unocc.gpw', txt=None)
+calc = GPAW('unocc.gpw', legacy_gpaw=True)
 ksd = KohnShamDecomposition(calc, 'ksd.ulm')
 dmat = DensityMatrix(calc)
 fdm = FrequencyDensityMatrix(calc, dmat, 'fdm.ulm')

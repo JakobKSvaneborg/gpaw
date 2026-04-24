@@ -21,8 +21,7 @@ def test_eigen_ppcg():
     calc = GPAW(**base_params)
     bulk.calc = calc
     e0 = bulk.get_potential_energy()
-    calc = GPAW(**base_params,
-                eigensolver='cg' if calc.old else 'ppcg')
+    calc = GPAW(**base_params)
     bulk.calc = calc
     e1 = bulk.get_potential_energy()
     assert e0 == pytest.approx(e1, abs=5.e-5)

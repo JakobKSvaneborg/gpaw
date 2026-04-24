@@ -10,7 +10,7 @@ from gpaw import GPAW
 
 messages = []
 
-calc = GPAW('unocc.gpw')
+calc = GPAW('unocc.gpw', legacy_gpaw=True)
 eig_n = calc.get_eigenvalues()
 
 ref = 42

@@ -18,7 +18,7 @@ from gpaw import GPAW
 from gpaw.atom.basis import BasisMaker
 
 
-def test_lcao_largecellforce(gpaw_new):
+def test_lcao_largecellforce():
     hbasis = BasisMaker.from_symbol('H').generate(1, 0, energysplit=1.8,
                                                   tailnorm=0.03**.5)
     basis = {'H': hbasis}
@@ -41,10 +41,7 @@ def test_lcao_largecellforce(gpaw_new):
     # Check that rightmost domain is in fact outside range of basis functions
     from gpaw.mpi import world
     if world.rank == 0 and world.size > 1:
-        if gpaw_new:
-            basis = calc.dft.scf_loop.hamiltonian.basis
-        else:
-            basis = calc.wfs.basis_functions
+        basis = calc.dft.scf_loop.hamiltonian.basis
         assert len(basis.atom_indices) < len(system)
 
     fd = 0

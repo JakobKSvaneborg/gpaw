@@ -15,7 +15,6 @@ from gpaw.test.sic._utils import (MockWorld, extract_lagrange_section,
 
 
 @pytest.mark.slow
-@pytest.mark.old_gpaw_only
 @pytest.mark.sic
 def test_fdsic(in_tmp_dir, gpw_files):
     """

@@ -425,6 +425,8 @@ def read_dft_state(reader: ulm.Reader,
                  'band', 'stress', 'spinorbit']
         ec = {name: reader.hamiltonian.get(f'e_{name}', np.nan) / ha
               for name in NAMES}
+        if np.isnan(ec['spinorbit']):
+            ec['spinorbit'] = 0.0
         ec['kinetic_correction'] = ec['kinetic'] - ec['band']
         ec['extrapolation'] = (ec.pop('total_extrapolated') -
                                ec.pop('total_free'))

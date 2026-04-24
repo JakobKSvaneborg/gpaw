@@ -14,8 +14,8 @@ atoms.center(vacuum=5.0)
 
 # Self-consistent calculation:
 atoms.calc = GPAW(mode=PW(600),
-                  xc={'name': 'EXX', 'backend': 'pw'},
-                  legacy_gpaw=True)
+                  mixer={'backend': 'msr1'},
+                  xc={'name': 'EXX', 'backend': 'pw'})
 eexx = atoms.get_potential_energy() + atoms.calc.get_reference_energy()
 
 # Check energy
@@ -40,10 +40,12 @@ result = non_self_consistent_eigenvalues(atoms.calc,
                                          snapshot='h-hse-snapshot.json')
 eiglda, vlda, vexx = result
 eig1b, eig2b = (eiglda - vlda + vexx)[:, 0, 0]
+print(eig1b, eig2b)
 assert abs(eig1b - eig1) < 0.04
 assert abs(eig2b - eig2) < 1.1
 
 # ... and energy
 energies = non_self_consistent_energy(atoms.calc, 'EXX')
 eexxb = energies.sum() + atoms.calc.get_reference_energy()
+print(eexxb, eexx)
 assert abs(eexxb - eexx) < 0.03

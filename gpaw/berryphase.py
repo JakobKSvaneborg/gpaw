@@ -204,7 +204,7 @@ def polarization_phase(*, calc=None,
     if calc is None:
         # legacy version: read from gpw_file
         assert gpw_wfs is not None
-        calc = GPAW(gpw_wfs, communicator=serial_comm, txt=None)
+        calc = GPAW(gpw_wfs, communicator=serial_comm, legacy_gpaw=True)
         return rank0_call(_polarization_phase, comm)(calc)
     else:
         # gather dft calculation master, None elsewhere

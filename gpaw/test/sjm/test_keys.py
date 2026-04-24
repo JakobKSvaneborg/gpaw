@@ -1,7 +1,6 @@
 import pytest
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.ci
 @pytest.mark.serial
 def test_keys(atoms):

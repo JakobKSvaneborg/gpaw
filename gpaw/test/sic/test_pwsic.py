@@ -14,7 +14,6 @@ from gpaw.test.sic._utils import (MockWorld, extract_lagrange_section,
                                   mk_arr_from_str)
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.sic
 def test_pwsic(in_tmp_dir, gpw_files):
     """

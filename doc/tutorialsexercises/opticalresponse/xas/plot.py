@@ -6,7 +6,7 @@ setup_paths.insert(0, '.')
 
 dks_energy = 532.774  # from dks calcualtion
 
-calc = GPAW('h2o_xas.gpw')
+calc = GPAW('h2o_xas.gpw', legacy_gpaw=True)
 
 xas = XAS(calc, mode='xas')
 x, y = xas.get_spectra(fwhm=0.5, linbroad=[1.5, 536, 540], dks=dks_energy)

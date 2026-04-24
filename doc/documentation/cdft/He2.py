@@ -63,7 +63,8 @@ calc_b = GPAW(h=0.2,
                   'eigenstates': 1.0e-4,
                   'density': 1.0e-1,
                   'energy': 1e-1,
-                  'bands': 4})
+                  'bands': 4},
+              legacy_gpaw=True)
 
 cdft_b = CDFT(
     calc=calc_b,

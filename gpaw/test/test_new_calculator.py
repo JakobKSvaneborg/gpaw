@@ -39,16 +39,10 @@ def test_new_calculator(in_tmp_dir, mpi):
 
 
 def check_file_handles(calc0, calc, txt=None):
-    if calc.old:
-        comm = calc.log.world
-        assert comm.rank == calc0.log.world.rank
-        fd = calc.log._fd
-        fd0 = calc0.log._fd
-    else:
-        comm = calc.log.comm
-        assert comm.rank == calc0.log.comm.rank
-        fd = calc.log.fd
-        fd0 = calc0.log.fd
+    comm = calc.log.comm
+    assert comm.rank == calc0.log.comm.rank
+    fd = calc.log.fd
+    fd0 = calc0.log.fd
 
     if comm.rank == 0:
         # We never want to reuse the output file
@@ -68,12 +62,9 @@ def check_calc(calc, params, modification):
     desired_params = params.copy()
     desired_params.update(modification)
 
-    if calc.old:
-        params = calc.parameters
-    else:
-        from gpaw.dft import Parameters
-        desired_params = Parameters(**desired_params).todict()
-        params = calc.params.todict()
+    from gpaw.dft import Parameters
+    desired_params = Parameters(**desired_params).todict()
+    params = calc.params.todict()
 
     for param, value in desired_params.items():
         assert params[param] == value

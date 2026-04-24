@@ -74,6 +74,22 @@ def _trace(meth: F | None = None,
         methname = method.__qualname__
         name = f'{modname}.{methname}'
 
+        if inspect.isgeneratorfunction(method):
+            @wraps(method)
+            def generator_wrapper(*args, **kwargs):
+                gen = method(*args, **kwargs)
+                while True:
+                    global_timer.start(name, **timer_params)
+                    try:
+                        x = next(gen)
+                    except StopIteration:
+                        return
+                    finally:
+                        global_timer.stop(**timer_params)
+                    yield x
+
+            return generator_wrapper
+
         @wraps(method)
         def wrapper(*args, **kwargs) -> T:
             global_timer.start(name, **timer_params)

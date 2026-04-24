@@ -5,7 +5,6 @@ from gpaw import GPAW
 from gpaw.external import ConstantPotential
 
 
-@pytest.mark.old_gpaw_only
 def test_ext_potential_external():
     sc = 2.9
     R = 0.7  # approx. experimental bond length

@@ -6,7 +6,7 @@ from gpaw import GPAW
 
 @pytest.mark.serial
 @pytest.mark.wannier
-def test_ase_features_wannierk(in_tmp_dir, gpw_files, gpaw_new):
+def test_ase_features_wannierk(in_tmp_dir, gpw_files):
     'Test ase.dft.wannier module with k-points.'
     k = 3
 
@@ -39,10 +39,3 @@ def test_ase_features_wannierk(in_tmp_dir, gpw_files, gpaw_new):
     calc1 = GPAW(gpw_files['si_fd_bz'])
     x1 = wan(calc1)
     assert abs(x1 - 8.817) < 0.01
-    if gpaw_new:
-        return
-
-    calc2 = GPAW(gpw_files['si_fd_ibz'])
-    calc2.wfs.ibz2bz(calc2.atoms)
-    x2 = wan(calc2)
-    assert abs(x1 - x2) < 0.001

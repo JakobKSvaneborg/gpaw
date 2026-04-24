@@ -9,8 +9,10 @@ def check():
         dct = read_wout_all(fd)
     center = dct['centers'].sum(axis=0)
     cell = read('gs_GaAs.txt').cell
-    fractional = np.linalg.solve(cell.T, center) % 1
+    fractional = np.linalg.solve(cell.T, center)
+    fractional -= fractional.round()
     w = dct['spreads'].sum()
+    print(fractional, w)
     assert abs(fractional).max() < 1e-9
     assert abs(w - 4.499) < 0.005
 
