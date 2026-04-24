@@ -25,9 +25,6 @@ def slparams(nbands: int,
              comm: MPIComm,
              limit: int = 1000) -> tuple[MPIComm, int, int, int]:
     """Decide on scalapack parameters."""
-    # Scalapack diabled until item #1573 has been fixed:
-    limit = 100000000000000000000000
-
     if nbands < limit:
         return serial_comm, 1, 1, 0
     # How much of comm should we use?
@@ -80,9 +77,6 @@ class PWFDEigensolver(Eigensolver):
             else:
                 slcomm = domain_band_comm
                 assert r * c <= slcomm.size
-                if 0:#r * c < slcomm.size:
-                    slcomm = (slcomm.new_communicator(range(r * c))
-                              or serial_comm)
                 self.scalapack_parameters = (slcomm, r, c, b)
 
     def __str__(self):
