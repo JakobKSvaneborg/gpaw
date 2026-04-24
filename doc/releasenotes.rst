@@ -10,6 +10,44 @@ Git master branch
 
 :git:`master <>`.
 
+.. _new gpaw notes:
+
+* :ref:`newgpaw` is now the default.
+
+  Not all features in the GPAW codebase has been ported to the
+  :ref:`newgpaw` architecture:
+
+  * linear-response TDDFT (both :mod:`lrtddft` and :mod:`lrtddft2`)
+  * TimeLimiter
+  * QMMM
+  * DSCF
+  * :ref:`los tutorial`
+  * ext_potential/test_constant_e_field.py
+  * CDFT
+  * partitioning (Hirshfeld and Wigner-Seitz)
+  * XAS
+  * real-space density interpolation for PW-mode
+  * Special XC-functionals: FD-mode hybrids, GLLBSC, TB09, RALDA and RAPBE
+
+  For these you will need to explicitly create old-style GPAW calculator
+  objects like this:
+
+  .. code::
+
+      calc = GPAW(..., legacy_gpaw=True)
+
+  Some features have a work-in-progress incomplete new implementation
+  (SolvationGPAW, SJM, time-propagation (LCAO)TDDFT and direct-optimization),
+  but the default is to use the old implementation.  Use
+  ``legacy_gpaw=False`` if you want to play with the new implementations.
+
+  Performance of the new implementation is, in most cases, better
+  than the old.  See :ref:`benchmarks` for some numbers.
+  However, some optimizations are still missing in the new implementation
+  (use of ELPA/Scalapack in LCAO and `augment_grids=True`) so you may
+  want to compare ``legacy_gpaw=True``  and ``legacy_gpaw=False`` if your
+  are dealing with many atoms.
+
 * Fixed bug in BSE code for systems without inversion symmetry.
   Some off-diagonal elements of `W_{GG'}` were wrongly conjugated,
   resulting in the BSE Hamiltonian not being Hermitian under
