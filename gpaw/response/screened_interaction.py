@@ -53,9 +53,6 @@ class GammaIntegrationMode:
         return f'type: {self.type} reduced: {self.reduced}'
 
     def todict(self):
-        # N is exposed via the `N` property; the stored dict shape matches
-        # the one accepted by __init__. Promote _N to a public attribute if
-        # that feels cleaner.
         return {'type': self.type, 'reduced': self.reduced, 'N': self.N}
 
     @property
