@@ -17,7 +17,7 @@ or
     of GPAW.
 
 Then follow this procedure:
-   
+
 1. Add A100 nodes to myqueue config.
 
    * Type ``mq info`` to locate the myqueue root, and the config.py file in
@@ -30,16 +30,14 @@ Then follow this procedure:
    * This will allow you to run calculations with 1, 2 or 4 GPUs (4 GPUs equals a full node).
 
 
-2. Use the latest ``gpaw_venv.py`` script to build the environment. This automatically will set ``GPAW_NEW=1``
-   and ``GPAW_USE_GPUS=1`` environment variables when using a100 nodes. Thus, the user only has to submit to
-   a100 nodes, and GPUs should work automatically. Check out the wave function memory section from the output, 
+2. Use the latest ``gpaw_venv.py`` script to build the environment. This automatically will set
+   ``GPAW_USE_GPUS=1`` environment variables when using a100 nodes. Thus, the user only has to submit to
+   a100 nodes, and GPUs should work automatically. Check out the wave function memory section from the output,
    it should have ``storage: GPU`` under it.
-  
-   If do not want to use the latest ``gpaw_venv.py``, alternatively, 
-   you need to prepare your script for GPUs. One needs to use the NEW gpaw, when running with GPUs,
-   so either you need to add ``export GPAW_NEW=1`` to your virtual environment,
-   or import the calculator from new GPAW directly. In addition you need to add
-   ``parallel={'gpu': True, ...}`` to your input of GPAW, or set ``export GPAW_USE_GPUS=1`` environment variable. 
+
+   If do not want to use the latest ``gpaw_venv.py``, alternatively,
+   you need to prepare your script for GPUs. One needs to add
+   ``parallel={'gpu': True, ...}`` to your input of GPAW, or set ``export GPAW_USE_GPUS=1`` environment variable.
    Here is an example script
    to relax a nanostructure (note that you can keep the absolute path, if you want to rerun this test)::
 
@@ -55,7 +53,7 @@ Then follow this procedure:
                   'parallel': {'gpu': gpu},
                   'xc': 'LDA'}
 
-        from gpaw.new.ase_interface import GPAW
+        from gpaw import GPAW
         atoms.calc = GPAW(**params)
         E = atoms.get_potential_energy()
         F = atoms.get_forces()
@@ -90,5 +88,3 @@ speed up further by 20-60% depending on the system, when certain merge requests 
 6. You may investigate the outputs of the calculations yourself, or you can observe the files already at Niflheim::
 
        sdiff /home/niflheim/kuisma/benchmarks/relax_gpu_True.txt /home/niflheim/kuisma/benchmarks/relax_gpu_False.txt|less
-
-
