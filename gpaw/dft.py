@@ -296,6 +296,7 @@ class PPCG(PWFDEigensolverParameter):
             hamiltonian,
             convergence,
             domain_band_comm=domain_band_comm,
+            scalapack_parameters=scalapack_parameters,
             niter=self.niter,
             min_niter=self.min_niter,
             max_buffer_mem=self.max_buffer_mem,

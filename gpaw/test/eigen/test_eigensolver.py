@@ -38,5 +38,16 @@ def test_eigensolver(k, b, d, s):
     assert e == pytest.approx(-11.893955)
 
 
+def test_sl():
+    atoms = Atoms('H2', [[0, 0, 0], [0, 0, 0.75]], cell=[2, 2, 3], pbc=True)
+    dft = DFT(
+        atoms,
+        mode='pw',
+        nbands=9,
+        parallel=dict(sl_diagonalize=(1, 2, 3)))
+    dft.converge(steps=3)
+
+
 if __name__ == '__main__':
-    test_eigensolver(1, 1, 4, 2)
+    test_sl()
+    # test_eigensolver(1, 1, 4, 2)
