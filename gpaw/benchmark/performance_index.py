@@ -101,7 +101,7 @@ REFERENCES0 = {
     'Fe8O8-3M': (-126.756, 0.000025, 40, 311.9),
     'Mn2O2-3M': (-19.123, -0.006, 24, 108.8)
 }
-RESCALE_FACTOR = 112.5
+RESCALE_FACTOR = 1.125  # Match previous PW score
 
 NAMES = sorted(REFERENCES, key=lambda name: name.split('-')[::-1])
 
