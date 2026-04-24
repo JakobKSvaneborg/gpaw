@@ -10,7 +10,6 @@ from gpaw.solvation.sjm import SJM, SJMPower12Potential
 
 
 @pytest.mark.slow
-@pytest.mark.old_gpaw_only
 def test_cip(in_tmp_dir):
     # Solvent parameters
     u0 = 0.180  # eV

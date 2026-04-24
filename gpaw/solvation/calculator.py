@@ -1,21 +1,20 @@
 from ase.data import chemical_symbols
 from ase.units import Bohr, Hartree
 
-from gpaw import GPAW_NEW
 from gpaw.io import Reader
 from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.solvation.hamiltonian import SolvationRealSpaceHamiltonian
 
 
-def SolvationGPAW(*args, **kwargs):
-    if GPAW_NEW == 1:
-        from gpaw.new.ase_interface import GPAW
-        solvation = dict(name='solvation',
-                         cavity=kwargs.pop('cavity'),
-                         dielectric=kwargs.pop('dielectric'),
-                         interactions=kwargs.pop('interactions', None))
-        return GPAW(*args, **kwargs, extensions=[solvation])
-    return OldSolvationGPAW(*args, **kwargs)
+def SolvationGPAW(*args, legacy_gpaw=True, **kwargs):
+    if legacy_gpaw:
+        return OldSolvationGPAW(*args, **kwargs)
+    from gpaw.new.ase_interface import GPAW
+    solvation = dict(name='solvation',
+                     cavity=kwargs.pop('cavity'),
+                     dielectric=kwargs.pop('dielectric'),
+                     interactions=kwargs.pop('interactions', None))
+    return GPAW(*args, **kwargs, extensions=[solvation])
 
 
 class OldSolvationGPAW(OldGPAW):

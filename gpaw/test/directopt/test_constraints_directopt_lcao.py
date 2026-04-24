@@ -4,7 +4,6 @@ import pytest
 from gpaw import GPAW
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.do
 def test_constraints_directopt_lcao(in_tmp_dir, gpw_files):
     calc = GPAW(gpw_files['h2o_cdo_lcao'])

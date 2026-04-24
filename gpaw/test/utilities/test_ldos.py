@@ -7,6 +7,7 @@ from gpaw import GPAW, FermiDirac, PoissonSolver
 from gpaw.utilities.dos import RawLDOS, raw_orbital_LDOS, raw_wignerseitz_LDOS
 
 
+@pytest.mark.parametrize('gpaw_new', [False, True])
 def test_utilities_ldos(in_tmp_dir, gpaw_new):
     comms = [world.new_communicator(np.array([r]))
              for r in range(world.size)]
@@ -24,7 +25,8 @@ def test_utilities_ldos(in_tmp_dir, gpaw_new):
     # architecture-independent results:
     LiH.translate(0.003234)
 
-    calc = GPAW(mode='fd', gpts=(24, 24, 24), communicator=comm)
+    calc = GPAW(mode='fd', gpts=(24, 24, 24), communicator=comm,
+                legacy_gpaw=not gpaw_new)
     Hnospin.calc = calc
     e_Hnospin = Hnospin.get_potential_energy()
     energies, sweight = raw_orbital_LDOS(calc, a=0, spin=0, angular='s')
@@ -35,14 +37,16 @@ def test_utilities_ldos(in_tmp_dir, gpaw_new):
                 occupations=FermiDirac(width=0, fixmagmom=True),
                 poissonsolver=PoissonSolver('fd'),
                 hund=True,
-                communicator=comm)
+                communicator=comm,
+                legacy_gpaw=not gpaw_new)
     Hspin.calc = calc
     e_Hspin = Hspin.get_potential_energy()
     energies, sweight_spin = raw_orbital_LDOS(calc, a=0, spin=0, angular='s')
 
     calc = GPAW(mode='fd', gpts=(32, 32, 40), nbands=2,
                 poissonsolver=PoissonSolver('fd'),
-                communicator=comm)
+                communicator=comm,
+                legacy_gpaw=not gpaw_new)
     LiH.calc = calc
     e_LiH = LiH.get_potential_energy()
     energies, Li_orbitalweight = raw_orbital_LDOS(calc, a=0, spin=0,

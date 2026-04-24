@@ -39,17 +39,11 @@ def test():
     atoms.calc = calc
     atoms.get_potential_energy()
 
-    if calc.old:
-        _, m_av = calc.density.estimate_magnetic_moments()
-    else:
-        _, m_av = calc.dft.magmoms()
+    _, m_av = calc.dft.magmoms()
     check(m_av)
 
     calc.write('Cr3.gpw')
     calc = GPAW('Cr3.gpw', txt=None)
 
-    if calc.old:
-        _, m_av = calc.density.estimate_magnetic_moments()
-    else:
-        _, m_av = calc.dft.magmoms()
+    _, m_av = calc.dft.magmoms()
     check(m_av)

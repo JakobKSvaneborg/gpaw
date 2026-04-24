@@ -24,10 +24,11 @@ indented_block {'a': [1, 2]}
 table [['a', 1, 2], ['b', 3, 4]]
 """
 import re
-from typing import Any, Iterable, Generator, Iterator
+from pathlib import Path
+from typing import Any, Generator, Iterable, Iterator
 
 
-def parse(lines: Iterable[str],
+def parse(lines: Iterable[str] | str,
           keys: set[str] | None = None) -> list[dict]:
     """Parse GPAW's log-file to list of dicts.
 
@@ -38,6 +39,12 @@ def parse(lines: Iterable[str],
     dicts: list[dict] = []
     _parse(line_iter(lines), dicts=dicts, keys=keys)
     return dicts
+
+
+def parse_file(filename: str | Path,
+               keys: set[str] | None = None) -> list[dict]:
+    with open(filename) as fd:
+        return parse(fd, keys=keys)
 
 
 def normalize_key(key: str) -> str:
@@ -133,6 +140,9 @@ def table(lines: list[str]) -> list[list]:
     return rows
 
 
+SPECIAL = {'forces'}
+
+
 def _parse(lines: Iterator[str],
            indents: int = 0,
            dicts: list[dict] | None = None,
@@ -184,7 +194,7 @@ def _parse(lines: Iterator[str],
         else:
             key = line
             continue
-        if dicts is not None and key in dct:
+        if dicts is not None and key in dct and key not in SPECIAL:
             dicts.append(dct)
             dct = {}
         if re.match('[a-zA-Z_]+', key):
@@ -202,8 +212,8 @@ def main():
     parser.add_argument('filename')
     parser.add_argument('key', nargs='*')
     args = parser.parse_args()
-    with open(args.filename) as fd:
-        blocks = parse(fd, keys=set(args.key) if args.key else None)
+    blocks = parse_file(args.filename,
+                        keys=set(args.key) if args.key else None)
     print('Blocks:', len(blocks))
     for n, dct in enumerate(blocks):
         print(n, '=' * 70)

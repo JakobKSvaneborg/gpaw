@@ -28,17 +28,11 @@ def system2():
 @pytest.mark.parametrize('atoms, kpts, eref', [
     (system1(), [1, 1, 1], -58.635),
     (system2(), [2, 3, 4], -22.659)])
-def test_lcao_atomic_corrections(atoms, in_tmp_dir, scalapack, kpts, eref,
-                                 gpaw_new):
+def test_lcao_atomic_corrections(atoms, in_tmp_dir, scalapack, kpts, eref):
     # Use a cell large enough that some overlaps are zero.
     # Thus the matrices will have at least some sparsity.
 
-    if gpaw_new:
-        if world.size >= 4:
-            pytest.skip('Not implemented')
-        corrections = ['ignored for now']
-    else:
-        corrections = ['dense', 'sparse']
+    corrections = ['ignored for now']
 
     energies = []
     for i, correction in enumerate(corrections):

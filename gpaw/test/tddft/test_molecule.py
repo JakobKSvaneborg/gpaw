@@ -86,7 +86,6 @@ def time_propagation_reference(ground_state):
 
 
 @pytest.mark.filterwarnings('ignore:Using compabilitity wrapper for RTTDDFT')
-@pytest.mark.old_gpaw_only_mpi
 def test_dipole_moment_values(time_propagation_reference,
                               module_tmp_path, in_tmp_dir):
     with open('dm.dat', 'w') as fd:
@@ -119,7 +118,6 @@ def test_dipole_moment_values(time_propagation_reference,
 
 
 @pytest.mark.filterwarnings('ignore:Using compabilitity wrapper for RTTDDFT')
-@pytest.mark.old_gpaw_only_mpi
 @pytest.mark.parametrize('parallel', parallel_i)
 @pytest.mark.parametrize('propagator', [
     'SICN', 'ECN'])
@@ -148,7 +146,6 @@ def test_propagation(time_propagation_reference,
 
 
 # Same test repeated, because new GPAW does not support these propagators
-@pytest.mark.old_gpaw_only
 @pytest.mark.parametrize('parallel', parallel_i)
 @pytest.mark.parametrize('propagator', [
     'ETRSCN', 'SIKE'])
@@ -177,7 +174,6 @@ def test_propagation2(time_propagation_reference,
 
 
 @pytest.mark.filterwarnings('ignore:Using compabilitity wrapper for RTTDDFT')
-@pytest.mark.old_gpaw_only_mpi
 @pytest.mark.parametrize('parallel', parallel_i)
 def test_restart(time_propagation_reference,
                  parallel, scalapack,

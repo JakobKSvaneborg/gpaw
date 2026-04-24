@@ -9,7 +9,7 @@ import numpy as np
 from gpaw.core.arrays import XArray
 from gpaw.core.atom_centered_functions import AtomArrays
 from gpaw.core.matrix import suggest_blocking
-from gpaw.mpi import MPIComm, broadcast_exception, serial_comm
+from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import trace, zips
 from gpaw.new.c import calculate_residuals_gpu
 from gpaw.new.eigensolver import Eigensolver, calculate_weights
@@ -18,11 +18,17 @@ from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.utilities import as_real_dtype
 from gpaw.utilities.blas import axpy
+from gpaw.new.pw.hybrids import PWHybridHamiltonian
 
 
-def slparams(nbands: int, comm: MPIComm) -> tuple[MPIComm, int, int, int]:
+def slparams(nbands: int,
+             comm: MPIComm,
+             limit: int = 1000) -> tuple[MPIComm, int, int, int]:
     """Decide on scalapack parameters."""
-    if nbands < 1000:
+    # Scalapack diabled until item #1573 has been fixed:
+    limit = 100000000000000000000000
+
+    if nbands < limit:
         return serial_comm, 1, 1, 0
     # How much of comm should we use?
     # At least 30,000 numbers per core, approximately:
@@ -160,19 +166,27 @@ class PWFDEigensolver(Eigensolver):
 
         weight_un = calculate_weights(self.converge_bands, ibzwfs)
 
+        if isinstance(hamiltonian, PWHybridHamiltonian):
+            wfs_u = ibzwfs.zero_padded_iter()
+        else:
+            wfs_u = ibzwfs
+
         wfs_error = 0.0
         eig_error = 0.0
         # Loop over k-points:
-        with broadcast_exception(ibzwfs.kpt_comm):
-            for wfs, weight_n in zips(ibzwfs, weight_un):
-                Ht = partial(apply, spin=wfs.spin)
-                temp_wfs_error, temp_eig_error = \
-                    self.iterate_kpt(wfs, weight_n, self.iterate1,
-                                     Ht=Ht, potential=potential,
-                                     dS_aii=dS_aii)
-                wfs_error += wfs.weight * temp_wfs_error
-                if eig_error < temp_eig_error:
-                    eig_error = temp_eig_error
+        for u, wfs in enumerate(wfs_u):
+            if u < len(weight_un):
+                weight_n = weight_un[u]
+            elif weight_n is not None:
+                weight_n *= 0.0
+            Ht = partial(apply, spin=wfs.spin)
+            temp_wfs_error, temp_eig_error = \
+                self.iterate_kpt(wfs, weight_n, self.iterate1,
+                                 Ht=Ht, potential=potential,
+                                 dS_aii=dS_aii)
+            wfs_error += wfs.weight * temp_wfs_error
+            if eig_error < temp_eig_error:
+                eig_error = temp_eig_error
 
         wfs_error = ibzwfs.kpt_band_comm.sum_scalar(
             float(wfs_error)) * ibzwfs.spin_degeneracy

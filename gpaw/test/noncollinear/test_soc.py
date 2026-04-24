@@ -4,8 +4,6 @@ See:
   https://doi.org/10.1103/PhysRevB.98.155433
 """
 
-from pathlib import Path
-
 import numpy as np
 import pytest
 from ase.build import mx2
@@ -36,20 +34,13 @@ params = dict(mode={'name': 'pw', 'ecut': 350},
 
 
 @pytest.mark.soc
-def test_soc_self_consistent(gpaw_new, in_tmp_dir):
+def test_soc_self_consistent():
     """Self-consistent SOC."""
-    if not gpaw_new and world.size > 2:
-        pytest.skip('May not work in parallel')
-    gpw_wfs = Path('mos2.gpw')
     a = mx2('MoS2')
     a.center(vacuum=3, axis=2)
 
-    if gpaw_new:
-        kwargs = {**params, 'symmetry': 'off',
-                  'magmoms': np.zeros((3, 3)), 'soc': True}
-    else:
-        kwargs = {**params, 'symmetry': 'off',
-                  'experimental': {'magmoms': np.zeros((3, 3)), 'soc': True}}
+    kwargs = {**params, 'symmetry': 'off',
+              'magmoms': np.zeros((3, 3)), 'soc': True}
 
     a.calc = GPAW(convergence={'bands': 28},
                   **kwargs)
@@ -57,9 +48,7 @@ def test_soc_self_consistent(gpaw_new, in_tmp_dir):
     eigs = a.calc.get_eigenvalues(kpt=0)
     check(eigs, 0.15, 0.002)
 
-    a.calc.write(gpw_wfs, 'all')
-
-    phases_c = polarization_phase(gpw_wfs=gpw_wfs, comm=world)
+    phases_c = polarization_phase(calc=a.calc, comm=world)
     phi_c = phases_c['electronic_phase_c']
     check_pol(phi_c)
 
@@ -67,13 +56,11 @@ def test_soc_self_consistent(gpaw_new, in_tmp_dir):
 @pytest.mark.soc
 @pytest.mark.skipif(world.size > 2,
                     reason='Does not work with more than 2 cores')
-def test_non_collinear_plus_soc(gpaw_new):
+def test_non_collinear_plus_soc():
     a = mx2('MoS2')
     a.center(vacuum=3, axis=2)
 
     kwargs = {'magmoms': np.zeros((3, 3)), 'soc': False}
-    if not gpaw_new:
-        kwargs = {'experimental': kwargs}
     a.calc = GPAW(
         convergence={'bands': 28},
         symmetry='off',

@@ -8,7 +8,6 @@ from gpaw.external import PointChargePotential
 from gpaw.test import calculate_numerical_forces
 
 
-@pytest.mark.old_gpaw_only
 def test_ext_potential_point_charge(in_tmp_dir):
     # Find coefs for polynomial:
     c = np.linalg.solve([[1, 1, 1, 1],

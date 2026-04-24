@@ -5,7 +5,6 @@ from gpaw.mpi import world
 
 
 @pytest.mark.do
-@pytest.mark.old_gpaw_only
 def test_etdm_maxiter_with_localize_every(in_tmp_dir, gpw_files):
     """Test that maxiter counts only outer SCF steps, not inner PZ steps.
 
