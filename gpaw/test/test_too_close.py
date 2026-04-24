@@ -7,9 +7,7 @@ from gpaw.utilities import AtomsTooClose
 
 
 @pytest.mark.parametrize('mode', ['fd', 'pw'])
-def test_too_close_to_boundary(mode, gpaw_new, mpi):
-    if mode == 'pw' and not gpaw_new:
-        return
+def test_too_close_to_boundary(mode, mpi):
     a = 4.0
     x = 0.1
     hydrogen = Atoms('H', [(x, x, x)],

@@ -7,14 +7,12 @@ from gpaw import FermiDirac
 from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.test import findpeak
 
-lcao = pytest.param('lcao', marks=pytest.mark.old_gpaw_only)
-
 
 @pytest.mark.ci
 @pytest.mark.dielectricfunction
 @pytest.mark.response
 @pytest.mark.parametrize('eshift', [None, 4])
-@pytest.mark.parametrize('mode', ['pw', lcao])
+@pytest.mark.parametrize('mode', ['pw', 'lcao'])
 @pytest.mark.libxc
 def test_response_diamond_absorption(in_tmp_dir, eshift, mode, mpi):
     a = 6.75 * Bohr

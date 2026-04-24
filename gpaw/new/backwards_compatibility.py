@@ -325,7 +325,8 @@ class KPT:
         if self.scale == 1:
             return data
         if 1:  # isinstance(data, np.ndarray):
-            return data * self.scale
+            # Use data[:] to read from file if needed ...
+            return data[:] * self.scale
         data.scale *= self.scale
         return data
 

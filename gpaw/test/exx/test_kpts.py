@@ -49,11 +49,8 @@ gaps = {'EXX': 21.04,
 
 @pytest.mark.libxc
 @pytest.mark.hybrids
-@pytest.mark.new_gpaw_ready
 @pytest.mark.parametrize('xc', ['EXX', 'PBE0', 'HSE06'])
-def test_kpts(xc: str, atoms: Atoms, gpaw_new, comm) -> None:
-    if gpaw_new and comm.size >= 4:
-        pytest.skip('only parallel over domain')
+def test_kpts(xc: str, atoms: Atoms, comm) -> None:
     c = atoms.calc
     e0, v0, v = non_self_consistent_eigenvalues(c, xc)
     e = e0 - v0 + v

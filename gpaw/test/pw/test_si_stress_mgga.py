@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-from ase.io.ulm import ulmopen
 from ase.parallel import parprint
 
 from gpaw import GPAW
@@ -8,16 +7,8 @@ from gpaw.test import calculate_numerical_forces
 
 
 @pytest.mark.mgga
-def test_pw_si_stress_mgga(gpw_files, gpaw_new):
-    if gpaw_new and ulmopen(gpw_files['si_pw_distorted']).version < 4:
-        pytest.skip('Unsupported new-GPAW + old gpw-file combo')
-
+def test_pw_si_stress_mgga(gpw_files):
     si = GPAW(gpw_files['si_pw_distorted']).get_atoms()
-
-    # Trigger nasty bug (fixed in !486):
-    if not gpaw_new:
-        si.calc.wfs.pt.blocksize = si.calc.wfs.pd.maxmyng - 1
-
     s_analytical = si.get_stress()
     # Calculated numerical stress once, store here to speed up test
     s_numerical = np.array([-0.01140242, -0.04084746, -0.0401058,

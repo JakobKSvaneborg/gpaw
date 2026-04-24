@@ -1,3 +1,4 @@
+import pytest
 from ase.build import molecule
 from ase.units import Pascal, m
 
@@ -7,7 +8,8 @@ from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
 from gpaw.utilities.adjust_cell import adjust_cell
 
 
-def test_solvation_swap_atoms():
+@pytest.mark.parametrize('gpaw_new', [False, True])
+def test_solvation_swap_atoms(gpaw_new):
     h = 0.3
     vac = 3.0
     u0 = 0.180
@@ -27,6 +29,7 @@ def test_solvation_swap_atoms():
     adjust_cell(atoms, vac, h)
 
     calc = SolvationGPAW(
+        legacy_gpaw=not gpaw_new,
         mode='fd',
         xc='LDA',
         h=h,
@@ -42,9 +45,9 @@ def test_solvation_swap_atoms():
     atoms.get_forces()
 
     def env(calc):
-        if calc.old:
-            return calc.hamiltonian
-        return calc.dft.solvation
+        if gpaw_new:
+            return calc.dft.solvation
+        return calc.hamiltonian
 
     eps_gradeps = env(calc).dielectric.eps_gradeps
 

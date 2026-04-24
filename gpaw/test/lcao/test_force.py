@@ -35,36 +35,28 @@ def test_lcao_force():
                          [-0.69739179, -0.89624274, 3.03203147],
                          [-0.34438181, -0.7042696, 1.77209023]])
 
-    for use_rho in [0, 1]:
-        if use_rho:
-            if not calc.old:
-                break
-            for kpt in calc.wfs.kpt_u:
-                kpt.rho_MM = calc.wfs.calculate_density_matrix(kpt.f_n,
-                                                               kpt.C_nM)
+    F_ac = system.get_forces()
+    system.calc.results.pop('forces')
 
-        F_ac = system.get_forces()
-        system.calc.results.pop('forces')
+    err_ac = np.abs(F_ac - F_ac_ref)
+    err = err_ac.max()
 
-        err_ac = np.abs(F_ac - F_ac_ref)
-        err = err_ac.max()
+    print('Force')
+    print(F_ac)
+    print()
+    print('Reference result')
+    print(F_ac_ref)
+    print()
+    print('Error')
+    print(err_ac)
+    print()
+    print('Max error')
+    print(err)
 
-        print('Force')
-        print(F_ac)
-        print()
-        print('Reference result')
-        print(F_ac_ref)
-        print()
-        print('Error')
-        print(err_ac)
-        print()
-        print('Max error')
-        print(err)
-
-        # ASE uses dx = [+|-] 0.001 by default,
-        # error should be around 2e-3.
-        # In fact 4e-3 would probably be acceptable
-        assert err < 3e-3
+    # ASE uses dx = [+|-] 0.001 by default,
+    # error should be around 2e-3.
+    # In fact 4e-3 would probably be acceptable
+    assert err < 3e-3
 
     # Set boolean to run new FD check
     fd = False

@@ -46,7 +46,9 @@ class IBZWaveFunctions(Generic[WFT]):
         self.spin_degeneracy = ncomponents % 2 + 1
         self.nspins = ncomponents % 3
 
+        # kpt_comm ranks:
         self.rank_ks = ibz.ranks(kpt_comm, self.nspins)
+        self.nu_r = np.bincount(self.rank_ks.ravel())
 
         self._wfs_u = wfs_u
         wfs = wfs_u[0]
@@ -169,6 +171,17 @@ class IBZWaveFunctions(Generic[WFT]):
 
     def __iter__(self) -> Generator[WFT]:
         yield from self._wfs_u
+
+    def zero_padded_iter(self):
+        """Load-balancing for kpt_comm when doing hybrid functionals."""
+        for wfs in self._wfs_u:
+            yield wfs
+        npad = self.nu_r.max() - self.nu_r[self.kpt_comm.rank]
+        w = wfs.weight
+        wfs.weight = 0.0
+        for _ in range(npad):
+            yield wfs
+        wfs.weight = w
 
     def move(self, relpos_ac, atomdist):
         self.ibz.symmetries.check_positions(relpos_ac)
@@ -339,7 +352,7 @@ class IBZWaveFunctions(Generic[WFT]):
         for wfs in self:
             wfs.force_contribution(potential, F_av)
         hamiltonian.update_wave_functions(self, forces=True)
-        for wfs in self:
+        for wfs in self.zero_padded_iter():
             if isinstance(wfs, PWFDWaveFunctions):
                 hamiltonian.apply_orbital_dependent(
                     self, D_asii, wfs.psit_nX, wfs.spin,

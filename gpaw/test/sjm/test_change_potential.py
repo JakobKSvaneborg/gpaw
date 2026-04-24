@@ -2,7 +2,6 @@ import pytest
 
 
 @pytest.mark.skip('https://gitlab.com/gpaw/gpaw/-/issues/1381')
-@pytest.mark.old_gpaw_only
 def test_change_potential(atoms):
     atoms.calc.set(sj={'tol': 0.1})
 

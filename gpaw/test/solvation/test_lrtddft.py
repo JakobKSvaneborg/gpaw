@@ -7,7 +7,6 @@ from gpaw.lrtddft import LrTDDFT
 from gpaw.utilities.adjust_cell import adjust_cell
 
 
-@pytest.mark.old_gpaw_only
 def test_solvation_lrtddft():
     h = 0.3
     vac = 3.0

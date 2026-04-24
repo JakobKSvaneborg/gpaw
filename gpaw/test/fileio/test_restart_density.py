@@ -27,8 +27,7 @@ def test_fileio_restart_density(in_tmp_dir, gpw_files, mpi):
     calc = mpi.GPAW(gpw_files['na3_fd_density_restart'])
 
     # We don't care about forces working for new GPAW reading old gpw-file
-    skip_forces = (not calc.old and
-                   ulmopen(gpw_files['na3_fd_density_restart']).version < 4)
+    skip_forces = ulmopen(gpw_files['na3_fd_density_restart']).version < 4
     e0, f0, m0, eig00, eig01 = get_restart_test_values(calc, skip_forces)
 
     # Write the restart file

@@ -19,7 +19,6 @@ pytestmark = pytest.mark.skipif(world.size < 4,
 
 @pytest.mark.kspair
 @pytest.mark.response
-@pytest.mark.old_gpaw_only
 def test_nicl2_magnetic_response(in_tmp_dir, gpw_files, mpi):
     # ---------- Inputs ---------- #
 
@@ -125,13 +124,7 @@ def check_magnons(filestr, hxc_scaling, *,
     assert hxc_scaling.lambd is not None
     fxcs = hxc_scaling.lambd
 
-    if world.rank == 0:
-        # import matplotlib.pyplot as plt
-        # plt.plot(w0_w, -chi0_w.imag / np.pi)
-        # plt.plot(w1_w, -chi1_w.imag / np.pi)
-        # plt.show()
-
-        print(fxcs, mw0, mw1, Ipeak0, Ipeak1)
+    # print(fxcs, mw0, mw1, Ipeak0, Ipeak1)
 
     # Test fxc scaling
     assert fxcs == pytest.approx(test_fxcs, abs=0.005)

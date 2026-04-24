@@ -6,7 +6,7 @@ from functools import cached_property
 import numpy as np
 import pytest
 
-from gpaw import debug, setup_paths, GPAW_NEW
+from gpaw import debug, setup_paths
 from gpaw.cli.info import info
 from gpaw.mpi import broadcast, world
 from gpaw.test.gpwfile import GPWFiles, _all_gpw_methodnames
@@ -492,9 +492,3 @@ class MPIHelper:
 @pytest.fixture
 def mpi(comm):
     return MPIHelper(comm)
-
-
-@pytest.fixture
-def gpaw_new() -> bool:
-    """Are we testing the new code?"""
-    return GPAW_NEW

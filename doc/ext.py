@@ -10,8 +10,6 @@ def git_role(role, rawtext, text, lineno, inliner, options={}, content=[]):
 
 
 def setup(app):
-    import gpaw
-    gpaw.GPAW_NEW = True
     app.add_role('mol', mol_role)
     app.add_role('git', git_role)
     create_png_files()
