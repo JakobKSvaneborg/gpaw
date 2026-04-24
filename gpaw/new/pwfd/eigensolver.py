@@ -80,7 +80,7 @@ class PWFDEigensolver(Eigensolver):
             else:
                 slcomm = domain_band_comm
                 assert r * c <= slcomm.size
-                if r * c < slcomm.size:
+                if 0:#r * c < slcomm.size:
                     slcomm = (slcomm.new_communicator(range(r * c))
                               or serial_comm)
                 self.scalapack_parameters = (slcomm, r, c, b)
