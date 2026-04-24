@@ -9,7 +9,6 @@ from gpaw.test import gen
 
 @pytest.mark.ofdft
 @pytest.mark.libxc
-@pytest.mark.old_gpaw_only  # no CG-eigensolver with ability to scale potential
 def test_ofdft_ofdft_scale(in_tmp_dir):
     h = 0.18
     a = 10.0

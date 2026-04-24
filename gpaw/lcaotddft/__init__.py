@@ -3,7 +3,6 @@ from __future__ import annotations
 import numpy as np
 from ase.units import Bohr, Hartree
 
-from gpaw import GPAW_NEW
 from gpaw.external import ConstantElectricField, ExternalPotential
 from gpaw.lcaotddft.hamiltonian import TimeDependentHamiltonian
 from gpaw.lcaotddft.logger import TDDFTLogger
@@ -16,22 +15,22 @@ from gpaw.typing import Any, Vector
 def LCAOTDDFT(filename: str,
               legacy_gpaw: bool = True,
               **kwargs) -> Any:
-    if not legacy_gpaw or GPAW_NEW == 1:
-        from gpaw.new.rttddft.backwards_compatibility import RTTDDFTAdapter
-        kwargs.pop('txt', None)  # ignore silently
-        kwargs.pop('parallel', None)  # ignore silently
-        kwargs.pop('communicator', None)  # ignore silently
-        assert kwargs.pop('td_potential', None) in [None], \
-            'td_potential not implemented yet'
-        assert kwargs.pop('rremission', None) in [None], \
-            'rremission not implemented yet'
-        assert kwargs.pop('fxc', None) in [None], \
-            'fxc not implemented yet'
-        assert kwargs.pop('scale', None) in [None], \
-            'scale not implemented yet'
-        new_tddft = RTTDDFTAdapter.from_file(filename, **kwargs)
-        return new_tddft
-    return OldLCAOTDDFT(filename, **kwargs)
+    if legacy_gpaw:
+        return OldLCAOTDDFT(filename, **kwargs)
+    from gpaw.new.rttddft.backwards_compatibility import RTTDDFTAdapter
+    kwargs.pop('txt', None)  # ignore silently
+    kwargs.pop('parallel', None)  # ignore silently
+    kwargs.pop('communicator', None)  # ignore silently
+    assert kwargs.pop('td_potential', None) in [None], \
+        'td_potential not implemented yet'
+    assert kwargs.pop('rremission', None) in [None], \
+        'rremission not implemented yet'
+    assert kwargs.pop('fxc', None) in [None], \
+        'fxc not implemented yet'
+    assert kwargs.pop('scale', None) in [None], \
+        'scale not implemented yet'
+    new_tddft = RTTDDFTAdapter.from_file(filename, **kwargs)
+    return new_tddft
 
 
 class OldLCAOTDDFT(GPAW):

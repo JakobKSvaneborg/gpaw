@@ -1,7 +1,7 @@
 import numpy as np
 from ase import Atoms
 
-from gpaw import GPAW, GPAW_NEW, PW, RMMDIIS
+from gpaw import GPAW, PW
 from gpaw.mpi import world
 
 
@@ -33,10 +33,7 @@ def run(symbol, d0, M, ecut, L):
     a.calc = GPAW(
         mode=PW(ecut),
         txt=f'{symbol}-{ecut}-{L}.txt',
-        xc={'name': 'PBE0', 'backend': 'pw'},
-        **(dict() if GPAW_NEW else
-           dict(eigensolver=RMMDIIS(niter=1),
-                parallel={'band': 1, 'kpt': 1})))
+        xc={'name': 'PBE0', 'backend': 'pw'})
     e1 = a.get_potential_energy()
 
     if world.rank == 0:

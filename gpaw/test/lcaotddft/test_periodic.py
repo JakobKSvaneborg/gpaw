@@ -42,7 +42,6 @@ def initialize_system():
                                communicator=comm)
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_propagated_wave_function(initialize_system, module_tmp_path):
     wfr = WaveFunctionReader(module_tmp_path / 'wf.ulm')
@@ -66,7 +65,6 @@ def test_propagated_wave_function(initialize_system, module_tmp_path):
     assert err < 7e-7
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 @pytest.mark.parametrize('parallel', parallel_i)
 def test_propagation(initialize_system, module_tmp_path, parallel, in_tmp_dir,

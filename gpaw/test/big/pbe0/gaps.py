@@ -14,7 +14,6 @@ The numbers are compared to:
 import ase.db
 import numpy as np
 from ase.build import bulk
-from ase.dft.kpoints import monkhorst_pack
 
 from gpaw import GPAW, PW
 from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues as nsceigs
@@ -45,7 +44,6 @@ bfb = {
            8.71, 11.15, 8.68, 11.09]}
 
 nk = 12
-kpts = monkhorst_pack((nk, nk, nk)) + 0.5 / nk
 
 c = ase.db.connect('gaps.db')
 
@@ -61,7 +59,7 @@ for name in ['Si', 'C', 'GaAs', 'MgO', 'NaCl', 'Ar']:
                       parallel=dict(band=1),
                       nbands=-8,
                       convergence=dict(bands=-7),
-                      kpts=kpts,
+                      kpts={'size': (nk, nk, nk), 'gamma': True},
                       txt='%s.txt' % name)
 
     atoms.get_potential_energy()

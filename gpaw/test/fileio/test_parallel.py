@@ -10,7 +10,6 @@ pytestmark = pytest.mark.skipif(world.size < 4,
                                 reason='world.size < 4')
 
 
-@pytest.mark.old_gpaw_only
 def test_fileio_parallel(in_tmp_dir, mpi):
     a = 2.87
     atoms = bulk('Fe', 'bcc', a=a)

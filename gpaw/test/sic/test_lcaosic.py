@@ -12,7 +12,6 @@ from gpaw.test.sic._utils import (MockWorld, extract_lagrange_section,
                                   mk_arr_from_str)
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.sic
 def test_lcaosic_innerloop(in_tmp_dir, gpw_files):
     """Compare energies with and without periodic PZ inner loop.
@@ -34,7 +33,6 @@ def test_lcaosic_innerloop(in_tmp_dir, gpw_files):
     assert e_no_inner == pytest.approx(e_inner, abs=1e-3)
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.sic
 def test_lcaosic(in_tmp_dir, gpw_files):
     """

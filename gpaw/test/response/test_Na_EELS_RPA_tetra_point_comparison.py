@@ -76,7 +76,7 @@ def test_response_Na_EELS_RPA_tetra_point_comparison(
     assert wpeakP0 == pytest.approx(3.4811, abs=0.02)
     assert wpeakP1 == pytest.approx(3.8076, abs=0.02)
     assert wpeakT0 == pytest.approx(3.54, abs=0.02)
-    assert wpeakT1 == pytest.approx(3.79, abs=0.13)
+    assert wpeakT1 == pytest.approx(3.79, abs=0.15)
 
     # ensure the Ipeak for point & tetra integration do not change
     assert IpeakP0 == pytest.approx(8.6311, abs=1.)

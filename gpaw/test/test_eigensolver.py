@@ -9,10 +9,7 @@ from gpaw.mpi import world
 @pytest.mark.parametrize('mode', ['pw'])
 @pytest.mark.parametrize('eigensolver', ['ppcg', 'etdm-fdpw'])
 @pytest.mark.parametrize('setup', ['paw', 'ae'])
-def test_ae(mode, eigensolver, setup, gpaw_new):
-    if not gpaw_new:
-        pytest.skip('Only implemented for new GPAW')
-
+def test_ae(mode, eigensolver, setup):
     occupations = {'name': 'fermi-dirac', 'width': 0.01}
     mixer = {'backend': 'fft'}
     if eigensolver == 'etdm-fdpw':
@@ -70,10 +67,7 @@ def test_ae(mode, eigensolver, setup, gpaw_new):
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
 @pytest.mark.parametrize('element', ['Al', 'Si'])
 @pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg', 'etdm-fdpw'])
-def test_eigensolver(mode, element, eigensolver, gpaw_new):
-    if not gpaw_new:
-        pytest.skip('Only implemented for new GPAW')
-
+def test_eigensolver(mode, element, eigensolver):
     energy_tolerance = 1e-4
     eig_tolerance = 5e-3
     spinpol = False

@@ -58,7 +58,7 @@ class NonSelfConsistentHybridXCCalculator:
             parse_name(xc)
         self.comm = ibzwfs.comm
         self.log = Logger(log, self.comm)
-        self.grid = density.nt_sR.desc.new(dtype=complex, comm=None)
+        self.grid = density.nt_sR.desc.new(dtype=ibzwfs.dtype, comm=None)
         self.delta_aiiL = [setup.Delta_iiL for setup in setups]
         self.nbzk = len(ibzwfs.ibz.bz)
         xp = np

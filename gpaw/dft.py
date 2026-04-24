@@ -12,7 +12,6 @@ from numpy.typing import DTypeLike
 from ase import Atoms
 from ase.calculators.calculator import kpts2sizeandoffsets
 
-from gpaw import GPAW_NEW
 from gpaw.mpi import MPIComm
 from gpaw.new.calculation import DFTCalculation
 from gpaw.new.logger import Logger
@@ -190,9 +189,8 @@ class Eigensolver(Parameter):
                     return eigensolvers['davidson'](**kwargs)
                 if name in eigensolvers:
                     return eigensolvers[name](**kwargs)
-                if GPAW_NEW == 147:
-                    raise LegacyGPAWError
-                raise ValueError(f'Unknown name of eigensolver: {name}')
+                raise LegacyGPAWError
+                # raise ValueError(f'Unknown name of eigensolver: {name}')
             case {**kwargs}:
                 return DefaultEigensolver(kwargs)
             case NewEigensolver():
@@ -200,9 +198,8 @@ class Eigensolver(Parameter):
             case OES():
                 return cls.from_param(eigensolver.todict())
             case _:
-                if GPAW_NEW == 147:
-                    raise LegacyGPAWError
-                raise ValueError(f'Unknown eigensolver input: {eigensolver}')
+                raise LegacyGPAWError
+                # raise ValueError(f'Unknown eigensolver input: {eigensolver}')
 
 
 class DefaultEigensolver(Eigensolver):
@@ -1009,12 +1006,9 @@ def GPAW(
     params = None
     _use_old_if_reading_new_fails = False
     if legacy_gpaw is None:
-        if GPAW_NEW == 147:
-            can, params = _can_use_new(filename, kwargs)
-            legacy_gpaw = not can
-            _use_old_if_reading_new_fails = True
-        else:
-            legacy_gpaw = False
+        can, params = _can_use_new(filename, kwargs)
+        legacy_gpaw = not can
+        _use_old_if_reading_new_fails = True
 
     if legacy_gpaw:
         from gpaw.old.calculator import GPAW as OldGPAW

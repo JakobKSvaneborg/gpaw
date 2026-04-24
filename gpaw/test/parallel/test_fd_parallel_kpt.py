@@ -5,7 +5,6 @@ from ase.build import molecule
 
 from gpaw import GPAW, FermiDirac, KohnShamConvergenceError
 from gpaw.mpi import world
-from gpaw.old.forces import calculate_forces
 from gpaw.utilities import compiled_with_sl, devnull
 
 # Calculates energy and forces for various parallelizations
@@ -14,7 +13,6 @@ pytestmark = pytest.mark.skipif(world.size < 4,
                                 reason='world.size < 4')
 
 
-@pytest.mark.old_gpaw_only
 def test_parallel_fd_parallel_kpt():
     tolerance = 4e-5
 
@@ -51,13 +49,8 @@ def test_parallel_fd_parallel_kpt():
         except KohnShamConvergenceError:
             pass
 
-        if calc.old:
-            E = calc.hamiltonian.e_total_free
-            F_av = calculate_forces(calc.wfs, calc.density,
-                                    calc.hamiltonian)
-        else:
-            E = calc.dft.calculate_energy()
-            F_av = calc.dft.calculate_forces()
+        E = calc.dft.calculate_energy()
+        F_av = calc.dft.calculate_forces()
 
         nonlocal Eref, Fref_av
         if Eref is None:

@@ -4,7 +4,6 @@ from gpaw import GPAW
 from gpaw.directmin.derivatives import Davidson
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.do
 def test_break_instability_lcao(in_tmp_dir, gpw_files):
     calc = GPAW(gpw_files['h2_break_ilcao'])

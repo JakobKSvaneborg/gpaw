@@ -1,6 +1,6 @@
 from ase import Atoms
 from ase.build import bulk
-from gpaw import GPAW, GPAW_NEW
+from gpaw import GPAW
 
 atom = Atoms('Pt')
 atom.center(vacuum=6.0)
@@ -11,7 +11,7 @@ atom.calc = GPAW(
     mixer={'backend': 'no-mixing'},
     occupations={'name': 'fixed-uniform'},
     hund=True,
-    eigensolver={'name': 'etdm-fdpw', 'converge_unocc': not GPAW_NEW},
+    eigensolver={'name': 'etdm-fdpw'},
     symmetry='off',
     txt='pt-atom.txt')
 e_atom = atom.get_potential_energy()

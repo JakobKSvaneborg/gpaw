@@ -160,8 +160,10 @@ class FDPotentialCalculator(PotentialCalculator):
 
         nt_r = self.interpolate(nt_R)
         if not nt_r.desc.pbc_c.all():
-            scale = nt_R.integrate() / nt_r.integrate()
-            nt_r.data *= scale
+            Nt = nt_r.integrate()
+            if Nt != 0.0:
+                scale = nt_R.integrate() / Nt
+                nt_r.data *= scale
 
         F_avL = self.ghat_aLr.derivative(potential.vHt_x)
         force_av = np.zeros((len(Q_aL), 3))
