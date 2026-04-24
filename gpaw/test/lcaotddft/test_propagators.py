@@ -7,7 +7,6 @@ from gpaw.lcaotddft.dipolemomentwriter import (DipoleMomentWriter,
 
 
 @pytest.mark.filterwarnings('ignore:Using compabilitity wrapper for RTTDDFT')
-@pytest.mark.old_gpaw_only_mpi
 @pytest.mark.rttddft
 @pytest.mark.parametrize('propagator', ['sicn', 'ecn'])
 def test_propagators(propagator, gpw_files, in_tmp_dir):
@@ -74,7 +73,6 @@ def test_propagators(propagator, gpw_files, in_tmp_dir):
     assert data_i == pytest.approx(ref_i, abs=1e-8)
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 @pytest.mark.parametrize('propagator', ['scpc'])
 def test_propagators_old_gpaw(propagator, gpw_files, in_tmp_dir):
@@ -118,7 +116,6 @@ def test_propagators_old_gpaw(propagator, gpw_files, in_tmp_dir):
 
 
 @pytest.mark.serial  # Todo:remove later
-@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_velocity(gpw_files, in_tmp_dir):
 

@@ -66,7 +66,6 @@ def lrtddft2_calculation(gpw_files):
     return spec_e
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_lcaotddft_vs_lrtddft(time_propagation_calculation,
                               lrtddft_calculation):
@@ -76,7 +75,6 @@ def test_lcaotddft_vs_lrtddft(time_propagation_calculation,
             == pytest.approx(lrtddft_calculation, abs=1e-2))
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_lcaotddft_vs_lrtddft2(time_propagation_calculation,
                                lrtddft2_calculation):
@@ -86,7 +84,6 @@ def test_lcaotddft_vs_lrtddft2(time_propagation_calculation,
             == pytest.approx(lrtddft2_calculation, abs=1e-2))
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.rttddft
 def test_lrtddft_vs_lrtddft2(lrtddft_calculation,
                              lrtddft2_calculation):

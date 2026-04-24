@@ -8,7 +8,6 @@ from gpaw.mixer import Mixer
 from gpaw.test import gen
 
 
-@pytest.mark.old_gpaw_only
 def test_aed_with_corehole_li():
     """Compare number of electrons for different channels with corehole"""
     li_setup = gen('Li', name='fch1s', corehole=(1, 0, 1), xcname='PBE')

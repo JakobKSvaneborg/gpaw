@@ -22,7 +22,6 @@ __all__ = ['GPAW',
            'restart']
 
 boolean_envvars = {
-    'GPAW_NEW',
     'GPAW_CPUPY',
     'GPAW_USE_GPUS',
     'GPAW_TRACE',
@@ -190,15 +189,6 @@ all_lazy_imports = dict(
     PW='gpaw.old.wavefunctions.pw.PW')
 
 
-# Make sure e.g. GPAW_NEW=0 will set GPAW_NEW=False
-# (`__getattr__()` magic handles the other boolean environment
-# variables, but GPAW_NEW is used within the same script, so it needs to
-# concretely exist in the namespace)
-GPAW_NEW = int(os.environ.get('GPAW_NEW') or 147)
-# 0: use old GPAW
-# 1: use new GPAW
-# 147: use whatever works ...
-
 if os.uname().machine == 'wasm32':
     GPAW_NO_C_EXTENSION = True
 
@@ -245,14 +235,9 @@ if debug:
 if TYPE_CHECKING:
     from gpaw.dft import GPAW
 else:
-    def GPAW(*args, legacy_gpaw=None, **kwargs):
+    def GPAW(*args, **kwargs):
         from gpaw.dft import GPAW as AnyGPAW
-        # Sorry!  Will fix this confusing code soon:
-        if legacy_gpaw is None:
-            legacy_gpaw = True if GPAW_NEW == 0 else None
-        return AnyGPAW(*args,
-                       legacy_gpaw=legacy_gpaw,
-                       **kwargs)
+        return AnyGPAW(*args, **kwargs)
 
 
 all_lazy_imports['get_calculation_info'] = 'gpaw.calcinfo.get_calculation_info'

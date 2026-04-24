@@ -199,6 +199,7 @@ class DFTCalculation:
 
         return self
 
+    @trace
     def iconverge(self, maxiter=None, calculate_forces=None):
 
         if calculate_forces is None:

@@ -15,7 +15,6 @@ of Kohn-Sham states.
 """
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.lrtddft
 def test_overlap(in_tmp_dir):
 

@@ -23,7 +23,6 @@ def gpwfile(request, gpw_files):
     return gpw_files[request.param]
 
 
-@pytest.mark.old_gpaw_only
 def test_fileio_restart(in_tmp_dir, gpwfile, mpi):
     # gpw restart file is written in fixture
     calc = mpi.OldGPAW(gpwfile)

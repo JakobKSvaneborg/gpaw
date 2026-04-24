@@ -12,6 +12,7 @@ def test_ext_potential_constant_e_field(in_tmp_dir):
     h = Atoms('H')
     h.center(vacuum=2.5)
     h.calc = GPAW(mode='fd',
+                  legacy_gpaw=True,
                   external=ConstantElectricField(1.0),  # 1 V / Ang
                   charge=1,
                   txt='h.txt')
@@ -33,10 +34,16 @@ def test_ext_potential_constant_e_field(in_tmp_dir):
 def test_polarizability(in_tmp_dir):
     H2 = Atoms('H2', positions=[(0, 0, 0), (0.7, 0, 0)])
     H2.center(vacuum=2.5)
-    H2.calc = GPAW(mode='fd', symmetry={'point_group': False})
+    H2.calc = GPAW(mode='fd',
+                   symmetry={'point_group': False},
+                   legacy_gpaw=True)
 
     strength = 0.1  # V/Ang
     alpha_cc = static_polarizability(H2, strength)
+
+    # make sure no external potential is left over
+    if H2.calc.old:
+        assert H2.calc.parameters.external is None
 
     assert alpha_cc.shape == (3, 3)
     assert alpha_cc == pytest.approx(

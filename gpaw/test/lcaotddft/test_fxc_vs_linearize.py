@@ -6,7 +6,6 @@ from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
 from gpaw.mpi import world
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.gllb
 @pytest.mark.libxc
 @pytest.mark.rttddft
