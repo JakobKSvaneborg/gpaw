@@ -17,12 +17,12 @@ Git master branch
   Not all features in the GPAW codebase has been ported to the
   :ref:`newgpaw` architecture:
 
-  * linear-response TDDFT (both :mod:`lrtddft` and :mod:`lrtddft2`)
+  * linear-response TDDFT (both :ref:`lrtddft` and :ref:`lrtddft2`)
   * TimeLimiter
   * QMMM
   * DSCF
   * :ref:`los tutorial`
-  * ext_potential/test_constant_e_field.py
+  * external potentials
   * CDFT
   * partitioning (Hirshfeld and Wigner-Seitz)
   * XAS
@@ -44,9 +44,13 @@ Git master branch
   Performance of the new implementation is, in most cases, better
   than the old.  See :ref:`benchmarks` for some numbers.
   However, some optimizations are still missing in the new implementation
-  (use of ELPA/Scalapack in LCAO and `augment_grids=True`) so you may
+  (use of ELPA/Scalapack in LCAO and ``augment_grids=True``) so you may
   want to compare ``legacy_gpaw=True``  and ``legacy_gpaw=False`` if your
   are dealing with many atoms.
+
+* New :ref:`benchmarks` introduced.  These benchmarks run every Sunday
+  and will allow us to discover performance regressions
+  (and improvements).
 
 * Fixed bug in BSE code for systems without inversion symmetry.
   Some off-diagonal elements of `W_{GG'}` were wrongly conjugated,
@@ -152,8 +156,6 @@ Git master branch
 
 * Added symmetry labels to symmetry-matrices in log-file
   (E, i, σ, C\ `_n`, S\ `_n`).
-
-* :ref:`newgpaw` is now the default!
 
 
 Version 25.7.0
