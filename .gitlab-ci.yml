@@ -699,6 +699,7 @@ lint:
     - pip install flake8
     - flake8 --version
     - flake8 --doctests gpaw
+    - flake8 setup.py
     - >
       flake8
       --doctests
