@@ -204,7 +204,7 @@ class WCache:
     """Per-q-point on-disk cache for the BSE screened interaction W.
 
     Backed by an :class:`ase.utils.filecache.MultiFileJSONCache`: one file
-    per IBZ q-point (keyed by ``str(iq)``) plus a single ``metadata``
+    per IBZ q-point (keyed by ``str(iq)``) plus a single ``'metadata'``
     entry that pins the BSE settings the cache was produced with.
 
     Concurrency/restart come from the backing cache: per-q-point locks
@@ -215,8 +215,6 @@ class WCache:
     ``metadata`` dict and the list of IBZ q-points when constructed.
     """
 
-    METADATA_KEY = 'metadata'
-
     def __init__(self, path, *, metadata, ibzk_qc, comm):
         self.path = Path(path)
         self.metadata = metadata
@@ -226,9 +224,11 @@ class WCache:
     # ---- backing-cache helpers ----------------------------------------
 
     def _open(self):
-        # The file cache serialises per-key locking itself; give it a
-        # serial communicator and handle the MPI side ourselves (only
-        # rank 0 touches the filesystem).
+        # Only rank 0 of self.comm ever touches the filesystem and every
+        # cross-rank coordination is done explicitly by the methods on
+        # WCache, so from the backing cache's perspective there is only
+        # one participant. Passing SerialCommunicator() turns off
+        # MultiFileJSONCache's own cross-rank handling.
         return MultiFileJSONCache(str(self.path), comm=SerialCommunicator())
 
     def strip_empties(self):
@@ -249,7 +249,10 @@ class WCache:
         """
         if self.comm.rank == 0:
             qcache = self._open()
-            with qcache.lock(self.METADATA_KEY) as handle:
+            with qcache.lock('metadata') as handle:
+                # handle is None when the entry already exists (either
+                # from a previous run or from a racing concurrent job);
+                # in that case we silently no-op.
                 if handle is not None:
                     handle.save(self.metadata)
 
@@ -260,7 +263,7 @@ class WCache:
         if self.comm.rank == 0:
             qcache = self._open()
             try:
-                stored = qcache[self.METADATA_KEY]
+                stored = qcache['metadata']
             except KeyError:
                 err_msg = (
                     f'W-file cache at {self.path!r} has no metadata entry; '
@@ -352,7 +355,7 @@ class WCache:
     def lock_qpoint(self, iq):
         """Acquire the write lock for IBZ q-point ``iq``.
 
-        Collective across ``self.comm``. Yields a callable ``save(W_GG)``
+        Collective across ``self.comm``. Yields a ``save(W_GG)`` callable
         when the current process should compute and store the entry, and
         ``None`` when the entry is already cached (or being written by
         someone else).
@@ -368,23 +371,14 @@ class WCache:
             skip = broadcast(skip, root=0, comm=self.comm)
             if skip:
                 yield None
-            else:
-                q_c = self.ibzk_qc[iq]
-                yield _WCacheSaver(self.comm, handle, q_c)
+                return
+            q_c = self.ibzk_qc[iq]
 
+            def save(W_GG):
+                if self.comm.rank == 0:
+                    handle.save({'q_c': q_c.tolist(), 'W_GG': W_GG})
 
-class _WCacheSaver:
-    """Small collective save callback yielded by :meth:`WCache.lock_qpoint`."""
-
-    def __init__(self, comm, handle, q_c):
-        self._comm = comm
-        self._handle = handle
-        self._q_c = q_c
-
-    def save(self, W_GG):
-        if self._comm.rank == 0:
-            self._handle.save({'q_c': np.asarray(self._q_c).tolist(),
-                               'W_GG': W_GG})
+            yield save
 
 
 class SpinorData:
@@ -1116,8 +1110,8 @@ class BSEBackend:
 
         for iq in todo:
             q_c = self.qd.ibzk_kc[iq]
-            with wcache.lock_qpoint(iq) as saver:
-                if saver is None:
+            with wcache.lock_qpoint(iq) as save:
+                if save is None:
                     self.context.print(
                         f'  iq={iq}: already cached, skipping')
                     continue
@@ -1125,7 +1119,7 @@ class BSEBackend:
                 chi0 = self._chi0calc.calculate(q_c)
                 W_wGG = self._wcalc.calculate_W_wGG(chi0)
                 assert W_wGG.shape[0] == 1
-                saver.save(W_wGG[0])
+                save(W_wGG[0])
         self.context.comm.barrier()
 
     @timer('diagonalize')
