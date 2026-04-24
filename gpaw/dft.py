@@ -612,7 +612,7 @@ class XC(Parameter):
     def functional(self, *, collinear: bool, atoms: Atoms | None = None):
         from gpaw.xc import XC as xc
         return xc({'name': self.name, **self.kwargs},
-                  collinear=collinear, atoms=atoms)
+                  collinear=collinear, atoms=atoms, legacy_gpaw=False)
 
     @classmethod
     def from_param(cls, xc):
