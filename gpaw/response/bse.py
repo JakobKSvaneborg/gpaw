@@ -1,3 +1,4 @@
+from contextlib import ExitStack
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import cached_property
@@ -5,11 +6,13 @@ from time import ctime, time
 
 import numpy as np
 from ase.dft import monkhorst_pack
+from ase.parallel import broadcast
 from ase.units import Bohr, Hartree
+from ase.utils.filecache import MultiFileJSONCache
 from scipy.linalg import eigh
 
 from gpaw.blacs import BlacsDescriptor, BlacsGrid, Redistributor
-from gpaw.mpi import normalize_communicator, serial_comm
+from gpaw.mpi import SerialCommunicator, normalize_communicator, serial_comm
 from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.response import ResponseContext
 from gpaw.response.chi0 import Chi0Calculator, get_frequency_descriptor
@@ -278,7 +281,8 @@ class BSEBackend:
                  q0_correction=False,
                  mode='BSE',
                  q_c=(0.0, 0.0, 0.0),
-                 direction=0):
+                 direction=0,
+                 W_file=None):
 
         integrate_gamma = GammaIntegrationMode(integrate_gamma)
 
@@ -348,6 +352,13 @@ class BSEBackend:
         self.eshift = eshift
 
         self.coulomb = CoulombKernel.from_gs(self.gs, truncation=truncation)
+
+        # Cache for precomputed W_GG, either None or the path (str) to a
+        # MultiFileJSONCache directory. Validation of the stored cache
+        # metadata against the current BSE settings is deferred to the
+        # first W access.
+        self._W_file = None if W_file is None else str(W_file)
+        self._W_file_validated = False
 
         # Distribution of kpoints
         self.myKrange, self.myKsize = self.parallelisation_kpoints()
@@ -831,51 +842,20 @@ class BSEBackend:
             integrate_gamma=self.integrate_gamma,
             q0_correction=self.q0_correction)
 
-    @timer('calculate_screened_potential')
-    def calculate_screened_potential(self):
-        """Calculate W_GG(q).
-
-        Note: This method is no longer called during the standard BSE
-        calculation path. It is kept for backward compatibility.
-        The direct kernel now computes W_GG on the fly, one IBZ q-point
-        at a time, to avoid storing all W_qGG simultaneously.
-        """
-
-        pawcorr_q = []
-        W_qGG = []
-        qpd_q = []
-
-        t0 = time()
-        self.context.print('Calculating screened potential')
-        for iq, q_c in enumerate(self.qd.ibzk_kc):
-            chi0 = self._chi0calc.calculate(q_c)
-            W_wGG = self._wcalc.calculate_W_wGG(chi0)
-            W_GG = W_wGG[0]
-            # This is such a terrible way to access the paw
-            # corrections. Attributes should not be groped like
-            # this... Change in the future! XXX
-            pawcorr_q.append(self._chi0calc.chi0_body_calc.pawcorr)
-            qpd_q.append(chi0.qpd)
-            W_qGG.append(W_GG)
-
-            if iq % (self.qd.nibzkpts // 5 + 1) == 2:
-                dt = time() - t0
-                tleft = dt * self.qd.nibzkpts / (iq + 1) - dt
-                self.context.print(
-                    '  Finished {} q-points in {} - Estimated {} left'.format(
-                        iq + 1, timedelta(seconds=round(dt)), timedelta(
-                            seconds=round(tleft))))
-
-        return ScreenedPotential(pawcorr_q, W_qGG, qpd_q)
-
     def _compute_screened_potential_for_q(self, q_c):
-        """Compute chi0, W_GG, PAW corrections, and PW descriptor for one
-        q-point.
+        """Return (W_GG, pawcorr, qpd) for one q-point.
 
-        Returns (W_GG, pawcorr, qpd) tuple. This is used by the direct
-        kernel to process one IBZ q-point at a time without storing all
-        W_qGG in memory.
+        If ``W_file`` was passed to BSE, ``W_GG`` is loaded from the cache
+        and ``qpd`` and ``pawcorr`` are rebuilt locally (both are cheap
+        relative to the chi0 work that the cache is skipping). Otherwise
+        W_GG is computed from chi0.
         """
+        if self._W_file is not None:
+            W_GG = self._load_W_GG(q_c)
+            qpd = SingleQPWDescriptor.from_q(q_c, self.ecut, self.gs.gd)
+            pawcorr = self.gs.pair_density_paw_corrections(qpd)
+            return W_GG, pawcorr, qpd
+
         chi0 = self._chi0calc.calculate(q_c)
         W_wGG = self._wcalc.calculate_W_wGG(chi0)
         assert W_wGG.shape[0] == 1  # there should only be 1 frequency point
@@ -883,6 +863,216 @@ class BSEBackend:
         pawcorr = self._chi0calc.chi0_body_calc.pawcorr
         qpd = chi0.qpd
         return W_GG, pawcorr, qpd
+
+    # -- W-file cache ------------------------------------------------------
+
+    _W_CACHE_METADATA_KEY = 'metadata'
+
+    def _w_cache_metadata(self):
+        """Cache-wide settings stored once per W cache.
+
+        Every field affects W_GG, so any mismatch must invalidate a cache.
+        """
+        return {
+            'ecut': float(self.ecut),
+            'nbands': self.nbands,
+            'integrate_gamma': self.integrate_gamma.todict(),
+            'q0_correction': bool(self.q0_correction),
+            'truncation': self.coulomb.truncation,
+            'ibzk_kc': np.asarray(self.qd.ibzk_kc).tolist(),
+            'N_c': [int(n) for n in self.kd.N_c],
+        }
+
+    def _validate_w_cache_metadata(self, stored):
+        """Raise ValueError if stored cache metadata disagrees with self."""
+        if not isinstance(stored, dict):
+            raise ValueError(
+                f'W_file cache at {self._W_file!r} has a missing or '
+                f'corrupt metadata entry.')
+        current = self._w_cache_metadata()
+        mismatched = []
+        for key, value in current.items():
+            if key not in stored:
+                mismatched.append(key)
+                continue
+            if key == 'ibzk_kc':
+                if not np.allclose(np.asarray(stored[key]),
+                                   np.asarray(value)):
+                    mismatched.append(key)
+            elif stored[key] != value:
+                mismatched.append(key)
+        if mismatched:
+            raise ValueError(
+                f'W_file cache at {self._W_file!r} was created with '
+                f'different BSE settings; mismatched keys: {mismatched}. '
+                f'Stored: {stored}, current: {current}.')
+
+    def _open_w_cache(self, path):
+        # The file cache itself serialises per-key locking; we give it a
+        # serial communicator and handle the MPI side ourselves (only rank
+        # 0 ever touches the filesystem).
+        return MultiFileJSONCache(str(path), comm=SerialCommunicator())
+
+    def _ensure_w_cache_validated(self):
+        if self._W_file_validated:
+            return
+        comm = self.context.comm
+        err_msg = None
+        if comm.rank == 0:
+            qcache = self._open_w_cache(self._W_file)
+            try:
+                stored = qcache[self._W_CACHE_METADATA_KEY]
+            except KeyError:
+                err_msg = (
+                    f'W_file cache at {self._W_file!r} has no metadata '
+                    f'entry; run precompute_W first.')
+            else:
+                try:
+                    self._validate_w_cache_metadata(stored)
+                except ValueError as exc:
+                    err_msg = str(exc)
+        err_msg = broadcast(err_msg, root=0, comm=comm)
+        if err_msg is not None:
+            raise ValueError(err_msg)
+        self._W_file_validated = True
+
+    def _find_iq(self, q_c):
+        diff_q = self.qd.ibzk_kc - np.asarray(q_c)[None, :]
+        matches = np.where(np.all(np.isclose(diff_q, 0.0), axis=1))[0]
+        if len(matches) == 0:
+            raise ValueError(
+                f'q_c={list(q_c)} not found among the IBZ q-points of '
+                f'this BSE calculation.')
+        return int(matches[0])
+
+    @timer('load_W_GG')
+    def _load_W_GG(self, q_c):
+        """Load W_GG for a single IBZ q-point from the W_file cache."""
+        self._ensure_w_cache_validated()
+        comm = self.context.comm
+        iq = self._find_iq(q_c)
+
+        W_GG = None
+        err_msg = None
+        shape = None
+        if comm.rank == 0:
+            qcache = self._open_w_cache(self._W_file)
+            try:
+                entry = qcache[str(iq)]
+            except KeyError:
+                err_msg = (
+                    f'W_file cache at {self._W_file!r} has no entry for '
+                    f'IBZ q-point iq={iq} (q_c={list(q_c)}); the cache '
+                    f'is incomplete.')
+            else:
+                stored_q_c = np.asarray(entry['q_c'])
+                if not np.allclose(stored_q_c, q_c):
+                    err_msg = (
+                        f'Stored q_c={stored_q_c.tolist()} at iq={iq} does '
+                        f'not match current q_c={list(q_c)}.')
+                else:
+                    W_GG = np.ascontiguousarray(
+                        np.asarray(entry['W_GG'], dtype=complex))
+                    shape = W_GG.shape
+        err_msg = broadcast(err_msg, root=0, comm=comm)
+        if err_msg is not None:
+            raise ValueError(err_msg)
+
+        shape = broadcast(shape, root=0, comm=comm)
+        if comm.rank != 0:
+            W_GG = np.empty(shape, dtype=complex)
+        if comm.size > 1:
+            comm.broadcast(W_GG, 0)
+        return W_GG
+
+    @timer('precompute_W')
+    def precompute_W(self, path, qpoints=None):
+        """Compute W_GG for the given IBZ q-points and write them to disk.
+
+        Parameters
+        ----------
+        path : str or Path
+            Directory that backs a :class:`MultiFileJSONCache`. Created on
+            demand. Safe to call concurrently from independent processes
+            on the same ``path`` — per-q-point locking is handled by the
+            cache, and already-complete q-points are skipped.
+        qpoints : sequence of int, optional
+            IBZ q-point indices to compute. Defaults to all.
+        """
+        comm = self.context.comm
+        path = str(path)
+
+        if comm.rank == 0:
+            qcache = self._open_w_cache(path)
+            # Any empty placeholder files left behind by a crashed job must
+            # be removed, otherwise we would incorrectly treat them as
+            # already-completed q-points and skip them.
+            qcache.strip_empties()
+        else:
+            qcache = None
+
+        self._write_or_validate_metadata(qcache)
+
+        if qpoints is None:
+            todo = list(range(self.qd.nibzkpts))
+        else:
+            todo = list(qpoints)
+            bad = [iq for iq in todo
+                   if not (0 <= iq < self.qd.nibzkpts)]
+            if bad:
+                raise ValueError(
+                    f'qpoints={qpoints} contains indices outside '
+                    f'[0, {self.qd.nibzkpts}): {bad}')
+
+        self.context.print(
+            f'Precomputing W for {len(todo)} IBZ q-point(s) into {path!r}')
+
+        for iq in todo:
+            q_c = self.qd.ibzk_kc[iq]
+            with ExitStack() as stack:
+                if comm.rank == 0:
+                    handle = stack.enter_context(qcache.lock(str(iq)))
+                    skip = handle is None
+                else:
+                    handle = None
+                    skip = False
+                skip = broadcast(skip, root=0, comm=comm)
+                if skip:
+                    self.context.print(
+                        f'  iq={iq}: already cached, skipping')
+                    continue
+
+                self.context.print(f'  iq={iq}: computing W_GG')
+                chi0 = self._chi0calc.calculate(q_c)
+                W_wGG = self._wcalc.calculate_W_wGG(chi0)
+                assert W_wGG.shape[0] == 1
+                W_GG = W_wGG[0]
+
+                if comm.rank == 0:
+                    handle.save({'q_c': np.asarray(q_c).tolist(),
+                                 'W_GG': W_GG})
+        comm.barrier()
+
+    def _write_or_validate_metadata(self, qcache):
+        """On rank 0, write the cache metadata entry if missing, else
+        validate it against the current settings."""
+        comm = self.context.comm
+        err_msg = None
+        if comm.rank == 0:
+            key = self._W_CACHE_METADATA_KEY
+            with qcache.lock(key) as handle:
+                if handle is None:
+                    # Metadata already stored — validate it.
+                    stored = qcache[key]
+                    try:
+                        self._validate_w_cache_metadata(stored)
+                    except ValueError as exc:
+                        err_msg = str(exc)
+                else:
+                    handle.save(self._w_cache_metadata())
+        err_msg = broadcast(err_msg, root=0, comm=comm)
+        if err_msg is not None:
+            raise ValueError(err_msg)
 
     @timer('diagonalize')
     def diagonalize_bse_matrix(self, bsematrix):
@@ -1261,6 +1451,12 @@ class BSE(BSEBackend):
             txt output
         mode: str
             Theory level used. can be RPA TDHF or BSE. Only BSE is screened.
+        W_file: str or Path or None
+            Path to a directory produced by ``BSE.precompute_W``. When
+            given, W is loaded lazily from the cache (one q-point at a
+            time) instead of being computed from chi0. The cache metadata
+            is validated against the current BSE settings on first access
+            and a ``ValueError`` is raised on mismatch.
         """
         comm = normalize_communicator(comm)
         gs, context = get_gs_and_context(

@@ -52,6 +52,9 @@ class GammaIntegrationMode:
     def __repr__(self):
         return f'type: {self.type} reduced: {self.reduced}'
 
+    def todict(self):
+        return {'type': self.type, 'reduced': self.reduced, 'N': self._N}
+
     @property
     def is_analytical(self):
         return self.type == 'sphere'
