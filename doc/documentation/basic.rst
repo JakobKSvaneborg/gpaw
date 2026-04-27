@@ -763,34 +763,33 @@ and used for output.  Use ``txt=None`` to disable all text output.
 Density mixing
 --------------
 
-Three parameters determine how GPAW does mixing of the densities:
+The mixer can be specified as a dict, e.g.::
 
-* ``beta``: linear mixing coefficient
-* ``nmaxold``: number of old densities to mix
+    mixer={'backend': 'pulay'}
+
+which happenns to be the default option. A powerful alternative is the
+msr1 mixer::
+
+    mixer={'backend': 'msr1', 'beta': 0.04, 'nmaxold': 8}
+
+The parameters which determine how GPAW does mixing of the densities are:
+
+* ``method``: the spin mixing method to use. Options are ``fullspin``,
+  ``difference``, ``sum``, and ``separate``. Default is ``fullspin``.
+* ``backend``: the mixing algorithm to use. Options are ``pulay``,
+  ``msr1``,  ``broyden`` (not recommended), ``fft`` (not recommended),
+  and ``no-mixing`` (not for scf-calculations). Default: ``pulay``.
+* ``beta``: linear mixing coefficient. Default: ``0.08`` for periodic
+  systems and ``0.25`` for non-periodic systems.
+* ``nmaxold``: number of old densities to mix, default is ``16``.
 * ``weight``: when measuring the change from input to output density,
   long wavelength changes are weighted ``weight`` times higher than
-  short wavelength changes
+  short wavelength changes. Default is ``70`` for periodic systems and
+  ``1`` for non-periodic systems.
 
-For small molecules, the best choice is to use
-``mixer=Mixer(beta=0.25, nmaxold=16, weight=1.0)``, which is what GPAW
-will choose if the system has zero-boundary conditions.
-
-If your system is a big molecule or a cluster, it is an advantage to
-use something like ``mixer=Mixer(beta=0.08, nmaxold=16, weight=70.0)``,
-which is also what GPAW will choose if the system has periodic
-boundary conditions in one or more directions.
-
-In spin-polarized calculations ``MixerFull`` will be used instead of
-``Mixer``.
-
-The mixer can also be specified as a dict, e.g.::
-
-    mixer={'backend': 'msr1', 'beta': 0.04, 'nmaxold': 10}
-
-The accepted dict keywords are ``method``, ``backend``, ``beta``,
-``nmaxold``, and ``weight``.
-See also the documentation on :ref:`density mixing <densitymix>`.
-
+The mixer can also be specified as an object, with the ``beta``,
+``nmaxold``, and ``weight`` keyword arguments. See also the documentation
+on :ref:`density mixing <densitymix>`.
 
 .. _manual_fixdensity:
 
