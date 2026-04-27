@@ -1,15 +1,15 @@
 import pytest
-from gpaw.utilities import compiled_with_libvdwxc
 from ase.build import molecule
-from gpaw import GPAW, Mixer, Davidson, PW
-from gpaw.xc.libvdwxc import vdw_df
+
+from gpaw import GPAW, PW, Davidson, Mixer
 from gpaw.mpi import world
+from gpaw.utilities import compiled_with_libvdwxc
+from gpaw.xc.libvdwxc import vdw_df
 
 pytestmark = pytest.mark.skipif(not compiled_with_libvdwxc(),
                                 reason='not compiled_with_libvdwxc()')
 
 
-@pytest.mark.old_gpaw_only
 def test_vdw_libvdwxc_h2(in_tmp_dir):
     system = molecule('H2')
     system.center(vacuum=1.0)

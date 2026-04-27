@@ -1,16 +1,10 @@
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
-#include <stdlib.h>
-#include <pthread.h>
-
-#include "../extensions.h"
-#define __TRANSFORMERS_C
-#include "../transformers.h"
-#undef __TRANSFORMERS_C
+#include "python_utils.h"
+#include "extensions.h"
+#include "transformers.h"
 #include "bmgs.h"
 #include "gpu.h"
+#include <stdlib.h>
+#include <pthread.h>
 
 static double *transformer_buf_gpu = NULL;
 static double *transformer_buf16_gpu = NULL;

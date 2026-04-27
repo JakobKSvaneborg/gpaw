@@ -1,16 +1,17 @@
 import numpy as np
+import pytest
 from ase import Atom, Atoms
 
-import gpaw.mpi as mpi
+from gpaw.mpi import world
 from gpaw import GPAW, FermiDirac, PoissonSolver
-import pytest
 from gpaw.utilities.dos import RawLDOS, raw_orbital_LDOS, raw_wignerseitz_LDOS
 
 
+@pytest.mark.parametrize('gpaw_new', [False, True])
 def test_utilities_ldos(in_tmp_dir, gpaw_new):
-    comms = [mpi.world.new_communicator(np.array([r]))
-             for r in range(mpi.size)]
-    comm = comms[mpi.rank]
+    comms = [world.new_communicator(np.array([r]))
+             for r in range(world.size)]
+    comm = comms[world.rank]
 
     Hnospin = Atoms([Atom('H')], cell=[5, 5, 5], pbc=False)
     Hspin = Atoms([Atom('H', magmom=1)], cell=[5, 5, 5], pbc=False)
@@ -24,7 +25,8 @@ def test_utilities_ldos(in_tmp_dir, gpaw_new):
     # architecture-independent results:
     LiH.translate(0.003234)
 
-    calc = GPAW(mode='fd', gpts=(24, 24, 24), communicator=comm)
+    calc = GPAW(mode='fd', gpts=(24, 24, 24), communicator=comm,
+                legacy_gpaw=not gpaw_new)
     Hnospin.calc = calc
     e_Hnospin = Hnospin.get_potential_energy()
     energies, sweight = raw_orbital_LDOS(calc, a=0, spin=0, angular='s')
@@ -35,14 +37,16 @@ def test_utilities_ldos(in_tmp_dir, gpaw_new):
                 occupations=FermiDirac(width=0, fixmagmom=True),
                 poissonsolver=PoissonSolver('fd'),
                 hund=True,
-                communicator=comm)
+                communicator=comm,
+                legacy_gpaw=not gpaw_new)
     Hspin.calc = calc
     e_Hspin = Hspin.get_potential_energy()
     energies, sweight_spin = raw_orbital_LDOS(calc, a=0, spin=0, angular='s')
 
     calc = GPAW(mode='fd', gpts=(32, 32, 40), nbands=2,
                 poissonsolver=PoissonSolver('fd'),
-                communicator=comm)
+                communicator=comm,
+                legacy_gpaw=not gpaw_new)
     LiH.calc = calc
     e_LiH = LiH.get_potential_energy()
     energies, Li_orbitalweight = raw_orbital_LDOS(calc, a=0, spin=0,
@@ -89,7 +93,7 @@ def test_utilities_ldos(in_tmp_dir, gpaw_new):
     ldos.by_element_to_file(fname + '_2.0.dat', 2.0, shift=False)
     ldos.by_element_to_file(fname + '_indx0.dat', indices=[0])
     # the hydrogen entries are missing for index 0 only
-    if mpi.world.rank == 0:
+    if world.rank == 0:
         assert (np.loadtxt(fname + '_indx0.dat').shape[1] + 3 ==
                 np.loadtxt(fname + '.dat').shape[1])
 

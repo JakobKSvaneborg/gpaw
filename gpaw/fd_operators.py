@@ -1,13 +1,12 @@
-# Copyright (C) 2003  CAMP
-# Please see the accompanying LICENSE file for further information.
-
 """Finite difference operators.
 
 This file defines a series of finite difference operators used in grid mode.
 """
+from __future__ import annotations
 
 from math import factorial as fact
 from math import pi
+from typing import TYPE_CHECKING
 
 import numpy as np
 from ase.geometry.minkowski_reduction import reduction_full
@@ -17,7 +16,11 @@ from scipy.spatial import Voronoi
 import gpaw.cgpaw as cgpaw
 from gpaw import debug
 from gpaw.gpu import cupy_is_fake
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.typing import Array2D, ArrayLike2D
+
+if TYPE_CHECKING:
+    from gpaw.core import UGDesc
 
 # Expansion coefficients for finite difference Laplacian.  The numbers are
 # from J. R. Chelikowsky et al., Phys. Rev. B 50, 11355 (1994):
@@ -158,7 +161,7 @@ if debug:
             assert (self.dtype == float or
                     (phase_cd.dtype == complex and
                      phase_cd.shape == (3, 2)))
-            _FDOperator.apply(self, in_xg, out_xg, phase_cd)
+            super().apply(in_xg, out_xg, phase_cd)
 
         def relax(self, relax_method, f_g, s_g, n, w=None):
             assert f_g.shape == self.shape
@@ -168,7 +171,7 @@ if debug:
             assert s_g.flags.c_contiguous
             assert s_g.dtype == float
             assert self.dtype == float
-            _FDOperator.relax(self, relax_method, f_g, s_g, n, w)
+            super().relax(relax_method, f_g, s_g, n, w)
 
 
 def Laplace(gd, scale=1.0, n=1, dtype=float, xp=np):
@@ -228,7 +231,7 @@ class GUCLaplace(FDOperator):
             offsets.extend(np.arange(-1, -n - 1, -1)[:, np.newaxis] * M_c)
             coefs.extend(a_d[d] * np.array(laplace[n][1:]))
 
-        FDOperator.__init__(self, coefs, offsets, gd, dtype, xp=xp)
+        super().__init__(coefs, offsets, gd, dtype, xp=xp)
 
         self.description = (
             '%d*%d+1=%d point O(h^%d) finite-difference Laplacian' %
@@ -280,7 +283,7 @@ def find_neighbors(h_cv: ArrayLike2D) -> Array2D:
 
 class Gradient(FDOperator):
     def __init__(self,
-                 gd,
+                 grid: UGDesc | GridDescriptor,
                  v: int,
                  scale=1.0,
                  n=1,
@@ -299,6 +302,10 @@ class Gradient(FDOperator):
         dtype: float or complex
             Data-type to work on.
         """
+        if isinstance(grid, GridDescriptor):
+            gd = grid
+        else:
+            gd = grid._gd
 
         M_dc = find_neighbors(gd.h_cv)
         h_dv = M_dc @ gd.h_cv  # vectors pointing at neighbor grid-points
@@ -340,7 +347,7 @@ class Gradient(FDOperator):
             offsets.extend(np.arange(-1, -n - 1, -1)[:, np.newaxis] * M_c)
             coefs.extend(-c * stencil)
 
-        FDOperator.__init__(self, coefs, offsets, gd, dtype, xp=xp)
+        super().__init__(coefs, offsets, gd, dtype, xp=xp)
 
         self.description = (
             'Finite-difference {}-derivative with O(h^{}) error ({} points)'
@@ -356,40 +363,37 @@ class LaplaceA(FDOperator):
         c2 = c[1] + c[0]
         a = -16.0 * np.sum(c)
         b = 10.0 * c + 0.125 * a
-        FDOperator.__init__(self,
-                            [a,
-                             b[0], b[0],
-                             b[1], b[1],
-                             b[2], b[2],
-                             c0, c0, c0, c0,
-                             c1, c1, c1, c1,
-                             c2, c2, c2, c2],
-                            [(0, 0, 0),
-                             (-1, 0, 0), (1, 0, 0),
-                             (0, -1, 0), (0, 1, 0),
-                             (0, 0, -1), (0, 0, 1),
-                             (0, -1, -1), (0, -1, 1), (0, 1, -1), (0, 1, 1),
-                             (-1, 0, -1), (-1, 0, 1), (1, 0, -1), (1, 0, 1),
-                             (-1, -1, 0), (-1, 1, 0), (1, -1, 0), (1, 1, 0)],
-                            gd, dtype,
-                            'O(h^4) Mehrstellen Laplacian (A)',
-                            xp=xp)
+        super().__init__([a,
+                         b[0], b[0],
+                         b[1], b[1],
+                         b[2], b[2],
+                         c0, c0, c0, c0,
+                         c1, c1, c1, c1,
+                         c2, c2, c2, c2],
+                         [(0, 0, 0),
+                         (-1, 0, 0), (1, 0, 0),
+                         (0, -1, 0), (0, 1, 0),
+                         (0, 0, -1), (0, 0, 1),
+                         (0, -1, -1), (0, -1, 1), (0, 1, -1), (0, 1, 1),
+                         (-1, 0, -1), (-1, 0, 1), (1, 0, -1), (1, 0, 1),
+                         (-1, -1, 0), (-1, 1, 0), (1, -1, 0), (1, 1, 0)],
+                         gd, dtype,
+                         'O(h^4) Mehrstellen Laplacian (A)',
+                         xp=xp)
 
 
 class LaplaceB(FDOperator):
     def __init__(self, gd, dtype=float, xp=np):
         a = 0.5
         b = 1.0 / 12.0
-        FDOperator.__init__(self,
-                            [a,
-                             b, b, b, b, b, b],
-                            [(0, 0, 0),
-                             (-1, 0, 0), (1, 0, 0),
-                             (0, -1, 0), (0, 1, 0),
-                             (0, 0, -1), (0, 0, 1)],
-                            gd, dtype,
-                            'O(h^4) Mehrstellen Laplacian (B)',
-                            xp=xp)
+        super().__init__([a, b, b, b, b, b, b],
+                         [(0, 0, 0),
+                         (-1, 0, 0), (1, 0, 0),
+                         (0, -1, 0), (0, 1, 0),
+                         (0, 0, -1), (0, 0, 1)],
+                         gd, dtype,
+                         'O(h^4) Mehrstellen Laplacian (B)',
+                         xp=xp)
 
 
 class FTLaplace:
@@ -441,6 +445,6 @@ class OldGradient(FDOperator):
                 offset[:, i] = offs
                 offset_pc.extend(offset)
 
-        FDOperator.__init__(self, coef_p, offset_pc, gd, dtype,
-                            'O(h^%d) %s-gradient stencil' % (2 * n, 'xyz'[v]),
-                            xp=xp)
+        super().__init__(coef_p, offset_pc, gd, dtype,
+                         'O(h^%d) %s-gradient stencil' % (2 * n, 'xyz'[v]),
+                         xp=xp)

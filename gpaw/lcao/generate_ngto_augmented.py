@@ -1,13 +1,11 @@
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import numpy as np
 
-from gpaw.atom.basis import BasisMaker
-from gpaw.atom.basis import QuasiGaussian
-from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
+from gpaw.atom.basis import BasisMaker, QuasiGaussian
 from gpaw.atom.configurations import parameters, parameters_extra
-from gpaw.basis_data import BasisFunction
-from gpaw.basis_data import parse_basis_name
+from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
+from gpaw.basis_data import BasisFunction, parse_basis_name
 
 # Module for generating basis sets that compose of usual basis sets
 # augmented with Gaussian type orbital (GTO).
@@ -15,7 +13,7 @@ from gpaw.basis_data import parse_basis_name
 # GTOs are truncated and represented numerically.
 
 
-def create_GTO_dictionary(l: Union[int, str], exponent: float):
+def create_GTO_dictionary(l: int | str, exponent: float):
     """Dictionary representing Gaussian type orbital.
 
     Parameters
@@ -28,7 +26,7 @@ def create_GTO_dictionary(l: Union[int, str], exponent: float):
     return create_CGTO_dictionary(l, [exponent], [1.0])
 
 
-def create_CGTO_dictionary(l: Union[int, str],
+def create_CGTO_dictionary(l: int | str,
                            exponents: Sequence[float],
                            coefficients: Sequence[float]):
     """Dictionary representing contracted Gaussian type orbital.
@@ -175,6 +173,8 @@ def add_ngto(basis, l, coeff_j, alpha_j, tol, label):
 def generate_nao_ngto_basis(atom, *, xc, nao, name,
                             gtos, gto_description=None,
                             rmax=100.0, tol=0.001):
+    from dataclasses import replace
+
     # Choose basis sets without semi-core states XXXXXX
     if atom == 'Ag':
         name = '11.%s' % name
@@ -184,16 +184,18 @@ def generate_nao_ngto_basis(atom, *, xc, nao, name,
 
     # Generate nao basis
     zetacount, polarizationcount = parse_basis_name(nao)
-    bm = BasisMaker(atom, name=name, run=False, gtxt=None, xc=xc)
-    bm.generator.run(write_xml=False, **p[atom])
+    bm = BasisMaker.from_symbol(
+        atom, name=name, gtxt=None, xc=xc,
+        generator_run_kwargs=dict(write_xml=False, **p[atom]))
     basis = bm.generate(zetacount, polarizationcount, txt=None)
 
     # Increase basis function max radius
+    # XXX why are we doing this?
     assert isinstance(basis.rgd, EquidistantRadialGridDescriptor)
     h = basis.rgd.dr_g[0]
     assert basis.rgd.r_g[0] == 0.0
     N = int(rmax / h) + 1
-    basis.rgd = EquidistantRadialGridDescriptor(h, N)
+    basis = replace(basis, rgd=EquidistantRadialGridDescriptor(h, N))
 
     # Add NGTOs
     description = []
@@ -226,6 +228,8 @@ def generate_nao_ngto_basis(atom, *, xc, nao, name,
             description.append('    ' + ngtolabel)
             add_ngto(basis, l, coeff_j, alpha_j, tol, ngtolabel)
 
-    basis.generatordata += '\n\n' + '\n'.join(description)
+    basis = replace(
+        basis,
+        generatordata=basis.generatordata + '\n\n' + '\n'.join(description))
 
     basis.write_xml()

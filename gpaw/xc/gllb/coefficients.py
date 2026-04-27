@@ -45,9 +45,9 @@ class Coefficients:
     def get_description(self):
         desc = []
         if self.eps is not None:
-            desc += ['eps={:.4f} eV'.format(self.eps * Ha)]
+            desc += [f'eps={self.eps * Ha:.4f} eV']
         if self.width is not None:
-            desc += ['width={:.4f} eV'.format(self.width * Ha)]
+            desc += [f'width={self.width * Ha:.4f} eV']
         return ', '.join(desc)
 
     def f(self, energy_n):

@@ -14,9 +14,8 @@ build:
         mpi = False
         noblas = True
         nolibxc = True
+        compiler = "c++"
         EOF
-    pre_build:
-      - gpaw -T install-data --register .
 
 sphinx:
   configuration: doc/conf.py

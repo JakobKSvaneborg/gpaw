@@ -1,7 +1,13 @@
-#include "../gpu.h"
-#include "../gpu-complex.h"
-#include "numpy/arrayobject.h"
-#include "assert.h"
+#include "gpu/gpu_interface.h"
+#include "gpu/gpu.h"
+#include "gpu/gpu-complex.h"
+
+#include "gpu/cpp/gpu_core.hpp"
+#include "gpaw_utils.h"
+#include "gpu/cpp/pwlfc_expand.hpp"
+
+#include <cassert>
+
 
 #define BETA   0.066725
 #define GAMMA  0.031091
@@ -18,106 +24,154 @@
 #define THIRD  0.33333333333333333
 #define NMIN   1.0E-10
 
-__global__ void calculate_residual_kernel_complex(int nG, int nn,
-						  gpuDoubleComplex* residual_nG,
-						  double* eps_n,
-						  gpuDoubleComplex* wf_nG)
+#ifdef GPAW_64_BIT_INDEXING
+typedef int64_t gpaw_index_t;
+#else
+typedef int gpaw_index_t;
+#endif
+
+void gpaw_device_synchronize()
 {
-    int n = threadIdx.x + blockIdx.x * blockDim.x;
-    int g = threadIdx.y + blockIdx.y * blockDim.y;
-    if ((g < nG) && (n < nn))
-    {
-	residual_nG[n*nG + g] = gpuCsub(residual_nG[n*nG + g],
-					gpuCmulD(wf_nG[n*nG + g], eps_n[n]));
-    }
+    gpuDeviceSynchronize();
 }
 
-__global__ void calculate_residual_kernel_real(int nG, int nn,
-					       double* residual_nG,
-					       double* eps_n,
-					       double* wf_nG)
+template <typename Tcomplex, typename Treal, typename Tindex>
+__global__ void calculate_residual_kernel(Tindex nG, Tindex nn,
+					       				  Tcomplex* residual_nG,
+										  Treal* eps_n,
+										  Tcomplex* wf_nG)
 {
-    int n = threadIdx.x + blockIdx.x * blockDim.x;
-    int g = threadIdx.y + blockIdx.y * blockDim.y;
+    Tindex n = (Tindex) threadIdx.x + (Tindex) blockIdx.x * (Tindex) blockDim.x;
+    Tindex g = (Tindex) threadIdx.y + (Tindex) blockIdx.y * (Tindex) blockDim.y;
     if ((g < nG) && (n < nn))
     {
-	residual_nG[n*nG + g] -= eps_n[n] * wf_nG[n*nG + g];
+		residual_nG[n*nG + g] = residual_nG[n*nG + g] - wf_nG[n*nG + g] * eps_n[n];
     }
 }
 
 // This is the [i,j,0] slice of contiguous array
 #define MAT(array, nx, ny, nz, b, i, j) (array[(b) * (nx) * (ny) * (nz) + (i) * (ny) * (nz) + (j) * (nz)])
 
-__global__ void pw_amend_insert_realwf(int nb, int nx, int ny, int nz, int n, int m, gpuDoubleComplex* array_nQ)
+template <typename Tcomplex, typename Tindex>
+__global__ void pw_amend_insert_realwf(Tindex nb,
+	Tindex nx, Tindex ny, Tindex nz, Tindex n, Tindex m, Tcomplex* array_nQ)
 {
-    int b = threadIdx.x + blockIdx.x * blockDim.x;
-    int i = threadIdx.y + blockIdx.y * blockDim.y;
+    Tindex b = (Tindex) threadIdx.x + (Tindex) blockIdx.x * (Tindex) blockDim.x;
+    Tindex i = (Tindex) threadIdx.y + (Tindex) blockIdx.y * (Tindex) blockDim.y;
     if (b < nb)
     {
         // t[0, -m:] = t[0, m:0:-1].conj()
         if (i < m)
         {
-            gpuDoubleComplex value = MAT(array_nQ, nx, ny, nz, b, 0, m - i);
+            Tcomplex value = MAT(array_nQ, nx, ny, nz, b, 0, m - i);
             value.y = -value.y;
             MAT(array_nQ, nx, ny, nz, b, 0, ny - m + i) = value;
         }
-        
+
         if (i < n)
         {
-            for (int j=0; j<m; j++)
+            for (Tindex j=0; j<m; j++)
             {
                 // t[n:0:-1, -m:] = t[-n:, m:0:-1].conj()
-                gpuDoubleComplex value = MAT(array_nQ, nx, ny, nz, b, nx - n + i, m - j);
+                Tcomplex value = MAT(array_nQ, nx, ny, nz, b, nx - n + i, m - j);
                 value.y = -value.y;
-                MAT(array_nQ, nx, ny, nz, b, n - i, ny - m + j) = value; 
+                MAT(array_nQ, nx, ny, nz, b, n - i, ny - m + j) = value;
 
                 // t[-n:, -m:] = t[n:0:-1, m:0:-1].conj()
                 value = MAT(array_nQ, nx, ny, nz, b, n - i, m - j);
                 value.y = -value.y;
-                MAT(array_nQ, nx, ny, nz, b, nx - n + i, ny - m + j) = value; 
+                MAT(array_nQ, nx, ny, nz, b, nx - n + i, ny - m + j) = value;
             }
-            gpuDoubleComplex value = MAT(array_nQ, nx, ny, nz, b, n - i, 0);
+            Tcomplex value = MAT(array_nQ, nx, ny, nz, b, n - i, 0);
             value.y = -value.y;
-            MAT(array_nQ, nx, ny, nz, b, nx - n + i, 0) = value; 
+            MAT(array_nQ, nx, ny, nz, b, nx - n + i, 0) = value;
             }
         }
 }
 
 
-extern "C"
-void calculate_residual_launch_kernel(int nG,
+void calculate_residual_launch_kernel(
+				      int dtypenum,
+					  int nG,
 				      int nn,
-				      double* residual_nG,
-				      double* eps_n,
-				      double* wf_nG,
-				      int is_complex)
+				      void* residual_nG,
+				      void* eps_n,
+				      void* wf_nG,
+					  gpuStream_t stream)
 {
     if ((nG == 0) || (nn == 0))
     {
         return;
     }
-    if (is_complex)
+
+	const dim3 blocks((nn+15)/16, (nG+15)/16);
+	const dim3 threads(16, 16);
+	const int shmem = 0;
+
+    if (dtypenum==NP_DOUBLE_COMPLEX)
     {
-	gpuLaunchKernel(calculate_residual_kernel_complex,
-			dim3((nn+15)/16, (nG+15)/16),
-			dim3(16, 16),
-			0, 0,
-			nG, nn,
-			(gpuDoubleComplex*) residual_nG,
-			eps_n,
-			(gpuDoubleComplex*) wf_nG);
+		gpaw::launch_kernel(
+			calculate_residual_kernel<gpuDoubleComplex, double, gpaw_index_t>,
+			blocks,
+			threads,
+			shmem,
+			stream,
+			nG,
+			nn,
+			static_cast<gpuDoubleComplex*>(residual_nG),
+			static_cast<double*>(eps_n),
+			static_cast<gpuDoubleComplex*>(wf_nG)
+		);
     }
-    else
+    else if (dtypenum==NP_FLOAT_COMPLEX)
     {
-	gpuLaunchKernel(calculate_residual_kernel_real,
-			dim3((nn+15)/16, (nG+15)/16),
-			dim3(16, 16),
-			0, 0,
-			nG, nn,
-			residual_nG,
-			eps_n,
-			wf_nG);
+		gpaw::launch_kernel(
+			calculate_residual_kernel<gpuFloatComplex, float, gpaw_index_t>,
+			blocks,
+			threads,
+			shmem,
+			stream,
+			nG,
+			nn,
+			static_cast<gpuFloatComplex*>(residual_nG),
+			static_cast<float*>(eps_n),
+			static_cast<gpuFloatComplex*>(wf_nG)
+		);
     }
+	else if (dtypenum==NP_FLOAT)
+	{
+		gpaw::launch_kernel(
+			calculate_residual_kernel<float, float, gpaw_index_t>,
+			blocks,
+			threads,
+			shmem,
+			stream,
+			nG,
+			nn,
+			static_cast<float*>(residual_nG),
+			static_cast<float*>(eps_n),
+			static_cast<float*>(wf_nG)
+		);
+	}
+	else if (dtypenum==NP_DOUBLE)
+	{
+		gpaw::launch_kernel(
+			calculate_residual_kernel<double, double, gpaw_index_t>,
+			blocks,
+			threads,
+			shmem,
+			stream,
+			nG,
+			nn,
+			static_cast<double*>(residual_nG),
+			static_cast<double*>(eps_n),
+			static_cast<double*>(wf_nG)
+		);
+	}
+	else
+	{
+		assert(false);
+	}
 }
 
 
@@ -144,7 +198,7 @@ template <bool gga> __device__ double pbe_exchange(double n, double rs, double a
 }
 
 
-__device__ double G(double rtrs, double A, double alpha1,
+__device__ double compute_G(double rtrs, double A, double alpha1,
 		    double beta1, double beta2, double beta3, double beta4,
 		    double* dGdrs)
 {
@@ -167,7 +221,7 @@ template <bool gga, int nspin> __device__ double pbe_correlation(double n, doubl
   bool spinpol = nspin == 2;
   double rtrs = sqrt(rs);
   double de0drs;
-  double e0 = G(rtrs, GAMMA, 0.21370, 7.5957, 3.5876, 1.6382, 0.49294,
+  double e0 = compute_G(rtrs, GAMMA, 0.21370, 7.5957, 3.5876, 1.6382, 0.49294,
 		&de0drs);
   double e;
   double xp = 117.0;
@@ -175,10 +229,10 @@ template <bool gga, int nspin> __device__ double pbe_correlation(double n, doubl
   if (spinpol)
     {
       double de1drs;
-      double e1 = G(rtrs, 0.015545, 0.20548, 14.1189, 6.1977, 3.3662,
+      double e1 = compute_G(rtrs, 0.015545, 0.20548, 14.1189, 6.1977, 3.3662,
 		    0.62517, &de1drs);
       double dalphadrs;
-      double alpha = -G(rtrs, 0.016887, 0.11125, 10.357, 3.6231, 0.88026,
+      double alpha = -compute_G(rtrs, 0.016887, 0.11125, 10.357, 3.6231, 0.88026,
 			0.49671, &dalphadrs);
       dalphadrs = -dalphadrs;
       double zp = 1.0 + zeta;
@@ -378,78 +432,111 @@ template <int nspin, bool gga> __global__ void evaluate_ldaorgga_kernel(int ng,
     }
 }
 
-// The define wrappers do not allow special characters for the first argument
-// Hence, here defining an expression in such way, that the first argument can be
-// a well defined identifier, and the preprocessor macro parses it correctly.
-constexpr void(*LDA_SPINPAIRED)(int, double*, double*, double*, double*, double*) = &evaluate_ldaorgga_kernel<1, false>;
-constexpr void(*LDA_SPINPOLARIZED)(int, double*, double*, double*, double*, double*) = &evaluate_ldaorgga_kernel<2, false>;
-constexpr void(*PBE_SPINPAIRED)(int, double*, double*, double*, double*, double*) = &evaluate_ldaorgga_kernel<1, true>;
-constexpr void(*PBE_SPINPOLARIZED)(int, double*, double*, double*, double*, double*) = &evaluate_ldaorgga_kernel<2, true>;
-
-extern "C"
 void evaluate_pbe_launch_kernel(int nspin, int ng,
 				double* n,
 				double* v,
 				double* e,
 				double* sigma,
-				double* dedsigma)
+				double* dedsigma,
+				gpuStream_t stream )
 {
+	const dim3 blocks(dim3((ng+255)/256));
+	const dim3 threads(256);
+	const int shmem = 0;
+
     if (nspin == 1)
     {
-	gpuLaunchKernel(PBE_SPINPAIRED,
-			dim3((ng+255)/256),
-			dim3(256),
-			0, 0,
+		gpaw::launch_kernel(
+			evaluate_ldaorgga_kernel<1, true>,
+			blocks,
+			threads,
+			shmem,
+			stream,
 			ng,
-			n, v, e, sigma, dedsigma);
+			n,
+			v,
+			e,
+			sigma,
+			dedsigma
+		);
     }
     else if (nspin == 2)
     {
-	gpuLaunchKernel(PBE_SPINPOLARIZED,
-			dim3((ng+255)/256),
-			dim3(256),
-			0, 0,
+		gpaw::launch_kernel(
+			evaluate_ldaorgga_kernel<2, true>,
+			blocks,
+			threads,
+			shmem,
+			stream,
 			ng,
-			n, v, e, sigma, dedsigma);
+			n,
+			v,
+			e,
+			sigma,
+			dedsigma
+		);
     }
 }
 
-extern "C"
 void evaluate_lda_launch_kernel(int nspin, int ng,
 				double* n,
 				double* v,
-				double* e)
+				double* e,
+				gpuStream_t stream)
 {
+    if (!ng)
+    {
+        return;
+    }
+	const dim3 blocks((ng+255)/256);
+	const dim3 threads(256);
+	const int shmem = 0;
+
     if (nspin == 1)
     {
-	gpuLaunchKernel(LDA_SPINPAIRED,
-			dim3((ng+255)/256),
-			dim3(256),
-			0, 0,
+		gpaw::launch_kernel(
+			evaluate_ldaorgga_kernel<1, false>,
+			blocks,
+			threads,
+			shmem,
+			stream,
 			ng,
-			n, v, e, NULL, NULL);
+			n,
+			v,
+			e,
+			nullptr,
+			nullptr
+		);
     }
     else if (nspin == 2)
     {
-	gpuLaunchKernel(LDA_SPINPOLARIZED,
-			dim3((ng+255)/256),
-			dim3(256),
-			0, 0,
+		gpaw::launch_kernel(
+			evaluate_ldaorgga_kernel<2, false>,
+			blocks,
+			threads,
+			shmem,
+			stream,
 			ng,
-			n, v, e, NULL, NULL);
+			n,
+			v,
+			e,
+			nullptr,
+			nullptr
+		);
     }
 }
 
-__global__ void pw_insert_many_16(int nb,
-				  int nG,
-				  int nQ,
-				  gpuDoubleComplex* c_nG,
+template <typename Tcomplex, typename Treal, typename Tindex>
+__global__ void pw_insert_many(Tindex nb,
+				  Tindex nG,
+				  Tindex nQ,
+				  Tcomplex* c_nG,
 				  npy_int32* Q_G,
-				  double scale,
-				  gpuDoubleComplex* tmp_nQ)
+				  Treal scale,
+				  Tcomplex* tmp_nQ)
 {
-    int G = threadIdx.x + blockIdx.x * blockDim.x;
-    int b = threadIdx.y + blockIdx.y * blockDim.y;
+    Tindex G = (Tindex) threadIdx.x + (Tindex) blockIdx.x * (Tindex) blockDim.x;
+    Tindex b = (Tindex) threadIdx.y + (Tindex) blockIdx.y * (Tindex) blockDim.y;
     __shared__ npy_int32 locQ_G[16];
     if (threadIdx.y == 0)
 	locQ_G[threadIdx.x] = Q_G[G];
@@ -458,151 +545,240 @@ __global__ void pw_insert_many_16(int nb,
     if ((G < nG) && (b < nb))
     {
 	npy_int32 Q = locQ_G[threadIdx.x];
-	tmp_nQ[Q + b * nQ] = gpuCmulD(c_nG[G + b * nG], scale);
+	tmp_nQ[Q + b * nQ] = c_nG[G + b * nG] * scale;
     }
 }
 
-__global__ void add_to_density_8(int nb,
-				  int nR,
-				  double* f_n,
-				  double* psit_nR,
-				  double* rho_R)
+template <typename Tcomplex, typename Treal, typename Tindex>
+__global__ void add_to_density(Tindex nb,
+			       Tindex nR,
+			       double* f_n,
+			       Tcomplex* psit_nR,
+			       double* rho_R)
 {
-    //int b = threadIdx.x + blockIdx.x * blockDim.x;
-    int R = threadIdx.x + blockIdx.x * blockDim.x;
+    constexpr bool realtype = std::is_same<Tcomplex, Treal>::value;
+
+    Tindex R = (Tindex) threadIdx.x + (Tindex) blockIdx.x * (Tindex) blockDim.x;
     if (R < nR)
     {
 	double rho = 0.0;
-	for (int b=0; b< nb; b++)
+	for (Tindex b=0; b< nb; b++)
 	{
-	    int idx = b * nR + R;
-	    rho += f_n[b] * (psit_nR[idx] * psit_nR[idx]);
+	    Tindex idx = b * nR + R;
+	    if constexpr(realtype) {
+	    	rho += f_n[b] * double(psit_nR[idx] * psit_nR[idx]);
+	    } else {
+	    	rho += f_n[b] * double(psit_nR[idx].x * psit_nR[idx].x + psit_nR[idx].y * psit_nR[idx].y);
+	    }
 	}
 	rho_R[R] += rho;
     }
 }
 
-
-__global__ void add_to_density_16(int nb,
-				  int nR,
-				  double* f_n,
-				  gpuDoubleComplex* psit_nR,
-				  double* rho_R)
-{
-    //int b = threadIdx.x + blockIdx.x * blockDim.x;
-    int R = threadIdx.x + blockIdx.x * blockDim.x;
-    if (R < nR)
-    {
-	double rho = 0.0;
-	for (int b=0; b< nb; b++)
-	{
-	    int idx = b * nR + R;
-	    rho += f_n[b] * (psit_nR[idx].x * psit_nR[idx].x + psit_nR[idx].y * psit_nR[idx].y);
-	}
-	rho_R[R] += rho;
-    }
-}
-
-
-__global__ void pw_insert_16(int nG,
+template <typename Tcomplex, typename Treal>
+__global__ void pw_insert(int nG,
 			     int nQ,
-			     gpuDoubleComplex* c_G,
+			     Tcomplex* c_G,
 			     npy_int32* Q_G,
-			     double scale,
-			     gpuDoubleComplex* tmp_Q)
+			     Treal scale,
+			     Tcomplex* tmp_Q)
 {
     int G = threadIdx.x + blockIdx.x * blockDim.x;
     if (G < nG)
-	tmp_Q[Q_G[G]] = gpuCmulD(c_G[G], scale);
+	tmp_Q[Q_G[G]] = c_G[G] * scale;
 }
 
-extern "C" void gpawDeviceSynchronize()
-{
-    gpuDeviceSynchronize();
-}
 
-extern "C"
 void add_to_density_gpu_launch_kernel(int nb,
-				      int nR,
-				      double* f_n,
-				      gpuDoubleComplex* psit_nR,
-				      double* rho_R,
-				      int wfs_is_complex)
+					int nR,
+					double* f_n,
+					void* psit_nR,
+					double* rho_R,
+					int dtypenum,
+					gpuStream_t stream)
 {
-    if (wfs_is_complex)
+    if (!nR) return;
+
+	const dim3 blocks((nR+255)/256);
+	const dim3 threads(256);
+	const int shmem = 0;
+
+    if (dtypenum==NP_DOUBLE_COMPLEX)
     {
-    gpuLaunchKernel(add_to_density_16,
-		    dim3((nR+255)/256),
-		    dim3(256),
-		    0, 0,
-		    nb, nR,
-		    f_n,
-		    psit_nR,
-		    rho_R);
+		gpaw::launch_kernel(add_to_density<gpuDoubleComplex, double, gpaw_index_t>, blocks, threads, shmem, stream,
+			nb, nR, f_n, static_cast<gpuDoubleComplex*>(psit_nR), rho_R);
+    }
+    else if (dtypenum==NP_FLOAT_COMPLEX)
+    {
+		gpaw::launch_kernel(add_to_density<gpuFloatComplex, float, gpaw_index_t>, blocks, threads, shmem, stream,
+			nb, nR, f_n, static_cast<gpuFloatComplex*>(psit_nR), rho_R);
+    }
+	else if (dtypenum==NP_FLOAT)
+    {
+        gpaw::launch_kernel(add_to_density<float, float, gpaw_index_t>, blocks, threads, shmem, stream,
+			nb, nR, f_n, static_cast<float*>(psit_nR), rho_R);
+    }
+	else if (dtypenum==NP_DOUBLE)
+    {
+        gpaw::launch_kernel(add_to_density<double, double, gpaw_index_t>, blocks, threads, shmem, stream,
+			nb, nR, f_n, static_cast<double*>(psit_nR), rho_R);
     }
     else
     {
-    gpuLaunchKernel(add_to_density_8,
-		    dim3((nR+255)/256),
-		    dim3(256),
-		    0, 0,
-		    nb, nR,
-		    f_n,
-		    (double*) psit_nR,
-		    rho_R);
+        assert(false);
     }
 }
 
-extern "C"
-void pw_amend_insert_realwf_gpu_launch_kernel(int nb,
+void pw_amend_insert_realwf_gpu_launch_kernel(int dtypenum,
+											  int nb,
                                               int nx,
                                               int ny,
-                                              int nz, 
-                                              int n, 
-                                              int m, 
-                                              double* array_nQ)
+                                              int nz,
+                                              int n,
+                                              int m,
+                                              void* array_nQ,
+											  gpuStream_t stream)
 {
-    gpuLaunchKernel(pw_amend_insert_realwf,
-                    dim3((nb+15)/16, (max(n,m)+15)/16),
-                    dim3(16, 16),
-                    0, 0,
-                    nb, nx, ny, nz, n, m, (gpuDoubleComplex*) array_nQ);
+    if ((!nb) || (!max(n,m))) return;
+	// FIXME which max() ?
+	const dim3 blocks((nb+15)/16, (max(n,m)+15)/16);
+	const dim3 threads(16, 16);
+	const int shmem = 0;
+
+	if (dtypenum == NP_DOUBLE_COMPLEX)
+	{
+		gpaw::launch_kernel(
+			pw_amend_insert_realwf<gpuDoubleComplex, gpaw_index_t>,
+			blocks,
+			threads,
+			shmem,
+			stream,
+			nb,
+			nx,
+			ny,
+			nz,
+			n,
+			m,
+			static_cast<gpuDoubleComplex*>(array_nQ)
+		);
+	}
+	else if (dtypenum == NP_FLOAT_COMPLEX)
+	{
+		gpaw::launch_kernel(
+			pw_amend_insert_realwf<gpuFloatComplex, gpaw_index_t>,
+			blocks,
+			threads,
+			shmem,
+			stream,
+			nb,
+			nx,
+			ny,
+			nz,
+			n,
+			m,
+			static_cast<gpuFloatComplex*>(array_nQ)
+		);
+	}
+	else
+	{
+		assert(false);
+	}
 }
 
-extern "C"
 void pw_insert_gpu_launch_kernel(
+			     int dtypenum,
 			     int nb,
 			     int nG,
 			     int nQ,
-			     double* c_nG,
+			     void* c_nG,
 			     npy_int32* Q_G,
 			     double scale,
-			     double* tmp_nQ,
-                 int rx, int ry, int rz)
+			     void* tmp_nQ,
+                 int rx, int ry, int rz,
+				 gpuStream_t stream)
 {
-    if (nb == 1)
-    {
-       gpuLaunchKernel(pw_insert_16,
-		       dim3((nG+15)/16, (nb+15)/16),
-		       dim3(16, 16),
-		       0, 0,
-		       nG, nQ,
-		       (gpuDoubleComplex*) c_nG, Q_G,
-		       scale,
-		       (gpuDoubleComplex*) tmp_nQ);
-    }
-    else
-    {
-       gpuLaunchKernel(pw_insert_many_16,
-		       dim3((nG+15)/16, (nb+15)/16),
-		       dim3(16, 16),
-		       0, 0,
-		       nb, nG, nQ,
-		       (gpuDoubleComplex*) c_nG,
-		       Q_G,
-		       scale,
-		       (gpuDoubleComplex*) tmp_nQ);
-    }
+    if ((!nG) || (!nb)) return;
+
+	{
+		// launch "pw_insert"
+		const dim3 blocks((nG + 15) / 16, (nb + 15) / 16);
+		const dim3 threads(16, 16);
+		const int shmem = 0;
+		if (nb == 1)
+		{
+			if (dtypenum == NP_DOUBLE_COMPLEX)
+			{
+				gpaw::launch_kernel(
+					pw_insert<gpuDoubleComplex, double>,
+					blocks,
+					threads,
+					shmem,
+					stream,
+					nG,
+					nQ,
+					static_cast<gpuDoubleComplex*>(c_nG),
+					Q_G,
+					scale,
+					static_cast<gpuDoubleComplex*>(tmp_nQ)
+				);
+			}
+			else if (dtypenum == NP_FLOAT_COMPLEX)
+			{
+				gpaw::launch_kernel(
+					pw_insert<gpuFloatComplex, float>,
+					blocks,
+					threads,
+					shmem,
+					stream,
+					nG,
+					nQ,
+					static_cast<gpuFloatComplex*>(c_nG),
+					Q_G,
+					static_cast<float>(scale),
+					static_cast<gpuFloatComplex*>(tmp_nQ)
+				);
+			}
+			else assert(false);
+		}
+		else
+		{
+			if (dtypenum == NP_DOUBLE_COMPLEX)
+			{
+				gpaw::launch_kernel(
+					pw_insert_many<gpuDoubleComplex, double, gpaw_index_t>,
+					blocks,
+					threads,
+					shmem,
+					stream,
+					nb,
+					nG,
+					nQ,
+					static_cast<gpuDoubleComplex*>(c_nG),
+					Q_G,
+					scale,
+					static_cast<gpuDoubleComplex*>(tmp_nQ)
+				);
+			}
+			else if (dtypenum == NP_FLOAT_COMPLEX)
+			{
+				gpaw::launch_kernel(
+					pw_insert_many<gpuFloatComplex, float, gpaw_index_t>,
+					blocks,
+					threads,
+					shmem,
+					stream,
+					nb,
+					nG,
+					nQ,
+					static_cast<gpuFloatComplex*>(c_nG),
+					Q_G,
+					static_cast<float>(scale),
+					static_cast<gpuFloatComplex*>(tmp_nQ)
+				);
+			}
+			else assert(false);
+		}
+	} // end "pw_insert"
 
     // We identify real wave functions by noting that number of cartesian planewaves
     // does not equal to real space grid size (because z_Q <- z_R // 2 + 1)
@@ -610,163 +786,147 @@ void pw_insert_gpu_launch_kernel(
     {
         int n = rx / 2 - 1;
         int m = ry / 2 - 1;
+
+		// FIXME which max() ?
+		const dim3 blocks((nb+15)/16, (max(n,m)+15)/16);
+		const dim3 threads(16, 16);
+		const int shmem = 0;
+
         // The rx, ry, rz are the sizes of the 3D version of Q array. Since
         // we are dealing with real wave functions, the convention is that
         // the last axis is actually z_R // 2 + 1.
-        gpuLaunchKernel(pw_amend_insert_realwf,
-                        dim3((nb+15)/16, (max(n,m)+15)/16),
-                        dim3(16, 16),
-                        0, 0,
-                        nb, rx, ry, rz / 2 + 1, n, m, (gpuDoubleComplex*) tmp_nQ);
-    }
-}
-
-
-__global__ void pwlfc_expand_kernel_8(double* f_Gs,
-				       gpuDoubleComplex *emiGR_Ga,
-				       double *Y_GL,
-				       int* l_s,
-				       int* a_J,
-				       int* s_J,
-				       int* I_J,
-				       double* f_GI,
-				       int nG,
-				       int nJ,
-				       int nL,
-				       int nI,
-				       int natoms,
-				       int nsplines,
-				       bool cc)
-{
-    int G = threadIdx.x + blockIdx.x * blockDim.x;
-    int J = threadIdx.y + blockIdx.y * blockDim.y;
-    gpuDoubleComplex imag_powers[4] = {make_gpuDoubleComplex(1.0,0),
-				       make_gpuDoubleComplex(0.0,-1.0),
-				       make_gpuDoubleComplex(-1.0,0),
-				       make_gpuDoubleComplex(0, 1.0)};
-    if ((G < nG) && (J < nJ))
-    {
-	f_Gs += G*nsplines;
-	emiGR_Ga += G*natoms;
-	Y_GL += G*nL;
-	f_GI += G*nI*2 + I_J[J];
-
-	int s = s_J[J];
-	int l = l_s[s];
-	gpuDoubleComplex f1 = gpuCmulD(gpuCmul(emiGR_Ga[a_J[J]],
-					       imag_powers[l % 4]),
-				       f_Gs[s]);
-	for (int m = 0; m < 2 * l + 1; m++) {
-	    gpuDoubleComplex f = gpuCmulD(f1, Y_GL[l * l + m]);
-	    f_GI[0] = f.x;
-	    f_GI[nI] = cc ? -f.y : f.y;
-	    f_GI++;
-	}
-    }
-}
-
-__global__ void pwlfc_expand_kernel_16(double* f_Gs,
-				       gpuDoubleComplex *emiGR_Ga,
-				       double *Y_GL,
-				       int* l_s,
-				       int* a_J,
-				       int* s_J,
-				       int* I_J,
-				       double* f_GI,
-				       int nG,
-				       int nJ,
-				       int nL,
-				       int nI,
-				       int natoms,
-				       int nsplines,
-				       bool cc)
-
-{
-    int G = threadIdx.x + blockIdx.x * blockDim.x;
-    int J = threadIdx.y + blockIdx.y * blockDim.y;
-    gpuDoubleComplex imag_powers[4] = {make_gpuDoubleComplex(1.0,0),
-				       make_gpuDoubleComplex(0.0,-1.0),
-				       make_gpuDoubleComplex(-1.0,0),
-				       make_gpuDoubleComplex(0, 1.0)};
-    if ((G < nG) && (J < nJ))
-    {
-	f_Gs += G*nsplines;
-	emiGR_Ga += G*natoms;
-	Y_GL += G*nL;
-	f_GI += (G*nI + I_J[J])*2;
-	int s = s_J[J];
-	int l = l_s[s];
-	gpuDoubleComplex f1 = gpuCmulD(gpuCmul(emiGR_Ga[a_J[J]],
-					       imag_powers[l % 4]),
-				       f_Gs[s]);
-	for (int m = 0; m < 2 * l + 1; m++) {
-	    gpuDoubleComplex f = gpuCmulD(f1, Y_GL[l * l + m]);
-	    *f_GI++ = f.x;
-	    *f_GI++ = cc ? -f.y : f.y;
-	}
-    }
-}
-
-// outP_ani[a] = \sum_A H_aii[a] P_ani[a]
-__global__ void dH_aii_times_P_ani_16(int nA, int nn, int nI,
-				      npy_int32* ni_a, double* dH_aii_dev,
-				      gpuDoubleComplex* P_ani_dev,
-				      gpuDoubleComplex* outP_ani_dev)
-{
-    int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-    if (n1 < nn) {
-	double* dH_ii = dH_aii_dev;
-	int I = 0;
-	for (int a=0; a< nA; a++)
-	{
-	    int ni = ni_a[a];
-	    int Istart = I;
-	    for (int i=0; i< ni; i++)
-	    {
-		gpuDoubleComplex* outP_ni = outP_ani_dev + n1 * nI + I;
-		gpuDoubleComplex result = make_gpuDoubleComplex(0.0, 0.0);
-		gpuDoubleComplex* P_ni = P_ani_dev + n1 * nI + Istart;
-		for (int i2=0; i2 < ni; i2++)
+		if (dtypenum == NP_DOUBLE_COMPLEX)
 		{
-		   gpuDoubleComplex item = gpuCmulD(*P_ni, dH_ii[i2 * ni + i]);
-		   result.x += item.x;
-		   result.y += item.y;
-		   P_ni++;
+			gpaw::launch_kernel(
+				pw_amend_insert_realwf<gpuDoubleComplex, gpaw_index_t>,
+				blocks,
+				threads,
+				shmem,
+				stream,
+				nb, rx, ry, rz/2 + 1, n, m, static_cast<gpuDoubleComplex*>(tmp_nQ)
+			);
 		}
-		outP_ni->x = result.x;
-		outP_ni->y = result.y;
-		I++;
-	    }
-	    dH_ii += ni * ni;
+		else if (dtypenum == NP_FLOAT_COMPLEX)
+		{
+			gpaw::launch_kernel(
+				pw_amend_insert_realwf<gpuFloatComplex, gpaw_index_t>,
+				blocks,
+				threads,
+				shmem,
+				stream,
+				nb, rx, ry, rz/2 + 1, n, m, static_cast<gpuFloatComplex*>(tmp_nQ)
+			);
+		}
+    }
+}
+
+template <typename Tcomplex, typename Treal, typename Tindex, bool strided, bool cc>
+__global__ void pwlfc_expand_kernel(Treal* f_Gs,
+				       Treal* Gk_Gv,
+					   Treal* pos_av,
+					   Tcomplex* eikR_a,
+					   Treal *Y_GL,
+				       int* l_s,
+				       int* a_J,
+				       int* s_J,
+				       int* I_J,
+				       Treal* f_GI,
+				       Tindex nG,
+				       Tindex nJ,
+				       Tindex nL,
+				       Tindex nI,
+				       int natoms,
+				       int nsplines)
+
+{
+    Tindex G = (Tindex) threadIdx.x + (Tindex) blockIdx.x * (Tindex) blockDim.x;
+    Tindex J = (Tindex) threadIdx.y + (Tindex) blockIdx.y * (Tindex) blockDim.y;
+
+	__shared__ Tcomplex imag_powers[4];
+	if (threadIdx.y == 0 && threadIdx.x == 0)
+		imag_powers[0] = {1.0,0};
+	if (threadIdx.y == 0 && threadIdx.x == 1)
+		imag_powers[1] = {0,-1.0};
+	if (threadIdx.y == 0 && threadIdx.x == 2)
+		imag_powers[2] = {-1.0,0};
+	if (threadIdx.y == 0 && threadIdx.x == 3)
+		imag_powers[3] = {0,1.0};
+    __syncthreads();
+
+	//Tcomplex imag_powers[4] = {{1.0,0},{0,-1.0},{-1.0,0},{0,1.0}};
+
+    if ((G < nG) && (J < nJ))
+    {
+	f_Gs += G*nsplines;
+	Gk_Gv += G*3;
+	pos_av += a_J[J]*3;
+	Treal GkPos = (Gk_Gv[0] * pos_av[0] +
+		       	   Gk_Gv[1] * pos_av[1] +
+		           Gk_Gv[2] * pos_av[2]);
+	Tcomplex emiGR = {cos(GkPos), -sin(GkPos)};
+	Tindex s = s_J[J]; // Is Tindex really needed here (and l and m)
+	Tindex l = l_s[s];
+	Y_GL += G*nL + l*l;
+	Tcomplex f1 = emiGR * eikR_a[a_J[J]] * imag_powers[l % 4] * f_Gs[s];
+	if constexpr(strided) {
+		f_GI += G*nI*2 + I_J[J];
+		for (Tindex m = 0; m < 2 * l + 1; m++) { // here
+	    	Tcomplex f = f1 * Y_GL[m];
+	    	f_GI[0] = f.x;
+			if constexpr(cc)
+	    		f_GI[nI] = -f.y;
+			else
+				f_GI[nI] = f.y;
+	    	f_GI++;
+		}
+	} else {
+		f_GI += (G*nI + I_J[J])*2;
+	    for (Tindex m = 0; m < 2 * l + 1; m++) {
+	        Tcomplex f = f1 * Y_GL[m];
+	        *f_GI++ = f.x;
+			if constexpr(cc)
+				*f_GI++ = -f.y;
+			else
+				*f_GI++ = f.y;
+	        //*f_GI++ = cc ? -f.y : f.y;
+   	    }
 	}
     }
 }
 
-__global__ void dH_aii_times_P_ani_8(int nA, int nn, int nI,
-				      npy_int32* ni_a, double* dH_aii_dev,
-				      double* P_ani_dev,
-				      double* outP_ani_dev)
+template <typename Tcomplex, typename Treal, typename Tindex>
+__global__ void dH_aii_times_P_ani(Tindex nA, Tindex nn, Tindex nI,
+				      npy_int32* ni_a,
+					  Treal* dH_aii_dev,
+				      Tcomplex* P_ani_dev,
+				      Tcomplex* outP_ani_dev)
 {
-    int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+    Tindex n1 = (Tindex) threadIdx.x + (Tindex) blockIdx.x * (Tindex) blockDim.x;
     if (n1 < nn) {
-	double* dH_ii = dH_aii_dev;
-	int I = 0;
-	for (int a=0; a< nA; a++)
+	Treal* dH_ii = dH_aii_dev;
+	Tindex I = 0;
+	for (Tindex a=0; a< nA; a++)
 	{
-	    int ni = ni_a[a];
-	    int Istart = I;
-	    for (int i=0; i< ni; i++)
+	    Tindex ni = ni_a[a];
+	    Tindex Istart = I;
+	    for (Tindex i=0; i< ni; i++)
 	    {
-		double* outP_ni = outP_ani_dev + n1 * nI + I;
-		double result = 0;
-		double* P_ni = P_ani_dev + n1 * nI + Istart;
-		for (int i2=0; i2 < ni; i2++)
+		Tcomplex* outP_ni = outP_ani_dev + n1 * nI + I;
+		Tcomplex result;
+		if  constexpr (std::is_same<Tcomplex, Treal>::value) {
+			result = 0.0;
+		} else {
+			result = {0.0, 0.0};
+		}
+		Tcomplex* P_ni = P_ani_dev + n1 * nI + Istart;
+		for (Tindex i2=0; i2 < ni; i2++)
 		{
-		   double item = *P_ni * dH_ii[i2 * ni + i];
-		   result += item;
+		   result = result + *P_ni * dH_ii[i2 * ni + i];
 		   P_ni++;
 		}
 		*outP_ni = result;
+		//outP_ni->x = result.x;
+		//outP_ni->y = result.y;
 		I++;
 	    }
 	    dH_ii += ni * ni;
@@ -774,48 +934,248 @@ __global__ void dH_aii_times_P_ani_8(int nA, int nn, int nI,
     }
 }
 
-
-
-extern "C"
-void dH_aii_times_P_ani_launch_kernel(int nA, int nn,
-				      int nI, npy_int32* ni_a,
-				      double* dH_aii_dev,
-				      gpuDoubleComplex* P_ani_dev,
-				      gpuDoubleComplex* outP_ani_dev,
-				      int is_complex)
-{
-    if (is_complex)
-    {
-    gpuLaunchKernel(dH_aii_times_P_ani_16,
-		    dim3((nn+255)/256),
-		    dim3(256),
-		    0, 0,
-		    nA, nn, nI, ni_a, dH_aii_dev,
-		    P_ani_dev, outP_ani_dev);
-    }
-    else
-    {
-    gpuLaunchKernel(dH_aii_times_P_ani_8,
-		    dim3((nn+255)/256),
-		    dim3(256),
-		    0, 0,
-		    nA, nn, nI, ni_a, dH_aii_dev,
-		    (double*) P_ani_dev, (double*) outP_ani_dev);
-    }
-
+template <unsigned int blockSize, typename Treal>
+__device__ void warpReduce(volatile Treal *sdata, unsigned int tid) {
+if (blockSize >= 64) sdata[tid] += sdata[tid + 32];
+if (blockSize >= 32) sdata[tid] += sdata[tid + 16];
+if (blockSize >= 16) sdata[tid] += sdata[tid + 8];
+if (blockSize >= 8) sdata[tid] += sdata[tid + 4];
+if (blockSize >= 4) sdata[tid] += sdata[tid + 2];
+if (blockSize >= 2) sdata[tid] += sdata[tid + 1];
 }
 
 
+// One block will always sum one G-vector. Thus, no block wide reduce.
+template <unsigned int blockSize, typename Treal, typename Tindex>
+__global__ void pw_norm_kinetic_kernel(Tindex nx, Tindex nG,
+                                       Treal* result_x,
+                                       Treal* C_xG,
+                                       Treal* kin_G)
+{
+	// Double check this line (and next)
+	extern __shared__ __align__(sizeof(double)) unsigned char my_sdata[];
+	Treal *sdata = reinterpret_cast<Treal *>(my_sdata);
+    Tindex tid = threadIdx.x;
 
-extern "C"
-void pwlfc_expand_gpu_launch_kernel(int itemsize,
-				    double* f_Gs,
-				    gpuDoubleComplex *emiGR_Ga,
-				    double *Y_GL,
+    sdata[tid] = 0;
+    Tindex x = blockIdx.x;
+
+    Treal* C_G = C_xG + (x * nG * 2); // C_xG is a Treal complex array
+    Tindex i = tid;
+    while (i < nG)
+    {
+        Treal kin_i = kin_G[i] * (C_G[i*2] * C_G[i*2] + C_G[i*2+1] * C_G[i*2+1]);
+        sdata[tid] += kin_i;
+        i += blockSize;
+    }
+    __syncthreads();
+    if (blockSize >= 512) { if (tid < 256) { sdata[tid] += sdata[tid + 256]; } __syncthreads(); }
+    if (blockSize >= 256) { if (tid < 128) { sdata[tid] += sdata[tid + 128]; } __syncthreads(); }
+    if (blockSize >= 128) { if (tid < 64) { sdata[tid] += sdata[tid + 64]; } __syncthreads(); }
+    if (tid < 32) warpReduce<blockSize, Treal>(sdata, tid);
+    if (tid == 0) result_x[x] = sdata[0];
+}
+
+template <unsigned int blockSize, typename Treal, typename Tindex>
+__global__ void pw_norm_kernel(Tindex nx, Tindex nG,
+                               Treal* result_x,
+                               Treal* C_xG)
+{
+    extern __shared__ __align__(sizeof(double)) unsigned char my_sdata[];
+	Treal *sdata = reinterpret_cast<Treal *>(my_sdata);
+    Tindex tid = threadIdx.x;
+
+    sdata[tid] = 0;
+    Tindex x = blockIdx.x;
+
+    Treal* C_G = C_xG + (x * nG * 2); // C_xG is a double complex array
+    Tindex i = tid;
+    while (i < nG)
+    {
+        Treal kin_i = C_G[i*2] * C_G[i*2] + C_G[i*2+1] * C_G[i*2+1];
+        sdata[tid] += kin_i;
+        i += blockSize;
+    }
+    __syncthreads();
+    if (blockSize >= 512) { if (tid < 256) { sdata[tid] += sdata[tid + 256]; } __syncthreads(); }
+    if (blockSize >= 256) { if (tid < 128) { sdata[tid] += sdata[tid + 128]; } __syncthreads(); }
+    if (blockSize >= 128) { if (tid < 64) { sdata[tid] += sdata[tid + 64]; } __syncthreads(); }
+    if (tid < 32) warpReduce<blockSize, Treal>(sdata, tid);
+    if (tid == 0) result_x[x] = sdata[0];
+}
+
+void dH_aii_times_P_ani_launch_kernel(int dtypenum,
+					int nA, int nn,
+					int nI, npy_int32* ni_a,
+					void* dH_aii_dev,
+					void* P_ani_dev,
+					void* outP_ani_dev,
+					gpuStream_t stream)
+{
+    if (!nn) return;
+
+	const dim3 blocks((nn+255)/256);
+	const dim3 threads(256);
+	const int shmem = 0;
+
+    if (dtypenum == NP_DOUBLE_COMPLEX)
+    {
+		gpaw::launch_kernel(
+			dH_aii_times_P_ani<gpuDoubleComplex, double, gpaw_index_t>,
+			blocks,
+			threads,
+			shmem,
+			stream,
+			nA, nn, nI, ni_a,
+			static_cast<double*>(dH_aii_dev),
+			static_cast<gpuDoubleComplex*>(P_ani_dev),
+			static_cast<gpuDoubleComplex*>(outP_ani_dev)
+		);
+    }
+    else if (dtypenum == NP_FLOAT_COMPLEX)
+	{
+		gpaw::launch_kernel(
+			dH_aii_times_P_ani<gpuFloatComplex, float, gpaw_index_t>,
+			blocks,
+			threads,
+			shmem,
+			stream,
+			nA, nn, nI, ni_a,
+			static_cast<float*>(dH_aii_dev),
+			static_cast<gpuFloatComplex*>(P_ani_dev),
+			static_cast<gpuFloatComplex*>(outP_ani_dev)
+		);
+	}
+	else if (dtypenum == NP_DOUBLE)
+    {
+		gpaw::launch_kernel(
+			dH_aii_times_P_ani<double, double, gpaw_index_t>,
+			blocks,
+			threads,
+			shmem,
+			stream,
+			nA, nn, nI, ni_a,
+			static_cast<double*>(dH_aii_dev),
+			static_cast<double*>(P_ani_dev),
+			static_cast<double*>(outP_ani_dev)
+		);
+    }
+	else if (dtypenum == NP_FLOAT)
+	{
+		gpaw::launch_kernel(
+			dH_aii_times_P_ani<float, float, gpaw_index_t>,
+			blocks,
+			threads,
+			shmem,
+			stream,
+			nA, nn, nI, ni_a,
+			static_cast<float*>(dH_aii_dev),
+			static_cast<float*>(P_ani_dev),
+			static_cast<float*>(outP_ani_dev)
+		);
+	}
+	else assert(false);
+}
+
+void pw_norm_gpu_launch_kernel(int dtypenum,
+										int nx, int nG,
+										void* result_x,
+										void* C_xG,
+										gpuStream_t stream)
+{
+	if (!nx) return;
+
+	const dim3 blocks(nx, 1);
+	const dim3 threads(512, 1);
+	const int shmem = sizeof(double) * 512;
+
+	if (dtypenum == NP_DOUBLE_COMPLEX)
+	{
+		gpaw::launch_kernel(
+			pw_norm_kernel<512, double, gpaw_index_t>,
+			blocks,
+			threads,
+			shmem,
+			stream,
+			nx,
+			nG,
+			static_cast<double*>(result_x),
+			static_cast<double*>(C_xG)
+		);
+	}
+	else if (dtypenum == NP_FLOAT_COMPLEX)
+	{
+		gpaw::launch_kernel(
+			pw_norm_kernel<512, float, gpaw_index_t>,
+			blocks,
+			threads,
+			shmem,
+			stream,
+			nx,
+			nG,
+			static_cast<float*>(result_x),
+			static_cast<float*>(C_xG)
+		);
+	} else assert(false);
+}
+
+void pw_norm_kinetic_gpu_launch_kernel(int dtypenum,
+												int nx, int nG,
+												void* result_x,
+												void* C_xG,
+												void* kin_G,
+												gpuStream_t stream)
+{
+	if (!nx) return;
+
+	const dim3 blocks(nx, 1);
+	const dim3 threads(512, 1);
+	const int shmem = sizeof(double) * 512;
+
+	if (dtypenum == NP_DOUBLE_COMPLEX)
+	{
+		gpaw::launch_kernel(
+			pw_norm_kinetic_kernel<512, double, gpaw_index_t>,
+			blocks,
+			threads,
+			shmem,
+			stream,
+			nx,
+			nG,
+			static_cast<double*>(result_x),
+			static_cast<double*>(C_xG),
+			static_cast<double*>(kin_G)
+		);
+	}
+	else if (dtypenum == NP_FLOAT_COMPLEX)
+	{
+		gpaw::launch_kernel(
+			pw_norm_kinetic_kernel<512, float, gpaw_index_t>,
+			blocks,
+			threads,
+			shmem,
+			stream,
+			nx,
+			nG,
+			static_cast<float*>(result_x),
+			static_cast<float*>(C_xG),
+			static_cast<float*>(kin_G)
+		);
+	}
+	else assert(false);
+}
+
+
+void pwlfc_expand_gpu_launch_kernel(int dtypenum,
+				    void* f_Gs,
+					void* Gk_Gv,
+					void* pos_av,
+					void* eikR_a,
+				    void *Y_GL,
 				    int* l_s,
 				    int* a_J,
 				    int* s_J,
-				    double* f_GI,
+				    void* f_GI,
 				    int* I_J,
 				    int nG,
 				    int nJ,
@@ -823,51 +1183,144 @@ void pwlfc_expand_gpu_launch_kernel(int itemsize,
 				    int nI,
 				    int natoms,
 				    int nsplines,
-				    bool cc)
+				    bool cc,
+					gpuStream_t stream)
 {
-    if (itemsize == 16)
-    {
-	gpuLaunchKernel(pwlfc_expand_kernel_16,
-			dim3((nG+15)/16, (nJ+15)/16),
-			dim3(16, 16),
-			0, 0,
-			f_Gs,
-			emiGR_Ga,
-			Y_GL,
+    if ((!nG) || (!nJ)) return;
+
+	const dim3 blocks((nG+15)/16, (nJ+15)/16); // blockDimX must be > 4 due to shared initialization,
+	const dim3 threads(16, 16);
+	const int shmem = 0;
+
+	// FIXME way too much copy-pasting going on here. Kernel args for NP_DOUBLE_COMPLEX and NP_DOUBLE are identical!
+
+	if (dtypenum == NP_DOUBLE_COMPLEX)
+	{
+		auto kernel = pwlfc_expand_kernel<gpuDoubleComplex, double, gpaw_index_t, false, false>;
+		if (cc)
+		{
+			kernel = pwlfc_expand_kernel<gpuDoubleComplex, double, gpaw_index_t, false, true>;
+		}
+
+		gpaw::launch_kernel(
+			kernel,
+			blocks,
+			threads,
+			shmem,
+			stream,
+			static_cast<double*>(f_Gs),
+			static_cast<double*>(Gk_Gv),
+			static_cast<double*>(pos_av),
+			static_cast<gpuDoubleComplex*>(eikR_a),
+			static_cast<double*>(Y_GL),
 			l_s,
 			a_J,
 			s_J,
 			I_J,
-			f_GI,
+			static_cast<double*>(f_GI),
 			nG,
 			nJ,
 			nL,
 			nI,
 			natoms,
-			nsplines,
-			cc);
-    }
-    else
-    {
-	gpuLaunchKernel(pwlfc_expand_kernel_8,
-			dim3((nG+15)/16, (nJ+15)/16),
-			dim3(16, 16),
-			0, 0,
-			f_Gs,
-			emiGR_Ga,
-			Y_GL,
+			nsplines
+		);
+	}
+	else if (dtypenum == NP_DOUBLE)
+	{
+		auto kernel = pwlfc_expand_kernel<gpuDoubleComplex, double, gpaw_index_t, true, false>;
+		if (cc)
+		{
+			kernel = pwlfc_expand_kernel<gpuDoubleComplex, double, gpaw_index_t, true, true>;
+		}
+
+		gpaw::launch_kernel(
+			kernel,
+			blocks,
+			threads,
+			shmem,
+			stream,
+			static_cast<double*>(f_Gs),
+			static_cast<double*>(Gk_Gv),
+			static_cast<double*>(pos_av),
+			static_cast<gpuDoubleComplex*>(eikR_a),
+			static_cast<double*>(Y_GL),
 			l_s,
 			a_J,
 			s_J,
 			I_J,
-			f_GI,
+			static_cast<double*>(f_GI),
 			nG,
 			nJ,
 			nL,
 			nI,
 			natoms,
-			nsplines,
-			cc);
-    }
-    //gpuDeviceSynchronize();
+			nsplines
+		);
+	}
+	else if (dtypenum == NP_FLOAT_COMPLEX)
+	{
+		auto kernel = pwlfc_expand_kernel<gpuFloatComplex, float, gpaw_index_t, false, false>;
+		if (cc)
+		{
+			kernel = pwlfc_expand_kernel<gpuFloatComplex, float, gpaw_index_t, false, true>;
+		}
+
+		gpaw::launch_kernel(
+			kernel,
+			blocks,
+			threads,
+			shmem,
+			stream,
+			static_cast<float*>(f_Gs),
+			static_cast<float*>(Gk_Gv),
+			static_cast<float*>(pos_av),
+			static_cast<gpuFloatComplex*>(eikR_a),
+			static_cast<float*>(Y_GL),
+			l_s,
+			a_J,
+			s_J,
+			I_J,
+			static_cast<float*>(f_GI),
+			nG,
+			nJ,
+			nL,
+			nI,
+			natoms,
+			nsplines
+		);
+	}
+	else if (dtypenum == NP_FLOAT)
+	{
+		auto kernel = pwlfc_expand_kernel<gpuFloatComplex, float, gpaw_index_t, true, false>;
+		if (cc)
+		{
+			kernel = pwlfc_expand_kernel<gpuFloatComplex, float, gpaw_index_t, true, true>;
+		}
+
+		gpaw::launch_kernel(
+			kernel,
+			blocks,
+			threads,
+			shmem,
+			stream,
+			static_cast<float*>(f_Gs),
+			static_cast<float*>(Gk_Gv),
+			static_cast<float*>(pos_av),
+			static_cast<gpuFloatComplex*>(eikR_a),
+			static_cast<float*>(Y_GL),
+			l_s,
+			a_J,
+			s_J,
+			I_J,
+			static_cast<float*>(f_GI),
+			nG,
+			nJ,
+			nL,
+			nI,
+			natoms,
+			nsplines
+		);
+	}
+	//gpuDeviceSynchronize();
 }

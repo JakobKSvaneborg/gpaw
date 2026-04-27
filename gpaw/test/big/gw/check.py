@@ -11,7 +11,6 @@ Compare to data from:
 
 import ase.db
 
-
 # Table II:
 lda = {
     'C': [-21.32, 5.54, -2.79, 8.38, -6.29, 4.70, None],

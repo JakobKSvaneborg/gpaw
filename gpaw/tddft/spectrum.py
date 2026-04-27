@@ -1,14 +1,17 @@
+import json
 import re
+
 import numpy as np
 
 from gpaw import __version__ as version
-from gpaw.mpi import world
-from gpaw.tddft.units import au_to_as, au_to_fs, au_to_eV, rot_au_to_cgs
-from gpaw.tddft.folding import FoldedFrequencies
-from gpaw.tddft.folding import Folding
+from gpaw.external import ConstantElectricField, create_absorption_kick
+from gpaw.mpi import normalize_communicator
+from gpaw.new.rttddft.dataclasses import RTTDDFTKick
+from gpaw.tddft.folding import FoldedFrequencies, Folding
+from gpaw.tddft.units import au_to_as, au_to_eV, au_to_fs, rot_au_to_cgs
 
 
-def calculate_fourier_transform(x_t, y_ti, foldedfrequencies):
+def calculate_fourier_transform(x_t, y_ti, foldedfrequencies, velocity=False):
     ff = foldedfrequencies
     X_w = ff.frequencies
     envelope = ff.folding.envelope
@@ -22,10 +25,18 @@ def calculate_fourier_transform(x_t, y_ti, foldedfrequencies):
     dx_t1 = x_t[1:] - x_t[:-1]
     dx_t = 0.5 * (np.insert(dx_t1, 0, 0.0) + np.append(dx_t1, dx_t1[-1]))
 
+    env_t = envelope(x_t)
+    Ienv = np.sum(dx_t * env_t)
+
+    if velocity:
+        y_ti -= np.sum((dx_t * env_t)[:, None] * y_ti, axis=0) / Ienv
+
     # Integrate
     f_wt = np.exp(1.0j * np.outer(X_w, x_t))
     y_it = np.swapaxes(y_ti, 0, 1)
-    Y_wi = np.tensordot(f_wt, dx_t * envelope(x_t) * y_it, axes=(1, 1))
+
+    Y_wi = np.tensordot(f_wt, dx_t * env_t * y_it, axes=(1, 1))
+    print('Sinc contamination', env_t[-1])
     return Y_wi
 
 
@@ -73,8 +84,82 @@ def read_td_file_data(fname, remove_duplicates=True):
     return time_t, data_ti
 
 
-def read_td_file_kicks(fname):
-    """Read kicks from time-dependent data file.
+def _parse_kick_line_version_1(line: str) -> RTTDDFTKick:
+    """
+    Parse a kick formatted according to version 1 (old GPAW).
+
+    In this format, the kick is written on one line
+
+        Kick = [{kick}]; Gauge = {gauge}; Time = {time}
+
+    where {kick} are three comma-separated numbers.
+    The Gauge segment is optional and defaults to length gauge.
+    """
+
+    # Kick
+    regexp = (r"Kick = \["
+              r"(?P<k0>[-+0-9\.e\ ]+), "
+              r"(?P<k1>[-+0-9\.e\ ]+), "
+              r"(?P<k2>[-+0-9\.e\ ]+)\]")
+    m = re.search(regexp, line)
+    assert m is not None, 'Kick not found'
+    kick_v = np.array([float(m.group('k%d' % v)) for v in range(3)])
+    # Time
+    regexp = r"Time = (?P<time>[-+0-9\.e\ ]+)"
+    m = re.search(regexp, line)
+    if m is None:
+        print('time not found')
+        time = 0.0
+    else:
+        time = float(m.group('time'))
+    gauge = 'velocity' if 'velocity' in line else 'length'
+    potential = create_absorption_kick(kick_v)
+    kick = RTTDDFTKick(time=time, potential=potential, gauge=gauge)
+    return kick
+
+
+def _parse_kick_line_version_2(line: str) -> RTTDDFTKick:
+    """
+    Parse a kick formatted according to version 2 (new GPAW).
+
+    In this format, the kick is written on one line
+
+        Kick = {kick}
+
+    where {kick} is a JSON formatted dictionary from which an
+    RTTDDFTKick can be created.
+    """
+    data = json.loads(line.removeprefix('# Kick = '))
+    kick = RTTDDFTKick(**data)
+    return kick
+
+
+def parse_kick_line(line: str,
+                    version: int = 1) -> RTTDDFTKick:
+    """
+    Parse a kick formatted according to the specified version.
+
+    Parameters
+    ----------
+    line
+        Line containing the kick
+    version
+        Version of the DipoleMomentWriter used when writing the file.
+
+    Returns
+    -------
+    Parsed kick.
+    """
+    if version == 1:
+        return _parse_kick_line_version_1(line)
+    elif version == 2:
+        return _parse_kick_line_version_2(line)
+    else:
+        raise ValueError(f'Version {version} unknown')
+
+
+def determine_td_file_version(fname):
+    """ Open time-dependent data file and parse header to determine version.
 
     Parameters
     ----------
@@ -83,37 +168,62 @@ def read_td_file_kicks(fname):
 
     Returns
     -------
+    Version of the DipoleMomentWriter used.
+    """
+    regexp = re.compile(r"(?P<writer>[A-Za-z]+)"
+                        r"\[version\=(?P<version>[0-9]+)\]")
+    with open(fname) as f:
+        for line in f:
+            m = regexp.search(line)
+            if m is None:
+                continue
+            assert m['writer'] in ['DipoleMomentWriter', 'VelocityGaugeWriter']
+            version = int(m['version'])
+            if m['writer'] == 'VelocityGaugeWriter' and version == 5:
+                # This is some messy convention..
+                version = 1
+            return version
+
+    # No version header found, raise error
+    raise ValueError('Version could not be determined')
+
+
+def read_td_file_kicks(fname: str,
+                       version: int = 1):
+    """Read kicks from time-dependent data file.
+
+    Parameters
+    ----------
+    fname
+        File path
+    version
+        Version of the DipoleMomentWriter used when writing the file.
+
+    Returns
+    -------
     kick_i
         List of kicks.
         Each kick is a dictionary with keys
         ``strength_v`` and ``time``.
     """
-    def parse_kick_line(line):
-        # Kick
-        regexp = (r"Kick = \["
-                  r"(?P<k0>[-+0-9\.e\ ]+), "
-                  r"(?P<k1>[-+0-9\.e\ ]+), "
-                  r"(?P<k2>[-+0-9\.e\ ]+)\]")
-        m = re.search(regexp, line)
-        assert m is not None, 'Kick not found'
-        kick_v = np.array([float(m.group('k%d' % v)) for v in range(3)])
-        # Time
-        regexp = r"Time = (?P<time>[-+0-9\.e\ ]+)"
-        m = re.search(regexp, line)
-        if m is None:
-            print('time not found')
-            time = 0.0
-        else:
-            time = float(m.group('time'))
-        return kick_v, time
-
     # Search kicks
     kick_i = []
     with open(fname) as f:
         for line in f:
             if line.startswith('# Kick'):
-                kick_v, time = parse_kick_line(line)
-                kick_i.append({'strength_v': kick_v, 'time': time})
+                kick = parse_kick_line(line, version=version)
+                if not isinstance(kick.potential, ConstantElectricField):
+                    raise ValueError('Kick must be constant electric field '
+                                     'for absorption spectrum calculation.')
+
+                # Magnitude in atomic units
+                magnitude = kick.potential.strength
+                # Normalized direction
+                direction_v = kick.potential.direction_v
+
+                kick_i.append({'strength_v': magnitude * direction_v,
+                               'time': kick.time,
+                              'velocity': kick.gauge == 'velocity'})
     return kick_i
 
 
@@ -150,6 +260,7 @@ def clean_td_data(kick_i, time_t, data_ti):
         raise RuntimeError('Multiple kicks')
     kick = kick_i[0]
     kick_v = kick['strength_v']
+    velocity = kick['velocity']
     kick_time = kick['time']
 
     # Discard times before kick
@@ -161,7 +272,7 @@ def clean_td_data(kick_i, time_t, data_ti):
     time_t -= kick_time
     assert time_t[0] == 0.0
 
-    return kick_v, time_t, data_ti
+    return kick_v, velocity, time_t, data_ti
 
 
 def read_dipole_moment_file(fname, remove_duplicates=True):
@@ -188,26 +299,42 @@ def read_dipole_moment_file(fname, remove_duplicates=True):
     dm_tv
         Array of dipole moment values
     """
+    version = determine_td_file_version(fname)
     time_t, data_ti = read_td_file_data(fname, remove_duplicates)
-    kick_i = read_td_file_kicks(fname)
-    norm_t = data_ti[:, 0]
-    dm_tv = data_ti[:, 1:]
+    kick_i = read_td_file_kicks(fname, version=version)
+    if version == 1:
+        norm_t = data_ti[:, 0]
+        dm_tv = data_ti[:, 1:]
+    else:
+        # No norm written in version 2
+        norm_t = None
+        dm_tv = data_ti
     return kick_i, time_t, norm_t, dm_tv
 
 
-def calculate_polarizability(kick_v, time_t, dm_tv, foldedfrequencies):
-    dm_tv = dm_tv - dm_tv[0]
-    alpha_wv = calculate_fourier_transform(time_t, dm_tv, foldedfrequencies)
+def calculate_polarizability(kick_v, time_t, dm_tv,
+                             foldedfrequencies, velocity=False):
+    if not velocity:
+        dm_tv = dm_tv - dm_tv[0]
+
+    alpha_wv = calculate_fourier_transform(time_t, dm_tv, foldedfrequencies,
+                                           velocity=velocity)
+
     kick_magnitude = np.sqrt(np.sum(kick_v**2))
     alpha_wv /= kick_magnitude
     return alpha_wv
 
 
-def calculate_photoabsorption(kick_v, time_t, dm_tv, foldedfrequencies):
+def calculate_photoabsorption(kick_v, time_t, dm_tv,
+                              foldedfrequencies, velocity=False):
     omega_w = foldedfrequencies.frequencies
     alpha_wv = calculate_polarizability(kick_v, time_t, dm_tv,
-                                        foldedfrequencies)
-    abs_wv = 2 / np.pi * omega_w[:, np.newaxis] * alpha_wv.imag
+                                        foldedfrequencies,
+                                        velocity=velocity)
+    if velocity:
+        abs_wv = 2 / np.pi * alpha_wv.real
+    else:
+        abs_wv = 2 / np.pi * omega_w[:, np.newaxis] * alpha_wv.imag
 
     kick_magnitude = np.sqrt(np.sum(kick_v**2))
     abs_wv *= kick_v / kick_magnitude
@@ -257,14 +384,14 @@ def write_spectrum(dipole_moment_file, spectrum_file,
         return '[%s]' % ', '.join(map(lambda v: fmt % v, v_i))
 
     kick_i, time_t, _, dm_tv = read_dipole_moment_file(dipole_moment_file)
-    kick_v, time_t, dm_tv = clean_td_data(kick_i, time_t, dm_tv)
+    kick_v, velocity, time_t, dm_tv = clean_td_data(kick_i, time_t, dm_tv)
     dt_t = time_t[1:] - time_t[:-1]
 
     freqs = np.arange(e_min, e_max + 0.5 * delta_e, delta_e)
     folding = Folding(folding, width)
     ff = FoldedFrequencies(freqs, folding)
     omega_w = ff.frequencies
-    spec_wv = calculate(kick_v, time_t, dm_tv, ff)
+    spec_wv = calculate(kick_v, time_t, dm_tv, ff, velocity=velocity)
 
     # Write spectrum file header
     with open(spectrum_file, 'w') as f:
@@ -311,7 +438,8 @@ def photoabsorption_spectrum(dipole_moment_file: str,
                              width: float = 0.2123,
                              e_min: float = 0.0,
                              e_max: float = 30.0,
-                             delta_e: float = 0.05):
+                             delta_e: float = 0.05,
+                             world=None):
     """Calculates photoabsorption spectrum from the time-dependent
     dipole moment.
 
@@ -339,12 +467,14 @@ def photoabsorption_spectrum(dipole_moment_file: str,
     delta_e
         Energy resolution (eV)
     """
+    world = normalize_communicator(world)
     if world.rank == 0:
         print('Calculating photoabsorption spectrum from file "%s"'
               % dipole_moment_file)
 
-        def calculate(*args):
-            return calculate_photoabsorption(*args) / au_to_eV
+        def calculate(*args, **kwargs):
+            return (calculate_photoabsorption(*args, **kwargs)
+                    / au_to_eV)
         sinc = write_spectrum(dipole_moment_file, spectrum_file,
                               folding, width, e_min, e_max, delta_e,
                               'Photoabsorption', 'S', calculate)
@@ -355,7 +485,8 @@ def photoabsorption_spectrum(dipole_moment_file: str,
 
 def polarizability_spectrum(dipole_moment_file, spectrum_file,
                             folding='Gauss', width=0.2123,
-                            e_min=0.0, e_max=30.0, delta_e=0.05):
+                            e_min=0.0, e_max=30.0, delta_e=0.05,
+                            world=None):
     """Calculates polarizability spectrum from the time-dependent
     dipole moment.
 
@@ -379,12 +510,13 @@ def polarizability_spectrum(dipole_moment_file, spectrum_file,
     delta_e: float
         Energy resolution (eV)
     """
+    world = normalize_communicator(world)
     if world.rank == 0:
         print('Calculating polarizability spectrum from file "%s"'
               % dipole_moment_file)
 
-        def calculate(*args):
-            return calculate_polarizability(*args) / au_to_eV**2
+        def calculate(*args, **kwargs):
+            return calculate_polarizability(*args, **kwargs) / au_to_eV**2
         sinc = write_spectrum(dipole_moment_file, spectrum_file,
                               folding, width, e_min, e_max, delta_e,
                               'Polarizability', 'alpha', calculate)
@@ -395,7 +527,8 @@ def polarizability_spectrum(dipole_moment_file, spectrum_file,
 
 def rotatory_strength_spectrum(magnetic_moment_files, spectrum_file,
                                folding='Gauss', width=0.2123,
-                               e_min=0.0, e_max=30.0, delta_e=0.05):
+                               e_min=0.0, e_max=30.0, delta_e=0.05,
+                               world=None):
     """Calculates rotatory strength spectrum from the time-dependent
     magnetic moment.
 
@@ -418,6 +551,7 @@ def rotatory_strength_spectrum(magnetic_moment_files, spectrum_file,
     delta_e: float
         Energy resolution (eV)
     """
+    world = normalize_communicator(world)
     if world.rank != 0:
         return
 
@@ -432,7 +566,7 @@ def rotatory_strength_spectrum(magnetic_moment_files, spectrum_file,
     kick_strength = None
     for v, fpath in enumerate(magnetic_moment_files):
         kick_i, time_t, mm_tv = read_magnetic_moment_file(fpath)
-        kick_v, time_t, mm_tv = clean_td_data(kick_i, time_t, mm_tv)
+        kick_v, velocity, time_t, mm_tv = clean_td_data(kick_i, time_t, mm_tv)
 
         tot_time = min(tot_time, time_t[-1])
         time_steps.append(np.around(time_t[1:] - time_t[:-1], 6))

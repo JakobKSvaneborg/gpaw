@@ -6,18 +6,15 @@ V. M. Sanchez, M. Sued, and D. A. Scherlis,
 The Journal of Chemical Physics, vol. 131, no. 17, p. 174108, 2009
 """
 
-from gpaw import GPAW
-from gpaw.utilities.adjust_cell import adjust_cell
 import pytest
 from ase import Atoms
-from ase.units import mol, kcal, Pascal, m, Bohr
-from gpaw.solvation import (
-    SolvationGPAW,
-    FG02SmoothStepCavity,
-    LinearDielectric,
-    GradientSurface,
-    SurfaceInteraction,
-    SSS09Density)
+from ase.units import Bohr, Pascal, kcal, m, mol
+
+from gpaw import GPAW
+from gpaw.solvation import (FG02SmoothStepCavity, GradientSurface,
+                            LinearDielectric, SolvationGPAW, SSS09Density,
+                            SurfaceInteraction)
+from gpaw.utilities.adjust_cell import adjust_cell
 
 
 def test_solvation_sss09():
@@ -31,14 +28,12 @@ def test_solvation_sss09():
     beta = 2.4
     st = 72. * 1e-3 * Pascal * m
 
-    def atomic_radii(atoms):
-        return [2.059]
+    atomic_radii = {'Cl': 2.059}
 
     convergence = {
         'energy': 0.05 / 8.,
         'density': 10.,
-        'eigenstates': 10.,
-    }
+        'eigenstates': 10.}
 
     atoms = Atoms('Cl')
     adjust_cell(atoms, vac, h)
@@ -60,11 +55,9 @@ def test_solvation_sss09():
         cavity=FG02SmoothStepCavity(
             rho0=rho0, beta=beta,
             density=SSS09Density(atomic_radii=atomic_radii),
-            surface_calculator=GradientSurface()
-        ),
+            surface_calculator=GradientSurface()),
         dielectric=LinearDielectric(epsinf=epsinf),
-        interactions=[SurfaceInteraction(surface_tension=st)]
-    )
+        interactions=[SurfaceInteraction(surface_tension=st)])
     Ewater = atoms.get_potential_energy()
     assert atoms.calc.get_number_of_iterations() < 40
     atoms.get_forces()

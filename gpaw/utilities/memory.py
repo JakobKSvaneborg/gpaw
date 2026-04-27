@@ -5,6 +5,7 @@
 # https://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/286222
 
 import os
+
 import numpy as np
 
 _proc_status = '/proc/%d/status' % os.getpid()
@@ -23,13 +24,13 @@ def _VmB(VmKey):
         # get VmKey line e.g. 'VmRSS:  9999  kB\n ...'
         i = v.index(VmKey)
     except (OSError, ValueError, LookupError):
-        return 0.0  # non-Linux?
+        return 0  # non-Linux?
 
     v = v[i:].split(None, 3)  # whitespace
     if len(v) < 3:
-        return 0.0  # invalid format?
+        return 0  # invalid format?
     # convert Vm value to bytes
-    return float(v[1]) * _scale[v[2]]
+    return int(float(v[1]) * _scale[v[2]])
 
 
 def maxrss():
@@ -70,7 +71,7 @@ def maxrss():
     except (TypeError, ImportError):
         pass
 
-    return 0.0  # no more ideas
+    return 0  # no more ideas
 
 
 class MemNode:
@@ -148,10 +149,11 @@ def monkey_patch_timer():
 
     to see where the memory is allocated."""
 
+    from time import time
+
     from ase.utils.timing import Timer
 
-    from gpaw.mpi import rank
-    from time import time
+    from gpaw.mpi import world
 
     i = Timer.__init__
     st = Timer.start
@@ -159,7 +161,7 @@ def monkey_patch_timer():
 
     def init(self, print_levels=1000):
         i(self, print_levels)
-        self.fd = open('mem.%04d' % rank, 'w')
+        self.fd = open('mem.%04d' % world.rank, 'w')
         self.mem = []
         self.t0 = time()
 

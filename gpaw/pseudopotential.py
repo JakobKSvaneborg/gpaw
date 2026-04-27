@@ -6,8 +6,8 @@ from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
 from gpaw.basis_data import Basis, BasisFunction
 from gpaw.setup import BaseSetup, LocalCorrectionVar
 from gpaw.spline import Spline
-from gpaw.utilities import divrl, hartree as hartree_solve
-
+from gpaw.utilities import divrl
+from gpaw.utilities import hartree as hartree_solve
 
 null_spline = Spline.from_data(0, 1.0, [0., 0., 0.])
 
@@ -98,8 +98,10 @@ def screen_potential(r, v, charge, rcut=None, a=None):
 
 
 def figure_out_valence_states(ppdata):
-    from gpaw.atom.configurations import configurations
     from ase.data import chemical_symbols
+
+    from gpaw.atom.configurations import configurations
+
     # ppdata.symbol may not be a chemical symbol so use Z
     chemical_symbol = chemical_symbols[ppdata.Z]
     Z, config = configurations[chemical_symbol]
@@ -148,8 +150,7 @@ def generate_basis_functions(ppdata):
     class SimpleBasis(Basis):
         def __init__(self, symbol, l_j, n_j):
             rgd = EquidistantRadialGridDescriptor(0.02, 160)
-            Basis.__init__(self, symbol, 'simple', readxml=False, rgd=rgd)
-            self.generatordata = 'simple'
+            super().__init__(symbol, 'simple', rgd=rgd, generatordata='simple')
             bf_j = self.bf_j
             rcgauss = rgd.r_g[-1] / 3.0
             gauss_g = np.exp(-(rgd.r_g / rcgauss)**2.0)
@@ -299,6 +300,7 @@ class PseudoPotential(BaseSetup):
         self.MB = 0.0
         self.MB_p = np.zeros(_np)
         self.dO_ii = np.zeros((self.ni, self.ni))
+        self.X_p = np.zeros(_np)
 
         # We don't really care about these variables
         self.rcutfilter = None
@@ -317,7 +319,6 @@ class PseudoPotential(BaseSetup):
         self.Delta_iiL = np.zeros((self.ni, self.ni, 1))
         self.B_ii = None
         self.dC_ii = None
-        self.X_p = None
         self.X_wp = {}
         self.X_pg = None
         self.ExxC = None

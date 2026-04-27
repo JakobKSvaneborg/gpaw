@@ -6,9 +6,10 @@
 # works with 'sl_default': (2, 2, 32)
 
 import pytest
-from gpaw.mpi import world
-from ase.build import fcc100, add_adsorbate
+from ase.build import add_adsorbate, fcc100
+
 from gpaw import GPAW, ConvergenceError
+from gpaw.mpi import world
 from gpaw.utilities import compiled_with_sl
 
 pytestmark = pytest.mark.skipif(world.size != 4,

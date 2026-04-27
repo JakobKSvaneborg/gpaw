@@ -1,32 +1,67 @@
+from __future__ import annotations
+
 import numpy as np
-from gpaw.core.matrix import Matrix
+from scipy import sparse
+
+from gpaw.core.matrix import Matrix, MatrixWithNoData
+from gpaw.dft import Parameters
 from gpaw.lcao.tci import TCIExpansions
 from gpaw.new import zips
-from gpaw.new.fd.builder import FDDFTComponentsBuilder
-from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
-from gpaw.new.lcao.eigensolver import LCAOEigensolver
+from gpaw.new.builder import DFTComponentsBuilder
 from gpaw.new.lcao.forces import TCIDerivatives
 from gpaw.new.lcao.hamiltonian import LCAOHamiltonian
-from gpaw.new.lcao.hybrids import HybridLCAOEigensolver, HybridXCFunctional
+from gpaw.new.lcao.hybrids import HybridXCFunctional
+from gpaw.new.lcao.ibzwfs import LCAOIBZWaveFunctions
 from gpaw.new.lcao.wave_functions import LCAOWaveFunctions
 from gpaw.utilities.timing import NullTimer
 
 
-class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
+class LCAODFTComponentsBuilder(DFTComponentsBuilder):
     def __init__(self,
                  atoms,
-                 params,
+                 params: Parameters,
                  *,
                  comm,
-                 distribution=None,
-                 interpolation=3):
-        super().__init__(atoms, params, comm=comm)
-        assert interpolation == 3
-        self.distribution = distribution
-        self.basis = None
+                 log):
+        """Builder of DFT stuff for an LCAO calculation."""
 
-    def create_wf_description(self):
-        raise NotImplementedError
+        mode_dict = params.mode.todict()
+        if params.experimental.get('pw_pot_calc'):
+            # Do interpolation and solve Poisson equation like it's done
+            # for PW-mode (do it in reciprocal space using FFTs)
+            mode_dict['name'] = 'pw'
+            assert params.gpts is None
+            h = params.h or 0.2
+            mode_dict['ecut'] = 340.0 / (h / 0.2)**2
+        else:
+            mode_dict['name'] = 'fd'
+
+        try:
+            mode = params.mode
+            params.mode = mode.from_param(mode_dict)
+            self.builder = params.mode.dft_components_builder(
+                atoms, params, log=log, comm=comm)
+        finally:
+            params.mode = mode
+
+        super().__init__(atoms, params, comm=comm, log=log)
+        self.distribution = params.mode.distribution  # type: ignore
+        self.basis = None
+        self.electrostatic_potential_desc = (
+            self.builder.electrostatic_potential_desc)
+        self.interpolation_desc = self.builder.interpolation_desc
+
+    def create_uniform_grids(self):
+        return self.builder.create_uniform_grids()
+
+    def create_potential_calculator(self):
+        return self.builder.create_potential_calculator()
+
+    def get_pseudo_core_densities(self):
+        return self.builder.get_pseudo_core_densities()
+
+    def get_pseudo_core_ked(self):
+        return self.builder.get_pseudo_core_ked()
 
     def create_xc_functional(self):
         if self.params.xc['name'] in ['HSE06', 'PBE0', 'EXX']:
@@ -34,23 +69,25 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
         return super().create_xc_functional()
 
     def create_basis_set(self):
-        self.basis = FDDFTComponentsBuilder.create_basis_set(self)
+        self.basis = super().create_basis_set()
         return self.basis
 
     def create_hamiltonian_operator(self):
         return LCAOHamiltonian(self.basis)
 
     def create_eigensolver(self, hamiltonian):
-        if self.params.xc['name'] in ['HSE06', 'PBE0', 'EXX']:
-            return HybridLCAOEigensolver(self.basis,
-                                         self.relpos_ac,
-                                         self.grid.cell_cv)
-        if self.params.eigensolver.get('name') == 'scissors':
-            from gpaw.lcao.scissors import ScissorsLCAOEigensolver
-            return ScissorsLCAOEigensolver(self.basis,
-                                           self.params.eigensolver['shifts'],
-                                           self.ibz.symmetries)
-        return LCAOEigensolver(self.basis)
+        from gpaw.dft import DefaultEigensolver
+        es = self.params.eigensolver
+        if isinstance(es, DefaultEigensolver):
+            if self.params.xc.name in ['HSE06', 'PBE0', 'EXX']:
+                name = 'hybrid'
+            else:
+                name = 'lcao'
+            es = es.from_param({'name': name, **es.params})
+        return es.build_lcao(self.basis,
+                             self.relpos_ac,
+                             self.grid.cell_cv,
+                             self.ibz.symmetries)
 
     def read_ibz_wave_functions(self, reader):
         c = 1
@@ -76,14 +113,13 @@ class LCAODFTComponentsBuilder(FDDFTComponentsBuilder):
                                   basis,
                                   potential,
                                   *,
-                                  log=None,
                                   coefficients=None):
         ibzwfs, _ = create_lcao_ibzwfs(
             basis,
             self.ibz, self.communicators, self.setups,
             self.relpos_ac, self.grid, self.dtype,
             self.nbands, self.ncomponents, self.atomdist, self.nelectrons,
-            coefficients)
+            coefficients, self.xp)
         return ibzwfs
 
 
@@ -91,32 +127,35 @@ def create_lcao_ibzwfs(basis,
                        ibz, communicators, setups,
                        relpos_ac, grid, dtype,
                        nbands, ncomponents, atomdist, nelectrons,
-                       coefficients=None):
+                       coefficients=None,
+                       xp=np):
     kpt_band_comm = communicators['D']
     kpt_comm = communicators['k']
     band_comm = communicators['b']
     domain_comm = communicators['d']
+    domain_band_comm = communicators['K']
 
     S_qMM, T_qMM, P_qaMi, tciexpansions, tci_derivatives = tci_helper(
         basis, ibz, domain_comm, band_comm, kpt_comm,
         relpos_ac, atomdist,
-        grid, dtype, setups)
+        grid, dtype, setups, xp,
+        nspins=ncomponents % 3)
 
     nao = setups.nao
 
     def create_wfs(spin, q, k, kpt_c, weight):
-        C_nM = Matrix(nbands, 2 * nao if ncomponents == 4 else nao,
-                      dtype,
-                      dist=(band_comm, band_comm.size, 1))
+        shape = (nbands, 2 * nao if ncomponents == 4 else nao)
         if coefficients is not None:
-            C_nM.data[:] = coefficients.proxy(spin, k)
+            C_nM = Matrix(*shape,
+                          dtype=dtype,
+                          dist=(band_comm, band_comm.size, 1))
+            n1, n2 = C_nM.dist.my_row_range()
+            C_nM.data[:] = coefficients.proxy(spin, k)[n1:n2]
         else:
-            # We set the first element to NaN as a hack so that the
-            # code can later tell that the data is not initialized.
-            # We could set /all/ the elements, but what we care about is
-            # only this piece of information.  Maybe we can find a better
-            # solution.
-            pass  # C_nM.data[:1, :1] = np.nan
+            C_nM = MatrixWithNoData(*shape,
+                                    dtype=dtype,
+                                    dist=(band_comm, band_comm.size, 1),
+                                    xp=xp)
         return LCAOWaveFunctions(
             setups=setups,
             tci_derivatives=tci_derivatives,
@@ -128,7 +167,7 @@ def create_lcao_ibzwfs(basis,
             kpt_c=kpt_c,
             relpos_ac=relpos_ac,
             atomdist=atomdist,
-            domain_comm=domain_comm,
+            domain_band_comm=domain_band_comm,
             spin=spin,
             q=q,
             k=k,
@@ -137,7 +176,6 @@ def create_lcao_ibzwfs(basis,
 
     ibzwfs = LCAOIBZWaveFunctions.create(
         ibz=ibz,
-        nelectrons=nelectrons,
         ncomponents=ncomponents,
         create_wfs_func=create_wfs,
         kpt_comm=kpt_comm,
@@ -153,9 +191,11 @@ def tci_helper(basis,
                relpos_ac, atomdist,
                grid,
                dtype,
-               setups):
-    rank_k = ibz.ranks(kpt_comm)
-    here_k = rank_k == kpt_comm.rank
+               setups,
+               xp,
+               nspins):
+    rank_ks = ibz.ranks(kpt_comm, nspins)
+    here_k = (rank_ks == kpt_comm.rank).any(axis=1)
     kpt_qc = ibz.kpt_kc[here_k]
 
     tciexpansions = TCIExpansions.new_from_setups(setups)
@@ -175,10 +215,11 @@ def tci_helper(basis,
     P_qaMi = [{a: P_aqMi[a][q] for a in my_atom_indices}
               for q in range(len(S0_qMM))]
 
-    for a, P_qMi in P_aqMi.items():
-        dO_ii = setups[a].dO_ii
-        for P_Mi, S_MM in zips(P_qMi, S0_qMM):
-            S_MM += P_Mi[M1:M2].conj() @ dO_ii @ P_Mi.T
+    add_atomic_overlap_corrections(P_qaMi=P_qaMi,
+                                   S0_qMM=S0_qMM,
+                                   setups=setups,
+                                   M1=M1,
+                                   M2=M2)
     domain_comm.sum(S0_qMM)
 
     # self.atomic_correction= self.atomic_correction_cls.new_from_wfs(self)
@@ -198,4 +239,30 @@ def tci_helper(basis,
 
     tci_derivatives = TCIDerivatives(manytci, atomdist, nao)
 
+    # Copy to GPU if needed:
+    S_qMM = [S_MM.to_xp(xp) for S_MM in S_qMM]
+    T_qMM = [T_MM.to_xp(xp) for T_MM in T_qMM]
+    P_qaMi = [{a: xp.asarray(P_Mi) for a, P_Mi in P_aMi.items()}
+              for P_aMi in P_qaMi]
+
     return S_qMM, T_qMM, P_qaMi, tciexpansions, tci_derivatives
+
+
+def add_atomic_overlap_corrections(
+        P_qaMi,
+        S0_qMM,
+        setups,
+        M1: int,
+        M2: int):
+    for P_aMi, S_MM in zips(P_qaMi, S0_qMM):
+        # No atoms on this rank
+        if len(P_aMi) == 0:
+            continue
+
+        dO_II = sparse.block_diag(
+            [setups[a].dO_ii for a in P_aMi],
+            format='csr')
+        P_MI = sparse.hstack(
+            [sparse.coo_matrix(P_Mi) for P_Mi in P_aMi.values()],
+            format='csr')
+        S_MM += P_MI[M1:M2].conj().dot(dO_II.dot(P_MI.T)).todense()

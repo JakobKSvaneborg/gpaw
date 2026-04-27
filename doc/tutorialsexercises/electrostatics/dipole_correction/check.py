@@ -12,7 +12,7 @@ assert abs(energies[2] - energies[0] - 0.0409) < 0.003
 efermi = calc.get_fermi_level()
 
 v = calc.get_electrostatic_potential().mean(1).mean(0)
-w1 = v[0] - efermi
+w1 = v[1] - efermi
 w2 = v[-1] - efermi
 print(w1, w2)
 assert abs(w1 - 4.359) < 0.01

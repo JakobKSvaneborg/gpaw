@@ -1,7 +1,5 @@
-import pytest
 import numpy as np
-
-from gpaw import GPAW, restart
+import pytest
 
 
 def get_restart_test_values(calc):
@@ -25,10 +23,9 @@ def gpwfile(request, gpw_files):
     return gpw_files[request.param]
 
 
-@pytest.mark.old_gpaw_only
-def test_fileio_restart(in_tmp_dir, gpwfile):
+def test_fileio_restart(in_tmp_dir, gpwfile, mpi):
     # gpw restart file is written in fixture
-    calc = GPAW(gpwfile)
+    calc = mpi.OldGPAW(gpwfile)
 
     wf0, e0, f0, m0, eig00, eig01 = get_restart_test_values(calc=calc)
 
@@ -37,7 +34,7 @@ def test_fileio_restart(in_tmp_dir, gpwfile):
     calc.write('tmp.gpw', 'all')
 
     # Try restarting:
-    _, calc = restart('tmp.gpw', txt=None)
+    _, calc = mpi.restart('tmp.gpw', txt=None)
     wf1, e1, f1, m1, eig10, eig11 = get_restart_test_values(calc=calc)
 
     # compare that the values are absolutely equal

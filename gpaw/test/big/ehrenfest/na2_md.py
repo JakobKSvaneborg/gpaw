@@ -2,12 +2,12 @@ import os
 import time
 
 import numpy as np
-
 from ase import Atoms
-from ase.parallel import paropen
-from ase.units import fs
 from ase.io import Trajectory
 from ase.md.verlet import VelocityVerlet
+from ase.parallel import paropen
+from ase.units import fs
+
 from gpaw import GPAW
 from gpaw.mpi import world
 

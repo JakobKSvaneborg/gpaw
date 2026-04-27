@@ -1,6 +1,7 @@
-from gpaw.new.c import pw_amend_insert_realwf_gpu
-from gpaw.gpu import cupy_is_fake
 import pytest
+
+from gpaw.gpu import cupy_is_fake
+from gpaw.new.c import pw_amend_insert_realwf_gpu
 
 
 def reference_pw_amend_insert_realwf_gpu(array_nQ, n, m):

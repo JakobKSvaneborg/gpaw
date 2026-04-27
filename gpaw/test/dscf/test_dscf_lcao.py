@@ -1,14 +1,16 @@
 import pytest
 from ase.build import molecule
-from gpaw import GPAW
+
 import gpaw.dscf as dscf
+from gpaw import GPAW
 
 # Ground state calculation
 
 
 @pytest.mark.dscf
 def test_dscf_dscf_lcao():
-    calc = GPAW(mode='lcao',
+    calc = GPAW(legacy_gpaw=True,
+                mode='lcao',
                 basis='dzp',
                 nbands=8,
                 h=0.2,
@@ -26,7 +28,8 @@ def test_dscf_dscf_lcao():
 
     # Excited state calculation
 
-    calc_es = GPAW(mode='lcao',
+    calc_es = GPAW(legacy_gpaw=True,
+                   mode='lcao',
                    basis='dzp',
                    nbands=8,
                    h=0.2,

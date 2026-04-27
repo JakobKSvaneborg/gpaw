@@ -3,10 +3,12 @@
 
 import pytest
 from ase.build import molecule
+
 from gpaw import GPAW
 from gpaw.mpi import world
 
 
+@pytest.mark.parametrize('gpaw_new', [False, True])
 def test_restart(in_tmp_dir, gpaw_new):
     if gpaw_new and world.size > 1:
         pytest.skip('LCAO get_ps_w_f() not parallelized')

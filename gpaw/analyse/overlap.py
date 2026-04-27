@@ -38,14 +38,14 @@ class Overlap:
         overlap_knn = []
         for k in range(self.nk):
             # XXX what if parallelized over spin or kpoints ?
-            kpt_rank, q = self.kd.get_rank_and_index(k)
+            kpt_rank, u = self.kd.get_rank_and_index(k, myspin)
             assert self.kd.comm.rank == kpt_rank
-            kpt_rank, qo = other.wfs.kd.get_rank_and_index(k)
+            kpt_rank, uo = other.wfs.kd.get_rank_and_index(k, otherspin)
             assert self.kd.comm.rank == kpt_rank
 
             overlap_nn = np.zeros((self.nb, nbo), dtype=self.calc.wfs.dtype)
-            mkpt = self.calc.wfs.kpt_qs[q][myspin]
-            okpt = other.wfs.kpt_qs[qo][otherspin]
+            mkpt = self.calc.wfs.kpt_u[u]
+            okpt = other.wfs.kpt_u[uo]
             psit_nG = mkpt.psit_nG
             norm_n = self.gd.integrate(psit_nG.conj() * psit_nG)
             psito_nG = okpt.psit_nG
@@ -75,13 +75,13 @@ class Overlap:
         ov_knn = self.pseudo(other, normalize=False)
         for k in range(self.nk):
             # XXX what if parallelized over spin or kpoints ?
-            kpt_rank, q = self.kd.get_rank_and_index(k)
+            kpt_rank, u = self.kd.get_rank_and_index(k, myspin)
             assert self.kd.comm.rank == kpt_rank
-            kpt_rank, qo = other.wfs.kd.get_rank_and_index(k)
+            kpt_rank, uo = other.wfs.kd.get_rank_and_index(k, otherspin)
             assert self.kd.comm.rank == kpt_rank
 
-            mkpt = self.calc.wfs.kpt_qs[q][myspin]
-            okpt = other.wfs.kpt_qs[qo][otherspin]
+            mkpt = self.calc.wfs.kpt_u[u]
+            okpt = other.wfs.kpt_u[uo]
 
             aov_nn = np.zeros_like(ov_knn[k])
             for a, mP_ni in mkpt.P_ani.items():

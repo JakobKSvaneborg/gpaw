@@ -32,7 +32,7 @@ HSE06 calculation:
         xc='HSE06',
         ...)
 
-or equivalently for full controll:
+or equivalently for full control:
 
 .. code:: python
 
@@ -72,7 +72,7 @@ The current implementation *lacks* the following features:
 * Support for periodic systems.
   Actually, the code won't complain, but the results have not been tested.
 * Support for k-point sampling.
-  No consideration has been made as to multiple k-points, or even comlplex
+  No consideration has been made as to multiple k-points, or even complex
   wave functions, so this definitely won't work.
 * Forces.
   Force evaluations when including (a fraction of -) the fock operator in

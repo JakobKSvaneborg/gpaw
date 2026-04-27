@@ -1,7 +1,8 @@
 """Compare TPSS from scratch and from PBE"""
 import pytest
 from ase import Atoms
-from gpaw import GPAW, MixerSum, Davidson
+
+from gpaw import GPAW, Davidson, MixerSum
 
 
 @pytest.mark.mgga

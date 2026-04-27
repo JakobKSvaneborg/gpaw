@@ -1,8 +1,7 @@
-import sys
 import numpy as np
+from ase.units import Bohr, Hartree
 
 import gpaw
-from ase.units import Hartree, Bohr
 from gpaw.utilities.folder import Folder
 
 
@@ -89,9 +88,6 @@ def dielectric(exlist,
     =============== ===================================================
     all energies in [eV]
     """
-
-    # output
-    out = sys.stdout
 
     with open(filename, 'w') as out:
         if comment:

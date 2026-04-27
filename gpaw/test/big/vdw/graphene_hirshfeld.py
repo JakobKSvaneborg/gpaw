@@ -2,9 +2,8 @@
 import numpy as np
 from ase import Atoms
 
-from gpaw.analyse.hirshfeld import HirshfeldPartitioning
 from gpaw import GPAW, FermiDirac
-
+from gpaw.analyse.hirshfeld import HirshfeldPartitioning
 
 c = 3
 a = 1.42
@@ -21,7 +20,7 @@ h = 0.25
 calc = GPAW(
     mode='fd',
     h=h,
-    occupations=FermiDirac(0.1))
+    occupations=FermiDirac(0.1), legacy_gpaw=True)
 graphene.calc = calc
 graphene.get_potential_energy()
 vol_a = HirshfeldPartitioning(calc).get_effective_volume_ratios()

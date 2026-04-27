@@ -1,16 +1,16 @@
-import numpy as np
 from abc import ABC, abstractmethod
 
-from gpaw.utilities.progressbar import ProgressBar
-from gpaw.typing import Vector
+import numpy as np
 
-from gpaw.response import ResponseGroundStateAdapter, ResponseContext, timer
+from gpaw.response import ResponseContext, ResponseGroundStateAdapter, timer
 from gpaw.response.frequencies import ComplexFrequencyDescriptor
-from gpaw.response.symmetry import QSymmetryAnalyzer
 from gpaw.response.kspair import (KohnShamKPointPair,
                                   KohnShamKPointPairExtractor)
-from gpaw.response.pw_parallelization import block_partition
 from gpaw.response.pair_transitions import PairTransitions
+from gpaw.response.pw_parallelization import block_partition
+from gpaw.response.symmetry import QSymmetryAnalyzer
+from gpaw.typing import Vector
+from gpaw.utilities.progressbar import ProgressBar
 
 
 class PairFunction(ABC):

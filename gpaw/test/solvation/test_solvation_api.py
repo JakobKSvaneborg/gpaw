@@ -4,33 +4,17 @@
 # XXX       when the api has changed and the test passes
 import pytest
 from ase.build import molecule
-from ase.units import Pascal, m, Bohr
-from ase.data.vdw import vdw_radii
 from ase.parallel import parprint
-from gpaw.solvation import (
-    # calculator
-    SolvationGPAW,
-    # cavities
-    EffectivePotentialCavity,
-    ADM12SmoothStepCavity,
-    FG02SmoothStepCavity,
-    # custom classes for the cavities
-    Power12Potential,
-    ElDensity,
-    SSS09Density,
-    # dielectric
-    LinearDielectric,
-    # non-el interactions
-    SurfaceInteraction,
-    VolumeInteraction,
-    LeakedDensityInteraction,
-    # surface and volume calculators
-    GradientSurface,
-    KB51Volume,
-)
+from ase.units import Bohr, Pascal, m
+
+from gpaw.solvation import (ADM12SmoothStepCavity, EffectivePotentialCavity,
+                            ElDensity, FG02SmoothStepCavity, GradientSurface,
+                            KB51Volume, LeakedDensityInteraction,
+                            LinearDielectric, Power12Potential, SolvationGPAW,
+                            SSS09Density, SurfaceInteraction,
+                            VolumeInteraction)
 # poisson solver
 from gpaw.solvation.poisson import ADM12PoissonSolver
-
 
 # references for custom classes:
 # KB51 = J. G. Kirkwood and F. P. Buff,
@@ -70,11 +54,8 @@ def test_solvation_api():
     # effective potential cavity params (examples)
     # --------------------------------------------
     u0 = 0.180  # eV
-    vdw_radii2 = vdw_radii.copy()
-    vdw_radii2[1] = 1.09
 
-    def atomic_radii(atoms):
-        return [vdw_radii2[n] for n in atoms.numbers]
+    atomic_radii = {'H': 1.09}
 
     # density cavity params (examples)
     # --------------------------------
@@ -91,9 +72,9 @@ def test_solvation_api():
     atoms.center(vacuum=vac)
 
     def print_results(atoms):
-        parprint('E = %.3f eV' % (atoms.get_potential_energy(), ))
-        parprint('V = %.3f Ang ** 3' % (atoms.calc.get_cavity_volume(), ))
-        parprint('A = %.3f Ang ** 2' % (atoms.calc.get_cavity_surface(), ))
+        parprint(f'E = {atoms.get_potential_energy():.3f} eV')
+        parprint(f'V = {atoms.calc.get_cavity_volume():.3f} Ang ** 3')
+        parprint(f'A = {atoms.calc.get_cavity_surface():.3f} Ang ** 2')
         parprint('Forces:')
         parprint(atoms.get_forces())
         parprint('')

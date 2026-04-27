@@ -1,7 +1,7 @@
 import numpy as np
 
-from gpaw.blacs import BlacsGrid, Redistributor
 import gpaw.cgpaw as cgpaw
+from gpaw.blacs import BlacsGrid, Redistributor
 
 
 class LrDiagonalizeLayout:

@@ -1,8 +1,9 @@
 """Calculate diamond with various parallelizations with GLLBSC."""
 import pytest
-from gpaw.mpi import world
 from ase.build import bulk
+
 from gpaw import GPAW, Mixer
+from gpaw.mpi import world
 
 
 @pytest.mark.gllb

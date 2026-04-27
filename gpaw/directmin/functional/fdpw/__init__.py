@@ -1,7 +1,8 @@
-from gpaw.xc import xc_string_to_dict
 from ase.utils import basestring
+
 from gpaw.directmin.functional.fdpw.ks import KSFDPW
 from gpaw.directmin.functional.fdpw.pz import PZSICFDPW
+from gpaw.xc import xc_string_to_dict
 
 
 def get_functional(func, *args):

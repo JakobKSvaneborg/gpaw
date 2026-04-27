@@ -2,12 +2,12 @@
 import json
 import sys
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any
 
 
 def py2ipynb(path: Path,
-             kernel: Optional[Dict[str, str]] = None,
-             teachermode: Optional[bool] = False) -> None:
+             kernel: dict[str, str] | None = None,
+             teachermode: bool | None = False) -> None:
     """Convert Python script to ipynb file.
 
     Hides cells marked with "# teacher" and replaces lines marked with
@@ -32,7 +32,7 @@ def py2ipynb(path: Path,
             chunk = chunk.strip('"')
             cell_type = 'markdown'
 
-        cell: Dict[str, Any] = {
+        cell: dict[str, Any] = {
             'cell_type': cell_type,
             'metadata': {},
             'source': chunk.splitlines(True)}

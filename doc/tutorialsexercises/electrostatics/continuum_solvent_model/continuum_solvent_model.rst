@@ -37,7 +37,7 @@ outlined in Reference [#SSS09]_.
 As not only the electrostatic interaction but also cavity formation
 and short-range interactions between the solute and the solvent
 contribute to the solvation Gibbs energy, additional short-range
-interacitons can be included in the calculation. The ansatz chosen in
+interactions can be included in the calculation. The ansatz chosen in
 Reference [#HW14]_ is to describe the cavity formation energy and all
 short-range interactions as a term proportional to the surface area of
 the cavity. The surface area is not well defined for a smooth cavity
@@ -82,7 +82,7 @@ experimental data. The parameter `u_0` is fitted to experimental
 volumes. Afterwards, the parameter `\gamma` can be fitted to
 experimental solvation Gibbs energies. Parameters for water (at room
 temperature) as a solvent are given in Reference [#HW14]_. A
-preliminary parametrization for dimethylsulfoxide (DMSO) is also given
+preliminary parameterization for dimethylsulfoxide (DMSO) is also given
 there. The accuracy for aqueous solvation Gibbs energies compared to
 experimental values is about 5 kJ per mole for neutral molecules and
 13 kJ per mole for cations. It is not recommended to apply the model

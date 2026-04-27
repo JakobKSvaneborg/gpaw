@@ -15,27 +15,35 @@ You can see which modules are available with the ``module avail [package]`` comm
   $ module avail GPAW
 
   -------------------------- /home/modules/modules/all --------------------------
-     GPAW-setups/0.8.7929
-     GPAW-setups/0.9.9672
-     GPAW-setups/0.9.11271
-     GPAW-setups/0.9.20000                            (D)
-     GPAW/1.4.0-foss-2018a-Python-3.6.4
-     GPAW/1.4.0-foss-2018b-Python-3.6.6
-     GPAW/1.4.0-intel-2018b-Python-3.6.6
-     GPAW/1.5.1-foss-2018b-Python-3.6.6
-     GPAW/1.5.1-intel-2018b-Python-3.6.6
-     GPAW/1.5.2-foss-2018b-Python-3.6.6
-     GPAW/1.5.2-intel-2018b-Python-3.6.6
-     GPAW/19.8.1-foss-2018b-ASE-3.18.0-Python-3.6.6
-     GPAW/19.8.1-intel-2018b-ASE-3.18.0-Python-3.6.6
-     GPAW/20.1.0-foss-2019b-Python-3.7.4
-     GPAW/20.1.0-intel-2019b-Python-3.7.4
-     GPAW/20.10.0-foss-2019b-ASE-3.20.1-Python-3.7.4
-     GPAW/20.10.0-foss-2020b
-     GPAW/20.10.0-intel-2019b-ASE-3.20.1-Python-3.7.4
-     GPAW/20.10.0-intel-2020b 
-     GPAW/21.1.0-foss-2020b-ASE-3.21.1
-     GPAW/21.1.0-intel-2020b-ASE-3.21.1               (D)
+     GPAW-setups/0.9.20000
+     GPAW-setups/24.1.0
+     GPAW-setups/24.11.0                            (D)
+     GPAW/21.6.0-foss-2020b-ASE-3.22.0
+     GPAW/21.6.0-foss-2020b-libxc-5.1.5-ASE-3.22.0
+     GPAW/21.6.0-intel-2020b-ASE-3.22.0
+     GPAW/21.6.0-intel-2020b-libxc-5.1.5-ASE-3.22.0
+     GPAW/22.8.0-foss-2020b-ASE-3.22.1
+     GPAW/22.8.0-foss-2020b-libxc-5.1.5-ASE-3.22.1
+     GPAW/22.8.0-foss-2022a
+     GPAW/22.8.0-intel-2020b-ASE-3.22.1
+     GPAW/22.8.0-intel-2020b-libxc-5.1.5-ASE-3.22.1
+     GPAW/22.8.0-intel-2022a
+     GPAW/23.9.1-foss-2023a
+     GPAW/23.9.1-intel-2023a
+     GPAW/24.1.0-foss-2022a
+     GPAW/24.1.0-foss-2023a
+     GPAW/24.1.0-intel-2022a
+     GPAW/24.1.0-intel-2023a
+     GPAW/24.6.0-foss-2023a-ASE-3.23.0
+     GPAW/24.6.0-intel-2023a-ASE-3.23.0
+     GPAW/25.1.0-foss-2023a-ASE-3.24.0
+     GPAW/25.1.0-foss-2023a-ASE-3.25.0
+     GPAW/25.1.0-intel-2023a-ASE-3.24.0
+     GPAW/25.1.0-intel-2023a-ASE-3.25.0
+     GPAW/25.7.0-foss-2025b-CUDA-12.9.1
+     GPAW/25.7.0-foss-2025b
+     GPAW/25.7.0-intel-2025b                        (D)
+     gpaw-data/1.0.1-GCCcore-14.3.0                 (D)
     Where:
      D:  Default Module
 
@@ -57,7 +65,7 @@ I have an ongoing project
   using different versions for different project.
 
 I am a normal user
-  You should load ``GPAW/23.9.1-intel-2023a``.
+  You should load ``GPAW/25.7.0-intel-2025``.
 
   This will give the newest version of GPAW, as recommended by the
   developers.  It has new features and is significantly faster, in
@@ -67,8 +75,8 @@ I am a normal user
   the same version for ongoing projects.  See below for a description
   on how to do that.
 
-I am sligtly conservative or need ``libvwdxc``.
-  The version of GPAW compiled with the FOSS toolchain is somewhat
+I am slightly  conservative or need ``libvwdxc``.
+  The version of GPAW compiled with the FOSS toolchain (``GPAW/25.7.0-foss-2025b``) is somewhat
   slower in many situations, but is better tested and may use less
   memory.  You may also have to use this version if you want the
   functionality from ``libvwdxc`` library, but be aware that many vad
@@ -80,8 +88,8 @@ Loading GPAW pulls all that stuff in, in versions consistent with the
 chosen GPAW version.
 
 If you want to generate Wannier functions with the Wannier90 module,
-you need to explicitly load ``Wannier90/3.1.0-foss-2023a`` or
-``Wannier90/3.1.0-intel-2023a``.
+you need to explicitly load ``Wannier90/3.1.0-foss-2025b`` or
+``Wannier90/3.1.0-intel-2025b``.
 
 
 Intel or foss versions?
@@ -107,14 +115,36 @@ Module consistency is important: check it.
 
 For a reliable computational experience, you need to make sure that
 all modules come from the same toolchain (i.e. that the software is
-compiled with a consistent set of tools).  **All modules you
-load should belong to the same toolchain.**
+compiled with a consistent set of tools).  Some of the older
+toolchains are only available on older Niflheim nodes.
+
+**All modules you load should belong to the same toolchain.**
 
 Use ``module list`` to list your modules. Check for consistency:
 
 ==================  ==================================
 Toolchain           Module suffixes
 ==================  ==================================
+foss/2025b          foss-2025b
+
+                    gfbf-2025b
+
+                    gompi-2025b
+
+                    GCC-14.3.0
+
+                    GCCcore-14.3.0
+------------------  ----------------------------------
+intel/2025b         intel-2025b
+
+                    iimkl-2025b
+
+                    iimpi-2025b
+
+                    intel-compilers-2025.2.0
+
+                    GCCcore-14.3.0
+------------------  ----------------------------------
 foss/2023a          foss-2023a
 
                     gfbf-2023a
@@ -196,14 +226,14 @@ you can put this in your .bashrc::
   if [[ $SLURM_SUBMIT_DIR/ = $HOME/ProjectAlpha* ]]; then
       # Extreme consistency is important for this old project
       module purge
-      module load GPAW/1.4.0-foss-2018a-Python-3.6.4
+      module load GPAW/21.6.0-foss-2020b-ASE-3.22.0
   else
       # Performance is important for everything else.
-      module load GPAW/20.10.0-intel-2020b
-      module load scikit-learn/0.23.2-intel-2020b
+      module purge
+      module load GPAW/25.7.0-intel-2025b
+      module load scikit-learn/1.7.1-iimkl-2025b
   fi
 
-The ``module purge`` command in the special branch is because SLURM
-will remember which modules you have loaded when you submit the job,
-and that will typically be the default version, which must then be
+The ``module purge`` command is because SLURM will remember which
+modules you have loaded when you submit the job, which must then be
 unloaded.

@@ -1,0 +1,5 @@
+[report]
+precision = 2
+
+omit =
+    gpaw/test/big/

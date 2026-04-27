@@ -1,13 +1,15 @@
-import numpy as np
 from math import pi
-from gpaw.response.q0_correction import Q0Correction
-from ase.units import Ha
+
+import numpy as np
 from ase.dft.kpoints import monkhorst_pack
-from gpaw.kpt_descriptor import KPointDescriptor
-from gpaw.response.temp import DielectricFunctionCalculator
+from ase.units import Ha
+
+from gpaw.cgpaw import evaluate_mpa_poly
+from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.response.hilbert import GWHilbertTransforms
 from gpaw.response.mpa_interpolation import RESolver
-from gpaw.cgpaw import evaluate_mpa_poly
+from gpaw.response.q0_correction import Q0Correction
+from gpaw.response.dielectric_calculator import DielectricFunctionCalculator
 
 
 class GammaIntegrationMode:
@@ -249,7 +251,6 @@ class WCalculator(WBaseCalculator):
     def calculate_W_wGG(self, chi0, fxc_mode='GW',
                         only_correlation=False):
         """In-place calculation of the screened interaction."""
-        chi0_wGG = chi0.body.copy_array_with_distribution('wGG')
         dfc = DielectricFunctionCalculator(chi0, self.coulomb,
                                            self.xckernel, fxc_mode)
         self.context.timer.start('Dyson eq.')
@@ -263,11 +264,9 @@ class WCalculator(WBaseCalculator):
             sqrtV_G = dfc.sqrtV_G
             V0, sqrtV0 = self.get_V0sqrtV0(chi0)
 
-        for iw, chi0_GG in enumerate(chi0_wGG):
-            # Note, at q=0 get_epsinv_GG modifies chi0_GG
-            einv_GG = dfc.get_epsinv_GG(chi0_GG, iw)
-            # Renaming the chi0_GG buffer since it will be used to store W
-            W_GG = chi0_GG
+        einv_wGG = dfc.get_epsinv_wGG(only_correlation=False)
+        W_wGG = np.empty_like(einv_wGG)
+        for iw, (einv_GG, W_GG) in enumerate(zip(einv_wGG, W_wGG)):
             # If only_correlation = True function spits out
             # W^c = sqrt(V)(epsinv - delta_GG')sqrt(V). However, full epsinv
             # is still needed for q0_corrector.
@@ -275,19 +274,26 @@ class WCalculator(WBaseCalculator):
             W_GG[:] = einvt_GG * (sqrtV_G *
                                   sqrtV_G[:, np.newaxis])
             if self.q0_corrector is not None and chi0.optical_limit:
-                W = dfc.wblocks1d.a + iw
+                W = dfc.wblocks.a + iw
                 self.q0_corrector.add_q0_correction(chi0.qpd, W_GG,
                                                     einv_GG,
                                                     chi0.chi0_WxvG[W],
                                                     chi0.chi0_Wvv[W],
                                                     sqrtV_G)
+
+                # The q0 correction returns only correlation results
+                # and thus we add the Coulomb interaction here manually
+                if not only_correlation:
+                    W_GG[0, 0] += V0
+                    W_GG[1:, 1:] += np.diag(sqrtV_G[1:]**2)
+
             elif (self.integrate_gamma.is_analytical and chi0.optical_limit) \
                     or self.integrate_gamma.is_numerical:
                 self.apply_gamma_correction(W_GG, einvt_GG,
                                             V0, sqrtV0, dfc.sqrtV_G)
 
         self.context.timer.stop('Dyson eq.')
-        return chi0_wGG
+        return W_wGG
 
     def dyson_and_W_new(self, iq, q_c, chi0, ecut, coulomb):
         # assert not self.do_GW_too

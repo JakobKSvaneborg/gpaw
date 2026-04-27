@@ -1,10 +1,15 @@
 #ifndef GPU_GPU_H
 #define GPU_GPU_H
 
+#include "gpu-runtime.h"
 #include <stdio.h>
 #include <float.h>
-#include <Python.h>
-#include "gpu-runtime.h"
+
+// Numpy datatype defines
+#define NP_FLOAT                  (11)
+#define NP_DOUBLE                 (12)
+#define NP_FLOAT_COMPLEX          (14)
+#define NP_DOUBLE_COMPLEX         (15)
 
 #define GPU_BLOCKS_MIN            (16)
 #define GPU_BLOCKS_MAX            (96)
@@ -30,9 +35,6 @@
 #define GPAW_BOUNDARY_Y1          (1<<(6))
 #define GPAW_BOUNDARY_Z0          (1<<(7))
 #define GPAW_BOUNDARY_Z1          (1<<(8))
-
-#define gpuSafeCall(err)          __gpuSafeCall(err, __FILE__, __LINE__)
-#define gpublasSafeCall(err)      __gpublasSafeCall(err, __FILE__, __LINE__)
 
 #define GPU_PITCH                 (16)  /* in doubles */
 #define NEXTPITCHDIV(n) \
@@ -71,71 +73,6 @@ typedef struct
     long j[3];
 } bmgsstencil;
 #endif
-
-static inline int __gpuSafeCall(gpuError_t err,
-                                const char *file, int line)
-{
-    if (gpuSuccess != err) {
-        char str[100];
-        snprintf(str, 100, "%s(%i): GPU error: %s.\n",
-                 file, line, gpuGetErrorString(err));
-        PyErr_SetString(PyExc_RuntimeError, str);
-        fprintf(stderr, "%s", str);
-    }
-    return err;
-}
-
-static inline gpublasStatus_t __gpublasSafeCall(gpublasStatus_t err,
-                                                const char *file, int line)
-{
-    if (GPUBLAS_STATUS_SUCCESS != err) {
-        char str[100];
-        switch (err) {
-            case GPUBLAS_STATUS_NOT_INITIALIZED:
-                snprintf(str, 100,
-                         "%s(%i): GPU BLAS error: NOT INITIALIZED.\n",
-                         file, line);
-                break;
-            case GPUBLAS_STATUS_ALLOC_FAILED:
-                snprintf(str, 100,
-                         "%s(%i): GPU BLAS error: ALLOC FAILED.\n",
-                         file, line);
-                break;
-            case GPUBLAS_STATUS_INVALID_VALUE:
-                snprintf(str, 100,
-                         "%s(%i): GPU BLAS error: INVALID VALUE.\n",
-                         file, line);
-                break;
-            case GPUBLAS_STATUS_ARCH_MISMATCH:
-                snprintf(str, 100,
-                         "%s(%i): GPU BLAS error: ARCH MISMATCH.\n",
-                         file, line);
-                break;
-            case GPUBLAS_STATUS_MAPPING_ERROR:
-                snprintf(str, 100,
-                         "%s(%i): GPU BLAS error: MAPPING ERROR.\n",
-                         file, line);
-                break;
-            case GPUBLAS_STATUS_EXECUTION_FAILED:
-                snprintf(str, 100,
-                         "%s(%i): GPU BLAS error: EXECUTION FAILED.\n",
-                         file, line);
-                break;
-            case GPUBLAS_STATUS_INTERNAL_ERROR:
-                snprintf(str, 100,
-                         "%s(%i): GPU BLAS error: INTERNAL ERROR.\n",
-                         file, line);
-                break;
-            default:
-                snprintf(str, 100,
-                         "%s(%i): GPU BLAS error: UNKNOWN ERROR '%X'.\n",
-                         file, line, err);
-        }
-        PyErr_SetString(PyExc_RuntimeError, str);
-        fprintf(stderr, "%s", str);
-    }
-    return err;
-}
 
 static inline unsigned int nextPow2(unsigned int x) {
     --x;

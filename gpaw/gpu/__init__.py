@@ -1,38 +1,201 @@
 from __future__ import annotations
+
+import atexit
 import contextlib
+from collections.abc import Generator, Iterable
 from time import time
-from typing import TYPE_CHECKING
 from types import ModuleType
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-cupy_is_fake = True
-"""True if :mod:`cupy` has been replaced by ``gpaw.gpu.cpupy``"""
-
-is_hip = False
-"""True if we are using HIP"""
+from gpaw import ENVVAR_GPAW_NO_GPU_MPI
+from gpaw.new.timer import trace
+from gpaw.cgpaw.gpu import magma
 
 device_id = None
 """Device id"""
 
+device_count: int = 0
+"""Number of GPUs visible to this process"""
+
+
 if TYPE_CHECKING:
     import gpaw.gpu.cpupy as cupy
     import gpaw.gpu.cpupyx as cupyx
+    cupy_is_fake = True
+    is_hip = False
+
+    def gpu_gemm(*args, **kwargs):
+        raise ValueError('GPU gemm not available while type checking')
 else:
+    # First try to import GPU libraries and set important booleans
+    # is_hip and cupy_is_fake.
     try:
         import gpaw.cgpaw as cgpaw
         if not hasattr(cgpaw, 'gpaw_gpu_init'):
             raise ImportError
-
         import cupy
-
-        # This import is to preload cublas
-        # Fixes cp.cublas.gemm attribute not found error introduced by v13.
-        from cupy import cublas  # noqa: F401
-
+        from cupy_backends.cuda.api.runtime import \
+            CUDARuntimeError as CUDAError
+        try:
+            if not cupy.cuda.runtime.getDeviceCount() > 0:
+                raise ImportError('No GPUs')
+        except CUDAError:
+            raise ImportError('No GPU backend')
         import cupyx
         from cupy.cuda import runtime
+        is_hip = runtime.is_hip
+        cupy_is_fake = False
+    except ImportError:
+        cupy_is_fake = True
+        is_hip = False
+        import gpaw.gpu.cpupy as cupy
+        import gpaw.gpu.cpupyx as cupyx
+        from gpaw.gpu.cpupy.cublas import gemm as gpu_gemm  # noqa
+
+
+# Now that we have established all of the important global booleans
+# we can start importing other GPAW things relying it
+if not TYPE_CHECKING:
+    if not cupy_is_fake:
+        # Homerolled gemm wrapper and helper functions:
+        from cupy.cublas import (_change_order_if_necessary, _get_scalar_ptr,
+                                 _trans_to_cublas_op, device)
+        from cupy_backends.cuda.libs import cublas as _cublas
+
+        def _decide_ld_and_trans(a, trans):
+            ld = None
+            if a._c_contiguous:
+                ld = a.shape[1]
+                trans = 1 - trans
+            elif a._f_contiguous:
+                ld = a.shape[0]
+            elif a.strides[-1] == a.dtype.itemsize:
+                # Semi C-contiguous (sliced along second dim)
+                ld = a.strides[-2] // a.strides[-1]
+                trans = 1 - trans
+            return ld, trans
+
+        @trace(gpu=True)
+        def gpu_gemm(  # noqa: F811
+                transa, transb, a, b, out=None, alpha=1.0, beta=0.0):
+            """Computes out = alpha * op(a) @ op(b) + beta * out
+
+            op(a) = a if transa is 'N', op(a) = a.T if transa is 'T',
+            op(a) = a.T.conj() if transa is 'H'.
+            op(b) = b if transb is 'N', op(b) = b.T if transb is 'T',
+            op(b) = b.T.conj() if transb is 'H'.
+
+            This is pretty much a copy of the code from cupy.cublas.gemm,
+            with _decide_ld_and_trans modified to not be afraid of
+            hermitian transposes and a preference to C-contiguous arrays.
+            """
+            assert a.ndim == b.ndim == 2
+            assert a.dtype == b.dtype
+            dtype = a.dtype.char
+            if dtype == 'f':
+                func = _cublas.sgemm
+            elif dtype == 'd':
+                func = _cublas.dgemm
+            elif dtype == 'F':
+                func = _cublas.cgemm
+            elif dtype == 'D':
+                func = _cublas.zgemm
+            else:
+                raise TypeError('invalid dtype')
+
+            transa = _trans_to_cublas_op(transa)
+            transb = _trans_to_cublas_op(transb)
+            if transa == _cublas.CUBLAS_OP_N:
+                m, k = a.shape
+            else:
+                k, m = a.shape
+            if transb == _cublas.CUBLAS_OP_N:
+                n = b.shape[1]
+                assert b.shape[0] == k
+            else:
+                n = b.shape[0]
+                assert b.shape[1] == k
+            if out is None:
+                out = cupy.empty((m, n), dtype=dtype, order='C')
+                beta = 0.0
+            else:
+                assert out.ndim == 2
+                assert out.shape == (m, n)
+                assert out.dtype == dtype
+            if a.size == 0 or b.size == 0:
+                if beta == 0.0:
+                    out[:] = 0
+                else:
+                    out *= beta
+                return out
+
+            alpha, alpha_ptr = _get_scalar_ptr(alpha, a.dtype)
+            beta, beta_ptr = _get_scalar_ptr(beta, a.dtype)
+            handle = device.get_cublas_handle()
+            orig_mode = _cublas.getPointerMode(handle)
+            if isinstance(alpha, cupy.ndarray) or \
+               isinstance(beta, cupy.ndarray):
+                if not isinstance(alpha, cupy.ndarray):
+                    alpha = cupy.array(alpha)
+                    alpha_ptr = alpha.data.ptr
+                if not isinstance(beta, cupy.ndarray):
+                    beta = cupy.array(beta)
+                    beta_ptr = beta.data.ptr
+                _cublas.setPointerMode(handle,
+                                       _cublas.CUBLAS_POINTER_MODE_DEVICE)
+            else:
+                _cublas.setPointerMode(handle,
+                                       _cublas.CUBLAS_POINTER_MODE_HOST)
+
+            lda, transa = _decide_ld_and_trans(a, transa)
+            ldb, transb = _decide_ld_and_trans(b, transb)
+            if not (lda is None or ldb is None):
+                if out._c_contiguous:
+                    # Computes out.T = alpha * b.T @ a.T + beta * out.T
+                    try:
+                        func(handle, 1 - transb, 1 - transa, n, m, k,
+                             alpha_ptr, b.data.ptr, ldb, a.data.ptr, lda,
+                             beta_ptr, out.data.ptr, n)
+                    finally:
+                        _cublas.setPointerMode(handle, orig_mode)
+                    return out
+                elif out._f_contiguous:
+                    try:
+                        func(handle, transa, transb, m, n, k, alpha_ptr,
+                             a.data.ptr, lda, b.data.ptr, ldb, beta_ptr,
+                             out.data.ptr, m)
+                    finally:
+                        _cublas.setPointerMode(handle, orig_mode)
+                    return out
+                elif out.strides[-1] == out.dtype.itemsize:
+                    # Semi C-contiguous (sliced along second dim)
+                    # Computes out.T = alpha * b.T @ a.T + beta * out.T
+                    try:
+                        ld_out = out.strides[-2] // out.strides[-1]
+                        func(handle, 1 - transb, 1 - transa, n, m, k,
+                             alpha_ptr, b.data.ptr, ldb, a.data.ptr, lda,
+                             beta_ptr, out.data.ptr, ld_out)
+                    finally:
+                        _cublas.setPointerMode(handle, orig_mode)
+                    return out
+
+            # Backup plan with copies
+            a, lda = _change_order_if_necessary(a, lda)
+            b, ldb = _change_order_if_necessary(b, ldb)
+            c = out
+            if not out._f_contiguous:
+                c = out.copy(order='F')
+            try:
+                func(handle, transa, transb, m, n, k, alpha_ptr, a.data.ptr,
+                     lda, b.data.ptr, ldb, beta_ptr, c.data.ptr, m)
+            finally:
+                _cublas.setPointerMode(handle, orig_mode)
+            if not out._f_contiguous:
+                cupy._core.elementwise_copy(c, out)
+            return out
+
         numpy2 = np.__version__.split('.')[0] == '2'
 
         def fftshift_patch(x, axes=None):
@@ -55,9 +218,22 @@ else:
             cupy.fft.fftshift = fftshift_patch
             cupy.fft.ifftshift = ifftshift_patch
 
-        is_hip = runtime.is_hip
-        cupy_is_fake = False
 
+def set_device(log, world=None):
+    global device_id
+
+    if device_id is not None:
+        return
+
+    from gpaw.mpi import normalize_communicator
+    world = normalize_communicator(world)
+
+    if cupy_is_fake:
+        device_id = 'CPU emulation of GPU'
+        log(f'mpi rank {world.rank} has no GPU device!', parallel=True)
+        return
+
+    if device_id is None:
         # Check the number of devices
         # Do not fail when calling `gpaw info` on a login node without GPUs
         try:
@@ -72,12 +248,17 @@ else:
         if device_count > 0:
             # select GPU device (round-robin based on MPI rank)
             # if not set, all MPI ranks will use the same default device
-            from gpaw.mpi import rank
-            runtime.setDevice(rank % device_count)
+            runtime.setDevice(world.rank % device_count)
 
             # initialise C parameters and memory buffers
             import gpaw.cgpaw as cgpaw
             cgpaw.gpaw_gpu_init()
+            atexit.register(cgpaw.gpaw_gpu_delete)
+
+            # Initialize MAGMA library if available
+            if magma.is_available():
+                magma.magma_init()
+                atexit.register(magma.magma_finalize)
 
             # Generate a device id
             import os
@@ -85,19 +266,58 @@ else:
             bus_id = runtime.deviceGetPCIBusId(runtime.getDevice())
             device_id = f'{nodename}:{bus_id}'
 
-    except ImportError:
-        import gpaw.gpu.cpupy as cupy
-        import gpaw.gpu.cpupyx as cupyx
+        log(f'mpi rank {world.rank} has GPU device {device_id}', parallel=True)
 
-__all__ = ['cupy', 'cupyx', 'as_xp', 'as_np', 'synchronize']
+    if ENVVAR_GPAW_NO_GPU_MPI:
+        log('Running without GPU aware MPI because \'GPAW_NO_GPU_MPI\' is'
+            ' set in the environment. Comms will be staged through host.')
+
+
+__all__ = ['cupy', 'cupyx', 'as_xp', 'as_np', 'synchronize',
+           'flush_pinned_arrays']
+
+try:
+    from gpaw.cgpaw import flush_pending_decrefs
+
+    def flush_pinned_arrays() -> None:
+        """Flushes the list of arrays that are currently pinned by GPAW's
+        'GPU array life support' system.
+        """
+        flush_pending_decrefs()
+
+    # Hook the above to garbage collector
+    import gc
+
+    def gpaw_gc_flush_pinned_arrays(phase, info):
+        if phase == "start":
+            flush_pinned_arrays()
+
+    gc.callbacks.append(gpaw_gc_flush_pinned_arrays)
+
+except ImportError:
+    def flush_pending_decrefs() -> None:  # type:ignore
+        # no-op
+        pass
 
 
 def synchronize():
     if not cupy_is_fake:
-        cupy.cuda.get_current_stream().synchronize()
+        cupy.cuda.runtime.deviceSynchronize()
 
 
-def as_np(array: np.ndarray | cupy.ndarray) -> np.ndarray:
+@contextlib.contextmanager
+def as_numpy(a: np.ndarray | cupy.ndarray
+             ) -> Generator[np.ndarray]:
+    """Copy array to CPU and back to GPU when done."""
+    if isinstance(a, np.ndarray):
+        yield a
+        return
+    b = a.get()
+    yield b
+    a[:] = cupy.asarray(b)
+
+
+def as_np(array: np.ndarray | cupy.ndarray, dtype=None) -> np.ndarray:
     """Transfer array to CPU (if not already there).
 
     Parameters
@@ -105,9 +325,13 @@ def as_np(array: np.ndarray | cupy.ndarray) -> np.ndarray:
     array:
         Numpy or CuPy array.
     """
-    if isinstance(array, np.ndarray):
-        return array
-    return cupy.asnumpy(array)
+    if not isinstance(array, np.ndarray):
+        array = cupy.asnumpy(array)
+
+    if dtype is None:
+        return np.asarray(array)
+
+    return np.asarray(array, dtype=dtype)
 
 
 def as_xp(array, xp):
@@ -126,7 +350,6 @@ def as_xp(array, xp):
         return cupy.asnumpy(array)
     if isinstance(array, np.ndarray):
         return cupy.asarray(array)
-    1 / 0
     return array
 
 
@@ -135,21 +358,6 @@ def einsum(subscripts, *operands, out):
         np.einsum(subscripts, *operands, out=out)
     else:
         out[:] = cupy.einsum(subscripts, *operands)
-
-
-def cupy_eigh(a: cupy.ndarray, UPLO: str) -> tuple[cupy.ndarray, cupy.ndarray]:
-    """Wrapper for ``eigh()``.
-
-    HIP-GPU version is too slow for now so we do it on the CPU.
-    """
-    from scipy.linalg import eigh
-    if not is_hip:
-        return cupy.linalg.eigh(a, UPLO=UPLO)
-    eigs, evals = eigh(cupy.asnumpy(a),
-                       lower=(UPLO == 'L'),
-                       check_finite=False)
-
-    return cupy.asarray(eigs), cupy.asarray(evals)
 
 
 class XP:

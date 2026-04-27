@@ -1,11 +1,12 @@
-import pytest
 import numpy as np
-from gpaw.response.g0w0 import G0W0
+import pytest
 from ase.units import Hartree as Ha
+
+from gpaw.response.g0w0 import G0W0
 
 
 @pytest.mark.response
-def test_ff(in_tmp_dir, gpw_files, scalapack):
+def test_ff(in_tmp_dir, gpw_files, scalapack, mpi):
     ref_result = np.array([[[11.290542, 21.613643],
                             [5.356609, 16.065227],
                             [8.751158, 23.156368]]])
@@ -46,8 +47,9 @@ def test_ff(in_tmp_dir, gpw_files, scalapack):
               bands=(3, 5),
               nbands=9,
               nblocks=1,
-              evaluate_sigma=np.linspace(-1, 1, 10),
-              ecut=40)
+              evaluate_sigma=np.linspace(-1, 1, 10) * Ha,
+              ecut=40,
+              world=mpi.comm)
 
     results = gw.calculate()
     np.testing.assert_allclose(results['qp'], ref_result, rtol=1e-03)
@@ -57,7 +59,7 @@ def test_ff(in_tmp_dir, gpw_files, scalapack):
 
 @pytest.mark.response
 @pytest.mark.parametrize("mpa", [True, False])
-def test_mpa_and_ppa(in_tmp_dir, gpw_files, scalapack, mpa):
+def test_mpa_and_ppa(in_tmp_dir, gpw_files, scalapack, mpa, mpi):
     ref_result = np.array([[[11.303942, 21.624428],
                             [5.346694, 16.06346],
                             [8.7589, 22.461506]]])
@@ -71,7 +73,8 @@ def test_mpa_and_ppa(in_tmp_dir, gpw_files, scalapack, mpa):
               nblocks=1,
               ecut=40,
               ppa=not mpa,
-              mpa=mpa_dict if mpa else None)
+              mpa=mpa_dict if mpa else None,
+              world=mpi.comm)
 
     results = gw.calculate()
     np.testing.assert_allclose(results['qp'], ref_result, rtol=1e-03)

@@ -7,8 +7,9 @@ representation.
 """
 
 import numpy as np
-from gpaw.lcao.eigensolver import DirectLCAO
+
 from gpaw.directmin.functional.lcao import get_functional
+from gpaw.lcao.eigensolver import DirectLCAO
 from gpaw.utilities.tools import tri2full
 
 
@@ -18,9 +19,8 @@ class ETDMHelperLCAO(DirectLCAO):
                  orthonormalization='gramschmidt',
                  need_init_orbs=True):
 
-        super(ETDMHelperLCAO, self).__init__(diagonalizer)
-        super(ETDMHelperLCAO, self).initialize(wfs.gd, wfs.dtype,
-                                               wfs.setups.nao, wfs.ksl)
+        super().__init__(diagonalizer)
+        super().initialize(wfs.gd, wfs.dtype, wfs.setups.nao, wfs.ksl)
         self.orthonormalization = orthonormalization
         self.need_init_orbs = need_init_orbs
         self.nkpts = nkpts
@@ -70,7 +70,7 @@ class ETDMHelperLCAO(DirectLCAO):
         need_canon_coef = \
             (not wfs.coefficients_read_from_file and self.need_init_orbs)
         if need_canon_coef or orthname == 'diag':
-            super(ETDMHelperLCAO, self).iterate(ham, wfs)
+            super().iterate(ham, wfs)
         else:
             wfs.orthonormalize(type=orthname)
         wfs.coefficients_read_from_file = False

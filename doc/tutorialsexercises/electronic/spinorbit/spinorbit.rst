@@ -8,7 +8,7 @@ The spin-orbit module calculates spin-orbit band structures non
 self-consistently. The input is a standard converged GPAW calculation and the
 module diagonalizes the spin-orbit Hamiltonian in a basis of scalar-
 relativistic Kohn-Sham eigenstates. Since the spin-obit coupling is largest
-close to the nucleii, we only consider contributions from inside the PAW
+close to the nuclei, we only consider contributions from inside the PAW
 augmentation spheres where the all-electron states can be expanded as
 
 .. math::
@@ -60,7 +60,7 @@ Band structure of bulk Pt
 =========================
 
 The spin-orbit coupling is strongest for the heavy elements, where the
-electrons acquire large velocites near the nucleus. We will therefore start
+electrons acquire large velocities near the nucleus. We will therefore start
 with the band structure of bulk Pt, where the spin-orbit coupling gives rise
 to large corrections. First, we need to do a regular groundstate calculation
 to obtain the converged density. This is done with the script
@@ -118,7 +118,7 @@ approximate eigenstates of the spin projection operator along the z axis.
 Exceptions occur near avoided crossings where the spin-orbit coupling gives
 rise to strong hybridization between spin up and spin down states. Note also
 the large spin-orbit splitting (0.44 eV) of the valence bands at `K` and `-K`
-and the fact that time-reversal symmetry dictates that the spin projecton is
+and the fact that time-reversal symmetry dictates that the spin projection is
 reversed at the two valleys.
 
 
@@ -143,7 +143,7 @@ Time-reversal invariant band insulators fall in two distinct
 topological classes, which can be distinguished by the so-called `\text{Z}_2`
 index `\nu`. In general, the calculation of the `\text{Z}_2` index is a complicated
 task, but for materials with an inversion center is is easily expressed in
-terms ofthe parity eigenvalues of occupied states at the parity invariant
+terms of the parity eigenvalues of occupied states at the parity invariant
 points in the Brillouin zone. It is given by [#Kane]_
 
 .. math::
@@ -166,7 +166,7 @@ Note the "band inversion" at the `\Gamma` point. The spin-orbit coupling
 essentially bring the bottom of the conduction band below the top of the
 valence band and opens a gap a the band crossings. We will now calculate the
 parity eigenvalues at the parity invariant points. In 3D there is 8 such points,
-but in the present case only 4 are inequivalent. These are calcaluted with
+but in the present case only 4 are inequivalent. These are calculated with
 the script :download:`high_sym.py` and the parity eigenvalues are
 obtained with :download:`parity.py`. Note that the product of parity
 eigenvalues at `\Gamma` changes from -1 to 1 when spin-orbit coupling is added
@@ -180,7 +180,7 @@ Magnetic anisotropy of hcp Co
 
 As a final application of the spinorbit module we will calculate the magnetic
 anisotropy of hcp Co. The idea is that the direction of spin polarization
-before spin-orbit coupling is added, can set by the polar and azimutal angles
+before spin-orbit coupling is added, can set by the polar and azimuthal angles
 `\theta` and `\phi`. To leading order the spin-orbit induced change in energy
 as a function of direction is given by the change of occupied eigenvalues.
 The anisotropy energy per unit cell is typically measured in `\mu eV` and for

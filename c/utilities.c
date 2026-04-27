@@ -4,10 +4,7 @@
  *  Copyright (C) 2011  Argonne National Laboratory
  *  Please see the accompanying LICENSE file for further information. */
 
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
+#include "python_utils.h"
 #include "extensions.h"
 #include <math.h>
 #include <stdlib.h>
@@ -20,66 +17,7 @@
 #include <omp.h>
 #endif
 
-#ifdef GPAW_HPM
-void HPM_Start(char *);
-void HPM_Stop(char *);
-void summary_start(void);
-void summary_stop(void);
 
-PyObject* ibm_hpm_start(PyObject *self, PyObject *args)
-{
-  char* s;
-  if (!PyArg_ParseTuple(args, "s", &s))
-    return NULL;
-  HPM_Start(s);
-  Py_RETURN_NONE;
-}
-
-PyObject* ibm_hpm_stop(PyObject *self, PyObject *args)
-{
-  char* s;
-  if (!PyArg_ParseTuple(args, "s", &s))
-    return NULL;
-  HPM_Stop(s);
-  Py_RETURN_NONE;
-}
-
-PyObject* ibm_mpi_start(PyObject *self)
-{
-  summary_start();
-  Py_RETURN_NONE;
-}
-
-PyObject* ibm_mpi_stop(PyObject *self)
-{
-  summary_stop();
-  Py_RETURN_NONE;
-}
-#endif
-
-
-#ifdef CRAYPAT
-#include <pat_api.h>
-
-PyObject* craypat_region_begin(PyObject *self, PyObject *args)
-{
-  int n;
-  char* s;
-  if (!PyArg_ParseTuple(args, "is", &n, &s))
-    return NULL;
-  PAT_region_begin(n, s);
-  Py_RETURN_NONE;
-}
-
-PyObject* craypat_region_end(PyObject *self, PyObject *args)
-{
-  int n;
-  if (!PyArg_ParseTuple(args, "i", &n))
-    return NULL;
-  PAT_region_end(n);
-  Py_RETURN_NONE;
-}
-#endif
 
 PyObject* get_num_threads(PyObject *self, PyObject *args)
 {
@@ -95,202 +33,8 @@ PyObject* get_num_threads(PyObject *self, PyObject *args)
 
 #ifdef PARALLEL
 #include <mpi.h>
-
-struct eval {
-  double val;
-  int rank;
-};
-
-static void coll_print(FILE *fp, const char *label, double val,
-                       int print_aggregate, MPI_Comm Comm){
-  double sum;
-  struct eval in;
-  struct eval out;
-  int rank, numranks;
-  MPI_Comm_size(Comm, &numranks);
-  MPI_Comm_rank(Comm, &rank);
-  in.val=val;
-  in.rank=rank;
-
-  MPI_Reduce(&val, &sum, 1, MPI_DOUBLE, MPI_SUM, 0, Comm);
-  if(rank==0) {
-    if(print_aggregate)
-      fprintf(fp,"#%19s %14.3f %10.3f ",label,sum,sum/numranks);
-    else
-      fprintf(fp,"#%19s                %10.3f ",label,sum/numranks);
-  }
-
-  MPI_Reduce(&in, &out, 1, MPI_DOUBLE_INT, MPI_MINLOC, 0, Comm);
-  if(rank==0){
-    fprintf(fp,"%4d %10.3f ", out.rank, out.val);
-  }
-  MPI_Reduce(&in, &out, 1, MPI_DOUBLE_INT, MPI_MAXLOC, 0, Comm);
-  if(rank==0){
-    fprintf(fp,"%4d %10.3f\n",out.rank, out.val);
-  }
-}
-
-// Utilities for performance measurement with PAPI
-#ifdef GPAW_PAPI
-#include <papi.h>
-
-#define NUM_PAPI_EV 1
-
-static long_long papi_start_usec_p;
-static long_long papi_start_usec_r;
-
-// Returns PAPI_dmem_info structure in Python dictionary
-// Units used by PAPI are kB
-PyObject* papi_mem_info(PyObject *self, PyObject *args)
-{
-  PAPI_dmem_info_t dmem;
-  PyObject* py_dmem;
-
-  PAPI_get_dmem_info(&dmem);
-
-  py_dmem = PyDict_New();
-  PyDict_SetItemString(py_dmem, "peak", PyLong_FromLongLong(dmem.peak));
-  PyDict_SetItemString(py_dmem, "size", PyLong_FromLongLong(dmem.size));
-  PyDict_SetItemString(py_dmem, "resident", PyLong_FromLongLong(dmem.resident));
-  PyDict_SetItemString(py_dmem, "high_water_mark",
-                       PyLong_FromLongLong(dmem.high_water_mark));
-  PyDict_SetItemString(py_dmem, "shared", PyLong_FromLongLong(dmem.shared));
-  PyDict_SetItemString(py_dmem, "text", PyLong_FromLongLong(dmem.text));
-  PyDict_SetItemString(py_dmem, "library", PyLong_FromLongLong(dmem.library));
-  PyDict_SetItemString(py_dmem, "heap", PyLong_FromLongLong(dmem.heap));
-  PyDict_SetItemString(py_dmem, "stack", PyLong_FromLongLong(dmem.stack));
-  PyDict_SetItemString(py_dmem, "pagesize", PyLong_FromLongLong(dmem.pagesize));
-  PyDict_SetItemString(py_dmem, "pte", PyLong_FromLongLong(dmem.pte));
-
-  return py_dmem;
-}
-
-int gpaw_perf_init()
-{
-  int events[NUM_PAPI_EV];
-  events[0] = PAPI_FP_OPS;
-  // events[1] = PAPI_L1_DCM;
-  // events[2] = PAPI_L1_DCH;
-  // events[3] = PAPI_TOT_INS;
-  PAPI_start_counters(events, NUM_PAPI_EV);
-  papi_start_usec_r = PAPI_get_real_usec();
-  papi_start_usec_p = PAPI_get_virt_usec();
-
-  return 0;
-}
-
-void gpaw_perf_finalize()
-{
-  long long papi_values[NUM_PAPI_EV];
-  double rtime,ptime;
-  double avegflops;
-  double gflop_opers;
-  PAPI_dmem_info_t dmem;
-  int error = 0;
-  double l1hitratio;
-  long_long papi_end_usec_p;
-  long_long papi_end_usec_r;
-
-  int rank, numranks;
-
-  MPI_Comm Comm = MPI_COMM_WORLD;
-
-  //get papi info, first time it intializes PAPI counters
-  papi_end_usec_r = PAPI_get_real_usec();
-  papi_end_usec_p = PAPI_get_virt_usec();
-
-  MPI_Comm_size(Comm, &numranks);
-  MPI_Comm_rank(Comm, &rank);
-
-  FILE *fp;
-  if (rank == 0)
-    fp = fopen("gpaw_perf.log", "w");
-  else
-    fp = NULL;
-
-  if(PAPI_read_counters(papi_values, NUM_PAPI_EV) != PAPI_OK)
-    error++;
-
-  if(PAPI_get_dmem_info(&dmem) != PAPI_OK)
-    error++;
-
-  rtime=(double)(papi_end_usec_r - papi_start_usec_r)/1e6;
-  ptime=(double)(papi_end_usec_p - papi_start_usec_p)/1e6;
-  avegflops=(double)papi_values[0]/rtime/1e9;
-  gflop_opers = (double)papi_values[0]/1e9;
-  // l1hitratio=100.0*(double)papi_values[1]/(papi_values[0] + papi_values[1]);
-
-  if (rank==0 ) {
-    fprintf(fp,"########  GPAW PERFORMANCE REPORT (PAPI)  ########\n");
-    fprintf(fp,"# MPI tasks   %d\n", numranks);
-    fprintf(fp,"#                        aggregated    average    min(rank/val)   max(rank/val) \n");
-  }
-  coll_print(fp, "Real time (s)", rtime, 1, Comm);
-  coll_print(fp, "Process time (s)", ptime, 1, Comm);
-  coll_print(fp, "Flops (GFlop/s)", avegflops, 1, Comm);
-  coll_print(fp, "Flp-opers (10^9)", gflop_opers, 1, Comm);
-  // coll_print(fp, "L1 hit ratio (%)", l1hitratio, 0, Comm);
-  coll_print(fp, "Peak mem size (MB)", (double)dmem.peak/1.0e3, 0, Comm );
-  coll_print(fp, "Peak resident (MB)", (double)dmem.high_water_mark/1.0e3 ,
-             0, Comm);
-  if(rank==0)  {
-    fflush(fp);
-    fclose(fp);
-  }
-}
-#elif GPAW_HPM
-void HPM_Start(char *);
-
-int gpaw_perf_init()
-{
-  HPM_Start("GPAW");
-  return 0;
-}
-
-void gpaw_perf_finalize()
-{
-  HPM_Stop("GPAW");
-}
-#else  // Use just MPI_Wtime
-static double t0;
-int gpaw_perf_init(void)
-{
-  t0 = MPI_Wtime();
-  return 0;
-}
-
-void gpaw_perf_finalize(void)
-{
-  double rtime;
-  int rank, numranks;
-
-  MPI_Comm Comm = MPI_COMM_WORLD;
-
-  MPI_Comm_size(Comm, &numranks);
-  MPI_Comm_rank(Comm, &rank);
-
-  double t1 = MPI_Wtime();
-  rtime = t1 - t0;
-
-  FILE *fp;
-  if (rank == 0)
-    fp = fopen("gpaw_perf.log", "w");
-  else
-    fp = NULL;
-
-  if (rank==0 ) {
-    fprintf(fp,"########  GPAW PERFORMANCE REPORT (MPI_Wtime)  ########\n");
-    fprintf(fp,"# MPI tasks   %d\n", numranks);
-    fprintf(fp,"#                        aggregated    average    min(rank/val)   max(rank/val) \n");
-  }
-  coll_print(fp, "Real time (s)", rtime, 1, Comm);
-  if(rank==0)  {
-    fflush(fp);
-    fclose(fp);
-  }
-}
 #endif
-#endif
+
 
 // returns the distance between two 3d double vectors
 double distance(double *a, double *b)
@@ -303,7 +47,6 @@ double distance(double *a, double *b)
   }
   return sqrt(sum);
 }
-
 
 PyObject* add_to_density_gpu(PyObject* self, PyObject* args);
 // Equivalent to:
@@ -320,8 +63,8 @@ PyObject* add_to_density(PyObject *self, PyObject *args)
 
     if (PyArray_Check(psit_R_obj))
     {
-        const double* psit_R = PyArray_DATA(psit_R_obj);
-        double* nt_R = PyArray_DATA(nt_R_obj);
+        const double* psit_R = (double*) PyArray_DATA(psit_R_obj);
+        double* nt_R = (double*) PyArray_DATA(nt_R_obj);
         int n = PyArray_SIZE(nt_R_obj);
         if (PyArray_ITEMSIZE(psit_R_obj) == 8) {
             // Real wave functions
@@ -470,8 +213,8 @@ PyObject* pack(PyObject *self, PyObject *args)
                 *b++ = a[r + n * c] + a[c + n * r];
         }
     } else {
-        double complex* a = (double complex*)PyArray_DATA(a_obj);
-        double complex* b = (double complex*)PyArray_DATA(b_obj);
+        double_complex* a = (double_complex*)PyArray_DATA(a_obj);
+        double_complex* b = (double_complex*)PyArray_DATA(b_obj);
         for (int r = 0; r < n; r++) {
             *b++ = a[r + n * r];
             for (int c = r + 1; c < n; c++)
@@ -567,27 +310,53 @@ PyObject* localize(PyObject *self, PyObject *args)
   if (!PyArg_ParseTuple(args, "OO", &Z_nnc, &U_nn))
     return NULL;
 
-  int n = PyArray_DIMS(U_nn)[0];
-  double complex (*Z)[n][3] = (double complex (*)[n][3])COMPLEXP(Z_nnc);
+  const int n = PyArray_DIMS(U_nn)[0];
+
+  // The original C99 implementation of this function made heavy use of VLA
+  // semantics that did not compile on Clang++ in C++ mode (but g++ was OK).
+  // Here we attempt to minimize code changes by using custom accessors to index multidimensional arrays.
+  // If compiling as C code, the accessors fall back to usual VLA syntax.
+
+#ifdef GPAW_CPP
+  double_complex* Z = (double_complex*)PyArray_DATA(Z_nnc);
+  double* U = (double*)PyArray_DATA(U_nn);
+
+  auto Z_at = [&](int i, int j, int c) -> double_complex&
+  {
+      return Z[(i * n + j) * 3 + c];
+  };
+
+  auto U_at = [&](int i, int j) -> double&
+  {
+      return U[i * n + j];
+  };
+
+#else
+  // Old C99 version but using similar accessor helper as the C++ version
+  double_complex (*Z)[n][3] = (double_complex (*)[n][3])COMPLEXP(Z_nnc);
   double (*U)[n] = (double (*)[n])DOUBLEP(U_nn);
+  #define Z_at(i, j, c) Z[i][j][c]
+  #define U_at(i, j)    U[i][j]
+#endif
 
   double value = 0.0;
   for (int a = 0; a < n; a++)
     {
       for (int b = a + 1; b < n; b++)
         {
-          double complex* Zaa = Z[a][a];
-          double complex* Zab = Z[a][b];
-          double complex* Zbb = Z[b][b];
           double x = 0.0;
           double y = 0.0;
           for (int c = 0; c < 3; c++)
             {
-              x += (0.25 * creal(Zbb[c] * conj(Zbb[c])) +
-                    0.25 * creal(Zaa[c] * conj(Zaa[c])) -
-                    0.5 * creal(Zaa[c] * conj(Zbb[c])) -
-                    creal(Zab[c] * conj(Zab[c])));
-              y += creal((Zaa[c] - Zbb[c]) * conj(Zab[c]));
+              const double_complex Zaac = Z_at(a, a, c);
+              const double_complex Zabc = Z_at(a, b, c);
+              const double_complex Zbbc = Z_at(b, b, c);
+
+              x += (0.25 * creal(Zbbc * conj(Zbbc)) +
+                    0.25 * creal(Zaac * conj(Zaac)) -
+                    0.5 * creal(Zaac * conj(Zbbc)) -
+                    creal(Zabc * conj(Zabc)));
+              y += creal((Zaac - Zbbc) * conj(Zabc));
             }
           double t = 0.25 * atan2(y, x);
           double C = cos(t);
@@ -595,43 +364,46 @@ PyObject* localize(PyObject *self, PyObject *args)
           for (int i = 0; i < a; i++)
             for (int c = 0; c < 3; c++)
               {
-                double complex Ziac = Z[i][a][c];
-                Z[i][a][c] = C * Ziac + S * Z[i][b][c];
-                Z[i][b][c] = C * Z[i][b][c] - S * Ziac;
+                double_complex Ziac = Z_at(i, a, c);
+                Z_at(i, a, c) = C * Ziac + S * Z_at(i, b, c);
+                Z_at(i, b, c) = C * Z_at(i, b, c) - S * Ziac;
               }
           for (int c = 0; c < 3; c++)
             {
-              double complex Zaac = Zaa[c];
-              double complex Zabc = Zab[c];
-              double complex Zbbc = Zbb[c];
-              Zaa[c] = C * C * Zaac + 2 * C * S * Zabc + S * S * Zbbc;
-              Zbb[c] = C * C * Zbbc - 2 * C * S * Zabc + S * S * Zaac;
-              Zab[c] = S * C * (Zbbc - Zaac) + (C * C - S * S) * Zabc;
+              const double_complex Zaac = Z_at(a, a, c);
+              const double_complex Zabc = Z_at(a, b, c);
+              const double_complex Zbbc = Z_at(b, b, c);
+              Z_at(a, a, c) = C * C * Zaac + 2 * C * S * Zabc + S * S * Zbbc;
+              Z_at(b, b, c) = C * C * Zbbc - 2 * C * S * Zabc + S * S * Zaac;
+              Z_at(a, b, c) = S * C * (Zbbc - Zaac) + (C * C - S * S) * Zabc;
             }
           for (int i = a + 1; i < b; i++)
             for (int c = 0; c < 3; c++)
               {
-                double complex Zaic = Z[a][i][c];
-                Z[a][i][c] = C * Zaic + S * Z[i][b][c];
-                Z[i][b][c] = C * Z[i][b][c] - S * Zaic;
+                const double_complex Zaic = Z_at(a, i, c);
+                Z_at(a, i, c) = C * Zaic + S * Z_at(i, b, c);
+                Z_at(i, b, c) = C * Z_at(i, b, c) - S * Zaic;
               }
           for (int i = b + 1; i < n; i++)
             for (int c = 0; c < 3; c++)
               {
-                double complex Zaic = Z[a][i][c];
-                Z[a][i][c] = C * Zaic + S * Z[b][i][c];
-                Z[b][i][c] = C * Z[b][i][c] - S * Zaic;
+                const double_complex Zaic = Z_at(a, i, c);
+                Z_at(a, i, c) = C * Zaic + S * Z_at(b, i, c);
+                Z_at(b, i, c) = C * Z_at(b, i, c) - S * Zaic;
               }
           for (int i = 0; i < n; i++)
             {
-              double Uia = U[i][a];
-              U[i][a] = C * Uia + S * U[i][b];
-              U[i][b] = C * U[i][b] - S * Uia;
+              const double Uia = U_at(i, a);
+              U_at(i, a) = C * Uia + S * U_at(i, b);
+              U_at(i, b) = C * U_at(i, b) - S * Uia;
             }
         }
-      double complex* Zaa = Z[a][a];
+
       for (int c = 0; c < 3; c++)
-        value += creal(Zaa[c] * conj(Zaa[c]));
+      {
+        const double_complex Zaac = Z_at(a, a, c);
+        value += creal(Zaac * conj(Zaac));
+      }
     }
   return Py_BuildValue("d", value);
 }

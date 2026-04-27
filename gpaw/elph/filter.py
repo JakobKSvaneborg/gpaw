@@ -1,9 +1,8 @@
+import ase.units as units
 import numpy as np
 import numpy.fft as fft
 import numpy.linalg as la
-
 from ase import Atoms
-import ase.units as units
 
 from gpaw.typing import ArrayND
 

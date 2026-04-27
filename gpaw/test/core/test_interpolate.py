@@ -1,4 +1,5 @@
 import pytest
+
 from gpaw.core import UGDesc
 
 

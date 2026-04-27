@@ -1,13 +1,12 @@
 import numpy as np
 
 from gpaw import debug
-from gpaw.transformers import Transformer
-from gpaw.lfc import BasisFunctions
+from gpaw.inducedfield.inducedfield_base import (BaseInducedField,
+                                                 sendreceive_dict)
 from gpaw.lcaotddft.observer import TDDFTObserver
-from gpaw.utilities import unpack_density, is_contiguous
-
-from gpaw.inducedfield.inducedfield_base import BaseInducedField, \
-    sendreceive_dict
+from gpaw.lfc import BasisFunctions
+from gpaw.transformers import Transformer
+from gpaw.utilities import is_contiguous, unpack_density
 
 
 class TDDFTInducedField(BaseInducedField, TDDFTObserver):
@@ -72,7 +71,7 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
                                   frequencies, folding, width)
 
     def initialize(self, paw, allocate=True):
-        BaseInducedField.initialize(self, paw, allocate)
+        super().initialize(paw, allocate)
 
         if self.has_paw:
             assert hasattr(paw, 'time') and hasattr(paw, 'niter'), 'Use TDDFT!'
@@ -80,7 +79,7 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
             self.niter = paw.niter
 
     def set_folding(self, folding, width):
-        BaseInducedField.set_folding(self, folding, width)
+        super().set_folding(folding, width)
 
         if self.folding is None:
             self.envelope = lambda t: 1.0
@@ -124,7 +123,7 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
             assert is_contiguous(self.Fnt_wsG, self.dtype)
 
     def deallocate(self):
-        BaseInducedField.deallocate(self)
+        super().deallocate()
         self.n0t_sG = None
         self.Fnt_wsG = None
         self.D0_asp = None
@@ -359,7 +358,7 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
             raise RuntimeError('unknown from_density "' + from_density + '"')
 
     def _read(self, reader, reads):
-        BaseInducedField._read(self, reader, reads)
+        super()._read(reader, reads)
 
         r = reader
         time = r.time
@@ -399,7 +398,7 @@ class TDDFTInducedField(BaseInducedField, TDDFTObserver):
                     self.FD_awsp[a] = FD_awsp[a]
 
     def _write(self, writer, writes):
-        BaseInducedField._write(self, writer, writes)
+        super()._write(writer, writes)
 
         # Collect np_a to master
         if self.kpt_comm.rank == 0 and self.band_comm.rank == 0:

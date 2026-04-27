@@ -1,3 +1,4 @@
+#include "python_utils.h"
 #include "extensions.h"
 
 // Evaluate the multipole expansion
@@ -9,6 +10,7 @@
 // W_nGG: The residue of poles for each GG
 // eta: extra broadening
 // factor: total prefactor to multiply the result
+__attribute__((optimize("fast-math")))
 PyObject* evaluate_mpa_poly(PyObject *self, PyObject *args)
 {
     PyArrayObject* x_GG_obj;
@@ -72,14 +74,14 @@ PyObject* evaluate_mpa_poly(PyObject *self, PyObject *args)
         PyErr_SetString(PyExc_TypeError, "Arrays need to be c-contiguous.");
         return NULL;
     }
-    
-    double complex* x_GG = (double complex*)PyArray_DATA(x_GG_obj);
-    double complex* dx_GG = (double complex*)PyArray_DATA(dx_GG_obj);
-    double complex* omegat_nGG = (double complex*)PyArray_DATA(omegat_nGG_obj);
-    double complex* W_nGG = (double complex*)PyArray_DATA(W_nGG_obj);
 
-    double complex omega_eta_m = omega - eta * I;
-    double complex omega_eta_p = omega + eta * I;
+    double_complex* x_GG = (double_complex*)PyArray_DATA(x_GG_obj);
+    double_complex* dx_GG = (double_complex*)PyArray_DATA(dx_GG_obj);
+    double_complex* omegat_nGG = (double_complex*)PyArray_DATA(omegat_nGG_obj);
+    double_complex* W_nGG = (double_complex*)PyArray_DATA(W_nGG_obj);
+
+    double_complex omega_eta_m = omega - eta * I;
+    double_complex omega_eta_p = omega + eta * I;
 
     if (f<0 || f>1)
     {
@@ -95,18 +97,18 @@ PyObject* evaluate_mpa_poly(PyObject *self, PyObject *args)
         {
             for (int G2=0; G2<nG2; G2++)
             {
-                double complex result = 0;
-                double complex dresult = 0;
+                double_complex result = 0;
+                double_complex dresult = 0;
                 for (int p=0; p<np; p++)
                 {
                     int index = G2 + G1 * nG2 + p * nG1 * nG2;
-                    double complex omegat = omegat_nGG[index];
-                    double complex x1 = 1.0 / (omega_eta_m + omegat);
+                    double_complex omegat = omegat_nGG[index];
+                    double_complex x1 = 1.0 / (omega_eta_m + omegat);
                     result += x1 * W_nGG[index];
                     dresult -= x1 * x1 * W_nGG[index];
                 }
-                *x_GG++ = result * 2 * factor;
-                *dx_GG++ = dresult * 2 * factor;
+                *x_GG++ = result * 2. * factor;
+                *dx_GG++ = dresult * 2. * factor;
             }
         }
     }
@@ -116,18 +118,18 @@ PyObject* evaluate_mpa_poly(PyObject *self, PyObject *args)
         {
             for (int G2=0; G2<nG2; G2++)
             {
-                double complex result = 0;
-                double complex dresult = 0;
+                double_complex result = 0;
+                double_complex dresult = 0;
                 for (int p=0; p<np; p++)
                 {
                     int index = G2 + G1 * nG2 + p * nG1 * nG2;
-                    double complex omegat = omegat_nGG[index];
-                    double complex x2 = 1.0 / (omega_eta_p - omegat);
+                    double_complex omegat = omegat_nGG[index];
+                    double_complex x2 = 1.0 / (omega_eta_p - omegat);
                     result += x2 * W_nGG[index];
                     dresult -= x2 * x2 * W_nGG[index];
                 }
-                *x_GG++ = result * (2 * factor);
-                *dx_GG++ = dresult * 2 * factor;
+                *x_GG++ = result * (2. * factor);
+                *dx_GG++ = dresult * 2. * factor;
             }
         }
     }
@@ -137,23 +139,21 @@ PyObject* evaluate_mpa_poly(PyObject *self, PyObject *args)
         {
             for (int G2=0; G2<nG2; G2++)
             {
-                double complex result = 0;
-                double complex dresult = 0;
+                double_complex result = 0;
+                double_complex dresult = 0;
                 for (int p=0; p<np; p++)
                 {
                     int index = G2 + G1 * nG2 + p * nG1 * nG2;
-                    double complex omegat = omegat_nGG[index];
-                    double complex x1 = f / (omega_eta_m + omegat);
-                    double complex x2 = (1.0 - f) / (omega_eta_p - omegat);
+                    double_complex omegat = omegat_nGG[index];
+                    double_complex x1 = f / (omega_eta_m + omegat);
+                    double_complex x2 = (1.0 - f) / (omega_eta_p - omegat);
                     result += (x1 + x2) * W_nGG[index];
                     dresult -= (x1 * x1 + x2 * x2) * W_nGG[index];
                 }
-                *x_GG++ = result * (2 * factor);
-                *dx_GG++ = dresult * (2 * factor);
+                *x_GG++ = result * (2. * factor);
+                *dx_GG++ = dresult * (2. * factor);
             }
         }
     }
     Py_RETURN_NONE;
 }
-
-

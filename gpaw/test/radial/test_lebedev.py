@@ -1,5 +1,6 @@
 import pytest
-from gpaw.sphere.lebedev import run, weight_n, Y_nL, R_nv
+
+from gpaw.sphere.lebedev import R_nv, Y_nL, run, weight_n
 
 
 @pytest.mark.ci

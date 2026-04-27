@@ -5,17 +5,19 @@ try:
     # Matplotlib is not a dependency
     import matplotlib as mpl
     mpl.use('Agg')  # force the antigrain backend
-    from matplotlib.figure import Figure
-    from matplotlib.backends.backend_agg import FigureCanvasAgg
     import warnings
+
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    from matplotlib.figure import Figure
+
     # silence matplotlib.use() warning
     warnings.filterwarnings('ignore', r'.*This call to matplotlib\.use.*',)
 except (ImportError, RuntimeError):
     mpl = None
 
-from scipy.optimize import leastsq
-from ase.units import second
 from ase.io import Trajectory
+from ase.units import second
+from scipy.optimize import leastsq
 
 
 def f(p, t):

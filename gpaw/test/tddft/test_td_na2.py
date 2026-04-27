@@ -61,7 +61,6 @@ def test_tddft_td_na2(in_tmp_dir, gpw_files):
     td_pmlabs.propagate(time_step, iters)
 
 
-@pytest.mark.old_gpaw_only
 def test_tddft_fail_with_symmetry(in_tmp_dir, gpw_files):
 
     # Time-propagation calculation

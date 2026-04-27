@@ -1,12 +1,12 @@
-import pytest
 import numpy as np
+import pytest
 from ase import Atoms
 
 from gpaw import GPAW
-from gpaw.tddft import TDDFT, DipoleMomentWriter
 from gpaw.inducedfield.inducedfield_base import BaseInducedField
 from gpaw.inducedfield.inducedfield_tddft import TDDFTInducedField
 from gpaw.poisson import PoissonSolver
+from gpaw.tddft import TDDFT, DipoleMomentWriter
 
 
 @pytest.mark.ci

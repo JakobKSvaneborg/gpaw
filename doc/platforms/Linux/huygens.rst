@@ -7,7 +7,7 @@ huygens.sara.nl  (IBM Power6, Infiniband, ESSL)
 Here you find information about the system
 `<https://huygens.supercomputer.nl/description/>`_.
 
-One should not use the systems defaul python, but load the python module::
+One should not use the systems default python, but load the python module::
 
  $ module load python
 

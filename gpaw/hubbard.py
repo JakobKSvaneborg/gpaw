@@ -1,12 +1,10 @@
-from typing import List, Tuple
-
 import numpy as np
 from ase.units import Ha
 
 from gpaw.typing import Array1D, Array2D, Array3D, ArrayLike2D
 
 
-def parse_hubbard_string(type: str) -> Tuple[str, 'HubbardU']:
+def parse_hubbard_string(type: str) -> tuple[str, 'HubbardU']:
 
     # Parse DFT+U parameters from type-string:
     # Examples: "type:l,U" or "type:l,U,scale"
@@ -70,10 +68,10 @@ class HubbardU:
 def hubbard(D_sii: Array3D,
             U: float,
             l: int,
-            l_j: List[int],
-            n_j: List[int],
+            l_j: list[int],
+            n_j: list[int],
             N0_q: Array1D,
-            scale: bool) -> Tuple[float, ArrayLike2D]:
+            scale: bool) -> tuple[float, ArrayLike2D]:
     nspins = len(D_sii)
 
     # j-indices which have the correct angular momentum quantum number
@@ -132,10 +130,10 @@ def hubbard(D_sii: Array3D,
 
 def aoom(D_ii: Array2D,
          l: int,
-         l_j: List[int],
-         n_j: List[int],
+         l_j: list[int],
+         n_j: list[int],
          N0_q: Array1D,
-         scale: bool = True) -> Tuple[Array2D, Array2D]:
+         scale: bool = True) -> tuple[Array2D, Array2D]:
     """
     This function returns the atomic orbital occupation matrix (aoom) for a
     given l quantum number.

@@ -1,7 +1,8 @@
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
+
+#include "python_utils.h"
+#include "gpaw_complex.h"
+#include "gpu/gpu-complex.h"
+#include "gpu/gpu_interface.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -9,11 +10,8 @@
 #include <math.h>
 #include <time.h>
 #include <float.h>
-#include <complex.h>
 #include <sys/types.h>
 #include <sys/time.h>
-
-#include "../gpu-complex.h"
 
 #ifndef GPU_USE_COMPLEX
 #  define MBLAS_BLOCK_X  (128)
@@ -66,7 +64,6 @@ __global__ void Zgpu(multi_axpy_kernel)(int n, const Tgpu *alpha,
 #define GPU_USE_COMPLEX
 #include "mblas.cpp"
 
-extern "C"
 PyObject* multi_scal_gpu(PyObject *self, PyObject *args)
 {
     void *alpha_gpu;
@@ -126,7 +123,6 @@ PyObject* multi_scal_gpu(PyObject *self, PyObject *args)
         Py_RETURN_NONE;
 }
 
-extern "C"
 PyObject* multi_axpy_gpu(PyObject *self, PyObject *args)
 {
     void *alpha_gpu;
@@ -188,7 +184,6 @@ PyObject* multi_axpy_gpu(PyObject *self, PyObject *args)
         Py_RETURN_NONE;
 }
 
-extern "C"
 PyObject* multi_dotu_gpu(PyObject *self, PyObject *args)
 {
     void *a_gpu;
@@ -224,7 +219,6 @@ PyObject* multi_dotu_gpu(PyObject *self, PyObject *args)
         Py_RETURN_NONE;
 }
 
-extern "C"
 PyObject* multi_dotc_gpu(PyObject *self, PyObject *args)
 {
     void *a_gpu;

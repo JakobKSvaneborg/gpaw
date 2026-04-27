@@ -6,7 +6,6 @@ extracted.
 """
 import numpy as np
 import pytest
-
 from ase.build import bulk
 from ase.utils.filecache import MultiFileJSONCache
 

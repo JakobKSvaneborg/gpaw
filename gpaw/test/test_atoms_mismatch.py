@@ -2,13 +2,15 @@
 
 import pytest
 from ase.build import molecule
-from gpaw.mpi import world, synchronize_atoms
-from gpaw import GPAW
 from ase.optimize import BFGS
+
+from gpaw import GPAW
+from gpaw.mpi import synchronize_atoms
 
 
 @pytest.mark.ci
-def test_atoms_mismatch(in_tmp_dir):
+def test_atoms_mismatch(in_tmp_dir, comm):
+    world = comm
     system = molecule('H2O')
     synchronize_atoms(system, world)
 
@@ -44,8 +46,9 @@ def test_atoms_mismatch(in_tmp_dir):
     calc = GPAW(mode='fd',
                 h=0.2,
                 convergence={'energy': 0.01, 'density': 1.0e-2,
-                             'eigenstates': 4.0e-3})
+                             'eigenstates': 4.0e-3},
+                communicator=comm)
     system.calc = calc
-    dyn = BFGS(system)
+    dyn = BFGS(system, comm=comm)
     dyn.attach(mess_up_atoms, 1, system)
     dyn.run(steps=2)

@@ -1,5 +1,5 @@
-import pytest
 import numpy as np
+import pytest
 
 from gpaw import GPAW
 from gpaw.lrtddft2 import LrTDDFT2
@@ -9,7 +9,9 @@ from gpaw.lrtddft2 import LrTDDFT2
 def test_lrtddft2_H2O_lcao(gpw_files, in_tmp_dir):
     name = 'H2O-lcao'
     # LrTDDFT2
-    calc = GPAW(gpw_files['h20_lr2_nbands8'], txt='%s-lr.out' % name)
+    calc = GPAW(gpw_files['h20_lr2_nbands8'],
+                legacy_gpaw=True,
+                txt='%s-lr.out' % name)
     lr = LrTDDFT2(name, calc, fxc='LDA')
     lr.calculate()
     results = lr.get_transitions()[0:2]

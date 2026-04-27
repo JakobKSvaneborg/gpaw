@@ -4,6 +4,7 @@ from math import pi, sqrt
 
 import numpy as np
 from ase.units import Bohr, Ha
+
 from gpaw.core.atom_arrays import AtomArrays, AtomDistribution
 from gpaw.core.atom_centered_functions import (AtomArraysLayout,
                                                AtomCenteredFunctions)
@@ -12,27 +13,29 @@ from gpaw.core.uniform_grid import UGArray, UGDesc
 from gpaw.gpu import as_np
 from gpaw.mpi import MPIComm
 from gpaw.new import trace, zips
-from gpaw.typing import Array3D, Vector
-from gpaw.utilities import unpack_hermitian, unpack_density
-from gpaw.new.symmetry import SymmetrizationPlan, GPUSymmetrizationPlan
 from gpaw.new.ibzwfs import IBZWaveFunctions
+from gpaw.new.symmetry import GPUSymmetrizationPlan, SymmetrizationPlan
+from gpaw.setup import Setups
+from gpaw.typing import Array3D, Vector
+from gpaw.utilities import unpack_density, unpack_hermitian
 
 
 class Density:
     @classmethod
     def from_data_and_setups(cls,
-                             nt_sR,
-                             taut_sR,
-                             D_asii,
-                             charge,
-                             setups,
-                             nct_aX,
-                             tauct_aX):
+                             nt_sR: UGArray,
+                             taut_sR: UGArray,
+                             D_asii: AtomArrays,
+                             charge: float,
+                             setups: Setups,
+                             nct_aX: AtomCenteredFunctions,
+                             tauct_aX: AtomCenteredFunctions) -> Density:
         xp = nt_sR.xp
         return cls(nt_sR,
                    taut_sR,
                    D_asii,
                    charge,
+                   setups.nvalence + setups.core_charge,
                    [xp.asarray(setup.Delta_iiL) for setup in setups],
                    [setup.Delta0 for setup in setups],
                    [unpack_hermitian(setup.N0_p) for setup in setups],
@@ -55,7 +58,8 @@ class Density:
                            charge=0.0,
                            hund=False,
                            mgga=False):
-        nt_sR = grid.zeros(ncomponents)
+        xp = nct_aX.xp
+        nt_sR = grid.zeros(ncomponents, xp=xp)
         atom_array_layout = AtomArraysLayout(
             [(setup.ni, setup.ni) for setup in setups],
             atomdist=atomdist, dtype=float if ncomponents < 4 else complex)
@@ -72,8 +76,6 @@ class Density:
             D_sii[:] = unpack_density(
                 setups[a].initialize_density_matrix(f_asi[a]))
 
-        xp = nct_aX.xp
-        nt_sR = nt_sR.to_xp(xp)
         density = cls.from_data_and_setups(nt_sR,
                                            None,
                                            D_asii.to_xp(xp),
@@ -93,6 +95,7 @@ class Density:
                  taut_sR: UGArray | None,
                  D_asii: AtomArrays,
                  charge: float,
+                 nvalence: float,
                  delta_aiiL: list[Array3D],
                  delta0_a: list[float],
                  N0_aii,
@@ -109,6 +112,7 @@ class Density:
         self.n_aj = n_aj
         self.l_aj = l_aj
         self.charge = charge
+        self.nvalence = nvalence
         self.nct_aX = nct_aX
         self.tauct_aX = tauct_aX
 
@@ -127,10 +131,11 @@ class Density:
         return f'Density({self.nt_sR}, {self.D_asii}, charge={self.charge})'
 
     def __str__(self) -> str:
-        return (f'density:\n'
-                f'  components: {self.ncomponents}\n'
-                f'  grid points: {self.nt_sR.desc.size}\n'
-                f'  charge: {self.charge}  # |e|\n')
+        return (f'Density:\n'
+                f'  Valence electrons: {self.nvalence}\n'
+                f'  Components: {self.ncomponents}\n'
+                f'  Grid points: {self.nt_sR.desc.size}\n'
+                f'  Charge: {self.charge}  # |e|\n')
 
     @property
     def nct_R(self):
@@ -148,17 +153,19 @@ class Density:
                                           scale=1.0 / (self.ncomponents % 3))
         return self._tauct_R
 
-    def new(self, new_grid, pw, relpos_ac, atomdist):
-        self.move(relpos_ac, atomdist)
+    def new(self, new_grid, pw, relpos_ac=None, atomdist=None):
+        if relpos_ac is not None:
+            self.move(relpos_ac, atomdist)
         new_pw = PWDesc(ecut=0.99 * new_grid.ekin_max(),
                         cell=new_grid.cell,
                         comm=new_grid.comm)
-        old_grid = self.nt_sR.desc
+        old_nt_sR = self.nt_sR.to_pbc_grid()
+        old_grid = old_nt_sR.desc
         old_pw = PWDesc(ecut=0.99 * old_grid.ekin_max(),
                         cell=old_grid.cell,
                         comm=new_grid.comm)
         new_nt_sR = new_grid.empty(self.ncomponents, xp=self.nt_sR.xp)
-        for new_nt_R, old_nt_R in zips(new_nt_sR, self.nt_sR):
+        for new_nt_R, old_nt_R in zips(new_nt_sR, old_nt_sR):
             old_nt_R.fft(pw=old_pw).morph(new_pw).ifft(out=new_nt_R)
 
         self.nct_aX.change_cell(pw)
@@ -169,6 +176,7 @@ class Density:
             None if self.taut_sR is None else new_nt_sR.new(zeroed=True),
             self.D_asii,
             self.charge,
+            self.nvalence,
             self.delta_aiiL,
             self.delta0_a,
             self.N0_aii,
@@ -193,7 +201,7 @@ class Density:
 
         return ccc_aL
 
-    def normalize(self):
+    def normalize(self, background_charge: float) -> None:
         comp_charge = 0.0
         xp = self.D_asii.layout.xp
         for a, D_sii in self.D_asii.items():
@@ -204,12 +212,13 @@ class Density:
         # comp_charge could be cupy.ndarray:
         comp_charge = float(comp_charge) * sqrt(4 * pi)
         comp_charge = self.nt_sR.desc.comm.sum_scalar(comp_charge)
-        charge = comp_charge + self.charge
+        charge = comp_charge + self.charge - background_charge
         pseudo_charge = self.nt_sR[:self.ndensities].integrate().sum()
         if pseudo_charge != 0.0:
             x = -charge / pseudo_charge
             self.nt_sR.data *= x
 
+    @trace
     def update(self, ibzwfs: IBZWaveFunctions, ked=False):
         self.nt_sR.data[:] = 0.0
         self.D_asii.data[:] = 0.0
@@ -236,6 +245,7 @@ class Density:
             self.taut_sR.symmetrize(symmetries.rotation_scc,
                                     symmetries.translation_sc)
 
+    @trace
     def symmetrize(self, symmetries):
         self.nt_sR.symmetrize(symmetries.rotation_scc,
                               symmetries.translation_sc)
@@ -259,6 +269,7 @@ class Density:
                 self.symplan.apply(D_asii.data, D_asii.data)
             self.D_asii.scatter_from(D_asii)
 
+    @trace
     def move(self, relpos_ac, atomdist):
         self.nt_sR.data[:self.ndensities] -= self.nct_R.data
         self.nct_aX.move(relpos_ac, atomdist)
@@ -268,6 +279,7 @@ class Density:
         self.nt_sR.data[:self.ndensities] += self.nct_R.data
         self.D_asii = self.D_asii.moved(atomdist)
 
+    @trace
     def redist(self,
                grid: UGDesc,
                xdesc,
@@ -281,6 +293,7 @@ class Density:
             self.taut_sR.redist(grid, comm1, comm2),
             self.D_asii.redist(atomdist, comm1, comm2),
             self.charge,
+            self.nvalence,
             self.delta_aiiL,
             self.delta0_a,
             self.N0_aii,
@@ -354,11 +367,18 @@ class Density:
 
         return magmom_v, magmom_av
 
-    def write_to_gpw(self, writer, flags):
+    def gather(self):
         D_asp = self.D_asii.to_cpu().to_lower_triangle().gather()
         nt_sR = self.nt_sR.to_xp(np).gather()
+        taut_sR = None
         if self.taut_sR is not None:
             taut_sR = self.taut_sR.to_xp(np).gather()
+        return D_asp, nt_sR, taut_sR
+
+    @trace
+    def write_to_gpw(self, writer, flags):
+        D_asp, nt_sR, taut_sR = self.gather()
+
         if D_asp is None:
             return  # let master do the writing
         writer.write(

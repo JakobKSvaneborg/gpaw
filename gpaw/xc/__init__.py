@@ -1,4 +1,3 @@
-import numpy as np
 from gpaw import get_libraries
 from gpaw.xc.functional import XCFunctional
 from gpaw.xc.gga import GGA
@@ -6,7 +5,6 @@ from gpaw.xc.lda import LDA
 from gpaw.xc.libxc import LibXC
 from gpaw.xc.mgga import MGGA
 from gpaw.xc.noncollinear import NonCollinearLDAKernel
-
 
 libraries = get_libraries()
 
@@ -36,7 +34,7 @@ def XC(kernel,
        parameters=None,
        atoms=None,
        collinear=True,
-       xp=np) -> XCFunctional:
+       legacy_gpaw=True) -> XCFunctional:
     """Create XCFunctional object.
 
     kernel: XCKernel object, dict or str
@@ -52,7 +50,7 @@ def XC(kernel,
     See xc_funcs.h for the complete list.
 
     Warning - if an MGGA from libxc is used, libxc should be compiled
-    with --disable-fhc. Otherwise the calcualtions won't converge"""
+    with --disable-fhc. Otherwise the calculations won't converge"""
 
     if isinstance(kernel, str):
         kernel = xc_string_to_dict(kernel)
@@ -63,21 +61,27 @@ def XC(kernel,
         name = kwargs.pop('name')
         backend = kwargs.pop('backend', None)
 
+        if (not legacy_gpaw and name in {'EXX', 'PBE0', 'B3LYP'}
+            or backend == 'pw'
+            or name in ['HSE03', 'HSE06', 'YS-PBE0']):
+            # PW-mode hybrids:
+            from gpaw.hybrids import HybridXC
+            return HybridXC(name, **kwargs)  # type: ignore
+
         if backend == 'libvdwxc' or name == 'vdW-DF-cx':
             # Must handle libvdwxc before old vdw implementation to override
             # behaviour for 'name'.  Also, cx is not implemented by the old
             # vdW module, so that always refers to libvdwxc.
             from gpaw.xc.libvdwxc import get_libvdwxc_functional
             return get_libvdwxc_functional(name=name, **kwargs)
-        elif backend == 'ri':
+
+        if backend == 'ri':
             # Note: It is important that this if is before the next name is
             # HSExx, since otherwise PWHybrid would hijack the control flow.
             from gpaw.xc.ri import RI
             return RI(name, **kwargs)
-        elif backend == 'pw' or name in ['HSE03', 'HSE06']:
-            from gpaw.hybrids import HybridXC
-            return HybridXC(name, **kwargs)  # type: ignore
-        elif backend:
+
+        if backend:
             raise ValueError(
                 'A special backend for the XC functional was given, '
                 'but not understood. Please check if there is a typo.')
@@ -86,16 +90,19 @@ def XC(kernel,
                     'C09-vdW', 'mBEEF-vdW', 'BEEF-vdW']:
             from gpaw.xc.vdw import VDWFunctional
             return VDWFunctional(name, **kwargs)
-        elif name in ['EXX', 'PBE0', 'B3LYP',
-                      'CAMY-BLYP', 'CAMY-B3LYP', 'LCY-BLYP', 'LCY-PBE']:
+
+        if name in ['EXX', 'PBE0', 'B3LYP',
+                    'CAMY-BLYP', 'CAMY-B3LYP', 'LCY-BLYP', 'LCY-PBE']:
             from gpaw.xc.hybrid import HybridXC as OldHybridXC
             return OldHybridXC(name, **kwargs)  # type: ignore
-        elif name.startswith('LCY-') or name.startswith('CAMY-'):
+
+        if name.startswith('LCY-') or name.startswith('CAMY-'):
             parts = name.split('(')
             from gpaw.xc.hybrid import HybridXC as OldHybridXC
             return OldHybridXC(parts[0],
                                omega=float(parts[1][:-1]))
-        elif name == 'BEE2':
+
+        if name == 'BEE2':
             from gpaw.xc.bee import BEE2
             kernel = BEE2(parameters)
         elif name.startswith('GLLB'):
@@ -150,6 +157,6 @@ def XC(kernel,
         return LDA(kernel, **kwargs)
 
     elif kernel.type == 'GGA':
-        return GGA(kernel, xp=xp, **kwargs)
+        return GGA(kernel, **kwargs)
     else:
         return MGGA(kernel, **kwargs)

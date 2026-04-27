@@ -1,7 +1,9 @@
 """Small test for local parts using yukawa potential"""
-import pytest
 from math import factorial as fac
-from numpy import exp, sqrt, pi, absolute
+
+import pytest
+from numpy import absolute, exp, pi, sqrt
+
 from gpaw.atom.radialgd import AERadialGridDescriptor
 
 # Values from Rico, Lopez, Ramirez, Ema, Theor Chem Acc (2013) 132:1304

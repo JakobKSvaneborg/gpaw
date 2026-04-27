@@ -1,12 +1,11 @@
-
 # Copyright (C) 2003  CAMP
 # Please see the accompanying LICENSE file for further information.
 
 import numpy as np
 
+import gpaw.cgpaw as cgpaw
 from gpaw import debug
 from gpaw.utilities import is_contiguous
-import gpaw.cgpaw as cgpaw
 
 
 class Spline:

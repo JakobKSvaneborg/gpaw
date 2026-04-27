@@ -1,16 +1,17 @@
 """Test HOMO and LUMO band-splitting for MoS2.
 
 See:
-
-  https://journals.aps.org/prb/abstract/10.1103/PhysRevB.98.155433
+  https://doi.org/10.1103/PhysRevB.98.155433
 """
+
 import numpy as np
 import pytest
 from ase.build import mx2
+
+from gpaw.mpi import world
 from gpaw import GPAW
-from gpaw.mpi import size
+from gpaw.berryphase import polarization_phase
 from gpaw.spinorbit import soc_eigenstates
-from gpaw.berryphase import get_polarization_phase
 
 
 def check(E, hsplit, lsplit):
@@ -29,27 +30,17 @@ def check_pol(phi_c):
 
 
 params = dict(mode={'name': 'pw', 'ecut': 350},
-              kpts={'size': (3, 3, 1),
-                    'gamma': True})
+              kpts={'size': (3, 3, 1), 'gamma': True})
 
 
 @pytest.mark.soc
-@pytest.mark.skipif(size > 2, reason='May not work in parallel')
-def test_soc_self_consistent(gpaw_new, in_tmp_dir):
+def test_soc_self_consistent():
     """Self-consistent SOC."""
     a = mx2('MoS2')
     a.center(vacuum=3, axis=2)
 
-    if gpaw_new:
-        kwargs = {**params,
-                  'symmetry': 'off',
-                  'magmoms': np.zeros((3, 3)),
-                  'soc': True}
-    else:
-        kwargs = {**params,
-                  'symmetry': 'off',
-                  'experimental': {'magmoms': np.zeros((3, 3)),
-                                   'soc': True}}
+    kwargs = {**params, 'symmetry': 'off',
+              'magmoms': np.zeros((3, 3)), 'soc': True}
 
     a.calc = GPAW(convergence={'bands': 28},
                   **kwargs)
@@ -57,26 +48,25 @@ def test_soc_self_consistent(gpaw_new, in_tmp_dir):
     eigs = a.calc.get_eigenvalues(kpt=0)
     check(eigs, 0.15, 0.002)
 
-    a.calc.write('mos2.gpw', 'all')
-    GPAW('mos2.gpw')
-
-    if size == 1:
-        phi_c = get_polarization_phase(a.calc)
-        check_pol(phi_c)
+    phases_c = polarization_phase(calc=a.calc, comm=world)
+    phi_c = phases_c['electronic_phase_c']
+    check_pol(phi_c)
 
 
 @pytest.mark.soc
-@pytest.mark.skipif(size > 2, reason='Does not work with more than 2 cores')
+@pytest.mark.skipif(world.size > 2,
+                    reason='Does not work with more than 2 cores')
 def test_non_collinear_plus_soc():
     a = mx2('MoS2')
     a.center(vacuum=3, axis=2)
 
-    a.calc = GPAW(experimental={'magmoms': np.zeros((3, 3)),
-                                'soc': False},
-                  convergence={'bands': 28},
-                  symmetry='off',
-                  parallel={'domain': 1},
-                  **params)
+    kwargs = {'magmoms': np.zeros((3, 3)), 'soc': False}
+    a.calc = GPAW(
+        convergence={'bands': 28},
+        symmetry='off',
+        parallel={'domain': 1},
+        **kwargs,
+        **params)
     a.get_potential_energy()
 
     bzwfs = soc_eigenstates(a.calc, n2=28)
@@ -90,10 +80,14 @@ def test_soc_non_self_consistent():
     a = mx2('MoS2')
     a.center(vacuum=3, axis=2)
 
-    a.calc = GPAW(convergence={'bands': 14},
-                  **params)
+    a.calc = GPAW(convergence={'bands': 14}, **params)
     a.get_potential_energy()
 
     bzwfs = soc_eigenstates(a.calc, n2=14)
+    eigs = bzwfs.eigenvalues()[8]
+    check(eigs, 0.15, 0.007)
+
+    # Ignoring XC should not make a big difference:
+    bzwfs = soc_eigenstates(a.calc, n2=14, ignore_xc_potential=True)
     eigs = bzwfs.eigenvalues()[8]
     check(eigs, 0.15, 0.007)

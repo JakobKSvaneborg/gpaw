@@ -1,0 +1,59 @@
+.. _d3correction:
+
+=============
+D3 Correction
+=============
+
+The ``D3`` extension is using Stefan Grimme's DFT-D3 code. More information 
+about the theory and supported functionals can be 
+found `here <https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3>`_. 
+The D3 correction helps to capture long range effects that are not 
+present in most functionals. Because of this it becomes 
+important in systems where for example the Van der Waals force 
+plays a major role.
+
+
+Usage
+-----
+
+The D3 extension has one mandatory keyword, ``xc``, which is what exchange-correlation
+functional to use.
+
+An example of a system where the D3 correction adds a meaningful correction 
+is in the case of 2D bilayer systems because of the Van der Waals interaction 
+between the two layers.
+
+.. literalinclude:: d3_bilayer.py
+    :language: python 
+
+
+.. note::
+    D3 requires the system to either not be periodic or periodic in all three directions. 
+    If the system is only periodic in one or two directions a warning will appear and it will 
+    assume that the system is periodic in all three directions.
+
+
+Output
+------
+
+The D3 correction is accessed by calling the ``get_energy()`` method on the d3 object as in 
+the last line above. The result can also be found in the output file just after the 
+list of iterations. For the above example the relevant 
+part of the ``out.txt`` file will look as following::
+    
+    ...
+    Energy contributions relative to reference atoms: (reference = -702828.048343)
+    
+    kinetic:          71.457107
+    coulomb:         -50.449930
+    zero:             -0.629602
+    external:          0.000000
+    xc:              -44.310857
+    entropy:          -0.001037
+    spinorbit:         0.000000
+    --------extensions:---------
+    D3 (xc=PBE):      -1.446148
+    ----------------------------
+    Free energy:     -25.380467
+    Extrapolated:    -25.379948
+    ...

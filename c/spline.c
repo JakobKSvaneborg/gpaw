@@ -2,6 +2,7 @@
  *  Copyright (C) 2007-2008  CAMd
  *  Please see the accompanying LICENSE file for further information. */
 
+#include "python_utils.h"
 #include "spline.h"
 #include "assert.h"
 
@@ -80,25 +81,25 @@ static PyObject * spline_get_indices_from_zranges(SplineObject *self,
   return values;
 }
 
-static PyObject * spline_map(SplineObject *self, PyObject *args) 
+static PyObject * spline_map(SplineObject *self, PyObject *args)
 {
   PyArrayObject* r_x_obj;
   PyArrayObject* out_x_obj;
-  
+
   if (!PyArg_ParseTuple(args, "OO", &r_x_obj, &out_x_obj))
     return NULL;
 
-  const double* r_x = PyArray_DATA(r_x_obj);
-  double* out_x = PyArray_DATA(out_x_obj);
+  const double* r_x = (double*) PyArray_DATA(r_x_obj);
+  double* out_x = (double*) PyArray_DATA(out_x_obj);
 
   int rl = PyArray_SIZE(r_x_obj);
-  
+
   assert(PyArray_ITEMSIZE(out_x_obj) == 8);
 
   for (int i = 0; i < rl; i++) {
 	out_x[i] = bmgs_splinevalue(&self->spline, r_x[i]);
   }
-  
+
   Py_RETURN_NONE;
 }
 

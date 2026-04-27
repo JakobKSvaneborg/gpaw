@@ -10,11 +10,11 @@ viz.view = lambda atoms, repeat=None: None
 This tutorial describes how to use the NEB method to calculate the diffusion
 barrier for an Au atom on Al(001). If you are not familiar with the NEB
 method some relevant references are listed
-[here.](https://wiki.fysik.dtu.dk/ase/ase/neb.html)
+[here.](https://ase-lib.org/ase/neb.html)
 
 The tutorial uses the EMT potential in stead of DFT, as this is a lot faster.
 It is based on a [tutorial found on the ASE
-webpage](https://wiki.fysik.dtu.dk/ase/tutorials/neb/diffusion.html#diffusion-tutorial).
+webpage](https://ase-lib.org/tutorials/neb/diffusion.html#diffusion-tutorial).
 
 """
 
@@ -81,7 +81,7 @@ calculation.
 
 NOTE: The linear interpolation works well in this case but not for e.g.
 rotations. In this case an improved starting guess can be made with the [IDPP
-method.](https://wiki.fysik.dtu.dk/ase/tutorials/neb/idpp.html#idpp-tutorial)
+method.](https://ase-lib.org/tutorials/neb/idpp.html#idpp-tutorial)
 """
 
 # %%
@@ -100,7 +100,7 @@ for i in range(n_im):
 
 images.append(final)
 
-neb = NEB(images)
+neb = NEB(images, method='improvedtangent')
 neb.interpolate()
 view(images)
 
@@ -121,7 +121,7 @@ view(images)
 You can find the barrier by selecting Tools->NEB in the gui (unfortunately,
 the gui cannot show graphs when started from a notebook), or you can make a
 script using
-[NEBTools](https://wiki.fysik.dtu.dk/ase/ase/neb.html#ase.neb.NEBTools),
+[NEBTools](https://ase-lib.org/ase/neb.html#ase.neb.NEBTools),
 e.g.:
 """
 
@@ -163,7 +163,7 @@ Note that the NEB class now needs to be initialized by using ```NEB(images,paral
 
 # %%
 # This code is just for illustration
-from ase.parallel import world
+from gpaw.mpi import world
 n_im = 4              # Number of images
 n = world.size // n_im      # number of cpu's per image
 j = 1 + world.rank // n     # image number on this cpu
@@ -188,7 +188,7 @@ for i in range(n_im):
                     nbands='130%',
                     xc='PBE',  # student: ...,
                     txt=f'{i}.txt',
-                    communicator=ranks)
+                    communicator=world.new_communicator(ranks))
         image.calc = calc
     images.append(image)
 images.append(final)
@@ -216,10 +216,9 @@ Some suitable parameters for the NEB are given below:
 
 # %%
 # teacher:
-from gpaw import GPAW, PW
-from ase.visualize import view
-from ase.optimize import BFGS
-from ase.parallel import world
+from gpaw.dft import GPAW, PW
+from ase.optimize import FIRE
+from gpaw.mpi import world
 
 initial = read('N2Ru.traj')
 final = read('2Nads.traj')
@@ -241,17 +240,16 @@ for i in range(N):
         calc = GPAW(xc='PBE',
                     mode=PW(350),
                     nbands='130%',
-                    communicator=ranks,
+                    communicator=world.new_communicator(ranks),
                     txt=f'{i}.txt',
-                    kpts={'size': (4, 4, 1), 'gamma': True},
-                    convergence={'eigenstates': 1e-7})
+                    kpts={'size': (4, 4, 1), 'gamma': True})
         image.calc = calc
     images.append(image)
 images.append(final)
 
-neb = NEB(images, k=1.0, parallel=True)
+neb = NEB(images, k=1.0, parallel=True, method='improvedtangent')
 neb.interpolate()
-qn = BFGS(neb, logfile='neb.log', trajectory='neb.traj')
+qn = FIRE(neb, logfile='neb.log', trajectory='neb.traj')
 qn.run(fmax=0.1)
 neb.climb = True
 qn.run(fmax=0.05)
@@ -273,4 +271,4 @@ emax = max(energies)
 assert energies[2] == emax
 assert abs(emax - energies[0] - 1.32) < 0.02
 d = images[2].get_distance(-1, -2)
-assert abs(d - 1.777) < 0.004
+assert abs(d - 1.771) < 0.004

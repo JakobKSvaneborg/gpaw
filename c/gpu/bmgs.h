@@ -1,13 +1,16 @@
 #ifndef GPU_BMGS_H
 #define GPU_BMGS_H
 
+#include "gpu_utils.h"
 #include "gpu.h"
 #include "gpu-complex.h"
+
+GPAW_GPU_LINKAGE_BEGIN
 
 int bmgs_fd_boundary_test(const bmgsstencil_gpu* s, int boundary,
                           int ndouble);
 
-bmgsstencil_gpu bmgs_stencil_to_gpu(bmgsstencil *s);
+bmgsstencil_gpu bmgs_stencil_to_gpu(const bmgsstencil *s);
 
 void bmgs_fd_gpu(const bmgsstencil_gpu* s, const double* adev,
                  double* bdev, int boundary, int blocks,
@@ -32,7 +35,7 @@ void bmgs_translate_gpu(double* a, const int sizea[3], const int size[3],
                         const int start1[3], const int start2[3],
                         int blocks, gpuStream_t stream);
 
-void bmgs_restrict_gpu(int k, double* a, const int n[3], double* b,
+void bmgs_restrict_gpu(int k, const double* a, const int n[3], double* b,
                        const int nb[3], int blocks);
 
 void bmgs_restrict_stencil_gpu(int k, double* a, const int na[3],
@@ -72,7 +75,7 @@ void bmgs_translate_gpuz(gpuDoubleComplex* a, const int sizea[3],
                          const int start2[3], gpuDoubleComplex,
                          int blocks, gpuStream_t stream);
 
-void bmgs_restrict_gpuz(int k, gpuDoubleComplex* a, const int n[3],
+void bmgs_restrict_gpuz(int k, const gpuDoubleComplex* a, const int n[3],
                         gpuDoubleComplex* b, const int nb[3],
                         int blocks);
 
@@ -93,5 +96,7 @@ void bmgs_interpolate_stencil_gpuz(int k, int skip[3][2],
 void reducemap_dotuz(const gpuDoubleComplex* a_gpu,
                      const gpuDoubleComplex* b_gpu, gpuDoubleComplex* result,
                      int n, int nvec);
+
+GPAW_GPU_LINKAGE_END
 
 #endif

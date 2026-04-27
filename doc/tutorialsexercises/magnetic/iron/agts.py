@@ -7,4 +7,5 @@ def workflow():
     for r, name in zip(runs, ['ferro', 'anti', 'non']):
         run(script='../../electronic/dos/dos.py',
             args=[f'{name}.gpw'], deps=[r])
-    run(script='../../electronic/dos/pdos.py', deps=[runs[0]])
+    run(script='pdos.py', deps=[runs[0]])
+    run(script='magnetization.py', deps=[runs[1]])

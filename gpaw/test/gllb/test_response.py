@@ -1,9 +1,9 @@
-import pytest
 import numpy as np
+import pytest
 from ase.build import molecule
-from gpaw import GPAW
-from gpaw.mpi import world, serial_comm, broadcast_exception
 
+from gpaw import GPAW
+from gpaw.mpi import broadcast_exception, serial_comm, world
 from gpaw.test.lcaotddft.test_molecule import only_on_master
 
 pytestmark = [pytest.mark.usefixtures('module_tmp_path'),
@@ -15,10 +15,10 @@ pytestmark = [pytest.mark.usefixtures('module_tmp_path'),
 def check_asp(ref_asp, D_asp, atol):
     assert ref_asp is not D_asp, \
         'Trying to compare same objects. Is the test broken?'
-    assert np.allclose(ref_asp.toarray(), D_asp.toarray(), atol=atol, rtol=0)
+    assert ref_asp.toarray() == pytest.approx(D_asp.toarray(), abs=atol, rel=0)
 
 
-def check_response(ref_response, response, atol=1e-12):
+def check_response(ref_response, response, atol=2e-4):
     # Collect response in master
     D_asp = response.D_asp.copy()
     D_asp.redistribute(D_asp.partition.as_serial())

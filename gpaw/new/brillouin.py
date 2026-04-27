@@ -1,11 +1,15 @@
 """Brillouin-zone sampling."""
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
+
 import numpy as np
 from ase.dft.kpoints import monkhorst_pack
+
 from gpaw.mpi import MPIComm
-from gpaw.typing import Array1D, ArrayLike2D
 from gpaw.symmetry import reduce_kpts
+from gpaw.typing import Array1D, Array2D, ArrayLike2D
+
 if TYPE_CHECKING:
     from gpaw.new.symmetry import Symmetries
 
@@ -53,6 +57,7 @@ class BZPoints:
                                  use_time_reversal,
                                  comm,
                                  tolerance)
+        assert (weight_k > 0.0).all()
 
         if strict and -1 in bz2bz_Ks:
             raise ValueError(
@@ -60,6 +65,12 @@ class BZPoints:
 
         return IBZ(symmetries, self, ibz2bz_k, bz2ibz_K, weight_k, bz2bz_Ks,
                    sym_K, time_reversal_K)
+
+
+class BZBandPath(BZPoints):
+    def __init__(self, band_path):
+        self.band_path = band_path
+        super().__init__(band_path.kpts)
 
 
 class MonkhorstPackKPoints(BZPoints):
@@ -74,8 +85,8 @@ class MonkhorstPackKPoints(BZPoints):
     def __str__(self):
         a, b, c = self.size_c
         l, m, n = self.shift_c
-        return (f'monkhorst-pack size: [{a}, {b}, {c}]\n'
-                f'monkhorst-pack shift: [{l}, {m}, {n}]\n')
+        return (f'Monkhorst-Pack size: [{a}, {b}, {c}]\n'
+                f'Monkhorst-Pack shift: [{l}, {m}, {n}]\n')
 
 
 class IBZ:
@@ -102,36 +113,70 @@ class IBZ:
         return (f'IBZ(<points: {len(self)}, '
                 f'symmetries: {len(self.symmetries)}>)')
 
-    def __str__(self):
+    def summary(self, log, verbose=True):
         N = len(self)
-        txt = ('bz sampling:\n'
-               f'  number of bz points: {len(self.bz)}\n'
-               f'  number of ibz points: {N}\n')
+        log('BZ-sampling:\n'
+            f'  Number of BZ points: {len(self.bz)}\n'
+            f'  Number of IBZ points: {N}\n')
 
         if self.bz2bz_Ks is not None and -1 in self.bz2bz_Ks:
-            txt += '  your k-points are not as symmetric as your crystal!\n'
+            log('  Your k-points are '
+                f'{log.red}not as symmetric{log.reset} as your crystal!\n')
 
         if isinstance(self.bz, MonkhorstPackKPoints):
-            txt += '  ' + str(self.bz).replace('\n', '\n  ', 1)
+            log('  ' + str(self.bz).replace('\n', '\n  ', 1))
 
-        txt += '  points and weights: [\n'
+        if not verbose:
+            return
+
+        rows = []
         k = 0
         while k < N:
             if k == 10:
                 if N > 10:
-                    txt += '    # ...\n'
+                    rows.append(['...', '', ''])
                 k = N - 1
             a, b, c = self.kpt_kc[k]
             w = self.weight_k[k]
-            t = ',' if k < N - 1 else ']'
-            txt += (f'    [[{a:12.8f}, {b:12.8f}, {c:12.8f}], '
-                    f'{w:.8f}]{t}  # {k}\n')
+            rows.append([f'{k}',
+                         f'({a:12.8f}, {b:12.8f}, {c:12.8f})',
+                         f'{w:.8f}'])
             k += 1
-        return txt
+        log.table(
+            'K-points',
+            comment='in reciprocal-cell coordinates',
+            header=['', 'coordinates', 'weight'],
+            rows=rows)
 
-    def ranks(self, comm: MPIComm) -> Array1D:
+    def ranks(self, comm: MPIComm, nspins: int = 1) -> Array2D:
         """Distribute k-points over MPI-communicator."""
-        return ranks(comm.size, len(self))
+        return ranks(comm.size, len(self) * nspins).reshape((-1, nspins))
+
+    def _old_kd(self, nspins, kpt_comm):
+        from gpaw.old.kpt_descriptor import KPointDescriptor
+        kd = KPointDescriptor(self.bz.kpt_Kc, nspins)
+        kd.ibzk_kc = self.kpt_kc
+        kd.weight_k = self.weight_k
+        kd.sym_k = self.s_K
+        kd.time_reversal_k = self.time_reversal_K
+        kd.bz2ibz_k = self.bz2ibz_K
+        kd.ibz2bz_k = self.ibz2bz_k
+        kd.bz2bz_ks = self.bz2bz_Ks
+        kd.nibzkpts = len(self)
+        kd.symmetry = self.symmetries._old_symmetry
+        kd.set_communicator(kpt_comm)
+        rank_ks = self.ranks(kpt_comm, nspins)
+        here_k = (rank_ks == kpt_comm.rank).any(axis=1)
+        kd.ibzk_qc = self.kpt_kc[here_k]
+        kd.rank0 = 'hello'
+        kd.mynk = 'hello'
+        kd.k0 = 'hello'
+        kd.weight_q = -5555555555
+        kd.nu_r = np.zeros(kpt_comm.size, int)
+        kd.nu_r[kpt_comm.rank] = (rank_ks == kpt_comm.rank).sum()
+        kpt_comm.sum(kd.nu_r)
+        kd.rank_ks = rank_ks
+        return kd
 
 
 def ranks(N, K) -> Array1D:

@@ -1,12 +1,12 @@
-import pytest
 import numpy as np
-from gpaw.mpi import world
-from gpaw.test import findpeak
+import pytest
+
 from gpaw.response.bse import BSE
 from gpaw.response.df import read_response_function
+from gpaw.test import findpeak
 
 
-def create_bse(gpwfile, q_c=(0, 0, 0)):
+def create_bse(gpwfile, q_c=(0, 0, 0), comm=None):
     bse = BSE(gpwfile,
               q_c=q_c,
               soc_tol=0.01,
@@ -17,18 +17,20 @@ def create_bse(gpwfile, q_c=(0, 0, 0)):
               eshift=0.8,
               nbands=15,
               mode='BSE',
-              truncation='2D')
+              truncation='2D',
+              comm=comm)
     return bse
 
 
 @pytest.mark.response
-def test_response_bse_MoS2_cut(in_tmp_dir, scalapack, gpw_files):
+def test_response_bse_MoS2_cut(in_tmp_dir, scalapack, gpw_files, mpi):
+    comm = mpi.comm
     gpwfile = gpw_files['mos2_5x5_pw']
-    bse = create_bse(gpwfile)
+    bse = create_bse(gpwfile, comm=comm)
 
     outw_w, outalpha_w = bse.get_polarizability(eta=0.02,
                                                 w_w=np.linspace(0., 5., 5001))
-    world.barrier()
+    comm.barrier()
     w_w, alphareal_w, alphaimag_w = read_response_function('pol_bse.csv')
 
     # Check consistency with written results
@@ -50,10 +52,10 @@ def test_response_bse_MoS2_cut(in_tmp_dir, scalapack, gpw_files):
     # for q=0.
     #################################################################
 
-    bse = create_bse(gpwfile)
+    bse = create_bse(gpwfile, comm=comm)
     outw_w, eels = bse.get_eels_spectrum(w_w=w_w)
 
-    bse = create_bse(gpwfile)
+    bse = create_bse(gpwfile, comm=comm)
     factor = bse.gs.cd.nonperiodic_hypervolume / (4 * np.pi)
     outw_w, pol = bse.get_polarizability(w_w=w_w)
     assert np.allclose(pol.imag / factor, eels)
@@ -62,9 +64,9 @@ def test_response_bse_MoS2_cut(in_tmp_dir, scalapack, gpw_files):
     # Absorption and EELS spectra for 2D materials should NOT be identical
     # for finite q.
     #####################################################################
-    bse = create_bse(gpwfile, q_c=[0.2, 0.2, 0.0])
+    bse = create_bse(gpwfile, q_c=[0.2, 0.2, 0.0], comm=comm)
     outw_w, eels = bse.get_eels_spectrum(w_w=w_w)
-    bse = create_bse(gpwfile, q_c=[0.2, 0.2, 0.0])
+    bse = create_bse(gpwfile, q_c=[0.2, 0.2, 0.0], comm=comm)
     outw_w, pol = bse.get_polarizability(w_w)
 
     assert not np.allclose(pol.imag / factor, eels)

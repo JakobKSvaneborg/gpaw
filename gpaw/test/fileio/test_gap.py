@@ -1,7 +1,7 @@
 import pytest
 
 
-def test_gap_in_txt(gpw_files, needs_ase_master):
+def test_gap_in_txt(gpw_files):
     gpw = gpw_files['h2_pw']
     txt = gpw.with_suffix('.txt')
     for line in txt.read_text().splitlines():

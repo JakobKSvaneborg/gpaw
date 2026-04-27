@@ -16,7 +16,7 @@ The local orbitals are obtained from a sub-diagonalization of the LCAO Hamiltoni
 A sub-diagonalization is essentially a rotation that brings the
 Hamiltonian in a form where some blocks are diagonal matrices.
 Each block should include all Atomic Orbitals of a given atom.
-This tranformation can be performed with the ``subdiagonalization`` method::
+This transformation can be performed with the ``subdiagonalization`` method::
 
   los.subdiagonalize(symbols: Array1D = None, blocks: list[list] = None, groupby: str = 'energy')
 
@@ -52,7 +52,7 @@ Next, we construct a low-energy model from a subset of LOs and/or AOs::
 
 ``indices``: Orbitals to include in the low-energy model, optional
   Explicitely lists the orbital indices in the sub-diagonalized Hamiltonian.
-  When left unspecified, the method will automacally select the orbitals in
+  When left unspecified, the method will automatically select the orbitals in
   each ``block`` with the energy closest to the Fermi level. We call this
   ``minimal`` model.
 
@@ -91,7 +91,7 @@ eigenvalues of the low-energy model with the full LCAO calculation as horizontal
     :alt: extended
     :width: 300
 
-Isourfaces of local orbitals with *pz*-character.
+Isosurfaces of local orbitals with *pz*-character.
 
 .. image:: C6H6_pzLOs.png
   :alt: extended

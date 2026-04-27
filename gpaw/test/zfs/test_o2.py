@@ -1,16 +1,16 @@
 from types import SimpleNamespace
 
-import pytest
 import numpy as np
+import pytest
 from ase.units import Bohr as bohr
 
 from gpaw import GPAW
 from gpaw.utilities.ps2ae import PS2AE
-from gpaw.zero_field_splitting import WaveFunctions, zfs1, zfs
+from gpaw.zero_field_splitting import WaveFunctions, zfs, zfs1
 
 
 def test_zfs_o2(gpw_files):
-    calc = GPAW(gpw_files['o2_pw'])
+    calc = GPAW(gpw_files['o2_pw'], parallel={'kpt': 1})
     D1 = zfs(calc) * 1e6  # ueV
     print(D1)
     assert D1 == pytest.approx(np.diag([117, -59, -59]), abs=1)

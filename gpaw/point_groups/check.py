@@ -1,6 +1,9 @@
 """Symmetry checking code."""
+from __future__ import annotations
+
 import sys
-from typing import Any, Dict, List, Sequence, Union
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Union
 
 import numpy as np
 from ase import Atoms
@@ -9,14 +12,14 @@ from scipy.ndimage import map_coordinates
 
 from gpaw.typing import Array1D, Array2D, Array3D, ArrayLike
 
-from . import PointGroup
-
-Axis = Union[str, Sequence[float], Array1D, None]
+if TYPE_CHECKING:
+    Axis = Union[str, Sequence[float], Array1D, None]
+    from . import PointGroup
 
 
 class SymmetryChecker:
     def __init__(self,
-                 group: Union[str, PointGroup],
+                 group: str | PointGroup,
                  center: ArrayLike,
                  radius: float = 2.0,
                  x: Axis = None,
@@ -29,6 +32,7 @@ class SymmetryChecker:
         *x*, *y*, *z* can be specified.
         """
         if isinstance(group, str):
+            from . import PointGroup
             group = PointGroup(group)
         self.group = group
         self.normalized_table = group.get_normalized_table()
@@ -58,14 +62,14 @@ class SymmetryChecker:
 
     def check_function(self,
                        function: Array3D,
-                       grid_vectors: Array2D = None) -> Dict[str, Any]:
+                       grid_vectors: Array2D = None) -> dict[str, Any]:
         """Check function on uniform grid."""
         if grid_vectors is None:
             grid_vectors = np.eye(3)
         dv = abs(det(grid_vectors))
         norm1 = (function**2).sum() * dv
         M = inv(grid_vectors).T
-        overlaps: List[float] = []
+        overlaps: list[float] = []
         for op in self.group.operations.values():
             op = self.rotation.T @ op @ self.rotation
             pts = (self.points @ op.T + self.center) @ M.T
@@ -95,7 +99,7 @@ class SymmetryChecker:
     def check_band(self,
                    calc,
                    band: int,
-                   spin: int = 0) -> Dict[str, Any]:
+                   spin: int = 0) -> dict[str, Any]:
         """Check wave function from GPAW calculation."""
         wfs = calc.get_pseudo_wave_function(band, spin=spin)
         grid_vectors = (calc.atoms.cell.T / wfs.shape).T
@@ -167,7 +171,7 @@ def rotation_matrix(axes: Sequence[Axis]) -> Array3D:
     return np.array(axes)
 
 
-def normalize(vector: Union[str, Sequence[float], Array1D]) -> Array1D:
+def normalize(vector: str | Sequence[float] | Array1D) -> Array1D:
     """Normalize a vector.
 
     The *vector* must be a sequence of three numbers or one of the following

@@ -1,23 +1,10 @@
 import numpy as np
-
-from ase.optimize import BFGS
 from ase import Atoms
-from ase.data.vdw import vdw_radii
-
-from gpaw import restart
+from ase.optimize import BFGS
+from gpaw import FermiDirac, restart
+from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
+                            LinearDielectric, SurfaceInteraction)
 from gpaw.solvation.sjm import SJM, SJMPower12Potential
-from gpaw import FermiDirac
-from gpaw.solvation import (
-    EffectivePotentialCavity,
-    LinearDielectric,
-    GradientSurface,
-    SurfaceInteraction
-)
-
-
-def atomic_radii(atoms):
-    return [vdw_radii[n] for n in atoms.numbers]
-
 
 # Solvent parameters
 u0 = 0.180  # eV
@@ -53,21 +40,28 @@ sj = {'target_potential': 4.5,
       'jelliumregion': {'top': 14.},
       'tol': 0.005}
 
-calc = SJM(mode='fd',
-           sj=sj,
-           gpts=(48, 32, 88),
-           kpts=(2, 2, 1),
-           xc='PBE',
-           occupations=FermiDirac(0.1),
-           cavity=EffectivePotentialCavity(
-               effective_potential=SJMPower12Potential(atomic_radii, u0,
-                                                       H2O_layer=True),
-               temperature=T,
-               surface_calculator=GradientSurface()),
-           dielectric=LinearDielectric(epsinf=epsinf),
-           interactions=[SurfaceInteraction(surface_tension=gamma)],
-           txt='sjm.txt',
-           convergence={'energy': 0.000005})
+solvation = dict(
+    cavity=EffectivePotentialCavity(
+        effective_potential=SJMPower12Potential(u0=u0,
+                                                H2O_layer=True),
+        temperature=T,
+        surface_calculator=GradientSurface()),
+    dielectric=LinearDielectric(epsinf=epsinf),
+    interactions=[SurfaceInteraction(surface_tension=gamma)])
+
+params = dict(
+    mode='fd',
+    gpts=(48, 32, 88),
+    kpts=(2, 2, 1),
+    xc='PBE',
+    occupations=FermiDirac(0.1),
+    txt='sjm.txt',
+    convergence={'energy': 0.000005})
+
+calc = SJM(
+    **params,
+    sj=sj,
+    **solvation)
 
 atoms.calc = calc
 E = []

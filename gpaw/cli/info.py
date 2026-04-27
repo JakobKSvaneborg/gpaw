@@ -1,22 +1,68 @@
+from __future__ import annotations
+
 import os
 import sys
+from textwrap import fill
+from typing import Literal
 
 from ase.utils import import_module, search_current_git_hash
 
-import gpaw.cgpaw as cgpaw
 import gpaw
+import gpaw.cgpaw as cgpaw
 import gpaw.fftw as fftw
-from gpaw.mpi import have_mpi, rank
-from gpaw.new.c import GPU_AWARE_MPI, GPU_ENABLED
+from gpaw.gpu import __file__ as gpaw_gpu_filename
+from gpaw.gpu import cupy, cupy_is_fake
+from gpaw.mpi import normalize_communicator
+from gpaw.new.c import GPU_AWARE_MPI, GPU_ENABLED, GPAW_IS_CPP
 from gpaw.utilities import compiled_with_libvdwxc, compiled_with_sl
 from gpaw.utilities.elpa import LibElpa
-from gpaw.gpu import cupy
+
+Color = Literal['r', 'g', 'b', 'c', 'm', 'y', 'k', 'w', 'none']
+
+# Background: +10
+COLORS: dict[Color, int] = {'r': 31, 'g': 32, 'b': 34,
+                            'c': 36, 'm': 35, 'y': 33,
+                            'k': 30, 'w': 37,
+                            'none': 39}
 
 
-def info():
+def highlight(text: str,
+              foreground: Color = 'none',
+              background: Color = 'none',
+              *,
+              bright: bool = True) -> str:
+    sgr = '\x1b[{}m'.format
+    colors = [COLORS[background] + 10,
+              COLORS[foreground],
+              COLORS['none'],
+              COLORS['none'] + 10]
+    if bright:
+        colors[0] += 60
+        colors[1] += 60
+    color_codes = [sgr(c) for c in colors]
+    return '{1[0]}{1[1]}{0}{1[2]}{1[3]}'.format(text, color_codes)
+
+
+def warn(text: str,
+         foreground: Color = 'w',
+         background: Color = 'r',
+         *,
+         width: int | None = None,
+         **kwargs) -> str:
+    pad = ' ' * ((width or 0) - len(text))
+    return highlight(text,
+                     foreground=foreground,
+                     background=background,
+                     **kwargs) + pad
+
+
+def info(comm=None) -> None:
     """Show versions of GPAW and its dependencies."""
-    results = [('python-' + sys.version.split()[0], sys.executable)]
-    for name in ['gpaw', 'ase', 'numpy', 'scipy']:
+    comm = normalize_communicator(comm)
+    results: list[tuple[str, str | bool]] = [
+        ('python-' + sys.version.split()[0], sys.executable)]
+    warnings = {}
+    for name in ['gpaw', 'ase', 'numpy', 'scipy', 'gpaw_data']:
         try:
             module = import_module(name)
         except ImportError:
@@ -28,8 +74,9 @@ def info():
                 githash = ''
             else:
                 githash = f'-{githash:.10}'
-            results.append((name + '-' + module.__version__ + githash,
-                            module.__file__.rsplit('/', 1)[0] + '/'))
+            results.append(
+                (name + '-' + module.__version__ + githash,
+                 module.__file__.rsplit('/', 1)[0] + '/'))  # type: ignore
 
     libs = gpaw.get_libraries()
 
@@ -38,6 +85,10 @@ def info():
         results.append((f'libxc-{libxc}', True))
     else:
         results.append(('libxc', False))
+        warnings['libxc'] = ('GPAW not compiled with LibXC support; '
+                             'though not a requirement, '
+                             'it is recommended that LibXC be installed and '
+                             'GPAW be recompiled with support therefor')
 
     if hasattr(cgpaw, 'githash'):
         githash = f'-{cgpaw.githash():.10}'
@@ -45,14 +96,34 @@ def info():
         githash = ''
 
     results.append(('_gpaw' + githash,
-                    os.path.normpath(getattr(cgpaw._gpaw, '__file__',
-                                             'built-in'))))
+                    os.path.normpath(cgpaw.get_extension_module_path())))
 
+    have_mpi = hasattr(cgpaw, 'Communicator')
     results.append(('MPI enabled', have_mpi))
     results.append(('OpenMP enabled', cgpaw.have_openmp))
+    results.append(('Compiled as C++', GPAW_IS_CPP))
+    if not GPAW_IS_CPP:
+        warnings['C++ required'] = (
+            'Next version of GPAW will start requiring a C++ compiler. '
+            'Please modify your siteconfig.py and set `compiler` to a valid '
+            'C++ compiler. For example, change `gcc` to `g++`, or `mpicc` to '
+            '`mpicxx`, or `cc` to `CC`')
     results.append(('GPU enabled', GPU_ENABLED))
     results.append(('GPU-aware MPI', GPU_AWARE_MPI))
-    results.append(('cupy-' + cupy.__version__, cupy.__file__))
+    cupy_version = 'cupy-' + cupy.__version__
+    results.append((cupy_version, cupy.__file__))
+    if cupy_is_fake and (GPU_ENABLED or GPU_AWARE_MPI):
+        warnings[cupy_version] = ('GPAW compiled with GPU support, '
+                                  'but the requisite CuPy is not found or '
+                                  'cannot be set up (see gpaw.gpu at '
+                                  f'{gpaw_gpu_filename!r}); '
+                                  'GPU calculations will fail, '
+                                  'unless the user explicitly set the '
+                                  'environment variable GPAW_CPUPY=1, '
+                                  'which uses GPAW\'s fake CuPy '
+                                  '(gpaw.gpu.cpupy) for testing purposes')
+    from gpaw.cgpaw.gpu import magma
+    results.append(('MAGMA', magma.is_available()))
     if have_mpi:
         have_sl = compiled_with_sl()
         have_elpa = LibElpa.have_elpa()
@@ -66,6 +137,10 @@ def info():
 
     if not hasattr(cgpaw, 'mmm'):
         results.append(('BLAS', 'using scipy.linalg.blas and numpy.dot()'))
+        warnings['BLAS'] = ('GPAW not compiled with native BLAS support; '
+                            'though not a requirement, '
+                            'it is recommended that BLAS be installed and '
+                            'GPAW be recompiled with support therefor')
 
     results.append(('scalapack', have_sl))
     results.append(('Elpa', have_elpa))
@@ -73,20 +148,47 @@ def info():
     have_fftw = fftw.have_fftw()
     results.append(('FFTW', have_fftw))
     results.append(('libvdwxc', compiled_with_libvdwxc()))
+
     for i, path in enumerate(gpaw.setup_paths):
         results.append((f'PAW-datasets ({i + 1})', str(path)))
 
-    if rank != 0:
+    # XXX Why are we not appending to result below, but made this
+    # function parallel half way
+    if comm.rank != 0:
         return
 
     lines = [(a, b if isinstance(b, str) else ['no', 'yes'][b])
              for a, b in results]
     n1 = max(len(a) for a, _ in lines)
     n2 = max(len(b) for _, b in lines)
-    print(' ' + '-' * (n1 + 4 + n2))
+    output_width = n1 + 1 + n2
+    box_edge = '-' * output_width
+    print(box_edge)
     for a, b in lines:
-        print(f'| {a:{n1}}  {b:{n2}} |')
-    print(' ' + '-' * (n1 + 4 + n2))
+        if a in warnings:
+            a, b = warn(a, width=n1), warn(b, width=n2)
+        else:
+            a, b = f'{a:{n1}}', f'{b:{n2}}'
+        print(f'{a} {b}')
+    print(box_edge)
+
+    if not warnings:
+        return
+    warning_header = 'WARNING ({}):'.format
+    header_width = max(len(warning_header(item)) for item in warnings) + 1
+    for item, message in warnings.items():
+        topic = f'WARNING ({item}):'
+        message = fill(message,
+                       initial_indent=' ' * header_width,
+                       subsequent_indent=' ' * header_width,
+                       width=output_width)
+        print(warn(topic,
+                   foreground='y',
+                   background='k',
+                   bright=False,
+                   width=header_width),
+              message[header_width:],
+              sep='')
 
 
 class CLICommand:

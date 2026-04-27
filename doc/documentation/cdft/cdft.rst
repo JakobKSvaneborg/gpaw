@@ -91,7 +91,7 @@ Scipy optimization routines. As it is easy to compute the gradient of the
 energy wrt `V_c`, gradient based optimizers are recommended. The best
 performing optimizer seems to be the :literal:`L-BFGS-B`. The accuracy of the
 optimization is controlled mainly by the
-:literal:`minimizer_options={'gtol':0.01})` parameter which measurest the
+:literal:`minimizer_options={'gtol':0.01})` parameter which measures the
 error between the set and computed charge/spin value. A typical
 :literal:`gtol` value is around 0.01-0.1.
 
@@ -114,7 +114,7 @@ usually very difficult.
 Tips for converging cDFT calculations
 -------------------------------------
 
-Unfortunaly, the cDFT sometimes exhibits poor convergence.
+Unfortunately, the cDFT sometimes exhibits poor convergence.
 
 1. Choose a meaningful constraints and regions
 
@@ -179,7 +179,7 @@ has been added. For the tested cases both give equally good values for the
 coupling constant. Hence, it is recommended to use the pseudo wave functions
 which is set by :literal:`AE=False`.
 
-The quantities needed for computing the coupling constants can be parallellized
+The quantities needed for computing the coupling constants can be parallelized
 only over the grid.
 
 

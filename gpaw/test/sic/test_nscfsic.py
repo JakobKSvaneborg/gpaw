@@ -3,14 +3,11 @@ import pytest
 from ase import Atoms
 
 from gpaw import GPAW
-from gpaw.mpi import world
 from gpaw.utilities.sic import NSCFSIC
 
-pytestmark = pytest.mark.skipif(world.size > 1,
-                                reason='world.size > 1')
 
-
-@pytest.mark.old_gpaw_only
+@pytest.mark.sic
+@pytest.mark.serial
 def test_sic_nscfsic(in_tmp_dir):
     atoms = ['He', 'Be']  # ,'Ne'] # Ne deviates already 2.5 eV
     EE = []
@@ -26,7 +23,7 @@ def test_sic_nscfsic(in_tmp_dir):
         EE.append(NSCFSIC(calc, rng=rng).calculate())
 
     print("Difference to table VI of Phys. Rev. B 23, 5048 in eV")
-    # https://journals.aps.org/prb/abstract/10.1103/PhysRevB.23.5048
+    # https://doi.org/10.1103/PhysRevB.23.5048
     print("%10s%10s%10s%10s" % ("atom", "ref.", "gpaw", "diff"))
     for a, er, e in zip(atoms, EREF, EE):
         print("%10s%10.2f%10.2f%10.2f" % (a, er, e, er - e))

@@ -1,39 +1,22 @@
+import numpy as np
 import pytest
 
-from gpaw import GPAW, PW, restart
-from gpaw.mom import prepare_mom_calculation
+from gpaw import GPAW, restart
 from gpaw.directmin.tools import excite
-from ase import Atoms
-import numpy as np
+from gpaw.mom import prepare_mom_calculation
 
 
-# @pytest.mark.new_gpaw_ready
 @pytest.mark.do
-def test_mom_directopt_pw(in_tmp_dir, gpaw_new):
-    # Water molecule:
-    d = 0.9575
-    t = np.pi / 180 * 104.51
-    atoms = Atoms('OH2',
-                  positions=[(0, 0, 0),
-                             (d, 0, 0),
-                             (d * np.cos(t), d * np.sin(t), 0)])
-    atoms.center(vacuum=4.0)
-
-    calc = GPAW(mode=PW(300),
-                spinpol=True,
-                symmetry='off',
-                eigensolver={'name': 'etdm-fdpw', 'converge_unocc': True},
-                mixer={'backend': 'no-mixing'},
-                occupations={'name': 'fixed-uniform'},
-                convergence={'eigenstates': 1e-4},
-                txt=None)
+def test_mom_directopt_pw(in_tmp_dir, gpw_files):
+    gpaw_new = False
+    calc = GPAW(gpw_files['h2o_mom_do_pw'], legacy_gpaw=True)
+    atoms = calc.atoms
     atoms.calc = calc
-    atoms.get_potential_energy()
     calc.write('h2o.gpw', mode='all')
 
     for canonical in [True, False]:
         # Mixed-spin excited state calculation
-        atoms, calc = restart('h2o.gpw', txt='-')
+        atoms, calc = restart('h2o.gpw', txt='-', legacy_gpaw=True)
         mom_after_canonical = False  # Test MOM after canonical only
         if mom_after_canonical:
             momevery = np.inf

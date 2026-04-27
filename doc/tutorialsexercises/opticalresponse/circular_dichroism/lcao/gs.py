@@ -19,7 +19,8 @@ calc = GPAW(mode='lcao',
                 'moment_corrections': 1 + 3 + 5},
             convergence={'density': 1e-12},
             txt='gs.out',
-            symmetry={'point_group': False})
+            symmetry={'point_group': False},
+            legacy_gpaw=True)
 atoms.calc = calc
 atoms.get_potential_energy()
 calc.write('gs.gpw', mode='all')

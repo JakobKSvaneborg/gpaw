@@ -9,9 +9,10 @@ Based on
 """
 
 
-import numpy as np
-from scipy.special import erfc, comb, factorial2
 from math import factorial
+
+import numpy as np
+from scipy.special import comb, erfc, factorial2
 
 
 def safeerfc(x):

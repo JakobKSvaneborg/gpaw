@@ -42,7 +42,7 @@ human-readable information to log files (which is highly desirable).
 On a somewhat deeper level, we could formalize the tree hierarchy
 between the major GPAW objects and define a mandatory interface for all
 major objects to implement (read/write, memory estimate,
-initialize/set_positions/allocate -- these procesure *all* involve
+initialize/set_positions/allocate -- these procedures *all* involve
 traversing the same tree hierarchy).  This might make it easier for new
 programmers to learn the structure of GPAW (a well-known problem).
 
@@ -54,7 +54,7 @@ Example of what an object could look like:
 The PAW calculator object
 =========================
 
-The following base class (rough sketch) should propably be moved to
+The following base class (rough sketch) should probably be moved to
 ASE, so that all ASE-calculators can use it:
 
 .. literalinclude:: ase.py
@@ -225,5 +225,5 @@ Directory
 A bit like an extracted tarfile.  Different cpu's could write
 different states.  When the writing is done, one can tar the directory
 to get a standard gpw file.  The tarfile format would have to be
-modifyed so that one can read pseudo wave functions from several
+modified so that one can read pseudo wave functions from several
 files.

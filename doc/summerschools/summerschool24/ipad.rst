@@ -16,7 +16,7 @@ users need to generate a new key).  Open a browser, go to https://www.student.dt
 the end of the URL and press enter.  You will now have to enter your
 user name and password.  Click on the provided link (saving it will
 not help, you need to use cut-and-paste).  Once the key is displayed
-(a lot of randomish letters betwen a header and a footer line) select
+(a lot of randomish letters between a header and a footer line) select
 it all including header and footer, and copy it.
 
 Then start Termius, in the left menu click *Keychain*.  Choose the
@@ -48,7 +48,7 @@ You now need to set up port forwarding.  Make a note of the computer name and ho
 * Click on Port Forwarding.  Then click on the Plus or the New Rule button
 * Select type "local" and click on Continue 
 * Set local port to the port number you noted (e.g. 40042, it will be
-  different for you).  Lleave the other field blank.  Press Continue
+  different for you).  Leave the other field blank.  Press Continue
 * Select a host.  Choose the same setup that you made when you logged in.
 * Destination address is the host name you noted, i.e. n-62-27-19 (it will be different for you!)
 * Destination port is the port number you noted, i.e. 40042 (it will also be different for you)

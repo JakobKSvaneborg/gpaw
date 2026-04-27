@@ -18,7 +18,7 @@ Below, there will be Python code examples starting with ``>>>`` (and
 Python interpreter and try some of the examples below.
 
 .. _Python: https://www.python.org
-.. _Atomic Simulation Environment: https://wiki.fysik.dtu.dk/ase
+.. _Atomic Simulation Environment: https://ase-lib.org
 
 The units used by the GPAW calculator correspond to the :mod:`ASE
 conventions <ase.units>`, most importantly electron volts and
@@ -45,16 +45,21 @@ In Python code, it looks like this:
 .. literalinclude:: h2.py
     :start-after: creates
 
-If the above code was executed, a calculation for a single `\rm{H}_2`
-molecule would be started.  The calculation would be done using a
-supercell of size `6.0 \times 6.0 \times 6.0` Å with cluster
-boundary conditions.  The parameters for the PAW calculation are:
+If the above code was executed, a plane-wave (``pw``) calculation
+for a single :mol:`H_2` molecule would be started.
+The calculation would be done using a cell of size
+`6.0 \times 6.0 \times 6.0` Å with open boundary conditions.
 
-* 2 electronic bands.
+.. note::
+   For plane-waves mode GPAW will always use periodic boundary conditions.
+
+The other (default) parameters for the PAW calculation are:
+
+* Plane-wave cutoff ``ecut`` 340 eV.
+* ``nbands`` 2 electronic bands.
 * Local density approximation (LDA)\ [#LDA]_ for the
-  exchange-correlation functional.
+  exchange-correlation functional ``xc``.
 * Spin-paired calculation.
-* `32 \times 32 \times 32` grid points.
 
 The values of these parameters can be found in the text output file:
 :download:`h2.txt`.
@@ -65,13 +70,13 @@ like this:
 
 >>> calc = GPAW(mode='fd',
 ...             nbands=1,
-...             xc='PBE',
-...             gpts=(24, 24, 24))
+...             xc='PBE')
 
-Here, we want to use one electronic band, the Perdew, Burke, Ernzerhof
-(PBE)\ [#PBE]_ exchange-correlation functional and 24 grid points in
-each direction.
+Here, we want to use finite difference (``fd``) mode,
+one electronic band and the Perdew, Burke, Ernzerhof
+(PBE)\ [#PBE]_ exchange-correlation functional.
 
+.. _parameters:
 
 ----------
 Parameters
@@ -106,8 +111,8 @@ given in the following sections.
       -
       - :ref:`manual_convergence`
     * - ``eigensolver``
-      - ``str``
-      - ``'dav'``
+      - ``str`` or ``dict``
+      - ``'ppcg'``
       - :ref:`manual_eigensolver`
     * - ``external``
       - Object
@@ -134,9 +139,9 @@ given in the following sections.
       - ``333``
       - :ref:`manual_maxiter`
     * - ``mixer``
-      - Object
+      - Object or ``dict``
       -
-      - Pulay :ref:`manual_mixer` scheme
+      - :ref:`manual_mixer` scheme
     * - ``mode``
       - ``str`` or ``dict``
       -
@@ -183,6 +188,10 @@ given in the following sections.
       - ``str``
       - ``'LDA'``
       - :ref:`manual_xc`
+    * - ``extensions``
+      - ``list[ExtensionInput]``
+      - ``[]``
+      - :ref:`extensions`
 
 
 *seq*: A sequence of three ``int``'s.
@@ -420,7 +429,7 @@ in chemistry corresponds to ``'LDA_X+LDA_C_VWN'``.
 
 XC functionals can also be specified as dictionaries. This is useful for
 functionals that depend on one or more parameters. For example, to use a
-stencil with two nearest neighbours for the density-gradient with the PBE
+stencil with two nearest neighbors for the density-gradient with the PBE
 functional, use ``xc={'name': 'PBE', 'stencil': 2}``. The ``stencil``
 keyword applies to any GGA or MGGA. Some functionals may take other
 parameters; see their respective documentation pages.
@@ -708,8 +717,9 @@ to their default values.
 E.g., ``convergence={'energy': 0.0001}`` will set the convergence criterion
 of energy to 0.1 meV and place all other criteria at their defaults.
 
-Additional keywords, including ``'forces'``, ``'work function'``,
-and ``'minimum iterations'``, can be set.
+Additional keywords, including ``'eigenvalues'``, ``'forces'``,
+``'work function'``, and ``'minimum iterations'``, can be set.
+Among these ``'eigenvalues'`` is only implemented in :ref:`newgpaw`.
 You can also write your own criteria, and change other things about
 how the default criteria operate. See :ref:`custom_convergence` for
 details on additional keywords and customization.
@@ -720,7 +730,7 @@ criteria.  However, with the ``'bands'`` set to ``'all'``, it is
 possible to force convergence also for the unoccupied states.  One can
 also use ``{'bands': 200}`` to converge the lowest 200 bands. One can
 also write ``{'bands': -10}`` to converge all bands except the last
-10. It is often hard to converge the last few bands in a calculation.
+10.  It is often hard to converge the last few bands in a calculation.
 Finally, one can also use ``{'bands': 'CBM+5.0'}`` to specify that bands
 up to the conduction band minimum plus 5.0 eV should be converged
 (for a metal, CBM is taken as the Fermi level).
@@ -753,29 +763,33 @@ and used for output.  Use ``txt=None`` to disable all text output.
 Density mixing
 --------------
 
-Three parameters determine how GPAW does Pulay mixing of the
-densities:
+The mixer can be specified as a dict, e.g.::
 
-* ``beta``: linear mixing coefficient
-* ``nmaxold``: number of old densities to mix
+    mixer={'backend': 'pulay'}
+
+which happenns to be the default option. A powerful alternative is the
+msr1 mixer::
+
+    mixer={'backend': 'msr1', 'beta': 0.04, 'nmaxold': 8}
+
+The parameters which determine how GPAW does mixing of the densities are:
+
+* ``method``: the spin mixing method to use. Options are ``fullspin``,
+  ``difference``, ``sum``, and ``separate``. Default is ``fullspin``.
+* ``backend``: the mixing algorithm to use. Options are ``pulay``,
+  ``msr1``,  ``broyden`` (not recommended), ``fft`` (not recommended),
+  and ``no-mixing`` (not for scf-calculations). Default: ``pulay``.
+* ``beta``: linear mixing coefficient. Default: ``0.08`` for periodic
+  systems and ``0.25`` for non-periodic systems.
+* ``nmaxold``: number of old densities to mix, default is ``16``.
 * ``weight``: when measuring the change from input to output density,
   long wavelength changes are weighted ``weight`` times higher than
-  short wavelength changes
+  short wavelength changes. Default is ``70`` for periodic systems and
+  ``1`` for non-periodic systems.
 
-For small molecules, the best choice is to use
-``mixer=Mixer(beta=0.25, nmaxold=3, weight=1.0)``, which is what GPAW
-will choose if the system has zero-boundary conditions.
-
-If your system is a big molecule or a cluster, it is an advantage to
-use something like ``mixer=Mixer(beta=0.05, nmaxold=5, weight=50.0)``,
-which is also what GPAW will choose if the system has periodic
-boundary conditions in one or more directions.
-
-In spin-polarized calculations ``MixerDif`` will be used instead of
-``Mixer``.
-
-See also the documentation on :ref:`density mixing <densitymix>`.
-
+The mixer can also be specified as an object, with the ``beta``,
+``nmaxold``, and ``weight`` keyword arguments. See also the documentation
+on :ref:`density mixing <densitymix>`.
 
 .. _manual_fixdensity:
 
@@ -887,7 +901,7 @@ the ``Atoms`` object.
 
 .. note::
 
-    If you want to use only the ``sz`` basis functinons from a ``dzp``
+    If you want to use only the ``sz`` basis functions from a ``dzp``
     basis set, then you can use this syntax: ``basis='sz(dzp)'``.
     This will read the basis functions for, say hydrogen, from the
     ``H.dzp.basis`` file.  If the basis has a custom name,
@@ -909,25 +923,25 @@ Eigensolver
 -----------
 
 The default solver for iterative diagonalization of the Kohn-Sham
-Hamiltonian is a simple Davidson method, (``eigensolver='dav'``), which
+Hamiltonian is the PPCG method, (``eigensolver='ppcg'``), which
 seems to perform well in most cases. Sometimes more efficient/stable
 convergence can be obtained with a different eigensolver. One option is the
 RMM-DIIS (Residual minimization method - direct inversion in iterative
-subspace), (``eigensolver='rmm-diis'``), which performs well when only a few
-unoccupied states are calculated. Another option is the conjugate gradient
-method (``eigensolver='cg'``), which is stable but slower.
+subspace), (``eigensolver='rmm-diis'``). This eigensolver is particularly
+useful if only a few unoccupied states are calculated.
 
-If parallellization over bands is necessary, then Davidson or RMM-DIIS must
-be used.
+More control can be obtained by specifying parameters in a dict::
 
-More control can be obtained by using directly the eigensolver objects::
+  calc = GPAW(...,
+              eigensolver={
+                  'name': 'rmm-diis',
+                  'diis-steps': 3,
+                  'niter': 2},
+              ...)
 
-  from gpaw.eigensolvers import CG
-  calc = GPAW(..., eigensolver=CG(niter=5, rtol=0.20), ...)
-
-Here, ``niter`` specifies the maximum number of conjugate gradient iterations
-for each band (within a single SCF step), and if the relative change
-in residual is less than ``rtol``, the iteration for the band is not continued.
+Here, ``niter`` specifies the maximum number of eigensolver iterations
+(within a single SCF step), and ``diis-steps`` the number of diis steps per
+eigensolver iteration.
 
 LCAO mode has its own eigensolvers. ``DirectLCAO`` eigensolver directly
 diagonalizes the Hamiltonian matrix instead of using an iterative method.
@@ -1038,7 +1052,7 @@ where the default value is also ``n=3``.
 
 In PW-mode, the interpolation of the density from the coarse grid to the
 fine grid is done with FFT's.  In FD and LCAO mode, tri-quintic interpolation
-is used (5. degree polynomium)::
+is used (5. degree polynomial)::
 
     from gpaw import GPAW, FD
     calc = GPAW(mode=FD(interpolation=n))
@@ -1046,7 +1060,7 @@ is used (5. degree polynomium)::
     from gpaw import GPAW, LCAO
     calc = GPAW(mode=LCAO(interpolation=n))
 
-The order of polynomium is `2n-1`, default value is ``n=3`` and ``n`` must be
+The order of polynomial is `2n-1`, default value is ``n=3`` and ``n`` must be
 between 1 and 4 (linear, cubic, quintic, heptic).
 
 
@@ -1056,7 +1070,7 @@ Using Hund's rule for guessing initial magnetic moments
 -------------------------------------------------------
 
 With ``hund=True``, the calculation will become spinpolarized, and the initial
-ocupations, and magnetic moments of all atoms will be set to the values
+occupations, and magnetic moments of all atoms will be set to the values
 required by Hund's rule.  You may further wish to specify that the
 total magnetic moment be fixed, by passing e.g. ``occupations={'name': ...,
 'fixmagmom': True}``. Any user specified magnetic moment is ignored. Default
@@ -1083,7 +1097,7 @@ Output verbosity
 
 By default, only a limited number of information is printed out for each SCF
 step. It is possible to obtain more information (e.g. for investigating
-convergen problems in more detail) by ``verbose=1`` keyword.
+convergence problems in more detail) by ``verbose=1`` keyword.
 
 
 .. _manual_communicator:
@@ -1168,7 +1182,7 @@ More details can be found on the :ref:`restart_files` page.
 
 
 ---------------------------------------
-Customizing behaviour through observers
+Customizing behavior through observers
 ---------------------------------------
 
 An *observer* function can be *attached* to the calculator so that it
@@ -1192,16 +1206,23 @@ example saves a differently named restart file every 5 iterations::
 See also :meth:`~gpaw.calculator.GPAW.attach`.
 
 
+.. _debug mode:
+
+----------
+Debug mode
+----------
+
+.. envvar:: GPAW_DEBUG
+
+   Run GPAW in debug-mode, e.g. check consistency of arrays passed
+   to C-extensions.
+
+
 .. _command line options:
 
 --------------------
 Command-line options
 --------------------
-
-I order to run GPAW in debug-mode, e.g. check consistency of arrays passed
-to C-extensions, use Python's :option:`python:-d` option:
-
-    $ python3 -d script.py
 
 If you run Python through the ``gpaw python`` command, then you can run your
 script in dry-run mode like this::

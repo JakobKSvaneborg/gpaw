@@ -157,7 +157,7 @@ Insert Eq. :eq:`chi_0_eh` into the above equation, one gets
    \chi_{\begin{array}{l} n_5 n_6 \\ n_3 n_4  \end{array}} (\omega)
    = f_{n_2} - f_{n_1}
 
-By using a static interaction kernel `K(\omega=0)`, an effective frequency-indendepnt
+By using a static interaction kernel `K(\omega=0)`, an effective frequency-independent
 two particle Hamiltonian is defined as:
 
 .. math::
@@ -335,7 +335,7 @@ The dielectric matrix is related to the density response matrix by
   = \delta_{\mathbf G \mathbf G^{\prime}} + \frac{4\pi}{|\mathbf q + \mathbf G|^2}
   \chi_{\mathbf G \mathbf G^{\prime}}(\mathbf q, \omega)
 
-Electron energy loss spectra (EELS)  is propotional to `-\mathrm{Im} \epsilon^{-1}_{00}`:
+Electron energy loss spectra (EELS)  is proportional to `-\mathrm{Im} \epsilon^{-1}_{00}`:
 
 .. math::
 
@@ -442,7 +442,7 @@ and the overlap matrix `N_{\lambda \lambda^{\prime} }` defined by
     N_{\lambda \lambda^{\prime}} \equiv
     \sum_{S} [A_{\lambda}^{S}]^{\ast} A_{\lambda^{\prime}}^{S}
 
-The eigenvalues `E_{\lambda}`, which correpond to the poles of `\chi`,  give the excitation energies of the elementary electron excitations.
+The eigenvalues `E_{\lambda}`, which correspond to the poles of `\chi`,  give the excitation energies of the elementary electron excitations.
 
 
 3. The spectra (both EELS and ABS) are calculated by

@@ -63,7 +63,7 @@ class BandPropertyMonitor:
 
 class BandPropertyWriter(BandPropertyMonitor):
     def __init__(self, filename, wfs, name, interval=1):
-        BandPropertyMonitor.__init__(self, wfs, name, interval)
+        super().__init__(wfs, name, interval)
         self.fileobj = open(filename, 'w')
 
     def write(self, data):
@@ -124,7 +124,7 @@ class StaticOverlapMonitor:
 
 class StaticOverlapWriter(StaticOverlapMonitor):
     def __init__(self, filename, wfs, overlap, interval=1):
-        StaticOverlapMonitor.__init__(self, wfs, overlap, interval)
+        super().__init__(wfs, overlap, interval)
         self.fileobj = open(filename, 'w')
 
     def write(self, data):
@@ -179,7 +179,7 @@ class DynamicOverlapMonitor:
 
 class DynamicOverlapWriter(DynamicOverlapMonitor):
     def __init__(self, filename, wfs, overlap, interval=1):
-        DynamicOverlapMonitor.__init__(self, wfs, overlap, interval)
+        super().__init__(wfs, overlap, interval)
         self.fileobj = open(filename, 'w')
 
     def write(self, data):

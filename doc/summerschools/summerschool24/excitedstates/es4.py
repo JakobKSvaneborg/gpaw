@@ -45,7 +45,6 @@ In the next example, we will calculate the absorption spectrum using the Bethe-S
 We start by calculating the ground state density and diagonalizing the resulting Hamiltonian. The last line in the script creates a .gpw file which contains all the informations of the system, including the wavefunctions.
 """
 
-from ase import Atoms
 from ase.build import bulk
 from gpaw import GPAW
 from gpaw import PW

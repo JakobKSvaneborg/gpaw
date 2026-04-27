@@ -1,5 +1,5 @@
 import os
-from gpaw.wannier90 import Wannier90
+from gpaw.wannier.wannier90 import Wannier90
 from gpaw import GPAW
 
 seed = 'Fe'

@@ -1,9 +1,26 @@
-import pytest
 import numpy as np
-from gpaw.mpi import world, send, receive, broadcast_array
+import pytest
+
+from gpaw.mpi import broadcast_array, receive, send
+from gpaw.mpi4pywrapper import MPI4PYWrapper
 
 
-def test_send_receive_object():
+@pytest.fixture(params=['gpaw.mpi', 'mpi4py'])
+def world(require_real_mpi, mpi, request):
+
+    if request.param == 'gpaw.mpi':
+        return mpi.comm
+    if request.param == 'mpi4py':
+        try:
+            from mpi4py.MPI import COMM_WORLD
+        except ImportError:
+            pytest.skip('No mpi4py')
+        else:
+            return MPI4PYWrapper(COMM_WORLD)
+
+
+@pytest.mark.ci
+def test_send_receive_object(world):
     if world.size == 1:
         return
     obj = (42, 'hello')
@@ -14,7 +31,7 @@ def test_send_receive_object():
 
 
 @pytest.mark.ci
-def test_scalar_reduce():
+def test_scalar_reduce(world):
     assert world.sum_scalar(world.rank + 1) == world.size * \
         (world.size + 1) // 2
     assert np.allclose(world.sum_scalar(world.rank + 1.0),
@@ -25,7 +42,7 @@ def test_scalar_reduce():
     assert world.max_scalar(world.rank + 1.0) == world.size * 1.0
 
 
-def test_bcast_array():
+def test_bcast_array(world):
     new = world.new_communicator
 
     if world.size == 2:

@@ -1,25 +1,24 @@
 # General modules
-import pytest
 import numpy as np
+import pytest
 
 # Script modules
-from gpaw import GPAW
-from gpaw.test import findpeak
-from gpaw.response import ResponseGroundStateAdapter, ResponseContext
+from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator
-from gpaw.response.susceptibility import (ChiFactory, spectral_decomposition,
-                                          EigendecomposedSpectrum,
-                                          read_full_spectral_weight,
-                                          read_eigenmode_lineshapes)
 from gpaw.response.fxc_kernels import AdiabaticFXCCalculator
 from gpaw.response.goldstone import FMGoldstoneScaling
 from gpaw.response.pair_functions import read_susceptibility_array
+from gpaw.response.susceptibility import (ChiFactory, EigendecomposedSpectrum,
+                                          read_eigenmode_lineshapes,
+                                          read_full_spectral_weight,
+                                          spectral_decomposition)
+from gpaw.test import findpeak
 from gpaw.test.gpwfile import response_band_cutoff
 
 
 @pytest.mark.kspair
 @pytest.mark.response
-def test_response_cobalt_sf_gssALDA(in_tmp_dir, gpw_files):
+def test_response_cobalt_sf_gssALDA(in_tmp_dir, gpw_files, mpi):
     # ---------- Inputs ---------- #
 
     fxc = 'ALDA'
@@ -40,8 +39,8 @@ def test_response_cobalt_sf_gssALDA(in_tmp_dir, gpw_files):
     # ---------- Script ---------- #
 
     # Initialize objects to calculat Chi
-    context = ResponseContext()
-    calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
+    context = ResponseContext(comm=mpi.comm)
+    calc = mpi.GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
     nbands = response_band_cutoff['co_pw']
     gs = ResponseGroundStateAdapter(calc)
     chiks_calc = ChiKSCalculator(gs, context,

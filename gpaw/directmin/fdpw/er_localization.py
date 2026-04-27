@@ -3,12 +3,13 @@ Potentials for orbital density dependent energy functionals
 """
 
 import numpy as np
-from gpaw.utilities import pack_density, unpack_hermitian
-from gpaw.lfc import LFC
-from gpaw.transformers import Transformer
-from gpaw.directmin.tools import d_matrix, get_n_occ
-from gpaw.poisson import PoissonSolver
+
 import gpaw.cgpaw as cgpaw
+from gpaw.directmin.tools import d_matrix, get_n_occ
+from gpaw.lfc import LFC
+from gpaw.poisson import PoissonSolver
+from gpaw.transformers import Transformer
+from gpaw.utilities import pack_density, unpack_hermitian
 
 
 class ERLocalization:

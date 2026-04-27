@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import numpy as np
+
 from gpaw.core.atom_arrays import (AtomArrays, AtomArraysLayout,
                                    AtomDistribution)
 from gpaw.core.matrix import Matrix
+from gpaw.gpu import XP, as_np
 from gpaw.mpi import MPIComm, receive, send, serial_comm
 from gpaw.new.potential import Potential
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
@@ -12,9 +14,7 @@ from gpaw.setup import Setups
 from gpaw.typing import Array2D
 
 
-class LCAOWaveFunctions(WaveFunctions):
-    xp = np
-
+class LCAOWaveFunctions(WaveFunctions, XP):
     def __init__(self,
                  *,
                  setups: Setups,
@@ -27,7 +27,7 @@ class LCAOWaveFunctions(WaveFunctions):
                  relpos_ac: Array2D,
                  atomdist: AtomDistribution,
                  kpt_c=(0.0, 0.0, 0.0),
-                 domain_comm: MPIComm = serial_comm,
+                 domain_band_comm: MPIComm = serial_comm,
                  spin: int = 0,
                  q: int = 0,
                  k: int = 0,
@@ -44,8 +44,9 @@ class LCAOWaveFunctions(WaveFunctions):
                          atomdist=atomdist,
                          ncomponents=ncomponents,
                          dtype=C_nM.dtype,
-                         domain_comm=domain_comm,
+                         domain_band_comm=domain_band_comm,
                          band_comm=C_nM.dist.comm)
+        XP.__init__(self, C_nM.xp)
         self.tci_derivatives = tci_derivatives
         self.basis = basis
         self.C_nM = C_nM
@@ -128,7 +129,8 @@ class LCAOWaveFunctions(WaveFunctions):
             natoms=len(self.setups))
         return AtomArraysLayout([setup.ni for setup in self.setups],
                                 atomdist=atomdist,
-                                dtype=self.dtype)
+                                dtype=self.dtype,
+                                xp=self.xp)
 
     @property
     def P_ani(self):
@@ -138,8 +140,8 @@ class LCAOWaveFunctions(WaveFunctions):
             # As a hack, builder.py injects a NaN in the first element of
             # C_nM.data in order for us to be able to tell that the
             # data is uninitialized:
-            # if np.isnan(self.C_nM.data.flat[0]):
-            #   raise RuntimeError('There are no projections or wavefunctions')
+            if not isinstance(self.C_nM, Matrix):
+                raise RuntimeError('There are no projections or wavefunctions')
 
             for a, P_Mi in self.P_aMi.items():
                 self._P_ani[a][:] = self.C_nM.data @ P_Mi
@@ -158,7 +160,7 @@ class LCAOWaveFunctions(WaveFunctions):
         f_n = self.weight * self.spin_degeneracy * self.myocc_n
         self.add_to_atomic_density_matrices(f_n, D_asii)
 
-    def gather_wave_function_coefficients(self) -> np.ndarray:
+    def gather_wave_function_coefficients(self) -> np.ndarray | None:
         C_nM = self.C_nM.gather()
         if C_nM is not None:
             return C_nM.data
@@ -185,35 +187,43 @@ class LCAOWaveFunctions(WaveFunctions):
             f_n = self.weight * self.spin_degeneracy * self.myocc_n
             if eigs:
                 f_n *= self.myeig_n
-            C_nM = self.C_nM.data
+            f_n = self.xp.asarray(f_n)
+            TempC_nM = self.C_nM.copy()
+            TempC_nM.data *= f_n[:, None]
+            rho_MM = TempC_nM.multiply(self.C_nM, opa='C')
             if transposed:
-                rho_MM = (C_nM.T * f_n) @ C_nM.conj()
-            else:
-                rho_MM = (C_nM.T.conj() * f_n) @ C_nM
-            self.band_comm.sum(rho_MM)
+                rho_MM.complex_conjugate()
+            rho_MM_data = rho_MM.data
         else:
-            rho_MM = np.empty_like(self.T_MM.data)
-        self.domain_comm.broadcast(rho_MM, 0)
+            rho_MM_data = np.empty_like(self.T_MM.data)
+        self.domain_comm.broadcast(rho_MM_data, 0)
 
-        return rho_MM
+        return rho_MM_data
 
     def to_uniform_grid_wave_functions(self,
                                        grid,
-                                       basis):
+                                       basis,
+                                       *,
+                                       xp=None):
+        if xp is None:
+            xp = self.xp
         grid = grid.new(kpt=self.kpt_c, dtype=self.dtype)
-        psit_nR = grid.zeros(self.nbands, self.band_comm)
+        psit_nR = grid.zeros(self.nbands, self.band_comm, xp=xp)
         basis.lcao_to_grid(self.C_nM.data, psit_nR.data, self.q)
 
-        return PWFDWaveFunctions.from_wfs(self, psit_nR)
+        wfs = PWFDWaveFunctions.from_wfs(self, psit_nR)
+        if self.has_eigs:
+            wfs.eig_n = self.eig_n.copy()
+        return wfs
 
-    def collect(self,
-                n1: int = 0,
-                n2: int = 0) -> LCAOWaveFunctions | None:
+    def collect_bands(self,
+                      n1: int = 0,
+                      n2: int = 0) -> LCAOWaveFunctions | None:
         # Quick'n'dirty implementation
         # We should generalize the PW+FD method
         assert self.band_comm.size == 1
-        n2 = n2 or self.nbands + n2
-        return LCAOWaveFunctions(
+        n2 = n2 or self.nbands
+        wfs = LCAOWaveFunctions(
             setups=self.setups,
             tci_derivatives=self.tci_derivatives,
             basis=self.basis,
@@ -224,18 +234,43 @@ class LCAOWaveFunctions(WaveFunctions):
             T_MM=self.T_MM,
             P_aMi=self.P_aMi,
             relpos_ac=self.relpos_ac,
-            atomdist=self.atomdist.gather(),
+            atomdist=self.atomdist,
+            domain_band_comm=self.domain_band_comm,
             kpt_c=self.kpt_c,
             spin=self.spin,
             q=self.q,
             k=self.k,
             weight=self.weight,
             ncomponents=self.ncomponents)
+        wfs.eig_n = self.eig_n[n1:n2]
+        wfs._occ_n = self.occ_n[n1:n2]
+        return wfs
 
     def force_contribution(self, potential: Potential, F_av: Array2D):
         from gpaw.new.lcao.forces import add_force_contributions
         add_force_contributions(self, potential, F_av)
         return F_av
+
+    def copy(self) -> LCAOWaveFunctions:
+        wfs = LCAOWaveFunctions(setups=self.setups,
+                                tci_derivatives=self.tci_derivatives,
+                                basis=self.basis,
+                                C_nM=self.C_nM.copy(),  # Copy buffer
+                                S_MM=self.S_MM,
+                                T_MM=self.T_MM,
+                                P_aMi=self.P_aMi,
+                                relpos_ac=self.relpos_ac,
+                                atomdist=self.atomdist,
+                                domain_band_comm=self.domain_band_comm,
+                                kpt_c=self.kpt_c,
+                                spin=self.spin,
+                                q=self.q,
+                                k=self.k,
+                                weight=self.weight,
+                                ncomponents=self.ncomponents)
+        wfs.eig_n = self.eig_n
+        wfs._occ_n = self._occ_n
+        return wfs
 
     def send(self, rank, comm):
         stuff = (self.kpt_c,
@@ -243,24 +278,75 @@ class LCAOWaveFunctions(WaveFunctions):
                  self.spin,
                  self.q,
                  self.k,
+                 self.eig_n,
+                 self._occ_n,
                  self.weight,
                  self.ncomponents)
         send(stuff, rank, comm)
 
     def receive(self, rank, comm):
-        kpt_c, data, spin, q, k, weight, ncomponents = receive(rank, comm)
-        return LCAOWaveFunctions(setups=self.setups,
-                                 tci_derivatives=self.tci_derivatives,
-                                 basis=self.basis,
-                                 C_nM=Matrix(*data.shape, data=data),
-                                 S_MM=None,
-                                 T_MM=None,
-                                 P_aMi=None,
-                                 relpos_ac=self.relpos_ac,
-                                 atomdist=self.atomdist.gather(),
-                                 kpt_c=kpt_c,
-                                 spin=spin,
-                                 q=q,
-                                 k=k,
-                                 weight=weight,
-                                 ncomponents=ncomponents)
+        (kpt_c, data, spin, q, k,
+         eig_n, occ_n, weight, ncomponents) = receive(rank, comm)
+        wfs = LCAOWaveFunctions(setups=self.setups,
+                                tci_derivatives=self.tci_derivatives,
+                                basis=self.basis,
+                                C_nM=Matrix(*data.shape, data=data),
+                                S_MM=None,
+                                T_MM=None,
+                                P_aMi=None,
+                                relpos_ac=self.relpos_ac,
+                                atomdist=self.atomdist.gather(),
+                                kpt_c=kpt_c,
+                                spin=spin,
+                                q=q,
+                                k=k,
+                                weight=weight,
+                                ncomponents=ncomponents)
+        wfs.eig_n = eig_n
+        wfs._occ_n = occ_n
+        return wfs
+
+    def to_pw_expansion(self, nbands, pw):
+        grid = self.basis.grid.new(kpt=self.kpt_c, dtype=self.dtype)
+        pw = pw.new(kpt=self.kpt_c)
+
+        if np.issubdtype(self.dtype, np.complexfloating):
+            emikr_R = grid.eikr(-self.kpt_c)
+
+        mynbands, M = self.C_nM.dist.shape
+        if self.ncomponents < 4:
+            psit_nG = pw.empty(nbands, self.band_comm)
+            psit_R = grid.empty()
+
+            if grid.dtype != pw.dtype:
+                psit0_R = grid.new(dtype=pw.dtype).empty()
+            for C_M, psit_G in zip(self.C_nM.data, psit_nG, strict=False):
+                psit_R.data[:] = 0.0
+                self.basis.lcao_to_grid(as_np(C_M), psit_R.data, self.q)
+                if np.issubdtype(self.dtype, np.complexfloating):
+                    psit_R.data *= emikr_R
+                if grid.dtype != pw.dtype:
+                    psit0_R.data[:] = psit_R.data
+                    psit0_R.fft(out=psit_G)
+                else:
+                    psit_R.to_pbc_grid().fft(out=psit_G)
+            return psit_nG.to_xp(self.xp)
+
+        psit_nsG = pw.empty((nbands, 2), self.band_comm)
+        psit_sR = grid.empty(2)
+        C_nsM = self.C_nM.data.reshape((mynbands, 2, M // 2))
+        for psit_sG, C_sM in zip(psit_nsG, C_nsM, strict=False):
+            psit_sR.data[:] = 0.0
+            self.basis.lcao_to_grid(C_sM, psit_sR.data, self.q)
+            if np.issubdtype(self.dtype, np.complexfloating):
+                psit_sR.data *= emikr_R
+            psit_sR.fft(out=psit_sG)
+        return psit_nsG
+
+    def to_uniform_grid(self, nbands, grid):
+        grid = grid.new(kpt=self.kpt_c, dtype=self.dtype)
+        psit_nR = grid.zeros(nbands, self.band_comm)
+        mynbands = len(self.C_nM.data)
+        self.basis.lcao_to_grid(self.C_nM.to_xp(np).data,
+                                psit_nR.data[:mynbands], self.q)
+        return psit_nR.to_xp(self.xp)

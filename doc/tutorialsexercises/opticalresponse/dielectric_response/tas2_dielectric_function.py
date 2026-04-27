@@ -4,9 +4,9 @@ from ase.lattice.hexagonal import Hexagonal
 import matplotlib.pyplot as plt
 
 from gpaw import GPAW, PW, FermiDirac
-from gpaw.response.df import DielectricFunction
+from gpaw.bztools import optimal_monkhorst_pack_grid
 from gpaw.mpi import world
-from gpaw.bztools import find_high_symmetry_monkhorst_pack
+from gpaw.response.df import DielectricFunction
 
 # 1) Ground-state.
 
@@ -33,7 +33,11 @@ calc.write('TaS2-gs.gpw')
 
 # 2) Unoccupied bands
 
-kpts = find_high_symmetry_monkhorst_pack('TaS2-gs.gpw', density=5.0)
+kpts = optimal_monkhorst_pack_grid(atoms,
+                                   kptdensity=5.,
+                                   force_gamma=True,
+                                   force_even=True,
+                                   contains_ibz_vertices=True)
 
 responseGS = GPAW('TaS2-gs.gpw').fixed_density(
     kpts=kpts,

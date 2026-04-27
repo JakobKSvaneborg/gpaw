@@ -22,7 +22,7 @@ def test_kinetic_energy(gpw_files):
              calc.dft.energies._energies['kinetic_correction'])
 
     # Kinetic energy calculated directly from second-order derivative:
-    wfs = calc.dft.ibzwfs.wfs_qs[0][0]
+    (wfs,) = calc.dft.ibzwfs
 
     psit = wfs.psit_nX
     occ_n = wfs.occ_n

@@ -4,13 +4,13 @@
 /*  Copyright (C) 2009-2012  CSC - IT Center for Science Ltd.
  *  Please see the accompanying LICENSE file for further information. */
 
+#include "python_utils.h"
 #include "bc.h"
 
 #ifdef GPAW_GPU
 #include "gpu/bmgs.h"
 #endif
 
-#ifdef __OPERATORS_C
 typedef struct
 {
   PyObject_HEAD
@@ -24,11 +24,6 @@ typedef struct
   bmgsstencil_gpu stencil_gpu;
 #endif
 } OperatorObject;
-#else
-// Provide opaque type for routines outside operators.c
-struct _OperatorObject;
-typedef struct _OperatorObject OperatorObject;
-#endif
 
 #ifdef GPAW_GPU
 void operator_init_gpu(OperatorObject *self);

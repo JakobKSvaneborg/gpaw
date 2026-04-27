@@ -1,7 +1,5 @@
 import os
 
-parallel_python_interpreter=False
-
 #compiler = 'gcc'
 mpicompiler = 'mpicc'
 scalapack = True

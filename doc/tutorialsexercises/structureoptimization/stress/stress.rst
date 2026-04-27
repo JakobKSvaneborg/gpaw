@@ -73,6 +73,6 @@ the relaxation can be viewed with the command line tool :program:`ase`:
 
 Since we know the experimental lattice constant, we could probably have
 calculated the PBE lattice constant faster by fitting a parabola to five
-points in the vicinity of the expermental lattice constant. However, for
+points in the vicinity of the experimental lattice constant. However, for
 complicated unit cells with more than one lattice parameter, the stress
 tensor becomes a highly valuable tool.

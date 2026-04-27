@@ -18,31 +18,36 @@ Versions:
 
 6) Write energy contributions to "energy_contributions".
 
+7) Changed sign of wave_functions.kpts.translations.
+
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Any, Union
+from typing import IO, Any, TYPE_CHECKING
 
 import ase.io.ulm as ulm
-import gpaw
-import gpaw.mpi as mpi
 import numpy as np
 from ase import Atoms
 from ase.io.trajectory import read_atoms, write_atoms
 from ase.units import Bohr, Ha
+
+import gpaw
+import gpaw.mpi as mpi
 from gpaw.core.atom_arrays import AtomArraysLayout
 from gpaw.new.builder import DFTComponentsBuilder
-from gpaw.new.builder import builder as create_builder
-from gpaw.new.calculation import DFTCalculation, units
 from gpaw.new.density import Density
-from gpaw.new.input_parameters import InputParameters
+from gpaw.new.energies import DFTEnergies
+from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.logger import Logger
 from gpaw.new.potential import Potential
-from gpaw.typing import DTypeLike
-from gpaw.utilities import unpack_hermitian, unpack_density
-from gpaw.new.energies import DFTEnergies
+from gpaw.utilities import as_dtype_precision, unpack_density, unpack_hermitian
+
+if TYPE_CHECKING:
+    from gpaw.dft import Parameters
+    from gpaw.new.calculation import DFTCalculation
 
 
 def as_single_precision(array):
@@ -52,7 +57,7 @@ def as_single_precision(array):
     array([1., 1., 1.], dtype=float32)
     """
     assert array.dtype in [np.float64, np.complex128]
-    dtype = np.float32 if array.dtype == np.float64 else np.complex64
+    dtype = as_dtype_precision(array.dtype, 'single')
     return np.array(array, dtype=dtype)
 
 
@@ -65,10 +70,7 @@ def as_double_precision(array):
     if array is None:
         return None
     assert array.dtype in [np.float32, np.complex64]
-    if array.dtype == np.float32:
-        dtype = np.float64
-    else:
-        dtype = complex
+    dtype = as_dtype_precision(array.dtype, 'double')
     return np.array(array, dtype=dtype)
 
 
@@ -83,30 +85,16 @@ class GPWFlags:
             raise ValueError('precision must be either "single" or "double"')
 
     def storage_dtype(self, dtype):
-        dtype = np.dtype(dtype)
-        if self.precision == 'double':
-            return dtype
-
-        if dtype == float:
-            return np.dtype(np.float32)
-
-        if dtype == complex:
-            return np.dtype(np.complex64)
-
-        raise ValueError(f'Unexpected dtype: {dtype}')
+        return as_dtype_precision(dtype, self.precision)
 
     def to_storage_dtype(self, array: np.ndarray) -> np.ndarray:
-        if self.precision == 'double':
-            return array
-        return array.astype(self.storage_dtype(array.dtype))
+        return np.asarray(array, dtype=self.storage_dtype(array.dtype))
 
 
 def write_gpw(filename: str | Path,
-              atoms,
-              params,
               dft: DFTCalculation,
               flags: GPWFlags) -> None:
-
+    from gpaw.new.calculation import units
     comm = dft.comm
 
     writer: ulm.Writer | ulm.DummyWriter
@@ -116,37 +104,59 @@ def write_gpw(filename: str | Path,
         writer = ulm.DummyWriter()
 
     with writer:
-        writer.write(version=6,
+        writer.write(version=7,
                      gpaw_version=gpaw.__version__,
                      ha=Ha,
                      bohr=Bohr,
                      precision=flags.precision)
 
-        write_atoms(writer.child('atoms'), atoms)
+        write_atoms(writer.child('atoms'), dft.atoms)
 
         results = {key: value * units[key]
                    for key, value in dft.results.items()}
         writer.child('results').write(**results)
 
-        p = {k: v for k, v in params.items() if k not in ['parallel']}
+        p = dft.params.todict()
+        p.pop('parallel', None)
         # ULM does not know about numpy dtypes:
         if 'dtype' in p:
-            p['dtype'] = np.dtype(p['dtype']).name
+            if isinstance(p['dtype'], type):
+                p['dtype'] = p['dtype'].__name__
+            else:
+                p['dtype'] = np.dtype(p['dtype']).name
+
         writer.child('parameters').write(**p)
 
-        dft.density.write_to_gpw(writer.child('density'), flags)
-        dft.potential.write_to_gpw(writer.child('hamiltonian'), flags)
-        writer.write(e_stress=dft.potential.e_stress * Ha)
-        dft.energies.write_to_gpw(writer.child('energy_contributions'))
-        wf_writer = writer.child('wave_functions')
-        dft.ibzwfs.write(wf_writer, flags=flags)
-
-        if flags.include_wfs and params.mode['name'] == 'pw':
-            write_wave_function_indices(wf_writer,
-                                        dft.ibzwfs,
-                                        dft.density.nt_sR.desc)
+        write_dft_state(writer, dft.params,
+                        ibzwfs=dft.ibzwfs,
+                        density=dft.density,
+                        potential=dft.potential,
+                        energies=dft.energies,
+                        flags=flags)
 
     comm.barrier()
+
+
+def write_dft_state(writer: ulm.Writer | ulm.DummyWriter,
+                    params,
+                    *,
+                    ibzwfs: IBZWaveFunctions,
+                    density: Density,
+                    potential: Potential,
+                    energies: DFTEnergies,
+                    flags: GPWFlags) -> None:
+    """ Common function shared between DFTCalculation and RTTDDFT. """
+    density.write_to_gpw(writer.child('density'), flags)
+    potential.write_to_gpw(writer.child('hamiltonian'), flags)
+    writer.write(e_stress=potential.e_stress * Ha)
+    energies.write_to_gpw(writer.child('energy_contributions'))
+    wf_writer = writer.child('wave_functions')
+    ibzwfs.write(wf_writer, flags=flags)
+
+    if flags.include_wfs and params.mode.name == 'pw':
+        write_wave_function_indices(wf_writer,
+                                    ibzwfs,
+                                    density.nt_sR.desc)
 
 
 def write_wave_function_indices(writer, ibzwfs, grid):
@@ -163,12 +173,12 @@ def write_wave_function_indices(writer, ibzwfs, grid):
 
     index_G = np.zeros(nG, np.int32)
     size = tuple(grid.size)
-    if ibzwfs.dtype == float:
+    if np.issubdtype(ibzwfs.dtype, np.floating):
         size = (size[0], size[1], size[2] // 2 + 1)
 
-    for k, rank in enumerate(ibzwfs.rank_k):
+    for k, rank in enumerate(ibzwfs.rank_ks[:, 0]):
         if rank == kpt_comm.rank:
-            wfs = ibzwfs.wfs_qs[ibzwfs.q_k[k]][0]
+            wfs = ibzwfs._get_wfs(k, 0)
             i_G = wfs.psit_nX.desc.indices(size)
             index_G[:len(i_G)] = i_G
             index_G[len(i_G):] = -1
@@ -181,15 +191,19 @@ def write_wave_function_indices(writer, ibzwfs, grid):
             writer.fill(index_G)
 
 
-def read_gpw(filename: Union[str, Path, IO[str]],
+def read_gpw(filename: str | Path | IO[str],
              *,
-             log: Union[Logger, str, Path, IO[str]] = None,
+             log: Logger | str | Path | IO[str] | None = None,
              comm=None,
              parallel: dict[str, Any] = None,
-             dtype: DTypeLike = None) -> tuple[Atoms,
-                                               DFTCalculation,
-                                               InputParameters,
-                                               DFTComponentsBuilder]:
+             dtype=None,
+             force_complex_dtype: bool = False,
+             object_hooks: dict[str, Callable[[dict], Any]] | None = None
+             ) -> tuple[Atoms,
+                        DFTCalculation,
+                        DFTComponentsBuilder]:
+    from gpaw.dft import Parameters
+    from gpaw.new.calculation import DFTCalculation, units
     """
     Read gpw file
 
@@ -200,15 +214,13 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     parallel = parallel or {}
 
     if not isinstance(log, Logger):
-        log = Logger(log, comm or mpi.world)
+        log = Logger(log, mpi.normalize_communicator(comm))
 
     comm = log.comm
 
     log(f'Reading from {filename}')
 
     reader = ulm.Reader(filename)
-    bohr = reader.bohr
-    ha = reader.ha
     singlep = reader.get('precision', 'double') == 'single'
 
     atoms = read_atoms(reader.atoms)
@@ -218,13 +230,82 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     if 'dtype' in kwargs:
         kwargs['dtype'] = np.dtype(kwargs['dtype'])
 
-    # kwargs['nbands'] = reader.wave_functions.eigenvalues.shape[-1]
+    if dtype is not None:
+        kwargs['dtype'] = dtype
+
+    shape = reader.wave_functions.eigenvalues.shape
+    if len(shape) == 3:
+        kwargs['nbands'] = shape[-1]
+    else:
+        kwargs['nbands'] = shape[-1] // 2
 
     for old_keyword in ['fixdensity', 'txt']:
         kwargs.pop(old_keyword, None)
 
-    params = InputParameters(kwargs, warn=False)
-    builder = create_builder(atoms, params, comm)
+    if object_hooks:
+        for key, hook in object_hooks.items():
+            if key in kwargs:
+                kwargs[key] = hook(kwargs[key])
+
+    params = Parameters(**kwargs)
+    if force_complex_dtype:
+        params.mode.force_complex_dtype = True
+    builder, params, state = read_dft_state(
+        reader, atoms=atoms, params=params, comm=comm,
+        singlep=singlep, log=log, **kwargs)
+    ibzwfs, density, potential, energies = state
+
+    dft = DFTCalculation(
+        atoms, ibzwfs, density, potential,
+        builder.setups,
+        builder.create_scf_loop(),
+        pot_calc=builder.create_potential_calculator(),
+        params=params,
+        energies=energies,
+        log=log)
+
+    results = {key: value / units[key]
+               for key, value in reader.results.asdict().items()}
+
+    if results:
+        log(f'Read {", ".join(sorted(results))}')
+
+    if reader.version < 4 and 'magmoms' in results:
+        magmom_a = results['magmoms']
+        magmom_av = np.pad(magmom_a[:, np.newaxis], [(0, 0), (2, 0)])
+        results['non_collinear_magmoms'] = magmom_av
+
+    dft.results = results
+
+    if builder.mode in ['pw', 'fd']:  # fd = finite-difference
+        data = ibzwfs._wfs_u[0].psit_nX.data
+        if not hasattr(data, 'fd'):  # fd = file-descriptor
+            reader.close()
+    else:
+        reader.close()
+
+    return atoms, dft, builder
+
+
+def read_dft_state(reader: ulm.Reader,
+                   *,
+                   atoms,
+                   params: Parameters,
+                   comm,
+                   singlep: bool,
+                   log,
+                   **kwargs,
+                   ) -> tuple[DFTComponentsBuilder,
+                              Parameters,
+                              tuple[IBZWaveFunctions,
+                                    Density,
+                                    Potential,
+                                    DFTEnergies]]:
+    from gpaw.dft import Parameters
+    bohr = reader.bohr
+    ha = reader.ha
+
+    builder = params.dft_component_builder(atoms, log=log)
 
     if comm.rank == 0:
         nt_sR_array = reader.density.density * bohr**3
@@ -254,8 +335,8 @@ def read_gpw(filename: Union[str, Path, IO[str]],
         # old gpw-file:
         kwargs.pop('h', None)
         kwargs['gpts'] = nt_sR_array.shape[1:]
-        params = InputParameters(kwargs, warn=False)
-        builder = create_builder(atoms, params, comm)
+        params = Parameters(**kwargs)
+        builder = params.dft_component_builder(atoms, log=log)
 
     kpts = reader.wave_functions.kpts
     rotation_scc = kpts.rotations
@@ -270,11 +351,10 @@ def read_gpw(filename: Union[str, Path, IO[str]],
         kwargs['symmetry'] = {'rotations': rotation_scc,
                               'translations': kpts.translations,
                               'atommaps': kpts.atommap}
-        params = InputParameters(kwargs, warn=False)
-        builder = create_builder(atoms, params, comm)
-
-    if dtype is not None:
-        params.mode['dtype'] = dtype
+        if reader.version < 7:
+            kwargs['symmetry']['translations'] *= -1
+        params = Parameters(**kwargs)
+        builder = params.dft_component_builder(atoms, log=log)
 
     (kpt_comm, band_comm, domain_comm, kpt_band_comm) = (
         builder.communicators[x] for x in 'kbdD')
@@ -316,7 +396,8 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     kpt_band_comm.broadcast(D_asp.data, 0)
     kpt_band_comm.broadcast(dH_asp.data, 0)
 
-    if reader.version >= 4:
+    # if reader.version >= 4:
+    if 'electrostatic_potential' in reader.hamiltonian:
         if comm.rank == 0:
             vHt_x_array = reader.hamiltonian.electrostatic_potential / ha
             if singlep:
@@ -348,7 +429,9 @@ def read_gpw(filename: Union[str, Path, IO[str]],
                  'band', 'stress', 'spinorbit']
         ec = {name: reader.hamiltonian.get(f'e_{name}', np.nan) / ha
               for name in NAMES}
-        ec['kinetic_correction'] = ec.pop('kinetic') - ec['band']
+        if np.isnan(ec['spinorbit']):
+            ec['spinorbit'] = 0.0
+        ec['kinetic_correction'] = ec['kinetic'] - ec['band']
         ec['extrapolation'] = (ec.pop('total_extrapolated') -
                                ec.pop('total_free'))
         e_stress = ec.pop('stress', np.nan) / ha
@@ -356,33 +439,9 @@ def read_gpw(filename: Union[str, Path, IO[str]],
     energies = DFTEnergies(**ec)
 
     potential = Potential(vt_sR, dH_asp.to_full(), dedtaut_sR, vHt_x, e_stress)
-
     ibzwfs = builder.read_ibz_wave_functions(reader)
 
-    dft = DFTCalculation(
-        ibzwfs, density, potential,
-        builder.setups,
-        builder.create_scf_loop(),
-        pot_calc=builder.create_potential_calculator(),
-        energies=energies,
-        log=log)
-
-    results = {key: value / units[key]
-               for key, value in reader.results.asdict().items()}
-
-    if results:
-        log(f'Read {", ".join(sorted(results))}')
-
-    dft.results = results
-
-    if builder.mode in ['pw', 'fd']:  # fd = finite-difference
-        data = ibzwfs.wfs_qs[0][0].psit_nX.data
-        if not hasattr(data, 'fd'):  # fd = file-descriptor
-            reader.close()
-    else:
-        reader.close()
-
-    return atoms, dft, params, builder
+    return builder, params, (ibzwfs, density, potential, energies)
 
 
 def convert_to_new_packing_convention(a_asp, density=False):

@@ -1,6 +1,7 @@
-from gpaw import GPAW
-import pytest
 import numpy as np
+import pytest
+
+from gpaw import GPAW
 
 
 def test_generic_si(in_tmp_dir, gpw_files):

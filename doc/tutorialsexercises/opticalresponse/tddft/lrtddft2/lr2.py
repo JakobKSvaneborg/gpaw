@@ -18,7 +18,8 @@ assert eh_size * dd_size == world.size
 lr_comms = LrCommunicators(world, dd_size, eh_size)
 
 calc = GPAW('unocc.gpw',
-            communicator=lr_comms.dd_comm)
+            communicator=lr_comms.dd_comm,
+            legacy_gpaw=True)
 lr = LrTDDFT2('lr2', calc,
               fxc='LDA',
               max_energy_diff=max_energy_diff,

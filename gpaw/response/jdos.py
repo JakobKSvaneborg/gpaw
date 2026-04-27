@@ -1,10 +1,10 @@
 import numpy as np
 
 from gpaw.response import ResponseContext
-from gpaw.response.frequencies import ComplexFrequencyDescriptor
-from gpaw.response.pair_integrator import (PairFunctionIntegrator,
-                                           DynamicPairFunction)
 from gpaw.response.chiks import get_temporal_part
+from gpaw.response.frequencies import ComplexFrequencyDescriptor
+from gpaw.response.pair_integrator import (DynamicPairFunction,
+                                           PairFunctionIntegrator)
 
 
 class JDOS(DynamicPairFunction):

@@ -51,7 +51,7 @@ problem then becomes
 
  \sum_\nu H_{\mu\nu} c_{\nu n} = \sum_{\nu} S_{\mu\nu} c_{\nu n} \epsilon_n
 
-which can be solved by directly diagonalizating the Hamiltonian in the
+which can be solved by direct diagonalization of the Hamiltonian in the
 basis of the atomic orbitals.
 
 Some detailed information can be found in the master theses
@@ -62,26 +62,30 @@ Basis-set generation
 --------------------
 
 In order to perform an LCAO calculation, a basis-set must be generated
-for every element in your system. This can be done by using the
-:command:`gpaw-basis` tool, located in your
-:file:`{gpaw-directory}/tools` directory. For example, typing::
+for every element in your system.  This can be done by using the
+:command:`gpaw basis` subcommand.  For example, typing::
 
-  $ gpaw-basis H Cl
+  $ gpaw basis --search H.PBE Cl.PBE
 
 will generate the basis-set files :file:`H.dzp.basis` and
 :file:`Cl.dzp.basis` for hydrogen and chlorine with sensible default
-parameters. Note that :file:`dzp` stands for ``double zeta polarized``
-which is the default basis-set type. The basis-set should be placed in
+parameters, based on the installed PAW dataset files :file:`H.PBE.gz` and
+:file:`Cl.PBE.gz`.  Note that :file:`dzp` stands for ``double zeta polarized``
+which is the default basis-set type.  The basis-set should be placed in
 the same directory as the GPAW setups
 (see :ref:`installation of paw datasets` for details).
-For a complete list of the parameters do::
 
-  $ gpaw-basis --help
+Note that standard versions of the basis-set files are probably already
+included in said directory for newer GPAW installations.  However, should one
+want to further customize the basis sets (e.g. by changing the polarization
+function) or need to re-generate missing files, this command can be used for
+that.  For a complete list of the parameters do::
 
-For technical reasons, the basis set generator always generates the
-corresponding PAW, even if the latter exists on the user's system.
-Use the ``--save-setup`` option to save the calculated setup along with the
-basis set.
+  $ gpaw basis --help
+
+See also the :command:`gpaw dataset` subcommand for
+:ref:`generating the PAW setup files <generation_of_setups>` used by basis-set
+generation.
 
 
 Running a calculation
@@ -249,7 +253,7 @@ Advanced basis generation
 -------------------------
 
 The class :class:`gpaw.atom.basis.BasisMaker` is the backend of the
-basis generation programme.  Use this to create basis sets with
+basis generation program.  Use this to create basis sets with
 specialized parameters that cannot be set using the command line
 interface.  In particular, the basis generator relies on the *setup*
 generator to define the basis functions; therefore, any parameters
@@ -289,15 +293,15 @@ single-zeta polarized basis set for certain elements.
 Local Orbitals
 --------------
 
-In LCAO mode, it is possible to obtain a reduced basis set of localised orbitals 
+In LCAO mode, it is possible to obtain a reduced basis set of localized orbitals 
 that can be used to define effective tight-binding Hamiltonians. Contrary to
 Wannier functions (WFs), the local orbital (LO) construction is not based on a projection
 of the Kohn-Sham states and does not require any physical input
 such as the initial guesses for the WFs. In fact, the LOs are obtained 
 directly from a sub-diagonalization of the LCAO Hamiltonian. The LOs are constructed 
 for any atom in the system through a sub-diagonalization of the Hamiltonian block 
-of its AOs. This procedure yields a set of LOs whichare atomic-like functions 
-and are by construction atom-centred and orthogonal within the same atom 
+of its AOs. This procedure yields a set of LOs which are atomic-like functions 
+and are by construction atom-centered and orthogonal within the same atom 
 (but not among different atoms). Furthermore, the LO representation can coexist 
 with the original AO one ne, in the sense that one can sub-diagonalize only a subset 
 of atoms in the system. This is useful if one is particularly 
@@ -305,6 +309,26 @@ interested in a limited part of a system, such as a molecular bridge in a
 quantum junction, or an adsorbate on a substrate. More details and examples 
 can be found in :ref:`los tutorial` tutorial.
 
+.. _aug in lcao:
+
+Augmented Basis Set Generation
+------------------------------
+
+The default LCAO basis sets can be augmented with numerical Gaussian-type orbitals (NGTOs).
+
+.. note::
+
+    The LCAO basis sets in GPAW are PAW basis sets,
+    whereas basis set repositories, like Basis Set Exchange
+    list parameters for all-electron basis sets.
+    Therefore we can only use the parameters for diffuse orbitals since these
+    are smooth Gaussians.
+
+.. literalinclude:: ../../tutorialsexercises/opticalresponse/circular_dichroism/lcao/basis.py
+
+Here, the Gaussian parameters correspond to diffuse functions
+in aug-cc-pvdz basis sets as obtained from
+`Basis Set Exchange <https://www.basissetexchange.org/>`_.
 
 .. [LCAO-article] A. H. Larsen, M. Vanin, J. J. Mortensen, K. S. Thygesen,
   and K. W. Jacobsen, Phys. Rev. B 80, 195112 (2009)

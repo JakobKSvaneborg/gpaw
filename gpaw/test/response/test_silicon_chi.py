@@ -1,27 +1,26 @@
 import time
-import pytest
-import numpy as np
 
+import numpy as np
+import pytest
 from ase.build import bulk
 from ase.parallel import parprint
 from ase.utils.timing import Timer
 
-from gpaw import GPAW, PW, FermiDirac
-from gpaw.test import findpeak
-from gpaw.mpi import size, world
-
+from gpaw import PW, FermiDirac
 from gpaw.response import ResponseGroundStateAdapter
-from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.response.chiks import ChiKSCalculator
-from gpaw.response.susceptibility import ChiFactory
+from gpaw.response.context import ResponseContext
+from gpaw.response.df import DielectricFunction, read_response_function
 from gpaw.response.pair_functions import read_pair_function
+from gpaw.response.susceptibility import ChiFactory
+from gpaw.test import findpeak
 
 
 @pytest.mark.dielectricfunction
 @pytest.mark.kspair
 @pytest.mark.response
-def test_response_silicon_chi_RPA(in_tmp_dir):
-    assert size <= 4**3
+def test_response_silicon_chi_RPA(in_tmp_dir, mpi):
+    assert mpi.comm.size <= 4**3
 
     # Ground state calculation
 
@@ -30,12 +29,12 @@ def test_response_silicon_chi_RPA(in_tmp_dir):
     a = 5.431
     atoms = bulk('Si', 'diamond', a=a)
     atoms.center()
-    calc = GPAW(mode=PW(200),
-                nbands=8,
-                kpts=(4, 4, 4),
-                parallel={'domain': 1},
-                occupations=FermiDirac(width=0.05),
-                xc='LDA')
+    calc = mpi.GPAW(mode=PW(200),
+                    nbands=8,
+                    kpts=(4, 4, 4),
+                    parallel={'domain': 1},
+                    occupations=FermiDirac(width=0.05),
+                    xc='LDA')
 
     atoms.calc = calc
     atoms.get_potential_energy()
@@ -50,16 +49,17 @@ def test_response_silicon_chi_RPA(in_tmp_dir):
     # Using DF
     df = DielectricFunction(calc='Si',
                             frequencies=w, eta=eta, ecut=50,
-                            hilbert=False)
+                            hilbert=False, world=mpi.comm)
     df.get_dynamic_susceptibility(xc='RPA', q_c=q, filename='Si_chi1.csv')
 
     t3 = time.time()
 
-    world.barrier()
+    mpi.comm.barrier()
 
     # Using the ChiFactory
     gs = ResponseGroundStateAdapter(calc)
-    chiks_calc = ChiKSCalculator(gs, ecut=50)
+    context = ResponseContext(comm=mpi.comm)
+    chiks_calc = ChiKSCalculator(gs, context=context, ecut=50)
     chi_factory = ChiFactory(chiks_calc)
     chiks, chi = chi_factory('00', q, w + 1.j * eta)
     chi.write_macroscopic_component('Si_chi2.csv')
@@ -76,13 +76,17 @@ def test_response_silicon_chi_RPA(in_tmp_dir):
 
     t5 = time.time()
 
-    world.barrier()
+    mpi.comm.barrier()
 
-    parprint('')
-    parprint('For ground  state calc, it took', (t2 - t1) / 60, 'minutes')
-    parprint('For excited state calc 1, it took', (t3 - t2) / 60, 'minutes')
-    parprint('For excited state calc 2, it took', (t4 - t3) / 60, 'minutes')
-    parprint('For excited state calc 3, it took', (t5 - t4) / 60, 'minutes')
+    parprint('', comm=mpi.comm)
+    parprint('For ground  state calc, it took', (t2 - t1) / 60, 'minutes',
+             comm=mpi.comm)
+    parprint('For excited state calc 1, it took', (t3 - t2) / 60, 'minutes',
+             comm=mpi.comm)
+    parprint('For excited state calc 2, it took', (t4 - t3) / 60, 'minutes',
+             comm=mpi.comm)
+    parprint('For excited state calc 3, it took', (t5 - t4) / 60, 'minutes',
+             comm=mpi.comm)
 
     w1_w, _, chi1_w = read_response_function('Si_chi1.csv')
     wpeak1, Ipeak1 = findpeak(w1_w, -chi1_w.imag)

@@ -16,7 +16,7 @@ atom and CO molecule and compare them to results from molecular orbital theory.
 
 * Towards the end, a :file:`.gpw` file is written with the Kohn-Sham
   wavefunctions by ``calc.write('O.gpw', mode='all')`` and also some cube
-  files containing individual orbatals are written.
+  files containing individual orbitals are written.
 
 * Run the script and check the text-output file. What are the occupation
   numbers for the free oxygen atom?

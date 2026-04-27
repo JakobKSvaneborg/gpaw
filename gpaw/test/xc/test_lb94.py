@@ -1,10 +1,11 @@
 import pytest
 from ase import Atoms
-from gpaw.mpi import world
-from gpaw import GPAW, FermiDirac, Mixer, MixerSum, Davidson
+
+from gpaw import GPAW, Davidson, FermiDirac, Mixer, MixerSum
 from gpaw.atom.all_electron import AllElectron
-from gpaw.atom.generator import Generator
 from gpaw.atom.configurations import parameters
+from gpaw.atom.generator import Generator
+from gpaw.mpi import world
 
 
 @pytest.mark.slow

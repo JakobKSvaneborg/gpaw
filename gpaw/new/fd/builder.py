@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+import numpy as np
+
 from gpaw.core import UGArray, UGDesc
 from gpaw.new.builder import create_uniform_grid
 from gpaw.new.fd.hamiltonian import FDHamiltonian
 from gpaw.new.fd.pot_calc import FDPotentialCalculator
 from gpaw.new.gpw import as_double_precision
-from gpaw.new.poisson import PoissonSolver, PoissonSolverWrapper
 from gpaw.new.pwfd.builder import PWFDDFTComponentsBuilder
-from gpaw.poisson import PoissonSolver as make_poisson_solver
 
 
 class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
@@ -16,14 +16,13 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                  params,
                  *,
                  comm,
-                 nn=3,
-                 interpolation=3):
+                 log):
+        self.interpolation_stencil_range = params.interpolation or 3
         super().__init__(atoms,
                          params,
-                         comm=comm)
+                         comm=comm, log=log)
         assert not self.soc
-        self.kin_stencil_range = nn
-        self.interpolation_stencil_range = interpolation
+        assert self.qspiral_v is None
 
         self._nct_aR = None
         self._tauct_aR = None
@@ -39,7 +38,7 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
             self.atoms.pbc,
             self.ibz.symmetries,
             h=self.params.h,
-            interpolation='not fft',
+            interpolation=self.interpolation_stencil_range,
             comm=self.communicators['d'])
         fine_grid = grid.new(size=grid.size_c * 2)
         # decomposition=[2 * d for d in grid.decomposition]
@@ -60,33 +59,40 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
                 self.grid, self.relpos_ac, atomdist=self.atomdist)
         return self._tauct_aR
 
-    def create_poisson_solver(self) -> PoissonSolver:
-        solver = make_poisson_solver(**self.params.poissonsolver, xp=self.xp)
-        solver.set_grid_descriptor(self.fine_grid._gd)
-        return PoissonSolverWrapper(solver)
+    def create_poisson_solver(self, extensions):
+        from gpaw.poisson import PoissonSolver as make_poisson_solver
+        try:
+            solver = super().create_poisson_solver(extensions)
+        except NotImplementedError:
+            ps = self.params.poissonsolver
+            if hasattr(ps, 'params'):
+                psparams = ps.params
+            else:
+                psparams = {'name': ps}
+            solver = make_poisson_solver(
+                **psparams,
+                xp=self.xp).build(self.fine_grid, self.xp)
+        return solver
 
     def create_potential_calculator(self):
-        poisson_solver = self.create_poisson_solver()
+        extensions = self.get_extensions()
+        poisson_solver = self.create_poisson_solver(extensions)
         return FDPotentialCalculator(
-            self.grid, self.fine_grid, self.setups, self.xc, poisson_solver,
-            relpos_ac=self.relpos_ac, atomdist=self.atomdist,
+            self.grid,
+            self.fine_grid,
+            self.setups,
+            self.xc,
+            poisson_solver,
+            relpos_ac=self.relpos_ac,
+            atomdist=self.atomdist,
             interpolation_stencil_range=self.interpolation_stencil_range,
+            extensions=extensions,
             xp=self.xp)
 
-    def create_hamiltonian_operator(self, blocksize=10):
-        return FDHamiltonian(self.wf_desc, self.kin_stencil_range, blocksize,
+    def create_hamiltonian_operator(self):
+        return FDHamiltonian(self.wf_desc,
+                             kin_stencil=self.params.mode.nn,
                              xp=self.xp)
-
-    def convert_wave_functions_from_uniform_grid(self,
-                                                 C_nM,
-                                                 basis_set,
-                                                 kpt_c,
-                                                 q):
-        grid = self.grid.new(kpt=kpt_c, dtype=self.dtype)
-        psit_nR = grid.zeros(self.nbands, self.communicators['b'])
-        mynbands = len(C_nM.data)
-        basis_set.lcao_to_grid(C_nM.data, psit_nR.data[:mynbands], q)
-        return psit_nR.to_xp(self.xp)
 
     def read_ibz_wave_functions(self, reader):
         ibzwfs = super().read_ibz_wave_functions(reader)
@@ -98,18 +104,20 @@ class FDDFTComponentsBuilder(PWFDDFTComponentsBuilder):
         else:
             return ibzwfs
 
-        singlep = reader.get('precision', 'double') == 'single'
         c = reader.bohr**1.5
         if reader.version < 0:
             c = 1  # old gpw file
+        singlep = reader.get('precision', 'double') == 'single'
 
         for wfs in ibzwfs:
-            grid = self.wf_desc.new(kpt=wfs.kpt_c)
+            grid = self.wf_desc.new(kpt=wfs.kpt_c, dtype=self.dtype)
             index = (wfs.spin, wfs.k)
             data = reader.wave_functions.proxy(name, *index)
             data.scale = c
             if self.communicators['w'].size == 1 and not singlep:
-                wfs.psit_nX = UGArray(grid, self.nbands, data=data)
+                # Cast to the right dtype
+                wfs.psit_nX = UGArray(grid, self.nbands,
+                                      data=np.array(data, dtype=grid.dtype))
             else:
                 band_comm = self.communicators['b']
                 wfs.psit_nX = UGArray(

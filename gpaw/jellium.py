@@ -67,7 +67,7 @@ class JelliumSlab(Jellium):
             Position of lower surface in Angstrom units.
         z2: float
             Position of upper surface in Angstrom units."""
-        Jellium.__init__(self, charge)
+        super().__init__(charge)
         self.z1 = (z1 - 0.0001) / Bohr
         self.z2 = (z2 - 0.0001) / Bohr
 

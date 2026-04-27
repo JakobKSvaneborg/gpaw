@@ -1,20 +1,22 @@
 """ Tests extrapolation to infinite energy cutoff + block parallelization.
 It takes ~10 s on one core"""
 
-import pytest
-from gpaw.response.g0w0 import G0W0
 import numpy as np
+import pytest
+
+from gpaw.response.g0w0 import G0W0
 
 
 @pytest.mark.response
-def test_response_gw_hBN_extrapolate(in_tmp_dir, scalapack, gpw_files):
+def test_response_gw_hBN_extrapolate(in_tmp_dir, scalapack, gpw_files, mpi):
     ecuts = [20, 25, 30]
     common = dict(truncation='2D',
                   q0_correction=True,
                   kpts=[0],
                   eta=0.2,
                   bands=(3, 5),
-                  nblocksmax=True)
+                  nblocksmax=True,
+                  world=mpi.comm)
     gw = G0W0(gpw_files['hbn_pw'],
               'gw-hBN',
               ecut=30,

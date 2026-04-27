@@ -1,9 +1,9 @@
 import pytest
 
 import gpaw.cgpaw as cgpaw
+import gpaw.mpi as mpi
 from gpaw.gpu import cupy as cp
 from gpaw.gpu.mpi import CuPyMPI
-import gpaw.mpi as mpi
 
 
 @pytest.mark.gpu

@@ -1,7 +1,7 @@
 import numpy as np
 
-from gpaw.xc.libxc import LibXC
 from gpaw.xc.kernel import XCKernel
+from gpaw.xc.libxc import LibXC
 
 
 class ParametrizedKernel(XCKernel):

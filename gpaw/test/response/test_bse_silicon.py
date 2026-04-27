@@ -1,14 +1,16 @@
-import pytest
 import numpy as np
+import pytest
 from ase.build import bulk
-from gpaw import GPAW, FermiDirac
+
+from gpaw import FermiDirac
 from gpaw.response.bse import BSE, read_bse_eigenvalues
 from gpaw.response.df import read_response_function
 from gpaw.test import findpeak
 
 
 @pytest.mark.response
-def test_response_bse_silicon(in_tmp_dir, scalapack):
+def test_response_bse_silicon(in_tmp_dir, scalapack, mpi):
+    comm = mpi.comm
     GS = 1
     nosym = 1
     bse = 1
@@ -18,11 +20,11 @@ def test_response_bse_silicon(in_tmp_dir, scalapack):
         a = 5.431  # From PRB 73,045112 (2006)
         atoms = bulk('Si', 'diamond', a=a)
         atoms.positions -= a / 8
-        calc = GPAW(mode='pw',
-                    kpts={'size': (2, 2, 2), 'gamma': True},
-                    occupations=FermiDirac(0.001),
-                    nbands=12,
-                    convergence={'bands': -4})
+        calc = mpi.GPAW(mode='pw',
+                        kpts={'size': (2, 2, 2), 'gamma': True},
+                        occupations=FermiDirac(0.001),
+                        nbands=12,
+                        convergence={'bands': -4})
         atoms.calc = calc
         atoms.get_potential_energy()
         calc.write('Si.gpw', 'all')
@@ -34,7 +36,8 @@ def test_response_bse_silicon(in_tmp_dir, scalapack):
                   valence_bands=range(4),
                   conduction_bands=range(4, 8),
                   eshift=eshift,
-                  nbands=8)
+                  nbands=8,
+                  comm=comm)
         bse.get_dielectric_function(eta=0.2,
                                     w_w=np.linspace(0, 10, 2001))
         w_w, epsreal_w, epsimag_w = read_response_function('df_bse.csv')
@@ -47,12 +50,12 @@ def test_response_bse_silicon(in_tmp_dir, scalapack):
 
     if GS and nosym:
         atoms = bulk('Si', 'diamond', a=a)
-        calc = GPAW(mode='pw',
-                    kpts={'size': (2, 2, 2), 'gamma': True},
-                    occupations=FermiDirac(0.001),
-                    nbands=12,
-                    symmetry='off',
-                    convergence={'bands': -4})
+        calc = mpi.GPAW(mode='pw',
+                        kpts={'size': (2, 2, 2), 'gamma': True},
+                        occupations=FermiDirac(0.001),
+                        nbands=12,
+                        symmetry='off',
+                        convergence={'bands': -4})
         atoms.calc = calc
         atoms.get_potential_energy()
         calc.write('Si.gpw', 'all')
@@ -63,6 +66,7 @@ def test_response_bse_silicon(in_tmp_dir, scalapack):
                   valence_bands=range(4),
                   conduction_bands=range(4, 8),
                   eshift=eshift,
+                  comm=comm,
                   nbands=8)
         w_w, eps_w = bse.get_dielectric_function(filename=None,
                                                  eta=0.2,

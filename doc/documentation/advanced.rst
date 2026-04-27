@@ -11,20 +11,19 @@ GPAW calculator:
 
    soc/soc
    poisson
-   electrodynamics/electrodynamics
    cdft/cdft
    dscf/dscf
    dcdft/dcdft
-   xc/exx
    external
    grids
    hyperfine
    lcao/lcao
    mom/mom
+   do/do
+   do/do_convergence
    do-gmf/do-gmf
    smearing
    ofdft/ofdft
-   xc/rpa
    scissors/scissors
    xc/xc
    custom_convergence

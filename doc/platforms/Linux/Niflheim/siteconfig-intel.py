@@ -3,17 +3,23 @@ import os
 scalapack = True
 intelmkl = True
 fftw = True
-mpicompiler = 'mpiicc'
+
+if os.getenv('EBVERSIONINTEL') >= '2025':
+    mpicompiler = 'mpiicx'
+else:
+    mpicompiler = 'mpiicc'
 
 # Use Intel MKL
 libraries = ['xc', 'mkl_sequential', 'mkl_core', 'fftw3xc_intel_pic', 'mkl_rt']
+mkl = os.getenv('MKLROOT')
+include_dirs = [os.path.join(mkl, 'include')]
 
 # Use EasyBuild scalapack from the active toolchain
 libraries += ['mkl_scalapack_lp64', 'mkl_blacs_intelmpi_lp64']
 
 # Use EasyBuild libxc
 libxc = os.getenv('EBROOTLIBXC')
-include_dirs = [os.path.join(libxc, 'include')]
+include_dirs += [os.path.join(libxc, 'include')]
 
 # libvdwxc:
 # Use EasyBuild libvdwxc
@@ -34,4 +40,4 @@ if elpa:
     include_dirs.append(os.path.join(elpa, 'include', 'elpa-' + elpaversion))
 
 # Now add a EasyBuild "cover-all-bases" library_dirs
-library_dirs = os.getenv('LD_LIBRARY_PATH').split(':')
+library_dirs += os.getenv('LD_LIBRARY_PATH').split(':')

@@ -1,7 +1,8 @@
 # listserv.fysik.dtu.dk/pipermail/gpaw-developers/2014-February/004374.html
-from gpaw import GPAW
 import pytest
 from ase.build import molecule
+
+from gpaw import GPAW
 
 
 def test_pathological_LDA_unstable():

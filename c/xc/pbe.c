@@ -1,8 +1,8 @@
 /*  Copyright (C) 2003-2007  CAMP
  *  Please see the accompanying LICENSE file for further information. */
 
-#include <math.h>
 #include "xc_gpaw.h"
+#include <math.h>
 
 double pbe_exchange(const xc_parameters* par,
 		    double n, double rs, double a2,

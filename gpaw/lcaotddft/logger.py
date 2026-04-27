@@ -1,5 +1,5 @@
-from time import localtime
 from math import log as ln
+from time import localtime
 
 from gpaw.lcaotddft.observer import TDDFTObserver
 from gpaw.tddft.units import autime_to_attosec
@@ -8,7 +8,7 @@ from gpaw.tddft.units import autime_to_attosec
 class TDDFTLogger(TDDFTObserver):
 
     def __init__(self, paw, flush_interval=10, interval=1):
-        TDDFTObserver.__init__(self, paw, interval)
+        super().__init__(paw, interval)
         assert flush_interval > 0
         self.flush_interval = flush_interval
         self.flush_next = paw.niter + self.flush_interval - 1

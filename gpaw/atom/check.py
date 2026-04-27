@@ -8,6 +8,7 @@ import numpy as np
 from ase import Atoms
 from ase.data import atomic_numbers, covalent_radii
 from ase.optimize import BFGS
+
 from gpaw import GPAW, PW, KohnShamConvergenceError
 
 cutoffs = [200, 250, 300, 400, 500, 600, 700, 800, 1500]

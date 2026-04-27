@@ -6,7 +6,6 @@ for complex symmetric matrices. Requires Numpy and GPAW's own BLAS."""
 import numpy as np
 
 from gpaw.utilities.blas import axpy
-from gpaw.mpi import rank
 
 from .base import BaseSolver
 
@@ -25,7 +24,7 @@ class CSCG(BaseSolver):
     Now x and b are multivectors, i.e., list of vectors.
     """
 
-    def solve(self, A, x, b):
+    def solve(self, A, x, b, *, world):
         if self.timer is not None:
             self.timer.start('CSCG')
 
@@ -134,7 +133,7 @@ class CSCG(BaseSolver):
 
             # print if slow convergence
             if ((i + 1) % slow_convergence_iters) == 0:
-                print('R2 of proc #', rank, '  = ', tmp,
+                print('R2 of proc #', world.rank, '  = ', tmp,
                       ' after ', i + 1, ' iterations')
 
             # finally update rho

@@ -1,14 +1,14 @@
 import numpy as np
 import scipy.sparse as sparse
 from ase.neighborlist import PrimitiveNeighborList
-# from ase.utils.timing import timer
-from gpaw.utilities.tools import tri2full
 
 # from gpaw import debug
-from gpaw.lcao.overlap import (FourierTransformer, TwoSiteOverlapCalculator,
-                               ManySiteOverlapCalculator,
-                               AtomicDisplacement, NullPhases, BlochPhases,
-                               DerivativeAtomicDisplacement)
+from gpaw.lcao.overlap import (AtomicDisplacement, BlochPhases,
+                               DerivativeAtomicDisplacement,
+                               FourierTransformer, ManySiteOverlapCalculator,
+                               NullPhases, TwoSiteOverlapCalculator)
+# from ase.utils.timing import timer
+from gpaw.utilities.tools import tri2full
 
 
 def get_cutoffs(f_Ij):

@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-from ase.cli.completion import update, CLICommand
+from ase.cli.completion import CLICommand, update
 
 from gpaw.cli.main import commands
 

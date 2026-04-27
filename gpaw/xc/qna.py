@@ -1,8 +1,8 @@
-from gpaw.xc.gga import GGA
 import numpy as np
+
 from gpaw.lfc import LFC
 from gpaw.spline import Spline
-from gpaw.xc.gga import gga_x, gga_c
+from gpaw.xc.gga import GGA, gga_c, gga_x
 
 
 class QNAKernel:
@@ -124,7 +124,7 @@ class QNA(GGA):
         # override_atoms is only used to test the partial derivatives
         # of xc-functional
         kernel = QNAKernel(self)
-        GGA.__init__(self, kernel, stencil=stencil)
+        super().__init__(kernel, stencil=stencil)
         self.atoms = atoms
         self.parameters = parameters
         self.qna_setup_name = qna_setup_name
@@ -142,7 +142,7 @@ class QNA(GGA):
         return dct
 
     def set_grid_descriptor(self, gd):
-        GGA.set_grid_descriptor(self, gd)
+        super().set_grid_descriptor(gd)
         self.dedmu_g = gd.zeros()
         self.dedbeta_g = gd.zeros()
         # Create gaussian LFC
@@ -160,11 +160,15 @@ class QNA(GGA):
         spline = Spline.from_data(l=0, rmax=rcut, f_g=g_g)
         spline_j = [[spline]] * len(self.atoms)
         self.Pa = LFC(gd, spline_j)
+        self._pos_set = False
 
     def set_positions(self, spos_ac, atom_partition=None):
         self.Pa.set_positions(spos_ac)
+        self._pos_set = True
 
     def calculate_spatial_parameters(self, atoms):
+        if not self._pos_set:
+            self.set_positions(atoms.get_scaled_positions())
         mu_g = self.gd.zeros()
         beta_g = self.gd.zeros()
         denominator = self.gd.zeros()
@@ -186,8 +190,8 @@ class QNA(GGA):
     def calculate_paw_correction(self, setup, D_sp, dEdD_sp=None,
                                  addcoredensity=True, a=None):
         self.current_atom = a
-        return GGA.calculate_paw_correction(self, setup, D_sp, dEdD_sp,
-                                            addcoredensity, a)
+        return super().calculate_paw_correction(
+            setup, D_sp, dEdD_sp, addcoredensity, a)
 
     def get_setup_name(self):
         return self.qna_setup_name

@@ -1,10 +1,11 @@
 from __future__ import annotations
+
+from pathlib import Path
 from typing import TYPE_CHECKING
 
+import numpy as np
 from ase.parallel import parprint
 from ase.utils.timing import Timer
-from pathlib import Path
-import numpy as np
 
 from gpaw.new.ase_interface import ASECalculator
 from gpaw.nlopt.basic import NLOData
@@ -42,7 +43,6 @@ def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
     # Start the timer
     if timer is None:
         timer = Timer()
-    parprint(f'Calculating momentum matrix elements for spin channel {spin}.')
 
     # Spin input
     assert spin < gs.ns, 'Wrong spin input'
@@ -50,17 +50,21 @@ def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
     # Allocate the matrix elements
     ibzwfs = gs.ibzwfs
     master = (ibzwfs.kpt_comm.rank == 0)
-    nb = bands.stop - bands.start
-    nq = len(ibzwfs.q_k.keys())  # Number of k-points (q-indices) for each core
-    p_qvnn = np.empty([nq, 3, nb, nb], dtype=complex)
+    p_qvnn = []
+    nq = len(ibzwfs.u_q)
+
+    parprint(f'Calculating momentum matrix elements for spin channel {spin}.',
+             comm=ibzwfs.comm)
 
     # Initial call to print 0 % progress
     if master:
         pb = ProgressBar()
 
     # Calculate matrix elements in loop over k-points
-    for wfs_s in ibzwfs.wfs_qs:
-        wfs = gs.get_wfs(wfs_s, spin)
+    for wfs in ibzwfs:
+        if gs.collinear and wfs.spin != spin:
+            continue
+        # wfs = gs.get_wfs(wfs_s, spin)
 
         with timer('Contribution from pseudo wave functions'):
             G_plus_k_Gv, u_nG = gs.get_plane_wave_coefficients(wfs,
@@ -74,7 +78,7 @@ def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
                 p_vnn -= 1j * np.einsum('mi,nj,ijv->vmn',
                                         P_ni.conj(), P_ni, nabla_iiv)
 
-        p_qvnn[wfs.q] = p_vnn
+        p_qvnn.append(p_vnn)
 
         if master:
             pb.update(wfs.q / nq)
@@ -83,10 +87,10 @@ def get_mml(gs: CollinearGSInfo | NoncollinearGSInfo,
         pb.finish()
         timer.write()
 
-    return p_qvnn
+    return np.array(p_qvnn)
 
 
-def gather_to_master(p_qvnn, ibzwfs):
+def gather_to_master(p_qvnn, ibzwfs, spin):
     kpt_comm = ibzwfs.kpt_comm
     master = (kpt_comm.rank == 0)
     shape = p_qvnn.shape[1:4]
@@ -95,7 +99,7 @@ def gather_to_master(p_qvnn, ibzwfs):
         kpt_comm.send(p_qvnn, 0)
         return np.empty((0,) + shape, complex)
     else:
-        rank_k = ibzwfs.rank_k
+        rank_k = ibzwfs.rank_ks[:, spin]
         nk = len(rank_k)
 
         p_kvnn = np.empty((nk,) + shape, complex)
@@ -142,8 +146,8 @@ def make_nlodata(calc: ASECalculator | str | Path,
         if not (isinstance(calc, str) or isinstance(calc, Path)):
             raise TypeError('Input must be a calculator or a string / path'
                             'pointing to a calculator.')
-        from gpaw.new.ase_interface import GPAW
-        calc = GPAW(calc, txt=None, parallel={'domain': 1, 'band': 1})
+        from gpaw.dft import GPAW
+        calc = GPAW(calc, legacy_gpaw=False, parallel={'domain': 1, 'band': 1})
     assert not calc.symmetry.point_group, \
         'Point group symmetry should be off.'
 
@@ -179,9 +183,10 @@ def make_nlodata(calc: ASECalculator | str | Path,
     bands = slice(ni, nf)
 
     # Memory estimate
-    nk = len(ibzwfs.rank_k)  # Total number of k-points
+    nk = len(ibzwfs.rank_ks)  # Total number of k-points
     est_mem = 2 * 3 * nk * (nf - ni)**2 * 16 / 2**30
-    parprint(f'At least {est_mem:.2f} GB of memory is required on master.')
+    parprint(f'At least {est_mem:.2f} GB of memory is required on master.',
+             comm=ibzwfs.comm)
 
     # Get the energy and Fermi-Dirac occupations (data is only in master)
     with timer('Get energies and fermi levels'):
@@ -195,13 +200,15 @@ def make_nlodata(calc: ASECalculator | str | Path,
         for spin in spins:
             p_qvnn = get_mml(gs, bands, spin, timer)
             p_sqvnn.append(p_qvnn)
-        if not gs.collinear:
-            p_sqvnn = [p_sqvnn[0] + p_sqvnn[1]]
     with timer('Gather the data to master'):
         p_skvnn = []
-        for p_qvnn in p_sqvnn:
-            p_kvnn = gather_to_master(p_qvnn, ibzwfs)
+        for spin, p_qvnn in zip(spins, p_sqvnn):
+            p_kvnn = gather_to_master(p_qvnn,
+                                      ibzwfs,
+                                      spin if gs.collinear else 0)
             p_skvnn.append(p_kvnn)
+        if not gs.collinear:
+            p_skvnn = [p_skvnn[0] + p_skvnn[1]]
 
     # Save the output to the file
     return NLOData(w_sk=w_sk,

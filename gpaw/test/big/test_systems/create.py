@@ -6,9 +6,9 @@ from ase import Atoms
 from ase.build import add_adsorbate, fcc100, fcc111, molecule
 from ase.io import read
 from ase.lattice.cubic import FaceCenteredCubic
+
 from gpaw import FermiDirac
 from gpaw.utilities import h2gpts
-
 
 _functions = {}
 
@@ -331,7 +331,7 @@ def gqd_triangle_o():
                              [12.30013204, 8.91463681, 10.32539251],
                              [10.17280943, 8.86784643, 11.61496353],
                              [17.66988350, 10.75156430, 11.03936397]])
-    atoms.set_initial_magnetic_moments([0] * 34 + [1])
+    atoms.set_initial_magnetic_moments([0.1] * 34 + [1])
     return atoms, {'xc': 'RPBE'}
 
 
@@ -444,7 +444,7 @@ def water():
                   pbc=True)
     atoms = atoms.repeat([1, 1, 2])
     n = 56
-    es = dict(name='rmm-diis', keep_htpsit=False)
+    es = dict(name='rmm-diis')  # , keep_htpsit=False)
     return atoms, dict(
         nbands=132 * 2,
         gpts=(n, n, 2 * n),

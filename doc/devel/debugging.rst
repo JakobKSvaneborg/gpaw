@@ -200,7 +200,7 @@ tracking down the source of the memory leak (in this case line 123 of ``myfile.c
 can be done using Valgrind_ as follows::
 
    sepeli ~/gpaw/trunk/test> valgrind --tool=memcheck --leak-check=yes \
-   --show-reachable=yes --num-callers=20 --track-fds=yes gpaw-python test.py
+   --show-reachable=yes --num-callers=20 --track-fds=yes gpaw python test.py
 
    ==16442== 6,587,460 bytes in 29,943 blocks are definitely lost in loss record 85 of 85
    ==16442==    at 0x40053C0: malloc (vg_replace_malloc.c:149)
@@ -232,14 +232,14 @@ with Python on a GNU/Linux development platform. Prepend the following to your s
 
     import os, sys, time, math
     from gpaw.mpi import world
-    gpaw_python_path = '/your/path/to/gpaw-python'
+    gpaw_path = '/your/path/to/gpaw'
     ndigits = 1 + int(math.log10(world.size))
     assert os.system('screen -S gdb.%0*d -dm gdb %s %d' \
-        % (ndigits, world.rank, gpaw_python_path, os.getpid())) == 0
+        % (ndigits, world.rank, gpaw_path, os.getpid())) == 0
     time.sleep(ndigits)
     world.barrier()
 
-This runs ``gdb /path/to/gpaw-python pid`` from within each instance of the custom Python
+This runs ``gdb /path/to/gpaw pid`` from within each instance of the custom Python
 interpreter and detaches it into a `screen <https://www.gnu.org/software/screen/>`_ session
 called ``gdb.0`` for rank 0 etc. You may now resume control of the debugger instances by
 running ``screen -rd gdb.0``, entering `c` to continue and so forth for all instances.

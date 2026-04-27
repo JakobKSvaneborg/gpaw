@@ -1,7 +1,8 @@
 import sys
-import numpy as np
 
-from ase.units import _hbar, _c, _e, _me, Hartree, Bohr
+import numpy as np
+from ase.units import Bohr, Hartree, _c, _e, _hbar, _me
+
 from gpaw import __version__ as version
 from gpaw.utilities.folder import Folder
 
@@ -171,7 +172,7 @@ class Writer(Folder):
         """
         self.folding = folding
         if folding is not None:
-            Folder.__init__(self, width, folding)
+            super().__init__(width, folding)
 
     def write(self, filename=None,
               emin=None, emax=None, de=None,

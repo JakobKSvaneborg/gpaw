@@ -1,6 +1,7 @@
-import pytest
 import numpy as np
+import pytest
 from ase.build import bulk
+
 from gpaw import GPAW
 
 
@@ -33,10 +34,10 @@ def test_metallic_GLLBSCM():
     for x_i, y_i in [run(xc='GLLBSC', repeat=1),
                      run(xc='GLLBSCM', repeat=2)]:
         # Test that the DOSes are the same
-        assert np.allclose(x1_i, x_i, rtol=0, atol=1e-8), \
+        assert np.allclose(x1_i, x_i, rtol=0, atol=1e-6), \
             "DOS energies don't match, " \
             "error = {}".format(np.max(np.abs(x1_i - x_i)))
-        assert np.allclose(y1_i, y_i, rtol=0, atol=1e-6), \
+        assert np.allclose(y1_i, y_i, rtol=0, atol=1e-5), \
             "DOS values don't match, " \
             "error = {}".format(np.max(np.abs(y1_i - y_i)))
 

@@ -1,6 +1,8 @@
 from math import pi
+
 import numpy as np
 from scipy.spatial.transform import Rotation
+
 """
 The point groups are written as classes that inherit the class
 Pointgroup and contain the information about

@@ -4,12 +4,14 @@ import pytest
 @pytest.mark.response
 def test_pair_density_paw_correction():
     import numpy as np
-    from gpaw.lfc import LocalizedFunctionsCollection as LFC
-    from gpaw.grid_descriptor import GridDescriptor
+
     from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
+    from gpaw.lfc import LocalizedFunctionsCollection as LFC
+    from gpaw.old.grid_descriptor import GridDescriptor
+    from gpaw.response.paw import (LeanPAWDataset,
+                                   calculate_pair_density_correction)
     from gpaw.spline import Spline
-    from gpaw.response.paw import (calculate_pair_density_correction,
-                                   LeanPAWDataset)
+
     # Initialize s, p, d (9 in total) wave and put them on grid
     rc = 2.0
     a = 2.5 * rc

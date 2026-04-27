@@ -1,21 +1,21 @@
 import warnings
-import pytest
+
 import numpy as np
+import pytest
 from ase.build import bulk
 from ase.dft.bee import BEEFEnsemble, readbee
-from gpaw import GPAW, Mixer, PW
-from gpaw.test import gen
-from gpaw.mpi import world
+
 import gpaw.cgpaw as cgpaw
+from gpaw import GPAW, PW, Mixer
+from gpaw.mpi import world
+from gpaw.test import gen
 
 
 @pytest.mark.mgga
 @pytest.mark.libxc
 @pytest.mark.slow
 @pytest.mark.parametrize('xc', ['mBEEF', 'BEEF-vdW', 'mBEEF-vdW'])
-def test_beef(in_tmp_dir, xc, gpaw_new):
-    if xc == 'mBEEF-vdW' and gpaw_new:
-        pytest.skip('mBEEF-vdW not implemented')
+def test_beef(in_tmp_dir, xc):
     if xc[0] == 'm':
         assert cgpaw.lxcXCFuncNum('MGGA_X_MBEEF') is not None
 
@@ -42,7 +42,7 @@ def test_beef(in_tmp_dir, xc, gpaw_new):
             E.append(si.get_potential_energy())
         ens = BEEFEnsemble(si.calc, verbose=False)
         ens.get_ensemble_energies(200)
-        ens.write('Si-{}-{:.3f}'.format(xc, a))
+        ens.write(f'Si-{xc}-{a:.3f}')
         V.append(si.get_volume())
     p = np.polyfit(V, E, 2)
     v0 = np.roots(np.polyder(p))[0]
@@ -55,7 +55,7 @@ def test_beef(in_tmp_dir, xc, gpaw_new):
     if world.rank == 0:
         E = []
         for a in np.linspace(5.4, 5.5, 3):
-            e = readbee('Si-{}-{:.3f}'.format(xc, a))
+            e = readbee(f'Si-{xc}-{a:.3f}')
             E.append(e)
 
         A = []
@@ -69,7 +69,7 @@ def test_beef(in_tmp_dir, xc, gpaw_new):
         a = A.mean()
         da = A.std()
 
-        print('a(ref) = {:.3f} +- {:.3f}'.format(a0, da0))
-        print('a      = {:.3f} +- {:.3f}'.format(a, da))
+        print(f'a(ref) = {a0:.3f} +- {da0:.3f}')
+        print(f'a      = {a:.3f} +- {da:.3f}')
         assert abs(a - a0) < 0.01
         assert abs(da - da0) < 0.01

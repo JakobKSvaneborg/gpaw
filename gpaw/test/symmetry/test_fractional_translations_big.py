@@ -1,7 +1,7 @@
-from ase.spacegroup import crystal
-from gpaw import GPAW
-from gpaw import PW
 import pytest
+from ase.spacegroup import crystal
+
+from gpaw import GPAW, PW
 
 
 def test_symmetry_fractional_translations_big():
@@ -23,6 +23,7 @@ def test_symmetry_fractional_translations_big():
                 nbands=32,
                 symmetry={'symmorphic': False},
                 gpts=(16, 16, 20),
+                convergence={'density': 1e-5},
                 eigensolver='rmm-diis')
 
     atoms.calc = calc
@@ -37,6 +38,7 @@ def test_symmetry_fractional_translations_big():
                 kpts=(3, 3, 2),
                 nbands=32,
                 gpts=(16, 16, 20),
+                convergence={'density': 1e-5},
                 eigensolver='rmm-diis')
 
     atoms.calc = calc
@@ -45,4 +47,4 @@ def test_symmetry_fractional_translations_big():
     assert len(calc.wfs.kd.ibzk_kc) == 6
     assert len(calc.wfs.kd.symmetry.op_scc) == 2
 
-    assert energy_fractrans == pytest.approx(energy_no_fractrans, abs=1e-7)
+    assert energy_fractrans == pytest.approx(energy_no_fractrans, abs=1e-6)

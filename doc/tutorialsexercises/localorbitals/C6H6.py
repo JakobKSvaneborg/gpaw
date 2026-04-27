@@ -69,7 +69,12 @@ def compare_eigvals(lcao, los, figname, figtitle):
 benzene = molecule('C6H6', vacuum=5)
 
 # LCAO calculation
-calc = GPAW(mode='lcao', xc='LDA', basis='szp(dzp)', txt=None)
+calc = GPAW(
+    legacy_gpaw=True,
+    mode='lcao',
+    xc='LDA',
+    basis='szp(dzp)',
+    txt=None)
 benzene.calc = calc
 benzene.get_potential_energy()
 

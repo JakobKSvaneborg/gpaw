@@ -1,16 +1,14 @@
-from myqueue.workflow import run
-from gpaw.test.big.test_systems.create import create_test_systems
-from gpaw import GPAW, PW, MixerFull
 from ase.optimize import BFGS
+from myqueue.workflow import run
 
+from gpaw import GPAW, PW, MixerFull
+from gpaw.test.big.test_systems.create import create_test_systems
 
 CORES = [1, 4, 8, 16, 14, 40, 48, 56, 72, 96, 120, 168]
 
 
 def workflow():
     for name, (atoms, params) in create_test_systems().items():
-        if name == 'biimtf':
-            continue
         cores = len(atoms)**2 / 10
         # Find best match:
         _, cores = min((abs(cores - c), c) for c in CORES)
@@ -27,7 +25,8 @@ def workflow():
 def calculate(name, atoms, params):
     """Do one-shot energy calculation."""
     atoms.calc = GPAW(**params,
-                      mixer=MixerFull(),
+                      legacy_gpaw=False,
+                      mixer={'backend': 'msr1'},
                       txt=name + '.txt')
     atoms.get_potential_energy()
 

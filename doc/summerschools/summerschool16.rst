@@ -87,7 +87,7 @@ Information on how to install and use ThinLinc is available here:
 https://gbar.dtu.dk/index.php/faq/43-thinlinc
 
 Set the server name to thinlinc.gbar.dtu.dk. User name and password is
-your DTU login.  When loggin in, you are asked to choose between
+your DTU login.  When logging in, you are asked to choose between
 different desktops, we recommend choosing Xfce (some of the other
 choices will cause trouble).
 

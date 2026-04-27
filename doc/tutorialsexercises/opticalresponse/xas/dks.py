@@ -34,5 +34,5 @@ atoms[0].magmom = 1
 atoms.calc = calc2
 e2 = atoms.get_potential_energy() + calc2.get_reference_energy()
 
-with paropen('dks.result', 'w') as fd:
+with paropen('dks_1s.result', 'w') as fd:
     print('Energy difference:', e2 - e1, file=fd)

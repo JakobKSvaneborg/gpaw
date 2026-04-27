@@ -1,12 +1,10 @@
 import numpy as np
-
 from ase.build import bulk
-from ase.optimize import BFGS
-from ase.io import Trajectory
 from ase.filters import StrainFilter
+from ase.io import Trajectory
+from ase.optimize import BFGS
 
 from gpaw import GPAW, PW
-
 
 co = bulk('Co')
 co.set_initial_magnetic_moments([1.6, 1.6])

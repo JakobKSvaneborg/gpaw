@@ -1,15 +1,10 @@
 import numpy as np
-
 from ase.io.ulm import Reader
-from gpaw.io import Writer
 
-from gpaw.tddft.folding import Frequency
-from gpaw.tddft.folding import FoldedFrequencies
+from gpaw.io import Writer
 from gpaw.lcaotddft.observer import TDDFTObserver
-from gpaw.lcaotddft.utilities import read_uMM
-from gpaw.lcaotddft.utilities import read_wuMM
-from gpaw.lcaotddft.utilities import write_uMM
-from gpaw.lcaotddft.utilities import write_wuMM
+from gpaw.lcaotddft.utilities import read_uMM, read_wuMM, write_uMM, write_wuMM
+from gpaw.tddft.folding import FoldedFrequencies, Frequency
 
 
 def generate_freq_w(foldedfreqs_f):
@@ -73,7 +68,7 @@ class FrequencyDensityMatrix(TDDFTObserver):
                  frequencies=None,
                  restart_filename=None,
                  interval=1):
-        TDDFTObserver.__init__(self, paw, interval)
+        super().__init__(paw, interval)
         self.has_initialized = False
         self.dmat = dmat
         self.filename = filename

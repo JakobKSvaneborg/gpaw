@@ -1,8 +1,9 @@
 import numpy as np
 import numpy.random as ra
+import pytest
+
 from gpaw.setup import create_setup
 from gpaw.xc import XC
-import pytest
 
 
 def test_xc_xcatom():

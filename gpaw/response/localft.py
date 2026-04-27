@@ -4,14 +4,12 @@ functions of the electon (spin-)density."""
 from abc import ABC, abstractmethod
 
 import numpy as np
+from ase.units import Bohr
 from scipy.special import spherical_jn
 
-from ase.units import Bohr
-
-from gpaw.response import ResponseGroundStateAdapter, ResponseContext, timer
-
-from gpaw.spherical_harmonics import Yarr
+from gpaw.response import ResponseContext, ResponseGroundStateAdapter, timer
 from gpaw.sphere.rshe import calculate_reduced_rshe
+from gpaw.sphere.spherical_harmonics import Yarr
 from gpaw.xc import XC
 from gpaw.xc.libxc import LibXC
 
@@ -118,7 +116,7 @@ class LocalFTCalculator(ABC):
 
     @abstractmethod
     def calculate(self, qpd, add_f):
-        pass
+        """Calculate PW components f(G) using method add_f and PW basis qpd."""
 
     @staticmethod
     def equivalent_real_space_grids(gd1, gd2):
@@ -560,11 +558,11 @@ def calculate_spin_polarization(n_sR):
     return n_sR[0] - n_sR[1]
 
 
-def add_LSDA_Wxc(gd, n_sR, Wxc_R):
-    Wxc_R += calculate_LSDA_Wxc(gd, n_sR)
+def add_LSDA_Wxc(gd, n_sR, Wxc_R, xc='LDA'):
+    Wxc_R += calculate_LSDA_Wxc(gd, n_sR, xc=xc)
 
 
-def calculate_LSDA_Wxc(gd, n_sR):
+def calculate_LSDA_Wxc(gd, n_sR, xc='LDA'):
     """Calculate W_xc^z in the local spin-density approximation.
 
     For a collinear system:
@@ -578,7 +576,8 @@ def calculate_LSDA_Wxc(gd, n_sR):
     v_sR = np.zeros(np.shape(n_sR))
 
     # Calculate the spin-dependent potential
-    xc = XC('LDA')
+    xc = XC(xc)
+    assert xc.type == 'LDA'
     xc.calculate(gd, n_sR, v_sg=v_sR)
 
     return (v_sR[0] - v_sR[1]) / 2

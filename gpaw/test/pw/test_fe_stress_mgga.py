@@ -6,12 +6,8 @@ from gpaw import GPAW
 
 
 @pytest.mark.mgga
-def test_pw_fe_stress_mgga(gpw_files, gpaw_new):
+def test_pw_fe_stress_mgga(gpw_files):
     fe = GPAW(gpw_files['fe_pw_distorted']).get_atoms()
-
-    # Trigger nasty bug (fixed in !486):
-    if not gpaw_new:
-        fe.calc.wfs.pt.blocksize = fe.calc.wfs.pd.maxmyng - 1
 
     s_analytical = fe.get_stress()
     # Calculated numerical stress once, store here to speed up test

@@ -169,7 +169,7 @@ dielectric tensor by
   \ \hat{q}_{\alpha} \epsilon_{\alpha \beta}(\mathbf q, \omega)  
   \hat{q}_{\beta},
 
-and the dielectric tensor  `\epsilon_{\alpha \beta}(\omega)` satify the "f-sum rule"
+and the dielectric tensor  `\epsilon_{\alpha \beta}(\omega)` satisfy the "f-sum rule"
 
 .. math::
 
@@ -184,8 +184,8 @@ is the electron density.
 Optical limit (q -> 0)
 ======================
 
-In the above sections we have derived the longitudianl dielectric function `\epsilon(\mathbf q, \omega)`. 
-For external perturbation by a tranverse  electro-magnetic field, the full dielectric tensor should be 
+In the above sections we have derived the longitudinal  dielectric function `\epsilon(\mathbf q, \omega)`. 
+For external perturbation by a transverse  electro-magnetic field, the full dielectric tensor should be 
 calculated. However, in the long-wavelength limit, which is the case for light absorption, 
 the dielectric tensor can be recovered by scalar or longitudinal dielectric function considering
 different direction of `\hat{\mathbf q}`. 
@@ -264,7 +264,7 @@ Hilbert Transform
 
 The non-interaction density response function 
 `\chi^0_{\mathbf{G} \mathbf{G}^{\prime}}(\mathbf{q}, \omega)`  can be calculated through 
-hilbert transform, written as
+Hilbert transform, written as
 
 .. math::
 
@@ -331,7 +331,7 @@ Substitute it to the integration in the beginning of this section, one get
                  \frac{1}{ \omega+\omega^{\prime}+i\eta }\right]
             A_{\mathbf{G} \mathbf{G}^{\prime}}(\mathbf{q}, \omega^{\prime})
          
-Applying the hilbert transform can make the calculations of `\chi^0_{\mathbf{G} \mathbf{G}^{\prime}}(\mathbf{q}, \omega)` `Nw / 2` times faster, where `Nw` is the number of frequency points used. 
+Applying the Hilbert transform can make the calculations of `\chi^0_{\mathbf{G} \mathbf{G}^{\prime}}(\mathbf{q}, \omega)` `Nw / 2` times faster, where `Nw` is the number of frequency points used. 
 
 For the delta function, we use either a triangular function, which is described in  \ [#DeltaFunc]_ and
 is normalized to 1 or a gaussian function, which is in principle normalized but in fact not due to  numerically finite frequency 

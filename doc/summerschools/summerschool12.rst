@@ -134,7 +134,7 @@ databar terminal.
 An more pleasant (but more complicated) alternative to ThinLinc is to
 install an X server.  Help on doing this can be found on the `Niflheim wiki`_.
 
-When loggin in using an X server, you should log in to
+When logging in using an X server, you should log in to
 ``login.gbar.dtu.dk`` and proceed to the Linux hosts with the
 command::
 

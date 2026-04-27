@@ -5,13 +5,13 @@ Raman spectroscopy
 ========================
 
 GPAW offers two ways of calculating Raman intensities. One can use the `ASE Raman
-<https://wiki.fysik.dtu.dk/ase/ase/vibrations/raman.html>`_ utility together
+<https://ase-lib.org/ase/vibrations/raman.html>`_ utility together
 with the GPAW LRTDDFT module as shown in the Resonant Raman tutorial :ref:`resonant_raman_water`.
 
 GPAW also implements Raman spectroscopy for zone-center phonons of extended systems
 using the electron-phonon coupling (see :ref:`elphtheory` and :ref:`elph`) within 3rd order perturbation
 theory :dfn:`Taghizadeh et a.` [#Taghizadeh2020]_ , which is discussed here. This method is currently only
-implementated for the LCAO mode.
+implemented for the LCAO mode.
 
 The Stokes Raman intensity can be written as
 
@@ -21,7 +21,7 @@ The Stokes Raman intensity can be written as
     \sum_{\alpha, \beta} u_{in}^\alpha R_{\alpha \beta}^\nu u_{out}^\beta
     \vert^2 \delta(\omega-\omega_\nu)
 
-where `\nu` denotes phonon modes and `\alpha`, `\beta` denote polarisations
+where `\nu` denotes phonon modes and `\alpha`, `\beta` denote polarizations
 of the incoming and outgoing laser light.
 The Raman tensor `R_{\alpha \beta}^\nu` has six terms and is given by
 Ref. [#Taghizadeh2020]_ Eq. (10)
@@ -54,14 +54,14 @@ matrix is always the return value of :meth:`~gpaw.lcao.dipoletransition.get_mome
 
 Energy changes for phonons and potential changes for electron-phonon couplings
 are both computed using a finite displacement technique. Both quantities can be
-obtained simultaenously. In principle the phonon modes can be obtained in any
+obtained simultaneously. In principle the phonon modes can be obtained in any
 fashion, which yields an ASE phonon object though.
 For small systems the finite displacement method has the disadvantage of leading
 to an interaction of a displaced atom with its periodic images. This can lead to
 large errors especially in the electron-phonon matrix. This can be avoided by using
 a sufficiently large supercell for the finite displacement simulations.
 
-If phonon and effective potential are calculated simultaenously, results are saved
+If phonon and effective potential are calculated simultaneously, results are saved
 in the same cache files with default name `elph`.
 
 Some more details are elaborated in the related tutorial :ref:`elphraman`.

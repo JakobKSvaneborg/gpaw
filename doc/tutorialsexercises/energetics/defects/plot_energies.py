@@ -1,16 +1,18 @@
 # web-page: energies.png
 import numpy as np
+from ase.io.jsonio import read_json
 import matplotlib.pyplot as plt
 
-data = np.load('formation_energies.npz')
+data = read_json('electrostatics.json')
 
-repeat = data['repeats']
-uncorrected = data['uncorrected']
+repeat = np.array(data['repeats'])
+uncorrected = np.array(data['uncorrected'])
+corrected = np.array(data['corrected'])
+
 inv_repeat = 1 / repeat[1:]
 line = np.polyfit(inv_repeat, uncorrected[1:].real, deg=1)
 f = np.poly1d(line)
 points = np.linspace(0, 1, 100)
-corrected = data['corrected']
 plt.plot(1 / repeat, uncorrected.real, 'o', label='No corrections')
 plt.plot(1 / repeat, corrected.real, 'p', label='FNV corrected')
 plt.plot(points, f(points), "--", color='C0')

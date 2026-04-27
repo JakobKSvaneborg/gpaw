@@ -2,15 +2,14 @@ import pytest
 from ase import Atom, Atoms
 from ase.parallel import parprint
 
-from gpaw import GPAW, mpi
 from gpaw.lrtddft import LrTDDFT
-from gpaw.poisson import FDPoissonSolver
 from gpaw.pes.dos import DOSPES
 from gpaw.pes.tddft import TDDFTPES
+from gpaw.poisson import FDPoissonSolver
 
 
 @pytest.mark.lrtddft
-def test_lrtddft_pes(in_tmp_dir):
+def test_lrtddft_pes(in_tmp_dir, mpi):
     txt = None
     R = 0.7  # approx. experimental bond length
     a = 3.0
@@ -24,26 +23,33 @@ def test_lrtddft_pes(in_tmp_dir):
                     cell=(a, a, c))
 
     xc = 'LDA'
-    calc = GPAW(mode='fd', gpts=(12, 12, 12), xc=xc, nbands=1,
-                poissonsolver=FDPoissonSolver(),
-                parallel={'domain': mpi.world.size},
-                spinpol=True, txt=txt)
+    calc = mpi.GPAW(
+        mode='fd', gpts=(12, 12, 12), xc=xc, nbands=1,
+        poissonsolver=FDPoissonSolver(),
+        parallel={'domain': mpi.comm.size},
+        spinpol=True, txt=txt)
     H2.calc = calc
     e_H2 = H2.get_potential_energy()
 
-    calc_plus = GPAW(mode='fd', gpts=(12, 12, 12), xc=xc, nbands=2,
-                     poissonsolver=FDPoissonSolver(),
-                     parallel={'domain': mpi.world.size},
-                     spinpol=True, txt=txt)
+    calc_plus = mpi.GPAW(
+        legacy_gpaw=True,
+        mode='fd',
+        gpts=(12, 12, 12),
+        xc=xc,
+        nbands=2,
+        poissonsolver=FDPoissonSolver(),
+        parallel={'domain': mpi.comm.size},
+        spinpol=True,
+        txt=txt)
     calc_plus = calc_plus.new(charge=+1)
     H2_plus.calc = calc_plus
     e_H2_plus = H2_plus.get_potential_energy()
 
     out = 'dospes.dat'
     pes = DOSPES(calc, calc_plus, shift=True)
-    pes.save_folded_pes(filename=out, folding=None)
+    pes.save_folded_pes(filename=out, folding=None, world=mpi.comm)
     parprint('DOS:')
-    pes.save_folded_pes(filename=None, folding=None)
+    pes.save_folded_pes(filename=None, folding=None, world=mpi.comm)
 
     # check for correct shift
     VDE = calc_plus.get_potential_energy() - calc.get_potential_energy()
@@ -58,9 +64,9 @@ def test_lrtddft_pes(in_tmp_dir):
 
     out = 'lrpes.dat'
     pes = TDDFTPES(calc, lr)
-    pes.save_folded_pes(filename=out, folding='Gauss')
+    pes.save_folded_pes(filename=out, folding='Gauss', world=mpi.comm)
     parprint('Linear response:')
-    pes.save_folded_pes(filename=None, folding=None)
+    pes.save_folded_pes(filename=None, folding=None, world=mpi.comm)
 
     energy_tolerance = 0.001
     assert e_H2 == pytest.approx(-3.90059, abs=energy_tolerance)
@@ -69,9 +75,9 @@ def test_lrtddft_pes(in_tmp_dir):
     # io
     out = 'lrpes.dat.gz'
     lr.write(out)
-    lr = LrTDDFT.read(out)
+    lr = LrTDDFT.read(out, world=mpi.comm)
     lr.calculator = calc_plus
 
     pes = TDDFTPES(calc, lr)
     parprint('Linear response:')
-    pes.save_folded_pes(filename=None, folding=None)
+    pes.save_folded_pes(filename=None, folding=None, world=mpi.comm)

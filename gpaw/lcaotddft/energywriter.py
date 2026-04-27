@@ -1,5 +1,4 @@
 import numpy as np
-
 from ase.utils import IOContext
 
 from gpaw.lcaotddft.observer import TDDFTObserver
@@ -10,7 +9,7 @@ class EnergyWriter(TDDFTObserver):
     version = 1
 
     def __init__(self, paw, dmat, filename, interval=1):
-        TDDFTObserver.__init__(self, paw, interval)
+        super().__init__(paw, interval)
         self.ioctx = IOContext()
         self.dmat = dmat
         if paw.niter == 0:
@@ -68,8 +67,8 @@ class EnergyWriter(TDDFTObserver):
 
             e_band += e
 
-        paw.occupations.e_band = e_band
-        paw.occupations.e_entropy = 0.0
+        paw.wfs.occupations.e_band = e_band
+        paw.wfs.occupations.e_entropy = 0.0
         e_kinetic0 = paw.hamiltonian.e_kinetic0
         e_coulomb = paw.hamiltonian.e_coulomb
         e_zero = paw.hamiltonian.e_zero

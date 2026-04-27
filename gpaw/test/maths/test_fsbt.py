@@ -1,6 +1,7 @@
 import numpy as np
 
-from gpaw.atom.radialgd import fsbt, EquidistantRadialGridDescriptor as RGD
+from gpaw.atom.radialgd import EquidistantRadialGridDescriptor as RGD
+from gpaw.atom.radialgd import fsbt
 
 
 def test_maths_fsbt():

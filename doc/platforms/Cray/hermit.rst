@@ -13,7 +13,7 @@ Here you find information about the system
 Scalable Python
 ===============
 
-As the Hermit system is intedend for simulations with thousands of CPU cores,
+As the Hermit system is intended for simulations with thousands of CPU cores,
 a special Python interpreter is used here. The scalable Python reduces the
 import time by performing all import related I/O operations with a single CPU
 core and uses MPI for broadcasting the data. As a limitation, all the MPI tasks
@@ -57,7 +57,7 @@ GPAW
 ====
 On Hermit, Intel compiler together with ACML library seemed to give best
 performance for GPAW, in addition HDF5 will be used for parallel I/O. Thus,
-load the followgin modules::
+load the following modules::
 
   module swap PrgEnv-gnu PrgEnv-intel
   module load acml
@@ -71,7 +71,7 @@ use headers of own NumPy installation
 
 .. literalinclude:: customize_hermit.py
 
-Buid with::
+Build with::
 
   /some_path/scalable-python-gcc/bin/python setup.py install --home=/path_in_workspace --ignore-numpy
 

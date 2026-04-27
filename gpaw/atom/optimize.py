@@ -6,17 +6,16 @@ import time
 from collections import defaultdict
 
 import numpy as np
-from scipy.optimize import differential_evolution as DE
 from ase import Atoms
-from ase.data import covalent_radii, atomic_numbers
+from ase.data import atomic_numbers, covalent_radii
 from ase.units import Bohr, Ha
+from scipy.optimize import differential_evolution as DE
 
-from gpaw import GPAW, PW, setup_paths, Mixer, ConvergenceError
-from gpaw.atom.generator2 import generate  # , DatasetGenerationError
+from gpaw import GPAW, PW, ConvergenceError, Mixer, setup_paths
 from gpaw.atom.aeatom import AllElectronAtom
 from gpaw.atom.atompaw import AtomPAW
+from gpaw.atom.generator2 import generate  # , DatasetGenerationError
 from gpaw.setup import create_setup
-
 
 my_covalent_radii = covalent_radii.copy()
 for e in ['Bk', 'Cf', 'Es', 'Fm', 'Md', 'No', 'Lr']:  # missing radii
@@ -373,11 +372,9 @@ class DatasetOptimizer:
 
 def ip(symbol, fd, setup):
     xc = 'LDA'
-    aea = AllElectronAtom(symbol, log=fd)
+    aea = AllElectronAtom(symbol, log=fd, scalar_relativistic=True)
     aea.initialize()
     aea.run()
-    aea.refine()
-    aea.scalar_relativistic = True
     aea.refine()
     energy = aea.ekin + aea.eH + aea.eZ + aea.exc
     eigs = []
@@ -389,12 +386,10 @@ def ip(symbol, fd, setup):
             eigs.append((e, n, l))
             n += 1
     e0, n0, l0 = max(eigs)
-    aea = AllElectronAtom(symbol, log=fd)
+    aea = AllElectronAtom(symbol, log=fd, scalar_relativistic=True)
     aea.add(n0, l0, -1)
     aea.initialize()
     aea.run()
-    aea.refine()
-    aea.scalar_relativistic = True
     aea.refine()
     IP = aea.ekin + aea.eH + aea.eZ + aea.exc - energy
     IP *= Ha

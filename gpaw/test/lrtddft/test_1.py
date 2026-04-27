@@ -1,18 +1,23 @@
 import pytest
-from ase.units import Bohr
 from ase.parallel import parprint
-from gpaw.lrtddft import LrTDDFT
-from gpaw.mpi import world
-from gpaw.lrtddft.excited_state import ExcitedState
+from ase.units import Bohr
+
 from gpaw import GPAW
+from gpaw.lrtddft import LrTDDFT
+from gpaw.lrtddft.excited_state import ExcitedState
+from gpaw.mpi import world
 
 
 @pytest.fixture
 def H2(H2struct):
     H2 = H2struct.copy()
-    H2.calc = GPAW(mode='fd', xc='PBE',
-                   poissonsolver={'name': 'fd'},
-                   nbands=3, spinpol=False)
+    H2.calc = GPAW(
+        legacy_gpaw=True,
+        mode='fd',
+        xc='PBE',
+        poissonsolver={'name': 'fd'},
+        nbands=3,
+        spinpol=False)
     H2.get_potential_energy()
     return H2
 
@@ -20,9 +25,14 @@ def H2(H2struct):
 @pytest.fixture
 def H2spin(H2struct):
     H2 = H2struct.copy()
-    H2.calc = GPAW(mode='fd', xc='PBE', nbands=2,
-                   poissonsolver={'name': 'fd'},
-                   spinpol=True, parallel={'domain': world.size})
+    H2.calc = GPAW(
+        legacy_gpaw=True,
+        mode='fd',
+        xc='PBE',
+        nbands=2,
+        poissonsolver={'name': 'fd'},
+        spinpol=True,
+        parallel={'domain': world.size})
     H2.get_potential_energy()
     return H2
 

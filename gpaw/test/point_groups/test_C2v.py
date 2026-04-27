@@ -1,6 +1,7 @@
 import pytest
+
 from gpaw import GPAW
-from gpaw.point_groups import SymmetryChecker, PointGroup
+from gpaw.point_groups import PointGroup, SymmetryChecker
 
 
 @pytest.mark.serial

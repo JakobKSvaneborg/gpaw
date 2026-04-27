@@ -27,8 +27,14 @@ commands = {
         ['-f', '--xc-functional', '-a', '--add', '--spin-polarized', '-d',
          '--dirac', '-p', '--plot', '-e', '--exponents', '-l',
          '--logarithmic-derivatives', '-n', '--ngrid', '-R',
-         '--rcut', '-r', '--refine', '-s',
-         '--scalar-relativistic', '--no-ee-interaction'],
+         '--rcut', '-r', '--refine', '--non-relativistic',
+         '--no-ee-interaction'],
+    'basis':
+        ['--name', '-s', '--search', '-t', '--type', '-E',
+         '--energy-shift', '-T', '--tail-norm', '--rcut-max',
+         '--rcut-pol-rel', '--rchar-pol-rel',
+         '--vconf-amplitude', '--vconf-rstart-rel',
+         '--vconf-sharp-confinement', '--lpol', '--jvalues'],
     'completion':
         [],
     'dataset':
@@ -36,12 +42,12 @@ commands = {
          '--projectors', '-r', '--radius', '-0',
          '--zero-potential', '-c',
          '--pseudo-core-density-radius', '-z', '--pseudize',
-         '-p', '--plot', '-l', '--logarithmic-derivatives', '-w',
-         '--write', '-s', '--scalar-relativistic', '-n',
-         '--no-check', '-t', '--tag', '-a', '--alpha', '-g',
-         '--gamma', '-b', '--create-basis-set', '--nlcc',
-         '--core-hole', '-e', '--electrons', '-o', '--output',
-         '--ecut', '--ri', '--omega'],
+         '-p', '--plot', '-S', '--separate-figures', '-l',
+         '--logarithmic-derivatives', '-w', '--write',
+         '--non-relativistic', '-n', '--no-check', '-t', '--tag',
+         '-a', '--alpha', '-g', '--gamma', '-b',
+         '--create-basis-set', '--nlcc', '--core-hole', '-e',
+         '--electrons', '--ecut', '--ri', '--omega'],
     'diag':
         ['-b', '--bands', '-s', '--scalapack'],
     'dos':
@@ -53,11 +59,16 @@ commands = {
     'info':
         [],
     'install-data':
-        ['--version', '--tarball', '--list-all', '--gpaw', '--sg15',
+        ['--version', '--list-all', '--tarball', '--gpaw', '--sg15',
          '--basis', '--test', '--register', '--no-register'],
+    'plot-basis':
+        ['--write'],
+    'plot-dataset':
+        ['-p', '--potential-components', '-l',
+         '--logarithmic-derivatives', '-s', '--separate-figures',
+         '-S', '--search', '-o', '--outfile', '--write'],
     'python':
-        ['--dry-run', '-z', '-d', '--debug', '--command', '-c',
-         '--module', '-m'],
+        ['--dry-run', '-z', '--command', '-c', '--module', '-m'],
     'run':
         ['-p', '--parameters', '-t', '--tag', '--properties', '-f',
          '--maximum-force', '--constrain-tags', '-s',

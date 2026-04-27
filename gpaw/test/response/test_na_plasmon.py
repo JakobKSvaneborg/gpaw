@@ -1,13 +1,12 @@
-import pytest
 import numpy as np
-
+import pytest
 from ase import Atoms
-from gpaw import GPAW, PW
-from gpaw.mpi import world
-from gpaw.test import findpeak
-from gpaw.utilities import compiled_with_sl
+
+from gpaw import PW
 from gpaw.response.df import DielectricFunction
 from gpaw.response.symmetry import QSymmetryAnalyzer
+from gpaw.test import findpeak
+from gpaw.utilities import compiled_with_sl
 
 # Comparing the plasmon peaks found in bulk sodium for two different
 # atomic structures. Testing for identical plasmon peaks. Not using
@@ -16,7 +15,7 @@ from gpaw.response.symmetry import QSymmetryAnalyzer
 
 @pytest.mark.dielectricfunction
 @pytest.mark.response
-def test_response_na_plasmon(in_tmp_dir):
+def test_response_na_plasmon(in_tmp_dir, mpi):
     a = 4.23 / 2.0
     a1 = Atoms('Na',
                scaled_positions=[[0, 0.1, 0]],
@@ -25,7 +24,7 @@ def test_response_na_plasmon(in_tmp_dir):
 
     # parallel calculations must have domain = 1
     parallel = {'band': 1}
-    if world.size > 1 and compiled_with_sl():
+    if mpi.comm.size > 1 and compiled_with_sl():
         parallel.update({'domain': 1})
 
     # Expanding along x-direction
@@ -34,18 +33,20 @@ def test_response_na_plasmon(in_tmp_dir):
                cell=(2 * a, a, a),
                pbc=True)
 
-    a1.calc = GPAW(mode=PW(250),
-                   kpts={'size': (4, 4, 4), 'gamma': True},
-                   parallel=parallel,
-                   # txt='small.txt',
-                   )
+    a1.calc = mpi.GPAW(mode=PW(250),
+                       kpts={'size': (4, 4, 4), 'gamma': True},
+                       parallel=parallel,
+                       convergence={'density': 1e-6},
+                       # txt='small.txt',
+                       )
 
     # Kpoint sampling should be halved in the expanded direction.
-    a2.calc = GPAW(mode=PW(250),
-                   kpts={'size': (2, 4, 4), 'gamma': True},
-                   parallel=parallel,
-                   # txt='large.txt',
-                   )
+    a2.calc = mpi.GPAW(mode=PW(250),
+                       kpts={'size': (2, 4, 4), 'gamma': True},
+                       parallel=parallel,
+                       convergence={'density': 1e-6},
+                       # txt='large.txt',
+                       )
 
     a1.get_potential_energy()
     a2.get_potential_energy()
@@ -64,7 +65,7 @@ def test_response_na_plasmon(in_tmp_dir):
         for timerev in [False, True]]
 
     # Test block parallelization (needs scalapack)
-    if world.size > 1 and compiled_with_sl():
+    if mpi.comm.size > 1 and compiled_with_sl():
         settings.append({'qsymmetry': True, 'nblocks': 2})
 
     # Calculate the dielectric functions
@@ -85,6 +86,7 @@ def test_response_na_plasmon(in_tmp_dir):
         df1 = DielectricFunction('gs_Na_small.gpw',
                                  ecut=40,
                                  rate=0.001,
+                                 world=mpi.comm,
                                  **kwargs)
 
         df1NLFCx, df1LFCx = df1.get_dielectric_function(direction='x')
@@ -94,6 +96,7 @@ def test_response_na_plasmon(in_tmp_dir):
         df2 = DielectricFunction('gs_Na_large.gpw',
                                  ecut=40,
                                  rate=0.001,
+                                 world=mpi.comm,
                                  **kwargs)
 
         df2NLFCx, df2LFCx = df2.get_dielectric_function(direction='x')

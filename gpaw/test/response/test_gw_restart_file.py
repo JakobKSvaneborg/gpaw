@@ -1,7 +1,7 @@
-import pytest
 import numpy as np
+import pytest
+
 from gpaw.response.g0w0 import G0W0
-from gpaw.mpi import world
 
 
 class FragileG0W0(G0W0):
@@ -11,16 +11,17 @@ class FragileG0W0(G0W0):
         self.doom += 1  # Advance doom
         if self.doom == 12:
             raise ValueError('Cthulhu awakens')
-        G0W0.calculate_q(self, *args, **kwargs)
+        super().calculate_q(*args, **kwargs)
 
 
 @pytest.mark.response
-def test_restart_file(in_tmp_dir, gpw_files):
+def test_restart_file(in_tmp_dir, gpw_files, mpi):
     kwargs = dict(bands=(3, 5),
                   nbands=9,
-                  nblocks=world.size,
+                  nblocks=mpi.comm.size,
                   ecut=40,
-                  kpts=[0, 1])
+                  kpts=[0, 1],
+                  world=mpi.comm)
     gw = FragileG0W0(gpw_files['bn_pw'], **kwargs)
     with pytest.raises(ValueError, match='Cthulhu*'):
         gw.calculate()

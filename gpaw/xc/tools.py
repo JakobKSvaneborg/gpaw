@@ -1,8 +1,8 @@
 import numpy as np
 from ase.units import Ha
 
-from gpaw.xc import XC
 from gpaw.utilities import pack_hermitian, unpack_density, unpack_hermitian
+from gpaw.xc import XC
 
 
 def vxc(gs, xc=None, coredensity=True, n1=0, n2=0):
@@ -51,7 +51,7 @@ def vxc(gs, xc=None, coredensity=True, n1=0, n2=0):
         if thisisatest:
             dvxc_asii[a] = [pawdata.dO_ii]
 
-    vxc_un = np.empty((gs.kd.mynk * gs.nspins, gs.bd.mynbands))
+    vxc_un = np.empty((len(gs.kpt_u), gs.bd.mynbands))
     for u, vxc_n in enumerate(vxc_un):
         kpt = gs.kpt_u[u]
         vxct_G = vxct_sG[kpt.s]
@@ -70,6 +70,7 @@ def vxc(gs, xc=None, coredensity=True, n1=0, n2=0):
                                  P_ni.conj()).sum(1).real
 
     gs.gd.comm.sum(vxc_un)
+
     vxc_skn = gs.kd.collect(vxc_un, broadcast=True)
 
     if xc.orbital_dependent:

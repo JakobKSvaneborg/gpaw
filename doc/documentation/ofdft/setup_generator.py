@@ -31,7 +31,7 @@ for symbol in elements:
     pauliname = f'{gamma_coeff}_LDA_K_TF+1.0_LDA_X+1.0_LDA_C_PW'
 
     # Calculate OFDFT density
-    g = Generator(symbol, xcname=pauliname, scalarrel=False,
+    g = Generator(symbol, xcname=pauliname, scalarrel=True,
                   orbital_free=True, tw_coeff=lambda_coeff,
                   gpernode=gpernode)
 

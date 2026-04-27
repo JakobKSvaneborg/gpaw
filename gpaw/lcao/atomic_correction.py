@@ -1,7 +1,7 @@
 import numpy as np
 
-from gpaw.utilities.blas import mmm
 from gpaw.utilities import unpack_hermitian
+from gpaw.utilities.blas import mmm
 
 
 class BaseAtomicCorrection:
@@ -43,7 +43,7 @@ class DenseAtomicCorrection(BaseAtomicCorrection):
     description = 'dense with blas'
 
     def __init__(self, P_aqMi, dS_aii, Mstart, Mstop):
-        BaseAtomicCorrection.__init__(self, dS_aii, Mstart, Mstop)
+        super().__init__(dS_aii, Mstart, Mstop)
         self.P_aqMi = P_aqMi
 
     @classmethod
@@ -81,7 +81,7 @@ class SparseAtomicCorrection(BaseAtomicCorrection):
 
     def __init__(self, Psparse_qIM, P_indices, dS_aii, Mstart, Mstop,
                  tolerance=1e-12):
-        BaseAtomicCorrection.__init__(self, dS_aii, Mstart, Mstop)
+        super().__init__(dS_aii, Mstart, Mstop)
         self.Psparse_qIM = Psparse_qIM
         self.P_indices = P_indices
         # We currently don't use tolerance although we could speed things

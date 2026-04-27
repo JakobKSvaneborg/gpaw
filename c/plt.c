@@ -2,10 +2,7 @@
  *  Copyright (C) 2007-2008  CAMd
  *  Please see the accompanying LICENSE file for further information. */
 
-#include <Python.h>
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
+#include "python_utils.h"
 #include "extensions.h"
 
 int write_plt_file(char *fname,

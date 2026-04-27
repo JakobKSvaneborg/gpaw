@@ -50,7 +50,6 @@ Windows users
 
    setupwin
    accesswin
-   submitting
 
 
 Mac and Linux users
@@ -61,6 +60,14 @@ Mac and Linux users
 
    setuplinmac
    accesslinmac
+
+
+Submitting to DTU computers
+---------------------------
+
+.. toctree::
+   :maxdepth: 1
+
    submitting
 
 

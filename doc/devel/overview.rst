@@ -74,9 +74,9 @@ method with the correct arguments.  This will trigger:
 
 1) A call to the :meth:`~gpaw.calculator.GPAW.initialize` method, which will
    set up the objects needed for a calculation:
-   :class:`~gpaw.density.Density`,
-   :class:`~gpaw.hamiltonian.Hamiltonian`,
-   :class:`~gpaw.wavefunctions.base.WaveFunctions`,
+   :class:`~gpaw.old.density.Density`,
+   :class:`~gpaw.old.hamiltonian.Hamiltonian`,
+   :class:`~gpaw.old.wavefunctions.base.WaveFunctions`,
    :class:`~gpaw.setup.Setups` and a few more (see figure above).
 
 2) A call to the :meth:`~gpaw.calculator.GPAW.set_positions` method, which will
@@ -120,13 +120,13 @@ WaveFunctions
 We currently have two representations for the wave functions: uniform
 3-d grids and expansions in atom centered basis functions as
 implemented in the two classes
-:class:`~gpaw.wavefunctions.fd.FDWaveFunctions` and
-:class:`~gpaw.wavefunctions.lcao.LCAOWaveFunctions`.  Both inherit from the
-:class:`~gpaw.wavefunctions.base.WaveFunctions` class, so the wave
+:class:`~gpaw.old.wavefunctions.fd.FDWaveFunctions` and
+:class:`~gpaw.old.wavefunctions.lcao.LCAOWaveFunctions`.  Both inherit from the
+:class:`~gpaw.old.wavefunctions.base.WaveFunctions` class, so the wave
 functions object will always have a
-:class:`~gpaw.grid_descriptor.GridDescriptor`, an
-:class:`~gpaw.eigensolvers.eigensolver.Eigensolver`, a
-:class:`~gpaw.setup.Setups` object and a list of :class:`~gpaw.kpoint.KPoint`
+:class:`~gpaw.old.grid_descriptor.GridDescriptor`, an
+:class:`~gpaw.old.eigensolvers.eigensolver.Eigensolver`, a
+:class:`~gpaw.setup.Setups` object and a list of :class:`~gpaw.old.kpoint.KPoint`
 objects.
 
 ::
@@ -217,7 +217,7 @@ Example::
 
 
 In this example, calling the ``calculate`` method of the ``xc``
-object passing in a :class:`~gpaw.grid_descriptor.GridDescriptor`, an
+object passing in a :class:`~gpaw.old.grid_descriptor.GridDescriptor`, an
 input density array and an output array for the potential, the
 :class:`~gpaw.xc.gga.GGA` object will calculate the gradient of the
 density and pass that and the density on to the libxc kernel.
@@ -240,7 +240,7 @@ A few examples:
  =========== =================== ===========================================
  name        shape
  =========== =================== ===========================================
- ``spos_c``  ``(3,)``            **S**\ caled **pos**\ ition vector
+ ``spos_c``  ``(3,)``            **S**\ called **pos**\ ition vector
  ``nt_sG``   ``(2, 24, 24, 24)`` Pseudo-density array
                                  `\tilde{n}_\sigma(\vec{r})`
                                  (``t`` means *tilde*):

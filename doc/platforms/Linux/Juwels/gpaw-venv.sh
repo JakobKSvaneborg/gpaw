@@ -3,9 +3,9 @@
 
 set -e  # stop if there are errors
 
-NAME=$1
+NAME="$1"
 USAGE="Usage: $0 foldername"
-FOLDER=$PWD
+FOLDER="$PWD"
 ASE_REPO=https://gitlab.com/ase/ase.git
 GPAW_REPO=https://gitlab.com/gpaw/gpaw.git
 
@@ -29,17 +29,17 @@ module load ELPA
 . modules.sh
 
 # Create venv:
-echo "Creating virtual environment $NAME"
-python3 -m venv --system-site-packages $NAME
-cd $NAME
-VENV=$PWD
+echo "Creating virtual environment \"$NAME\""
+python3 -m venv --system-site-packages "$NAME"
+cd "$NAME"
+VENV="$PWD"
 . bin/activate
 PIP="python3 -m pip"
 $PIP install --upgrade pip -qq
 
 # Load modules in activate script:
 mv bin/activate old
-mv $FOLDER/modules.sh bin/activate
+mv "$FOLDER/modules.sh" bin/activate
 cat old >> bin/activate
 rm old
 
@@ -49,24 +49,23 @@ $PIP install -e ase/
 
 $PIP install myqueue graphviz qeh
 
-CMD="cd $VENV &&
+CMD="cd \"$VENV\" &&
      . bin/activate &&
      pip install ase-ext"
-echo $CMD
+echo "$CMD"
 
 # Install GPAW:
 git clone $GPAW_REPO
 cd gpaw
 cp ./doc/platforms/Linux/Juwels/siteconfig_juwels.py siteconfig.py
-cd $VENV
+cd "$VENV"
 . bin/activate
 pip install -e gpaw -v > compilation.out
 
 # Install extra basis-functions:
-cd $VENV
-gpaw install-data .
-gpaw install-data --basis --version=20000 . --no-register
-export GPAW_SETUP_PATH=$GPAW_SETUP_PATH:$VENV/gpaw-basis-pvalence-0.9.20000
+cd "$VENV"
+gpaw install-data --basis --version=0.9.20000 . --no-register
+export GPAW_SETUP_PATH="$GPAW_SETUP_PATH:$VENV/gpaw-basis-pvalence-0.9.20000"
 echo "export GPAW_SETUP_PATH=$GPAW_SETUP_PATH" >> bin/activate
 
 # Tab completion:

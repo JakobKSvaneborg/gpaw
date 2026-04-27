@@ -1,5 +1,5 @@
-import pytest
 import numpy as np
+import pytest
 
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter

@@ -20,7 +20,7 @@ vicinity of electronic degeneracies. One option is to use quasi-Newton algorithm
 can converge to saddle points of arbitrary order in conjunction with the
 :ref:`maximum overlap method (MOM) <mom>`, which can reduce the risk of converging to a
 minimum or lower-energy saddle point (variational collapse). This is the DO-MOM method
-implemented in GPAW and illustrated :ref:`here <directopt>`. However, DO-MOM can still
+implemented in GPAW and illustrated :ref:`here <do>`. However, DO-MOM can still
 be affected by variational collapse in challenging cases. GPAW also implements an
 alternative DO approach using a generalized mode following (GMF) method. DO-GMF
 targets a stationary solution with a specific saddle point order and is more robust
@@ -29,9 +29,9 @@ variational collapse. On the other hand, DO-GMF has a bigger computational cost
 than DO-MOM, because it requires more energy/gradient evaluations per iteration
 due to the partial diagonalization of the Hessian.
 
---------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Generalized mode following
---------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ~~~~~~~~~~~~~~
 Implementation
@@ -146,9 +146,9 @@ The estimated saddle point order then needs to be specified when requesting a DO
 
 .. _ethyleneexample:
 
--------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Example I: Doubly excited state of ethylene
--------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 In this example, the lowest doubly excited state of ethylene is obtained with the DO-GMF method.
 First, a ground state calculation is performed and then the DO-GMF calculation is initialized by
 promoting one electron from the HOMO to the LUMO in both spin channels simultaneously. According
@@ -168,9 +168,9 @@ with the DO-GMF method.
 
 .. _tPPexample:
 
-------------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Example II: Charge transfer excited state of N-phenylpyrrole
-------------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 In this example, a charge transfer excited state of the N-phenylpyrrole molecule is
 calculated using the DO-GMF method. Since the target state is open-shell, the calculation
 gives the energy of a mixed-spin solution. The energy of the mixed-spin solution can be
@@ -182,7 +182,7 @@ order cannot be estimated using eq. :any:`eq:hessapprox` because the charge tran
 leads to a large energetic rearrangement of the orbitals. To take this energetic rearrangement
 into account and achieve a better estimation of the saddle point order, we first perform a
 constrained optimization with DO-MOM freezing the hole and excited electron and minimizing all
-other electronic degrees of freedom (see also :ref:`directopt`). Then, the saddle point order
+other electronic degrees of freedom (see also :ref:`do`). Then, the saddle point order
 is estimated from partial diagonalization of the full Hessian.
 
 .. literalinclude:: estimate_sp_order.py
@@ -206,9 +206,9 @@ and LUMO and a small dipole moment of -3.396 D [#dogmfgpaw1]_.
 
 .. _stabanalysisexample:
 
------------------------------------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Example III: Stability analysis and breaking instability of ground state dihydrogen
------------------------------------------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 In this example, the generalized Davidson method is used for stability analysis of the
 ground state of the dihydrogen molecule. The molecule is stretched beyond the
 Coulson-Fischer point, at which both a ground state solution with conserved symmetry and

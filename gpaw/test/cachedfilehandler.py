@@ -2,16 +2,15 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from pathlib import Path
 
-from gpaw.mpi import world
-
 
 class CachedFilesHandler(ABC):
     """Base class for objects which handle the writing
     and caching of session-scoped pytest fixtures"""
 
-    def __init__(self, folder: Path, outformat: str):
+    def __init__(self, folder: Path, outformat: str, comm):
         self.folder = folder
         self.outformat = outformat
+        self.comm = comm
 
         self.cached_files = {}
         for file in folder.glob('*' + outformat):
@@ -25,24 +24,25 @@ class CachedFilesHandler(ABC):
 
         lockfile = self.folder / f'{name}.lock'
 
+        comm = self.comm
         for _attempt in range(60):  # ~60s timeout
             file_exist = 0
-            if world.rank == 0:
+            if comm.rank == 0:
                 file_exist = int(filepath.exists())
-            file_exist = world.sum_scalar(file_exist)
+            file_exist = comm.sum_scalar(file_exist)
 
             if file_exist:
                 self.cached_files[name] = filepath
                 return self.cached_files[name]
 
             try:
-                with world_temporary_lock(lockfile):
+                with _temporary_lock(lockfile, comm):
                     work_path = filepath.with_suffix('.tmp' + self.outformat)
                     self._calculate_and_write(name, work_path)
 
                     # By now files should exist *and* be fully written, by us.
                     # Rename them to the final intended paths:
-                    if world.rank == 0:
+                    if comm.rank == 0:
                         work_path.rename(filepath)
 
             except Locked:
@@ -56,7 +56,7 @@ class CachedFilesHandler(ABC):
 
     @abstractmethod
     def _calculate_and_write(self, name, work_path):
-        pass
+        """Get name from self and write to work_path."""
 
 
 class Locked(FileExistsError):
@@ -64,17 +64,17 @@ class Locked(FileExistsError):
 
 
 @contextmanager
-def world_temporary_lock(path):
-    if world.rank == 0:
+def _temporary_lock(path, comm):
+    if comm.rank == 0:
         try:
-            with temporary_lock(path):
-                world.sum_scalar(1)
+            with _file_lock(path):
+                comm.sum_scalar(1)
                 yield
         except Locked:
-            world.sum_scalar(0)
+            comm.sum_scalar(0)
             raise
     else:
-        status = world.sum_scalar(0)
+        status = comm.sum_scalar(0)
         if status:
             yield
         else:
@@ -82,7 +82,7 @@ def world_temporary_lock(path):
 
 
 @contextmanager
-def temporary_lock(path):
+def _file_lock(path):
     fd = None
     try:
         with path.open('x') as fd:

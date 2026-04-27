@@ -1,9 +1,11 @@
 import numpy as np
+
 from gpaw.xc.kernel import XCKernel
 
 
 class XCFunctional:
     orbital_dependent = False
+    xp = np
 
     def __init__(self, name: str, type: str):
         self.name = name

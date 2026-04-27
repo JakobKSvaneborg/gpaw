@@ -38,7 +38,7 @@ Configuring your secret key
 ===========================
 
 For security reasons, all access to DTU computers require two-factor
-authentification.  In the case of the HPC installation, the two
+authentication.  In the case of the HPC installation, the two
 factors are your password and an encryption key (*SSH key*).  You get
 your secret SSH key by connecting to
 https://www.student.dtu.dk/~dccidmgr/CAMD24/ then add your user name to
@@ -50,10 +50,10 @@ right-click on the link to save the file. Save it on your laptop.
 Start MobaXterm.  You will see a window with a row of buttons at the
 top.  Click on the Settings button (one of the last ones).  On the
 configuration window that opens (shown below) you select the SSH tab.
-The last box is labelled "SSH agents", select "Use internal SSH agent
+The last box is labeled "SSH agents", select "Use internal SSH agent
 MobAgent".
 
-Click the Plus sign next to the box labelled "Load the following keys
+Click the Plus sign next to the box labeled "Load the following keys
 at MobAgent startup" and then select the file with your private SSH
 key.  You have to select "All files" in the file type menu to see it.
 The file name will be your user name, perhaps with ``.txt`` added.

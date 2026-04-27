@@ -32,7 +32,7 @@ gpaw = [(1 + cos(qx) + cos(qy) + cos(qz) +
          cos(qx) * cos(qy) * cos(qz)) / 8. for qx, qy, qz in qvec]
 
 # Plot band data
-fig = plt.figure(1, figsize=(5, 3), dpi=90)
+fig = plt.figure(figsize=(5, 3), dpi=90)
 fig.subplots_adjust(left=.1, right=.95)
 lim = [0, lines[-1], 0, 1.25]
 plt.plot(vasp, 'k:', label='VASP')

@@ -1,14 +1,14 @@
 import sys
 import time
 
-import numpy as np
-
 import ase.db
-from ase.units import Rydberg
-from ase.utils import opencew
+import numpy as np
 from ase.calculators.calculator import kpts2mp
 from ase.io import Trajectory
 from ase.test.tasks.dcdft import DeltaCodesDFTCollection as Collection
+from ase.units import Rydberg
+from ase.utils import opencew
+
 from gpaw import GPAW, PW, FermiDirac
 from gpaw.utilities import h2gpts
 

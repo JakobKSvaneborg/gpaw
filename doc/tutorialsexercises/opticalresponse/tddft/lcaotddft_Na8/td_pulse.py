@@ -4,6 +4,7 @@ from gpaw.external import ConstantElectricField
 from gpaw.lcaotddft import LCAOTDDFT
 from gpaw.lcaotddft.laser import GaussianPulse
 from gpaw.lcaotddft.dipolemomentwriter import DipoleMomentWriter
+from gpaw.mpi import world
 
 # Temporal shape of the time-dependent potential
 pulse = GaussianPulse(1e-5, 10e3, 1.12, 0.3, 'sin')
@@ -13,7 +14,7 @@ ext = ConstantElectricField(Hartree / Bohr, [1., 0., 0.])
 td_potential = {'ext': ext, 'laser': pulse}
 
 # Write the temporal shape to a file
-pulse.write('pulse.dat', np.arange(0, 30e3, 10.0))
+pulse.write('pulse.dat', np.arange(0, 30e3, 10.0), world=world)
 
 # Set up the time-propagation calculation
 td_calc = LCAOTDDFT('gs.gpw', td_potential=td_potential,

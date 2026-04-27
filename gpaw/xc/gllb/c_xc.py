@@ -1,11 +1,12 @@
 import numpy as np
+
 from gpaw.xc import XC
 from gpaw.xc.gllb.contribution import Contribution
 
 
 class C_XC(Contribution):
     def __init__(self, weight, functional):
-        Contribution.__init__(self, weight)
+        super().__init__(weight)
         self.xc = XC(functional)
 
     def get_name(self):
@@ -16,12 +17,12 @@ class C_XC(Contribution):
         return self.xc.name if desc is None else desc
 
     def initialize(self, density, hamiltonian, wfs):
-        Contribution.initialize(self, density, hamiltonian, wfs)
+        super().initialize(density, hamiltonian, wfs)
         self.vt_sg = self.finegd.empty(self.nspins)
         self.e_g = self.finegd.empty()
 
     def initialize_1d(self, ae):
-        Contribution.initialize_1d(self, ae)
+        super().initialize_1d(ae)
         self.v_g = np.zeros(self.ae.N)
 
     def calculate(self, e_g, n_sg, v_sg):

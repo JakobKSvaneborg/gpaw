@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable, Sequence
 from functools import cached_property
-from typing import Any, Iterable, Sequence
+from typing import Any
 
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr
+
 from gpaw import debug
 from gpaw.core.domain import normalize_cell
 from gpaw.new import zips
@@ -14,24 +16,86 @@ from gpaw.rotation import rotation
 from gpaw.symmetry import Symmetry as OldSymmetry
 from gpaw.symmetry import frac
 from gpaw.typing import Array2D, Array3D, ArrayLike1D, ArrayLike2D, ArrayLike3D
+from gpaw.utilities.symmetry import (check_one_symmetry,
+                                     find_set_of_lattice_symmetries,
+                                     prune_symmetries)
 
 
 class SymmetryBrokenError(Exception):
     """Broken-symmetry error."""
 
 
+class SymmetryAnalysisBug(Exception):
+    """Symmetries do not form a proper group."""
+
+
+def spglib_remove_nonsymmorphic(spglib_data):
+    rotations = []
+    for r_cc, t_c in zips(spglib_data.rotations,
+                          np.round(spglib_data.translations, 10)):
+        if (np.abs(r_cc) > 1).any():
+            # Maybe we want to keep these symmetries from spglib in the future
+            continue
+        if is_zero_translation_vector(t_c):
+            rotations.append(r_cc)
+    return np.array(rotations)
+
+
+def is_zero_translation_vector(t_c):
+    zero_translation_vectors = [[0., 0., 0.],
+                                [1., 0., 0.],
+                                [0., 1., 0.],
+                                [0., 0., 1.],
+                                [1., 1., 0.],
+                                [1., 0., 1.],
+                                [0., 1., 1.],
+                                [1., 1., 1.]]
+    for zero_translation_vector in zero_translation_vectors:
+        if np.allclose(t_c, zero_translation_vector, atol=1e-5):
+            return True
+    return False
+
+
+def assert_same_rotations(sym, sym_spglib):
+    assert len(sym.rotation_scc) == len(sym_spglib.rotation_scc)
+    for r_cc in sym.rotation_scc:
+        checks = []
+        for r_spg_cc in sym_spglib.rotation_scc:
+            checks.append(np.array_equal(r_cc, r_spg_cc))
+        assert np.sum(checks) == 1  # Only one symmetry should match exactly.
+
+
+def assert_same_output(sym, sym_spglib):
+    assert len(sym.rotation_scc) == len(sym_spglib.rotation_scc)
+    for r_cc, t_c, amap_a in zips(sym.rotation_scc,
+                                  sym.translation_sc,
+                                  sym.atommap_sa):
+        checks = []
+        for r_spg_cc, t_spg_c, amap_spg_a in zips(sym_spglib.rotation_scc,
+                                                  sym_spglib.translation_sc,
+                                                  sym_spglib.atommap_sa):
+            checks.append(np.array([
+                np.array_equal(r_cc, r_spg_cc),
+                np.array_equal(t_c, t_spg_c),
+                np.array_equal(amap_a, amap_spg_a)],
+                int).all())
+        assert np.sum(checks) == 1  # Only one symmetry should match exactly.
+
+
 def create_symmetries_object(atoms: Atoms,
                              *,
                              setup_ids: Sequence | None = None,
                              magmoms: ArrayLike2D | None = None,
-                             rotations: ArrayLike3D | None = None,
-                             translations: ArrayLike2D | None = None,
-                             atommaps: ArrayLike2D | None = None,
+                             rotation_scc: ArrayLike3D | None = None,
+                             translation_sc: ArrayLike2D | None = None,
+                             atommap_sa: ArrayLike2D | None = None,
                              extra_ids: Sequence[int] | None = None,
                              tolerance: float | None = None,  # Å
                              point_group: bool = True,
                              symmorphic: bool = True,
-                             _backwards_compatible=False) -> Symmetries:
+                             guarantee_group: bool = True,
+                             _backwards_compatible: bool = False
+                             ) -> Symmetries:
     """Find symmetries from atoms object.
 
     >>> atoms = Atoms('H', cell=[1, 1, 1], pbc=True)
@@ -42,6 +106,7 @@ def create_symmetries_object(atoms: Atoms,
     (48, 3, 3)
     """
     cell_cv = atoms.cell.complete()
+    pbc_c = atoms.pbc
 
     if tolerance is None:
         tolerance = 1e-7 if _backwards_compatible else 1e-5
@@ -51,45 +116,73 @@ def create_symmetries_object(atoms: Atoms,
     # Create int atom-ids from setups, magmoms and user-supplied
     # (extra_ids) ids:
     if setup_ids is None:
-        ids = atoms.numbers
+        id_a = atoms.numbers
     else:
-        ids = integer_ids(setup_ids)
+        id_a = integer_ids(setup_ids)
     if magmoms is not None:
-        ids = integer_ids((id, m) for id, m in zips(ids, safe_id(magmoms)))
+        id_a = integer_ids((id, m) for id, m in zips(id_a, safe_id(magmoms)))
     if extra_ids is not None:
-        ids = integer_ids((id, x) for id, x in zips(ids, extra_ids))
+        id_a = integer_ids((id, x) for id, x in zips(id_a, extra_ids))
 
-    if rotations is None:
+    relpos_ac = np.array(atoms.get_scaled_positions())
+    if rotation_scc is None:
         # Find symmetries from cell, ids and positions:
         if point_group:
-            sym = Symmetries.from_cell(
-                cell_cv,
-                pbc=atoms.pbc,
+            rotation_scc = find_set_of_lattice_symmetries(
+                cell_cv, pbc_c, tolerance,
+                guarantee_group, _backwards_compatible)
+
+            rotation_scc, translation_sc, atommap_sa = prune_symmetries(
+                rotation_scc, cell_cv, relpos_ac, id_a,
+                tolerance, symmorphic, _backwards_compatible)
+
+            sym = Symmetries(
+                cell=cell_cv,
+                rotations=rotation_scc,
+                translations=translation_sc,
+                atommaps=atommap_sa,
                 tolerance=tolerance,
                 _backwards_compatible=_backwards_compatible)
+
+            if False and len(atoms) > 0:  # Switch + Ignore if jellium
+                sym_spglib = Symmetries.from_cell_and_atoms_spglib(
+                    cell_cv,
+                    pbc=pbc_c,
+                    tolerance=tolerance,
+                    _backwards_compatible=_backwards_compatible,
+                    relative_positions=relpos_ac,
+                    ids=id_a,
+                    symmorphic=symmorphic)
+
+                assert_same_rotations(sym, sym_spglib)
+
+                # Add atommaps
+                sym_spglib = sym_spglib.with_atom_maps(relpos_ac, id_a)
+                assert_same_output(sym, sym_spglib)
         else:
             # No symmetries (identity only):
             sym = Symmetries(cell=cell_cv,
                              tolerance=tolerance,
                              _backwards_compatible=_backwards_compatible)
+            sym = sym.analyze_positions(
+                relpos_ac, id_a, symmorphic=symmorphic)
 
-        sym = sym.analyze_positions(
-            atoms.get_scaled_positions(),
-            ids=ids,
-            symmorphic=symmorphic)
     else:
         sym = Symmetries(cell=cell_cv,
-                         rotations=rotations,
-                         translations=translations,
-                         atommaps=atommaps,
+                         rotations=rotation_scc,
+                         translations=translation_sc,
+                         atommaps=atommap_sa,
                          tolerance=tolerance,
                          _backwards_compatible=_backwards_compatible)
-        if atommaps is None:
-            sym = sym.with_atom_maps(atoms.get_scaled_positions(), ids=ids)
+        if atommap_sa is None:
+            sym = sym.with_atom_maps(relpos_ac, id_a=id_a)
+
+    if debug:
+        sym.check_positions(relpos_ac)
 
     # Legacy:
     sym._old_symmetry = OldSymmetry(
-        ids, cell_cv, atoms.pbc, tolerance,
+        id_a, cell_cv, pbc_c, tolerance,
         point_group,
         time_reversal='?',
         symmorphic=symmorphic)
@@ -151,6 +244,8 @@ class Symmetries:
         self.op_scc = self.rotation_scc  # old name
         self._old_symmetry: OldSymmetry
 
+        self.group_check()
+
     @cached_property
     def symmorphic(self):
         return not self.translation_sc.any()
@@ -158,7 +253,7 @@ class Symmetries:
     @cached_property
     def has_inversion(self):
         inv_cc = -np.eye(3, dtype=int)
-        for r_cc, t_c in zip(self.rotation_scc, self.translation_sc):
+        for r_cc, t_c in zips(self.rotation_scc, self.translation_sc):
             if (r_cc == inv_cc).all() and not t_c.any():
                 return True
         return False
@@ -169,14 +264,17 @@ class Symmetries:
                   *,
                   pbc: ArrayLike1D = (True, True, True),
                   tolerance: float | None = None,
-                  _backwards_compatible=False) -> Symmetries:
-        if isinstance(pbc, int):
-            pbc = (pbc,) * 3
+                  guarantee_group: bool = True,
+                  _backwards_compatible: bool = False) -> Symmetries:
+
         cell_cv = normalize_cell(cell)
+        pbc_c = np.full(3, pbc, dtype=bool)
+
         if tolerance is None:
             tolerance = 1e-7 if _backwards_compatible else 1e-5
-        rotation_scc = find_lattice_symmetry(cell_cv, pbc, tolerance,
-                                             _backwards_compatible)
+        rotation_scc = find_set_of_lattice_symmetries(
+            cell_cv, pbc_c, tolerance, guarantee_group, _backwards_compatible)
+
         return cls(cell=cell_cv,
                    rotations=rotation_scc,
                    tolerance=tolerance,
@@ -187,21 +285,80 @@ class Symmetries:
                           ids: Sequence[int],
                           *,
                           symmorphic: bool = True) -> Symmetries:
-        return prune_symmetries(
-            self, np.asarray(relative_positions), ids, symmorphic)
+        relative_positions = np.asarray(relative_positions)
+
+        rotation_scc, translation_sc, atommap_sa = prune_symmetries(
+            self.rotation_scc, self.cell_cv, relative_positions, ids,
+            self.tolerance, symmorphic, self._backwards_compatible)
+
+        return Symmetries(cell=self.cell_cv,
+                          rotations=rotation_scc,
+                          translations=translation_sc,
+                          atommaps=atommap_sa,
+                          tolerance=self.tolerance,
+                          _backwards_compatible=self._backwards_compatible)
+
+    @classmethod
+    def from_cell_and_atoms(cls,
+                            cell: ArrayLike1D | ArrayLike2D,
+                            *,
+                            pbc: ArrayLike1D = (True, True, True),
+                            tolerance: float | None = None,
+                            _backwards_compatible=False,
+                            relative_positions: ArrayLike2D,
+                            ids: Sequence[int],
+                            symmorphic: bool = True,
+                            guarantee_group: bool = True) -> Symmetries:
+
+        return cls.from_cell(
+            cell,
+            pbc=pbc,
+            tolerance=tolerance,
+            guarantee_group=guarantee_group,
+            _backwards_compatible=_backwards_compatible).analyze_positions(
+                relative_positions, ids, symmorphic=symmorphic)
+
+    @classmethod
+    def from_cell_and_atoms_spglib(cls,
+                                   cell: ArrayLike1D | ArrayLike2D,
+                                   *,
+                                   pbc: ArrayLike1D = (True, True, True),
+                                   tolerance: float | None = None,
+                                   _backwards_compatible=False,
+                                   relative_positions: ArrayLike2D,
+                                   ids: Sequence[int],
+                                   symmorphic: bool = True) -> Symmetries:
+
+        from spglib import get_symmetry_dataset
+        if tolerance is None:
+            tolerance = 1e-7 if _backwards_compatible else 1e-5
+        cell_cv = normalize_cell(cell)
+        data = get_symmetry_dataset(
+            cell=(cell_cv, np.asarray(relative_positions), ids),
+            symprec=tolerance)
+        rotations = spglib_remove_nonsymmorphic(data)
+
+        return Symmetries(cell=cell,
+                          rotations=np.transpose(rotations, (0, 2, 1)),
+                          translations=None,  # Only symmorphic for now..
+                          atommaps=None,
+                          tolerance=tolerance,
+                          _backwards_compatible=_backwards_compatible)
 
     def with_atom_maps(self,
-                       relative_positions: Array2D,
-                       ids: Sequence[int]) -> Symmetries:
-        atommap_sa = np.empty((len(self), len(relative_positions)), int)
-        a_ij = defaultdict(list)
-        for a, id in enumerate(ids):
-            a_ij[id].append(a)
-        for U_cc, t_c, map_a in zip(self.rotation_scc,
-                                    self.translation_sc,
-                                    atommap_sa):
-            map_a[:] = self.check_one_symmetry(relative_positions,
-                                               U_cc, t_c, a_ij)
+                       relpos_ac: Array2D,
+                       id_a: Sequence[int]) -> Symmetries:
+        atommap_sa = np.empty((len(self), len(relpos_ac)), int)
+        a_ib = defaultdict(list)
+        for a, id in enumerate(id_a):
+            a_ib[id].append(a)
+        for U_cc, t_c, map_a in zips(self.rotation_scc,
+                                     self.translation_sc,
+                                     atommap_sa):
+            map_a[:] = check_one_symmetry(
+                U_cc, t_c, self.cell_cv, relpos_ac, a_ib,
+                self.tolerance, self._backwards_compatible)
+
         return Symmetries(cell=self.cell_cv,
                           rotations=self.rotation_scc,
                           translations=self.translation_sc,
@@ -221,43 +378,50 @@ class Symmetries:
                             tolerance=tolerance)
         if ids is None:
             ids = atoms.numbers
-        return sym.analyze_positions(atoms.positions,
+        return sym.analyze_positions(atoms.get_scaled_positions(),
                                      ids=ids,
                                      symmorphic=symmorphic)
 
     def __len__(self):
         return len(self.rotation_scc)
 
-    def __str__(self):
-        lines = ['symmetry:',
-                 f'  number of symmetries: {len(self)}']
-        if self.symmorphic:
-            lines.append('  rotations: [')
-            for rot_cc in self.rotation_scc:
-                lines.append(f'    {mat(rot_cc)},')
-        else:
-            nt = self.translation_sc.any(1).sum()
-            lines.append(f'  number of symmetries with translation: {nt}')
-            lines.append('  rotations and translations: [')
-            for rot_cc, t_c in zips(self.rotation_scc, self.translation_sc):
+    def summary(self, log, verbose=True):
+        log(f'Number of symmetries: {len(self)}')
+        header = ['', 'kind', 'matrix']
+        allign = '>^^'
+        nt = self.translation_sc.any(1).sum()
+        if nt > 0:
+            log(f'Number of symmetries with translation: {nt}')
+            header.append('translation')
+            allign += '>'
+        if not verbose:
+            return
+        rows = []
+        for s, (rot_cc, t_c) in enumerate(zip(self.rotation_scc,
+                                              self.translation_sc)):
+            kind = symmetry_symbol(rot_cc)
+            row = [str(s), kind, mat(rot_cc)]
+            if nt > 0:
                 a, b, c = t_c
-                lines.append(f'    [{mat(rot_cc)}, '
-                             f'[{a:6.3f}, {b:6.3f}, {c:6.3f}]],')
-        lines[-1] = lines[-1][:-1] + ']\n'
-        return '\n'.join(lines)
+                row.append(f'({a:6.3f}, {b:6.3f}, {c:6.3f})')
+            rows.append(row)
+        log.table('Symmetry operations  # r_c * U_cc + t_c -> r_c',
+                  header=header,
+                  rows=rows,
+                  allign=allign)
 
     def check_positions(self, fracpos_ac):
         for U_cc, t_c, b_a in zip(self.rotation_scc,
                                   self.translation_sc,
                                   self.atommap_sa):
-            error_ac = fracpos_ac @ U_cc - t_c - fracpos_ac[b_a]
+            error_ac = fracpos_ac @ U_cc + t_c - fracpos_ac[b_a]
             error_ac -= error_ac.round()
             if self._backwards_compatible:
-                if abs(error_ac).max() > self.tolerance:
+                if abs(error_ac).max(initial=0.0) > self.tolerance:
                     raise SymmetryBrokenError
             else:
                 error_av = error_ac @ self.cell_cv
-                if (error_av**2).sum(1).max() > self.tolerance**2:
+                if (error_av**2).sum(1).max(initial=0.0) > self.tolerance**2:
                     raise SymmetryBrokenError
 
     def symmetrize_forces(self, F0_av):
@@ -270,8 +434,8 @@ class Symmetries:
         return F_av / len(self)
 
     def lcm(self) -> list[int]:
-        """Find least common multiple compatible with translations."""
-        return [np.lcm.reduce([frac(t, tol=1e-4)[1] for t in t_s])
+        """Find lowest common multiple compatible with translations."""
+        return [np.lcm.reduce([frac(t)[1] for t in t_s])
                 for t_s in self.translation_sc.T]
 
     @cached_property
@@ -290,127 +454,51 @@ class Symmetries:
                 return False
         return True
 
-    def check_one_symmetry(self,
-                           spos_ac,
-                           op_cc,
-                           ft_c,
-                           a_ia):
-        """Checks whether atoms satisfy one given symmetry operation."""
-
-        a_a = np.zeros(len(spos_ac), int)
-        for b_a in a_ia.values():
-            spos_jc = spos_ac[b_a]
-            for b in b_a:
-                spos_c = np.dot(spos_ac[b], op_cc)
-                sdiff_jc = spos_c - spos_jc - ft_c
-                sdiff_jc -= sdiff_jc.round()
-                if self._backwards_compatible:
-                    indices = np.where(
-                        abs(sdiff_jc).max(1) < self.tolerance)[0]
-                else:
-                    sdiff_jv = sdiff_jc @ self.cell_cv
-                    indices = np.where(
-                        (sdiff_jv**2).sum(1) < self.tolerance**2)[0]
-                if len(indices) == 1:
-                    a = indices[0]
-                    a_a[b] = b_a[a]
-                else:
-                    assert len(indices) == 0
-                    return None
-
-        return a_a
+    def group_check(self) -> None:
+        """Sanity check."""
+        for U1_cc, t1_c in zip(self.rotation_scc, self.translation_sc):
+            for U2_cc, t2_c in zip(self.rotation_scc, self.translation_sc):
+                U_cc = U1_cc @ U2_cc
+                t_c = t1_c @ U2_cc + t2_c
+                for U3_cc, t3_c in zip(self.rotation_scc, self.translation_sc):
+                    dt_c = t_c - t3_c
+                    if abs(dt_c - dt_c.round()).max() > 1e-10:
+                        continue
+                    if (U_cc != U3_cc).any():
+                        continue
+                    break
+                else:  # no break
+                    raise SymmetryAnalysisBug(
+                        'Sorry!  Try using spglib.standardize_cell(...)')
 
 
-def find_lattice_symmetry(cell_cv, pbc_c, tol, _backwards_compatible=False):
-    """Determine list of symmetry operations."""
-    # Symmetry operations as matrices in 123 basis.
-    # Operation is a 3x3 matrix, with possible elements -1, 0, 1, thus
-    # there are 3**9 = 19683 possible matrices:
-    combinations = 1 - np.indices([3] * 9)
-    U_scc = combinations.reshape((3, 3, 3**9)).transpose((2, 0, 1))
+def symmetry_symbol(M_cc: np.ndarray) -> str:
+    """Convert symmetry operation to string.
 
-    # The metric of the cell should be conserved after applying
-    # the operation:
-    metric_cc = cell_cv.dot(cell_cv.T)
-    metric_scc = np.einsum('sij, jk, slk -> sil',
-                           U_scc, metric_cc, U_scc,
-                           optimize=True)
-    if _backwards_compatible:
-        mask_s = abs(metric_scc - metric_cc).sum(2).sum(1) <= tol
-    else:
-        mask_s = abs(metric_scc - metric_cc).sum(2).sum(1) <= tol**2
-    U_scc = U_scc[mask_s]
-
-    # Operation must not swap axes that don't have same PBC:
-    pbc_cc = np.logical_xor.outer(pbc_c, pbc_c)
-    mask_s = ~U_scc[:, pbc_cc].any(axis=1)
-    U_scc = U_scc[mask_s]
-    return U_scc
-
-
-def prune_symmetries(sym: Symmetries,
-                     relpos_ac: Array2D,
-                     id_a: Sequence[int],
-                     symmorphic: bool = True) -> Symmetries:
-    """Remove symmetries that are not satisfied by the atoms."""
-
-    if len(relpos_ac) == 0:
-        return sym
-
-    # Build lists of atom numbers for each type of atom - one
-    # list for each combination of atomic number, setup type,
-    # magnetic moment and basis set:
-    a_ij = defaultdict(list)
-    for a, id in enumerate(id_a):
-        a_ij[id].append(a)
-
-    a_j = a_ij[id_a[0]]  # just pick the first species
-
-    def check(op_cc, ft_c):
-        return sym.check_one_symmetry(relpos_ac, op_cc, ft_c, a_ij)
-
-    # if supercell disable fractional translations:
-    if not symmorphic:
-        op_cc = np.identity(3, int)
-        ftrans_sc = relpos_ac[a_j[1:]] - relpos_ac[a_j[0]]
-        ftrans_sc -= np.rint(ftrans_sc)
-        for ft_c in ftrans_sc:
-            a_a = check(op_cc, ft_c)
-            if a_a is not None:
-                symmorphic = True
-                break
-
-    symmetries = []
-    ftsymmetries = []
-
-    # go through all possible symmetry operations
-    for op_cc in sym.rotation_scc:
-        # first ignore fractional translations
-        a_a = check(op_cc, [0, 0, 0])
-        if a_a is not None:
-            symmetries.append((op_cc, [0, 0, 0], a_a))
-        elif not symmorphic:
-            # check fractional translations
-            sposrot_ac = np.dot(relpos_ac, op_cc)
-            ftrans_jc = sposrot_ac[a_j] - relpos_ac[a_j[0]]
-            ftrans_jc -= np.rint(ftrans_jc)
-            for ft_c in ftrans_jc:
-                a_a = check(op_cc, ft_c)
-                if a_a is not None:
-                    ftsymmetries.append((op_cc, ft_c, a_a))
-
-    # Add symmetry operations with fractional translations at the end:
-    symmetries.extend(ftsymmetries)
-
-    sym = Symmetries(cell=sym.cell_cv,
-                     rotations=[s[0] for s in symmetries],
-                     translations=[s[1] for s in symmetries],
-                     atommaps=[s[2] for s in symmetries],
-                     tolerance=sym.tolerance,
-                     _backwards_compatible=sym._backwards_compatible)
-    if debug:
-        sym.check_positions(relpos_ac)
-    return sym
+    >>> symmetry_symbol(np.eye(3))
+    'E'
+    >>> symmetry_symbol(-np.eye(3))
+    'i'
+    >>> symmetry_symbol([[0, 1, 0], [-1, 0, 0], [0, 0, 1]])
+    'C4'
+    >>> symmetry_symbol([[-1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    'σ'
+    >>> symmetry_symbol([[0, 1, 0], [-1, -1, 0], [0, 0, -1]])
+    'S3'
+    """
+    d = np.linalg.det(M_cc)
+    t = np.trace(M_cc)
+    if d == 1:
+        if t == 3:
+            return 'E'
+        n = int(round(2 * np.pi / np.arccos((t - 1) / 2)))
+        return f'C{n}'
+    if t == -3:
+        return 'i'
+    if t == 1:
+        return 'σ'
+    n = int(round(2 * np.pi / np.arccos((t + 1) / 2)))
+    return f'S{n}'
 
 
 class SymmetrizationPlan:
@@ -423,7 +511,7 @@ class SymmetrizationPlan:
                                       np.linalg.inv(symmetries.cell_cv),
                                       symmetries.rotation_scc,
                                       symmetries.cell_cv)
-        lmax = max(max(l_j) for l_j in l_aj)
+        lmax = max((max(l_j) for l_j in l_aj), default=-1)
         self.rotation_lsmm = [
             np.array([rotation(l, r_vv) for r_vv in self.rotation_svv])
             for l in range(lmax + 1)]
@@ -541,12 +629,12 @@ def mat(rot_cc) -> str:
     """Convert 3x3 matrix to str.
 
     >>> mat([[-1, 0, 0], [0, 1, 0], [0, 0, 1]])
-    '[[-1,  0,  0], [ 0,  1,  0], [ 0,  0,  1]]'
+    '-1, 0, 0,  0, 1, 0,  0, 0, 1'
 
     """
-    return '[[' + '], ['.join(', '.join(f'{r:2}'
-                                        for r in rot_c)
-                              for rot_c in rot_cc) + ']]'
+    return ', '.join(','.join(f'{r:2}'
+                              for r in rot_c)
+                     for rot_c in rot_cc)
 
 
 def integer_ids(ids: Iterable) -> list[int]:
@@ -589,3 +677,29 @@ def safe_id(magmom_av, tolerance=1e-3):
             quantized = a
         id_a.append(quantized)
     return id_a
+
+
+def main() -> None:
+    import argparse
+
+    from ase.io import read
+    parser = argparse.ArgumentParser(
+        description='Analyze symmetry.')
+    parser.color = True  # type: ignore
+    parser.add_argument('-t', '--tolerance', type=float, default=0.001,
+                        help='Default is 0.001 Å.')
+    parser.add_argument(
+        'filename',
+        help='Atomic structure (any file-format that ASE can read).')
+    args = parser.parse_args()
+    atoms = read(args.filename)
+    if isinstance(atoms, list):
+        atoms = atoms[-1]
+    s = create_symmetries_object(atoms,
+                                 symmorphic=False,
+                                 tolerance=args.tolerance)
+    print(s)
+
+
+if __name__ == '__main__':
+    main()

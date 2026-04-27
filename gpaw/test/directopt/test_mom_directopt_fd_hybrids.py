@@ -1,15 +1,13 @@
-import pytest
-
 import numpy as np
-
+import pytest
 from ase import Atoms
 from ase.units import Bohr
 
-from gpaw import GPAW, FD
+from gpaw import FD, GPAW
 from gpaw.directmin.etdm_fdpw import FDPWETDM
-from gpaw.xc.hybrid import HybridXC
 from gpaw.eigensolvers import RMMDIIS
 from gpaw.mom import prepare_mom_calculation
+from gpaw.xc.hybrid import HybridXC
 
 
 @pytest.mark.do
@@ -27,6 +25,7 @@ def test_mom_directopt_fd_hybrids(in_tmp_dir):
     e_ref_es = 21.861924
     eig_ref_es = np.array([-15.98483801, -3.4381461])
 
+    # XXX(rg): Fails with gpwfile, see tchem-gl-14
     calc = GPAW(mode=FD(),
                 h=0.3,
                 xc=HybridXC('PBE0', unocc=True),

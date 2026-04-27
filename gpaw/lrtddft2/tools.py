@@ -1,7 +1,8 @@
-import sys
-import re
-import numpy as np
 import datetime
+import re
+import sys
+
+import numpy as np
 
 
 def write_parallel_cube(basename, data, gd, atoms, rank):

@@ -1,9 +1,13 @@
+import pytest
 import numpy as np
-from gpaw import debug
-from gpaw.mpi import world, serial_comm, _Communicator, SerialCommunicator
+
+from gpaw import GPAW_MPI_BACKEND, debug
+from gpaw.mpi import SerialCommunicator, _Communicator, serial_comm, rank0_call
+from gpaw.mpi4pywrapper import MPI4PYWrapper
 
 
-def test_mpicomm():
+def test_mpicomm(mpi):
+    world = mpi.comm
     even_comm = world.new_communicator(np.arange(0, world.size, 2))
     if world.size > 1:
         odd_comm = world.new_communicator(np.arange(1, world.size, 2))
@@ -24,11 +28,13 @@ def test_mpicomm():
     except (ImportError, AttributeError):
         pass
 
-    assert world.parent is None
+    # The mpi.comm is actually a subcommunicator of global world:
+    assert world.parent.parent is None
     assert comm.parent is world
     if hasmpi:
-        assert comm.parent.get_c_object() is world.get_c_object()
-        assert comm.get_c_object().parent is world.get_c_object()
+        # Compare pointers (as PyLongs)
+        assert comm.parent.get_c_object() == world.get_c_object()
+        # assert comm.get_c_object().parent is world.get_c_object()
 
     commranks = np.arange(world.rank % 2, world.size, 2)
     assert np.all(comm.get_members() == commranks)
@@ -47,7 +53,27 @@ def test_mpicomm():
         assert isinstance(world, SerialCommunicator)
         assert isinstance(comm, SerialCommunicator)
         assert isinstance(subcomm, SerialCommunicator)
+    elif hasmpi and GPAW_MPI_BACKEND == 'mpi4py':
+        assert isinstance(world, MPI4PYWrapper)
+        assert isinstance(comm, MPI4PYWrapper)
+        assert isinstance(subcomm, MPI4PYWrapper)
     elif hasmpi:
         assert isinstance(world, cgpaw.Communicator)
         assert isinstance(comm, cgpaw.Communicator)
         assert isinstance(subcomm, cgpaw.Communicator)
+
+
+def test_rank0_call(mpi):
+    comm = mpi.comm
+
+    # rank0_call wraps function to be called only on master
+    # then broadcasts the result
+    # and exceptions as RuntimeError to all other ranks
+
+    def inverse(x):
+        return 1 / x
+
+    assert 1 == rank0_call(inverse, comm)(comm.rank + 1)
+
+    with pytest.raises(RuntimeError, match='division by zero'):
+        rank0_call(inverse, comm)(comm.rank)

@@ -1,10 +1,15 @@
-from ase import Atoms
-from gpaw import GPAW
 import pytest
+from ase import Atoms
+
+from gpaw import GPAW
 
 
 @pytest.mark.mgga
-def test_symm_mgga():
+@pytest.mark.parametrize(
+    'gpu',
+    [False,
+     pytest.param(True, marks=[pytest.mark.gpu])])
+def test_symm_mgga(gpu):
     a = 5.47
     b = a / 2
     si = Atoms('Si2',
@@ -18,6 +23,7 @@ def test_symm_mgga():
         si.calc = GPAW(mode={'name': 'pw', 'ecut': 200},
                        kpts={'size': (k, k, k), 'gamma': True},
                        symmetry={} if symmetry else 'off',
+                       parallel={'gpu': True} if gpu else None,
                        xc=xc)
         e = si.get_potential_energy()
         energies.append(e)

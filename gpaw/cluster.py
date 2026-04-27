@@ -22,14 +22,14 @@ class Cluster(Atoms):
                 self.read(filename, kwargs.get('filetype'))
                 return
         else:
-            Atoms.__init__(self, [])
+            super().__init__([])
 
         if kwargs.get('filename') is not None:
             filename = kwargs.pop('filename')
-            Atoms.__init__(self, *args, **kwargs)
+            super().__init__(*args, **kwargs)
             self.read(filename, kwargs.get('filetype'))
         else:
-            Atoms.__init__(self, *args, **kwargs)
+            super().__init__(*args, **kwargs)
 
     @deprecated(
         'Please use connected_indices from ase.build.connected instead.')

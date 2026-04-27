@@ -91,14 +91,16 @@ this module or gpaw.utilities.blacs will be renamed at some point.
 import numpy as np
 
 import gpaw
-from gpaw.mpi import SerialCommunicator
-from gpaw.matrix_descriptor import MatrixDescriptor
-from gpaw.utilities.scalapack import scalapack_inverse_cholesky, \
-    scalapack_diagonalize_ex, scalapack_general_diagonalize_ex, \
-    scalapack_diagonalize_dc, scalapack_general_diagonalize_dc, \
-    scalapack_diagonalize_mr3, scalapack_general_diagonalize_mr3
 import gpaw.cgpaw as cgpaw
-
+from gpaw.mpi import SerialCommunicator
+from gpaw.old.matrix_descriptor import MatrixDescriptor
+from gpaw.utilities.scalapack import (scalapack_diagonalize_dc,
+                                      scalapack_diagonalize_ex,
+                                      scalapack_diagonalize_mr3,
+                                      scalapack_general_diagonalize_dc,
+                                      scalapack_general_diagonalize_ex,
+                                      scalapack_general_diagonalize_mr3,
+                                      scalapack_inverse_cholesky)
 
 INACTIVE = -1
 BLOCK_CYCLIC_2D = 1
@@ -177,8 +179,8 @@ class BlacsGrid:
                 raise AttributeError(
                     'BLACS is unavailable.  '
                     'GPAW must be compiled with BLACS/ScaLAPACK, '
-                    'and must run in MPI-enabled interpreter '
-                    '(gpaw-python).  Original error: %s' % e)
+                    'and must run inside a real MPI process.  '
+                    'Original error: %s' % e)
 
             self.context = new(comm.get_c_object(), npcol, nprow, order)
             assert (self.context != INACTIVE) == (comm.rank < nprow * npcol)
@@ -357,7 +359,7 @@ class BlacsDescriptor(MatrixDescriptor):
         # redistributor to fail. This could happen on active blacsgrid
         # which does not contain any piece of the distribute matrix.
         # This is why there is a final check on the value of locM, locN.
-        MatrixDescriptor.__init__(self, max(0, locM), max(0, locN))
+        super().__init__(max(0, locM), max(0, locN))
 
         # This is the definition of inactive descriptor; can occur
         # on an active or inactive blacs grid.

@@ -1,9 +1,8 @@
-import sys
 import functools
-from time import time, sleep
+import sys
+from time import sleep, time
 
 from gpaw.utilities import devnull
-
 from gpaw.utilities.memory import maxrss
 
 

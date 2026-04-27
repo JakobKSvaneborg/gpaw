@@ -6,6 +6,7 @@ It is for lcao
 """
 
 import numpy as np
+
 from gpaw.directmin.tools import minimum_cubic_interpol
 
 

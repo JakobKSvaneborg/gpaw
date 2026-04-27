@@ -3,18 +3,15 @@
  *  Copyright (C) 2005-2009  CSC - IT Center for Science Ltd.
  *  Please see the accompanying LICENSE file for further information. */
 
-#define PY_SSIZE_T_CLEAN
-#include <Python.h>
-
 #ifdef PARALLEL
 
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
-#include <mpi.h>
+#include "python_utils.h"
 #include "extensions.h"
-#include <structmember.h>
+
+#include <mpi.h>
 #include "mympi.h"
+
+#include <structmember.h>
 #ifdef __bgp__
 #include <mpix.h>
 #endif
@@ -31,7 +28,19 @@
 #endif
 #endif
 
-void gpawDeviceSynchronize();
+#ifdef GPAW_GPU
+  #include "gpu/gpu_interface.h"
+#endif
+
+static void synchronize_if_gpu(PyObject* a)
+{
+#if defined(GPAW_GPU) && defined(GPAW_GPU_AWARE_MPI)
+    if (!PyArray_Check(a))
+    {
+      gpaw_device_synchronize();
+    }
+#endif
+}
 
 // Check that a processor number is valid
 #define CHK_PROC(n) if (n < 0 || n >= self->size) {\
@@ -56,16 +65,6 @@ typedef struct {
   PyObject *buffer;
   int status;
 } GPAW_MPI_Request;
-
-static void maybeSynchronize(PyObject* a)
-{
-#ifdef GPAW_GPU_AWARE_MPI
-    if (!PyArray_Check(a))
-    {
-        gpawDeviceSynchronize();
-    }
-#endif
-}
 
 static PyObject *mpi_request_wait(GPAW_MPI_Request *self, PyObject *noargs)
 {
@@ -227,6 +226,7 @@ static void mpi_ensure_initialized(void)
 #ifdef _OPENMP
         use_threads = 1;
 #endif
+
         if (!use_threads) {
             ierr = MPI_Init(NULL, NULL);
             if (ierr == MPI_SUCCESS)
@@ -286,12 +286,21 @@ static PyObject * mpi_sendreceive(MPIObject *self, PyObject *args,
     int dest, src;
     int sendtag = 123;
     int recvtag = 123;
-    static char *kwlist[] = {"a", "dest", "b", "src", "sendtag", "recvtag",
-			     NULL};
+    
+    // Some scary code below, explanation:
+    // Before Python 3.13 the PyArg macro below takes kwlist as char** instead of const char**.
+    // Meanwhile if we compile this as C++, string literals must be const char* type.
+    // We must then cast away constness when passing kwlist to Python, which _should_
+    // be OK since Python doesn't actually modify the strings. Python 3.13 removes the need for this by making the argument const.
+    // The following casts with (char**) instead of const_cast for C-compatibility.
+
+    static const char *kwlist[] = {"a", "dest", "b", "src", "sendtag", "recvtag", NULL};
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OiOi|ii:sendreceive",
-				     kwlist,
-				     &a, &dest, &b, &src, &sendtag, &recvtag))
-	return NULL;
+          (char**)kwlist, &a, &dest, &b, &src, &sendtag, &recvtag))
+    {
+      return NULL;
+    }
+
     CHK_ARRAY(a);
     CHK_OTHER_PROC(dest);
     CHK_ARRAY(b);
@@ -302,7 +311,7 @@ static PyObject * mpi_sendreceive(MPIObject *self, PyObject *args,
     int nrecv = Array_ITEMSIZE(b);
     for (int d = 0; d < Array_NDIM(b); d++)
 	nrecv *= Array_DIM(b,d);
-    maybeSynchronize(a);
+    synchronize_if_gpu(a);
     int ret = MPI_Sendrecv(Array_BYTES(a), nsend, MPI_BYTE, dest, sendtag,
 			   Array_BYTES(b), nrecv, MPI_BYTE, src, recvtag,
 			   self->comm, MPI_STATUS_IGNORE);
@@ -320,11 +329,16 @@ static PyObject * mpi_receive(MPIObject *self, PyObject *args, PyObject *kwargs)
   int src;
   int tag = 123;
   int block = 1;
-  static char *kwlist[] = {"a", "src", "tag", "block", NULL};
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Oi|ii:receive", kwlist,
+  // Scary code, see comment in mpi_sendreceive
+  static const char *kwlist[] = {"a", "src", "tag", "block", NULL};
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Oi|ii:receive", (char**)kwlist,
 				   &a, &src, &tag, &block))
+  {
     return NULL;
+  }
+
   CHK_ARRAY(a);
   CHK_OTHER_PROC(src);
   int n = Array_ITEMSIZE(a);
@@ -332,7 +346,7 @@ static PyObject * mpi_receive(MPIObject *self, PyObject *args, PyObject *kwargs)
     n *= Array_DIM(a, d);
   if (block)
     {
-      maybeSynchronize(a);
+      synchronize_if_gpu(a);
       int ret = MPI_Recv(Array_BYTES(a), n, MPI_BYTE, src, tag, self->comm,
 			 MPI_STATUS_IGNORE);
       if (ret != MPI_SUCCESS)
@@ -348,7 +362,7 @@ static PyObject * mpi_receive(MPIObject *self, PyObject *args, PyObject *kwargs)
       if (req == NULL) return NULL;
       req->buffer = (PyObject*)a;
       Py_INCREF(req->buffer);
-      maybeSynchronize(a);
+      synchronize_if_gpu(a);
       int ret = MPI_Irecv(Array_BYTES(a), n, MPI_BYTE, src, tag, self->comm,
 			  &(req->rq));
       if (ret != MPI_SUCCESS)
@@ -366,10 +380,15 @@ static PyObject * mpi_send(MPIObject *self, PyObject *args, PyObject *kwargs)
   int dest;
   int tag = 123;
   int block = 1;
-  static char *kwlist[] = {"a", "dest", "tag", "block", NULL};
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Oi|ii:send", kwlist,
+
+  // Scary code, see comment in mpi_sendreceive
+  static const char *kwlist[] = {"a", "dest", "tag", "block", NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Oi|ii:send", (char**)kwlist,
 				   &a, &dest, &tag, &block))
+  {
     return NULL;
+  }
+
   CHK_ARRAY(a);
   CHK_OTHER_PROC(dest);
   int n = Array_ITEMSIZE(a);
@@ -377,7 +396,7 @@ static PyObject * mpi_send(MPIObject *self, PyObject *args, PyObject *kwargs)
     n *= Array_DIM(a,d);
   if (block)
     {
-      maybeSynchronize(a);
+      synchronize_if_gpu(a);
       int ret = MPI_Send(Array_BYTES(a), n, MPI_BYTE, dest, tag, self->comm);
       if (ret != MPI_SUCCESS)
 	{
@@ -391,7 +410,7 @@ static PyObject * mpi_send(MPIObject *self, PyObject *args, PyObject *kwargs)
       GPAW_MPI_Request *req = NewMPIRequest();
       req->buffer = (PyObject*)a;
       Py_INCREF(a);
-      maybeSynchronize(a);
+      synchronize_if_gpu(a);
       int ret = MPI_Isend(Array_BYTES(a), n, MPI_BYTE, dest, tag, self->comm,
 			  &(req->rq));
       if (ret != MPI_SUCCESS)
@@ -409,16 +428,21 @@ static PyObject * mpi_ssend(MPIObject *self, PyObject *args, PyObject *kwargs)
   PyObject* a;
   int dest;
   int tag = 123;
-  static char *kwlist[] = {"a", "dest", "tag", NULL};
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Oi|i:send", kwlist,
+
+  // Scary code, see comment in mpi_sendreceive
+  static const char *kwlist[] = {"a", "dest", "tag", NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Oi|i:send", (char**)kwlist,
 				   &a, &dest, &tag))
+  {
     return NULL;
+  }
+
   CHK_ARRAY_RO(a);
   CHK_OTHER_PROC(dest);
   int n = Array_ITEMSIZE(a);
   for (int d = 0; d < Array_NDIM(a); d++)
     n *= Array_DIM(a,d);
-  maybeSynchronize(a);
+  synchronize_if_gpu(a);
   MPI_Ssend(Array_BYTES(a), n, MPI_BYTE, dest, tag, self->comm);
   Py_RETURN_NONE;
 }
@@ -643,11 +667,15 @@ static PyObject * mpi_reduce(MPIObject *self, PyObject *args, PyObject *kwargs,
 #endif
   PyObject* obj;
   int root = -1;
-  static char *kwlist[] = {"a", "root", NULL};
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|i:reduce", kwlist,
+  // Scary code, see comment in mpi_sendreceive
+  static const char *kwlist[] = {"a", "root", NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|i:reduce", (char**)kwlist,
 				   &obj, &root))
+  {
     return NULL;
+  }
+
   CHK_PROC_DEF(root);
   if (PyFloat_Check(obj))
     {
@@ -676,9 +704,9 @@ static PyObject * mpi_reduce(MPIObject *self, PyObject *args, PyObject *kwargs,
       din[0] = PyComplex_RealAsDouble(obj);
       din[1] = PyComplex_ImagAsDouble(obj);
       if (root == -1)
-	MPI_Allreduce(&din, &dout, 2, MPI_DOUBLE, MPI_SUM, self->comm);
+	MPI_Allreduce(&din, &dout, 2, MPI_DOUBLE, operation, self->comm);
       else
-	MPI_Reduce(&din, &dout, 2, MPI_DOUBLE, MPI_SUM, root, self->comm);
+	MPI_Reduce(&din, &dout, 2, MPI_DOUBLE, operation, root, self->comm);
       return PyComplex_FromDoubles(dout[0], dout[1]);
     }
   else if (PyComplex_Check(obj))
@@ -715,17 +743,23 @@ static PyObject * mpi_reduce(MPIObject *self, PyObject *args, PyObject *kwargs,
 	}
       if (root == -1)
 	{
-          maybeSynchronize(aobj);
+          synchronize_if_gpu(aobj);
 #ifdef GPAW_MPI_INPLACE
 	  MPI_Allreduce(MPI_IN_PLACE, Array_BYTES(aobj), n, datatype,
 			operation, self->comm);
 #else
+          if (!PyArray_Check(a))
+          {
+              PyErr_SetString(PyExc_RuntimeError,
+                              "With define GPAW_MPI_INPLACE not set, only NumPy arrays may be MPI allreduced.");
+              return NULL;
+          }
 	  char* b = GPAW_MALLOC(char, n * elemsize);
-      MPI_Allreduce(Array_BYTES(aobj), b, n, datatype, operation,
-                    self->comm);
-      assert(Array_NBYTES(aobj) == n * elemsize);
-      memcpy(Array_BYTES(aobj), b, n * elemsize);
-      free(b);
+          MPI_Allreduce(Array_BYTES(aobj), b, n, datatype, operation,
+                        self->comm);
+          assert(Array_NBYTES(aobj) == n * elemsize);
+          memcpy(Array_BYTES(aobj), b, n * elemsize);
+          free(b);
 #endif
 	}
       else
@@ -735,12 +769,18 @@ static PyObject * mpi_reduce(MPIObject *self, PyObject *args, PyObject *kwargs,
 	  char* b = 0;
 	  if (rank == root)
 	    {
-              maybeSynchronize(aobj);
+              synchronize_if_gpu(aobj);
 #ifdef GPAW_MPI_INPLACE
 	      MPI_Reduce(MPI_IN_PLACE, Array_BYTES(aobj), n,
 			 datatype, operation, root, self->comm);
 #else
-	      b = GPAW_MALLOC(char, n * elemsize);
+      	      if (!PyArray_Check(a))
+              {
+                  PyErr_SetString(PyExc_RuntimeError,
+                                  "With define GPAW_MPI_INPLACE not set, only NumPy arrays may be MPI allreduced.");
+                  return NULL;
+              }
+              b = GPAW_MALLOC(char, n * elemsize);
 	      MPI_Reduce(Array_BYTES(aobj), b, n, datatype,
 			 operation, root, self->comm);
 	      assert(Array_NBYTES(aobj) == n * elemsize);
@@ -750,7 +790,7 @@ static PyObject * mpi_reduce(MPIObject *self, PyObject *args, PyObject *kwargs,
 	    }
 	  else
 	    {
-              maybeSynchronize(aobj);
+              synchronize_if_gpu(aobj);
 	      MPI_Reduce(Array_BYTES(aobj), b, n, datatype,
 			 operation, root, self->comm);
 	    }
@@ -767,11 +807,15 @@ static PyObject * mpi_reduce_scalar(MPIObject *self, PyObject *args, PyObject *k
 #endif
   PyObject* obj;
   int root = -1;
-  static char *kwlist[] = {"a", "root", NULL};
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|i:reduce", kwlist,
+  // Scary code, see comment in mpi_sendreceive
+  static const char *kwlist[] = {"a", "root", NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|i:reduce", (char**)kwlist,
 				   &obj, &root))
+  {
     return NULL;
+  }
+
   CHK_PROC_DEF(root);
   if (PyFloat_Check(obj))
     {
@@ -800,9 +844,9 @@ static PyObject * mpi_reduce_scalar(MPIObject *self, PyObject *args, PyObject *k
       din[0] = PyComplex_RealAsDouble(obj);
       din[1] = PyComplex_ImagAsDouble(obj);
       if (root == -1)
-	MPI_Allreduce(&din, &dout, 2, MPI_DOUBLE, MPI_SUM, self->comm);
+	MPI_Allreduce(&din, &dout, 2, MPI_DOUBLE, operation, self->comm);
       else
-	MPI_Reduce(&din, &dout, 2, MPI_DOUBLE, MPI_SUM, root, self->comm);
+	MPI_Reduce(&din, &dout, 2, MPI_DOUBLE, operation, root, self->comm);
       return PyComplex_FromDoubles(dout[0], dout[1]);
     }
   else if (PyComplex_Check(obj))
@@ -874,7 +918,7 @@ static PyObject * mpi_scatter(MPIObject *self, PyObject *args)
   int n = Array_ITEMSIZE(recvobj);
   for (int d = 0; d < Array_NDIM(recvobj); d++)
     n *= Array_DIM(recvobj,d);
-  maybeSynchronize(recvobj);
+  synchronize_if_gpu(recvobj);
   MPI_Scatter(source, n, MPI_BYTE, Array_BYTES(recvobj),
 	      n, MPI_BYTE, root, self->comm);
   Py_RETURN_NONE;
@@ -895,7 +939,7 @@ static PyObject * mpi_allgather(MPIObject *self, PyObject *args)
   for (int d = 0; d < Array_NDIM(a); d++)
     n *= Array_DIM(a,d);
   // What about endianness????
-  maybeSynchronize(a);
+  synchronize_if_gpu(a);
   MPI_Allgather(Array_BYTES(a), n, MPI_BYTE, Array_BYTES(b), n,
 		MPI_BYTE, self->comm);
   Py_RETURN_NONE;
@@ -925,7 +969,7 @@ static PyObject * mpi_gather(MPIObject *self, PyObject *args)
   int n = Array_ITEMSIZE(a);
   for (int d = 0; d < Array_NDIM(a); d++)
     n *= Array_DIM(a,d);
-  maybeSynchronize(a);
+  synchronize_if_gpu(a);
   if (root != self->rank)
     MPI_Gather(Array_BYTES(a), n, MPI_BYTE, 0, n, MPI_BYTE, root, self->comm);
   else
@@ -951,7 +995,7 @@ static PyObject * mpi_broadcast(MPIObject *self, PyObject *args)
   int n = Array_ITEMSIZE(buf);
   for (int d = 0; d < Array_NDIM(buf); d++)
     n *= Array_DIM(buf,d);
-  maybeSynchronize(buf);
+  synchronize_if_gpu(buf);
   MPI_Bcast(Array_BYTES(buf), n, MPI_BYTE, root, self->comm);
   Py_RETURN_NONE;
 }
@@ -960,7 +1004,7 @@ static PyObject *mpi_compare(MPIObject *self, PyObject *args)
 {
   MPIObject* other;
   int result;
-  char* pyresult;
+  const char* pyresult;
   if (!PyArg_ParseTuple(args, "O", &other))
     return NULL;
 
@@ -1056,17 +1100,17 @@ static PyObject * mpi_alltoallv(MPIObject *self, PyObject *args)
   /* Create count and displacement arrays in units of bytes */
   int elem_size = Array_ITEMSIZE(send_obj);
 
-  long* tmp1 = Array_DATA(send_cnts);
-  long* tmp2 = Array_DATA(send_displs);
-  long* tmp3 = Array_DATA(recv_cnts);
-  long* tmp4 = Array_DATA(recv_displs);
+  long* tmp1 = (long*)Array_DATA(send_cnts);
+  long* tmp2 = (long*)Array_DATA(send_displs);
+  long* tmp3 = (long*)Array_DATA(recv_cnts);
+  long* tmp4 = (long*)Array_DATA(recv_displs);
   for (int i=0; i < self->size; i++) {
       s_cnts[i] = tmp1[i] * elem_size;
       s_displs[i] = tmp2[i] * elem_size;
       r_cnts[i] = tmp3[i] * elem_size;
       r_displs[i] = tmp4[i] * elem_size;
   }
-  maybeSynchronize(send_obj);
+  synchronize_if_gpu(send_obj);
 
   MPI_Alltoallv(Array_BYTES(send_obj),
 		s_cnts, s_displs,
@@ -1098,7 +1142,7 @@ static PyObject * get_members(MPIObject *self, PyObject *args)
 // for the purpose of this function (gpaw/mpi/__init__.py)
 static PyObject * get_c_object(MPIObject *self, PyObject *args)
 {
-  return Py_BuildValue("O", self);
+  return PyLong_FromVoidPtr(&self->comm);
 }
 
 // Forward declaration of MPI_Communicator because it needs MPIType
@@ -1287,7 +1331,7 @@ static PyObject * MPICommunicator(MPIObject *self, PyObject *args)
   // Check that all ranks make sense
   for (int i = 0; i < n; i++)
     {
-      int *x = PyArray_GETPTR1(iranks, i);
+      int *x = (int*)PyArray_GETPTR1(iranks, i);
       if (*x < 0 || *x >= self->size)
 	{
 	  Py_DECREF(iranks);
@@ -1296,7 +1340,7 @@ static PyObject * MPICommunicator(MPIObject *self, PyObject *args)
 	}
       for (int j = 0; j < i; j++)
 	{
-	  int *y = PyArray_GETPTR1(iranks, j);
+	  int *y = (int*)PyArray_GETPTR1(iranks, j);
 	  if (*y == *x)
 	    {
 	      Py_DECREF(iranks);

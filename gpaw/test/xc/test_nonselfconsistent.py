@@ -1,7 +1,8 @@
+import pytest
 from ase import Atoms
 from ase.units import Bohr
+
 from gpaw import GPAW
-import pytest
 
 
 def xc(name):

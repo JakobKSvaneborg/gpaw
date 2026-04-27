@@ -1,5 +1,6 @@
 import pytest
 from ase import Atom, Atoms
+
 from gpaw import GPAW
 
 

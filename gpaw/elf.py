@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 
 import numpy as np
+
 from gpaw.core import UGArray
 from gpaw.fd_operators import Gradient
 from gpaw.new.ase_interface import GPAW, ASECalculator
@@ -14,7 +15,7 @@ def elf(nt_sR: np.ndarray,
         nt_grad2_sR: np.ndarray,
         taut_sR: np.ndarray,
         ncut: float | None = None) -> np.ndarray:
-    """Pseudo electron localisation function (ELF).
+    """Pseudo electron localization function (ELF).
 
     See:
 

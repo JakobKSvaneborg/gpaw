@@ -4,8 +4,9 @@ from math import pi
 import numpy as np
 
 import gpaw.cgpaw as cgpaw
-from .overlaps import WannierOverlaps
+
 from .functions import WannierFunctions
+from .overlaps import WannierOverlaps
 
 
 class LocalizationNotConvergedError(Exception):
@@ -55,6 +56,7 @@ def localize(overlaps: WannierOverlaps,
 
 if __name__ == '__main__':
     import sys
+
     from gpaw import GPAW
     from gpaw.wannier.overlaps import calculate_overlaps
 

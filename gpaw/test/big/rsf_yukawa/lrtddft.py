@@ -1,12 +1,13 @@
 """Check TDDFT ionizations with Yukawa potential."""
 from ase.build import molecule
 from ase.units import Hartree
+
 from gpaw import GPAW
-from gpaw.mpi import world
-from gpaw.utilities.adjust_cell import adjust_cell
-from gpaw.occupations import FermiDirac
 from gpaw.eigensolvers import RMMDIIS
 from gpaw.lrtddft import LrTDDFT
+from gpaw.mpi import world
+from gpaw.occupations import FermiDirac
+from gpaw.utilities.adjust_cell import adjust_cell
 
 # h2o = molecule('H2O')
 # h2o.set_initial_magnetic_moments([2, -1, -1])

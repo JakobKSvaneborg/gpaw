@@ -18,6 +18,9 @@ Set the location of setups as described here:
 Spectrum calculation using unoccupied states
 ============================================
 
+1s Transition potential
+-----------------------
+
 We do a "ground state" calculation with a core hole. Use a lot of
 unoccupied states.
 
@@ -42,6 +45,30 @@ Plot the spectrum:
 .. figure:: xas_h2o_spectrum.png
    :width: 400 px
 
+2p Transition potential
+-----------------------
+The 2p transitions are calculated similar to the 1s
+spectrum, involving a ground state calculation that includes a core hole.
+The dipole matrix elements can be written out, allowing
+to restart the XAS calculation without using the calculator object.
+These files are much smaller than `.gpw` files.
+
+.. literalinclude:: run_2p.py
+
+The 2p calculations require to take spin-orbit
+splitting into account. This is due to the non-zero angular momentum
+of the initial state. The spin-orbit splitting can be determined
+experimentally or calculated theoretically; we have utilized
+the experimental value here.
+
+.. literalinclude:: plot_2p.py
+
+.. figure:: xas_h2s_spectrum.png
+   :width: 400 px
+
+There are some limitations to using this method for 2p transitions, as 
+𝑙≠0, and it is based on the single-particle picture.
+This is particularly relevant for transition metals as Ti [Joh25]_.
 
 Haydock recursion method
 ========================
@@ -51,7 +78,7 @@ recursion method to calculate the spectrum, thus avoiding to determine
 many unoccupied states. First we do a core hole calculation with
 enough k-points to converge the ground state density. Then we compute
 the recursion coefficients with a denser k-point mesh to converge the
-uncoccupied DOS. A Delta Kohn-Sham calculation can be done for the
+unoccupied DOS. A Delta Kohn-Sham calculation can be done for the
 gamma point, and the shift is made so that the first unoccupied
 eigenvalue at the gamma point ends up at the computed total energy
 difference.
@@ -97,7 +124,7 @@ are shown along with the experimental spectrum.
 XES
 ===
 
-To compute XES, first do a ground state calcualtion with an 0.0 core
+To compute XES, first do a ground state calculation with an 0.0 core
 hole (an 'xes1s' setup as created above ). The system will not be
 charged so the setups can be placed on all atoms one wants to
 calculate XES for. Since XES probes the occupied states no unoccupied
@@ -110,7 +137,7 @@ states need to be determined. Calculate the spectrum with
 Where n is the number of the atom in the atoms object, the center
 keyword is only necessary if there are more than one xes setup. The spectrum
 can be shifted by putting the first transition to the fermi level, or to
-compute the total energy diffrence between the core hole state and the state
+compute the total energy difference between the core hole state and the state
 with a valence hole in HOMO.
 
 
@@ -120,7 +147,7 @@ Further considerations
 For XAS: Gridspacing can be set to the default value. The shape of the
 spectrum is quite insensitive to the functional used, the DKS shifts
 are more sensitive. The absolute energy position can be shifted so
-that the calculated XPS energy matches the expreimental value
+that the calculated XPS energy matches the experimental value
 [Leetmaa2006]. Use a large box, see convergence with box size for a
 water molecule below:
 
@@ -137,3 +164,7 @@ and plot it
 .. [Nil04] *Chemical bonding on surfaces probed by X-ray emission
    spectroscopy and density functional theory*, A. Nilsson and
    L. G. M. Pettersson, Surf. Sci. Rep. 55 (2004) 49-167
+
+.. [Joh25] *Explicit core-hole single-particle methods for L- and M- edge X-ray
+   absorption and electron energy-loss spectra*
+   E. A. B. Johnsen,  N. Horiuchi, T. Susi, and M. Walter (2025).  arXiv. https://arxiv.org/abs/2504.08458

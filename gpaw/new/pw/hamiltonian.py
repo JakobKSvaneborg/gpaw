@@ -1,20 +1,22 @@
 from __future__ import annotations
-from typing import Callable
+
+from collections.abc import Callable
 
 import numpy as np
 
+from gpaw.core.arrays import XArray
 from gpaw.core.plane_waves import PWArray
 from gpaw.core.uniform_grid import UGArray
-from gpaw.core.arrays import DistributedArrays as XArray
 from gpaw.gpu import cupy as cp
 from gpaw.new import trace, zips
+from gpaw.new.c import pw_insert_gpu, pw_precond
 from gpaw.new.hamiltonian import Hamiltonian
-from gpaw.new.c import pw_precond, pw_insert_gpu
+from gpaw.utilities import as_complex_dtype, as_real_dtype
 
 
 class PWHamiltonian(Hamiltonian):
-    def __init__(self, grid, pw, xp=np):
-        self.grid_local = grid.new(comm=None, dtype=pw.dtype)
+    def __init__(self, grid, dtype, xp=np):
+        self.grid_local = grid.new(comm=None, dtype=dtype)
         self.plan = self.grid_local.fft_plans(xp=xp)
         # It's a bit too expensive to create all the local PW-descriptors
         # for all the k-points every time we apply the Hamiltonian, so we
@@ -34,7 +36,9 @@ class PWHamiltonian(Hamiltonian):
         if xp is not np and pw.comm.size == 1:
             return apply_local_potential_gpu(vt_R, psit_nG, out_nG)
         vt_R = vt_R.gather(broadcast=True)
-        tmp_R = self.grid_local.empty(xp=xp)
+        plan = self.plan
+        tmp_R = plan.tmp_R  # self.grid_local.empty(xp=xp)
+        tmp_Q = plan.tmp_Q
         if pw.comm.size == 1:
             pw_local = pw
         else:
@@ -43,21 +47,28 @@ class PWHamiltonian(Hamiltonian):
             if pw_local is None:
                 pw_local = pw.new(comm=None)
                 self.pw_cache[key] = pw_local
-        psit_G = pw_local.empty(xp=xp)
-        e_kin_G = xp.asarray(psit_G.desc.ekin_G)
+        psit_G = pw_local.empty(xp=xp).data
+        e_kin_G = xp.asarray(pw_local.ekin_G)
         domain_comm = psit_nG.desc.comm
         mynbands = psit_nG.mydims[0]
-        vtpsit_G = pw_local.empty(xp=xp)
+        Q_G = pw_local.indices(tmp_Q.shape)
+
+        # apply_local_potential_gpu doesn't work with domain parallisation
+        # So we force vt_R to be the right type here.
+        vt_R_data = xp.asarray(vt_R.data)
+        vtpsit_G = xp.empty_like(psit_G)
 
         for n1 in range(0, mynbands, domain_comm.size):
             n2 = min(n1 + domain_comm.size, mynbands)
             psit_nG[n1:n2].gather_all(psit_G)
             if domain_comm.rank < n2 - n1:
-                psit_G.ifft(out=tmp_R, plan=self.plan)
-                tmp_R.data *= vt_R.data
-                tmp_R.fft(out=vtpsit_G, plan=self.plan)
-                psit_G.data *= e_kin_G
-                vtpsit_G.data += psit_G.data
+                plan.ifft_sphere(psit_G, pw_local)
+                tmp_R *= vt_R_data
+                plan.fft()
+                vtpsit_G = tmp_Q.ravel()[Q_G]
+                vtpsit_G *= 1.0 / tmp_R.size
+                psit_G *= e_kin_G
+                vtpsit_G += psit_G
             out_nG[n1:n2].scatter_from_all(vtpsit_G)
 
     def apply_mgga(self,
@@ -65,9 +76,10 @@ class PWHamiltonian(Hamiltonian):
                    psit_nG: XArray,
                    vt_nG: XArray) -> None:
         pw = psit_nG.desc
-        dpsit_R = dedtaut_R.desc.new(dtype=pw.dtype).empty()
-        Gplusk1_Gv = pw.reciprocal_vectors()
-        tmp_G = pw.empty()
+        xp = psit_nG.xp
+        dpsit_R = dedtaut_R.desc.new(dtype=pw.dtype).empty(xp=xp)
+        Gplusk1_Gv = pw.reciprocal_vectors(xp)
+        tmp_G = pw.empty(xp=xp)
 
         for psit_G, vt_G in zips(psit_nG, vt_nG):
             for v in range(3):
@@ -100,7 +112,8 @@ class PWHamiltonian(Hamiltonian):
 @trace
 def precondition(psit_nG: PWArray,
                  residual_nG: PWArray,
-                 out: PWArray) -> None:
+                 out: PWArray,
+                 ekin_n=None) -> None:
     """Preconditioner for KS equation.
 
     From:
@@ -111,23 +124,24 @@ def precondition(psit_nG: PWArray,
 
       Kresse and Furthmüller, Phys. Rev. B 54, 11169 (1996)
     """
-
     xp = psit_nG.xp
     G2_G = xp.asarray(psit_nG.desc.ekin_G * 2)
-    ekin_n = psit_nG.norm2('kinetic')
+    if ekin_n is None:
+        ekin_n = psit_nG.norm2('kinetic')
 
     if xp is np:
         for r_G, o_G, ekin in zips(residual_nG.data,
                                    out.data,
                                    ekin_n):
             pw_precond(G2_G, r_G, ekin, o_G)
-        return
+    else:
+        out.data[:] = gpu_prec(ekin_n[:, np.newaxis],
+                               G2_G[np.newaxis],
+                               residual_nG.data)
+    return ekin_n
 
-    out.data[:] = gpu_prec(ekin_n[:, np.newaxis],
-                           G2_G[np.newaxis],
-                           residual_nG.data)
 
-
+@trace(gpu=True)
 @cp.fuse()
 def gpu_prec(ekin, G2, residual):
     x = 1 / ekin / 3 * G2
@@ -157,7 +171,8 @@ class SpinorPWHamiltonian(Hamiltonian):
               D_asii,
               psit_nsG: XArray,
               out: XArray,
-              spin: int) -> XArray:
+              spin: int,
+              calculate_energy: bool = False) -> XArray:
         assert dedtaut_xR is None
         out_nsG = out
         pw = psit_nsG.desc
@@ -192,30 +207,33 @@ class SpinorPWHamiltonian(Hamiltonian):
         return spinor_precondition
 
 
+@trace
 def apply_local_potential_gpu(vt_R,
                               psit_nG,
                               out_nG,
                               blocksize=10):
     from gpaw.gpu import cupyx
     pw = psit_nG.desc
-    e_kin_G = cp.asarray(pw.ekin_G)
+    e_kin_G = cp.asarray(pw.ekin_G, dtype=as_real_dtype(pw.dtype))
     mynbands = psit_nG.mydims[0]
     size_c = vt_R.desc.size_c
-    if pw.dtype == float:
+    vt_R_data = cp.asarray(vt_R.data, dtype=as_real_dtype(pw.dtype))
+    w = trace(gpu=True)
+    if np.issubdtype(pw.dtype, np.floating):
         shape = (size_c[0], size_c[1], size_c[2] // 2 + 1)
-        ifftn = cupyx.scipy.fft.irfftn
-        fftn = cupyx.scipy.fft.rfftn
+        ifftn = w(cupyx.scipy.fft.irfftn)
+        fftn = w(cupyx.scipy.fft.rfftn)
     else:
         shape = tuple(size_c)
-        ifftn = cupyx.scipy.fft.ifftn
-        fftn = cupyx.scipy.fft.fftn
+        ifftn = w(cupyx.scipy.fft.ifftn)
+        fftn = w(cupyx.scipy.fft.fftn)
     Q_G = cp.asarray(pw.indices(shape))
     psit_bQ = None
     for b1 in range(0, mynbands, blocksize):
         b2 = min(b1 + blocksize, mynbands)
         nb = b2 - b1
         if psit_bQ is None:
-            psit_bQ = cp.empty((nb,) + shape, complex)
+            psit_bQ = cp.empty((nb,) + shape, as_complex_dtype(pw.dtype))
         elif nb < blocksize:
             psit_bQ = psit_bQ[:nb]
         psit_bQ[:] = 0.0
@@ -229,7 +247,7 @@ def apply_local_potential_gpu(vt_R,
             tuple(size_c),
             norm='forward',
             overwrite_x=True)
-        psit_bR *= vt_R.data
+        psit_bR *= vt_R_data
         vtpsit_bQ = fftn(
             psit_bR,
             tuple(size_c),

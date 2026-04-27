@@ -98,7 +98,7 @@ The TDDFT excitations are
 Restarting and recalculating
 ============================
 
-The calculation can be restarted with the same scipt.
+The calculation can be restarted with the same script.
 As an example, here we increase the energy cutoff to 8 eV.
 The matrix elements calculated earlier up to 7 eV are reused,
 and only the missing matrix elements are calculated:

@@ -10,9 +10,9 @@ from myqueue.workflow import run
 def workflow():
     with run(script='s26_set.py', cores=8, tmax='1d'):
         run(function=check_s26)
-    run(script='hydrogen_atom.py', cores=16)
+    run(script='hydrogen_atom.py')
     if compiled_with_libvdwxc():
-        run(script='libvdwxc-example.py')
+        run(script='libvdwxc-example.py', cores=2)
         if libvdwxc_has_pfft():
             run(script='libvdwxc-pfft-example.py', cores=8)
     run(script='rsf_gamma.py', cores=8)
@@ -39,6 +39,6 @@ def check_s26():
     rms = (dE**2).mean()**0.5
     amean = abs(dE).mean()
     print(rms, amean)
-    # references from https://doi.org/10.1002/jcc.21724
+    # references from DOI:10.1002/jcc.21724
     assert abs(rms - 0.021) < 0.002
     assert abs(amean - 0.016) < 0.002

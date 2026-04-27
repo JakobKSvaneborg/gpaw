@@ -1,20 +1,20 @@
 """Test selfconsistent RSF calculation with Yukawa potential including vc."""
 import pytest
-from gpaw.mpi import world
 from ase import Atoms
+
 from gpaw import GPAW, KohnShamConvergenceError
-from gpaw.xc.hybrid import HybridXC
-from gpaw.poisson import PoissonSolver
-from gpaw.occupations import FermiDirac
-from gpaw.test import gen
 from gpaw.eigensolvers import RMMDIIS
+from gpaw.mpi import world
+from gpaw.occupations import FermiDirac
+from gpaw.poisson import PoissonSolver
+from gpaw.test import gen
 from gpaw.utilities.adjust_cell import adjust_cell
+from gpaw.xc.hybrid import HybridXC
 
 pytestmark = pytest.mark.skipif(world.size < 4,
                                 reason='world.size < 4')
 
 
-@pytest.mark.old_gpaw_only
 def test_exx_exx_scf(in_tmp_dir, add_cwd_to_setup_paths):
     h = 0.3
 

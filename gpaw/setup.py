@@ -1,22 +1,24 @@
 from __future__ import annotations
+
 import functools
 from io import StringIO
 from math import pi, sqrt
+
 import ase.units as units
 import numpy as np
 from ase.data import chemical_symbols
 
 from gpaw import debug
 from gpaw.basis_data import Basis, BasisFunction
-from gpaw.gaunt import gaunt, nabla
+from gpaw.core.atom_arrays import AtomArraysLayout
+from gpaw.mpi import normalize_communicator
+from gpaw.new import zips
 from gpaw.overlap import OverlapCorrections
 from gpaw.setup_data import SetupData, search_for_file
+from gpaw.sphere.gaunt import gaunt, nabla
 from gpaw.spline import Spline
 from gpaw.utilities import pack_density, unpack_hermitian
 from gpaw.xc import XC
-from gpaw.new import zips
-from gpaw.xc.ri.spherical_hse_kernel import RadialHSE
-from gpaw.core.atom_arrays import AtomArraysLayout
 
 
 class WrongMagmomForHundsRuleError(ValueError):
@@ -77,9 +79,11 @@ def create_setup(symbol, xc='LDA', lmax=0,
                                  'functional.  This calculation would use '
                                  'the %s functional.' % xc.get_setup_name())
         else:
-            setupdata = SetupData(symbol, xc.get_setup_name(),
-                                  type, True,
-                                  world=world)
+            setupdata = SetupData.find_and_read_path(symbol,
+                                                     xc.get_setup_name(),
+                                                     setuptype=type,
+                                                     world=world)
+
     if hasattr(setupdata, 'build'):
         # It is not so nice that we have hubbard_u floating around here.
         # For example, none of the other setup types are aware
@@ -514,6 +518,7 @@ class BaseSetup:
     def calculate_erfc_interaction(self, omega):
         """Calculate and return erfc based valence valence
            exchange interactions."""
+        from gpaw.xc.ri.spherical_hse_kernel import RadialHSE
         hse = RadialHSE(self.local_corr.rgd2, omega).screened_coulomb_dv
 
         def erfc_interaction(n_g, l):
@@ -615,8 +620,6 @@ class LeanSetup(BaseSetup):
 
         # XAS stuff
         self.phicorehole_g = s.phicorehole_g  # should be optional
-        if s.phicorehole_g is not None:
-            self.A_ci = s.A_ci  # oscillator strengths
 
         # Required to get all electron density
         self.rgd = s.rgd
@@ -832,11 +835,6 @@ class Setup(BaseSetup):
 
         self.fcorehole = data.fcorehole
         self.lcorehole = data.lcorehole
-        if data.phicorehole_g is not None:
-            if self.lcorehole == 0:
-                self.calculate_oscillator_strengths(phi_jg)
-            else:
-                self.A_ci = None
 
         # Construct splines:
         self.vbar = rgd.spline(vbar_g, rcutfilter)
@@ -1223,33 +1221,14 @@ class Setup(BaseSetup):
         basis = PartialWaveBasis(self.symbol, basis_functions_J, n_J)
         return basis
 
-    def calculate_oscillator_strengths(self, phi_jg):
-        # XXX implement oscillator strengths for lcorehole != 0
-        assert self.lcorehole == 0
-        self.A_ci = np.zeros((3, self.ni))
-        nj = len(phi_jg)
-        i = 0
-        for j in range(nj):
-            l = self.l_j[j]
-            if l == 1:
-                a = self.rgd.integrate(phi_jg[j] * self.data.phicorehole_g,
-                                       n=1) / (4 * pi)
-
-                for m in range(3):
-                    c = (m + 1) % 3
-                    self.A_ci[c, i] = a
-                    i += 1
-            else:
-                i += 2 * l + 1
-        assert i == self.ni
-
 
 class PartialWaveBasis(Basis):  # yuckkk
     def __init__(self, symbol, phit_J, n_J):
-        Basis.__init__(self, symbol, 'partial-waves', readxml=False)
         self._basis_functions_J = phit_J
-        self.bf_j = [BasisFunction(n, phit.get_angular_momentum_number())
-                     for n, phit in zip(n_J, phit_J)]
+        super().__init__(
+            symbol, 'partial-waves',
+            bf_j=[BasisFunction(n, phit.get_angular_momentum_number())
+                  for n, phit in zip(n_J, phit_J)])
 
     def tosplines(self):
         return self._basis_functions_J
@@ -1277,6 +1256,7 @@ class Setups(list):
                  filter=None,
                  world=None,
                  backwards_compatible=True):
+        world = normalize_communicator(world)
         list.__init__(self)
         symbols = [chemical_symbols[Z] for Z in Z_a]
         type_a = types2atomtypes(symbols, setup_types, default='paw')
@@ -1339,7 +1319,7 @@ class Setups(list):
                 # (meaning we load the basis set now from a file) or an actual
                 # pre-created Basis object (meaning we just pass it along)
                 if isinstance(basis, str):
-                    basis = Basis(symbol, basis, world=world)
+                    basis = Basis.find(symbol, basis, world=world)
                 setup = create_setup(symbol, xc, 2, type,
                                      basis, setupdata=setupdata,
                                      filter=filter, world=world,
@@ -1379,8 +1359,7 @@ class Setups(list):
             output = StringIO()
             setup.print_info(functools.partial(print, file=output))
             txt = output.getvalue()
-            txt += '  # ' + setup.get_basis_description().replace('\n',
-                                                                  '\n  # ')
+            txt += '  ' + setup.get_basis_description().replace('\n', '\n  ')
             txt = txt.replace('\n', '\n  ')
             s += '  ' + txt + '\n\n'
 
@@ -1391,7 +1370,7 @@ class Setups(list):
         """Find rotation matrices for spherical harmonics."""
         # XXX It is ugly that we set self.atomrotations from here;
         # it would be better to return it to the caller.
-        from gpaw.atomrotations import AtomRotations
+        from gpaw.old.atomrotations import AtomRotations
         self.atomrotations = AtomRotations(self.setups, self.id_a, symmetry)
 
     def empty_atomic_matrix(self, ns, atom_partition, dtype=float):
@@ -1439,12 +1418,13 @@ class Setups(list):
     def create_pseudo_core_ked(self,
                                domain,
                                positions,
-                               atomdist):
+                               atomdist,
+                               xp=np):
         return domain.atom_centered_functions(
             [[setup.tauct] for setup in self],
             positions,
             atomdist=atomdist,
-            cut=True)
+            cut=True, xp=xp)
 
     def create_local_potentials(self, domain, positions, atomdist, xp=np):
         return domain.atom_centered_functions(
@@ -1453,7 +1433,7 @@ class Setups(list):
             atomdist=atomdist,
             xp=xp)
 
-    def create_compensation_charges(self, domain, positions, atomdist,
+    def create_compensation_charges(self, domain, positions, atomdist=None,
                                     xp=np):
         if self.backwards_compatible and hasattr(domain, 'ecut'):
             integral = None
@@ -1465,16 +1445,27 @@ class Setups(list):
             integrals=integral,
             xp=xp)
 
-    def get_overlap_corrections(self, atomdist, xp):
+    def get_overlap_corrections(self, atomdist, xp, dtype=np.float64):
         if atomdist is getattr(self, '_atomdist', None):
-            return self.dS_aii
+            if self.dS_aii.data.dtype == dtype:
+                return self.dS_aii
         self._atomdist = atomdist
         dS_aii = AtomArraysLayout([setup.dO_ii.shape for setup in self],
-                                  atomdist=atomdist).empty()
+                                  atomdist=atomdist, dtype=dtype).empty()
         for a, dS_ii in dS_aii.items():
             dS_ii[:] = self[a].dO_ii
         self.dS_aii = dS_aii.to_xp(xp)
         return self.dS_aii
+
+    def inverse_overlap_correction(self, P_ani, out_ani):
+        if len(P_ani.dims) == 2:  # (band, spinor)
+            subscripts = 'nsi, ij -> nsj'
+        else:
+            subscripts = 'ni, ij -> nj'
+        for (a, P_ni), out_ni in zip(P_ani.items(), out_ani.values()):
+            dC_ii = self[a].dC_ii
+            np.einsum(subscripts, P_ni, dC_ii, out=out_ni)
+        return out_ani
 
     def partial_wave_corrections(self) -> list[list[Spline]]:
         splines: dict[Setup, list[Spline]] = {}
@@ -1539,7 +1530,7 @@ def types2atomtypes(symbols, types, default):
     if isinstance(types, str):
         return [types] * natoms
 
-    # If present, None will map to the default type,
+    # If present, 'default' will map to the default type,
     # else use the input default
     type_a = [types.get('default', default)] * natoms
 

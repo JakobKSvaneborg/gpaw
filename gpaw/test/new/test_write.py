@@ -1,5 +1,6 @@
 import pytest
 from ase.build import molecule
+
 from gpaw.new.ase_interface import GPAW
 
 

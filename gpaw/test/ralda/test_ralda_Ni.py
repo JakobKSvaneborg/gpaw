@@ -1,4 +1,5 @@
 import pytest
+
 from gpaw.xc.fxc import FXCCorrelation
 
 

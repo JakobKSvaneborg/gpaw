@@ -20,6 +20,7 @@ the negative electronic charge, q = - e.
 """
 
 import numpy as np
+
 from gpaw.new import zips
 from gpaw.spinorbit import get_L_vlmm
 

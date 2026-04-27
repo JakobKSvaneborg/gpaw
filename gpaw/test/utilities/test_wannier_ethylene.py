@@ -1,14 +1,14 @@
 """GPAW wannier example for ethylene corresponding to the ASE Wannier
 tutorial.
 """
-import pytest
 import numpy as np
+import pytest
 from ase import Atoms
 
 from gpaw import GPAW
-from gpaw.mpi import size
-from gpaw.wannier.overlaps import calculate_overlaps
+from gpaw.mpi import world
 from gpaw.wannier.edmiston_ruedenberg import localize
+from gpaw.wannier.overlaps import calculate_overlaps
 
 pytestmark = pytest.mark.ci
 
@@ -37,7 +37,7 @@ def ethylene():
     return mol
 
 
-@pytest.mark.skipif(size > 1, reason='Not parallelized')
+@pytest.mark.skipif(world.size > 1, reason='Not parallelized')
 def test_ethylene_energy(ethylene):
     e = ethylene.get_potential_energy()
     assert e == pytest.approx(-33.328, abs=0.002)
@@ -64,12 +64,12 @@ def check(calc):
         expected.pop(i)
 
 
-@pytest.mark.skipif(size > 1, reason='Not parallelized')
+@pytest.mark.skipif(world.size > 1, reason='Not parallelized')
 def test_wannier_centers(ethylene):
     check(ethylene.calc)
 
 
-@pytest.mark.skipif(size > 1, reason='Not parallelized')
+@pytest.mark.skipif(world.size > 1, reason='Not parallelized')
 def test_wannier_centers_gpw(ethylene, in_tmp_dir):
     ethylene.calc.write('ethylene.gpw', 'all')
     check(GPAW('ethylene.gpw', txt=None))

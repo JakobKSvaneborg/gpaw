@@ -1,26 +1,25 @@
 from __future__ import annotations
 
-from abc import abstractmethod
 import warnings
+from abc import abstractmethod
 
 import numpy as np
+from ase.units import Hartree
 
-from gpaw.typing import Vector
-from gpaw.response import ResponseGroundStateAdaptable, ResponseContextInput
-from gpaw.response.frequencies import ComplexFrequencyDescriptor
+from gpaw.response import ResponseContextInput, ResponseGroundStateAdaptable
 from gpaw.response.chiks import (ChiKSCalculator, RealAxisWarning,
-                                 get_smat_components, smat,
-                                 regularize_intraband_transitions)
+                                 get_smat_components,
+                                 regularize_intraband_transitions, smat)
+from gpaw.response.frequencies import ComplexFrequencyDescriptor
 from gpaw.response.localft import LocalFTCalculator, add_LSDA_Wxc
-from gpaw.response.site_kernels import SiteKernels
-from gpaw.response.site_data import AtomicSites
+from gpaw.response.matrix_elements import (SitePairDensityCalculator,
+                                           SiteSpinPairEnergyCalculator,
+                                           SiteZeemanPairEnergyCalculator)
 from gpaw.response.pair_integrator import PairFunction, PairFunctionIntegrator
 from gpaw.response.pair_transitions import PairTransitions
-from gpaw.response.matrix_elements import (SitePairDensityCalculator,
-                                           SiteZeemanPairEnergyCalculator,
-                                           SiteSpinPairEnergyCalculator)
-
-from ase.units import Hartree
+from gpaw.response.site_data import AtomicSites
+from gpaw.response.site_kernels import SiteKernels
+from gpaw.typing import Vector
 
 
 class IsotropicExchangeCalculator:

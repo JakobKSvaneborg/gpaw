@@ -6,7 +6,7 @@ molecule = Atoms('Na2', positions=((0.0, 0.0, 0.0), (3.12, 0.0, 0.0)))
 
 molecule.center(vacuum=4.0)
 
-calc = GPAW(mode='fd', xc='PBE', setups={'Na': '1'}, h=0.25)
+calc = GPAW(mode='fd', xc='PBE', setups={'Na': '1'}, h=0.25, legacy_gpaw=True)
 
 molecule.calc = calc
 

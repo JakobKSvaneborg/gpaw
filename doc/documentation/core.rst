@@ -8,41 +8,13 @@ Introduction to GPAW internals
     from gpaw.core.matrix import *
     from gpaw.core.atom_arrays import *
     from gpaw.new.symmetry import Symmetries
+    from gpaw.dft import Parameters
 
 .. contents::
 
-DFT components
-==============
+.. warning::
 
-The components needed for a DFT calculation are created by a "builder" that
-can be made with the :func:`~gpaw.new.builder.builder` function, an ASE
-:class:`ase.Atoms` object and some input parameters:
-
->>> from ase import Atoms
->>> atoms = Atoms('Li', cell=[2, 2, 2], pbc=True)
->>> from gpaw.new.builder import builder
->>> params = {'mode': 'pw', 'kpts': (5, 5, 5)}
->>> b = builder(atoms, params)
-
-There are builders for each of the modes: PW, FD and LCAO.
-
-The :class:`~gpaw.new.input_parameters.InputParameters` object takes care of
-user parameters:
-
-* checks for errors
-* does normalization
-* handles backwards compatibility and deprecation warnings
-
-Normally, you will not need to create a DFT-components builder yourself.  It
-will happen automatically when you create a DFT-calculation object like this:
-
->>> from gpaw.new.calculation import DFTCalculation
->>> calculation = DFTCalculation.from_parameters(atoms, params)
-
-or when you create an ASE-calculator interface:
-
->>> from gpaw.new.ase_interface import GPAW
->>> atoms.calc = GPAW(**params, txt='li.txt')
+   This page describes :ref:`newgpaw`!
 
 
 Full picture
@@ -50,15 +22,17 @@ Full picture
 
 The :class:`ase.Atoms` object has an
 :class:`gpaw.new.ase_interface.ASECalculator` object attached
-created with the :func:`gpaw.new.ase_interface.GPAW` function:
+created with the :func:`gpaw.dft.GPAW` function:
 
+>>> from ase import Atoms
+>>> from gpaw.dft import GPAW, PW
 >>> atoms = Atoms('H2',
 ...               positions=[(0, 0, 0), (0, 0, 0.75)],
 ...               cell=[2, 2, 3],
 ...               pbc=True)
->>> atoms.calc = GPAW(mode='pw', txt='h2.txt')
+>>> atoms.calc = GPAW(mode=PW(ecut=400.0), txt='h2.txt')
 >>> atoms.calc
-ASECalculator(mode: {'name': 'pw'})
+ASECalculator(mode=PW(ecut=400.0))
 
 The ``atoms.calc`` object manages a
 :class:`gpaw.new.calculation.DFTCalculation` object that does the actual work.
@@ -125,13 +99,45 @@ Overview:
         * ``symmetries``
         * ``bz``
 
-      * ``wfs_qs[q][s]``:
+      * ``_wfs_u[u]``:
 
         * ``psit_nX``
         * ``occ_n``
         * ...
 
 See also: :download:`code.svg`.
+
+There are three ways to create a :class:`~gpaw.new.calculation.DFTCalculation`
+object:
+
+* Via the the :func:`gpaw.dft.GPAW` function which will create an
+  :class:`gpaw.new.ase_interface.ASECalculator` object that has a
+  ``dft`` attribute::
+
+    atoms.calc = GPAW(<parameters>)
+    atoms.get_potential_energy()
+    dft = atoms.calc.dft
+
+* Directly using the :class:`~gpaw.new.calculation.DFTCalculation`
+  constructor (not recommended)::
+
+    dft = DFTCalculation(...)
+
+* Using the :func:`gpaw.dft.DFT` function::
+
+    dft = DFT(atoms, <parameters>)
+
+* Via the :class:`~gpaw.dft.Parameters` object::
+
+    dft = Parameters(<parameters>).dft_calculation(atoms)
+
+  The :class:`~gpaw.dft.Parameters` is used by both the
+  :func:`gpaw.dft.DFT` and :func:`gpaw.dft.GPAW` functions to
+  handle:
+
+  * error checking
+  * normalization
+  * backwards compatibility and deprecation warnings
 
 
 Naming convention for arrays
@@ -182,14 +188,14 @@ Examples:
   * - ``density.nt_sR``
     - `\tilde{n}_\sigma(\mathbf{r})`
     - :class:`~UGArray`
-  * - ``ibzwfs.wfs_qs[q][s].P_ani``
+  * - ``ibzwfs._wfs_u[u].P_ani``
     - `P_{\sigma \mathbf{k} ni}^a`
     - :class:`~atom_arrays.AtomArrays`
-  * - ``ibzwfs.wfs_qs[q][s].psit_nX``
+  * - ``ibzwfs._wfs_u[u].psit_nX``
     - `\tilde{\psi}_{\sigma \mathbf{k} n}(\mathbf{r})`
     - :class:`~UGArray` |
       :class:`~PWArray`
-  * - ``ibzwfs.wfs_qs[q][s].pt_aX``
+  * - ``ibzwfs._wfs_u[u].pt_aX``
     - `\tilde{p}_{\sigma \mathbf{k} i}^a(\mathbf{r}-\mathbf{R}^a)`
     - :class:`~atom_centered_functions.AtomCenteredFunctions`
 
@@ -247,7 +253,7 @@ grid:
 >>> pw = PWDesc(ecut=100, cell=grid.cell)
 >>> func_G = pw.empty()
 >>> func_R.fft(out=func_G)
-PWArray(pw=PWDesc(ecut=100 <coefs=1536/1536>, cell=[4.0, 4.0, 4.0], pbc=[True, True, True], comm=0/1, dtype=float64), dims=())
+PWArray(pw=PWDesc(ecut=100 <coefs=1536/1536>, cell=[4.0, 4.0, 4.0], pbc=[1, 1, 1], comm=0/1, dtype=float64), dims=())
 >>> G = pw.reciprocal_vectors()
 >>> G.shape
 (1536, 3)
@@ -256,7 +262,7 @@ array([0., 0., 0.])
 >>> func_G.data[0]
 np.complex128(1+0j)
 >>> func_G.ifft(out=func_R)
-UGArray(grid=UGDesc(size=[20, 20, 20], cell=[4.0, 4.0, 4.0], pbc=[True, True, True], comm=0/1, dtype=float64), dims=())
+UGArray(grid=UGDesc(size=[20, 20, 20], cell=[4.0, 4.0, 4.0], pbc=[1, 1, 1], comm=0/1, dtype=float64), dims=())
 >>> round(func_R.data[0, 0, 0], 15)
 np.float64(1.0)
 
@@ -275,7 +281,7 @@ Atoms-arrays
 ============
 
 As an example, here is how to store the PAW atomic density-matrices for
-a water molcule
+a water molecule
 (:math:`D_{\sigma,i_1,i_2}^a`):
 
 .. code-block:: python
@@ -387,7 +393,7 @@ Core
 .. autoclass:: gpaw.core.UGArray
     :members:
     :undoc-members:
-.. autoclass:: gpaw.core.arrays.DistributedArrays
+.. autoclass:: gpaw.core.arrays.XArray
     :members:
     :undoc-members:
 .. autoclass:: gpaw.core.atom_arrays.AtomArrays
@@ -413,6 +419,59 @@ Core
    :members:
    :undoc-members:
 
+
+Input-parameter objects
+-----------------------
+
+.. autoclass:: gpaw.dft.PW
+.. autoclass:: gpaw.dft.LCAO
+.. autoclass:: gpaw.dft.FD
+.. autoclass:: gpaw.dft.Mode
+.. autoclass:: gpaw.dft.ExtensionInput
+.. autoclass:: gpaw.dft.MonkhorstPack
+.. autoclass:: gpaw.dft.Mixer
+.. autoclass:: gpaw.dft.Occupations
+.. autoclass:: gpaw.dft.PoissonSolver
+.. autoclass:: gpaw.dft.XC
+
+
+DFT-components
+--------------
+
+.. autoclass:: gpaw.new.calculation.DFTCalculation
+    :members:
+    :undoc-members:
+.. autoclass:: gpaw.new.calculation.DFTState
+    :members:
+    :undoc-members:
+.. autoclass:: gpaw.new.density.Density
+    :members:
+    :undoc-members:
+.. autoclass:: gpaw.new.ibzwfs.IBZWaveFunctions
+    :members:
+    :undoc-members:
+.. autoclass:: gpaw.new.potential.Potential
+    :members:
+    :undoc-members:
+.. autoclass:: gpaw.new.pot_calc.PotentialCalculator
+    :members:
+    :undoc-members:
+.. autoclass:: gpaw.new.scf.SCFLoop
+    :members:
+    :undoc-members:
+.. autoclass:: gpaw.dft.Parameters
+    :members:
+    :undoc-members:
+.. autoclass:: gpaw.new.pwfd.wave_functions.PWFDWaveFunctions
+    :members:
+    :undoc-members:
+.. autoclass:: gpaw.new.ase_interface.ASECalculator
+    :members:
+    :undoc-members:
+.. autofunction:: gpaw.dft.DFT
+.. autofunction:: gpaw.dft.GPAW
+.. autofunction:: gpaw.new.pwfd.move_wfs.move_wave_functions
+
 .. autoclass:: gpaw.new.symmetry.Symmetries
    :members:
    :undoc-members:
@@ -426,43 +485,9 @@ Core
    :members:
    :undoc-members:
 
-
-DFT
----
-
-.. autoclass:: gpaw.new.calculation.DFTCalculation
-    :members:
-    :undoc-members:
-.. autoclass:: gpaw.new.calculation.DFTState
-    :members:
-    :undoc-members:
-.. autoclass:: gpaw.new.density.Density
-    :members:
-    :undoc-members:
-.. autofunction:: gpaw.new.builder.builder
-.. autoclass:: gpaw.new.ibzwfs.IBZWaveFunctions
-    :members:
-    :undoc-members:
-.. autoclass:: gpaw.new.potential.Potential
-    :members:
-    :undoc-members:
-.. autoclass:: gpaw.new.pot_calc.PotentialCalculator
-    :members:
-    :undoc-members:
-.. autoclass:: gpaw.new.scf.SCFLoop
-    :members:
-    :undoc-members:
-.. autoclass:: gpaw.new.input_parameters.InputParameters
-    :members:
-    :undoc-members:
-.. autoclass:: gpaw.new.pwfd.wave_functions.PWFDWaveFunctions
-    :members:
-    :undoc-members:
-.. autoclass:: gpaw.new.ase_interface.ASECalculator
-    :members:
-    :undoc-members:
-.. autofunction:: gpaw.new.ase_interface.GPAW
-.. autofunction:: gpaw.new.pwfd.move_wfs.move_wave_functions
+.. autoclass:: gpaw.new.extensions.Extension
+   :members:
+   :undoc-members:
 
 
 FFTW

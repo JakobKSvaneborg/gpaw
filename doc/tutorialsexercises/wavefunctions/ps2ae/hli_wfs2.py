@@ -25,7 +25,7 @@ for n in range(2):
     plt.plot(x, y, '-', color=f'C{n}', label=rf'$\psi_{n}$')
 
     # Raw PS wfs:
-    ps = hli.calc.dft.ibzwfs.wfs_qs[0][0].psit_nX[n]
+    ps = list(hli.calc.dft.ibzwfs)[0].psit_nX[n]
     i0, i1 = ps.desc.size[:2] // 2 - 1
     x, y = ps.xy(i0, i1, ...)
     x *= Bohr

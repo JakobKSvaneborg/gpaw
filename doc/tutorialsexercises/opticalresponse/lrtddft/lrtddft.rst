@@ -15,7 +15,7 @@ Once the ground state calculation with unoccupied states is finished, the last
 part of the script performs a linear response TDDFT calculation.
 
 As the construction of the Omega matrix is computationally the most intensive
-part it is sometimes convenient to perform diagonalisation and construction of
+part it is sometimes convenient to perform diagonalization and construction of
 spectrum in separate calculations:
 
 .. literalinclude:: part2.py

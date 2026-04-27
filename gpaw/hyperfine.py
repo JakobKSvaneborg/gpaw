@@ -14,7 +14,6 @@ See:
 """
 import argparse
 from math import pi
-from typing import List
 
 import ase.units as units
 import numpy as np
@@ -24,11 +23,11 @@ from gpaw import get_scipy_version
 from gpaw.atom.aeatom import Channel
 from gpaw.atom.configurations import configurations
 from gpaw.atom.radialgd import RadialGridDescriptor
-from gpaw.calculator import GPAW
-from gpaw.gaunt import gaunt
-from gpaw.grid_descriptor import GridDescriptor
-from gpaw.pw.descriptor import PWDescriptor
+from gpaw.old.calculator import GPAW
+from gpaw.old.grid_descriptor import GridDescriptor
+from gpaw.old.pw.descriptor import PWDescriptor
 from gpaw.setup import Setup
+from gpaw.sphere.gaunt import gaunt
 from gpaw.typing import Array1D, Array2D, Array3D
 from gpaw.utilities import unpack_density
 from gpaw.xc.functional import XCFunctional
@@ -193,7 +192,7 @@ def paw_correction(density_sii: Array3D,
 
 
 def expand(D_ii: Array2D,
-           l_j: List[int],
+           l_j: list[int],
            l: int) -> Array3D:
     """Get expansion coefficients."""
     G_LLm = gaunt(lmax=2)[:, :, l**2:(l + 1)**2]
@@ -319,7 +318,7 @@ gyromagnetic_ratios = {'H': (1, 42.577478518),
                        'Xe': (129, -11.777)}
 
 
-def main(argv: List[str] = None) -> None:
+def main(argv: list[str] = None) -> None:
     """Command-line interface."""
     parser = argparse.ArgumentParser(
         prog='python3 -m gpaw.hyperfine',

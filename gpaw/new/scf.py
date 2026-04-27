@@ -1,23 +1,25 @@
 from __future__ import annotations
 
 import itertools
+import time
 import warnings
+from collections.abc import Callable
 from math import inf
 from types import SimpleNamespace
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
+from gpaw import KohnShamConvergenceError
 from gpaw.convergence_criteria import (Criterion, check_convergence,
                                        dict2criterion)
-from gpaw.scf import write_iteration
-from gpaw.typing import Array2D
-from gpaw.new.logger import indent
-from gpaw import KohnShamConvergenceError
 from gpaw.new.energies import DFTEnergies
+from gpaw.new.ibzwfs import IBZWaveFunctions
+from gpaw.new.logger import indent
+from gpaw.typing import Array2D
 
 
 class TooFewBandsError(KohnShamConvergenceError):
-    """Not enough bands for CBM+x convergence cfriterium."""
+    """Not enough bands for CBM+x convergence criterion."""
 
 
 class SCFLoop:
@@ -49,7 +51,7 @@ class SCFLoop:
                 f'occupation numbers:\n{indent(self.occ_calc)}\n')
 
     def iterate(self,
-                ibzwfs,
+                ibzwfs: IBZWaveFunctions,
                 density,
                 potential,
                 energies: DFTEnergies,
@@ -78,22 +80,31 @@ class SCFLoop:
             dens_error = 0.0
 
         for self.niter in itertools.count(start=1):
-            wfs_error, energies = self.eigensolver.iterate(
+            eig_error, wfs_error, energies = self.eigensolver.iterate(
                 ibzwfs, density, potential,
                 self.hamiltonian, pot_calc, energies)
+            nelectrons = density.nvalence - density.charge + pot_calc.charge
             e_band, e_entropy, e_extrapolation = ibzwfs.calculate_occs(
                 self.occ_calc,
+                nelectrons,
                 fix_fermi_level=self.fix_fermi_level)
 
-            energies.set(**pot_calc.xc.energies,
-                         band=e_band,
+            if hasattr(self.hamiltonian, 'hybrid_energy_contributions'):
+                ecc, evc, evv, dekin = (
+                    self.hamiltonian.hybrid_energy_contributions())
+                energies.set(hybrid_xc_cc=ecc,
+                             hybrid_xc_vc=evc,
+                             hybrid_xc_vv=evv,
+                             hybrid_kinetic_correction=dekin)
+
+            energies.set(band=e_band,
                          entropy=e_entropy,
                          extrapolation=e_extrapolation)
 
             ctx = SCFContext(
                 log, self.niter, energies,
                 ibzwfs, density, potential,
-                wfs_error, dens_error,
+                wfs_error, dens_error, eig_error,
                 self.comm, calculate_forces,
                 pot_calc, self.update_density_and_potential)
 
@@ -105,8 +116,15 @@ class SCFLoop:
 
             if log:
                 write_iteration(cc, converged_items, entries, ctx, log)
+
             if converged:
-                break
+                converged = all(
+                    ext.post_scf_convergence(
+                        ibzwfs, nelectrons, self.occ_calc, self.mixer, log)
+                    for ext in pot_calc.extensions)
+                if converged:
+                    break
+
             if self.niter == maxiter:
                 if wfs_error < inf:
                     raise KohnShamConvergenceError
@@ -117,9 +135,11 @@ class SCFLoop:
                 dens_error = self.mixer.mix(density)
                 potential, energies, _ = pot_calc.calculate(
                     density, ibzwfs, potential.vHt_x)
+                energies.sanity_check()
 
         self.eigensolver.postprocess(
-            ibzwfs, density, potential, self.hamiltonian)
+            ibzwfs, density, potential, self.hamiltonian,
+            maxiter=maxiter, cc=cc, log=log)
 
 
 class SCFContext:
@@ -132,6 +152,7 @@ class SCFContext:
                  potential,
                  wfs_error: float,
                  dens_error: float,
+                 eig_error: float,
                  comm,
                  calculate_forces: Callable[[], Array2D],
                  pot_calc,
@@ -145,7 +166,8 @@ class SCFContext:
         energy = energies.total_extrapolated
         self.ham = SimpleNamespace(e_total_extrapolated=energy,
                                    get_workfunctions=self._get_workfunctions)
-        self.wfs = SimpleNamespace(nvalence=ibzwfs.nelectrons,
+        self.wfs = SimpleNamespace(nvalence=density.nvalence +
+                                   pot_calc.charge,
                                    world=comm,
                                    eigensolver=SimpleNamespace(
                                        error=wfs_error),
@@ -155,6 +177,7 @@ class SCFContext:
             calculate_magnetic_moments=density.calculate_magnetic_moments,
             fixed=not update_density_and_potential,
             error=dens_error)
+        self.eig_error = eig_error
         self.calculate_forces = calculate_forces
         self.poisson_solver = pot_calc.poisson_solver
 
@@ -207,3 +230,70 @@ def create_convergence_criteria(criteria: dict[str, Any]
         criterion.reset()
 
     return criteria
+
+
+def write_iteration(criteria, converged_items, entries, ctx, log):
+    custom = (set(criteria) -
+              {'energy', 'eigenstates', 'density'})
+
+    eigensolver_name = getattr(ctx.wfs.eigensolver, 'name', None)
+    print_iloop = False
+    if eigensolver_name == 'etdm-fdpw':
+        if ctx.wfs.eigensolver.iloop is not None or \
+                ctx.wfs.eigensolver.outer_iloop is not None:
+            print_iloop = True
+
+    if ctx.niter == 1:
+        header = '|iter     |     time |      energy | eigst |  dens |'
+        for name in custom:
+            criterion = criteria[name]
+            header += f'{criterion.tablename:>5s} |'
+        if ctx.wfs.nspins == 2:
+            header += '{:>8s} |'.format('magmom')
+        if print_iloop:
+            header += '{:>12s}|'.format('inner loop')
+        log('SCF iterations')
+        log(header)
+        log(''.join(c if c == '|' else '-' for c in header))
+
+    def format_conv(fmt: str, name: str) -> str:
+        """Add "c" to number and color it green if converged."""
+        txt = fmt.format(entries.get(name, ''))
+        if converged_items.get(name):
+            return log.green + txt + log.reset + 'c|'
+        return txt + ' |'
+
+    # Iterations and time.
+    now = time.localtime()
+    line = ('|iter:{:4d}| {:02d}:{:02d}:{:02d} |'
+            .format(ctx.niter, *now[3:6]))
+
+    # Energy.
+    line += format_conv('{:>12s}', 'energy')
+
+    # Eigenstates.
+    line += format_conv('{:>6s}', 'eigenstates')
+
+    # Density.
+    line += format_conv('{:>6s}', 'density')
+
+    # Custom criteria (optional).
+    for name in custom:
+        line += format_conv('{:>5s}', name)
+
+    # Magnetic moment (optional).
+    if ctx.wfs.nspins == 2 or not ctx.wfs.collinear:
+        totmom_v, _ = ctx.dens.calculate_magnetic_moments()
+        if ctx.wfs.collinear:
+            line += f'  {totmom_v[2]:+.4f}|'
+        else:
+            line += ' {:+.1f},{:+.1f},{:+.1f}|'.format(*totmom_v)
+
+    # Inner loop etdm
+    if print_iloop:
+        iloop_counter = (ctx.wfs.eigensolver.eg_count_iloop +
+                         ctx.wfs.eigensolver.eg_count_outer_iloop)
+        line += (f'{iloop_counter:12d}|')
+
+    log(line.rstrip())
+    log.fd.flush()

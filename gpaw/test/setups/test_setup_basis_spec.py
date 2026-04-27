@@ -3,6 +3,7 @@ that correct filenames are constructed.  Generally speaking, the things
 it looks for do not exist; we just verify the filenames.
 """
 import pytest
+
 from gpaw.basis_data import get_basis_name, parse_basis_name
 from gpaw.setup import Setups
 

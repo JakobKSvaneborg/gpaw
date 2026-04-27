@@ -8,11 +8,11 @@ from ase.units import Bohr
 
 from gpaw.core.atom_arrays import AtomArrays, AtomArraysLayout
 from gpaw.core.uniform_grid import UGArray
+from gpaw.new import zips as zip
 from gpaw.setup import Setups
-from gpaw.spherical_harmonics import Y
+from gpaw.sphere.spherical_harmonics import Y
 from gpaw.spline import Spline
-from gpaw.typing import Array1D, Array3D, Vector, Array2D
-from gpaw.new import zips
+from gpaw.typing import Array1D, Array2D, Array3D, Vector
 
 if TYPE_CHECKING:
     from gpaw.new.calculation import DFTCalculation
@@ -97,39 +97,65 @@ class Densities:
         nspins = ncomponents % 3
         grid = n_sR.desc
 
+        electrons_as = np.zeros((len(self.relpos_ac), ncomponents))
         splines = {}
-        for a, D_sii in self.D_asii.items():
+        D_asii = self.D_asii.gather(broadcast=True)
+        for a, D_sii in D_asii.items():
             D_sii = D_sii.real
             relpos_c = self.relpos_ac[a]
             setup = self.setups[a]
             if setup not in splines:
-                phi_j, phit_j, nc, nct = setup.get_partial_waves()[:4]
-                if skip_core:
-                    nc = Spline.from_data(0, 10.0, [0.0, 0.0])
                 rcut = max(setup.rcut_j)
-                splines[setup] = (rcut, phi_j, phit_j, nc, nct)
-            rcut, phi_j, phit_j, nc, nct = splines[setup]
+                phi_j, phit_j = setup.get_partial_waves()[:2]
+                nct_r = setup.data.nct_g
+                nc_r = setup.data.nc_g
+                rcore = 2 * rcut
+                rgd = setup.data.rgd
+                if skip_core:
+                    nc_r = 0.0
+                    rcut = rcore
+                dnc_r = (nc_r - nct_r) / nspins
+                if setup.data.has_corehole and nspins > 1 and not skip_core:
+                    phich_r = setup.data.phicorehole_g
+                    nch_r = setup.data.fcorehole * phich_r**2 / (4 * pi)**0.5
+                    dnc_s = [rgd.spline(dnc_r - nch_r / 2, rcore, points=1000),
+                             rgd.spline(dnc_r + nch_r / 2, rcore, points=1000)]
+                    rcut = rcore
+                else:
+                    dnc_s = [rgd.spline(dnc_r, rcore, points=1000)] * nspins
+                splines[setup] = (rcut, phi_j, phit_j, dnc_s)
+            rcut, phi_j, phit_j, dnc_s = splines[setup]
 
             # Expected integral of PAW correction:
             electrons_s = np.zeros(ncomponents)
-            if skip_core:
-                electrons_s[:nspins] = -setup.Nct / nspins
-            else:
-                electrons_s[:nspins] = (setup.Nc - setup.Nct) / nspins
-            electrons_s += (4 * pi)**0.5 * np.einsum('sij, ij -> s',
-                                                     D_sii,
-                                                     setup.Delta_iiL[:, :, 0])
+            if a in self.D_asii:
+                if skip_core:
+                    electrons_s[:nspins] = -setup.Nct / nspins
+                else:
+                    electrons_s[:nspins] = (setup.Nc - setup.Nct) / nspins
+                    if setup.data.has_corehole and nspins > 1:
+                        electrons_s[0] -= setup.data.fcorehole / 2
+                        electrons_s[1] += setup.data.fcorehole / 2
+
+                electrons_s += (4 * pi)**0.5 * np.einsum(
+                    'sij, ij -> s',
+                    D_sii,
+                    setup.Delta_iiL[:, :, 0])
 
             # Add PAW correction:
             R_v = relpos_c @ grid.cell_cv
-            electrons_s -= add(R_v, n_sR, phi_j, phit_j, nc, nct, rcut, D_sii)
+            electrons_s -= add(R_v, n_sR, phi_j, phit_j, dnc_s, rcut, D_sii)
+            electrons_as[a] = electrons_s
 
-            if not skip_core:
-                # Add missing charge to grid point closest to atom:
-                R_c = np.around(grid.size * relpos_c).astype(int) % grid.size
+        if not skip_core:
+            # Add missing charge to grid-points closest to atoms:
+            grid.comm.sum(electrons_as)
+            R_ac = np.around(grid.size * self.relpos_ac).astype(int)
+            R_ac %= grid.size
+            for R_c, electrons_s in zip(R_ac, electrons_as):
                 R_c -= grid.start_c
                 if (R_c >= 0).all() and (R_c < grid.mysize_c).all():
-                    for n_R, e in zips(n_sR.data, electrons_s):
+                    for n_R, e in zip(n_sR.data, electrons_s):
                         n_R[tuple(R_c)] += e / grid.dv
 
         return n_sR.scaled(Bohr, Bohr**-3)
@@ -156,13 +182,12 @@ def add(R_v: Vector,
         a_sR: UGArray,
         phi_j: list[Spline],
         phit_j: list[Spline],
-        nc: Spline,
-        nct: Spline,
+        dnc_s: list[Spline],
         rcut: float,
         D_sii: Array3D) -> Array1D:
     """Add PAW corrections to real-space grid.
 
-    Returns number of elctrons added.
+    Returns number of electrons added.
     """
     ug = a_sR.desc
     R_Rv = ug.xyz()
@@ -191,11 +216,11 @@ def add(R_v: Vector,
                 l_j = [phi.l for phi in phi_j]
 
                 i1 = 0
-                for l1, phi1_r, phit1_r in zips(l_j, phi_jr, phit_jr):
+                for l1, phi1_r, phit1_r in zip(l_j, phi_jr, phit_jr):
                     i2 = 0
                     i1b = i1 + 2 * l1 + 1
                     D_smi = D_sii[:, i1:i1b]
-                    for l2, phi2_r, phit2_r in zips(l_j, phi_jr, phit_jr):
+                    for l2, phi2_r, phit2_r in zip(l_j, phi_jr, phit_jr):
                         i2b = i2 + 2 * l2 + 1
                         D_smm = D_smi[:, :, i2:i2b]
                         b_sr = np.einsum(
@@ -208,8 +233,9 @@ def add(R_v: Vector,
                         i2 = i2b
                     i1 = i1b
 
-                dn_r = nc.map(d_r) - nct.map(d_r)
-                a_sr[:nspins] += dn_r * ((4 * pi)**-0.5 / nspins)
+                for dnc, a_r in zip(dnc_s, a_sr[:nspins]):
+                    dn_r = dnc.map(d_r)
+                    a_r += dn_r * (4 * pi)**-0.5
                 electrons_s += a_sr.sum(1) * a_sR.desc.dv
                 a_sR.data[:, mask_R] += a_sr
     return electrons_s

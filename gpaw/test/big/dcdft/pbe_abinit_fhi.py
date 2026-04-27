@@ -1,15 +1,14 @@
 import os
 import time
 
-import numpy as np
-
 import ase.db
-from ase.units import Rydberg
-from ase.utils import opencew
+import numpy as np
+from ase.calculators.abinit import Abinit
 from ase.calculators.calculator import kpts2mp
 from ase.io import Trajectory
-from ase.calculators.abinit import Abinit
 from ase.test.tasks.dcdft import DeltaCodesDFTCollection as Collection
+from ase.units import Rydberg
+from ase.utils import opencew
 
 c = ase.db.connect('dcdft_abinit_fhi.db')
 
@@ -66,7 +65,6 @@ for name in collection.names:
             nstep=900,
             diemix=0.1,
             fband=0.95,
-            # https://forum.abinit.org/viewtopic.php?f=8&t=35
             chksymbreak=0,
             nsym=1,  # various symmetry problems with various abinits ...
         )

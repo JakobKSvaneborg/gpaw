@@ -1,7 +1,6 @@
 import ase.io.ulm as ulm
 
 from gpaw.io import Writer
-
 from gpaw.lcaotddft.observer import TDDFTObserver
 
 
@@ -76,7 +75,7 @@ class WaveFunctionWriter(TDDFTObserver):
     ulmtag_split = ulmtag + 'split'
 
     def __init__(self, paw, filename, split=False, interval=1):
-        TDDFTObserver.__init__(self, paw, interval)
+        super().__init__(paw, interval)
         self.split = split
         if paw.niter == 0:
             self.writer = Writer(filename, paw.world, mode='w',

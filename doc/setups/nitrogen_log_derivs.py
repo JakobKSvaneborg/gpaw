@@ -14,5 +14,5 @@ kwargs = {'symbol': 'N',
           'pseudize': ('poly', 4)}
 
 g = generate(**kwargs)
-plot_log_derivs(g, 'spdfg', True)
+plot_log_derivs(g, 'spdfg', True, plt.gca())
 plt.savefig('nitrogen-log-derivs.png')

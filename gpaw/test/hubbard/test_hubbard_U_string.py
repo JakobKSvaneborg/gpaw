@@ -1,5 +1,6 @@
-from gpaw.hubbard import parse_hubbard_string
 from ase.units import Hartree
+
+from gpaw.hubbard import parse_hubbard_string
 
 
 def test_hubbard_u_string():

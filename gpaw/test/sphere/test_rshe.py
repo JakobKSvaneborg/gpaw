@@ -1,10 +1,10 @@
 """Test functionality to expand a function on a spherical grid in real
 spherical harmonics."""
 
-import pytest
 import itertools
 
 import numpy as np
+import pytest
 
 from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
 from gpaw.sphere.lebedev import Y_nL
@@ -52,7 +52,7 @@ def test_rshe(Lcomb):
 
     # Test the ability to reduce the expansion by an lmax
     Lmax = max(Lcomb)
-    lmax = int(np.ceil(np.sqrt((Lmax + 1)) - 1))
+    lmax = int(np.ceil(np.sqrt(Lmax + 1) - 1))
     if lmax < 4:
         rshe, _ = calculate_reduced_rshe(rgd, f_ng, Y_nL, lmax=lmax)
         assert len(rshe.L_M) == (lmax + 1)**2

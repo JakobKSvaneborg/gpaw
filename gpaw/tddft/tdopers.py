@@ -4,10 +4,10 @@ operators."""
 
 import numpy as np
 
-from gpaw.utilities import unpack_hermitian
-from gpaw.fd_operators import Laplace, Gradient
+from gpaw.fd_operators import Gradient, Laplace
+from gpaw.old.wavefunctions.fd import FDWaveFunctions
 from gpaw.overlap import Overlap
-from gpaw.wavefunctions.fd import FDWaveFunctions
+from gpaw.utilities import unpack_hermitian
 
 
 class TimeDependentHamiltonian:
@@ -417,7 +417,7 @@ class TimeDependentOverlap(Overlap):
         XXX TODO
 
         """
-        Overlap.__init__(self, timer)
+        super().__init__(timer)
 
     def update_k_point_projections(self, wfs, kpt, psit=None):
         """Updates the projector function overlap integrals
@@ -531,7 +531,7 @@ class TimeDependentOverlap(Overlap):
         """
         if not use_cg:
             self.timer.start('Apply approximate inverse overlap')
-            Overlap.apply_inverse(self, a_nG, b_nG, wfs, kpt, calculate_P_ani)
+            super().apply_inverse(a_nG, b_nG, wfs, kpt, calculate_P_ani)
             self.timer.stop('Apply approximate inverse overlap')
             return
 
@@ -624,20 +624,19 @@ class TimeDependentWaveFunctions(FDWaveFunctions):
     def __init__(self, stencil, parallel, initksl, gd, nvalence, collinear,
                  setups, bd, dtype, world, kd, kptband_comm, timer):
         assert dtype == complex
-        FDWaveFunctions.__init__(self,
-                                 stencil,
-                                 parallel,
-                                 initksl,
-                                 gd,
-                                 nvalence,
-                                 setups,
-                                 bd,
-                                 dtype,
-                                 world,
-                                 kd,
-                                 kptband_comm,
-                                 collinear=collinear,
-                                 timer=timer)
+        super().__init__(stencil,
+                         parallel,
+                         initksl,
+                         gd,
+                         nvalence,
+                         setups,
+                         bd,
+                         dtype,
+                         world,
+                         kd,
+                         kptband_comm,
+                         collinear=collinear,
+                         timer=timer)
         self.overlap = self.make_overlap()
 
     def make_overlap(self):
@@ -774,7 +773,7 @@ class TimeDependentDensity(DummyDensity):
         paw: PAW
             the PAW-object
         """
-        DummyDensity.__init__(self, paw.wfs)
+        super().__init__(paw.wfs)
         self.density = paw.density
 
     def update(self):

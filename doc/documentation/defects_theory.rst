@@ -27,7 +27,7 @@ cell. In the infinite supercell limit, we can describe the properties of the
 isolated defect.
 
 When we employ periodic boundary conditions, our calculation includes spurious
-electrostatic interactions between localised charge distribution of the defect
+electrostatic interactions between localized charge distribution of the defect
 state, and all its periodically repeated images. These long-ranged interactions
 mean that the convergence with respect to supercell size is slow.
 
@@ -47,7 +47,7 @@ between the charged and neutral states must be aligned to the same reference.
 Implementing this scheme consists of the following steps, which will be
 described in further detail in the sections below. First, we determine the
 `z`-dependent dielectric function of the 2D layers. Knowing this, we use a model
-charge distribution to emulate the behaviour of the defect charge state, and
+charge distribution to emulate the behavior of the defect charge state, and
 find the potential associated with this model distribution by solving the
 Poisson equation. We do this twice: first with periodic boundary conditions, and
 then with zero boundary conditions. The electrostatic energy associated with the

@@ -6,7 +6,6 @@ from gpaw.atom.basis import BasisMaker
 from gpaw.poisson import FDPoissonSolver as PoissonSolver
 
 
-@pytest.mark.old_gpaw_only
 def test_lcao_bsse():
     """Tests basis set super position error correction.
 
@@ -15,17 +14,20 @@ def test_lcao_bsse():
     i.e. the ghost orbital should have a coefficient of 0.
     """
 
-    b = BasisMaker('H').generate(1, 0, energysplit=0.005)
+    b = BasisMaker.from_symbol('H').generate(1, 0, energysplit=0.005)
 
     system = molecule('H2')
     system.center(vacuum=6.0)
 
     def prepare(setups):
-        calc = GPAW(basis={'H': b}, mode='lcao',
-                    setups=setups, h=0.2,
-                    poissonsolver=PoissonSolver(nn='M', relax='GS', eps=1e-5),
-                    spinpol=False,
-                    nbands=1)
+        calc = GPAW(
+            basis={'H': b},
+            mode='lcao',
+            setups=setups,
+            h=0.2,
+            poissonsolver=PoissonSolver(nn='M', relax='GS', eps=1e-5),
+            spinpol=False,
+            nbands=1)
         system.calc = calc
         return calc
 

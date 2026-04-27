@@ -5,7 +5,7 @@ perlmutter.nersc.gov (Cray EX)
 ==============================
 
 .. note::
-   These instructions are up-to-date as of Feburary 2024.
+   These instructions are up-to-date as of February 2024.
 
 GPAW
 ====
@@ -42,6 +42,12 @@ To install, run the following commands::
   python setup.py install
 
 **Note:** This will install GPAW version 23.9.1
+
+
+..
+    XXX: Should the version be bumped or is there a platform-specific
+    reason to keep it pinned at 23.9.1?  If we're bumping to >= 25.1.1,
+    it will become unnecessary for the user to run `gpaw install-data`
 
 
 Run

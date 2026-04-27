@@ -19,15 +19,15 @@ Miscellaneous objects and functions
 .. autoclass:: gpaw.xc.gga.GGA
     :members:
 
-.. autofunction:: gpaw.forces.calculate_forces
+.. autofunction:: gpaw.old.forces.calculate_forces
 
-.. autoclass:: gpaw.grid_descriptor.GridDescriptor
+.. autoclass:: gpaw.old.grid_descriptor.GridDescriptor
     :members:
 
 .. autoclass:: gpaw.scf.SCFLoop
     :members:
 
-.. autoclass:: gpaw.band_descriptor.BandDescriptor
+.. autoclass:: gpaw.old.band_descriptor.BandDescriptor
     :members:
 
 .. autoclass:: gpaw.spinorbit.BZWaveFunctions
@@ -36,8 +36,8 @@ Miscellaneous objects and functions
 .. autoclass:: gpaw.spinorbit.WaveFunction
     :members:
 
-.. autoclass:: gpaw.kpt_descriptor.KPointDescriptor
+.. autoclass:: gpaw.old.kpt_descriptor.KPointDescriptor
     :members:
 
-.. autoclass:: gpaw.projections.Projections
+.. autoclass:: gpaw.old.projections.Projections
     :members:

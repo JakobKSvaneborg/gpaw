@@ -1,26 +1,26 @@
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
-
-import numpy as np
-
 from typing import TYPE_CHECKING
 
+import numpy as np
 from ase.units import Ha
+
 from gpaw.bztools import convex_hull_volume
 from gpaw.response import timer
-from gpaw.response.pair import KPointPairFactory
 from gpaw.response.frequencies import NonLinearFrequencyDescriptor
-from gpaw.response.pair_functions import SingleQPWDescriptor
-from gpaw.response.pw_parallelization import block_partition
-from gpaw.response.integrators import (
-    Integrand, PointIntegrator, TetrahedronIntegrator, Domain)
-from gpaw.response.symmetry import QSymmetryInput, QSymmetryAnalyzer
+from gpaw.response.integrators import (Domain, Integrand, PointIntegrator,
+                                       TetrahedronIntegrator)
 from gpaw.response.kpoints import KPointDomain, KPointDomainGenerator
+from gpaw.response.pair import KPointPairFactory
+from gpaw.response.pw_parallelization import block_partition
+from gpaw.response.qpd import SingleQPWDescriptor
+from gpaw.response.symmetry import QSymmetryAnalyzer, QSymmetryInput
 
 if TYPE_CHECKING:
-    from gpaw.response.pair import ActualPairDensityCalculator
     from gpaw.response.context import ResponseContext
     from gpaw.response.groundstate import ResponseGroundStateAdapter
+    from gpaw.response.pair import ActualPairDensityCalculator
 
 
 class Chi0Integrand(Integrand):
@@ -28,20 +28,33 @@ class Chi0Integrand(Integrand):
                  optical: bool,
                  qpd: SingleQPWDescriptor,
                  generator: KPointDomainGenerator,
+                 n1: int,
+                 n2: int,
                  m1: int,
                  m2: int):
+        """
+        n1 : int
+            Lower occupied band index.
+        n2 : int
+            Upper occupied band index.
+        m1 : int
+            Lower unoccupied band index.
+        m2 : int
+            Upper unoccupied band index.
+        """
+
+        assert m1 <= m2
+        assert n1 < n2 <= chi0calc.gs.nocc2
+        assert n1 <= chi0calc.gs.nocc1
+        assert chi0calc.gs.nocc1 <= m1
+        self.m1 = m1
+        self.m2 = m2
+        self.n1 = n1
+        self.n2 = n2
 
         self._chi0calc = chi0calc
 
-        # In a normal response calculation, we include transitions from all
-        # completely and partially unoccupied bands to range(m1, m2)
-
         self.gs: ResponseGroundStateAdapter = chi0calc.gs
-        self.n1 = 0
-        self.n2 = self.gs.nocc2
-        assert m1 <= m2
-        self.m1 = m1
-        self.m2 = m2
 
         self.context: ResponseContext = chi0calc.context
         self.kptpair_factory: KPointPairFactory = chi0calc.kptpair_factory
@@ -103,8 +116,8 @@ class Chi0Integrand(Integrand):
         K = self.gs.kpoints.kptfinder.find(k_c)
         # assert point.K == K, (point.K, K)
 
-        weight = np.sqrt(self.generator.get_kpoint_weight(k_c) /
-                         self.generator.how_many_symmetries())
+        weight = np.sqrt(self.generator.get_kpoint_weight(k_c)
+                         / self.generator.how_many_symmetries())
 
         # Here we're again setting pawcorr willy-nilly
         if self._chi0calc.pawcorr is None:
@@ -152,9 +165,9 @@ class Chi0Integrand(Integrand):
 
         ik1 = kd.bz2ibz_k[K1]
         ik2 = kd.bz2ibz_k[K2]
-        kpt1 = gs.kpt_qs[ik1][point.spin]
+        kpt1 = gs.kpt_ks[ik1][point.spin]
         assert kd.comm.size == 1
-        kpt2 = gs.kpt_qs[ik2][point.spin]
+        kpt2 = gs.kpt_ks[ik2][point.spin]
         deps_nm = np.subtract(kpt1.eps_n[self.n1:self.n2][:, np.newaxis],
                               kpt2.eps_n[self.m1:self.m2])
         return deps_nm.reshape(-1)
@@ -226,9 +239,9 @@ class Chi0ComponentCalculator:
 
     def check_high_symmetry_ibz_kpts(self):
         """Check that the ground state includes all corners of the IBZ."""
-        ibz_vertices_kc = self.gs.get_ibz_vertices()
+        ibz_vertices_kc = self.gs.get_ibz_vertices(context=self.context)
         # Here we mimic the k-point grid compatibility check of
-        # gpaw.bztools.find_high_symmetry_monkhorst_pack()
+        # gpaw.bztools.contains_ibz_vertices_predicate()
         bzk_kc = self.gs.kd.bzk_kc
         for ibz_vertex_c in ibz_vertices_kc:
             # Relative coordinate difference to the k-point grid
@@ -237,14 +250,15 @@ class Chi0ComponentCalculator:
             # lattice vector, meaning that the relative coordinate difference
             # is allowed to be an integer. Thus, at least one relative k-point
             # difference should vanish, modulo 1
-            mod_diff_kc = np.mod(diff_kc, 1)
+            mod_diff_kc = np.mod(np.mod(diff_kc, 1.), 1.)
             nodiff_k = np.all(mod_diff_kc < 1e-5, axis=1)
             if not np.any(nodiff_k):
                 raise ValueError(
                     'The ground state k-point grid does not include all '
-                    'vertices of the IBZ. '
-                    'Please use find_high_symmetry_monkhorst_pack() from '
-                    'gpaw.bztools to generate your k-point grid.')
+                    'vertices of the IBZ. Please use '
+                    'optimal_monkhorst_pack_grid(..., '
+                    'contains_ibz_vertices=True) from gpaw.bztools '
+                    'to generate your k-point grid.')
 
     def get_integration_domain(self, q_c, spins):
         """Get integrator domain and prefactor for the integral."""
@@ -271,8 +285,8 @@ class Chi0ComponentCalculator:
         else:
             factor = 1
 
-        prefactor = (2 * factor * generator.how_many_symmetries() /
-                     (self.gs.nspins * (2 * np.pi)**3))  # Remember prefactor
+        prefactor = (2 * factor * generator.how_many_symmetries()
+                     / (self.gs.nspins * (2 * np.pi)**3))  # Remember prefactor
 
         if self.integrationmode == 'point integration':
             nbzkpts = self.gs.kd.nbzkpts
@@ -289,8 +303,21 @@ class Chi0ComponentCalculator:
         if integrationmode == 'point integration':
             k_kc = generator.get_kpt_domain()
         elif integrationmode == 'tetrahedron integration':
+            calc = self.gs._calc
+            if calc.old:
+                tolerance = calc.symmetry.tol
+                _backwards_compatible = True
+            else:
+                sym = calc.dft.ibzwfs.ibz.symmetries
+                tolerance = sym.tolerance
+                _backwards_compatible = sym._backwards_compatible
+            atoms = calc.atoms
+
             k_kc = generator.get_tetrahedron_kpt_domain(
-                pbc_c=self.pbc, cell_cv=self.gs.gd.cell_cv)
+                cell_cv=atoms.cell, pbc_c=atoms.pbc, tolerance=tolerance,
+                _backwards_compatible=_backwards_compatible,
+                comm=self.context.comm)
+
         kpoints = KPointDomain(k_kc, self.gs.gd.icell_cv)
 
         # In the future, we probably want to put enough functionality on the
@@ -345,24 +372,26 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
             component is evaluated, and the reactive part is calculated via a
             hilbert transform. Only works for frequencies on the real axis and
             requires a nonlinear frequency grid.
-        nbands : int
+        nbands : int or slice
             Number of bands to include.
         timeordered : bool
             Flag for calculating the time ordered chi0 component. Used for
             G0W0, which performs its own hilbert transform.
-        ecut : float
-            Plane-wave energy cutoff in eV.
+        ecut : float | dict
+            Plane-wave energy cutoff in eV or dictionary for the plane-wave
+            descriptor type. See response/qpd.py for details.
         eta : float
             Artificial broadening of the chi0 component in eV.
         """
         super().__init__(gs, context, **kwargs)
 
-        self.ecut = ecut / Ha
+        if not isinstance(ecut, dict):
+            ecut /= Ha
+        self.ecut = ecut
         self.nbands = nbands or self.gs.nbands
 
         self.wd = wd
         self.context.print(self.wd, flush=False)
-
         self.eta = eta / Ha
         self.hilbert = hilbert
         self.task = self.construct_integral_task()
@@ -425,12 +454,12 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
     def get_pw_descriptor(self, q_c):
         return SingleQPWDescriptor.from_q(q_c, self.ecut, self.gs.gd)
 
-    def get_band_transitions(self):
-        return self.gs.nocc1, self.nbands  # m1, m2
-
     def get_response_info_string(self, qpd, tab=''):
         nw = len(self.wd)
-        ecut = self.ecut * Ha
+        if not isinstance(self.ecut, dict):
+            ecut = self.ecut * Ha
+        else:
+            ecut = self.ecut
         nbands = self.nbands
         ngmax = qpd.ngmax
         eta = self.eta * Ha

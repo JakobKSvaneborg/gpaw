@@ -3,22 +3,16 @@
  *  Copyright (C) 2005-2020  CSC - IT Center for Science Ltd.
  *  Please see the accompanying LICENSE file for further information. */
 
-#include <Python.h>
+#include "python_utils.h"
 #ifdef _OPENMP
 #include <omp.h>
 #endif
-#define PY_ARRAY_UNIQUE_SYMBOL GPAW_ARRAY_API
-#define NO_IMPORT_ARRAY
-#include <numpy/arrayobject.h>
 #include "extensions.h"
 #include "bc.h"
 #include "mympi.h"
 #include "bmgs/bmgs.h"
 #include "threading.h"
-
-#define __TRANSFORMERS_C
 #include "transformers.h"
-#undef __TRANSFORMERS_C
 
 #ifdef GPAW_GPU
 #include "gpu/gpu.h"
@@ -227,7 +221,7 @@ PyObject * NewTransformerObject(PyObject *obj, PyObject *args)
 
   MPI_Comm comm = MPI_COMM_NULL;
   if (comm_obj != Py_None)
-    comm = ((MPIObject*)comm_obj)->comm;
+    comm = *((MPI_Comm*) PyLong_AsVoidPtr(comm_obj));
 
   const long (*nb)[2] = (const long (*)[2])LONGP(neighbors);
   const long (*pad)[2] = (const long (*)[2])LONGP(paddings);

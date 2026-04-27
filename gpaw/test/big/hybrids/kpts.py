@@ -1,11 +1,12 @@
 from ase import Atoms
+
 # from ase.units import Ha
 from gpaw import GPAW, PW
+from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
 # from gpaw.hybrids import HybridXC
 # from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
 from gpaw.hybrids.energy import non_self_consistent_energy
-from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
-from gpaw.mpi import world, serial_comm
+from gpaw.mpi import serial_comm, world
 
 
 def test(kpts, setup, spinpol, symmetry):
@@ -59,13 +60,14 @@ def main():
                              (1, 1, 3),
                              (1, 1, 4),
                              (2, 2, 1),
-                             [(0, 0, 0.5)],
-                             [(0, 0, 0), (0, 0, 0.5)]]:
+                             {'size': (1, 1, 2), 'gamma': True}]:
                     atoms = test(kpts, setup, spinpol, symmetry)
                     for xc in ['EXX',
                                'PBE0', 'HSE06']:
                         print(i, spinpol, setup, symmetry, kpts, xc,
                               len(atoms.calc.wfs.kpt_u))
+                        if xc != 'HSE06' and isinstance(kpts, list):
+                            continue
                         check(atoms, xc, i)
                         i += 1
 

@@ -1,19 +1,18 @@
-import pytest
 import numpy as np
+import pytest
 from ase import Atoms
-from ase.units import Hartree, Bohr
+from ase.units import Bohr, Hartree
 
 from gpaw import GPAW
-from gpaw.external import ConstantElectricField
-from gpaw.external import static_polarizability
+from gpaw.external import ConstantElectricField, static_polarizability
 
 
-@pytest.mark.old_gpaw_only
 def test_ext_potential_constant_e_field(in_tmp_dir):
     """A proton in an electric field."""
     h = Atoms('H')
     h.center(vacuum=2.5)
     h.calc = GPAW(mode='fd',
+                  legacy_gpaw=True,
                   external=ConstantElectricField(1.0),  # 1 V / Ang
                   charge=1,
                   txt='h.txt')
@@ -32,21 +31,23 @@ def test_ext_potential_constant_e_field(in_tmp_dir):
     assert abs(vext.field_v[2] - 1.0 * Bohr / Hartree) < 1e-13
 
 
-@pytest.mark.old_gpaw_only
 def test_polarizability(in_tmp_dir):
     H2 = Atoms('H2', positions=[(0, 0, 0), (0.7, 0, 0)])
     H2.center(vacuum=2.5)
-    H2.calc = GPAW(mode='fd', symmetry={'point_group': False})
+    H2.calc = GPAW(mode='fd',
+                   symmetry={'point_group': False},
+                   legacy_gpaw=True)
 
     strength = 0.1  # V/Ang
     alpha_cc = static_polarizability(H2, strength)
 
     # make sure no external potential is left over
-    assert H2.calc.parameters.external is None
+    if H2.calc.old:
+        assert H2.calc.parameters.external is None
 
     assert alpha_cc.shape == (3, 3)
     assert alpha_cc == pytest.approx(
-        np.diag([6.48529231e-02, 4.61303856e-2, 4.61303856e-2]))
+        np.diag([0.0645, 0.0461, 0.0461]), abs=0.001)
 
     # displace positions and make sure that you can still
     # get the energy

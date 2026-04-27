@@ -20,7 +20,7 @@ class RestartFileWriter(TDDFTObserver):
         that many propagation steps.
     """
     def __init__(self, paw, restart_filename, interval=100):
-        TDDFTObserver.__init__(self, paw, interval)
+        super().__init__(paw, interval)
         self.restart_filename = restart_filename
 
     def _update(self, paw):

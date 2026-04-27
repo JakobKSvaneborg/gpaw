@@ -6,11 +6,11 @@ symbol = 'Au'
 args = parameters[symbol]  # Dictionary of default setup parameters
 args['rcut'] = 2.6  # Set cutoff of augmentation sphere
 
-generator = Generator(symbol, 'RPBE')
-generator.N *= 2  # Increase grid resolution
-generator.run(write_xml=False, **args)
+generator = Generator(symbol, 'RPBE', gpernode=2 * Generator.default_gpernode)
+setup = generator.run(write_xml=False, **args)
 
-bm = BasisMaker(generator, name='special', run=False)
+bm = BasisMaker.from_setup_and_generator(
+    setup, generator, name='special', run=False)
 
 # Create double-zeta RPBE basis where p orbital is considered a valence state
 # (ordinary dzp basis would use a smaller p-type Gaussian for polarization)

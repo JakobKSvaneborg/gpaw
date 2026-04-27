@@ -1,6 +1,8 @@
 import numpy as np
-from gpaw.blacs import BlacsGrid, BlacsDescriptor, Redistributor
+
+from gpaw.blacs import BlacsDescriptor, BlacsGrid, Redistributor
 from gpaw.mpi import world
+
 npw = 10351
 npw = 5352
 S = 8

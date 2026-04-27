@@ -1,4 +1,5 @@
 from ase.build import molecule
+
 from gpaw import GPAW
 from gpaw.odd.sic import SIC
 

@@ -2,15 +2,14 @@ import os
 import sys
 import time
 
-import numpy as np
-
 import ase.db
-from ase.units import Rydberg
-from ase.utils import opencew
+import numpy as np
+from ase.calculators.abinit import Abinit
 from ase.calculators.calculator import kpts2mp
 from ase.io import Trajectory
-from ase.calculators.abinit import Abinit
 from ase.test.tasks.dcdft import DeltaCodesDFTCollection as Collection
+from ase.units import Rydberg
+from ase.utils import opencew
 
 collection = Collection()
 
@@ -82,7 +81,6 @@ for name in names:
             nstep=900,
             pawovlp=-1,  # bypass overlap check
             fband=fband,
-            # https://forum.abinit.org/viewtopic.php?f=8&t=35
             chksymbreak=0,
             tolsym=tolsym,
             prtwf=0,

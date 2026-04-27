@@ -14,7 +14,7 @@ si += si
 si.positions[4:] += a / 4
 
 calc = GPAW(mode='fd',
-            nbands=16,
+            nbands=20,
             h=0.25,
             txt='si.txt')
 

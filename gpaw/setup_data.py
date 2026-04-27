@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import hashlib
 import os
 import re
@@ -5,7 +7,7 @@ import xml.sax
 from glob import glob
 from math import pi, sqrt
 from pathlib import Path
-from typing import IO, Tuple
+from typing import IO
 
 import numpy as np
 from ase.data import atomic_names, atomic_numbers
@@ -30,12 +32,6 @@ class SetupData:
         self.name = name
         self.zero_reference = zero_reference
         self.generator_version = generator_version
-
-        # Default filename if this setup is written
-        if name is None or name == 'paw':
-            self.stdfilename = f'{symbol}.{self.setupname}'
-        else:
-            self.stdfilename = f'{symbol}.{name}.{self.setupname}'
 
         self.filename = None  # full path if this setup was loaded from file
         self.fingerprint = None  # hash value of file data if applicable
@@ -85,7 +81,8 @@ class SetupData:
         self.e_total = 0.0
         self.e_kinetic_core = 0.0
 
-        # Generator may store description of setup in this string
+        # Generator may store description of setup in these
+        self.type = None
         self.generatorattrs = []
         self.generatordata = ''
 
@@ -118,6 +115,34 @@ class SetupData:
         if readxml:
             self.read_xml(world=world)
 
+    @classmethod
+    def find_and_read_path(cls, symbol, xctype,
+                           setuptype='paw', world=None):
+
+        setupdata = SetupData(symbol, xctype,
+                              name=setuptype,
+                              readxml=False,
+                              world=world)
+
+        setupdata.filename, source = search_for_file(setupdata.stdfilename,
+                                                     world=world)
+        PAWXMLParser(setupdata).parse(source=source, world=world)
+
+        nj = len(setupdata.l_j)
+        setupdata.e_kin_jj.shape = (nj, nj)
+
+        return setupdata
+
+    @property
+    def stdfilename(self):
+        """Default filename if this setup is written."""
+        assert self.symbol is not None
+        assert self.setupname is not None
+        if self.name is None or self.name == 'paw':
+            return f'{self.symbol}.{self.setupname}'
+        else:
+            return f'{self.symbol}.{self.name}.{self.setupname}'
+
     def __repr__(self):
         return ('{0}({symbol!r}, {setupname!r}, name={name!r}, '
                 'generator_version={generator_version!r}, ...)'
@@ -133,6 +158,7 @@ class SetupData:
         self.phit_jg.append(phit_g)
         self.pt_jg.append(pt_g)
 
+    # XXX delete me
     def read_xml(self, source=None, world=None):
         PAWXMLParser(self).parse(source=source, world=world)
         nj = len(self.l_j)
@@ -146,37 +172,39 @@ class SetupData:
             text(self.symbol + ':')
         else:
             text(f'{self.symbol}:  # ({self.fcorehole:.1f} core hole)')
-        text('  name:', atomic_names[atomic_numbers[self.symbol]])
-        text('  id:', self.fingerprint)
-        text('  Z:', self.Z)
+        text('  name:   ', atomic_names[atomic_numbers[self.symbol]])
+        text('  id:     ', self.fingerprint)
+        text('  Z:      ', self.Z)
         text('  valence:', self.Nv)
         if self.phicorehole_g is None:
-            text('  core: %d' % self.Nc)
+            text('  core:    %d' % self.Nc)
         else:
-            text(f'  core: {self.Nc:.1f}')
-        text('  charge:', self.Z - self.Nv - self.Nc)
+            text(f'  core:    {self.Nc:.1f}')
+        text('  charge: ', self.Z - self.Nv - self.Nc, ' # [|e|]')
         if setup.hubbard_u is not None:
             description = ''.join([f'  {line}' for line
                                    in setup.hubbard_u.descriptions()])
             text(description)
-        text('  file:', self.filename)
+        text('  file:   ', self.filename)
         sf = self.shape_function
-        text(f'  compensation charges: {{type: {sf["type"]},\n'
-             f'                         rc: {sf["rc"] * Bohr:.2f},\n'
-             f'                         lmax: {setup.lmax}}}')
-        text(f'  cutoffs: {{filter: {setup.rcutfilter * Bohr:.2f},\n'
-             f'            core: {setup.rcore * Bohr:.2f}}}')
-        text('  projectors:')
-        text('    #              energy  rcut')
+        text(f'  compensation charges:\n'
+             f'    type: {sf["type"]}\n'
+             f'    rc: {sf["rc"] * Bohr:.2f}  # [Å]\n'
+             f'    lmax: {setup.lmax}')
+        text(f'  cutoffs:\n'
+             f'    filter: {setup.rcutfilter * Bohr:.2f}  # [Å]\n'
+             f'    core: {setup.rcore * Bohr:.2f}  # [Å]')
+        text('  projectors')
+        text('  | kind |    occ | energy [eV] | rcut [Å] |')
+        text('  |------|--------|-------------|----------|')
         j = 0
         for n, l, f, eps in zip(self.n_j, self.l_j, self.f_j, self.eps_j):
             if n > 0:
-                f = f'({f:.2f})'
-                text('    - %d%s%-5s %9.3f   %5.3f' % (
-                    n, 'spdf'[l], f, eps * Ha, self.rcut_j[j] * Bohr))
+                text(f'  | {n:3}{"spdf"[l]} | {f:6.3f} |'
+                     f' {eps * Ha:11.3f} | {self.rcut_j[j] * Bohr:8.3f} |')
             else:
-                text('    -  {}       {:9.3f}   {:5.3f}'.format(
-                    'spdf'[l], eps * Ha, self.rcut_j[j] * Bohr))
+                text(f'  |    {"spdf"[l]} |        |'
+                     f' {eps * Ha:11.3f} | {self.rcut_j[j] * Bohr:8.3f} |')
             j += 1
         text()
 
@@ -395,7 +423,17 @@ class SetupData:
         return setup
 
 
-def search_for_file(name: str, world=None) -> Tuple[str, bytes]:
+def read_maybe_unzipping(path: Path | str) -> bytes:
+    import gzip
+    if Path(path).suffix == '.gz':
+        with gzip.open(path) as fd:
+            return fd.read()
+
+    with open(path, 'rb') as fd:
+        return fd.read()
+
+
+def search_for_file(name: str, world=None) -> tuple[str, bytes]:
     """Traverse gpaw setup paths to find file.
 
     Returns the file path and file contents.  If the file is not
@@ -413,19 +451,14 @@ def search_for_file(name: str, world=None) -> Tuple[str, bytes]:
                 # last/newest of the results (used with SG15).  (User must
                 # instantiate (UPF)SetupData directly to override.)
                 filename = max(filenames)
-                import gzip
-                if filename.endswith('.gz'):
-                    with gzip.open(filename) as fd:
-                        source = fd.read()
-                else:
-                    source = Path(filename).read_bytes()
+                source = read_maybe_unzipping(filename)
                 break
 
     if world is not None:
         if world.rank == 0:
-            broadcast((filename, source), 0, world)
+            broadcast((filename, source), 0, comm=world)
         else:
-            filename, source = broadcast(None, 0, world)
+            filename, source = broadcast(None, 0, comm=world)
 
     if filename is None:
         if name.endswith('basis'):
@@ -476,6 +509,8 @@ class PAWXMLParser(xml.sax.handler.ContentHandler):
         if name == 'atom':
             Z = float(attrs['Z'])
             setup.Z = Z
+            assert setup.symbol is None or setup.symbol == attrs['symbol']
+            setup.symbol = attrs['symbol']
             assert setup.Z == Z
             setup.Nc = float(attrs['core'])
             Nv = float(attrs['valence'])
@@ -490,6 +525,8 @@ class PAWXMLParser(xml.sax.handler.ContentHandler):
                     setup.orbital_free = True
                 else:
                     assert attrs['type'] == 'GGA'
+            assert setup.setupname is None or setup.setupname == setup.xcname
+            setup.setupname = setup.xcname
         elif name == 'ae_energy':
             setup.e_total = float(attrs['total'])
             setup.e_kinetic = float(attrs['kinetic'])
@@ -558,7 +595,13 @@ class PAWXMLParser(xml.sax.handler.ContentHandler):
         elif name == 'core_hole_state':
             setup.has_corehole = True
             setup.fcorehole = float(attrs['removed'])
-            setup.lcorehole = 'spdf'.find(attrs['state'][1])
+            full_state = attrs['state']
+            state_l = full_state.lstrip('0123456789')
+            assert state_l
+            state_n = full_state[:-len(state_l)]
+            assert state_n
+            setup.ncorehole = int(state_n)
+            setup.lcorehole = 'spdf'.find(state_l)
             setup.core_hole_e = float(attrs['eig'])
             setup.core_hole_e_kin = float(attrs['ekin'])
             self.data = []

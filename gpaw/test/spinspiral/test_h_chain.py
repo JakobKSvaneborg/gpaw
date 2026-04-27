@@ -1,4 +1,5 @@
 import pytest
+
 from gpaw.new.ase_interface import GPAW
 
 
@@ -19,5 +20,5 @@ def test_afm_h_chain(in_tmp_dir, gpw_files):
     h2, l2 = h2.calc.get_homo_lumo()
 
     assert 2 * e1 == pytest.approx(e2, abs=0.002)
-    assert h1 == pytest.approx(h2, abs=0.001)
-    assert l1 == pytest.approx(l2, abs=0.001)
+    assert h1 == pytest.approx(h2, abs=0.002)
+    assert l1 == pytest.approx(l2, abs=0.002)

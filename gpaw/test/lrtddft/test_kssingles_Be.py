@@ -1,6 +1,5 @@
-import pytest
 import numpy as np
-
+import pytest
 from ase import Atoms
 from ase.parallel import parprint
 from ase.units import Hartree
@@ -33,7 +32,8 @@ def test_lrtddft_kssingles_Be(in_tmp_dir):
             Be.set_pbc(pbc)
             if pbc:
                 name = 'periodic'
-                calc = GPAW(h=0.25,
+                calc = GPAW(legacy_gpaw=True,
+                            h=0.25,
                             nbands=4,
                             kpts=(1, 2, 2),
                             mode=mode,
@@ -43,9 +43,13 @@ def test_lrtddft_kssingles_Be(in_tmp_dir):
                             txt=txt)
             else:
                 name = 'zero_bc'
-                calc = GPAW(h=0.25, nbands=4, mode=mode,
+                calc = GPAW(legacy_gpaw=True,
+                            h=0.25,
+                            nbands=4,
+                            mode=mode,
                             poissonsolver={'name': 'fd'},
-                            eigensolver=eigensolver, txt=txt)
+                            eigensolver=eigensolver,
+                            txt=txt)
             Be.calc = calc
             Be.get_potential_energy()
 

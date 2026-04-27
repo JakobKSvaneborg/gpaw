@@ -4,12 +4,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
+
+from gpaw.core import PWArray
 from gpaw.core.atom_arrays import AtomArrays
-from gpaw.gpu import synchronize, as_np
+from gpaw.gpu import as_np
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
 from gpaw.typing import Array2D
-from gpaw.core import PWArray
+from gpaw.utilities import as_real_dtype
+
 if TYPE_CHECKING:
     from gpaw.new.pw.pot_calc import PlaneWavePotentialCalculator
 
@@ -49,8 +52,6 @@ def calculate_stress(pot_calc: PlaneWavePotentialCalculator,
 
     s_vv = as_np(s_vv)
 
-    if xp is not np:
-        synchronize()
     comm.sum(s_vv, 0)
 
     vol = dom.volume
@@ -90,12 +91,13 @@ def get_kinetic_stress(wfs: PWFDWaveFunctions,
     psit_nG = wfs.psit_nX
     pw = psit_nG.desc
     xp = psit_nG.xp
-    psit_nGz = psit_nG.data.view(float).reshape(psit_nG.data.shape + (2,))
+    psit_nGz = psit_nG.data.view(
+        as_real_dtype(pw.dtype)).reshape(psit_nG.data.shape + (2,))
     psit2_G = xp.einsum('n, nGz, nGz -> G', occ_n, psit_nGz, psit_nGz)
     Gk_Gv = xp.asarray(pw.G_plus_k_Gv)
     sigma_vv = xp.einsum('G, Gv, Gw -> vw', psit2_G, Gk_Gv, Gk_Gv)
     x = pw.dv
-    if pw.dtype == float:
+    if np.issubdtype(pw.dtype, np.floating):
         x *= 2
     return -x * sigma_vv
 

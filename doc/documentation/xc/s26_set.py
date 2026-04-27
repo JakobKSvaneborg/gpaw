@@ -37,18 +37,19 @@ for molecule in data:
     assert len(ss) == len(s1) + len(s2)
     if xc == 'TS09' or xc == 'TPSS' or xc == 'M06-L' or xc == 'dftd4':
         c = GPAW(mode='fd', xc='PBE', h=h, nbands=-6,
-                 occupations=FermiDirac(width=0.1))
+                 occupations=FermiDirac(width=0.1), legacy_gpaw=True)
     else:
         c = GPAW(mode='fd', xc=xc, h=h, nbands=-6,
-                 occupations=FermiDirac(width=0.1))
+                 occupations=FermiDirac(width=0.1), legacy_gpaw=True)
     E = []
     for s in [s1, s2, ss]:
         s.calc = c
         adjust_cell(s, box, h=h)
         if xc == 'TS09':
             s.get_potential_energy()
-            cc = vdWTkatchenko09prl(HirshfeldPartitioning(c),
-                                    vdWradii(s.get_chemical_symbols(), 'PBE'))
+            cc = vdWTkatchenko09prl(
+                HirshfeldPartitioning(c),
+                vdWradii(s.get_chemical_symbols(), 'PBE', world=c.world))
             s.calc = cc
         elif xc == 'dftd4':
             s.get_potential_energy()

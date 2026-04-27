@@ -189,13 +189,13 @@ def make_folders() -> None:
         Path(name).mkdir(exist_ok=True)
 
 
-def collect_all() -> None:
+def collect_all(*names: str) -> None:
     setup_paths.append('potentials')
     dct = {}
-    names = old_names + new_names
+    names = names or (old_names + new_names)
     for name in names:
         dct[name] = collect_results(name)
-    Path('potentials.json').write_text(json.dumps(dct))
+    Path('potentials.json').write_text(json.dumps(dct, indent=1))
 
 
 if __name__ == '__main__':

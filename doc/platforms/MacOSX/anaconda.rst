@@ -62,8 +62,4 @@ Install GPAW::
 
     $ pip install --upgrade --user gpaw
 
-Install GPAW setups::
-
-    $ gpaw --verbose install-data
-
 

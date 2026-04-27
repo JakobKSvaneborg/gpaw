@@ -6,10 +6,10 @@ from pathlib import Path
 import numpy as np
 
 from gpaw.response import timer
-from gpaw.response.pw_parallelization import Blocks1D
 from gpaw.response.dyson import PWKernel
-from gpaw.response.localft import (LocalFTCalculator,
-                                   add_LDA_dens_fxc, add_LSDA_trans_fxc)
+from gpaw.response.localft import (LocalFTCalculator, add_LDA_dens_fxc,
+                                   add_LSDA_trans_fxc)
+from gpaw.response.pw_parallelization import Blocks1D
 
 
 class FXCKernel(PWKernel):

@@ -1,7 +1,8 @@
+import numpy as np
+
+from gpaw.core import UGDesc
 from gpaw.densities import add
 from gpaw.spline import Spline
-from gpaw.core import UGDesc
-import numpy as np
 
 
 def test_ae_density():
@@ -15,11 +16,11 @@ def test_ae_density():
     phit0 = Spline.from_data(0, rc, [2, 0])
     phi1 = Spline.from_data(1, rc, [1, 0])
     phit1 = Spline.from_data(1, rc, [2, 0])
-    nc = Spline.from_data(0, rc, [0, 0])
+    dnc = [Spline.from_data(0, rc, [0, 0])]
     add([0.5, 0.5, 0.5],
         n_sR,
         [phi0, phi1], [phit0, phit1],
-        nc, nc,
+        dnc,
         rc, D_sii)
     y, v = n_sR.xy(0, 5, ..., 5)
     v *= 4 * np.pi

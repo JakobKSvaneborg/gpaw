@@ -1,13 +1,14 @@
 import subprocess
 from pathlib import Path
-from typing import Union, IO, Dict, Any, cast
+from typing import IO, Any, cast
 
-from ase import Atoms
 import numpy as np
+from ase import Atoms
 
-from .overlaps import WannierOverlaps
-from .functions import WannierFunctions
 from gpaw.typing import Array3D
+
+from .functions import WannierFunctions
+from .overlaps import WannierOverlaps
 
 
 class Wannier90Error(Exception):
@@ -17,7 +18,7 @@ class Wannier90Error(Exception):
 class Wannier90:
     def __init__(self,
                  prefix: str = 'wannier',
-                 folder: Union[str, Path] = 'W90',
+                 folder: str | Path = 'W90',
                  executable='wannier90.x'):
         self.prefix = prefix
         self.folder = Path(folder)
@@ -128,10 +129,10 @@ class Wannier90Functions(WannierFunctions):
     def __init__(self,
                  atoms: Atoms,
                  centers):
-        WannierFunctions.__init__(self, atoms, centers, 0.0, [])
+        super().__init__(atoms, centers, 0.0, [])
 
 
-def read_wout_all(fileobj: IO[str]) -> Dict[str, Any]:
+def read_wout_all(fileobj: IO[str]) -> dict[str, Any]:
     """Read atoms, wannier function centers and spreads."""
     lines = fileobj.readlines()
 

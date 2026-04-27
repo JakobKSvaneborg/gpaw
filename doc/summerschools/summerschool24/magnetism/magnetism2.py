@@ -4,7 +4,7 @@ import ase.visualize as viz
 viz.view = lambda atoms, repeat=None: None
 
 # %%
-"""
+r"""
 
 # Noncollinear magnetism - VI$_2$
 
@@ -118,7 +118,7 @@ layer_fm.get_potential_energy()
 calc.write('V2I4_fm.gpw')
 
 # %%
-"""
+r"""
 ## Calculating J
 
 Finally, we are in a position to calculate the nearest neighbour Heisenberg exchange coupling $J$. Before doing so, please compare the
@@ -169,7 +169,7 @@ J = dE / 4 / S**2  # student: J = ???
 print(f'J = {J * 1000:1.2f} meV')
 
 # %%
-"""
+r"""
 ## Noncollinear configuration using a supercell
 
 As it turn out, the optimal spin structure on a trigonal lattice with antiferromagntice exchange coupling is to place all spins at
@@ -246,7 +246,7 @@ layer_nc.get_potential_energy()
 calc.write('fm_nosoc.gpw')
 
 # %%
-"""
+r"""
 ## Noncollinear configuration using spin spirals
 
 The noncollinear spin configuration can also be represented in a single unit cell using the generalized Bloch's theorem. While the usual
@@ -296,7 +296,7 @@ energy = atoms.get_potential_energy()
 print(energy)
 
 # %%
-"""
+r"""
 ## Anisotropy and exchange coupling from noncollinear DFT
 
 In the supercell calculation above we could have included spin-orbit coupling in a self-consistent way by setting 'soc'=True'. However, it
@@ -353,7 +353,7 @@ print(f'J = {J * 1000:1.2f} meV')
 
 
 # %%
-"""
+r"""
 ## Critical temperature?
 
 Based on the noncollinear calculations above:

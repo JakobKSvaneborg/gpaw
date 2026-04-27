@@ -1,5 +1,6 @@
-import pytest
 import numpy as np
+import pytest
+
 from gpaw.response.g0w0 import G0W0
 
 
@@ -8,14 +9,15 @@ from gpaw.response.g0w0 import G0W0
     ('GWP', 4.667170),
     ('GWS', 4.988230),
     ('GWG', 4.894904)])
-def test_fxc_mode(in_tmp_dir, gpw_files, fxc_mode, ref_gap, scalapack):
+def test_fxc_mode(in_tmp_dir, gpw_files, fxc_mode, ref_gap, scalapack, mpi):
     gw = G0W0(gpw_files['bn_pw'],
               bands=(3, 5),
               nbands=9,
               nblocks=1,
               xc='rALDA',
               ecut=40,
-              fxc_mode=fxc_mode)
+              fxc_mode=fxc_mode,
+              world=mpi.comm)
 
     result = gw.calculate()
 

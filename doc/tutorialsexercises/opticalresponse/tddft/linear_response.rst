@@ -28,7 +28,7 @@ alternatively one can also restrict the number of transitions by their energy:
 Note, that parallelization over spin does not work here. As a workaround,
 domain decomposition only (``parallel={'domain': world.size}``, 
 see :ref:`manual_parsize_domain`) 
-has to be used for spin polarised 
+has to be used for spin polarized 
 calculations in parallel.
 
 Extracting the spectrum
@@ -69,7 +69,7 @@ Testing convergence
 ===================
 
 You can test the convergence of the Kohn-Sham transition basis size by restricting
-the basis in the diagonalisation step, e.g.::
+the basis in the diagonalization step, e.g.::
 
   from gpaw.lrtddft import LrTDDFT 
 
@@ -94,7 +94,7 @@ file 'conv.gpl' for gnuplot that compares the spectra varying the basis size.
 Analysing the transitions
 =========================
 
-The single transitions (or a list of transitions) can be analysed as follows 
+The single transitions (or a list of transitions) can be analyzed as follows 
 (output printed)::
 
   from gpaw.lrtddft import LrTDDFT

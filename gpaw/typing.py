@@ -1,4 +1,7 @@
-from typing import Any, Union, Sequence
+from collections.abc import Sequence
+from typing import Any, Union
+import sys
+
 import numpy as np
 
 try:
@@ -13,6 +16,14 @@ try:
 except ImportError:
     ArrayLike = Any  # type: ignore
     DTypeLike = Any  # type: ignore
+
+# New in Python-3.12 ...
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    def override(func):  # type:ignore
+        return func
+
 
 ArrayLike1D = ArrayLike
 ArrayLike2D = ArrayLike

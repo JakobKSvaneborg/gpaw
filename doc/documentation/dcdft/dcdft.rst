@@ -58,7 +58,7 @@ Note that you can start several instances of the script
 simultaneously in order to speed things up.
 
 The script will generate ``.txt`` files and an SQLite3 database file.
-Watch the progess as the calculations run::
+Watch the progress as the calculations run::
 
     $ ase db dcdft.db -c +x,time
 

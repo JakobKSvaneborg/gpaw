@@ -6,19 +6,15 @@ Matteo Cococcioni and Nicola Marzari,
 J. Chem. Phys. 124, 074103, 2006
 """
 
-from gpaw import GPAW
-from gpaw.utilities.adjust_cell import adjust_cell
 import pytest
 from ase import Atoms
-from ase.units import mol, kcal, Pascal, m, Bohr
-from gpaw.solvation import (
-    SolvationGPAW,
-    FG02SmoothStepCavity,
-    LinearDielectric,
-    GradientSurface,
-    SurfaceInteraction,
-    ElDensity
-)
+from ase.units import Bohr, Pascal, kcal, m, mol
+
+from gpaw import GPAW
+from gpaw.solvation import (ElDensity, FG02SmoothStepCavity, GradientSurface,
+                            LinearDielectric, SolvationGPAW,
+                            SurfaceInteraction)
+from gpaw.utilities.adjust_cell import adjust_cell
 
 
 def test_solvation_sfgcm06():

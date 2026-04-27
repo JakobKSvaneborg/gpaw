@@ -1,4 +1,5 @@
 import pytest
+
 from gpaw.upf import UPFSetupData
 
 
@@ -40,9 +41,10 @@ def test_psp_upf_h2o():
     # print 'horrible version ok, relatively speaking'
 
     if 1:
+        from ase.build import molecule
+
         from gpaw import GPAW, PoissonSolver
         from gpaw.utilities import h2gpts
-        from ase.build import molecule
 
         # s = UPFSetupData('/home/askhl/parse-upf/h_lda_v1.uspp.F.UPF')
 

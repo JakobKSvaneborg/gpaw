@@ -7,7 +7,7 @@ see https://doi.org/10.1038/s41467-020-16529-6
 """
 
 import numpy as np
-from ase.units import invcm, Hartree
+from ase.units import Hartree, invcm
 
 
 def lorentzian(w, gamma):
@@ -344,10 +344,10 @@ def plot_raman(figname, RIsuffix, relative=False, w_min=None, w_max=None):
         Suffix of Raman intensity files to use for plotting. For example
         "0_1_455nm" for RI_0_1_455nm.npy
     """
-    from scipy import signal
-    import matplotlib.pyplot as plt
-    import matplotlib.colors as colors
     import matplotlib.cm as cmx
+    import matplotlib.colors as colors
+    import matplotlib.pyplot as plt
+    from scipy import signal
 
     if isinstance(RIsuffix, str):
         legend = False

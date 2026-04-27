@@ -1,7 +1,9 @@
 from math import sqrt
+
 import pytest
 from ase import Atoms
-from gpaw import GPAW, Mixer, Davidson
+
+from gpaw import GPAW, Davidson, Mixer
 from gpaw.xc.vdw import VDWFunctional
 
 

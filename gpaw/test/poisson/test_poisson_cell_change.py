@@ -1,8 +1,9 @@
+import numpy as np
 import pytest
 from ase.build import bulk
+
 from gpaw import GPAW
-from gpaw.poisson import FFTPoissonSolver, FDPoissonSolver, FastPoissonSolver
-import numpy as np
+from gpaw.poisson import FastPoissonSolver, FDPoissonSolver, FFTPoissonSolver
 
 
 @pytest.mark.parametrize('poisson', [FFTPoissonSolver, FDPoissonSolver,

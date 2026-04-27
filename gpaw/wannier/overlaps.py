@@ -1,13 +1,12 @@
 from pathlib import Path
-from typing import Dict, List, Tuple, Union
 
 import numpy as np
 from ase import Atoms
 from ase.units import Bohr
 
 from gpaw.new.ase_interface import ASECalculator as GPAW
-from gpaw.kpt_descriptor import KPointDescriptor
-from gpaw.projections import Projections
+from gpaw.old.kpt_descriptor import KPointDescriptor
+from gpaw.old.projections import Projections
 from gpaw.setup import Setup
 from gpaw.typing import Array2D, Array3D, Array4D, ArrayLike1D
 from gpaw.utilities.partition import AtomPartition
@@ -22,10 +21,10 @@ class WannierOverlaps:
                  monkhorst_pack_size: ArrayLike1D,
                  kpoints: Array2D,
                  fermi_level: float,
-                 directions: Dict[Tuple[int, ...], int],
+                 directions: dict[tuple[int, ...], int],
                  overlaps: Array4D,
                  projections: Array3D = None,
-                 proj_indices_a: List[List[int]] = None):
+                 proj_indices_a: list[list[int]] = None):
 
         self.atoms = atoms
         self.nwannier = nwannier
@@ -45,7 +44,7 @@ class WannierOverlaps:
 
     def overlap(self,
                 bz_index: int,
-                direction: Tuple[int, ...]) -> Array2D:
+                direction: tuple[int, ...]) -> Array2D:
         dindex = self.directions.get(direction)
         if dindex is not None:
             return self._overlaps[bz_index, dindex]
@@ -67,7 +66,7 @@ class WannierOverlaps:
 
     def localize_w90(self,
                      prefix: str = 'wannier',
-                     folder: Union[Path, str] = 'W90',
+                     folder: Path | str = 'W90',
                      nwannier: int = None,
                      **kwargs) -> WannierFunctions:
         from .w90 import Wannier90
@@ -77,8 +76,8 @@ class WannierOverlaps:
         return w90.read_result()
 
 
-def dict_to_proj_indices(dct: Dict[Union[int, str], str],
-                         setups: List[Setup]) -> List[List[int]]:
+def dict_to_proj_indices(dct: dict[int | str, str],
+                         setups: list[Setup]) -> list[list[int]]:
     """Convert dict to lists of projector function indices.
 
     >>> from gpaw.setup import create_setup
@@ -105,7 +104,7 @@ def dict_to_proj_indices(dct: Dict[Union[int, str], str],
 
 def calculate_overlaps(calc: GPAW,
                        nwannier: int,
-                       projections: Dict[Union[int, str], str] = None,
+                       projections: dict[int | str, str] = None,
                        n1: int = 0,
                        n2: int = 0,
                        spinors: bool = False,
@@ -191,7 +190,7 @@ def calculate_overlaps(calc: GPAW,
 
 
 def find_directions(icell: Array2D,
-                    mpsize: ArrayLike1D) -> List[Tuple[int, ...]]:
+                    mpsize: ArrayLike1D) -> list[tuple[int, ...]]:
     """Find nearest neighbors k-points.
 
     icell:
@@ -217,7 +216,7 @@ def find_directions(icell: Array2D,
     d_ic = np.indices((3, 3, 3)).reshape((3, -1)).T - 1
     d_iv = d_ic.dot((icell.T / mpsize).T)
     voro = Voronoi(d_iv)
-    directions: List[Tuple[int, ...]] = []
+    directions: list[tuple[int, ...]] = []
     for i1, i2 in voro.ridge_points:
         if i1 == 13 and i2 > 13:
             directions.append(tuple(d_ic[i2].tolist()))
@@ -247,7 +246,7 @@ class BZRealSpaceWaveFunctions:
     def __init__(self,
                  kd: KPointDescriptor,
                  gd,
-                 wfs: Dict[int, WaveFunction]):
+                 wfs: dict[int, WaveFunction]):
         self.kd = kd
         self.gd = gd
         self.wfs = wfs
@@ -269,7 +268,7 @@ class BZRealSpaceWaveFunctions:
 
         gd = wfs.gd.new_descriptor(comm=calc.world)
 
-        nproj_a = wfs.kpt_qs[0][0].projections.nproj_a
+        nproj_a = wfs.kpt_u[0].projections.nproj_a
         # All atoms on rank-0:
         rank_a = np.zeros_like(nproj_a)
         atom_partition = AtomPartition(gd.comm, rank_a)

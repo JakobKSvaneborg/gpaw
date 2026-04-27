@@ -9,7 +9,7 @@ Introduction
 ============
 
 Pipek-Mezey [#pm]_ Wannier functions (PMWF) is an alternative to the maximally localized 
-(Foster-Boys) Wannier functions (MLWF). PMWFs are higly localized orbitals with
+(Foster-Boys) Wannier functions (MLWF). PMWFs are highly localized orbitals with
 chemical intuition where a distinction is maintained between `\sigma` and `\pi` type
 orbitals. The PMWFs are as localized as the MLWFs as measured by spread function, 
 whereas the MLWFs frequently mix chemically distinct orbitals [#pmwfs]_.

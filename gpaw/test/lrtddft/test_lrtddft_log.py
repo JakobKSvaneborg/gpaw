@@ -23,7 +23,9 @@ def get_H2(calculator=None):
 
 def run_and_delete(txt):
     outfname = 'gpawlog.txt'
-    calc = GPAW(mode='fd', xc='PBE', h=0.25, nbands=5, txt=outfname)
+    calc = GPAW(
+        legacy_gpaw=True,
+        mode='fd', xc='PBE', h=0.25, nbands=5, txt=outfname)
     calc.calculate(get_H2(calc))
     exlst = LrTDDFT(calc, restrict={'eps': 0.4, 'jend': 3}, txt=txt)
     del calc

@@ -5,19 +5,19 @@ import warnings
 from math import pi
 
 import numpy as np
-from numpy.fft import fftn, ifftn, fft2, ifft2, rfft2, irfft2, fft, ifft
+from numpy.fft import fft, fft2, fftn, ifft, ifft2, ifftn, irfft2, rfft2
 from scipy.fftpack import dst as scipydst
 
 from gpaw import PoissonConvergenceError
 from gpaw.dipole_correction import DipoleCorrection, dipole_correction
-from gpaw.domain import decompose_domain
 from gpaw.fd_operators import Laplace, LaplaceA, LaplaceB
+from gpaw.old.domain import decompose_domain
 from gpaw.transformers import Transformer
+from gpaw.utilities.ewald import madelung
 from gpaw.utilities.gauss import Gaussian
 from gpaw.utilities.grid import grid2grid
-from gpaw.utilities.ewald import madelung
-from gpaw.utilities.tools import construct_reciprocal
 from gpaw.utilities.timing import NullTimer
+from gpaw.utilities.tools import construct_reciprocal
 
 POISSON_GRID_WARNING = """Grid unsuitable for FDPoissonSolver!
 
@@ -51,9 +51,6 @@ def create_poisson_solver(name='fast', **kwargs):
         return create_poisson_solver(**kwargs)
     elif name == 'fft':
         return FFTPoissonSolver(**kwargs)
-    elif name == 'fdtd':
-        from gpaw.fdtd.poisson_fdtd import FDTDPoissonSolver
-        return FDTDPoissonSolver(**kwargs)
     elif name == 'fd':
         return FDPoissonSolverWrapper(**kwargs)
     elif name == 'fast':
@@ -70,16 +67,17 @@ def create_poisson_solver(name='fast', **kwargs):
         raise ValueError('Unknown poisson solver: %s' % name)
 
 
-def PoissonSolver(name='fast', dipolelayer=None, **kwargs):
+def PoissonSolver(name='fast', dipolelayer=None, zero_vacuum=False, **kwargs):
     p = create_poisson_solver(name=name, **kwargs)
     if dipolelayer is not None:
-        p = DipoleCorrection(p, dipolelayer)
+        p = DipoleCorrection(p, dipolelayer, zero_vacuum=zero_vacuum)
     return p
 
 
-def FDPoissonSolverWrapper(dipolelayer=None, **kwargs):
+def FDPoissonSolverWrapper(dipolelayer=None, zero_vacuum=False, **kwargs):
     if dipolelayer is not None:
-        return DipoleCorrection(FDPoissonSolver(**kwargs), dipolelayer)
+        return DipoleCorrection(FDPoissonSolver(**kwargs), dipolelayer,
+                                zero_vacuum=zero_vacuum)
     return FDPoissonSolver(**kwargs)
 
 
@@ -105,6 +103,12 @@ class _PoissonSolver:
 
     def estimate_memory(self, mem):
         raise NotImplementedError()
+
+    def build(self, grid, xp):
+        from gpaw.new.poisson import PoissonSolverWrapper
+        self.xp = xp
+        self.set_grid_descriptor(grid._gd)
+        return PoissonSolverWrapper(self)
 
 
 class BasePoissonSolver(_PoissonSolver):
@@ -319,7 +323,7 @@ class FDPoissonSolver(BasePoissonSolver):
                  remove_moment=None, use_charge_center=False,
                  metallic_electrodes=False,
                  use_charged_periodic_corrections=False, **kwargs):
-        super(FDPoissonSolver, self).__init__(
+        super().__init__(
             remove_moment=remove_moment,
             use_charge_center=use_charge_center,
             metallic_electrodes=metallic_electrodes,
@@ -841,7 +845,7 @@ class BadAxesError(ValueError):
 
 class FastPoissonSolver(BasePoissonSolver):
     def __init__(self, nn=3, **kwargs):
-        BasePoissonSolver.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.nn = nn
         # We may later enable this to work with Cholesky, but not now:
         self.use_cholesky = False

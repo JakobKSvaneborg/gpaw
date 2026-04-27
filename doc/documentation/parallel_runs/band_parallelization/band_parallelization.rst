@@ -4,7 +4,7 @@
 Band parallelization
 ====================
 
-The orthogonalization can be paralleized over **k**-points, spins,
+The orthogonalization can be parallelized over **k**-points, spins,
 domains (see :ref:`orthogonalization`), and bands, described below.
 
 Let's say we split the bands in five groups and give each group of

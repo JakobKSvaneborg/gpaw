@@ -1,9 +1,10 @@
 # 12-ZGNR with adsorbed H at both edges.
 # "ZGNR12.py" should be run first!
 
-from ase.io import read
 from ase import Atom
+from ase.io import read
 from ase.optimize import QuasiNewton
+
 from gpaw import GPAW
 
 GNR = read('ZGNR12.traj')

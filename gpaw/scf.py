@@ -4,8 +4,8 @@ import numpy as np
 
 from gpaw import KohnShamConvergenceError
 from gpaw.convergence_criteria import check_convergence
-from gpaw.forces import calculate_forces
-from gpaw.directmin.scf_helper import do_if_converged, check_eigensolver_state
+from gpaw.directmin.scf_helper import check_eigensolver_state, do_if_converged
+from gpaw.old.forces import calculate_forces
 
 
 class SCFLoop:
@@ -183,10 +183,16 @@ def write_iteration(criteria, converged_items, entries, ctx, log):
         if print_iloop:
             header1 += '{:>12s} '.format('iter')
             header2 += '{:>12s} '.format('inner loop')
-        log(header1.rstrip())
-        log(header2.rstrip())
+        log.begin_table(
+            title='SCF iterations',
+            header=header1.rstrip() + '\n' + header2.rstrip())
 
-    c = {k: 'c' if v else ' ' for k, v in converged_items.items()}
+    def format_conv(fmt: str, name: str) -> str:
+        """Add "c" to number and color it green if converged."""
+        txt = fmt.format(entries.get(name, ''))
+        if converged_items.get(name):
+            return log.green + txt + log.reset + 'c '
+        return txt + '  '
 
     # Iterations and time.
     now = time.localtime()
@@ -194,17 +200,17 @@ def write_iteration(criteria, converged_items, entries, ctx, log):
             .format(ctx.niter, *now[3:6]))
 
     # Energy.
-    line += '{:>12s}{:1s} '.format(entries['energy'], c['energy'])
+    line += format_conv('{:>12s}', 'energy')
 
     # Eigenstates.
-    line += '{:>6s}{:1s} '.format(entries['eigenstates'], c['eigenstates'])
+    line += format_conv('{:>6s}', 'eigenstates')
 
     # Density.
-    line += '{:>5s}{:1s} '.format(entries['density'], c['density'])
+    line += format_conv('{:>5s}', 'density')
 
     # Custom criteria (optional).
     for name in custom:
-        line += f'{entries[name]:>5s}{c[name]:s} '
+        line += format_conv('{:>5s}', name)
 
     # Magnetic moment (optional).
     if ctx.wfs.nspins == 2 or not ctx.wfs.collinear:
@@ -218,7 +224,7 @@ def write_iteration(criteria, converged_items, entries, ctx, log):
     if print_iloop:
         iloop_counter = (ctx.wfs.eigensolver.eg_count_iloop +
                          ctx.wfs.eigensolver.eg_count_outer_iloop)
-        line += ('{:12d}'.format(iloop_counter))
+        line += (f'{iloop_counter:12d}')
 
     log(line.rstrip())
     log.fd.flush()

@@ -1,7 +1,7 @@
 # MQ: cores=4
 """Check non self-consistent SOC calculation with and without symmetry."""
-from typing import Dict
 from ase import Atoms
+
 from gpaw import GPAW, PW
 from gpaw.spinorbit import soc_eigenstates
 
@@ -21,7 +21,7 @@ def check(array1_mx, array2_mx, k, tol=1e-6):
         m += 1
 
 
-def soc(params: Dict) -> list:
+def soc(params: dict) -> list:
     """Do DFT + SOC calculations in memory and from gpw-file."""
     name = 'Fe-sym-' + params.get('symmetry', 'on')
     atoms.calc = GPAW(txt=name + '.txt', **params)
@@ -50,7 +50,8 @@ def go() -> None:
     params = dict(mode=PW(500),
                   xc='PBE',
                   kpts=[7, 1, 1],
-                  convergence={'eigenstates': 1e-10})
+                  convergence={'eigenstates': 1e-10,
+                               'bands': 9})
     A, _ = soc(params)
     params['symmetry'] = 'off'
     B, calc = soc(params)
@@ -64,3 +65,7 @@ def go() -> None:
 def workflow():
     from myqueue.workflow import run
     run(function=go, cores=4)
+
+
+if __name__ == '__main__':
+    go()

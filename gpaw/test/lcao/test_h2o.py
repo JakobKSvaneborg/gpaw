@@ -5,7 +5,6 @@ from gpaw import GPAW, LCAO
 from gpaw.poisson import FDPoissonSolver
 
 
-@pytest.mark.old_gpaw_only  # basis set cutoff??
 def test_lcao_h2o():
     a = 6.0
     b = a / 2

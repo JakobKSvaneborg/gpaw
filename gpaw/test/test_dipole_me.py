@@ -1,11 +1,11 @@
 from ase.units import Bohr
-from gpaw.new.ase_interface import GPAW
+
 from gpaw.utilities.dipole import dipole_matrix_elements_from_calc
 
 
-def test_dipole_me(gpw_files):
+def test_dipole_me(gpw_files, mpi):
     """Check dipole matrix-elements for H2 molecule."""
-    calc = GPAW(gpw_files['h2_pw'])
+    calc = mpi.NewGPAW(gpw_files['h2_pw'])
 
     # Method 1: evaluate all-electron wave functions on fine grid:
     psi0, psi1 = (

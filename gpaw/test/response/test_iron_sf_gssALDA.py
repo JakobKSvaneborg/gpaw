@@ -6,22 +6,23 @@ Fast test, where the kernel is scaled to fulfill the Goldstone theorem.
 
 # Workflow modules
 from pathlib import Path
-import pytest
-import numpy as np
 
-# Script modules
-from gpaw.test import findpeak
-from gpaw.mpi import world
+import numpy as np
+import pytest
 
 from gpaw.response import ResponseGroundStateAdapter
 from gpaw.response.chiks import ChiKSCalculator
-from gpaw.response.susceptibility import (ChiFactory, spectral_decomposition,
-                                          read_eigenmode_lineshapes)
-from gpaw.response.localft import LocalGridFTCalculator, LocalPAWFTCalculator
-from gpaw.response.fxc_kernels import FXCKernel, AdiabaticFXCCalculator
+from gpaw.response.context import ResponseContext
 from gpaw.response.dyson import HXCKernel
+from gpaw.response.fxc_kernels import AdiabaticFXCCalculator, FXCKernel
 from gpaw.response.goldstone import FMGoldstoneScaling
+from gpaw.response.localft import LocalGridFTCalculator, LocalPAWFTCalculator
 from gpaw.response.pair_functions import read_pair_function
+from gpaw.response.susceptibility import (ChiFactory,
+                                          read_eigenmode_lineshapes,
+                                          spectral_decomposition)
+# Script modules
+from gpaw.test import findpeak
 
 
 def set_up_fxc_calculators(gs, context):
@@ -66,7 +67,7 @@ def get_test_values(identifier):
 
 @pytest.mark.kspair
 @pytest.mark.response
-def test_response_iron_sf_gssALDA(in_tmp_dir, gpw_files):
+def test_response_iron_sf_gssALDA(in_tmp_dir, gpw_files, mpi):
     # ---------- Inputs ---------- #
 
     nbands = 6
@@ -75,7 +76,7 @@ def test_response_iron_sf_gssALDA(in_tmp_dir, gpw_files):
     fxc = 'ALDA'
     ecut = 300
     eta = 0.1
-    if world.size > 1:
+    if mpi.comm.size > 1:
         nblocks = 2
     else:
         nblocks = 1
@@ -84,6 +85,7 @@ def test_response_iron_sf_gssALDA(in_tmp_dir, gpw_files):
 
     gs = ResponseGroundStateAdapter.from_gpw_file(gpw_files['fe_pw'])
     chiks_calc = ChiKSCalculator(gs,
+                                 context=ResponseContext(comm=mpi.comm),
                                  nbands=nbands,
                                  ecut=ecut,
                                  gammacentered=True,
@@ -134,7 +136,7 @@ def test_response_iron_sf_gssALDA(in_tmp_dir, gpw_files):
 
         chi_factory.context.write_timer()
 
-    world.barrier()
+    mpi.comm.barrier()
 
     # plot_comparison('grid', 'paw')
 

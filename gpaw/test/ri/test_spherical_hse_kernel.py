@@ -9,12 +9,12 @@ Coulomb kernel. Based on
 """
 
 
-from gpaw.xc.ri.spherical_hse_kernel import Phi as phi
-from scipy.special import erfc
 import numpy as np
-from gpaw.sphere.lebedev import weight_n, Y_nL, R_nv
-from gpaw.spherical_harmonics import Y
+from scipy.special import erfc
 
+from gpaw.sphere.lebedev import R_nv, Y_nL, weight_n
+from gpaw.sphere.spherical_harmonics import Y
+from gpaw.xc.ri.spherical_hse_kernel import Phi as phi
 
 # [23, 31, 16] are indices to a triangle in the 50-point Lebedev grid.
 # This is used to align the two angular grids nicely to avoid divergences.

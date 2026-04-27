@@ -9,7 +9,7 @@ atoms = Atoms(symbols='Na2',
 atoms.center(vacuum=6.0)
 
 # Standard ground state calculation with empty states
-calc = GPAW(mode='fd', nbands=100, h=0.4, setups={'Na': '1'})
+calc = GPAW(mode='fd', nbands=100, h=0.4, setups={'Na': '1'}, legacy_gpaw=True)
 atoms.calc = calc
 energy = atoms.get_potential_energy()
 
@@ -18,7 +18,7 @@ calc = calc.fixed_density(
 calc.write('na2_gs_casida.gpw', mode='all')
 
 # Standard Casida calculation
-calc = GPAW('na2_gs_casida.gpw')
+calc = GPAW('na2_gs_casida.gpw', legacy_gpaw=True)
 istart = 0
 jend = 90
 lr = LrTDDFT(calc, xc='LDA', restrict={'istart': istart, 'jend': jend})

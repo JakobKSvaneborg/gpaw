@@ -1,23 +1,26 @@
 from abc import ABC, abstractmethod
-from time import time
 from pathlib import Path
+from time import time
 
 import ase.io.ulm as ulm
 import numpy as np
 from ase.units import Ha
-from gpaw.response import timer
 from scipy.special import p_roots, sici
 
 from gpaw.blacs import BlacsGrid, Redistributor
 from gpaw.fd_operators import Gradient
-from gpaw.kpt_descriptor import KPointDescriptor
-from gpaw.pw.descriptor import PWDescriptor
-from gpaw.response.pair_functions import SingleQPWDescriptor
+from gpaw.old.kpt_descriptor import KPointDescriptor
+from gpaw.old.pw.descriptor import PWDescriptor
+from gpaw.response import timer
+from gpaw.response.qpd import SingleQPWDescriptor
 from gpaw.utilities.blas import axpy, gemmdot
+from gpaw.xc.fxc_kernels import (get_fHxc_Gr, get_fspinHxc_Gr_rALDA,
+                                 get_fspinHxc_Gr_rAPBE, get_pbe_fxc)
 from gpaw.xc.rpa import RPACorrelation
-from gpaw.heg import HEG
-from gpaw.xc.fxc_kernels import (
-    get_fHxc_Gr, get_pbe_fxc, get_fspinHxc_Gr_rALDA, get_fspinHxc_Gr_rAPBE)
+
+
+def heg_rs2qF(rs: float) -> float:
+    return (9.0 * np.pi / 4.0)**(1.0 / 3.0) / rs
 
 
 def get_chi0v_spinsum(chi0_sGG, G_G):
@@ -156,16 +159,11 @@ class FXCCorrelation:
 
         self.cache = FXCCache(self.context.comm, tag, self.xc, self.ecut_max)
 
-        self.omega_w = self.rpa.omega_w
-        self.ibzq_qc = self.rpa.ibzq_qc
-        self.nblocks = self.rpa.nblocks
-        self.weight_w = self.rpa.weight_w
-
     @property
     def blockcomm(self):
         # Cannot be aliased as attribute
         # because rpa gets blockcomm during calculate
-        return self.rpa.blockcomm
+        return self.rpa.wblocks.blockcomm
 
     def _calculate_kernel(self):
         # Find the first q vector to calculate kernel for
@@ -173,7 +171,7 @@ class FXCCorrelation:
 
         q_empty = None
 
-        for iq in reversed(range(len(self.ibzq_qc))):
+        for iq in reversed(range(len(self.rpa.integral.ibzq_qc))):
             handle = self.cache.handle(iq)
 
             if not handle.exists():
@@ -187,7 +185,7 @@ class FXCCorrelation:
         kernelkwargs = dict(
             gs=self.gs,
             xc=self.xc,
-            ibzq_qc=self.ibzq_qc,
+            ibzq_qc=self.rpa.integral.ibzq_qc,
             ecut=self.ecut_max,
             context=self.context)
 
@@ -212,25 +210,21 @@ class FXCCorrelation:
         if self.xc != 'RPA':
             self._calculate_kernel()
 
-        return self.rpa.calculate(spin=self.gs.nspins > 1, nbands=nbands)
+        data = self.rpa.calculate_all_contributions(
+            spin=self.gs.nspins > 1, nbands=nbands)
+        return data.energy_i * Ha  # energies in eV
 
     @timer('Chi0(q)')
-    def calculate_q_fxc(self, chi0calc, chi0_s, m1, m2, gcut):
+    def calculate_q_fxc(self, chi0_s, m1, m2, gcut):
         for s, chi0 in enumerate(chi0_s):
-            chi0calc.update_chi0(chi0, m1, m2, [s])
+            self.rpa.chi0calc.update_chi0(chi0, m1=m1, m2=m2, spins=[s])
 
-        self.context.print('E_c(q) = ', end='', flush=False)
-
-        qpd = chi0.qpd
-        nw = chi0.nw
-        mynw = nw // self.nblocks
-        assert nw % self.nblocks == 0
-        nspins = len(chi0_s)
-        nG = qpd.ngmax
-        chi0_swGG = np.empty((nspins, mynw, nG, nG), complex)
-        for chi0_wGG, chi0 in zip(chi0_swGG, chi0_s):
-            chi0_wGG[:] = chi0.body.copy_array_with_distribution('wGG')
-        if self.nblocks > 1:
+        qpd = chi0_s[0].qpd
+        chi0_swGG = np.array([
+            chi0.body.get_distributed_frequencies_array() for chi0 in chi0_s
+        ])
+        wblocks = chi0_s[0].body.get_distributed_frequencies_blocks1d()
+        if wblocks.blockcomm.size > 1:  # why???
             chi0_swGG = np.swapaxes(chi0_swGG, 2, 3)
 
         # XXX Gamma-point code is NOT well tested!
@@ -238,28 +232,29 @@ class FXCCorrelation:
         # This if/else was pasted from RPA where bug was also fixed.
         # We have not added regression test for fxc and the change
         # causes no test failures.
-        if not qpd.optical_limit:
-            e = self.calculate_energy_fxc(qpd, chi0_swGG, gcut)
-            self.context.print('%.3f eV' % (e * Ha))
+        if not chi0.qpd.optical_limit:
+            energy_w = self.calculate_fxc_energies(qpd, chi0_swGG, gcut)
         else:
-            W1 = self.blockcomm.rank * mynw
-            W2 = W1 + mynw
-            e = 0.0
-            for v in range(3):
-                for chi0_wGG, chi0 in zip(chi0_swGG, chi0_s):
-                    chi0_wGG[:, 0] = chi0.chi0_WxvG[W1:W2, 0, v]
-                    chi0_wGG[:, :, 0] = chi0.chi0_WxvG[W1:W2, 1, v]
-                    chi0_wGG[:, 0, 0] = chi0.chi0_Wvv[W1:W2, v, v]
-                ev = self.calculate_energy_fxc(qpd, chi0_swGG, gcut)
-                e += ev
-                self.context.print('%.3f' % (ev * Ha), end='', flush=False)
-                if v < 2:
-                    self.context.print('/', end='', flush=False)
-                else:
-                    self.context.print('eV')
-            e /= 3
+            chi0_swvv = [chi0.chi0_Wvv[wblocks.myslice] for chi0 in chi0_s]
+            chi0_swxvG = [chi0.chi0_WxvG[wblocks.myslice] for chi0 in chi0_s]
+            energy_w = self.calculate_optical_limit_fxc_energies(
+                qpd, chi0_swGG, chi0_swvv, chi0_swxvG, gcut
+            )
+        return wblocks.all_gather(energy_w)
 
-        return e
+    def calculate_optical_limit_fxc_energies(
+            self, qpd, chi0_swGG, chi0_swvv, chi0_swxvG, gcut):
+        # For some reason, we "only" average out cartesian directions, instead
+        # of performing an actual integral over the q-point volume as in rpa...
+        energy_w = np.zeros(chi0_swGG.shape[1])
+        for v in range(3):
+            for chi0_wGG, chi0_wvv, chi0_wxvG in zip(
+                    chi0_swGG, chi0_swvv, chi0_swxvG):
+                chi0_wGG[:, 0] = chi0_wxvG[:, 0, v]
+                chi0_wGG[:, :, 0] = chi0_wxvG[:, 1, v]
+                chi0_wGG[:, 0, 0] = chi0_wvv[:, v, v]
+            energy_w += self.calculate_fxc_energies(qpd, chi0_swGG, gcut) / 3
+        return energy_w
 
     def calculate_energy_contribution(self, chi0v_sGsG, fv_sGsG, nG):
         """Calculate contribution to energy from a single frequency point.
@@ -285,12 +280,13 @@ class FXCCorrelation:
         return e
 
     @timer('Energy')
-    def calculate_energy_fxc(self, qpd, chi0_swGG, gcut):
+    def calculate_fxc_energies(self, qpd, chi0_swGG, gcut):
         """Evaluate correlation energy from chi0 and the kernel fhxc"""
+        ibzq_qc = self.rpa.integral.ibzq_qc
         ibzq2_q = [
-            np.dot(self.ibzq_qc[i] - qpd.q_c,
-                   self.ibzq_qc[i] - qpd.q_c)
-            for i in range(len(self.ibzq_qc))
+            np.dot(ibzq_qc[i] - qpd.q_c,
+                   ibzq_qc[i] - qpd.q_c)
+            for i in range(len(ibzq_qc))
         ]
 
         qi = np.argsort(ibzq2_q)[0]
@@ -340,9 +336,7 @@ class FXCCorrelation:
         if qpd.optical_limit:
             G_G[0] = 1.0
 
-        e_w = []
-
-        # Loop over frequencies
+        energy_w = []
         for chi0_sGG in np.swapaxes(chi0_swGG, 0, 1):
             chi0_sGG = gcut.cut(chi0_sGG, [1, 2])
 
@@ -351,12 +345,10 @@ class FXCCorrelation:
             else:
                 chi0v_sGsG = get_chi0v_spinsum(chi0_sGG, G_G)
 
-            energy = self.calculate_energy_contribution(
-                chi0v_sGsG, fv_GG, nG)
-            e_w.append(energy)
-
-        E_w, energies = self.rpa.gather_energies(e_w)
-        return energies
+            energy_w.append(self.calculate_energy_contribution(
+                chi0v_sGsG, fv_GG, nG
+            ))
+        return np.array(energy_w)
 
 
 class KernelIntegrator(ABC):
@@ -644,8 +636,7 @@ class KernelWave(KernelIntegrator):
     def get_fHxc_q(self, rs, q, Gphase, s2_g):
         # Construct fHxc(q,G,:), divided by scaled Coulomb interaction
 
-        heg = HEG(rs)
-        qF = heg.qF
+        qF = heg_rs2qF(rs)
 
         fHxc_Gr = get_fHxc_Gr(self.xcflags, rs, q, qF, s2_g)
 
@@ -655,7 +646,7 @@ class KernelWave(KernelIntegrator):
         return fHxc_GG
 
     def get_spinfHxc_q(self, rs, q, Gphase, s2_g):
-        qF = HEG(rs).qF
+        qF = heg_rs2qF(rs)
 
         if self.xc == 'rALDA':
             fspinHxc_Gr = get_fspinHxc_Gr_rALDA(qF, q)

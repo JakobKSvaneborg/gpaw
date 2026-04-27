@@ -1,11 +1,12 @@
-import pytest
 import numpy as np
+import pytest
 
 from gpaw.basis_data import Basis
+from gpaw.lcao.generate_ngto_augmented import create_CGTO_dictionary as CGTO
+from gpaw.lcao.generate_ngto_augmented import create_GTO_dictionary as GTO
+from gpaw.lcao.generate_ngto_augmented import (generate_nao_ngto_basis,
+                                               read_gaussian_basis_file)
 from gpaw.mpi import world
-from gpaw.lcao.generate_ngto_augmented import \
-    create_GTO_dictionary as GTO, create_CGTO_dictionary as CGTO, \
-    generate_nao_ngto_basis, read_gaussian_basis_file
 
 pytestmark = pytest.mark.skipif(world.size > 1,
                                 reason='world.size > 1')
@@ -81,6 +82,5 @@ def test_generate(in_tmp_dir):
     generate_nao_ngto_basis('C', xc='LDA', nao='dzp', name='NAO+NGTO',
                             gtos=gtos, gto_description=gbs_description)
 
-    basis = Basis('C', 'NAO+NGTO', readxml=False)
-    basis.read_xml('C.NAO+NGTO.dzp.basis')
+    basis = Basis.read_path('C', 'NAO+NGTO', 'C.NAO+NGTO.dzp.basis')
     assert len(basis.bf_j) == 5 + 7

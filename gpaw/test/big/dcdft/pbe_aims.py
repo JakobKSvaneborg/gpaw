@@ -2,14 +2,13 @@ import os
 import sys
 import time
 
-import numpy as np
-
 import ase.db
-from ase.utils import opencew
+import numpy as np
+from ase.calculators.aims import Aims
 from ase.calculators.calculator import kpts2mp
 from ase.io import Trajectory
-from ase.calculators.aims import Aims
 from ase.test.tasks.dcdft import DeltaCodesDFTCollection as Collection
+from ase.utils import opencew
 
 collection = Collection()
 

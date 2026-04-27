@@ -1,4 +1,5 @@
 import pytest
+
 from gpaw.setup import create_setup
 
 

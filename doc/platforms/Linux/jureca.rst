@@ -22,7 +22,7 @@ the setups (next point) and you are done.
 Setups
 ======
 
-The setups are not defined in the pre-installed vesrion, so we need
+The setups are not defined in the pre-installed version, so we need
 to install them ourselves::
 
   cd
@@ -153,6 +153,6 @@ Job scripts can be written using::
 
   gpaw-runscript -h
 
-and the jobs sumitted as::
+and the jobs submitted as::
     
   sbatch run.jureca

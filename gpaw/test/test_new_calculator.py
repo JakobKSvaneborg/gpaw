@@ -3,12 +3,11 @@ from pathlib import Path
 
 import pytest
 
-from gpaw import GPAW, PW
+from gpaw import PW
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.ci
-def test_new_calculator(in_tmp_dir):
+def test_new_calculator(in_tmp_dir, mpi):
     """Test the GPAW.new() method."""
 
     params = dict(
@@ -24,7 +23,7 @@ def test_new_calculator(in_tmp_dir):
         dict(kpts={'size': (4, 4, 4)}),
         dict(kpts={'size': (3, 3, 3)}, xc='PBE')]
 
-    calc0 = GPAW(**params, txt='calc0.txt')
+    calc0 = mpi.GPAW(**params, txt='calc0.txt')
 
     for m, modification in enumerate(modification_m):
         if m == 0:
@@ -36,32 +35,36 @@ def test_new_calculator(in_tmp_dir):
             calc = calc0.new(**modification, txt=txt)
             check_file_handles(calc0, calc, txt=txt)
 
-        check_calc(calc, params, modification, world=calc.world)
+        check_calc(calc, params, modification)
 
 
 def check_file_handles(calc0, calc, txt=None):
-    assert calc.log.world.rank == calc0.log.world.rank
+    comm = calc.log.comm
+    assert comm.rank == calc0.log.comm.rank
+    fd = calc.log.fd
+    fd0 = calc0.log.fd
 
-    if calc.log.world.rank == 0:
+    if comm.rank == 0:
         # We never want to reuse the output file
-        assert calc.log._fd is not calc0.log._fd
+        assert fd is not fd0
 
         if txt is None:
             # When no txt is specified, the new calculator should log its
             # output in stdout
-            assert calc.log._fd is sys.stdout
+            assert fd is sys.stdout
         else:
             # Check that the new calculator log file handle was updated
             # appropriately
-            assert Path(calc.log._fd.name).name == txt
+            assert Path(fd.name).name == txt
 
 
-def check_calc(calc, params, modification, *, world):
+def check_calc(calc, params, modification):
     desired_params = params.copy()
     desired_params.update(modification)
 
-    for param, value in desired_params.items():
-        assert calc.parameters[param] == value
+    from gpaw.dft import Parameters
+    desired_params = Parameters(**desired_params).todict()
+    params = calc.params.todict()
 
-    # Check that the communicator is reused
-    assert calc.world is world
+    for param, value in desired_params.items():
+        assert params[param] == value

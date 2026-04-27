@@ -1,5 +1,7 @@
 from pathlib import Path
+
 from ase.io import read
+
 from gpaw import GPAW
 from gpaw.point_groups import SymmetryChecker
 

@@ -19,9 +19,9 @@ The first time you use the databar computers, you must do this:
   $ ~jjmo/summerschool/setup.sh
   $ source ~/.bashrc
 
-That will set up the environment for you so that you can use ASE, GPAW, VMD and matlpotlib.
+That will set up the environment for you so that you can use ASE, GPAW, VMD and matplotlib.
 
-**Warning** runnig :command:`~jjmo/summerschool/setup.sh` owervrites
+**Warning** runnig :command:`~jjmo/summerschool/setup.sh` overwrites
 users ~/.bashrc ~/.emacs ~/.pythonrc ~/.vmdrc and ~/.matplotlib directory.
 
 Notes

@@ -1,7 +1,8 @@
 import pytest
 from ase import Atoms
+
+from gpaw import PW
 from gpaw.mpi import world
-from gpaw import GPAW, PW
 from gpaw.response.df import DielectricFunction
 from gpaw.test import findpeak
 
@@ -14,18 +15,19 @@ pytestmark = pytest.mark.skipif(world.size < 4, reason='world.size < 4')
 @pytest.mark.dielectricfunction
 @pytest.mark.response
 @pytest.mark.slow
-@pytest.mark.xfail(reason='https://gitlab.com/gpaw/gpaw/-/jobs/5215834173')
-def test_response_na_plasmons_tetrahedron(in_tmp_dir, scalapack):
+@pytest.mark.xfail(reason='Test has been failing since at least Oct 3, 2023..'
+                          'Needs investigating.')
+def test_response_na_plasmons_tetrahedron(in_tmp_dir, scalapack, mpi):
     a = 4.23 / 2.0
     a1 = Atoms('Na',
                scaled_positions=[[0, 0, 0]],
                cell=(a, a, a),
                pbc=True)
 
-    a1.calc = GPAW(mode=PW(250),
-                   kpts={'size': (10, 10, 10), 'gamma': True},
-                   parallel={'band': 1},
-                   txt='small.txt')
+    a1.calc = mpi.GPAW(mode=PW(250),
+                       kpts={'size': (10, 10, 10), 'gamma': True},
+                       parallel={'band': 1},
+                       txt='small.txt')
 
     a1.get_potential_energy()
     a1.calc.diagonalize_full_hamiltonian(nbands=20)
@@ -39,6 +41,7 @@ def test_response_na_plasmons_tetrahedron(in_tmp_dir, scalapack):
                              rate=0.001,
                              nblocks=1,
                              txt='1block.txt',
+                             world=mpi.comm,
                              **kwargs)
     df1NLFCx, df1LFCx = df1.get_dielectric_function(direction='x')
 
@@ -47,6 +50,7 @@ def test_response_na_plasmons_tetrahedron(in_tmp_dir, scalapack):
                              rate=0.001,
                              nblocks=4,
                              txt='4block.txt',
+                             world=mpi.comm,
                              **kwargs)
     df2NLFCx, df2LFCx = df2.get_dielectric_function(direction='x')
 
@@ -56,6 +60,7 @@ def test_response_na_plasmons_tetrahedron(in_tmp_dir, scalapack):
                              rate=0.001,
                              nblocks=4,
                              txt='4block.txt',
+                             world=mpi.comm,
                              **kwargs)
     df3NLFCx, df3LFCx = df3.get_dielectric_function(direction='x')
 
@@ -65,6 +70,7 @@ def test_response_na_plasmons_tetrahedron(in_tmp_dir, scalapack):
                              rate=0.001,
                              nblocks=4,
                              txt='4block.txt',
+                             world=mpi.comm,
                              **kwargs)
     df4NLFCx, df4LFCx = df4.get_dielectric_function(direction='x')
 

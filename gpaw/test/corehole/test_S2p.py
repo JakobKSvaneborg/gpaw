@@ -1,11 +1,11 @@
 import pytest
 from ase.build import molecule
 from ase.units import Bohr
+
 from gpaw import GPAW
 from gpaw.test import gen
 
 
-@pytest.mark.old_gpaw_only
 def test_S2p():
     """Compare number of electrons for different channels with 2p corehole"""
     atoms = molecule('SH2')

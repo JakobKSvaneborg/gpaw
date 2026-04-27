@@ -1,12 +1,12 @@
-import os
-import glob
 import datetime
+import glob
+import os
 
 import numpy as np
 
 import gpaw.mpi
-from gpaw.utilities import pack_density
 from gpaw.lrtddft2.eta import QuadraticETA
+from gpaw.utilities import pack_density
 
 
 class Kmatrix:
@@ -142,8 +142,8 @@ class Kmatrix:
 
         # send and receive elem_list
         # self.timer.start('Communicate K-matrix')
-        alltoall_dict = gpaw.mpi.alltoallv_string(elem_lists,
-                                                  self.lr_comms.parent_comm)
+        alltoall_dict = gpaw.mpi.alltoallv_string(
+            elem_lists, comm=self.lr_comms.parent_comm)
         # ready for garbage collection
         del elem_lists
         local_elem_list = ''.join(alltoall_dict.values())

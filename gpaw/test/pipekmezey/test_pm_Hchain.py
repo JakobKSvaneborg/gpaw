@@ -1,8 +1,9 @@
 import pytest
 from ase import Atoms
 from ase.dft.kpoints import monkhorst_pack
+
 from gpaw import GPAW, PW, mpi
-from gpaw.pipekmezey.pipek_mezey_wannier import PipekMezey
+from gpaw.wannier.pipekmezey.pipek_mezey_wannier import PipekMezey
 
 
 @pytest.mark.pipekmezey
@@ -28,8 +29,8 @@ def test_pipekmezey_chain(in_tmp_dir):
                           'time_reversal': False},
                 parallel={'domain': mpi.world.size})
 
-    calc.atoms = atoms
-    calc.calculate()
+    atoms.calc = calc
+    atoms.get_potential_energy()
 
     PM = PipekMezey(calc=calc, seed=42)
     PM.localize()

@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from ase.build import fcc111
 
 from gpaw import GPAW, LCAO, FermiDirac
@@ -22,7 +21,6 @@ from gpaw.utilities import compiled_with_sl
 # Written November 24, 2011, r8567
 
 
-@pytest.mark.old_gpaw_only
 def test_lcao_complicated():
     system = fcc111('Au', size=(1, 3, 1))
     system.numbers[0] = 8
@@ -62,10 +60,10 @@ def test_lcao_complicated():
 
         if Eref is not None:
             Eerr = abs(E - Eref)
-            assert Eerr < 1e-8, 'Bad E: err=%f; parallel=%s' % (Eerr, parallel)
+            assert Eerr < 1e-8, f'Bad E: err={Eerr:f}; parallel={parallel}'
         if Fref is not None:
             Ferr = np.abs(F - Fref).max()
-            assert Ferr < 1e-6, 'Bad F: err=%f; parallel=%s' % (Ferr, parallel)
+            assert Ferr < 1e-6, f'Bad F: err={Ferr:f}; parallel={parallel}'
         return E, F
 
     # First calculate reference energy and forces E and F

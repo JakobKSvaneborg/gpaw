@@ -7,13 +7,29 @@ The GPAW backend is currently undergoing significant refactoring.
 Occasionally we distinguish between “new” and “old” GPAW
 in the documentation.
 
-To create a GPAW calculator using the new backend, use::
+.. note::
 
-  from gpaw.new.ase_interface import GPAW as NewGPAW
+   New GPAW is now the default!
 
+.. seealso::
+
+   `Modernizing the GPAW code
+   <https://jensj.gitlab.io/talks/dev24/talk.html>`__
+
+For some operations, you will need to use old GPAW.
+See the :ref:`release notes <new gpaw notes>` for which things this is.
 To explicitly use the old backend, use::
 
-  from gpaw.calculator import GPAW as OldGPAW
+  calc = GPAW(..., legacy_gpaw=True)
 
-Default is to use old GPAW unless the environment variable
-:envvar:`GPAW_NEW` is set.
+
+.. _extensions:
+
+----------
+Extensions
+----------
+
+.. toctree::
+    :maxdepth: 1
+
+    extensions/d3

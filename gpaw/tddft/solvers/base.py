@@ -69,4 +69,3 @@ class BaseSolver(ABC):
         b           right-hand side (multi)vector
 
         """
-        raise NotImplementedError()

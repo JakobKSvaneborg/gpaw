@@ -1,9 +1,10 @@
 """Check for change in total energy and lowest eigenvalue regarding to box."""
+import pytest
 from ase import Atoms
 from ase.parallel import parprint
+
 from gpaw import GPAW, PoissonSolver
 from gpaw.utilities.adjust_cell import adjust_cell
-import pytest
 
 
 def test_generic_asym_box(in_tmp_dir):
@@ -29,7 +30,7 @@ def test_generic_asym_box(in_tmp_dir):
 
     parprint('Energies and Eigenvalues:')
     parprint('     Small Box    Wide Box')
-    parprint('E:   {0:9.3f}     {1:9.3f}'.format(e_small, e_big))
-    parprint('eps: {0:9.3f}     {1:9.3f}'.format(eps_small, eps_big))
+    parprint(f'E:   {e_small:9.3f}     {e_big:9.3f}')
+    parprint(f'eps: {eps_small:9.3f}     {eps_big:9.3f}')
     assert e_small == pytest.approx(e_big, abs=2.5e-4)
     assert eps_small == pytest.approx(eps_big, abs=6e-4)

@@ -59,10 +59,10 @@ DFT Hamiltonian.
 
 """
 from .displacements import DisplacementRunner
-from .supercell import Supercell
 from .gmatrix import ElectronPhononMatrix
 from .raman_calculator import ResonantRamanCalculator
 from .raman_data import RamanData
+from .supercell import Supercell
 
 __all__ = [
     "DisplacementRunner",

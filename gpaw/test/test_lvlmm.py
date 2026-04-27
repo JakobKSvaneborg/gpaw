@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+
 from gpaw.spinorbit import get_L_vlmm
 
 

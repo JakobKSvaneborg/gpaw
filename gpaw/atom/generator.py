@@ -1,19 +1,25 @@
 # Copyright (C) 2003  CAMP
 # Please see the accompanying LICENSE file for further information.
+from functools import cached_property
 from math import pi, sqrt
 
 import numpy as np
-from numpy.linalg import solve, inv
-from scipy.linalg import eigh
 from ase.units import Ha
+from numpy.linalg import inv, solve
+from scipy.linalg import eigh
 
-from gpaw.setup_data import SetupData
-from gpaw.atom.configurations import configurations
 from gpaw import __version__ as version
 from gpaw.atom.all_electron import AllElectron, shoot
-from gpaw.utilities import hartree
-from gpaw.xc.hybrid import constructX, atomic_exact_exchange
+from gpaw.atom.configurations import configurations
 from gpaw.atom.filter import Filter
+from gpaw.setup_data import SetupData
+from gpaw.utilities import hartree
+from gpaw.xc.hybrid import atomic_exact_exchange, constructX
+
+
+def enumerate_j_ln(anything_ln: list[list[object]]) -> list[list[int]]:
+    """Return j_ln to map between _j and _ln index."""
+    return [[0 for _ in anything_n] for anything_n in anything_ln]
 
 
 class Generator(AllElectron):
@@ -21,9 +27,9 @@ class Generator(AllElectron):
                  configuration=None,
                  nofiles=True, txt='-', gpernode=150,
                  orbital_free=False, tw_coeff=1.):
-        AllElectron.__init__(self, symbol, xcname, scalarrel, corehole,
-                             configuration, nofiles, txt, gpernode,
-                             orbital_free, tw_coeff)
+        super().__init__(symbol, xcname, scalarrel, corehole,
+                         configuration, nofiles, txt, gpernode,
+                         orbital_free, tw_coeff)
 
     def run(self, core='', rcut=1.0, extra=None,
             logderiv=False, vbar=None, exx=False, name=None,
@@ -678,7 +684,8 @@ class Generator(AllElectron):
         self.vq_j = vq_j = []
         gllb = 'w_ln' in extra_xc_data
         self.vw_j = vw_j = []
-        j_ln = [[0 for f in f_n] for f_n in f_ln]
+
+        j_ln = enumerate_j_ln(f_ln)
         j = 0
         for l, n_n in enumerate(n_ln):
             for n, nn in enumerate(n_n):
@@ -810,6 +817,7 @@ class Generator(AllElectron):
         attrs = [('type', reltype), ('name', 'gpaw-%s' % version)]
         data = 'Frozen core: ' + (self.core or 'none')
 
+        setup.type = reltype
         setup.generatorattrs = attrs
         setup.generatordata = data
         setup.orbital_free = self.orbital_free
@@ -826,7 +834,34 @@ class Generator(AllElectron):
 
         if write_xml:
             setup.write_xml()
+        self._return_setup = setup
         return setup
+
+    @cached_property
+    def valence_data(self):
+        from gpaw.atom.all_electron import ValenceData
+        setup = self._return_setup
+        assert abs(self.rgd.beta - self.beta) < 1e-13
+
+        def multiply_r(array_jg):
+            return array_jg * self.rgd.r_g[None, :]
+
+        assert self.xcname == setup.setupname
+
+        valdata = ValenceData.from_setupdata_and_potentials(
+            setup, vr_g=self.vr,
+            r2dvdr_g=self.r2dvdr,
+            scalarrel=self.scalarrel)
+
+        # We can verify to what extent we can reproduce the potential:
+        # vr1_g, r2dvdr1_g, scalarrel1 = ValenceData.calculate_potential_data(
+        #     setup)
+
+        # np.testing.assert_allclose(
+        #    vr1_g, valdata.vr_g,rtol=1e-4, atol=0.005)
+        # np.testing.assert_allclose(
+        #    r2dvdr1_g, valdata.r2dvdr_g, rtol=1e-4, atol=0.005)
+        return valdata
 
     def diagonalize(self, h):
         ng = 350
@@ -933,6 +968,7 @@ def construct_smooth_wavefunction(u, l, gc, r, s):
 
 if __name__ == '__main__':
     import os
+
     from gpaw.atom.basis import BasisMaker
     from gpaw.atom.configurations import parameters
 
@@ -941,10 +977,11 @@ if __name__ == '__main__':
             filename = symbol + '.' + xcname
             if os.path.isfile(filename) or os.path.isfile(filename + '.gz'):
                 continue
-            g = Generator(symbol, xcname, scalarrel=True, nofiles=True)
-            g.run(exx=True, logderiv=False, **par)
+            generator = Generator(symbol, xcname, scalarrel=True, nofiles=True)
+            setup = generator.run(exx=True, logderiv=False, **par)
 
             if xcname == 'PBE':
-                bm = BasisMaker(g, name='dzp', run=False)
+                bm = BasisMaker.from_setup_and_generator(
+                    setup, generator, name='dzp', run=False)
                 basis = bm.generate()
                 basis.write_xml()

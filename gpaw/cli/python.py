@@ -12,9 +12,6 @@ class CLICommand:
             '--dry-run', '-z', type=int, default=0,
             metavar='NCPUS',
             help='Dry run on NCPUS cpus.')
-        parser.add_argument(
-            '-d', '--debug', action='store_true',
-            help='Run in debug-mode.')
 
         group = parser.add_mutually_exclusive_group()
         group.add_argument(
@@ -26,7 +23,6 @@ class CLICommand:
             '--module', '-m',
             nargs=argparse.REMAINDER,
             help='Run library module as a script (terminates option list).')
-
         parser.add_argument(
             'arguments', metavar='ARG',
             help='Arguments passed to program in '
@@ -38,11 +34,6 @@ class CLICommand:
 
     @staticmethod
     def run(args):
-        from gpaw import all_lazy_imports, broadcast_imports, __getattr__
-        with broadcast_imports:
-            for attr in all_lazy_imports:
-                __getattr__(attr)
-
         if args.cmd:
             sys.argv[:] = ['-c'] + args.cmd[1:]
             d = {}

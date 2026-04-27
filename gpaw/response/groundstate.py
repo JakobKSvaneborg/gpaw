@@ -1,22 +1,23 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Union
-from pathlib import Path
-from functools import cached_property
-from types import SimpleNamespace
-from typing import TYPE_CHECKING
-import numpy as np
 
-from ase.units import Ha, Bohr
+from dataclasses import dataclass
+from functools import cached_property
+from pathlib import Path
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Union
+
+import numpy as np
+from ase.units import Bohr, Ha
 
 import gpaw.mpi as mpi
 from gpaw.ibz2bz import IBZ2BZMaps
-from gpaw.calculator import GPAW as OldGPAW
 from gpaw.new.ase_interface import ASECalculator as NewGPAW
+from gpaw.old.calculator import GPAW as OldGPAW
 from gpaw.response.paw import LeanPAWDataset
+from gpaw.utilities.gpts import pw_ecut_from_lcao_grid
 
 if TYPE_CHECKING:
-    from gpaw.setup import Setups, LeanSetup
+    from gpaw.setup import LeanSetup, Setups
 
 
 class PAWDatasetCollection:
@@ -36,6 +37,13 @@ class PAWDatasetCollection:
         self.by_atom = by_atom
         self.id_by_atom = id_by_atom
 
+    @property
+    def includes_hubbard_corrections(self):
+        for setup in self.by_atom:
+            if setup.hubbard_u is not None:
+                return True
+        return False
+
 
 GPAWCalculator = Union[OldGPAW, NewGPAW]
 GPWFilename = Union[Path, str]
@@ -45,27 +53,38 @@ ResponseGroundStateAdaptable = Union['ResponseGroundStateAdapter',
 
 
 class ResponseGroundStateAdapter:
-    def __init__(self, calc: GPAWCalculator):
-        wfs = calc.wfs  # wavefunction object from gpaw.wavefunctions
+    def __init__(self, calc: GPAWCalculator, lazy=False):
+        self.gs_info = ''
+
+        if calc.old and calc.wfs.mode == 'lcao':
+            calc.initialize_positions()
+            for kpt in calc.wfs.kpt_u:
+                assert kpt.C_nM is not None
+            ecut = pw_ecut_from_lcao_grid(calc.wfs.gd)
+            calc.wfs.planewavefy(ecut=ecut / Ha, lazy=lazy)
+            assert calc.wfs.pd is not None
+            self.gs_info = f'Converting from LCAO to PW: ecut={ecut:.3f} eV'
+
+        wfs = calc.wfs  # wavefunction object from gpaw.old.wavefunctions
+        self._wfs = wfs
 
         self.atoms = calc.atoms
-        self.kd = wfs.kd  # KPointDescriptor object from gpaw.kpt_descriptor.
+        self.kd = wfs.kd  # KPointDescriptor object
         self.world = calc.world  # _Communicator object from gpaw.mpi
 
-        # GridDescriptor from gpaw.grid_descriptor.
+        # GridDescriptor from gpaw.old.grid_descriptor.
         # Describes a grid in real space
         self.gd = wfs.gd
 
         # Also a GridDescriptor, with a finer grid...
         self.finegd = calc.density.finegd
-        self.bd = wfs.bd  # BandDescriptor from gpaw.band_descriptor
+        self.bd = wfs.bd  # BandDescriptor from gpaw.old.band_descriptor
         self.nspins = wfs.nspins  # number of spins: int
         self.dtype = wfs.dtype  # data type of wavefunctions, real or complex
 
         self.spos_ac = calc.spos_ac  # scaled position vector: np.ndarray
 
-        self.kpt_u = wfs.kpt_u  # kpoints: list of Kpoint from gpaw.kpoint
-        self.kpt_qs = wfs.kpt_qs  # kpoints: list of Kpoint from gpaw.kpoint
+        self.kpt_u = wfs.kpt_u  # list of Kpoint from gpaw.old.kpoint
 
         self.fermi_level = wfs.fermi_level  # float
         self.atoms = calc.atoms  # ASE Atoms object
@@ -74,15 +93,24 @@ class ResponseGroundStateAdapter:
         self.pbc = self.atoms.pbc
         self.volume = self.gd.volume
 
-        self.nvalence = wfs.nvalence
+        self.nvalence = int(round(wfs.nvalence))
+        assert self.nvalence == wfs.nvalence
+
         self.nocc1, self.nocc2 = self.count_occupied_bands()
 
         self.ibz2bz = IBZ2BZMaps.from_calculator(calc)
 
-        self._wfs = wfs
         self._density = calc.density
         self._hamiltonian = calc.hamiltonian
         self._calc = calc
+
+    @property
+    def is_planewave(self):
+        return self._wfs.mode == 'pw'
+
+    @property
+    def is_lcao(self):
+        return self._wfs.mode == 'lcao'
 
     @staticmethod
     def from_input(
@@ -96,13 +124,20 @@ class ResponseGroundStateAdapter:
         raise ValueError('Expected ResponseGroundStateAdaptable, got', gs)
 
     @classmethod
-    def from_gpw_file(cls, gpw: GPWFilename) -> ResponseGroundStateAdapter:
+    def from_gpw_file(cls, gpw, lazy=False) -> ResponseGroundStateAdapter:
         """Initiate the ground state adapter directly from a .gpw file."""
         from gpaw import GPAW, disable_dry_run
         assert Path(gpw).is_file()
         with disable_dry_run():
             calc = GPAW(gpw, txt=None, communicator=mpi.serial_comm)
-        return cls(calc)
+        return cls(calc, lazy=lazy)
+
+    @cached_property
+    def kpt_ks(self):
+        assert self.kd.comm.size == 1
+        return [[self.kpt_u[k * self.nspins + s]
+                 for s in range(self.nspins)]
+                for k in range(self.kd.nibzkpts)]
 
     @property
     def pd(self):
@@ -123,7 +158,7 @@ class ResponseGroundStateAdapter:
         on all k-points in the case where calc is parallelized over k-points,
         see gpaw.response.kspair
         """
-        from gpaw.pw.descriptor import PWDescriptor
+        from gpaw.old.pw.descriptor import PWDescriptor
 
         assert self.gd.comm.size == 1
         kd = self.kd.copy()  # global KPointDescriptor without a comm
@@ -249,10 +284,11 @@ class ResponseGroundStateAdapter:
             pawdatasets=self.pawdatasets, qpd=qpd, spos_ac=self.spos_ac,
             atomrotations=self.atomrotations)
 
-    def matrix_element_paw_corrections(self, qpd, rshe_a):
+    @mpi.parallel
+    def matrix_element_paw_corrections(self, qpd, rshe_a, comm):
         from gpaw.response.paw import get_matrix_element_paw_corrections
         return get_matrix_element_paw_corrections(
-            qpd, self.pawdatasets, rshe_a, self.spos_ac)
+            qpd, self.pawdatasets, rshe_a, self.spos_ac, comm=comm)
 
     def get_pos_av(self):
         # gd.cell_cv must always be the same as pd.gd.cell_cv, right??
@@ -284,16 +320,44 @@ class ResponseGroundStateAdapter:
             nocc2 = max((f_n > ftol).sum(), nocc2)
         return int(nocc1), int(nocc2)
 
-    def get_eigenvalue_range(self, nbands: int | None = None):
-        """Get smallest and largest Kohn-Sham eigenvalues."""
-        nbands = nbands if nbands is not None else self.nbands
-        assert 1 <= nbands <= self.nbands
+    def get_band_transitions(self, nbands: int | slice | None = None):
+        """Determine the indices the define the range of occupied bands
+        n1, n2 and unoccupied bands m1, m2"""
 
+        if nbands is None:
+            n1 = 0
+            m2 = self.nbands
+        elif isinstance(nbands, int):
+            n1 = 0
+            m2 = nbands
+            assert 1 <= m2 <= self.nbands, (m2, self.nbands)
+        elif isinstance(nbands, slice):
+            n1 = nbands.start
+            m2 = nbands.stop
+            assert n1 >= 0 and m2 >= 0
+            assert nbands.step in {None, 1}
+            assert n1 < m2 <= self.nbands
+            assert n1 <= self.nocc1
+        else:
+            raise ValueError(
+                f'Invalid type for nbands: {type(nbands)}. '
+                'Expected None, int, or slice.')
+
+        n2 = self.nocc2
+        m1 = self.nocc1
+
+        assert n1 < n2
+
+        return n1, n2, m1, m2
+
+    def get_eigenvalue_range(self, nbands: int | slice | None = None):
+        """Get smallest and largest Kohn-Sham eigenvalues."""
+        n1, n2, m1, m2 = self.get_band_transitions(nbands)
         epsmin = np.inf
         epsmax = -np.inf
         for kpt in self.kpt_u:
-            epsmin = min(epsmin, kpt.eps_n[0])  # the eigenvalues are ordered
-            epsmax = max(epsmax, kpt.eps_n[nbands - 1])
+            epsmin = min(epsmin, kpt.eps_n[n1])  # the eigenvalues are ordered
+            epsmax = max(epsmax, kpt.eps_n[m2 - 1])
         return epsmin, epsmax
 
     @property
@@ -315,12 +379,11 @@ class ResponseGroundStateAdapter:
 
         return ibzq_qc
 
-    def get_ibz_vertices(self):
+    def get_ibz_vertices(self, context):
         # For the tetrahedron method in Chi0
         from gpaw.bztools import get_bz
-        # NB: We are ignoring the pbc_c keyword to get_bz() in order to mimic
-        # find_high_symmetry_monkhorst_pack() in gpaw.bztools. XXX
-        _, ibz_vertices_kc, _ = get_bz(self._calc)
+
+        _, ibz_vertices_kc, _ = get_bz(self._calc, comm=context.comm)
         return ibz_vertices_kc
 
     def get_aug_radii(self):
@@ -369,8 +432,8 @@ class CellDescriptor:
             # nonperiodic cell vectors in different blocks.
             assert np.allclose(cell_cv[~pbc_c][:, pbc_c], 0.) and \
                 np.allclose(cell_cv[pbc_c][:, ~pbc_c], 0.), \
-                "In 1D and 2D, please put the periodic/nonperiodic axis " \
-                "along a cartesian component"
+                'In 1D and 2D, please put the periodic/nonperiodic axis ' \
+                'along a cartesian component'
         L = np.abs(np.linalg.det(cell_cv[~pbc_c][:, ~pbc_c]))
         return L * Bohr**sum(~pbc_c)  # Bohr -> Å
 

@@ -10,7 +10,6 @@ Linux:
    :maxdepth: 1
 
    gbar/gbar
-   Linux/centos
    Linux/Fedora
    Linux/openSUSE
    Linux/ubuntu
@@ -32,10 +31,11 @@ Linux:
    Linux/monolith
    Linux/nemo
    Linux/sepeli
-   Linux/sun_chpc
    Linux/supernova
    Linux/uranus
    Linux/odyssey
+   Linux/Mahti/Mahti
+   Linux/Puhti/Puhti
 
 WSL:
 
@@ -53,37 +53,6 @@ MacOSX:
    MacOSX/homebrew
    MacOSX/anaconda
 
-AIX:
-
-.. toctree::
-   :maxdepth: 1
-
-   AIX/ibmsc
-   AIX/jump
-   AIX/seaborg
-
-BGQ:
-
-.. toctree::
-   :maxdepth: 2
-
-   BGQ/mira
-
-BSD:
-
-.. toctree::
-   :maxdepth: 1
-
-   BSD/FreeBSD
-
-Bull:
-
-.. toctree::
-   :maxdepth: 1
-
-   Bull/curie
-   Bull/curie_gpu
-
 Cray:
 
 .. toctree::
@@ -94,17 +63,3 @@ Cray:
    Cray/louhi
    Cray/sisu
    Cray/hermit
-
-HP:
-
-.. toctree::
-   :maxdepth: 1
-
-   HP/xc
-
-Solaris:
-
-.. toctree::
-   :maxdepth: 1
-
-   Solaris/corona

@@ -2,34 +2,56 @@
 The solvated jellium method is contained in this module.
 This enables electronically grand-canonical calculations to be calculated,
 typically for simulating electrochemical interfaces.
+
+This version the the solvated jellium method has been modified
+and includes the Fluctuation Dissipation Theorem.
 """
 
-import os
 import copy
+import os
 import textwrap
+import warnings
+from collections import deque
 
-import numpy as np
-from scipy.stats import linregress
 import ase.io
-from ase.units import Bohr, Ha
-from ase.calculators.calculator import (Parameters, equal, InputError,
-                                        PropertyNotPresent)
+import numpy as np
+from ase.calculators.calculator import (InputError, Parameters,
+                                        PropertyNotPresent, equal)
 from ase.parallel import paropen
+from ase.units import Bohr, Ha, _e, kB
+from scipy.ndimage import uniform_filter1d
+from scipy.signal import find_peaks
+from scipy.stats import linregress
 
 import gpaw.mpi
 from gpaw import ConvergenceError
-from gpaw.jellium import Jellium, JelliumSlab
-from gpaw.hamiltonian import RealSpaceHamiltonian
-from gpaw.fd_operators import Gradient
 from gpaw.dipole_correction import DipoleCorrection
-from gpaw.solvation.cavity import Power12Potential, get_pbc_positions
-from gpaw.solvation.calculator import SolvationGPAW
+from gpaw.fd_operators import Gradient
+from gpaw.jellium import Jellium, JelliumSlab
+from gpaw.old.hamiltonian import RealSpaceHamiltonian
+from gpaw.old.logger import indent
+from gpaw.solvation.calculator import OldSolvationGPAW
+from gpaw.solvation.cavity import Power12Potential
 from gpaw.solvation.hamiltonian import SolvationRealSpaceHamiltonian
 from gpaw.solvation.poisson import WeightedFDPoissonSolver
-from gpaw.io.logger import indent
 
 
-class SJM(SolvationGPAW):
+def SJM(*args, legacy_gpaw=True, **kwargs):
+    """Backwards compatibility ..."""
+    if legacy_gpaw:
+        return OldSJM(*args, **kwargs)
+    from gpaw.new.ase_interface import GPAW
+    from gpaw.new.sjm import SJM
+    environment = SJM(cavity=kwargs.pop('cavity'),
+                      dielectric=kwargs.pop('dielectric'),
+                      interactions=kwargs.pop('interactions', None),
+                      **kwargs.pop('sj'))
+    return GPAW(
+        *args, **kwargs,
+        environment=environment)
+
+
+class OldSJM(OldSolvationGPAW):
     r"""Solvated Jellium method.
     (Implemented as a subclass of the SolvationGPAW class.)
 
@@ -42,7 +64,7 @@ class SJM(SolvationGPAW):
     Further details are given in https://doi.org/10.1021/acs.jpcc.8b02465
     If you use this method, we appreciate it if you cite that work.
 
-    The method can be run in two modes:
+    The method can be run in three modes:
 
         - Constant charge: The number of excess electrons in the simulation
           can be directly specified with the 'excess_electrons' keyword,
@@ -51,6 +73,10 @@ class SJM(SolvationGPAW):
           function) can be specified with the 'target_potential' keyword.
           Optionally, the 'excess_electrons' keyword can be supplied to specify
           the initial guess of the number of electrons.
+        - Constant inner potential: The target potential (expressed as a inner
+          potential) can be specified with the method='CIP' and
+          'target_potential' keywords. The CIP-DFT method is detailled in
+          https://doi.org/10.1038/s41524-023-01184-4
 
     By default, this method writes the grand-potential energy to the output;
     that is, the energy that has been adjusted with `- \mu N` (in this case,
@@ -60,16 +86,21 @@ class SJM(SolvationGPAW):
     used in subsequent free-energy calculations.
 
     Within this method, the potential is expressed as the top-side work
-    function of the slab. Therefore, a potential of 0 V_SHE corresponds to
-    a work function of roughly 4.4 eV. (That is, the user should specify
+    function of the slab or the inner potential of the electrode.
+    In both cases, a potential of 0 V_SHE corresponds to target_potential of
+    roughly 4.4 eV. (That is, the user should specify
     target_potential as 4.4 in this case.) Because this method is
-    attempting to bring the work function to a target value, the work
-    function itself needs to be well-converged. For this reason, the
-    'work function' keyword is automatically added to the SCF convergence
-    dictionary with a value of 0.001. This can be overriden by the user.
+    attempting to bring either the work function or the inner potential to a
+    target value, the work function and electrostatics need to be
+    well-converged. For this reason, the 'work function' keyword is
+    automatically added to the SCF convergence dictionary with a value of
+    0.001. This can be overriden by the user.
 
-    This method requires a dipole correction, and this is turned on
+    All methods requires a dipole correction, and this is turned on
     automatically, but can be overridden with the poissonsolver keyword.
+
+    When using method='CIP', mixed Dirichlet/Neumann boundary conditions
+    for the electrostatic potential are used by default.
 
     The SJM class takes a single argument, the sj dictionary. All other
     arguments are fed to the parent SolvationGPAW (and therefore GPAW)
@@ -156,6 +187,44 @@ class SJM(SolvationGPAW):
         new slope is established. E.g., new_slope = mixer * old_slope +
         (1. - mixer) * current_slope_estimate. Set to 0 for no damping.
         Default: 0.5.
+    fdt : bool or dict
+        Keyboard for switching on/off the computation of the charge using
+        the fluctuation dissipation theorem
+        Default: False.
+        If set to True, use standard parameters for the FDT calculation.
+        If dict, the following keys are implemented:
+
+        'dt': float
+            Time step for the FDT calculation in fs. Default: 0.5.
+        'po_time': float
+            Relaxation-time constant of potentiostat. Default: 100.
+        'th_temp': float
+            Thermal temperature for the FDT calculation in K. Default: 300.
+
+    slope_regression_depth : int
+        Number of previous attempts to use for the slope regression.
+        Default: 4.
+    pot_ref: 'wf' or 'CIP'
+        potential reference scale
+        wf: original SJM using workfunction for the absolute potential
+        CIP: use inner potential as the abs. el. pot.
+    cip: dict, parameters when using CIP-DFT
+        inner_region: list of floats: [bottom, top]
+             bottom is the starting point for computing the inner potential,
+             likewise top is the ending point.
+        filter: int
+            number of points for smoothing the el.stat. pot.
+        autoinner: dict with {'nlayers':int, 'threshold':0.001}
+            if inner_region is given, autoinner is automatically disabled
+            nlayers: number of layers
+            threshold: Required threshold of peaks, the innerpotential
+            difference at neighboring grid points
+        mu_pzc: float
+            Fermi level at potential of zero charge
+            Sets the reference scale for the absolute potential level for CIP
+        phi_pzc: float
+          Use only with method='CIP', the value corresponds to the inner
+          potential of the neutral electrode
 
     Special SJM methods (in addition to those of GPAW/SolvationGPAW):
 
@@ -178,6 +247,7 @@ class SJM(SolvationGPAW):
                            'thickness': None,
                            'fix_bottom': False},
          'target_potential': None,
+         'pot_ref': 'wf',
          'tol': 0.01,
          'always_adjust': False,
          'grand_output': True,
@@ -185,9 +255,19 @@ class SJM(SolvationGPAW):
          'max_step': 2.,
          'slope': None,
          'mixer': 0.5,
-         'slope_regression_depth': 4})
+         'fdt': False,
+         'previous_electrons': [],
+         'previous_potentials': [],
+         'slope_regression_depth': 4,
+         'dirichlet': False,
+         'cip': {'autoinner': {'nlayers': None,
+                               'threshold': 0.0001},
+                 'inner_region': None,
+                 'mu_pzc': None,
+                 'phi_pzc': None,
+                 'filter': 10}})
 
-    default_parameters = copy.deepcopy(SolvationGPAW.default_parameters)
+    default_parameters = copy.deepcopy(OldSolvationGPAW.default_parameters)
     default_parameters.update({'poissonsolver': {'dipolelayer': 'xy'}})
     default_parameters['convergence'].update({'work function': 0.001})
     default_parameters.update({'sj': _sj_default_parameters})
@@ -205,7 +285,7 @@ class SJM(SolvationGPAW):
                 raise InputError(textwrap.fill(msg.format(key)))
 
         # Note the below line calls self.set().
-        SolvationGPAW.__init__(self, restart, **kwargs)
+        super().__init__(restart, **kwargs)
 
     def set(self, **kwargs):
         """Change parameters for calculator.
@@ -231,10 +311,41 @@ class SJM(SolvationGPAW):
                 'Only keys allowed are "{}".'
                 .format(', '.join(sj_changes),
                         ', '.join(self.default_parameters['sj'])))
+        self.fill_cip_keywords(p.cip)
+
+        if p.pot_ref == 'CIP':
+            p['dirichlet'] = True
+
+            if p.cip['mu_pzc'] is None or p.cip['phi_pzc'] is None:
+                p.cip['mu_pzc'] = 0
+                p.cip['phi_pzc'] = 0
+                msg = ('Warning: a CIP calculation has been activated '
+                       'but mu_pzc and/or phi_pzc was none. This is fine '
+                       'for CIP calibration but meaningful references '
+                       'must be provided for production calculations\n')
+
+            if p.cip['inner_region'] is None and p.cip['autoinner'] is None:
+                raise RuntimeError("The inner region cannot be none" +
+                                   "when using inner potential as the" +
+                                   "reference. Please, set up" +
+                                   "either bottom/top values to define the" +
+                                   "electrode bulk or set autoinner to True")
+
+            if p.cip.get('inner_region') and p.cip.get('autoinner'):
+                raise RuntimeError("Only inner_region or autoinner" +
+                                   "can be set to define the inner potential")
+
+            if p.cip['inner_region'] is not None:
+                p.cip['inner_region'] = np.array(p.inner_region)
+                p.cip['autoinner'] = None
+            else:
+                assert p.cip['autoinner']['nlayers'] is not None
+
         p.update(sj_changes)
+
         background_charge = kwargs.pop('background_charge', None)
         kwargs['_set_ok'] = True
-        SolvationGPAW.set(self, **kwargs)
+        super().set(**kwargs)
 
         # parent_changed checks if GPAW needs to be reinitialized
         # The following key do not need reinitialization
@@ -253,6 +364,10 @@ class SJM(SolvationGPAW):
             self.log.print_dict({i: p[i] for i in sj_changes})
             self.log()
 
+        if 'dirichlet' in sj_changes and self.wfs is not None:
+            raise InputError('Cannot change the poissonsolver boundary '
+                             'after the calculation has been initialized.')
+
         if 'target_potential' in sj_changes and p.target_potential is not None:
             # If target potential is changed by the user and the slope is
             # known, a step towards the new potential is taken right away.
@@ -264,6 +379,7 @@ class SJM(SolvationGPAW):
                 pass
             else:
                 if self.atoms and p.slope:
+
                     p.excess_electrons += ((p.target_potential -
                                             true_potential) / p.slope)
                     self.log('Number of electrons changed to {:.4f} based '
@@ -271,7 +387,8 @@ class SJM(SolvationGPAW):
                              .format(p.excess_electrons, p.slope))
 
         if (any(key in ['target_potential', 'excess_electrons',
-            'jelliumregion'] for key in sj_changes) and not parent_changed):
+            'jelliumregion'] for key in sj_changes) and
+                not parent_changed):
             self.results = {}
             # SolvationGPAW will not reinitialize anymore if only
             # 'sj' keywords are set. The lines below will reinitialize and
@@ -309,7 +426,7 @@ class SJM(SolvationGPAW):
             if self.wfs is None:
                 kwargs.update({'background_charge': background_charge,
                                '_set_ok': True})
-                SolvationGPAW.set(self, **kwargs)
+                super().set(**kwargs)
             else:
                 if parent_changed:
                     self.density = None
@@ -323,6 +440,20 @@ class SJM(SolvationGPAW):
                 self.wfs.nvalence = self.setups.nvalence + p.excess_electrons
                 self.log('Number of valence electrons is now {:.5f}'
                          .format(self.wfs.nvalence))
+
+        if self.parameters['sj']['fdt'] is True:
+            # Default parameters if fdt is True
+            self.parameters['sj']['fdt'] = {
+                'dt': 0.5,
+                'po_time': 100.0,
+                'th_temp': 300.0}
+        elif isinstance(self.parameters['sj']['fdt'], dict):
+            # If fdt is a dict, ensure the dictionary is complete
+            fdt_dict = self.parameters['sj']['fdt']
+            self.parameters['sj']['fdt'] = {
+                'dt': fdt_dict.get('dt', 0.5),
+                'po_time': fdt_dict.get('po_time', 100.0),
+                'th_temp': fdt_dict.get('th_temp', 300.0)}
 
     def _quick_reinitialization(self):
         """Minimal reinitialization of electronic-structure stuff when only
@@ -351,7 +482,7 @@ class SJM(SolvationGPAW):
 
         if len(system_changes) == 0 and len(self.results) > 0:
             # Potential is already equilibrated.
-            SolvationGPAW.calculate(self, atoms, properties, system_changes)
+            super().calculate(atoms, properties, system_changes)
             return
 
         self.log('Solvated jellium method (SJM) calculation:')
@@ -363,7 +494,7 @@ class SJM(SolvationGPAW):
                      'electrons'.format(p.excess_electrons))
             # Background charge is set here, not earlier, because atoms needed.
             self.set(background_charge=self._create_jellium())
-            SolvationGPAW.calculate(self, atoms, ['energy'], system_changes)
+            super().calculate(atoms, ['energy'], system_changes)
             self.log('Potential found to be {:.5f} V (with {:+.5f} '
                      'electrons)'.format(self.get_electrode_potential(),
                                          p.excess_electrons))
@@ -386,7 +517,7 @@ class SJM(SolvationGPAW):
         if properties != ['energy']:
             # The equilibration loop only calculated energy, to save
             # unnecessary computations (mostly of forces) in the loop.
-            SolvationGPAW.calculate(self, atoms, properties, [])
+            super().calculate(atoms, properties, [])
 
         # Note that grand-potential energies were assembled in summary,
         # which in turn was called by GPAW.calculate.
@@ -407,8 +538,13 @@ class SJM(SolvationGPAW):
         desired value."""
         p = self.parameters['sj']
         iteration = 0
-        previous_electrons = []
-        previous_potentials = []
+
+        if p.fdt:
+            previous_electrons = p.previous_electrons
+            previous_potentials = p.previous_potentials
+        else:
+            previous_electrons = deque(maxlen=p.slope_regression_depth)
+            previous_potentials = deque(maxlen=p.slope_regression_depth)
 
         rerun = False
         while iteration <= p.max_iters:
@@ -427,7 +563,7 @@ class SJM(SolvationGPAW):
                 self.set(background_charge=self._create_jellium())
 
             # Do the calculation.
-            SolvationGPAW.calculate(self, atoms, ['energy'], system_changes)
+            super().calculate(atoms, ['energy'], system_changes)
             true_potential = self.get_electrode_potential()
             self.log()
             msg = (f'Potential found to be {true_potential:.5f} V (with '
@@ -444,22 +580,36 @@ class SJM(SolvationGPAW):
             # into the vacuum and the slope is unreliable.
             # The rerun can happen multiple times if needed and the stepsize
             # will be reduced by factor of 2 every time.
+            # The rerun is disabled if the FDT is used.
+
             if len(previous_potentials):
 
                 stepsize = abs(true_potential - previous_potentials[-1])
 
                 if (stepsize > p.max_step and
                    abs(previous_potentials[-1] - p.target_potential) <
-                   abs(true_potential - p.target_potential)):
+                   abs(true_potential - p.target_potential)) and not p.fdt:
                     self.log('Step resulted in a potential change of '
                              f'{stepsize:.2f} V, larger than max_step '
                              f'({p.max_step:.2f} V) and\n surpassed the'
                              ' target potential by a dangerous amount.\n'
                              ' The step is rejected and the change in'
                              ' excess_electrons will be halved.')
-                    p.excess_electrons = (previous_electrons[-1] +
-                                          p.excess_electrons) / 2.
-                    rerun = True
+
+                    if p.fdt:
+                        rerun = False
+                    else:
+                        pe, ce = previous_electrons[-1], p.excess_electrons
+                        if abs(pe - ce) < 1e-5:
+                            msg = ('Step size is too small to be halved in '
+                                   'rerun. To avoid this try to change your '
+                                   'initial guess of excess electrons. '
+                                   'Potential equilibration failed.')
+                            raise PotentialConvergenceError(msg)
+
+                        p.excess_electrons = (pe + ce) / 2.
+
+                        rerun = True
                     continue  # back to while
 
             # Increase iteration count.
@@ -469,27 +619,30 @@ class SJM(SolvationGPAW):
             # Store attempt and calculate slope.
             previous_electrons.append(float(p.excess_electrons))
             previous_potentials.append(float(true_potential))
+
             if len(previous_electrons) > 1:
-                slope = _calculate_slope(previous_electrons,
-                                         previous_potentials,
-                                         p.slope_regression_depth)
-                nreg = len(previous_electrons[-p.slope_regression_depth:])
-                self.log(f'Slope regressed from last {nreg:d} attempts is '
-                         f'{slope:.4f} V/electron,')
-                area = np.prod(np.diag(atoms.cell[:2, :2]))
-                capacitance = -1.6022 * 1e3 / (area * slope)
+                slope = linregress(previous_electrons,
+                                   previous_potentials)[0]
+                self.log(f'Slope regressed from last {len(previous_electrons)}'
+                         f'attempts is {slope:.4f} V/electron,')
+
+                # get capacitance in muF/cm^2
+                area = np.linalg.det(atoms.cell[:2, :2])
+                capacitance = - _e * 1e22 / (area * slope)
                 self.log(f'or apparent capacitance of {capacitance:.4f} '
                          'muF/cm^2')
+
                 if p.slope is not None:
                     p.slope = p.mixer * p.slope + (1. - p.mixer) * slope
                     self.log(f'After mixing with {p.mixer:.2f}, new slope is '
                              f'{p.slope:.4f} V/electron.')
                 else:
                     p.slope = slope
+
                 self.log.flush()
 
             # Check if we're equilibrated and exit if always_adjust is False.
-            if abs(true_potential - p.target_potential) < p.tol:
+            if abs(true_potential - p.target_potential) < p.tol and not p.fdt:
                 self.log('Potential is within tolerance. Equilibrated.')
                 if iteration >= 2:
                     self.timer.stop('Potential equilibration loop')
@@ -497,22 +650,59 @@ class SJM(SolvationGPAW):
                     return
 
             # Guess slope if we don't have enough information yet.
-            if p.slope is None:
-                area = np.prod(np.diag(atoms.cell[:2, :2]))
+            if p.slope is None or (p.slope > 0. and p.fdt):
+                area = np.linalg.det(atoms.cell[:2, :2])
                 p.slope = -1.6022e3 / (area * 10.)
-                self.log('No slope provided, guessing a slope of '
-                         f'{p.slope:.4f} corresponding\nto an apparent '
-                         'capacitance of 10 muF/cm^2.')
+                if p.fdt:
+                    self.log('Positive slope! Guessing a slope of '
+                             f'{p.slope:.4f} corresponding\nto an apparent '
+                             'capacitance of 10 muF/cm^2.')
+                else:
+                    self.log('No slope provided, guessing a slope of '
+                             f'{p.slope:.4f} corresponding\nto an apparent '
+                             'capacitance of 10 muF/cm^2.')
 
-            # Finally, update the number of electrons.
-            p.excess_electrons += ((p.target_potential - true_potential)
-                                   / p.slope)
-            self.log(f'Number of electrons changed to {p.excess_electrons:.4f}'
-                     f' based on slope of {p.slope:.4f} V/electron.')
+            if p.fdt:
+                fdt_dict = p['fdt']
+                dt = fdt_dict['dt']
+                po_time = fdt_dict['po_time']
+                th_temp = fdt_dict['th_temp']
+
+                rn = np.random.standard_normal(1)
+
+                self.world.broadcast(rn, 0)
+                # set capacitance again
+                area = np.linalg.det(atoms.cell[:2, :2])
+                if abs(p.slope) < 1e-10:
+                    raise ValueError(
+                        "Slope cannot be zero when calculating capacitance.")
+
+                capacitance = - _e * 1e22 / (area * p.slope)
+
+                p.excess_electrons += (
+                    capacitance * (true_potential - p.target_potential)
+                    * (1 - np.exp(-dt / po_time))
+                    + rn[0] * np.sqrt(
+                        kB * th_temp * capacitance
+                            * (1 - np.exp(-2 * dt / po_time))
+                    )
+                )
+                self.log(
+                    f'Number of electrons is {p.excess_electrons:.4f} '
+                    f'using the FDT, with slope of {p.slope:.4f} V/electron '
+                    f'and capacitance of ({capacitance:.4f} muF/cm2).'
+                )
+
+            else:
+                p.excess_electrons += ((p.target_potential - true_potential)
+                                       / p.slope)
+                self.log(
+                    f'Number of electrons changed to {p.excess_electrons:.4f}'
+                    f' based on slope of {p.slope:.4f} V/electron.')
 
             # Check if we're equilibrated and exit if always_adjust is True.
             if (abs(true_potential - p.target_potential) < p.tol
-                and p.always_adjust):
+                    and p.always_adjust) or p.fdt:
                 return
 
         msg = (f'Potential could not be reached after {iteration - 1:d} '
@@ -537,7 +727,7 @@ class SJM(SolvationGPAW):
                 'background_charge': self.density.background_charge.mask_g,
                 'potential': (self.hamiltonian.vHt_g * Ha -
                               self.get_fermi_level())}
-        if not os.path.exists(path) and gpaw.mpi.world.rank == 0:
+        if not os.path.exists(path) and self.world.rank == 0:
             os.makedirs(path)
         for prop in props:
             if style == 'z':
@@ -555,15 +745,24 @@ class SJM(SolvationGPAW):
         # Add grand-canonical terms.
         p = self.parameters['sj']
         self.log()
-        mu_N = -self.get_electrode_potential() * p.excess_electrons / Ha
+        mu_N = -self.get_electrode_potential()
+        mu_N *= p.excess_electrons / Ha
         self.omega_free = self.hamiltonian.e_total_free - mu_N
         self.omega_extrapolated = self.hamiltonian.e_total_extrapolated - mu_N
         self.log('Legendre-transformed energies (grand potential, '
                  'Omega = E - N mu)')
         self.log(' N (excess electrons):  {:+11.6f}'
                  .format(p.excess_electrons))
-        self.log(' mu (-workfunction, eV): {:+11.6f}'
-                 .format(-self.get_electrode_potential()))
+        if p['pot_ref'] == 'wf':
+            self.log(' mu (-workfunction, eV): {:+11.6f}'
+                     .format(-self.get_electrode_potential()))
+        elif p['pot_ref'] == 'CIP':
+            self.log('Electrode potential from inner potential: {:+11.6f} [eV]'
+                     .format(self.get_electrode_potential()))
+            self.log('The absolute inner potential is: {:+11.6f} [eV]'
+                     .format(self.get_inner_potential(self.atoms,
+                             p['cip']['inner_region'])))
+
         self.log(' (Grand) free energy:   {:+11.6f}'
                  .format(Ha * self.omega_free))
         self.log(' (Grand) extrapolated:  {:+11.6f}'
@@ -691,20 +890,90 @@ class SJM(SolvationGPAW):
                            z1=bottom,
                            z2=top)
 
-    def get_electrode_potential(self):
+    def get_electrode_potential(self, pot_ref=None,
+                                return_referenced=True):
         """Returns the potential of the simulated electrode, in V, relative
         to the vacuum. This comes directly from the work function."""
-        try:
-            return Ha * self.hamiltonian.get_workfunctions(self.wfs)[1]
-        except TypeError:
-            # Error happens on freshly-opened *.gpw file.
-            if 'electrode_potential' in self.results:
-                return self.results['electrode_potential']
+
+        if pot_ref is None:
+            pot_ref = self.parameters.sj['pot_ref']
+
+        if pot_ref == 'wf':
+            try:
+                return Ha * self.hamiltonian.get_workfunctions(self.wfs)[1]
+            except TypeError:
+                # Error happens on freshly-opened *.gpw file.
+                if 'electrode_potential' in self.results:
+                    return self.results['electrode_potential']
+                else:
+                    msg = ('Electrode potential could not be read. Make sure a'
+                           'DFT calculation has been performed before reading '
+                           'the potential.')
+                    raise PropertyNotPresent(textwrap.fill(msg))
+
+        elif pot_ref == 'CIP':
+            cip = self.parameters.sj.cip
+            inner_potential = self.get_inner_potential(self.atoms)
+            if return_referenced is True:
+                inner_potential = - (cip['mu_pzc'] - cip['phi_pzc'] +
+                                     inner_potential)
+                return inner_potential
+
+            return cip['phi_pzc'] - inner_potential
+
+    def get_inner_potential(self, atoms, z=None):
+
+        cip = self.parameters.sj.cip
+        self.fill_cip_keywords(cip)
+
+        el = self.hamiltonian.vHt_g * Ha
+        gd = self.hamiltonian.finegd
+        elstat = gd.collect(el, broadcast=True)
+        el_stat_z = elstat.mean(0).mean(0)
+        smooth_elstat_z = uniform_filter1d(el_stat_z, size=cip['filter'])
+
+        if cip['inner_region'] is not None:
+            z_top = (np.abs(gd.coords(2) - (z[1] / Bohr))).argmin()
+            z_bottom = (np.abs(gd.coords(2) - (z[0] / Bohr))).argmin()
+            el_av = np.average(smooth_elstat_z[z_bottom:z_top])
+        else:
+            # find minima of elstat potentials (position of nuclei)
+            peaks, _ = find_peaks(-smooth_elstat_z,
+                                  threshold=cip['autoinner']['threshold'])
+            # choose maxima of elstatpot using the number of layers
+            if (cip['autoinner']['nlayers'] % 2) == 0:
+                # even number of peaks
+                b = int(cip['autoinner']['nlayers'] / 2)
+                bottom = peaks[b - 1]
+                top = peaks[b]
+                el_av = np.average(smooth_elstat_z[bottom:top])
             else:
-                msg = ('Electrode potential could not be read. Make sure a DFT'
-                       ' calculation has been performed before reading the '
-                       'potential.')
-                raise PropertyNotPresent(textwrap.fill(msg))
+                # odd number of peaks
+                c = int((cip['autoinner']['nlayers'] - 1) / 2)
+                bottom = peaks[c - 1]
+                top = peaks[c + 1]
+                el_av = np.average(smooth_elstat_z[bottom:top])
+
+        return el_av
+
+    def fill_cip_keywords(self, cip):
+
+        defaults_auto = self.default_parameters['sj']['cip']['autoinner']
+        missing = {'nlayers': None,
+                   'threshold': None}
+        for key in missing:
+            if key not in cip['autoinner']:
+                cip['autoinner'][key] = defaults_auto[key]
+
+        defaults_cip = self.default_parameters['sj']['cip']
+        missing = {'inner_region': None,
+                   'mu_pzc': None,
+                   'phi_pzc': None,
+                   'filter': None}
+
+        for key in missing:
+            if key not in cip:
+                cip[key] = defaults_cip[key]
 
     def initialize(self, atoms=None, reading=False):
         """Inexpensive initialization.
@@ -718,7 +987,7 @@ class SJM(SolvationGPAW):
             if 'z1' in background_charge:
                 if background_charge['z1'] == 'cavity_like':
                     self.parameters['background_charge'] = None
-        SolvationGPAW.initialize(self=self, atoms=atoms, reading=reading)
+        OldSolvationGPAW.initialize(self=self, atoms=atoms, reading=reading)
 
     def create_hamiltonian(self, realspace, mode, xc):
         """This differs from SolvationGPAW's create_hamiltonian method by the
@@ -742,19 +1011,21 @@ class SJM(SolvationGPAW):
             redistributor=dens.redistributor,
             vext=self.parameters.external,
             psolver=self.parameters.poissonsolver,
-            stencil=mode.interpolation)
+            stencil=mode.interpolation,
+            dirichlet=self.parameters['sj']['dirichlet'])
 
         xc.set_grid_descriptor(self.hamiltonian.finegd)
 
 
-def _write_trace_in_z(grid, property, name, dir):
+def _write_trace_in_z(grid, property, name, dir, comm=None):
     """Writes out a property (like electrostatic potential, cavity, or
     background charge) as a function of the z coordinate only. `grid` is the
     grid descriptor, typically self.density.finegd. `property` is the property
     to be output, on the same grid."""
+    comm = gpaw.mpi.normalize_communicator(comm)
     property = grid.collect(property, broadcast=True)
     property_z = property.mean(0).mean(0)
-    with paropen(os.path.join(dir, name), 'w') as f:
+    with paropen(os.path.join(dir, name), 'w', comm=comm) as f:
         for i, val in enumerate(property_z):
             f.write(f'{(i + 1) * grid.h_cv[2][2] * Bohr:f} {val:1.8f}\n')
 
@@ -766,14 +1037,6 @@ def _write_property_on_grid(grid, property, atoms, name, dir):
     to be output, on the same grid."""
     property = grid.collect(property, broadcast=True)
     ase.io.write(os.path.join(dir, name), atoms, data=property)
-
-
-def _calculate_slope(previous_electrons, previous_potentials, n_prev_pot):
-    """Calculates the slope of potential versus number of electrons;
-    regresses based on (up to) last four data points to smooth noise."""
-    ans = linregress(previous_electrons[-n_prev_pot:],
-                     previous_potentials[-n_prev_pot:])
-    return ans[0]
 
 
 class SJMPower12Potential(Power12Potential):
@@ -796,15 +1059,29 @@ class SJMPower12Potential(Power12Potential):
     pbc_cutoff: float
         Cutoff in eV for including neighbor cells in a calculation with
         periodic boundary conditions.
-    H2O_layer: bool, int or str
-        True: Exclude the implicit solvent from the interface region
-        between electrode and water. Ghost atoms will be added below
-        the water layer.
-        False: The opposite of True. [default]
-        int: Explicitly account for the given number of water molecules above
-        electrode. This is handy if H2O is directly adsorbed and a water layer
-        is present in the unit cell at the same time.
-        'plane': Use a plane instead of ghost atoms for freeing the surface.
+    H2O_layer: dict
+        Dictionary to control the non-local part of solvation, i.e.
+        (exclusion of solvent from the electrode-water interface).
+        It has 4 keys:
+
+        style: 'ghost_atoms' or 'plane'
+            'ghost_atoms': Add ghost atoms below the water layer to
+            exclude implicit solvent from the interface region.
+            'plane': Use a plane instead of ghost atoms for freeing the
+            surface.
+        nox: 'all' (default) or int
+            'all': Free the interface only between the lowest lying O and
+            the electrode.
+            int: Explicitly mention under which water molecule counter from
+            the top the interface is cleaned from implicit solvent.
+        ghosts_below_ox: bool
+            Only relevant if style is 'ghost_atoms'. Add extra ghost atoms
+            below the oxygen atoms of the water layer. [default: True]
+        ghost_spacing: float
+            Only relevant if style is 'ghost_atoms'. Spacing between ghost
+            atoms in Angstroms. [default: 2/3 Bohr].  Note that the
+            default is overly dense and leads to longer waiting times between
+            SCF cycles. A spacing of 1.5 Bohr is likely sufficient.
     unsolv_backside: bool
         Exclude implicit solvent from the region behind the electrode
 
@@ -814,10 +1091,39 @@ class SJMPower12Potential(Power12Potential):
     depends_on_atomic_positions = True
 
     def __init__(self, atomic_radii=None, u0=0.180, pbc_cutoff=1e-6,
-                 tiny=1e-10, H2O_layer=False, unsolv_backside=True):
+                 tiny=1e-10, H2O_layer=False,
+                 unsolv_backside=True, communicator=None):
+        communicator = gpaw.mpi.normalize_communicator(communicator)
         super().__init__(atomic_radii, u0, pbc_cutoff, tiny)
-        self.H2O_layer = H2O_layer
+
+        # The following guarantees backwards compatibility
+        self.H2O_layer = False
+        if H2O_layer is not False:
+            # Default parameters for cleaning the interface
+            # 1/1.5 is just there to give exact results as before
+            self.H2O_layer = {'style': 'ghost_atoms', 'nox': 'all',
+                              'ghosts_below_ox': True,
+                              'ghost_spacing': 1 / 1.5}
+            if not isinstance(H2O_layer, dict):
+                warnings.warn('The provided syntax for cleaning the interface '
+                              'is deprecated. Please use a dictionary with '
+                              'keys "style" and "nox". See documentation for '
+                              'details.', DeprecationWarning)
+            if H2O_layer is True:
+                H2O_layer = {}
+            elif isinstance(H2O_layer, int):
+                H2O_layer = {'nox': H2O_layer}
+            elif isinstance(H2O_layer, str):
+                H2O_layer = {'style': H2O_layer}
+            self.H2O_layer.update(H2O_layer)
         self.unsolv_backside = unsolv_backside
+        self.communicator = communicator
+
+    def todict(self):
+        return {
+            **super().todict(),
+            'H2O_layer': self.H2O_layer,
+            'unsolv_backside': self.unsolv_backside}
 
     def __str__(self):
         s = Power12Potential.__str__(self)
@@ -838,7 +1144,10 @@ class SJMPower12Potential(Power12Potential):
             return False
         self.r12_a = (self.atomic_radii_output / Bohr) ** 12
         r_cutoff = (self.r12_a.max() * self.u0 / self.pbc_cutoff) ** (1. / 12.)
-        self.pos_aav = get_pbc_positions(atoms, r_cutoff)
+
+        if self.check_for_position_changes(atoms, r_cutoff):
+            return False
+
         self.u_g.fill(.0)
         self.grad_u_vg.fill(.0)
         na = np.newaxis
@@ -851,6 +1160,7 @@ class SJMPower12Potential(Power12Potential):
                     self.u_g[:, :, z] = np.inf
                     self.grad_u_vg[:, :, :, z] = 0
 
+        ghost_aav = {}
         if self.H2O_layer:
             # Add ghost coordinates and indices to pos_aav dictionary if
             # a water layer is present.
@@ -859,7 +1169,7 @@ class SJMPower12Potential(Power12Potential):
                               if atom.symbol == 'O']
 
             # Disregard oxygens that don't belong to the water layer
-            allwater_oxygen_ind = []
+            i_all_ox_in_h2o = []
             for ox in all_oxygen_ind:
                 nH = 0
 
@@ -870,75 +1180,99 @@ class SJMPower12Potential(Power12Potential):
                             nH += 1
 
                 if nH >= 2:
-                    allwater_oxygen_ind.append(ox)
+                    i_all_ox_in_h2o.append(ox)
 
-            # If the number of waters in the water layer is given as an input
-            # (H2O_layer=i) then only the uppermost i water molecules are
-            # regarded for unsolvating the interface (this is relevant if
-            # water is adsorbed on the surface)
-            if not isinstance(self.H2O_layer, (bool, str)):
-                if self.H2O_layer % 1 < self.tiny:
-                    self.H2O_layer = int(self.H2O_layer)
-                else:
-                    raise InputError('Only an integer number of water '
-                                     'molecules is possible in the water '
-                                     'layer')
+            # If nox is given as an int as is recommended in the case of
+            # multiple water layers or adsorbed water, then only the nox
+            # water molecule counter from the top will define the highest
+            # z-value where the interface is cleaned from implicit solvent
+            nox = self.H2O_layer['nox']
+            i_ox_in_h2o = []
+            if nox != 'all':
+                if not isinstance(nox, (int, float)):
+                    raise InputError('nox must either be a positive integer '
+                                     '(number of regarded oxygens) or a '
+                                     'negative float (plane position)')
 
-                allwaters = atoms[allwater_oxygen_ind]
-                indizes_water_ox_ind = np.argsort(allwaters.positions[:, 2],
-                                                  axis=0)
+                if nox > len(i_all_ox_in_h2o):
+                    raise InputError('nox must be smaller or equal to the '
+                                     'number of water molecules in the layer')
+                if nox > 0:
+                    if nox % 1:
+                        raise InputError('nox for number of regarded oxygens '
+                                         'must be a positive integer')
+                    allwaters = atoms[i_all_ox_in_h2o]
+                    sorted_ox_ind = np.argsort(allwaters.positions[:, 2],
+                                               axis=0)
 
-                water_oxygen_ind = []
-                for i in range(self.H2O_layer):
-                    water_oxygen_ind.append(
-                        allwater_oxygen_ind[indizes_water_ox_ind[-1 - i]])
+                    for i in range(nox):
+                        i_ox_in_h2o.append(
+                            i_all_ox_in_h2o[sorted_ox_ind[-1 - i]])
 
             else:
-                water_oxygen_ind = allwater_oxygen_ind
+                i_ox_in_h2o = i_all_ox_in_h2o
 
-            oxygen = self.pos_aav[water_oxygen_ind[0]] * Bohr
-            if len(water_oxygen_ind) > 1:
-                for windex in water_oxygen_ind[1:]:
-                    oxygen = np.concatenate(
-                        (oxygen, self.pos_aav[windex] * Bohr))
+            r_vdw_O = self.atomic_radii_output[i_all_ox_in_h2o[0]]
+            # Write oxygen positions of water layer in cell and
+            # 8 periodic neighbors into oxygen array
+            if len(i_ox_in_h2o):
+                oxygen = self.pos_aav[i_ox_in_h2o[0]] * Bohr
+                if len(i_ox_in_h2o) > 1:
+                    for iw, windex in enumerate(i_ox_in_h2o[1:]):
+                        oxygen = np.concatenate(
+                            (oxygen, self.pos_aav[windex] * Bohr))
 
-            O_layer = []
-            if isinstance(self.H2O_layer, str):
+            # if isinstance(self.H2O_layer, str):
+            if 'plane' in self.H2O_layer['style']:
                 # Add a virtual plane
-                if len(self.H2O_layer.split('-')) > 1:
-                    plane_z = float(self.H2O_layer.split('-')[1]) - \
-                        1.0 * self.atomic_radii_output[water_oxygen_ind[0]]
-                else:
-                    plane_rel_oxygen = -1.5 * self.atomic_radii_output[
-                        water_oxygen_ind[0]]
-                    plane_z = oxygen[:, 2].min() + plane_rel_oxygen
+                plane_z = None
+                if nox != 'all':
+                    if nox < 0:
+                        plane_z = -nox - r_vdw_O
+                if plane_z is None:
+                    plane_z = oxygen[:, 2].min() - 1.5 * r_vdw_O
 
+                # Remove solvent below plane_z
                 r_diff_zg = self.r_vg[2, :, :, :] - plane_z / Bohr
                 r_diff_zg[r_diff_zg < self.tiny] = self.tiny
                 r_diff_zg2 = r_diff_zg ** 2
-                u_g = self.r12_a[water_oxygen_ind[0]] / r_diff_zg2 ** 6
+                u_g = self.r12_a[i_all_ox_in_h2o[0]] / r_diff_zg2 ** 6
                 self.u_g += u_g.copy()
                 u_g /= r_diff_zg2
                 r_diff_zg *= u_g.copy()
                 self.grad_u_vg[2, :, :, :] += r_diff_zg
 
-            else:
+            elif self.H2O_layer['style'] == 'ghost_atoms':
                 # Ghost atoms are added below the explicit water layer
+                O_layer = []
+                gh_spacing = self.H2O_layer.get('ghost_spacing', 2)  # in Bohr
+                # TODO: Why is the cell in Bohr?
                 cell = atoms.cell.copy() / Bohr
                 cell[2][2] = 1.
-                natoms_in_plane = [round(np.linalg.norm(cell[0]) * 1.5),
-                                   round(np.linalg.norm(cell[1]) * 1.5)]
 
-                plane_z = (oxygen[:, 2].min() - 1.75 *
-                           self.atomic_radii_output[water_oxygen_ind[0]])
+                # A ghost atom grid spacing of 1/Angstrom
+                # TODO: This should actually not follow the unit cell vectors
+                # but be aligned to the cartesian axes.
+                natoms_in_plane = [round(np.linalg.norm(cell[0]) / gh_spacing),
+                                   round(np.linalg.norm(cell[1]) / gh_spacing)]
+
+                # z-value below which the implicit solvent will be removed
+                plane_z = oxygen[:, 2].min() - 1.75 * r_vdw_O
+
+                # Number of ghost atoms in z-direction
                 nghatoms_z = int(round(oxygen[:, 2].min() -
                                  atoms.positions[:, 2].min()))
 
+#                print('Ghost atoms added before the ones under Os')
                 for i in range(int(natoms_in_plane[0])):
                     for j in range(int(natoms_in_plane[1])):
                         for k in np.linspace(atoms.positions[:, 2].min(),
                                              plane_z, num=nghatoms_z):
 
+                            # Add ghost O atoms in a grid below the water layer
+                            # ghost atoms span -1/4 unit cell to 1.25 unit cell
+                            # to account for pbc and are placed at every
+                            # 1/gh_spacing Bohr
                             O_layer.append(np.dot(np.array(
                                 [(1.5 * i - natoms_in_plane[0] / 4) /
                                  natoms_in_plane[0],
@@ -949,20 +1283,21 @@ class SJMPower12Potential(Power12Potential):
                 # Add additional ghost O-atoms below the actual water O atoms
                 # of water which frees the interface in case of corrugated
                 # water layers
-                for ox in oxygen / Bohr:
-                    O_layer.append([ox[0], ox[1], ox[2] - 1.0 *
-                                    self.atomic_radii_output[
-                                        water_oxygen_ind[0]] / Bohr])
+                if self.H2O_layer.get('ghosts_below_ox', True):
+                    for iox, ox in enumerate(oxygen.copy() / Bohr):
+                        O_layer.append(np.array([ox[0], ox[1], ox[2]
+                                                - 1.0 * r_vdw_O / Bohr]))
 
                 r12_add = []
                 for i in range(len(O_layer)):
-                    self.pos_aav[len(atoms) + i] = [O_layer[i]]
-                    r12_add.append(self.r12_a[water_oxygen_ind[0]])
+                    ghost_aav[len(atoms) + i] = [O_layer[i]]
+                    r12_add.append(self.r12_a[i_ox_in_h2o[0]])
+
                 r12_add = np.array(r12_add)
                 # r12_a must have same dimensions as pos_aav items
-                self.r12_a = np.concatenate((self.r12_a, r12_add))
+                self.r12_a = np.concatenate((self.r12_a, np.array(r12_add)))
 
-        for index, pos_av in self.pos_aav.items():
+        for index, pos_av in {**self.pos_aav, **ghost_aav}.items():
             pos_av = np.array(pos_av)
             r12 = self.r12_a[index]
             for pos_v in pos_av:
@@ -997,11 +1332,12 @@ class SJM_RealSpaceHamiltonian(SolvationRealSpaceHamiltonian):
 
     def __init__(self, cavity, dielectric, interactions, gd, finegd, nspins,
                  setups, timer, xc, world, redistributor, vext=None,
-                 psolver=None, stencil=3, collinear=None):
+                 psolver=None, stencil=3, collinear=None, dirichlet=False):
 
         self.cavity = cavity
         self.dielectric = dielectric
         self.interactions = interactions
+        self.dirichlet = dirichlet
         cavity.set_grid_descriptor(finegd)
         dielectric.set_grid_descriptor(finegd)
         for ia in interactions:
@@ -1015,7 +1351,8 @@ class SJM_RealSpaceHamiltonian(SolvationRealSpaceHamiltonian):
             # CavityShapedJellium calls this twice.
             poi_par = {a: b for a, b in psolver.items() if a != 'dipolelayer'}
             psolver = SJMDipoleCorrection(WeightedFDPoissonSolver(**poi_par),
-                                          psolver['dipolelayer'])
+                                          psolver['dipolelayer'],
+                                          dirichlet=dirichlet)
             self.dipcorr = True
 
         if self.dipcorr:
@@ -1055,6 +1392,30 @@ class SJM_RealSpaceHamiltonian(SolvationRealSpaceHamiltonian):
             ia.allocate()
         RealSpaceHamiltonian.initialize(self)
 
+    def get_workfunctions(self, wfs):
+        """
+        Wrapper around RealSpaceHamiltonian.get_workfunctions which
+        only triggers if dirichlet boundary conditions are used.
+        It will correctly identify the two work functions in that case,
+        where the right one is equal to the Fermi level as the vacuum
+        level there defines the potential reference.
+        """
+        if not self.dirichlet:
+            return super().get_workfunctions(wfs)
+
+        try:
+            dipole_correction = self.poisson.correction
+        except AttributeError:
+            raise ValueError(
+                'Work function not defined if no field-free region. Consider '
+                'using a dipole correction if you are looking for a '
+                'work function.')
+        fermilevel = wfs.fermi_level
+
+        wf1 = - fermilevel + 2 * dipole_correction
+        wf2 = - fermilevel
+        return np.array([wf1, wf2])
+
 
 class CavityShapedJellium(Jellium):
     """The jellium object, where the counter charge takes the form of the
@@ -1074,7 +1435,7 @@ class CavityShapedJellium(Jellium):
 
     def __init__(self, charge, g_g, z2):
 
-        Jellium.__init__(self, charge)
+        super().__init__(charge)
         self.g_g = g_g
         self.z2 = (z2 - 0.0001) / Bohr
 
@@ -1121,13 +1482,14 @@ class SJMDipoleCorrection(DipoleCorrection):
         Same as for `last_corrterm`
 
     """
-    def __init__(self, poissonsolver, direction, width=1.0):
+    def __init__(self, poissonsolver, direction, width=1.0, dirichlet=False):
         """Construct dipole correction object."""
 
-        DipoleCorrection.__init__(self, poissonsolver, direction, width=1.0)
+        super().__init__(poissonsolver, direction, width=1.0)
         self.corrterm = 1
         self.elcorr = None
         self.last_corrterm = None
+        self.dirichlet = dirichlet
 
     def solve(self, pot, dens, **kwargs):
         if isinstance(dens, np.ndarray):
@@ -1140,45 +1502,85 @@ class SJMDipoleCorrection(DipoleCorrection):
         self.pwsolve(pot, dens)
 
     def fd_solv_solve(self, vHt_g, rhot_g, **kwargs):
+        """
+        This is an iterative method that adds a correction potential
+        until the slope of the potential at the cell boundary is below
+        slope_lim.
+        The while loop below always converges after 3 attempts but the
+        resulting corrterm is varying during the scf cycle, i.e. it depends
+        on the degree of solvation of the electron density.
+        Also the dipole correction should not add significat computational load
+        as the poisson equation is only solved once per scf cycle.
+        """
 
         gd = self.poissonsolver.gd
-        slope_lim = 1e-8
+        # Maximum slope allowed on the cell boundary
+        slope_lim = 1e-13
+
+        # Set slope to value that makes the while loop run at least once
         slope = slope_lim * 10
 
+        # Calculate dipole moment
         dipmom = gd.calculate_dipole_moment(rhot_g)[2]
 
+        # Remove the correction potential from the previous iteration
         if self.elcorr is not None:
             vHt_g[:, :] -= self.elcorr
 
+        # Solve the Poisson equation without the correction potential
         iters2 = self.poissonsolver.solve(vHt_g, rhot_g, **kwargs)
 
-        sawtooth_z = self.sjm_sawtooth()
+        # Define the base shape of the correction potential
+        sawtooth_z = self.sjm_sawtooth(dirichlet=self.dirichlet)
         L = gd.cell_cv[2, 2]
 
+        count = 0
+
+        # Scale the correction potential until the slope of the potential
+        # at the left cell boundary is below slope_lim.
         while abs(slope) > slope_lim:
+            count += 1
+
+            # define the potential on the grid we will mess with in the loop
             vHt_g2 = vHt_g.copy()
+
+            # Define the actual correction to the potential
             self.correction = 2 * np.pi * dipmom * L / \
                 gd.volume * self.corrterm
-            elcorr = -2 * self.correction
 
-            elcorr *= sawtooth_z
+            # Apply the correction magnitude to the sawtooth
+            elcorr = -2 * self.correction * sawtooth_z
+
+            # parallelize the correction potential - this is
+            # needed because this is what will be added to the
+            # potential later on
             elcorr2 = elcorr[gd.beg_c[2]:gd.end_c[2]]
             vHt_g2[:, :] += elcorr2
 
+            # Collect the potential to measure the slope on the boundary
+            # This is not particularly memory friendy
             VHt_g = gd.collect(vHt_g2, broadcast=True)
             VHt_z = VHt_g.mean(0).mean(0)
-            slope = VHt_z[2] - VHt_z[10]
 
+            # The slope on the left will be used as a probe as it
+            # is the most sensitive to the correction potential (no solvent)
+            # Ideally we would be able to get abs(slope_l) + abs(slope_r) = 0
+            # but this is not possible with the current implementation
+            # However, the remaining slope is minimal
+            slope = (VHt_z[3] - VHt_z[8]) / (gd.h_cv[2][2] * Bohr)
+
+            # Optimize the corrterm based on the slope using a simple
+            # linear rootfinder
             if abs(slope) > slope_lim:
-                if self.last_corrterm is not None:
+                if self.last_corrterm is None:
+                    self.last_corrterm = self.corrterm
+                    self.corrterm -= slope * 10.
+                else:
                     ds = (slope - self.last_slope) / \
                         (self.corrterm - self.last_corrterm)
                     con = slope - (ds * self.corrterm)
                     self.last_corrterm = self.corrterm
                     self.corrterm = -con / ds
-                else:
-                    self.last_corrterm = self.corrterm
-                    self.corrterm -= slope * 10.
                 self.last_slope = slope
             else:
                 vHt_g[:, :] += elcorr2
@@ -1186,7 +1588,7 @@ class SJMDipoleCorrection(DipoleCorrection):
 
         return iters2
 
-    def sjm_sawtooth(self):
+    def sjm_sawtooth(self, dirichlet):
         """Creates a linear function normalized between -0.5 and 0.5 whose
            slope is scaled based on the xy-averaged dielectric constant vs z"""
         gd = self.poissonsolver.gd
@@ -1198,12 +1600,16 @@ class SJMDipoleCorrection(DipoleCorrection):
                            broadcast=True)
         eps_z = eps_g.mean(0).mean(0)
 
-        saw = [-0.5]
+        saw = np.zeros(int(L / gd.h_cv[c, c]))
         for i, eps in enumerate(eps_z):
-            saw.append(saw[i] + step / eps)
-        saw = np.array(saw)
+            saw[i + 1] = saw[i] + step / eps
         saw /= saw[-1] + step / eps_z[-1] - saw[0]
-        saw -= (saw[0] + saw[-1] + step / eps_z[-1]) / 2.
+
+        if dirichlet:
+            saw -= saw[-1]
+        else:
+            saw -= (saw[0] + saw[-1] + step / eps_z[-1]) / 2.
+
         return saw
 
 

@@ -1,13 +1,13 @@
-from math import pi, acos, sqrt
+from math import acos, pi, sqrt
 
 import numpy as np
 from ase.atoms import string2vector
 from ase.units import Bohr, Hartree
 from ase.utils import IOContext
 
-from gpaw.spherical_harmonics import Y
-from gpaw.utilities.tools import coordinates
 from gpaw.mpi import serial_comm
+from gpaw.sphere.spherical_harmonics import Y
+from gpaw.utilities.tools import coordinates
 
 
 class AngularIntegral:
@@ -147,7 +147,7 @@ class ExpandYl(AngularIntegral):
             for m in range(2 * l + 1):
                 self.L_l.append(l)
 
-        AngularIntegral.__init__(self, center, gd, Rmax, dR)
+        super().__init__(center, gd, Rmax, dR)
 
     def expand(self, psit_g):
         """Expand a wave function"""
@@ -239,7 +239,7 @@ class Vector3d(list):
         if vector is None:
             vector = [0, 0, 0]
         vector = string2vector(vector)
-        list.__init__(self)
+        super().__init__()
         for c in range(3):
             self.append(float(vector[c]))
         self.l = False

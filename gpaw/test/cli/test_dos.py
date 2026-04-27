@@ -1,5 +1,6 @@
 """Test CLI-dos command."""
 import pytest
+
 from gpaw.cli.main import main
 
 

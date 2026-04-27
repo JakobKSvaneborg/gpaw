@@ -1,6 +1,7 @@
 import numpy as np
 from ase import Atoms
 from ase.build import molecule
+
 from gpaw import GPAW
 
 L = 3.0 + 2 * 4.0

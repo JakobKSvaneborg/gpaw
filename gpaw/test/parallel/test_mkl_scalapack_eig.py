@@ -1,12 +1,11 @@
-from gpaw.utilities.scalapack import mkl_scalapack_diagonalize_non_symmetric
-from gpaw.utilities.scalapack import have_mkl
+import numpy as np
+import pytest
+
 from gpaw.blacs import BlacsGrid, Redistributor
 from gpaw.mpi import world
-from gpaw.matrix import suggest_blocking
-
-import numpy as np
-
-import pytest
+from gpaw.old.matrix import suggest_blocking
+from gpaw.utilities.scalapack import (have_mkl,
+                                      mkl_scalapack_diagonalize_non_symmetric)
 
 
 def test_mkl_eig():

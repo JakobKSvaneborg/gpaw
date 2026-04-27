@@ -3,6 +3,20 @@ import numpy as np
 from gpaw.gauss import Gauss
 
 
+def x_y_xl(x, y, xl=None):
+    X = np.array(x)
+    assert len(X.shape) == 1
+    Y = np.array(y)
+    assert X.shape[0] == Y.shape[0]
+
+    if xl is None:
+        Xl = np.unique(X)
+    else:
+        Xl = np.array(xl)
+        assert len(Xl.shape) == 1
+    return X, Y, Xl
+
+
 class Lorentz:
     """Normalized Lorentzian distribution"""
     def __init__(self, width=0.08):
@@ -166,42 +180,81 @@ class Folder:
         else:
             raise RuntimeError('unknown folding "' + folding + '"')
 
-    def fold(self, x, y, dx=None, xmin=None, xmax=None):
-        X = np.array(x)
-        assert len(X.shape) == 1
-        Y = np.array(y)
-        assert X.shape[0] == Y.shape[0]
+    def x_lim(self, x, dx=None, xmin=None, xmax=None):
+        try:
+            w = self.func.width
+        except AttributeError:
+            w = self.width
 
         if xmin is None:
-            xmin = np.min(X) - 4 * self.width
+            xmin = np.min(x) - 4 * w
         if xmax is None:
-            xmax = np.max(X) + 4 * self.width
+            xmax = np.max(x) + 4 * w
         if dx is None:
             try:
                 dx = self.func.width / 4.
             except AttributeError:
                 dx = self.width / 4.
 
-        xl = np.arange(xmin, xmax + 0.5 * dx, dx)
+        return dx, xmin, xmax
 
-        return self.fold_values(x, y, xl)
-
-    def fold_values(self, x, y, xl=None):
+    def fold(self, x, y, dx=None, xmin=None, xmax=None):
         X = np.array(x)
         assert len(X.shape) == 1
         Y = np.array(y)
         assert X.shape[0] == Y.shape[0]
 
-        if xl is None:
-            Xl = np.unique(X)
-        else:
-            Xl = np.array(xl)
-            assert len(Xl.shape) == 1
+        dx, xmin, xmax = self.x_lim(X, dx, xmin, xmax)
+
+        xl = np.arange(xmin, xmax + 0.5 * dx, dx)
+
+        return self.fold_values(x, y, xl)
+
+    def fold_values(self, x, y, xl=None):
+        X, Y, Xl = x_y_xl(x, y, xl)
 
         # weight matrix
         weightm = np.empty((Xl.shape[0], X.shape[0]),
                            dtype=self.func.dtype)
         for i, x in enumerate(X):
+            weightm[:, i] = self.func.get(Xl, x)
+
+        yl = np.tensordot(weightm, Y, axes=(1, 0))
+
+        return Xl, yl
+
+    def varing_fold(self, x, y, width2, x1, x2,
+                    dx=None, xmin=None, xmax=None):
+
+        X = np.array(x)
+        assert len(X.shape) == 1
+        Y = np.array(y)
+        assert X.shape[0] == Y.shape[0]
+
+        dx, xmin, xmax = self.x_lim(X, dx, xmin, xmax)
+
+        xl = np.arange(xmin, xmax + 0.5 * dx, dx)
+        return self.varing_fold_values(x, y, xl, width2, x1, x2)
+
+    def varing_fold_values(self, x, y, xl, width2, x1, x2,):
+
+        X, Y, Xl = x_y_xl(x, y, xl)
+
+        width1 = self.width
+
+        weightm = np.empty((Xl.shape[0], X.shape[0]),
+                           dtype=self.func.dtype)
+
+        for i, x in enumerate(X):
+            if x < x1:
+                width_eff = width1
+            elif x < x2:
+                width_eff = (width1 + (x - x1) *
+                             (width2 - width1) / (x2 - x1))
+            elif x >= x2:
+                width_eff = width2
+            self.func.set_width(width_eff)
+
             weightm[:, i] = self.func.get(Xl, x)
 
         yl = np.tensordot(weightm, Y, axes=(1, 0))

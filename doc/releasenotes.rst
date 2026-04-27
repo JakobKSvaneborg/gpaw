@@ -10,12 +10,227 @@ Git master branch
 
 :git:`master <>`.
 
-* Minimum version requirements: Python 3.9, ASE 3.23.0.
+.. _new gpaw notes:
+
+* :ref:`newgpaw` is now the default.
+
+  Not all features in the GPAW codebase has been ported to the
+  :ref:`newgpaw` architecture:
+
+  * linear-response TDDFT (both :ref:`lrtddft` and :ref:`lrtddft2`)
+  * TimeLimiter
+  * QMMM
+  * DSCF
+  * :ref:`los tutorial`
+  * external potentials
+  * CDFT
+  * partitioning (Hirshfeld and Wigner-Seitz)
+  * XAS
+  * real-space density interpolation for PW-mode
+  * Special XC-functionals: FD-mode hybrids, GLLBSC, TB09, RALDA and RAPBE
+
+  For these you will need to explicitly create old-style GPAW calculator
+  objects like this:
+
+  .. code::
+
+      calc = GPAW(..., legacy_gpaw=True)
+
+  Some features have a work-in-progress incomplete new implementation
+  (SolvationGPAW, SJM, time-propagation (LCAO)TDDFT and direct-optimization),
+  but the default is to use the old implementation.  Use
+  ``legacy_gpaw=False`` if you want to play with the new implementations.
+
+  Performance of the new implementation is, in most cases, better
+  than the old.  See :ref:`benchmarks` for some numbers.
+  However, some optimizations are still missing in the new implementation
+  (use of ELPA/Scalapack in LCAO and ``augment_grids=True``) so you may
+  want to compare ``legacy_gpaw=True``  and ``legacy_gpaw=False`` if your
+  are dealing with many atoms.
+
+* New :ref:`benchmarks` introduced.  These benchmarks run every Sunday
+  and will allow us to discover performance regressions
+  (and improvements).
+
+* Fixed bug in BSE code for systems without inversion symmetry.
+  Some off-diagonal elements of `W_{GG'}` were wrongly conjugated,
+  resulting in the BSE Hamiltonian not being Hermitian under
+  the Tamm-Dancoff approximation.
+  Systems with inversion symmetry and calculations with ``symmetry='off'``
+  were not affected by this bug.
+
+* Minimum version requirements: Python 3.10, ASE 3.27.0.
+
+* PW and FD eigensolvers will now automatically use Scalapack for sub-space
+  diagonalization when we have 1000 or more bands.
+
+* `pybind11 <https://pybind11.readthedocs.io/en/stable/>`__ is now a required
+  dependency when building GPAW with GPU support. It should be installed
+  automatically by ``pip`` when you install GPAW. If this doesn't happen for
+  whatever reason, you can get it with ``pip install pybind11``.
+
+* Added option for generating a Makefile for building GPAW with ``make`` on
+  Unix-like systems. Convenient for developers who frequently need to modify
+  the C/C++ backend. See :ref:`workflow_c_extension` for details.
+
+* GPAW C-extension can now be built as C++ code. You can enable this
+  experimental feature in ``siteconfig.py`` by setting ``use_cpp = True`` and
+  choosing a valid C++ compiler.
+
+* Ongoing work with optimizng the defaults of GPAW, so far the following
+  changes have been made:
+
+  * mixer (with pbc):
+
+    * spin-driver: 'difference' -> 'fullspin'
+    * beta: 0.05 -> 0.08
+    * nmaxold: 5 -> 16
+    * weight: 50 -> 70
+
+  * mixer (without pbc):
+
+    * spin-driver: 'difference' -> 'fullspin'
+    * beta: 0.25 -> 0.25
+    * nmaxold: 3 -> 16
+    * weight: 1 -> 1
+
+  * eigensolver (:ref:`newgpaw` only): 'davidson' -> 'ppcg'
+
+* :ref:`newgpaw`: Ported the dipole moment writer to the new RT-TDDFT interface.
+
+* :ref:`newgpaw`: Calculations can now be parallelized over
+  spins.
+
+* :ref:`newgpaw`: Non-collinear calculations can now be parallelized over
+  plane-waves.
+
+* :ref:`newgpaw`: LCAO and finite-difference mode TDDFT have been ported
+  into a common RT-TDDFT interface with a subset of features so far.
+  ECN and SICN propagators are available.
+
+* :ref:`debug mode` is now enabled by setting the environment variable
+  :envvar:`GPAW_DEBUG` to ``1``.  Using the ``-d`` option of the
+  Python interpreter is no longer supported.
+
+* MFT calculations for magnons can now be performed with LDA+U. See
+  :ref:`mft`
+
+* LCAO calculations can now be done using FFTs to reciprocal space in order
+  to 1) solve the Poisson equation and 2) interpolate the density to a
+  finer grid.  This is equivalent to the way things are done in PW-mode.
+  Turn this on by using ``experimental={'pw_pot_calc': True}``.
+
+* The parallel ``gpaw-python`` interpreter has been removed.
+  You can use ``gpaw python`` as a replacement. The variable
+  ``parallel_python_interpreter`` in ``siteconfig.py``
+  should not be used.
+
+* GPAW will no longer run in parallel when imported from a normal
+  Python interpreter.
+  To run in parallel, be sure to use ``gpaw python``
+  or see below.
+
+* To control MPI parallelism with the ``gpaw python`` command,
+  use the environment ``GPAW_MPI_BACKEND``.
+  Current valid values are ``serial``, ``cgpaw`` for GPAW's C implementation,
+  and ``mpi4py``.
+
+* The FDTD code has been removed.  If this code is important to you,
+  please contact the developers.  You will probably need to port the code
+  to :ref:`newgpaw` in order to use it in the future.
+
+* We now have a :ref:`ecosystem` page listing projects related to GPAW
+  or using GPAW.
+  If you know of a project which should be listed here, but isn’t,
+  please open a merge request adding link and descriptive paragraph.
+
+* Introducing a new mixer backend: The MSR1 mixer which promises faster and
+  more stable convergence in most cases, see
+  :ref:`density mixing <densitymix>`
+  and https://pubs.acs.org/doi/full/10.1021/acs.jctc.1c00630 for more details.
+
+* ASE will now :func:`~ase.io.read` GPAW's new log-files using a plugin
+  in GPAW (:mod:`gpaw.ase_plugin`).
+  Parsing the log-file is done with the new
+  :func:`gpaw.io.log_file_reader.parse` function.
+
+* Added symmetry labels to symmetry-matrices in log-file
+  (E, i, σ, C\ `_n`, S\ `_n`).
+
+
+Version 25.7.0
+==============
+
+July 29, 2025: :git:`25.7.0 <../25.7.0>`
+
+* Minimum version requirements: Python 3.9, ASE 3.25.0.
+
+* The XAS code has been expanded to allow for calculations of core holes
+  with 𝑙≠0.
+
+* :ref:`acwf benchmark` results for our PAW-potentials (PW and LCAO modes).
+
+* The fluctuation-dissipation theorem has been added to the SJM.
+
+* The constant inner potential DFT method has been included SJM.
 
 * Sign of electron chemical potential in SJM text output has been corrected.
   The resulting (Grand) energies are not affected by this change.
 
 * Preliminary support for ``wasm32`` architecture (web-browsers).
+
+* Experimental support for calculations with wave-functions in
+  single precision.
+
+* Non self-consistent calculation of HSE06 eigenvalues for arbitrary
+  **k**-points has been implemented.  See :ref:`hse06 on lda` and
+  :class:`gpaw.hybrids.NonSelfConsistentHybridXCCalculator`.
+
+* Experimental: Support for using MPI4PY_.
+  **Update:** Set GPAW_MPI_BACKEND=mpi4py to use this.
+  [Originally: Set ``GPAW_MPI4PY=1`` to use this.]
+
+* Bug fix for spin-polarized LCAO-TDDFT circular dichroism See :mr:`2667`.
+
+* Added optional eigenvalue convergence criteria in :ref:`newgpaw`.
+  See :ref:`manual_convergence`.
+
+* Removed the entire gpaw.dfpt module.
+
+* Converged numbers in GPAW's text output are now colored green
+  when using :ref:`newgpaw` and running in an interactive terminal.
+  This behavior can be controlled by setting different environment
+  variables: ``NO_COLOR``, ``FORCE_COLOR`` and
+  :envvar:`python:PYTHON_COLORS`.  See also `controlling color`_.
+
+* Constraining spins within PAW spheres along specified directions in
+  noncollinear calculations is now possible:
+  :ref:`spin direction constrained dft`.
+
+* Preliminary implementation of YS-PBE0 hybrid functional.
+
+* Experimental: Implemented the PPCG eigensolver in :ref:`newgpaw` for
+  use with plane-waves and finite-difference. This eigensolver is
+  particularly stable for single precision wave-functions.
+  See https://doi.org/10.1016/j.jcp.2015.02.030 for details.
+
+* Added a new method and a tutorial for accurate dielectric functions,
+  :ref:`BSE+ <bseplus tutorial>`, which improves the convergence of the
+  BSE by including excitations outside of the active space of BSE at the RPA
+  level.
+
+* The :ref:`d3correction` can now be added to a :ref:`newgpaw`
+  DFT calculation via the new ``extensions`` keyword.
+
+* Smaller memory footprint for PW-mode calculations.
+
+* PAW-potentials can now be installed via a PyPI package:
+  `gpaw-data <https://pypi.org/project/gpaw-data/>`__.
+
+
+.. _controlling color: https://docs.python.org/3/using/cmdline.html
+                       #controlling-color
+.. _MPI4PY: https://mpi4py.readthedocs.io/en/stable/
 
 
 Version 25.1.0
@@ -35,7 +250,7 @@ January 6, 2025: :git:`25.1.0 <../25.1.0>`
 
 * The :meth:`gpaw.calculator.GPAW.fixed_density` method now respects the
   ``update_fermi_level`` argument.  Previously, the Fermi-level would not
-  be updated, but the occupation numers would be calculated with an
+  be updated, but the occupation numbers would be calculated with an
   updated Fermi-level.  Now, the Fermi-level and the occupation numbers
   always in sync.
 
@@ -88,7 +303,7 @@ May 31, 2024: :git:`24.6.0 <../24.6.0>`
   your results.
 
 * New 14 electron Cr PAW potential added to our :ref:`setup releases`.
-  For high accuracy, it is recommented over the old 6-electron version
+  For high accuracy, it is recommended  over the old 6-electron version
   (which is still the default).  You can use it by
   specifying ``setups={'Cr': '14'}`` (see also :ref:`manual_setups`).
   It has been generated with the following command::
@@ -300,7 +515,7 @@ Jun 9, 2023: :git:`23.6.0 <../23.6.0>`
   See the :class:`gpaw.convergence_criteria.Energy` class.
 
 * The PW-mode now includes an ``interpolation`` flag.  See
-  :class:`gpaw.wavefunctions.pw.PW` for details.
+  :class:`gpaw.old.wavefunctions.pw.PW` for details.
 
 * The LCAO implementation of direct optimization for variational calculations
   of excited electronic states now includes
@@ -477,7 +692,7 @@ Jun 24, 2021: :git:`21.6.0 <../21.6.0>`
   * The observers for :ref:`inducedfield` need now to be defined before
     the kick instead of after it.
 
-  * Corresponding updates for :ref:`qsfdtd` and :ref:`hybridscheme`.
+  * Corresponding updates for ``qsfdtd`` and ``hybridscheme``.
 
 * It is now possible to calculate electronic circular dichroism spectra
   with real-time time-propagation TDDFT.
@@ -917,15 +1132,14 @@ Jan 11, 2019: :git:`1.5.0 <../1.5.0>`
   cover: :ref:`catalysis`, :ref:`magnetism`, :ref:`machinelearning`,
   :ref:`excited states`, :ref:`batteries` and :ref:`intro`.
 
-* New experimental local **k**-point refinement feature:
-  :git:`gpaw/test/test_kpt_refine.py`.
+* New experimental local **k**-point refinement feature.
 
 * A module and tutorial have been added for calculating electrostatic
   corrections to DFT total energies for charged systems involving localized
   defects: :ref:`defects`.
 
 * Default for FFTW planning has been changed from ``ESTIMATE`` to ``MEASURE``.
-  See :class:`gpaw.wavefunctions.pw.PW`.
+  See :class:`gpaw.old.wavefunctions.pw.PW`.
 
 
 Version 1.4.0
@@ -1250,7 +1464,7 @@ July 22, 2015: :git:`0.11.0 <../0.11.0>`.
 
 * A :ref:`orbital-free DFT <ofdft>` with PAW transformation is available.
 
-* GPAW can now perform :ref:`electrodynamics` simulations using the
+* GPAW can now perform ``electrodynamics`` simulations using the
   quasistatic finite-difference time-domain (QSFDTD) method.
 
 * BEEF-vdW, mBEEF and mBEEF-vdW functionals added.
@@ -1354,7 +1568,7 @@ Mar 7, 2012: :git:`0.9.0 <../0.9.0>`.
 * Much improved :ref:`cli` now based on the `new tool`_ in ASE.
 
 
-.. _new tool: https://wiki.fysik.dtu.dk/ase/ase/cmdline.html
+.. _new tool: https://ase-lib.org/ase/cmdline.html
 
 
 Version 0.8.0

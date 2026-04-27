@@ -9,7 +9,7 @@ from gpaw.tddft.units import au_to_as
 class TimeDensityMatrix(TDDFTObserver):
 
     def __init__(self, paw, dmat, ksd, interval=1):
-        TDDFTObserver.__init__(self, paw, interval)
+        super().__init__(paw, interval)
         self.dmat = dmat
         self.ksd = ksd
         if self.ksd.world.rank == 0:

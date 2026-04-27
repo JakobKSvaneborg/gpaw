@@ -28,7 +28,7 @@ It contains information about organometallic perovskites, and the goal is to
 predict properties for these. Along with the perovskite compounds, there are
 also reference calculations of the elements in their standard states. We
 start by connecting to the database (more info on the `ase db` module can be
-found [here](https://wiki.fysik.dtu.dk/ase/ase/db/db.html#module-ase.db)),
+found [here](https://ase-lib.org/ase/db/db.html#module-ase.db)),
 and inspecting a single row:
 """
 
@@ -227,7 +227,7 @@ print(f'E(cubic) - E(tetragonal)={de_form:.4f} eV/Fu')
 """
 # Machine Learning
 
-Machine Learning is the science of getting computers to learn and act like humans do, and improve their learning over time in autonomous fashion, by feeding them data and information in the form of observations and real-world interactions. The crucial idea is that the computer should be able to improve its performance at a given task as we give it more information. A tutorial on machine learning in general can be found [here](https://scikit-learn.org/stable/tutorial/basic/tutorial.html).
+Machine Learning is the science of getting computers to learn and act like humans do, and improve their learning over time in autonomous fashion, by feeding them data and information in the form of observations and real-world interactions. The crucial idea is that the computer should be able to improve its performance at a given task as we give it more information. A tutorial on machine learning in general can be found [here](https://scikit-learn.org/stable/).
 
 In this workbook we will be carrying  out a supervised learning task, where we attempt to predict a particular (known) attribute of a given structure, based on other attributes of the structure. This can be useful if it allows us to use easy-to-calculate properties to say something about quantities which are difficult to calculate. This approach to learning, where we attempt to find a map $f$ from the attributes, $X$, of our data to some target property, $y$, is known as supervised learning. See [here](https://en.wikipedia.org/wiki/Supervised_learning) for more general information on the topic.
 
@@ -390,7 +390,7 @@ plt.show()
 print(w)
 
 # %%
-"""
+r"""
 One of the assumptions made in the derivation of the linear model is that the matrix $(\mathbf{X}^T\mathbf{X})$ is invertible. Unfortunately, that's not true for our case. That's because of the encoding we have chosen, which means for example that for any row, the first four columns must sum to one. The fourth column can therefore always be written as 1 - the sum of the first three.
 
 We can alleviate this by adding a regularization term to our loss function, which penalises large weights. The new loss is can then be written as  $L = \left\| \mathbf{y} - \mathbf{X} \mathbf{w} \right\|^2 + \alpha \left\| w\right\|^2$. Luckily, there is still a closed-form solution for this, namely $\mathbf w = (\mathbf{X}^T\mathbf{X} + \alpha \mathbf{I}) ^ {-1} \mathbf{X}^T \mathbf{y}$. Modify your `fit()` function to take an extra argument $\alpha$, and apply regularization to the original problem. Does everything work now? Do the weights of your model make sense? Try few different values for $\alpha$. How does the fit changes with $\alpha$?
@@ -501,7 +501,7 @@ print(model_selection.cross_val_score(linear_regularized, X, y, cv=folds, scorin
 print(model_selection.cross_val_score(linear, X, y, cv=folds, scoring='explained_variance'))
 
 # %%
-"""
+r"""
 ## Modelling the heat of formation
 
 Having looked at the band gap, we turn now to the heat of formation, which was defined further up. Try using the heat of formation as a target vector $\mathbf y$ instead of the band gap. See if it is possible to predict the heat of formation using (regularized) linear regression and the simple input vector defined above. You can use the following code to calculate the heat of formation of all the compounds in the database. Can you explain what it does?
@@ -807,7 +807,7 @@ relax.run(fmax=0.05)  # force is really a stress here
 
 # %%
 """
-Once we have the relaxed structure, we are ready to roll! We need to calculate the heat of formation and band gap of this structure, and compare with our predicted values. Time permitting, we should also calculate the heat of formation of the three competing crystal symmetries, to really confirm that we are looking at the correct state. Standard DFT seriously underestimates the band gap. We thus use a more accurate method which includes the calculation of the derivative discontinuity, called GLLBSC. You can find more information about it [here](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.82.115106) and a benchmark of different methodologies [here](https://doi.org/10.1002/aenm.201400915).
+Once we have the relaxed structure, we are ready to roll! We need to calculate the heat of formation and band gap of this structure, and compare with our predicted values. Time permitting, we should also calculate the heat of formation of the three competing crystal symmetries, to really confirm that we are looking at the correct state. Standard DFT seriously underestimates the band gap. We thus use a more accurate method which includes the calculation of the derivative discontinuity, called GLLBSC. You can find more information about it [here](DOI:10.1103/PhysRevB.82.115106) and a benchmark of different methodologies [here](DOI:10.1002/aenm.201400915).
 """
 
 # %%

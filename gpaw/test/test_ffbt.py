@@ -1,6 +1,5 @@
-import pytest
-
 import numpy as np
+import pytest
 from scipy.special import spherical_jn
 
 from gpaw.ffbt import spherical_bessel

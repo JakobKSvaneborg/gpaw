@@ -1,6 +1,7 @@
-from ase import Atoms
-from gpaw import GPAW
 import numpy as np
+from ase import Atoms
+
+from gpaw import GPAW
 
 # spin paired H2
 

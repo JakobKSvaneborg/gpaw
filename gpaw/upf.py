@@ -6,21 +6,20 @@ provide pseudopotential objects for use with GPAW.
 """
 
 from optparse import OptionParser
-from xml.etree.ElementTree import parse as xmlparse, fromstring
-from xml.etree.ElementTree import ParseError
+from xml.etree.ElementTree import ParseError, fromstring
+from xml.etree.ElementTree import parse as xmlparse
 
 import numpy as np
 from ase.data import atomic_numbers
 
 from gpaw.atom.atompaw import AtomPAW
 from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
-from gpaw.setup_data import search_for_file
 from gpaw.basis_data import Basis, BasisFunction
-from gpaw.pseudopotential import (PseudoPotential, screen_potential,
-                                  figure_out_valence_states,
-                                  get_radial_hartree_energy)
+from gpaw.pseudopotential import (PseudoPotential, figure_out_valence_states,
+                                  get_radial_hartree_energy, screen_potential)
+from gpaw.setup_data import search_for_file
 from gpaw.spline import Spline
-from gpaw.utilities import pack_hermitian, divrl
+from gpaw.utilities import divrl, pack_hermitian
 
 
 class UPFStateSpec:
@@ -508,9 +507,7 @@ class UPFSetupData:
         ng = int(1 + rcut / d)
         rgd = EquidistantRadialGridDescriptor(d, ng)
 
-        b = Basis(self.symbol, 'upf', readxml=False, rgd=rgd)
-        b.generatordata = 'upf-pregenerated'
-
+        bf_j = []
         for j, state in enumerate(states):
             val = state.values
             phit_g = np.interp(rgd.r_g, orig_r, val)
@@ -519,8 +516,9 @@ class UPFSetupData:
             rcut = rgd.r_g[icut]
             bf = BasisFunction(self.n_j[j], state.l, rcut, phit_g,
                                'pregenerated')
-            b.bf_j.append(bf)
-        return b
+            bf_j.append(bf)
+        return Basis(self.symbol, 'upf', rgd=rgd, bf_j=bf_j,
+                     generatordata='upf-pregenerated')
 
     def build(self, xcfunc, lmax, basis, filter=None):
         # XXX better to create basis functions after filtering?

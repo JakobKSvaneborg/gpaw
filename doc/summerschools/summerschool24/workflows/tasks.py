@@ -15,7 +15,6 @@ def optimize_cell(atoms, calculator):
     return atoms
 
 def groundstate(atoms, calculator):
-    from pathlib import Path
     atoms.calc = GPAW(**calculator)
     atoms.get_potential_energy()
     path = Path('groundstate.gpw')
@@ -87,7 +86,6 @@ class ParametrizableMaterialsWorkflow:
 
 @tb.dynamical_workflow_generator_task
 def parametrize_materials_workflow(calculator):
-    from ase.build import bulk
 
     material_symbols = [
         'Al', 'Si', 'Ti', 'Cu', 'Ag', 'Au', 'Pd', 'Pt',

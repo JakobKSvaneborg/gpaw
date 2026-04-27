@@ -13,7 +13,7 @@ There is a mailing list for getting help and for discussing GPAW:
 
 * gpaw-users_
 
-You should consider also subscribing to the ASE :ref:`ase:mail list`.
+You should consider also subscribing to the ASE :ref:`ase:mailinglist`.
 
 Note that you can search the mailing list archives: click on the
 mailing list above, then choose the archive, and search from that page.

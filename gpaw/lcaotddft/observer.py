@@ -4,7 +4,7 @@ from gpaw.analyse.observers import Observer
 class TDDFTObserver(Observer):
 
     def __init__(self, paw, interval):
-        Observer.__init__(self, interval)
+        super().__init__(interval)
         self.timer = paw.timer
         if hasattr(paw, 'time') and hasattr(paw, 'niter'):
             paw.attach(self, interval, paw)

@@ -1,9 +1,8 @@
-import pytest
 from ase.parallel import parprint
+
 from gpaw import GPAW
 
 
-@pytest.mark.old_gpaw_only
 def test_xc_qna_force(in_tmp_dir, gpw_files):
     calc = GPAW(gpw_files['Cu3Au_qna'], parallel=dict(domain=1))
     atoms = calc.get_atoms()

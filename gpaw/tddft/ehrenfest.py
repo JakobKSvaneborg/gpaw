@@ -1,6 +1,7 @@
-from ase.units import Bohr, AUT, _me, _amu
+from ase.units import AUT, Bohr, _amu, _me
+
+from gpaw.old.forces import calculate_forces
 from gpaw.tddft.units import attosec_to_autime
-from gpaw.forces import calculate_forces
 
 ###############################################################################
 # EHRENFEST DYNAMICS WITHIN THE PAW METHOD

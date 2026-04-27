@@ -2,7 +2,7 @@ import os
 
 from ase.units import Hartree
 
-from gpaw.lrtddft.spectrum import spectrum, rotatory_spectrum
+from gpaw.lrtddft.spectrum import rotatory_spectrum, spectrum
 
 
 def check_convergence(lr,             # LrTDDFT object

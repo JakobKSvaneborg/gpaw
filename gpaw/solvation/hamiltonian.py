@@ -1,9 +1,10 @@
-from gpaw.hamiltonian import RealSpaceHamiltonian
-from gpaw.solvation.poisson import WeightedFDPoissonSolver
-from gpaw.fd_operators import Gradient
-from gpaw.io.logger import indent
-from ase.units import Ha
 import numpy as np
+from ase.units import Ha
+
+from gpaw.fd_operators import Gradient
+from gpaw.old.hamiltonian import RealSpaceHamiltonian
+from gpaw.old.logger import indent
+from gpaw.solvation.poisson import WeightedFDPoissonSolver
 
 
 class SolvationRealSpaceHamiltonian(RealSpaceHamiltonian):
@@ -39,8 +40,7 @@ class SolvationRealSpaceHamiltonian(RealSpaceHamiltonian):
             psolver = WeightedFDPoissonSolver()
         psolver.set_dielectric(self.dielectric)
         self.gradient = None
-        RealSpaceHamiltonian.__init__(
-            self,
+        super().__init__(
             gd, finegd, nspins, collinear, setups, timer, xc, world,
             vext=vext, psolver=psolver,
             stencil=stencil, redistributor=redistributor)
@@ -53,14 +53,14 @@ class SolvationRealSpaceHamiltonian(RealSpaceHamiltonian):
         self.e_el_extrapolated = None
 
     def __str__(self):
-        s = RealSpaceHamiltonian.__str__(self) + '\n'
+        s = super().__str__() + '\n'
         s += '  Solvation:\n'
         components = [self.cavity, self.dielectric] + self.interactions
         s += ''.join([indent(str(c), 2) for c in components])
         return s
 
     def estimate_memory(self, mem):
-        RealSpaceHamiltonian.estimate_memory(self, mem)
+        super().estimate_memory(mem)
         solvation = mem.subnode('Solvation')
         for name, obj in [
             ('Cavity', self.cavity),
@@ -84,7 +84,7 @@ class SolvationRealSpaceHamiltonian(RealSpaceHamiltonian):
         self.dielectric.allocate()
         for ia in self.interactions:
             ia.allocate()
-        RealSpaceHamiltonian.initialize(self)
+        super().initialize()
 
     def update(self, density, wfs=None, kin_en_using_band=True):
         self.timer.start('Hamiltonian')
@@ -149,7 +149,7 @@ class SolvationRealSpaceHamiltonian(RealSpaceHamiltonian):
         self.timer.stop('Hamiltonian')
 
     def update_pseudo_potential(self, density):
-        ret = RealSpaceHamiltonian.update_pseudo_potential(self, density)
+        ret = super().update_pseudo_potential(density)
         if not self.cavity.depends_on_el_density:
             return ret
         del_g_del_n_g = self.cavity.del_g_del_n_g
@@ -179,7 +179,7 @@ class SolvationRealSpaceHamiltonian(RealSpaceHamiltonian):
                         F_v[v] -= self.finegd.integrate(
                             del_E_del_r_vg[v],
                             global_integral=False)
-        return RealSpaceHamiltonian.calculate_forces(self, dens, F_av)
+        return super().calculate_forces(dens, F_av)
 
     def el_force_correction(self, dens, F_av):
         if not self.cavity.depends_on_atomic_positions:
@@ -195,8 +195,7 @@ class SolvationRealSpaceHamiltonian(RealSpaceHamiltonian):
                     global_integral=False)
 
     def get_energy(self, e_entropy, wfs, kin_en_using_band=True, e_sic=None):
-        RealSpaceHamiltonian.get_energy(self, e_entropy, wfs,
-                                        kin_en_using_band, e_sic)
+        super().get_energy(e_entropy, wfs, kin_en_using_band, e_sic)
         # The total energy calculated by the parent class includes the
         # solvent electrostatic contributions but not the interaction
         # energies. We add those here and store the electrostatic energies.
@@ -224,7 +223,7 @@ class SolvationRealSpaceHamiltonian(RealSpaceHamiltonian):
         return gs
 
     def summary(self, wfs, log):
-        # This is almost duplicate code to gpaw/hamiltonian's
+        # This is almost duplicate code to gpaw.old.hamiltonian's
         # Hamiltonian.summary, but with the cavity and interactions added.
 
         log('Energy contributions relative to reference atoms:',

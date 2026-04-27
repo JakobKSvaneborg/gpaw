@@ -120,7 +120,7 @@ BEEF-vdW functional
 ===================
 
 The BEEF-vdW density functional uses the vdW-DF2 nonlocal correlation
-energy and potential. It is implemented selfconistently in GPAW.
+energy and potential. It is implemented self-consistently in GPAW.
 Furthermore, the BEEF-vdW constructions allows the user to calculate
 an estimate of the error to be expected on the quantity calculated
 self-consistently with BEEF-vdW (i.e. an error estimate on relative energies,
@@ -176,7 +176,7 @@ deviation of the relative energy perturbations should be used for the
 BEEF-vdW ensemble error estimates on a quantity.
 
 
-.. [#vdW-DF1a] M. Dion, H. Rydberg, E. Schroder, D.C. Langreth, and
+.. [#vdW-DF1a] M. Dion, H. Rydberg, E. Schröder, D.C. Langreth, and
    B. I. Lundqvist, Van der Waals density functional for general geometries,
    Physical Review Letters, 92, 246401 (2004)
 
@@ -184,7 +184,7 @@ BEEF-vdW ensemble error estimates on a quantity.
    V. Petzold, D. D. Landis, J. K. Norskov, T. Bligard, and K. W. Jacobsen,
    Physical Review B, 85, 235149 (2012)
 
-.. [#vdW-DF1b] M. Dion, H. Rydberg, E. Schroder, D.C. Langreth, and
+.. [#vdW-DF1b] M. Dion, H. Rydberg, E. Schröder, D.C. Langreth, and
    B. I. Lundqvist, Erratum: Van der Waals density functional for
    general geometries, Physical Review Letters, 95, 109902 (2005)
 

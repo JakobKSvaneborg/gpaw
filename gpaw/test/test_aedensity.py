@@ -4,7 +4,7 @@ from ase import Atom, Atoms
 from gpaw import GPAW
 
 
-def test_aedensity():
+def test_aedensity(comm):
     h = 0.21  # gridspacing
     a = [6.5, 6.5, 7.7]  # unit cell
     d = 2.3608  # experimental bond length
@@ -19,7 +19,8 @@ def test_aedensity():
                 nbands=5,
                 setups={'Na': '1'},
                 convergence={'eigenstates': 1e-6},
-                spinpol=1)
+                spinpol=1,
+                communicator=comm)
 
     NaCl.calc = calc
     e = NaCl.get_potential_energy()

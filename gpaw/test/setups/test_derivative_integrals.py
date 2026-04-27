@@ -1,12 +1,12 @@
 import numpy as np
 import pytest
 
-from gpaw.mpi import world
 from gpaw.atom.radialgd import EquidistantRadialGridDescriptor
 from gpaw.fd_operators import Gradient
-from gpaw.grid_descriptor import GridDescriptor
+from gpaw.mpi import world
+from gpaw.old.grid_descriptor import GridDescriptor
 from gpaw.setup import Setup, Setups
-from gpaw.spherical_harmonics import YL
+from gpaw.sphere.spherical_harmonics import YL
 from gpaw.utilities.tools import coordinates
 
 
@@ -42,10 +42,9 @@ def get_magnetic_integrals_alt(self, rgd, phi_jg, phit_jg):
     # This function originates from LrTDDFT2 (gpaw/lrtddft2/rxnabla.py)
     # and is currently used only for testing.
 
-    from math import sqrt, pi
+    from math import pi, sqrt
 
     # utility functions
-
     # from Y_L to Y_lm where Y_lm is a spherical harmonic and m= -l, ..., +l
     def YL_to_Ylm(L):
         # (c,l,m)

@@ -1,7 +1,8 @@
-from ase import Atoms
-from gpaw import GPAW, PoissonSolver
 import pytest
+from ase import Atoms
 from ase.units import Bohr, Hartree
+
+from gpaw import GPAW, PoissonSolver
 
 
 def test_xc_revPBE():

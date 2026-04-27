@@ -1,6 +1,7 @@
+import numpy as np
+
 import gpaw.cgpaw as cgpaw
 from gpaw.fd_operators import FDOperator
-import numpy as np
 
 
 class WeightedFDOperator(FDOperator):

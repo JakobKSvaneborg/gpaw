@@ -1,7 +1,9 @@
-import numpy as np
 from math import sqrt
+
+import numpy as np
 from ase import Atoms
 from ase.build import hcp0001
+
 from gpaw import GPAW
 
 # Vacuum and hcp lattice parameter for graphene

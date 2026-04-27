@@ -1,14 +1,21 @@
 # Copyright (C) 2003  CAMP
 # Please see the accompanying LICENSE file for further information.
 
+import math
 import sys
 import time
-import math
 
 import numpy as np
 from ase.utils.timing import Timer
 
-import gpaw.mpi as mpi
+
+def simpletimer():
+    starttime = time.time()
+
+    def stop():
+        return time.time() - starttime
+
+    return stop
 
 
 class NullTimer:
@@ -51,14 +58,17 @@ nulltimer = NullTimer()
 
 
 class DebugTimer(Timer):
-    def __init__(self, print_levels=1000, comm=mpi.world, txt=sys.stdout):
-        Timer.__init__(self, print_levels)
+    def __init__(self, print_levels=1000, comm=None, txt=sys.stdout):
+        import gpaw.mpi as mpi
+        comm = mpi.normalize_communicator(comm)
+
+        super().__init__(print_levels)
         ndigits = 1 + int(math.log10(comm.size))
         self.srank = '%0*d' % (ndigits, comm.rank)
         self.txt = txt
 
     def start(self, name):
-        Timer.start(self, name)
+        super().start(name)
         abstime = time.time()
         t = self.timers[tuple(self.running)] + abstime
         self.txt.write('T%s >> %15.8f %s (%7.5fs) started\n'
@@ -71,7 +81,101 @@ class DebugTimer(Timer):
         t = self.timers[tuple(self.running)] + abstime
         self.txt.write('T%s << %15.8f %s (%7.5fs) stopped\n'
                        % (self.srank, abstime, name, t))
-        Timer.stop(self, name)
+        super().stop(name)
+
+
+class GPUEvent:
+    def __init__(self, name):
+        self.name = name
+        import cupy
+        default = dict(block=False,
+                       disable_timing=False,
+                       interprocess=False)
+        self.stop_event = cupy.cuda.Event(**default)
+        self.start_event = cupy.cuda.Event(**default)
+        self.start_event.record()
+
+    def stop(self):
+        self.stop_event.record()
+
+    def get_time(self):
+        import cupy
+        return cupy.cuda.get_elapsed_time(self.start_event,
+                                          self.stop_event) / 1000
+
+
+class GPUTimerBase:
+
+    def __init__(self, max_stack=10, comm=None):
+        # Typically, the device is initialized inside GPAW call
+        # However, we need to set the device here to capture all of the
+        # events. It is ok to opt in to initialize GPU here, because we
+        # are asking for a GPUTimer anyway.
+        if comm is None:
+            from gpaw.mpi import world
+            comm = world
+        from gpaw.gpu import set_device
+        from gpaw.new.logger import Logger
+        set_device(Logger('-', comm), comm)
+
+        self.event_queue = []
+        self.event_stack = []
+        self.max_stack = max_stack
+        from collections import defaultdict
+        self.gpu_timers = defaultdict(float)
+
+    def gpu_start(self, key):
+        self.event_stack.append(GPUEvent(key))
+
+    def gpu_stop(self):
+        gpu_event = self.event_stack.pop()
+        gpu_event.stop()
+        self.event_queue.append(gpu_event)
+        if len(self.event_queue) > self.max_stack:
+            self.handle_events()
+
+    def handle_events(self):
+        while len(self.event_queue):
+            event = self.event_queue[0]
+            if not event.stop_event.done:
+                break
+            del self.event_queue[0]
+            time = event.get_time()
+            self.gpu_timers[event.name] += time
+            self.handle_event_hook(event)
+
+    def handle_event_hook(self, event):
+        pass
+
+    def gpu_write(self, out=sys.stdout):
+        import cupy
+        event = cupy.cuda.Event(block=True)
+        event.synchronize()
+        self.handle_events()
+
+        timers, self.timers = self.timers, self.gpu_timers
+        Timer.write(self, out)
+        self.timers = timers
+
+
+class GPUTimer(Timer, GPUTimerBase):
+    def __init__(self, *args, comm=None, **kwargs):
+        Timer.__init__(self, *args, **kwargs)
+        GPUTimerBase.__init__(self, comm=comm)
+
+    def start(self, name):
+        super().start(name)
+        super().gpu_start(name)
+
+    def stop(self, name=None):
+        super().stop(name)
+        super().gpu_stop()
+
+    def write(self, out=sys.stdout):
+        print('CPU event timings:', file=out)
+        super().write(out)
+        print('GPU event timings:', file=out)
+        super().gpu_write(out)
 
 
 def ranktxt(comm, rank=None):
@@ -89,16 +193,20 @@ class ParallelTimer(DebugTimer):
     determine bottlenecks in the parallelization.
 
     See the tool gpaw-plot-parallel-timings."""
-    def __init__(self, prefix='timings', flush=False):
-        fname = f'{prefix}.{ranktxt(mpi.world)}.txt'
+    def __init__(self, prefix='timings', flush=False, world=None):
+        import gpaw.mpi as mpi
+        world = mpi.normalize_communicator(world)
+        # XXX This has global world
+        # but when we print info, we talk to wfs.world
+        fname = f'{prefix}.{ranktxt(world)}.txt'
         txt = open(fname, 'w', buffering=1 if flush else -1)
-        DebugTimer.__init__(self, comm=mpi.world, txt=txt)
+        super().__init__(comm=world, txt=txt)
         self.prefix = prefix
 
     def print_info(self, calc):
         """Print information about parallelization into a file."""
         fd = open('%s.metadata.txt' % self.prefix, 'w')
-        DebugTimer.print_info(self, calc)
+        super().print_info(calc)
         wfs = calc.wfs
 
         # We won't have to type a lot if everyone just sends all their numbers.
@@ -115,12 +223,13 @@ class ParallelTimer(DebugTimer):
 
 
 class Profiler(Timer):
-    def __init__(self, prefix, comm=mpi.world):
+    def __init__(self, prefix, comm=None):
         import atexit
+        import gpaw.mpi as mpi
 
         self.prefix = prefix
-        self.comm = comm
-        self.ranktxt = ranktxt(comm)
+        self.comm = mpi.normalize_communicator(comm)
+        self.ranktxt = ranktxt(self.comm)
         fname = f'{prefix}.{self.ranktxt}.json'
         self.txt = open(fname, 'w', buffering=-1)
         self.pid = 0  # os.getpid() creates more confusing output
@@ -128,13 +237,16 @@ class Profiler(Timer):
         # legacy json format for perfetto always assumes microseconds
         self.u = 1_000_000
 
+        self.synchronize()
+        super().__init__(1000)
+
+    def synchronize(self):
         # Synchronize in order to have same time reference
         ref = np.zeros(1)
-        if comm.rank == 0:
+        if self.comm.rank == 0:
             ref[0] = time.time()
-        comm.broadcast(ref, 0)
+        self.comm.broadcast(ref, 0)
         self.ref = ref[0]
-        Timer.__init__(self, 1000)
 
     def finish_trace(self):
         self.txt.close()
@@ -147,17 +259,17 @@ class Profiler(Timer):
             for i in range(self.comm.size):
                 fname = f'{self.prefix}.{ranktxt(self.comm, rank=i)}.json'
                 print('Processing', fname)
-                with open(fname, 'r') as f:
+                with open(fname) as f:
                     out.writelines(f.readlines())
             out.write("] }\n")
             out.close()
         self.comm.barrier()
 
     def start(self, name):
-        Timer.start(self, name)
+        super().start(name)
         self.txt.write(
             f"""{{"name": "{name}", "cat": "PERF", "ph": "B","""
-            f""" "pid": {self.pid}, "tid": {self.ranktxt}, """
+            f""" "pid": {self.pid}, "tid": "{self.ranktxt}", """
             f""""ts": {int((time.time() - self.ref) * self.u)} }},\n""")
 
     def stop(self, name=None):
@@ -165,71 +277,64 @@ class Profiler(Timer):
             name = self.running[-1]
         self.txt.write(
             f"""{{"name": "{name}", "cat": "PERF", "ph": "E", """
-            f""""pid": {self.pid}, "tid": {self.ranktxt}, """
+            f""""pid": {self.pid}, "tid": "{self.ranktxt}", """
             f""""ts": {int((time.time() - self.ref) * self.u)}}},\n""")
-        Timer.stop(self, name)
+        super().stop(name)
 
 
-class HPMTimer(Timer):
-    """HPMTimer requires installation of the IBM BlueGene/P HPM
-    middleware interface to the low-level UPC library. This will
-    most likely only work at ANL's BlueGene/P. Must compile
-    with GPAW_HPM macro in customize.py. Note that HPM_Init
-    and HPM_Finalize are called in cgpaw.c and not in the Python
-    interface. Timer must be called on all ranks in node, otherwise
-    HPM will hang. Hence, we only call HPM_start/stop on a list
-    subset of timers."""
+class GPUProfiler(Profiler, GPUTimerBase):
+    def __init__(self, prefix, comm=None):
+        Profiler.__init__(self, prefix, comm=comm)
+        GPUTimerBase.__init__(self, comm=comm)
 
-    top_level = 'GPAW.calculator'  # HPM needs top level timer
-    compatible = ['Initialization', 'SCF-cycle']
+    def synchronize(self):
+        from cupy.cuda import Event
 
-    def __init__(self):
-        Timer.__init__(self)
-        from gpaw.cgpaw import hpm_start, hpm_stop
-        self.hpm_start = hpm_start
-        self.hpm_stop = hpm_stop
-        hpm_start(self.top_level)
+        # Make sure GPU gets here
+        event = Event(block=True)
+        event.record()
+        event.synchronize()
 
-    def start(self, name):
-        Timer.start(self, name)
-        if name in self.compatible:
-            self.hpm_start(name)
+        # Wait all CPUs
+        self.comm.barrier()
 
-    def stop(self, name=None):
-        Timer.stop(self, name)
-        if name in self.compatible:
-            self.hpm_stop(name)
+        # Now all GPUs and CPUs are somewhat simultaneous
+        # So, record the reference event and time
+        event = Event(block=True)
+        event.record()
+        self.ref = time.time()
+        self.ref_event = event
 
-    def write(self, out=sys.stdout):
-        Timer.write(self, out)
-        self.hpm_stop(self.top_level)
+        # Broadcast CPU time reference (possibly problematic)
+        buf = np.zeros(1)
+        buf[0] = self.ref
+        self.comm.broadcast(buf, 0)
+        self.ref = buf[0]
 
+    def start(self, name, gpu=False):
+        super().start(name)
+        if gpu:
+            super().gpu_start(name)
 
-class CrayPAT_timer(Timer):
-    """Interface to CrayPAT API. In addition to regular timers,
-    the corresponding regions are profiled by CrayPAT. The gpaw-python has
-    to be compiled under CrayPAT.
-    """
+    def stop(self, name=None, gpu=False):
+        super().stop(name)
+        if gpu:
+            GPUTimerBase.gpu_stop(self)
 
-    def __init__(self, print_levels=4):
-        Timer.__init__(self, print_levels)
-        from gpaw.cgpaw import craypat_region_begin, craypat_region_end
-        self.craypat_region_begin = craypat_region_begin
-        self.craypat_region_end = craypat_region_end
-        self.regions = {}
-        self.region_id = 5  # leave room for regions in C
+    def handle_event_hook(self, event):
+        import cupy
 
-    def start(self, name):
-        Timer.start(self, name)
-        if name in self.regions:
-            id = self.regions[name]
-        else:
-            id = self.region_id
-            self.regions[name] = id
-            self.region_id += 1
-        self.craypat_region_begin(id, name)
+        def get_time(e):
+            t = cupy.cuda.get_elapsed_time
+            return t(self.ref_event, e)
 
-    def stop(self, name=None):
-        Timer.stop(self, name)
-        id = self.regions[name]
-        self.craypat_region_end(id)
+        ms_start = get_time(event.start_event)
+        ms_stop = get_time(event.stop_event)
+        self.txt.write(
+            f"""{{"name": "{event.name}", "cat": "PERF", "ph": "B","""
+            f""" "pid": {self.pid}, "tid": "GPU {self.ranktxt}", """
+            f""""ts": {int(ms_start * 1000)} }},\n""")
+        self.txt.write(
+            f"""{{"name": "{event.name}", "cat": "PERF", "ph": "E", """
+            f""""pid": {self.pid}, "tid": "GPU {self.ranktxt}", """
+            f""""ts": {int(ms_stop * 1000)} }},\n""")

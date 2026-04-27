@@ -1,7 +1,7 @@
 import numpy as np
 
-from gpaw.mpi import world
 from gpaw.blacs import BlacsGrid, Redistributor
+from gpaw.mpi import world
 
 
 def check(comm, M, N, mcpus, ncpus, mb, nb):

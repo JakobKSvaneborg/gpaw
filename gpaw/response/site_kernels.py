@@ -3,9 +3,10 @@ Specifically, one maps a DFT calculations onto a Heisenberg lattice model,
 where the site kernels define the lattice sites and magnetic moments."""
 
 import numpy as np
-from scipy.special import jv
-from gpaw.response.pair_functions import get_pw_coordinates
 from ase.units import Bohr
+from scipy.special import jv
+
+from gpaw.response.pair_functions import get_pw_coordinates
 
 
 class SiteKernels:
@@ -140,7 +141,7 @@ class SphericalSiteKernels(SiteKernels):
         partitions = [[('sphere', (rc,)) for rc in rc_a]
                       for rc_a in rc_pa]
 
-        SiteKernels.__init__(self, positions, partitions)
+        super().__init__(positions, partitions)
 
 
 class CylindricalSiteKernels(SiteKernels):
@@ -186,7 +187,7 @@ class CylindricalSiteKernels(SiteKernels):
                        for ez_v, rc, hc in zip(ez_av, rc_a, hc_a)]
                       for ez_av, rc_a, hc_a in zip(ez_pav, rc_pa, hc_pa)]
 
-        SiteKernels.__init__(self, positions, partitions)
+        super().__init__(positions, partitions)
 
 
 class ParallelepipedicSiteKernels(SiteKernels):
@@ -220,7 +221,7 @@ class ParallelepipedicSiteKernels(SiteKernels):
         partitions = [[('parallelepiped', (cell_cv,)) for cell_cv in cell_acv]
                       for cell_acv in cell_pacv]
 
-        SiteKernels.__init__(self, positions, partitions)
+        super().__init__(positions, partitions)
 
 
 def calculate_site_kernels(qpd, positions, geometries):

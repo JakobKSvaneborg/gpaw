@@ -2,10 +2,11 @@
 files in functional should describe the derivatives of the KS functional
 """
 
-from gpaw.xc import xc_string_to_dict
 from ase.utils import basestring
+
 from gpaw.directmin.functional.lcao.ks import KSLCAO
 from gpaw.directmin.functional.lcao.pz import PZSICLCAO
+from gpaw.xc import xc_string_to_dict
 
 
 def get_functional(func, *args):

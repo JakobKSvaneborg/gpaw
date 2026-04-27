@@ -522,7 +522,7 @@ Meta-GGA
 
 Datasets for use with MGGA functionals must also include information on the
 *core kinetic energy density* and *pseudo core kinetic energy density* ;
-the latters are defined with these two elements::
+the latter are defined with these two elements::
 
     <ae_core_kinetic_energy_density grid="g1">
       ... ... ...
@@ -604,7 +604,7 @@ Although not necessary, it may be helpful to provide the following item(s) in th
    This radius defines the region (around the atom) outside which all pseudo quantities
    are equal to the all-electron ones.
    It is equal to the maximum of all the cut-off and matching radii.
-   Note that -- for better lisibility -- the ``paw_radius`` element should be
+   Note that -- for better visibility -- the ``paw_radius`` element should be
    provided in the header of the file.
 
 

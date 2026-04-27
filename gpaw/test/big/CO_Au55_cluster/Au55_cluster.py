@@ -1,6 +1,7 @@
 from ase import Atom, Atoms
-from ase.optimize.bfgslinesearch import BFGSLineSearch
 from ase.io import read
+from ase.optimize.bfgslinesearch import BFGSLineSearch
+
 from gpaw import GPAW
 
 # Relax the Au 55 atoms cluster with both lcao and paw modes

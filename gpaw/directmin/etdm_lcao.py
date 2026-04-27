@@ -31,19 +31,23 @@ calculations LCAO mode:
 """
 
 
-import numpy as np
 import warnings
-from ase.utils import basestring
-from gpaw.directmin.tools import expm_ed, expm_ed_unit_inv, random_a, \
-    sort_orbitals_according_to_occ, sort_orbitals_according_to_energies
-from gpaw.directmin.lcao.etdm_helper_lcao import ETDMHelperLCAO
-from gpaw.directmin.locfunc.localize_orbitals import localize_orbitals
-from scipy.linalg import expm
-from gpaw.directmin import search_direction, line_search_algorithm
-from gpaw.directmin.tools import get_n_occ
-from gpaw.directmin.derivatives import get_approx_analytical_hessian
-from gpaw import BadParallelization
 from copy import deepcopy
+
+import numpy as np
+from ase.utils import basestring
+from scipy.linalg import expm
+
+from gpaw import BadParallelization
+from gpaw.directmin import line_search_algorithm, search_direction
+from gpaw.directmin.derivatives import get_approx_analytical_hessian
+from gpaw.directmin.lcao.etdm_helper_lcao import ETDMHelperLCAO
+from gpaw.directmin.locfunc.etdm_localization_lcao import LCAOETDMLocalize
+from gpaw.directmin.locfunc.localize_orbitals import localize_orbitals
+from gpaw.directmin.tools import (expm_ed, expm_ed_unit_inv, get_n_occ,
+                                  random_a,
+                                  sort_orbitals_according_to_energies,
+                                  sort_orbitals_according_to_occ)
 
 
 class LCAOETDM:
@@ -68,7 +72,9 @@ class LCAOETDM:
                  localizationtype=None,
                  localizationseed=None,
                  constraints=None,
-                 subspace_convergence=5e-4
+                 subspace_convergence=5e-4,
+                 localize_every=None,
+                 printinnerloop=False,
                  ):
         """Class for direct orbital optimization in LCAO mode.
 
@@ -193,6 +199,12 @@ class LCAOETDM:
         subspace_convergence: float
             Tolerance on the norm of the gradient for convergence of the
             subspace optimization with PZ-SIC.
+        localize_every: int
+            If specified, a PZ-SIC inner loop localization is performed
+            every 'localize_every' SCF iterations.
+        printinnerloop: bool
+            If True, print the iterations of the inner loop optimization
+            for PZ-SIC localization to standard output. Default is False.
         """
 
         assert representation in ['sparse', 'u-invar', 'full'], 'Value Error'
@@ -204,6 +216,7 @@ class LCAOETDM:
         assert orthonormalization in ['gramschmidt', 'loewdin', 'diag'], \
             'Value Error'
 
+        self.in_subspace_loop = False
         self.sda = searchdir_algo
         self.lsa = linesearch_algo
         self.partial_diagonalizer = partial_diagonalizer
@@ -268,11 +281,24 @@ class LCAOETDM:
         self.der_phi_2i = [None, None]  # energy gradient w.r.t. alpha
         self.hess = {}  # approximate Hessian
 
+        # for the PZLocalization inner loop
+        self.eg_count_iloop = 0
+        self.total_eg_count_iloop = 0
+        self.eg_count_outer_iloop = 0
+        self.total_eg_count_outer_iloop = 0
+
         # for mom
         self.initial_occupation_numbers = None
 
         # in this attribute we store the object specific to each mode
         self.dm_helper = None
+        self.log = None
+        self.localize_every = localize_every
+        if self.localize_every is not None and self.localize_every < 1:
+            raise ValueError(
+                'localize_every must be a positive integer, '
+                f'got {self.localize_every}')
+        self.printinnerloop = printinnerloop
 
         self.initialized = False
 
@@ -399,6 +425,7 @@ class LCAOETDM:
         self.dm_helper = None
 
     def initialize_dm_helper(self, wfs, ham, dens, log):
+        self.log = log
 
         self.dm_helper = ETDMHelperLCAO(
             wfs, dens, ham, self.nkpts, self.func_settings,
@@ -413,10 +440,10 @@ class LCAOETDM:
                 self.randomize_orbitals_kpt(wfs, kpt)
             self.randomizeorbitals = None
 
-        wfs.calculate_occupation_numbers(dens.fixed)
+        if not wfs.coefficients_read_from_file:
+            wfs.calculate_occupation_numbers(dens.fixed)
 
-        # MOM
-        self.initial_sort_orbitals_mom(wfs)
+        self.initial_sort_orbitals(wfs)
 
         # initialize matrices
         self.set_variable_matrices(wfs.kpt_u)
@@ -555,17 +582,9 @@ class LCAOETDM:
 
     def localize(self, wfs, dens, ham, log):
         if self.need_localization:
-            localizationtype = \
-                self.localizationtype.replace('-', '').lower().split('_')
-            do_oo_subspace = 'pz' in localizationtype
             localize_orbitals(
                 wfs, dens, ham, log, self.localizationtype,
                 seed=self.localizationseed)
-            if do_oo_subspace:
-                assert self.dm_helper.func.name == 'PZ-SIC', \
-                    'PZ-SIC localization requested, but functional ' \
-                    'settings do not use PZ-SIC.'
-                self.lock_subspace('oo')
             self.need_localization = False
 
     def lock_subspace(self, subspace='oo'):
@@ -606,6 +625,14 @@ class LCAOETDM:
         :param dens:
         :return:
         """
+        # Periodic PZ-SIC localization (controlled by localize_every)
+        should_localize = (self.localize_every is not None
+                           and self.iters > 1
+                           and self.iters % self.localize_every == 0)
+        if should_localize and not self.in_subspace_loop:
+            with wfs.timer('Periodic PZ-SIC Localization'):
+                self._run_periodic_localization(wfs, ham, dens)
+
         with wfs.timer('Direct Minimisation step'):
             self.update_ref_orbitals(wfs, ham, dens)
 
@@ -620,6 +647,7 @@ class LCAOETDM:
                 phi_2i[0], g_vec_u = \
                     self.get_energy_and_gradients(
                         a_vec_u, ham, wfs, dens, c_ref)
+                self.released_subspace = False
             else:
                 g_vec_u = self.g_vec_u_original if self.gmf \
                     and not self.subspace_optimization else self.g_vec_u
@@ -674,21 +702,16 @@ class LCAOETDM:
                 a_vec_u[k] += alpha * p_vec_u[k]
             self.alpha = alpha
             self.g_vec_u = g_vec_u
-            self.iters += 1
+            if self.subspace_optimization:
+                self.subspace_iters += 1
+            else:
+                self.iters += 1
 
             # and 'shift' phi, der_phi for the next iteration
             phi_2i[1], der_phi_2i[1] = phi_2i[0], der_phi_2i[0]
             phi_2i[0], der_phi_2i[0] = phi_alpha, der_phi_alpha,
 
             if self.subspace_optimization:
-                if self.get_grad_norm() < self.subspace_convergence:
-                    self.release_subspace()
-                    self.dm_helper.set_reference_orbitals(wfs, self.n_dim)
-                    self.searchdir_algo.reset()
-                    for k, kpt in enumerate(wfs.kpt_u):
-                        self.hess[k] = get_approx_analytical_hessian(
-                            kpt, self.dtype, ind_up=self.ind_up[k])
-                        wfs.atomic_correction.calculate_projections(wfs, kpt)
                 self.error = np.inf  # Do not consider this converged!
 
     def get_grad_norm(self):
@@ -710,7 +733,6 @@ class LCAOETDM:
         :param c_ref: C_ref
         :return:
         """
-
         self.rotate_wavefunctions(wfs, a_vec_u, c_ref)
 
         e_total = self.update_ks_energy(ham, wfs, dens)
@@ -871,7 +893,7 @@ class LCAOETDM:
         within equally occupied subspaces.
         """
 
-        with ((wfs.timer('Get canonical representation'))):
+        with (wfs.timer('Get canonical representation')):
             for kpt in wfs.kpt_u:
                 self.dm_helper.update_to_canonical_orbitals(
                     wfs, ham, kpt, self.update_ref_orbs_canonical,
@@ -884,7 +906,7 @@ class LCAOETDM:
 
             if sort_eigenvalues:
                 sort_orbitals_according_to_energies(
-                    ham, wfs, self.constraints, use_eps=True)
+                    ham, wfs, self.constraints)
 
             self.set_ref_orbitals_and_a_vec(wfs)
 
@@ -1020,12 +1042,16 @@ class LCAOETDM:
             wfs.occupations.initialize_reference_orbitals()
             wfs.calculate_occupation_numbers(dens.fixed)
 
-    def initial_sort_orbitals_mom(self, wfs):
+    def initial_sort_orbitals(self, wfs):
         occ_name = getattr(wfs.occupations, "name", None)
         if occ_name == 'mom':
+            update_mom = True
             self.initial_occupation_numbers = wfs.occupations.numbers.copy()
-            sort_orbitals_according_to_occ(
-                wfs, self.constraints, update_mom=True)
+        else:
+            update_mom = False
+        sort_orbitals_according_to_occ(wfs,
+                                       self.constraints,
+                                       update_mom=update_mom)
 
     def check_mom(self, wfs, dens):
         occ_name = getattr(wfs.occupations, "name", None)
@@ -1065,6 +1091,28 @@ class LCAOETDM:
     @error.setter
     def error(self, e):
         self._error = e
+
+    def _run_periodic_localization(self, wfs, ham, dens):
+        """Run PZ-SIC localization using LCAOETDMLocalize.
+
+        Delegates to the same class used for initial localization,
+        with preconditioning disabled during the inner loop.
+        """
+        original_use_prec = self.use_prec
+        self.use_prec = False
+        self.in_subspace_loop = True
+        log = self.log if self.printinnerloop else None
+        original_eg = self.eg_count
+        try:
+            dm = LCAOETDMLocalize(
+                self, wfs, log,
+                tol=self.subspace_convergence)
+            dm.run(ham, dens)
+            self.eg_count_iloop = self.eg_count - original_eg
+            self.total_eg_count_iloop += self.eg_count_iloop
+        finally:
+            self.use_prec = original_use_prec
+            self.in_subspace_loop = False
 
 
 def vec2skewmat(a_vec, dim, ind_up, dtype):

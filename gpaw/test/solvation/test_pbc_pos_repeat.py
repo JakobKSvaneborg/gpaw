@@ -1,7 +1,8 @@
-from gpaw.solvation.cavity import get_pbc_positions
+import numpy as np
 from ase.build import molecule
 from ase.units import Bohr
-import numpy as np
+
+from gpaw.solvation.cavity import get_pbc_positions
 
 
 def test_solvation_pbc_pos_repeat():

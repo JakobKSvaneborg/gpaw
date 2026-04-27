@@ -1,9 +1,10 @@
 import pytest
+from ase.atoms import Atoms
+
 from gpaw import GPAW, FermiDirac
-from gpaw.mpi import world, size, rank
 from gpaw.lrtddft2 import LrTDDFT2
 from gpaw.lrtddft2.lr_communicators import LrCommunicators
-from ase.atoms import Atoms
+from gpaw.mpi import world
 
 
 @pytest.mark.lrtddft
@@ -15,7 +16,9 @@ def test_lrtddft2_Al2(in_tmp_dir):
     atoms = Atoms('Al2', positions=((0, 0, 0),
                                     (0, 0, d)))
     atoms.center(4.0)
-    calc = GPAW(mode='fd', h=0.24, eigensolver='cg', basis='dzp',
+    calc = GPAW(mode='fd',
+                h=0.24,
+                basis='dzp',
                 occupations=FermiDirac(width=0.01),
                 convergence={'eigenstates': 4.0e-5,
                              'density': 1.0e-2,
@@ -26,16 +29,17 @@ def test_lrtddft2_Al2(in_tmp_dir):
     calc.write(restart_file, mode='all')
 
     # Try to run parallel over eh-pairs
-    if size % 2 == 0:
+    if world.size % 2 == 0:
         eh_size = 2
-        domain_size = size // eh_size
+        domain_size = world.size // eh_size
     else:
         eh_size = 1
-        domain_size = size
+        domain_size = world.size
 
     lr_comms = LrCommunicators(world, domain_size, eh_size)
 
     calc = GPAW(restart_file,
+                legacy_gpaw=True,
                 communicator=lr_comms.dd_comm)
     de = 3.0
     lr = LrTDDFT2('Al2_lri',
@@ -69,7 +73,7 @@ def test_lrtddft2_Al2(in_tmp_dir):
     e0_3 = w[0]
     e1_3 = w[-1]
 
-    if debug and rank == 0:
+    if debug and world.rank == 0:
         print(e0_1, e1_1)
         print(e0_2, e1_2)
         print(e0_3, e1_3)

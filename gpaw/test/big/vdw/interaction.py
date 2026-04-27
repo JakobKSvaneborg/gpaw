@@ -1,5 +1,7 @@
 import pickle
+
 import numpy as np
+
 from gpaw import GPAW, setup_paths
 from gpaw.vdw import VDWFunctional
 

@@ -1,6 +1,5 @@
-import numpy as np
-
 import ase.units
+import numpy as np
 
 from gpaw.lrtddft2.ks_singles import KohnShamSingleExcitation
 from gpaw.lrtddft2.lr_layouts import LrTDDFPTSolveLayout

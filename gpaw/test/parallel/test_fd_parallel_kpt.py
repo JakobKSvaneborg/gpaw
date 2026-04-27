@@ -1,15 +1,11 @@
-import pytest
-from gpaw.mpi import world
 import sys
 
-from gpaw.utilities import devnull
-
-from gpaw import GPAW, FermiDirac
-from gpaw import KohnShamConvergenceError
-from gpaw.utilities import compiled_with_sl
-from gpaw.forces import calculate_forces
-
+import pytest
 from ase.build import molecule
+
+from gpaw import GPAW, FermiDirac, KohnShamConvergenceError
+from gpaw.mpi import world
+from gpaw.utilities import compiled_with_sl, devnull
 
 # Calculates energy and forces for various parallelizations
 
@@ -17,7 +13,6 @@ pytestmark = pytest.mark.skipif(world.size < 4,
                                 reason='world.size < 4')
 
 
-@pytest.mark.old_gpaw_only
 def test_parallel_fd_parallel_kpt():
     tolerance = 4e-5
 
@@ -54,9 +49,8 @@ def test_parallel_fd_parallel_kpt():
         except KohnShamConvergenceError:
             pass
 
-        E = calc.hamiltonian.e_total_free
-        F_av = calculate_forces(calc.wfs, calc.density,
-                                calc.hamiltonian)
+        E = calc.dft.calculate_energy()
+        F_av = calc.dft.calculate_forces()
 
         nonlocal Eref, Fref_av
         if Eref is None:
@@ -81,7 +75,7 @@ def test_parallel_fd_parallel_kpt():
                 stderr = devnull
             if eerr > tolerance:
                 print('Failed!', file=stderr)
-                print('E = %f, Eref = %f' % (E, Eref), file=stderr)
+                print(f'E = {E:f}, Eref = {Eref:f}', file=stderr)
                 msg = 'Energy err larger than tolerance: %f' % eerr
             if ferr > tolerance:
                 print('Failed!', file=stderr)

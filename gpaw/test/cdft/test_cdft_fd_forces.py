@@ -1,12 +1,10 @@
 import numpy as np
-import pytest
 from ase import Atoms
 
 from gpaw import GPAW, Mixer
 from gpaw.cdft.cdft import CDFT
 
 
-@pytest.mark.old_gpaw_only
 def test_cdft_fd_forces(in_tmp_dir):
 
     sys = Atoms('N2', positions=([0., 0., 0.], [0., 0., 1]))
@@ -14,7 +12,8 @@ def test_cdft_fd_forces(in_tmp_dir):
     sys.set_pbc(False)
     sys.set_initial_magnetic_moments([0.5, 0.5])
 
-    calc_b = GPAW(h=0.2,
+    calc_b = GPAW(legacy_gpaw=True,
+                  h=0.2,
                   basis='dzp',
                   charge=1,
                   mode='lcao',

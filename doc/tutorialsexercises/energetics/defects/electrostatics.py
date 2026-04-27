@@ -1,27 +1,41 @@
-import numpy as np
-from gpaw.defects import ElectrostaticCorrections
+from ase.io.jsonio import write_json
+from gpaw import GPAW
+from gpaw.defects import charged_defect_corrections
+from pathlib import Path
 
-sigma = 2 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
-q = -3
+charge = -3
 epsilon = 12.7
+def_idx = 0
 corrected = []
 uncorrected = []
 repeats = [1, 2, 3, 4]
-for repeat in repeats:
-    pristine = 'GaAs{0}{0}{0}.pristine.gpw'.format(repeat)
-    charged = 'GaAs{0}{0}{0}.Ga_vac_charged.gpw'.format(repeat)
-    elc = ElectrostaticCorrections(pristine=pristine,
-                                   charged=charged,
-                                   q=q,
-                                   sigma=sigma,
-                                   dimensionality='3d')
-    elc.set_epsilons(epsilon)
-    corrected.append(elc.calculate_corrected_formation_energy())
-    uncorrected.append(elc.calculate_uncorrected_formation_energy())
-    data = elc.collect_electrostatic_data()
-    np.savez('electrostatic_data_{0}{0}{0}.npz'.format(repeat), **data)
+for N in repeats:
+    label = f'GaAs_{N}x{N}x{N}'
+    prs_path = Path(f'{label}_prs.gpw')
+    def_path = Path(f'{label}_def.gpw')
 
-np.savez('formation_energies.npz',
-         repeats=np.array(repeats),
-         corrected=np.array(corrected),
-         uncorrected=np.array(uncorrected))
+    calc_prs = GPAW(prs_path)
+    calc_def = GPAW(def_path)
+
+    elc = charged_defect_corrections(calc_pristine=calc_prs,
+                                     calc_defect=calc_def,
+                                     defect_index=def_idx,
+                                     charge=charge,
+                                     epsilon=epsilon)
+    E_fnv = elc.calculate_correction()
+
+    E_0 = calc_prs.get_potential_energy()
+    E_X = calc_def.get_potential_energy()
+    E_uncorr = E_X - E_0
+    E_corr = E_uncorr + E_fnv
+
+    if N == 2:
+        profile = elc.calculate_potential_profile()
+
+    corrected.append(E_corr)
+    uncorrected.append(E_uncorr)
+
+res = {'repeats': repeats, 'corrected': corrected,
+       'uncorrected': uncorrected, 'profile': profile}
+
+write_json('electrostatics.json', res)
