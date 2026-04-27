@@ -18,6 +18,8 @@ Versions:
 
 6) Write energy contributions to "energy_contributions".
 
+7) Changed sign of wave_functions.kpts.translations.
+
 """
 from __future__ import annotations
 
@@ -102,7 +104,7 @@ def write_gpw(filename: str | Path,
         writer = ulm.DummyWriter()
 
     with writer:
-        writer.write(version=6,
+        writer.write(version=7,
                      gpaw_version=gpaw.__version__,
                      ha=Ha,
                      bohr=Bohr,
@@ -349,6 +351,8 @@ def read_dft_state(reader: ulm.Reader,
         kwargs['symmetry'] = {'rotations': rotation_scc,
                               'translations': kpts.translations,
                               'atommaps': kpts.atommap}
+        if reader.version < 7:
+            kwargs['symmetry']['translations'] *= -1
         params = Parameters(**kwargs)
         builder = params.dft_component_builder(atoms, log=log)
 

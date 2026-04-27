@@ -405,7 +405,7 @@ class Symmetries:
                 a, b, c = t_c
                 row.append(f'({a:6.3f}, {b:6.3f}, {c:6.3f})')
             rows.append(row)
-        log.table('Symmetry operations',
+        log.table('Symmetry operations  # r_c * U_cc  + t_c -> r_c',
                   header=header,
                   rows=rows,
                   allign=allign)
@@ -414,7 +414,7 @@ class Symmetries:
         for U_cc, t_c, b_a in zip(self.rotation_scc,
                                   self.translation_sc,
                                   self.atommap_sa):
-            error_ac = fracpos_ac @ U_cc - t_c - fracpos_ac[b_a]
+            error_ac = fracpos_ac @ U_cc + t_c - fracpos_ac[b_a]
             error_ac -= error_ac.round()
             if self._backwards_compatible:
                 if abs(error_ac).max(initial=0.0) > self.tolerance:
