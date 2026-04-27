@@ -710,9 +710,9 @@ typecheck:
     - mypy --version
     - mypy --pretty
   cache:
+    key: cache-typecheck
     paths:
       - $PIP_CACHE_DIR
-    key: $CI_PROJECT_ID
 
 
 docs:
