@@ -139,9 +139,9 @@ given in the following sections.
       - ``333``
       - :ref:`manual_maxiter`
     * - ``mixer``
-      - Object
+      - Object or ``dict``
       -
-      - Pulay :ref:`manual_mixer` scheme
+      - :ref:`manual_mixer` scheme
     * - ``mode``
       - ``str`` or ``dict``
       -
@@ -763,8 +763,7 @@ and used for output.  Use ``txt=None`` to disable all text output.
 Density mixing
 --------------
 
-Three parameters determine how GPAW does Pulay mixing of the
-densities:
+Three parameters determine how GPAW does mixing of the densities:
 
 * ``beta``: linear mixing coefficient
 * ``nmaxold``: number of old densities to mix
@@ -773,17 +772,23 @@ densities:
   short wavelength changes
 
 For small molecules, the best choice is to use
-``mixer=Mixer(beta=0.25, nmaxold=3, weight=1.0)``, which is what GPAW
+``mixer=Mixer(beta=0.25, nmaxold=16, weight=1.0)``, which is what GPAW
 will choose if the system has zero-boundary conditions.
 
 If your system is a big molecule or a cluster, it is an advantage to
-use something like ``mixer=Mixer(beta=0.05, nmaxold=5, weight=50.0)``,
+use something like ``mixer=Mixer(beta=0.08, nmaxold=16, weight=70.0)``,
 which is also what GPAW will choose if the system has periodic
 boundary conditions in one or more directions.
 
-In spin-polarized calculations ``MixerDif`` will be used instead of
+In spin-polarized calculations ``MixerFull`` will be used instead of
 ``Mixer``.
 
+The mixer can also be specified as a dict, e.g.::
+
+    mixer={'backend': 'msr1', 'beta': 0.04, 'nmaxold': 10}
+
+The accepted dict keywords are ``method``, ``backend``, ``beta``,
+``nmaxold``, and ``weight``.
 See also the documentation on :ref:`density mixing <densitymix>`.
 
 
