@@ -405,7 +405,7 @@ class Symmetries:
                 a, b, c = t_c
                 row.append(f'({a:6.3f}, {b:6.3f}, {c:6.3f})')
             rows.append(row)
-        log.table('Symmetry operations  # r_c * U_cc  + t_c -> r_c',
+        log.table('Symmetry operations  # r_c * U_cc + t_c -> r_c',
                   header=header,
                   rows=rows,
                   allign=allign)
