@@ -112,14 +112,13 @@ def test_polarization_phase(in_tmp_dir, gpw_files, mpi, gpaw_new):
     phases_t = {
         'phase_c': pi2 * np.array([8.66037, 3.33962, 0.0]),
         'electronic_phase_c': pi2 * np.array([0.66037, -0.66037, 1.0]),
-        'atomic_phase_c': pi2 * np.array([8.0, 4.0, 13.0]),
-        'dipole_phase_c': pi2 * np.array([0.72391, -0.72391, 0.0])}
+        'atomic_phase_c': pi2 * np.array([8.0, 4.0, 13.0])}
 
     # test all components
     # apply modulo
     for key in phases_c:
-        if gpaw_new and 'dipole' in key:
-            # XXX dipole calculation deviates from old to new for pbc
+        if key == 'dipole_phase_c':
+            # dipole moment is ill-defined for periodic system
             continue
         # only should test modulo 2pi
         dphi = phases_c[key] - phases_t[key]
