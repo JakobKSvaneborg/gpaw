@@ -705,7 +705,6 @@ typecheck:
   image: $IMAGE_MAIN_LATEST
   stage: build
   script:
-    - pip install --upgrade 'numpy<2.2.0'
     - pip install mypy
     - python --version
     - mypy --version
