@@ -817,6 +817,11 @@ class G0W0Calculator:
             f_m = kpt2.f_n
             deps_m = eps1 - kpt2.eps_n
 
+            # Hoist conjugation and block slicing out of the fxc_mode/m
+            # inner loops since n_mG doesn't change there.
+            nc_mG = n_mG.conj()
+            myn_mG = n_mG[:, blocks1d.myslice]
+
             nn = kpt1.n1 + n - self.bands[0]
 
             assert set(Wdict) == set(sigmas)
@@ -827,13 +832,13 @@ class G0W0Calculator:
 
                 # m is band index of all (both unoccupied and occupied) wave
                 # functions in G
-                for m, (deps, f, n_G) in enumerate(zip(deps_m, f_m, n_mG)):
+                for m, (deps, f) in enumerate(zip(deps_m, f_m)):
                     # 2 * f - 1 will be used to select the branch of Hilbert
                     # transform, see get_HW of screened_interaction.py
                     # at FullFrequencyHWModel class.
 
-                    nc_G = n_G.conj()
-                    myn_G = n_G[blocks1d.myslice]
+                    nc_G = nc_mG[m]
+                    myn_G = myn_mG[m]
 
                     if self.evaluate_sigma is not None:
                         for w, omega in enumerate(self.evaluate_sigma):

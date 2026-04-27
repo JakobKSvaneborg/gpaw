@@ -150,13 +150,15 @@ class GenericUpdate(IntegralTask):
 
         blocks1d = Blocks1D(self.blockcomm, chi0_wGG.shape[2])
         n_Gm = np.ascontiguousarray(n_mG.T)
+        # Hoist the loop-invariant block-parallel slice out of the
+        # frequency loop.
+        if blocks1d.blockcomm.size > 1:
+            nblock_mG = n_mG[:, blocks1d.myslice]
+        else:
+            nblock_mG = n_mG
         for omega, chi0_GG in zip(wd.omega_w, chi0_wGG):
             x_m = (1 / (omega + deps1_m) - 1 / (omega - deps2_m))
-            if blocks1d.blockcomm.size > 1:
-                nx_mG = n_mG[:, blocks1d.myslice] * x_m[:, np.newaxis]
-            else:
-                nx_mG = n_mG * x_m[:, np.newaxis]
-
+            nx_mG = nblock_mG * x_m[:, np.newaxis]
             mmm(1.0, nx_mG, 'T', n_Gm, 'C', 1.0, chi0_GG)
 
 
@@ -234,8 +236,8 @@ class Hilbert(IntegralTask):
             o1 = wd.omega_w[w]
             o2 = wd.omega_w[w + 1]
             p = np.abs(1 / (o2 - o1)**2)
-            p1_m = np.array(p * (o2 - sortedo_m[startindex:endindex]))
-            p2_m = np.array(p * (sortedo_m[startindex:endindex] - o1))
+            p1_m = p * (o2 - sortedo_m[startindex:endindex])
+            p2_m = p * (sortedo_m[startindex:endindex] - o1)
 
             if blocks1d.blockcomm.size > 1 and w + 1 < wd.wmax:
                 x_mG = sortedn_mG[startindex:endindex, blocks1d.myslice]
