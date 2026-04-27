@@ -801,7 +801,7 @@ class UGArray(XArray[UGDesc]):
             for a_R, b_R in zips(a_xR._arrays(), b_xR._arrays()):
                 b_R[:] = 0.0
                 for r_cc, t_c in zips(rotation_scc, t_sc):
-                    symmetrize_ft(a_R, b_R, r_cc, t_c, offset_c)
+                    symmetrize_ft(a_R, b_R, r_cc, -t_c, offset_c)
             if self.xp is not np:
                 b_xR = b_xR.to_xp(self.xp)
         self.scatter_from(b_xR)

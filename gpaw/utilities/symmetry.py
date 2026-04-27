@@ -229,7 +229,7 @@ def prune_symmetries(rotation_scc: Array3D,
     # if supercell disable fractional translations:
     if not symmorphic:
         I3 = np.identity(3, bool)
-        ft_bc = relpos_ac[a_b[1:]] - relpos_ac[a_b[0]]
+        ft_bc = -(relpos_ac[a_b[1:]] - relpos_ac[a_b[0]])
         ft_bc -= np.rint(ft_bc)
         for ft_c in ft_bc:
             a_a = check(I3, ft_c)
@@ -249,7 +249,7 @@ def prune_symmetries(rotation_scc: Array3D,
         elif not symmorphic:
             # check fractional translations
             relposrot_ac = np.dot(relpos_ac, rotation_cc)
-            ft_ac = relposrot_ac[a_b] - relpos_ac[a_b[0]]
+            ft_ac = -(relposrot_ac[a_b] - relpos_ac[a_b[0]])
             ft_ac -= np.rint(ft_ac)
             for ft_c in ft_ac:
                 a_a = check(rotation_cc, ft_c)
@@ -275,7 +275,7 @@ def check_one_symmetry(rotation_cc, translation_c, cell_cv, relpos_ac, a_ib,
         relpos_bc = relpos_ac[a_b]
         for a in a_b:
             relpos_c = np.dot(relpos_ac[a], rotation_cc)
-            diff_bc = relpos_c - relpos_bc - translation_c
+            diff_bc = relpos_c - relpos_bc + translation_c
             diff_bc -= diff_bc.round()
             if _backwards_compatible:
                 indices = np.where(abs(diff_bc).max(1) < tolerance)[0]
