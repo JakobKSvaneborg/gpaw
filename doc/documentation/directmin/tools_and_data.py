@@ -32,7 +32,7 @@ def set_calc(atoms, calc_args, txt, dm):
         calc = GPAW(**calc_args,
                     txt=txt,
                     occupations=FermiDirac(width=0.0, fixmagmom=True))
-    atoms.set_calculator(calc)
+    atoms.calc = calc
 
 
 def get_energy_and_iters(atoms, dm):

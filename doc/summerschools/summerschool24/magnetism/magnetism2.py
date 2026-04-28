@@ -2,7 +2,6 @@
 # teacher
 import ase.visualize as viz
 viz.view = lambda atoms, repeat=None: None
-
 # %%
 r"""
 
@@ -221,7 +220,8 @@ calc = GPAW(mode=PW(400),
             xc='LDA',
             mixer=MixerDif(),
             symmetry='off',
-            experimental={'magmoms': magmoms, 'soc': False},
+            magmoms=magmoms,
+            soc=False,
             parallel={'domain': 1, 'band': 1},
             kpts=(2, 2, 1))
 layer_nc.calc = calc
@@ -238,7 +238,8 @@ calc = GPAW(mode=PW(400),
             xc='LDA',
             mixer=MixerDif(),
             symmetry='off',
-            experimental={'magmoms': magmoms, 'soc': False},
+            magmoms=magmoms,
+            soc=False,
             parallel={'domain': 1, 'band': 1},
             kpts=(2, 2, 1))
 layer_nc.calc = calc
