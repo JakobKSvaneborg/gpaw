@@ -108,7 +108,7 @@ History
 
 
 2026, April
-----------
+-----------
 
 * Added one more system: ``Mn2O2-3M``.
 * Modified all the initial magnetic moments, s.t. the correct ground
