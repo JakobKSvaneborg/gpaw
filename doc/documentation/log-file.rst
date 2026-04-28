@@ -17,3 +17,4 @@ Parsing
 -------
 
 .. autofunction:: gpaw.io.log_file_reader.parse
+.. autofunction:: gpaw.io.log_file_reader.parse_file

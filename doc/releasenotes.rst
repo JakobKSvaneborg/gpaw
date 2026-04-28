@@ -65,7 +65,7 @@ Git master branch
   diagonalization when we have 1000 or more bands.
 
 * `pybind11 <https://pybind11.readthedocs.io/en/stable/>`__ is now a required
-  dependency when building GPAW with GPU support. It should be installed
+  dependency when building GPAW. It should be installed
   automatically by ``pip`` when you install GPAW. If this doesn't happen for
   whatever reason, you can get it with ``pip install pybind11``.
 
@@ -73,9 +73,7 @@ Git master branch
   Unix-like systems. Convenient for developers who frequently need to modify
   the C/C++ backend. See :ref:`workflow_c_extension` for details.
 
-* GPAW C-extension can now be built as C++ code. You can enable this
-  experimental feature in ``siteconfig.py`` by setting ``use_cpp = True`` and
-  choosing a valid C++ compiler.
+* GPAW C-extension will now be built as C++ code.
 
 * Ongoing work with optimizng the defaults of GPAW, so far the following
   changes have been made:
@@ -149,10 +147,12 @@ Git master branch
   :ref:`density mixing <densitymix>`
   and https://pubs.acs.org/doi/full/10.1021/acs.jctc.1c00630 for more details.
 
-* ASE will now :func:`~ase.io.read` GPAW's new log-files using a plugin
+* ASE will now :func:`~ase.io.read` GPAW's log-files using a plugin
   in GPAW (:mod:`gpaw.ase_plugin`).
   Parsing the log-file is done with the new
-  :func:`gpaw.io.log_file_reader.parse` function.
+  :func:`gpaw.io.log_file_reader.parse` and
+  :func:`gpaw.io.log_file_reader.parse_file` functions.  Try also
+  ``python -m gpaw.io.log_file_reader logfile.txt``.
 
 * Added symmetry labels to symmetry-matrices in log-file
   (E, i, σ, C\ `_n`, S\ `_n`).
