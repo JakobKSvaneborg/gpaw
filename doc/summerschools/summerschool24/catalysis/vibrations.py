@@ -223,7 +223,7 @@ e) To make sure that your NEB is converged you should also calculate the
 
 # %%
 # teacher:
-from ase.optimize import BFGS
+from ase.optimize import FIRE
 from ase.mep import NEB
 from ase.io import Trajectory
 
@@ -242,7 +242,7 @@ calc = GPAW(xc='PBE',
 ts.calc = calc
 
 neb = NEB(images, k=1.0, climb=True, method='improvedtangent')
-qn = BFGS(neb, logfile='neb.log')
+qn = FIRE(neb, logfile='neb.log')
 traj = Trajectory('ts.traj', 'w', ts)
 qn.attach(traj)
 qn.run(fmax=0.01)

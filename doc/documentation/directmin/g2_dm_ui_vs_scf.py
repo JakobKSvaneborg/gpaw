@@ -37,8 +37,8 @@ with paropen('dm-g2-results.txt', 'w') as fdm, \
                 e, iters, t = tools_and_data.get_energy_and_iters(atoms, dm)
 
                 # Compare with saved results from previous calculation
-                e_diff_saved_calc = abs(saved_results[dm][name][1] - e)
-                iters_diff_saved_calc = abs(saved_results[dm][name][0] - iters)
+                e_diff_saved_calc = e - saved_results[dm][name][1]
+                iters_diff_saved_calc = iters - saved_results[dm][name][0]
                 tools_and_data.compare_calculated_and_saved_results(
                     e_diff_saved_calc, iters_diff_saved_calc,
                     eig_string, name, dm)

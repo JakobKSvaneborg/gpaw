@@ -51,9 +51,9 @@ with paropen('water-results.txt', 'w') as fd:
                     tools_and_data.get_energy_and_iters(atoms, dm)
 
                 # Compare with saved results from previous calculation
-                e_diff_saved_calc = abs(saved_results[dm][i, 0] - e)
-                iters_diff_saved_calc = \
-                    abs(saved_results[dm][i, 1] - iters[dm])
+                e_diff_saved_calc = e - saved_results[dm][i, 0]
+                iters_diff_saved_calc = (iters[dm] -
+                                         saved_results[dm][i, 1])
                 tools_and_data.compare_calculated_and_saved_results(
                     e_diff_saved_calc, iters_diff_saved_calc,
                     eig_string, name, dm)
