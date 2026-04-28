@@ -50,14 +50,14 @@ def get_energy_and_iters(atoms, dm):
 
 def compare_calculated_and_saved_results(e_diff, iters_diff,
                                          eig_string, name, dm):
-    if e_diff > 1.0e-2:
+    if abs(e_diff) > 1.0e-2:
         warnings.warn('Absolute difference in total energy '
                       'for ' + eig_string[dm] + ' calculation of '
                       + name + ' with respect to saved results '
                       'is %f eV'
                       % e_diff)
     if iters_diff > 3:
-        warnings.warn('Absolute difference in total number of '
+        warnings.warn('Difference in total number of '
                       'iterations for ' + eig_string[dm] +
                       ' calculation of ' + name + ' with respect '
                       'to saved results is %d'
