@@ -10,6 +10,48 @@ Git master branch
 
 :git:`master <>`.
 
+.. _new gpaw notes:
+
+* :ref:`newgpaw` is now the default.
+
+  Not all features in the GPAW codebase has been ported to the
+  :ref:`newgpaw` architecture:
+
+  * linear-response TDDFT (both :ref:`lrtddft` and :ref:`lrtddft2`)
+  * TimeLimiter
+  * QMMM
+  * DSCF
+  * :ref:`los tutorial`
+  * external potentials
+  * CDFT
+  * partitioning (Hirshfeld and Wigner-Seitz)
+  * XAS
+  * real-space density interpolation for PW-mode
+  * Special XC-functionals: FD-mode hybrids, GLLBSC, TB09, RALDA and RAPBE
+
+  For these you will need to explicitly create old-style GPAW calculator
+  objects like this:
+
+  .. code::
+
+      calc = GPAW(..., legacy_gpaw=True)
+
+  Some features have a work-in-progress incomplete new implementation
+  (SolvationGPAW, SJM, time-propagation (LCAO)TDDFT and direct-optimization),
+  but the default is to use the old implementation.  Use
+  ``legacy_gpaw=False`` if you want to play with the new implementations.
+
+  Performance of the new implementation is, in most cases, better
+  than the old.  See :ref:`benchmarks` for some numbers.
+  However, some optimizations are still missing in the new implementation
+  (use of ELPA/Scalapack in LCAO and ``augment_grids=True``) so you may
+  want to compare ``legacy_gpaw=True``  and ``legacy_gpaw=False`` if your
+  are dealing with many atoms.
+
+* New :ref:`benchmarks` introduced.  These benchmarks run every Sunday
+  and will allow us to discover performance regressions
+  (and improvements).
+
 * Fixed bug in BSE code for systems without inversion symmetry.
   Some off-diagonal elements of `W_{GG'}` were wrongly conjugated,
   resulting in the BSE Hamiltonian not being Hermitian under
@@ -23,7 +65,7 @@ Git master branch
   diagonalization when we have 1000 or more bands.
 
 * `pybind11 <https://pybind11.readthedocs.io/en/stable/>`__ is now a required
-  dependency when building GPAW with GPU support. It should be installed
+  dependency when building GPAW. It should be installed
   automatically by ``pip`` when you install GPAW. If this doesn't happen for
   whatever reason, you can get it with ``pip install pybind11``.
 
@@ -31,9 +73,7 @@ Git master branch
   Unix-like systems. Convenient for developers who frequently need to modify
   the C/C++ backend. See :ref:`workflow_c_extension` for details.
 
-* GPAW C-extension can now be built as C++ code. You can enable this
-  experimental feature in ``siteconfig.py`` by setting ``use_cpp = True`` and
-  choosing a valid C++ compiler.
+* GPAW C-extension will now be built as C++ code.
 
 * Ongoing work with optimizng the defaults of GPAW, so far the following
   changes have been made:
@@ -103,8 +143,20 @@ Git master branch
   please open a merge request adding link and descriptive paragraph.
 
 * Introducing a new mixer backend: The MSR1 mixer which promises faster and
-  more stable convergence in most cases, see :ref:`density mixing <densitymix>`
+  more stable convergence in most cases, see
+  :ref:`density mixing <densitymix>`
   and https://pubs.acs.org/doi/full/10.1021/acs.jctc.1c00630 for more details.
+
+* ASE will now :func:`~ase.io.read` GPAW's log-files using a plugin
+  in GPAW (:mod:`gpaw.ase_plugin`).
+  Parsing the log-file is done with the new
+  :func:`gpaw.io.log_file_reader.parse` and
+  :func:`gpaw.io.log_file_reader.parse_file` functions.  Try also
+  ``python -m gpaw.io.log_file_reader logfile.txt``.
+
+* Added symmetry labels to symmetry-matrices in log-file
+  (E, i, σ, C\ `_n`, S\ `_n`).
+
 
 Version 25.7.0
 ==============

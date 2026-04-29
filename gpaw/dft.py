@@ -296,6 +296,7 @@ class PPCG(PWFDEigensolverParameter):
             hamiltonian,
             convergence,
             domain_band_comm=domain_band_comm,
+            scalapack_parameters=scalapack_parameters,
             niter=self.niter,
             min_niter=self.min_niter,
             max_buffer_mem=self.max_buffer_mem,
@@ -612,7 +613,7 @@ class XC(Parameter):
     def functional(self, *, collinear: bool, atoms: Atoms | None = None):
         from gpaw.xc import XC as xc
         return xc({'name': self.name, **self.kwargs},
-                  collinear=collinear, atoms=atoms)
+                  collinear=collinear, atoms=atoms, legacy_gpaw=False)
 
     @classmethod
     def from_param(cls, xc):

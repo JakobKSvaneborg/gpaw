@@ -34,7 +34,7 @@ def test():
     calc = GPAW(mode=PW(400),
                 symmetry='off',
                 mixer=MixerDif(),
-                experimental={'magmoms': magmoms},
+                magmoms=magmoms,
                 kpts=(4, 4, 1))
     atoms.calc = calc
     atoms.get_potential_energy()

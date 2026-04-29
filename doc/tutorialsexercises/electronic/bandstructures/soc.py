@@ -7,8 +7,8 @@ import numpy as np
 si = bulk('Si', 'diamond', 5.43)
 si.calc = GPAW(mode=PW(400),
                xc='LDA',
-               experimental={'magmoms': np.zeros((2, 3)),
-                             'soc': True},
+               magmoms=np.zeros((2, 3)),
+               soc=True,
                kpts=(8, 8, 8),
                symmetry='off',
                occupations=FermiDirac(0.01))

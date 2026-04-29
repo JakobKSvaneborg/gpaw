@@ -23,8 +23,8 @@ a.center(vacuum=3, axis=2)
 
 magmoms = np.zeros((3, 3))
 magmoms[0, 0] = 2
-a.calc = GPAW(experimental={'magmoms': magmoms,
-                            'soc': True},
+a.calc = GPAW(magmoms=magmoms,
+              soc=True,
               symmetry='off',
               occupations=FermiDirac(width=0.001),
               parallel={'domain': 1, 'band': 1},
@@ -33,8 +33,8 @@ Ex = a.get_potential_energy()
 
 magmoms = np.zeros((3, 3))
 magmoms[0, 2] = 2
-a.calc = GPAW(experimental={'magmoms': magmoms,
-                            'soc': True},
+a.calc = GPAW(magmoms=magmoms,
+              soc=True,
               symmetry='off',
               occupations=FermiDirac(width=0.001),
               parallel={'domain': 1, 'band': 1},
@@ -44,8 +44,8 @@ check_ani(Ez, Ex, 0.000185)
 
 
 """Non-collinear plus SOC."""
-a.calc = GPAW(experimental={'magmoms': magmoms,
-                            'soc': False},
+a.calc = GPAW(magmoms=magmoms,
+              soc=False,
               convergence={'bands': 38},
               symmetry='off',
               parallel={'domain': 1, 'band': 1},
