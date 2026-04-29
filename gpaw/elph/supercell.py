@@ -86,7 +86,7 @@ class Supercell:
         # Array for different k-point components
         g_sqMM = np.zeros((nspins, len(kpt_u) // nspins, nao, nao), dtype)
 
-        timer.start('Potential matrix')
+        # timer.start('Potential matrix')
         V1t_sxMM = np.array([bfs.calculate_potential_matrices(v1t_G)
                              for v1t_G in V1t_sG])
         for kpt in kpt_u:
@@ -102,10 +102,10 @@ class Supercell:
                                      optimize=True)
 
             g_sqMM[kpt.s, kpt.q] += geff_MM
-        timer.stop('Potential matrix')
+        # timer.stop('Potential matrix')
 
         gp_MM = np.zeros((nao, nao), dtype)
-        timer.start("Non-Local 1")
+        # timer.start("Non-Local 1")
         # 2) Gradient of non-local part (projectors)
         P_aqMi = getattr(wfs, 'P_aqMi', None)
         # 2a) dH^a part has contributions from all atoms
@@ -123,9 +123,9 @@ class Supercell:
                 gp_MM += P_Mi.conj() @ dH1_ii @ P_Mi.T
             # wfs.gd.comm.sum(gp_MM)
             g_sqMM[kpt.s, kpt.q] += gp_MM
-        timer.stop("Non-Local 1")
+        # timer.stop("Non-Local 1")
 
-        timer.start("Non-Local 2")
+        # timer.start("Non-Local 2")
         # 2b) dP^a part has only contributions from the same atoms
         # For the contribution from the derivative of the projectors
         manytci = wfs.manytci
@@ -145,7 +145,7 @@ class Supercell:
             # wfs.gd.comm.sum(gp_MM)
             # print(world.rank, a,v, kpt.k, bfs.my_atom_indices, gp_MM)
             g_sqMM[kpt.s, kpt.q] += gp_MM
-        timer.stop("Non-Local 2")
+        # timer.stop("Non-Local 2")
         return g_sqMM
 
     def calculate_supercell_matrix(
@@ -208,14 +208,17 @@ class Supercell:
         # Calculate finite-difference gradients (in Hartree / Bohr)
         V1t_xsG, dH1_xasp = self.calculate_gradient(fd_name, self.indices)
 
+        # New GPAW stores Vt_sG with full shape n_c independent of PBC;
+        # truncate to n_c along non-periodic axes where the sizes disagree.
+        pb = (~gd.pbc_c) & (V1t_xsG.shape[-3:] != gd.n_c)
+        if pb.any():
+            s = tuple(slice(1, None) if p else slice(None) for p in pb)
+            V1t_xsG = V1t_xsG[..., s[0], s[1], s[2]]
+
         # Equilibrium atomic Hamiltonian matrix (projector coefficients)
         fd_cache = MultiFileJSONCache(fd_name)
         assert tuple(self.supercell) == tuple(fd_cache["info"]["supercell"])
         dH_asp = fd_cache["eq"]["dH_all_asp"]
-
-        # Check that the grid is the same as in the calculator
-        assert np.all(V1t_xsG.shape[-3:] == (gd.N_c + gd.pbc_c - 1)), \
-            "Mismatch in grids."
 
         # Save basis information, after we checked the data is kosher
         with supercell_cache.lock("basis") as handle:
@@ -264,6 +267,8 @@ class Supercell:
                         # Convert to array
                         g_sMM_tmp = []
                         for s in range(nspins):
+                            # bloch_to_real_space takes care of kd
+                            # parallel sum as well
                             g_MM = tb.bloch_to_real_space(g_sqMM[s],
                                                           R_c=(0, 0, 0))
                             g_sMM_tmp.append(g_MM[0])  # [0] because of above
