@@ -482,17 +482,6 @@ test-latest:
   coverage: '/TOTAL.+ ([0-9]+\.[0-9]+%)/'
 
 
-test-latest-new:
-  image: $IMAGE_MAIN_LATEST
-  extends:
-    - .test
-  needs:
-    - job: build-latest
-  script:
-    - gpaw info
-    - GPAW_DEBUG=1 GPAW_NEW=1 pytest -v -m "ci and not old_gpaw_only"
-
-
 test-minimal:
   image: $IMAGE_MAIN_OLDEST
   extends:
