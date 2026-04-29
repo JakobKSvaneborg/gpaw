@@ -1916,11 +1916,7 @@ class GPWFiles(CachedFilesHandler):
 
     @gpwfile
     def mos2_pw_nosym(self):
-        return self._mos2(
-            symmetry='off',
-            # The test_berryphase.py::test_polarization_phase[False]
-            # need this:
-            legacy_gpaw=True)
+        return self._mos2(symmetry='off')
 
     @gpwfile
     def mos2_5x5_pw(self):

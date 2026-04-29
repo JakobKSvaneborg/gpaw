@@ -96,30 +96,24 @@ def load_renormalized_data(name):
     return phi_km, S_km
 
 
-@pytest.mark.parametrize('gpaw_new', [False, True])
-def test_polarization_phase(in_tmp_dir, gpw_files, mpi, gpaw_new):
+def test_polarization_phase(in_tmp_dir, gpw_files, mpi):
     pi2 = 2.0 * np.pi
     gpw_file = gpw_files['mos2_pw_nosym']
 
-    if gpaw_new:
-        # calculate on all ranks (here: read-in) then gather on master
-        calc = GPAW(gpw_file, communicator=mpi.comm)
-        phases_c = polarization_phase(calc=calc, comm=mpi.comm)
-    else:
-        # legacy version old GPAW: read from file
-        phases_c = polarization_phase(gpw_wfs=gpw_file, comm=mpi.comm)
+    # calculate on all ranks (here: read-in) then gather on master
+    calc = GPAW(gpw_file, communicator=mpi.comm)
+    phases_c = polarization_phase(calc=calc, comm=mpi.comm)
 
     phases_t = {
         'phase_c': pi2 * np.array([8.66037, 3.33962, 0.0]),
         'electronic_phase_c': pi2 * np.array([0.66037, -0.66037, 1.0]),
-        'atomic_phase_c': pi2 * np.array([8.0, 4.0, 13.0]),
-        'dipole_phase_c': pi2 * np.array([0.72391, -0.72391, 0.0])}
+        'atomic_phase_c': pi2 * np.array([8.0, 4.0, 13.0])}
 
     # test all components
     # apply modulo
     for key in phases_c:
-        if gpaw_new and 'dipole' in key:
-            # XXX dipole calculation deviates from old to new for pbc
+        if key == 'dipole_phase_c':
+            # dipole moment is ill-defined for periodic system
             continue
         # only should test modulo 2pi
         dphi = phases_c[key] - phases_t[key]
