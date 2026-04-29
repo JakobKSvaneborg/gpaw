@@ -28,6 +28,18 @@ def submit():
     url = REPO + '-/raw/master/doc/platforms/Linux/Niflheim/gpaw_venv.py'
     subprocess.run(['wget', url])
     subprocess.run(['python3', 'gpaw_venv.py', 'venv'])
+
+    # Make summerschool files available:
+    activate = Path('venv/bin/activate')
+    activate.write_text(activate.read_text() +
+                        'export AGTS_FILES=$HOME/AGTS_FILES/\n')
+
+    # Install qeh from git:
+    subprocess.run('source venv/bin/activate && '
+                   'pip install -e ../qeh/',
+                   shell=True)
+
+    # Submit jobs:
     subprocess.run('source venv/bin/activate && '
                    'mq init && '
                    'mq workflow -p agts.py',
