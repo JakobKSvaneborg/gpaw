@@ -212,8 +212,8 @@ class Supercell:
         # truncate to n_c along non-periodic axes where the sizes disagree.
         pb = (~gd.pbc_c) & (V1t_xsG.shape[-3:] != gd.n_c)
         if pb.any():
-            s = tuple(slice(1, None) if p else slice(None) for p in pb)
-            V1t_xsG = V1t_xsG[..., s[0], s[1], s[2]]
+            slices = tuple(slice(1, None) if p else slice(None) for p in pb)
+            V1t_xsG = V1t_xsG[..., slices[0], slices[1], slices[2]]
 
         # Equilibrium atomic Hamiltonian matrix (projector coefficients)
         fd_cache = MultiFileJSONCache(fd_name)
