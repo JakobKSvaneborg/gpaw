@@ -11,6 +11,7 @@ Documentation
    advanced
    theory
    core
+   log-file
    cmdline
    gpu
    utilities/utilities
