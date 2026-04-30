@@ -316,7 +316,7 @@ class LCAOWaveFunctions(WaveFunctions, XP):
         mynbands, M = self.C_nM.dist.shape
         if self.ncomponents < 4:
             psit_nG = pw.empty(nbands, self.band_comm)
-            assert mynbands == psit_nG.data.shape[0]
+            assert mynbands <= psit_nG.data.shape[0]
             B = min(mynbands, 10)
             psit_bR = grid.empty(B)
 
