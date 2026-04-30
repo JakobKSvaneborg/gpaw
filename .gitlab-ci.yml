@@ -656,6 +656,10 @@ typecheck:
     - python --version
     - mypy --version
     - mypy --pretty
+  cache:
+    key: cache-typecheck
+    paths:
+      - $PIP_CACHE_DIR
 
 
 docs:
