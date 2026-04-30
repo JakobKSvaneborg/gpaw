@@ -316,20 +316,31 @@ class LCAOWaveFunctions(WaveFunctions, XP):
         mynbands, M = self.C_nM.dist.shape
         if self.ncomponents < 4:
             psit_nG = pw.empty(nbands, self.band_comm)
-            psit_R = grid.empty()
+            assert mynbands == psit_nG.data.shape[0]
+            B = min(mynbands, 10)
+            psit_bR = grid.empty(B)
 
             if grid.dtype != pw.dtype:
+                1 / 0
                 psit0_R = grid.new(dtype=pw.dtype).empty()
-            for C_M, psit_G in zip(self.C_nM.data, psit_nG, strict=False):
-                psit_R.data[:] = 0.0
-                self.basis.lcao_to_grid(as_np(C_M), psit_R.data, self.q)
+            for n1 in range(0, mynbands, B):
+                n2 = n1 + B
+                if n2 > mynbands:
+                    n2 = mynbands
+                    psit_bR = psit_bR[:n2 - n1]
+                C_bM = self.C_nM.data[n1:n2]
+                # for C_M, psit_G in zip(self.C_nM.data,
+                #                        psit_nG, strict=False):
+                psit_bR.data[:] = 0.0
+                self.basis.lcao_to_grid(as_np(C_bM), psit_bR.data, self.q,
+                                        block_size=n2 - n1)
                 if np.issubdtype(self.dtype, np.complexfloating):
-                    psit_R.data *= emikr_R
+                    psit_bR.data *= emikr_R
                 if grid.dtype != pw.dtype:
-                    psit0_R.data[:] = psit_R.data
-                    psit0_R.fft(out=psit_G)
+                    psit0_R.data[:] = psit_bR.data
+                    psit0_R.fft(out=psit_nG)
                 else:
-                    psit_R.to_pbc_grid().fft(out=psit_G)
+                    psit_bR.to_pbc_grid().fft(out=psit_nG[n1:n2])
             return psit_nG.to_xp(self.xp)
 
         psit_nsG = pw.empty((nbands, 2), self.band_comm)
