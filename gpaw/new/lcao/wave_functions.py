@@ -321,8 +321,7 @@ class LCAOWaveFunctions(WaveFunctions, XP):
             psit_bR = grid.empty(B)
 
             if grid.dtype != pw.dtype:
-                1 / 0
-                psit0_R = grid.new(dtype=pw.dtype).empty()
+                psit0_bR = grid.new(dtype=pw.dtype).empty(B)
             for n1 in range(0, mynbands, B):
                 n2 = n1 + B
                 if n2 > mynbands:
@@ -337,8 +336,8 @@ class LCAOWaveFunctions(WaveFunctions, XP):
                 if np.issubdtype(self.dtype, np.complexfloating):
                     psit_bR.data *= emikr_R
                 if grid.dtype != pw.dtype:
-                    psit0_R.data[:] = psit_bR.data
-                    psit0_R.fft(out=psit_nG)
+                    psit0_bR.data[:] = psit_bR.data
+                    psit0_bR.fft(out=psit_nG[n1:n2])
                 else:
                     psit_bR.to_pbc_grid().fft(out=psit_nG[n1:n2])
             return psit_nG.to_xp(self.xp)
