@@ -148,14 +148,12 @@ class QEHChiCalc(ChiCalc):
 
     def get_chi_wGG(self, qpoint: QPoint):
         if np.linalg.norm(qpoint.q_c) <= (2 * self.qinf_rel / self.Nk):
-            chi0_dyson_eqs = self.df.get_chi0_dyson_eqs([0, 0, 0],
-                                                        truncation='2D')
-            qpd, chi_wGG, wblocks = chi0_dyson_eqs.rpa_density_response(
+            response = self.df.calculate([0, 0, 0], truncation='2D')
+            qpd, chi_wGG, wblocks = response.rpa_density_response(
                 qinf_v=qpoint.q_v, direction=qpoint.q_v)
         else:
-            chi0_dyson_eqs = self.df.get_chi0_dyson_eqs(qpoint.q_c,
-                                                        truncation='2D')
-            qpd, chi_wGG, wblocks = chi0_dyson_eqs.rpa_density_response()
+            response = self.df.calculate(qpoint.q_c, truncation='2D')
+            qpd, chi_wGG, wblocks = response.rpa_density_response()
 
         G_Gv = qpd.get_reciprocal_vectors(add_q=False)
 

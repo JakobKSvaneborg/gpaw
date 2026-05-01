@@ -71,15 +71,15 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode, mpi):
         'C.gpw', eta=0.25, ecut=50,
         frequencies=np.linspace(0, 24., 241), hilbert=False, eshift=eshift,
         world=mpi.comm)
-    eps = dfcalc.get_literal_dielectric_function()
+    response = dfcalc.calculate()
 
-    # Test the new interface to the dielectric constant
-    eM1, eM2 = eps.dielectric_constant()
+    # Test the dielectric constant
+    eM1, eM2 = response.dielectric_constant()
     assert eM1 == pytest.approx(eM1_, abs=0.01)
     assert eM2 == pytest.approx(eM2_, abs=0.01)
 
     # Test the macroscopic dielectric function
-    omega_w, eps0M_w, epsM_w = eps.macroscopic_dielectric_function().arrays
+    omega_w, eps0M_w, epsM_w = response.dielectric_function().arrays
     w0, I0 = findpeak(omega_w, eps0M_w.imag)
     assert w0 == pytest.approx(w0_, abs=0.01)
     assert I0 / (4 * np.pi) == pytest.approx(I0_, abs=0.1)
@@ -88,7 +88,7 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode, mpi):
     assert I / (4 * np.pi) == pytest.approx(I_, abs=0.1)
 
     # Test polarizability
-    omega_w, a0rpa_w, arpa_w = eps.polarizability().arrays
+    omega_w, a0rpa_w, arpa_w = response.polarizability().arrays
     w0, I0 = findpeak(omega_w, a0rpa_w.imag)
     assert w0 == pytest.approx(w0_, abs=0.01)
     assert I0 == pytest.approx(I0_, abs=0.01)
@@ -96,14 +96,13 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode, mpi):
     assert w == pytest.approx(w_, abs=0.01)
     assert I == pytest.approx(I_, abs=0.01)
 
-    # Test that the macroscopic dielectric function can be calculated also from
-    # the inverse dielectric function and the bare dielectric function
-    epsinv = dfcalc.get_inverse_dielectric_function()
-    _, _, epsM_frominv_w = epsinv.macroscopic_dielectric_function().arrays
-    assert epsM_frominv_w == pytest.approx(epsM_w, rel=1e-6)
-    epsbare = dfcalc.get_bare_dielectric_function()
-    _, _, epsM_frombare_w = epsbare.macroscopic_dielectric_function().arrays
-    assert epsM_frombare_w == pytest.approx(epsM_w, rel=1e-6)
+    # Test that the bare DF path gives the same macroscopic DF
+    # (for untruncated RPA, the bare and inverse paths are equivalent)
+    vP_wGG, vchibar_wGG = response._calculate_vchi_symm(
+        direction='x', modified=True)
+    vchibar_W = response.wblocks.all_gather(vchibar_wGG[:, 0, 0])
+    epsM_bare_w = 1. - vchibar_W
+    assert epsM_bare_w == pytest.approx(epsM_w, rel=1e-6)
 
     # ----- TDDFT absorption spectra ----- #
 
@@ -115,9 +114,10 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode, mpi):
         w_ = 14.7615 if mode == 'pw' else 14.9731
         I_ = 5.7946 if mode == 'pw' else 4.9209
 
-    epsinv = dfcalc.get_inverse_dielectric_function(xc='ALDA', rshelmax=0)
+    response_alda = dfcalc.calculate(xc='ALDA', rshelmax=0)
     # Here we base the check on a written results file
-    epsinv.polarizability().write(filename='ALDA_pol.csv', comm=mpi.comm)
+    response_alda.polarizability().write(filename='ALDA_pol.csv',
+                                         comm=mpi.comm)
     dfcalc.context.comm.barrier()
     omega_w, a0alda_w, aalda_w = read_response_function('ALDA_pol.csv')
 
@@ -134,8 +134,8 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode, mpi):
         w_ = 14.2901 if mode == 'pw' else 14.4245
         I_ = 5.5508 if mode == 'pw' else 4.9553
 
-    epsinv = dfcalc.get_inverse_dielectric_function(xc='LR0.25')
-    omega_w, a0lr_w, alr_w = epsinv.polarizability().arrays
+    response_lr = dfcalc.calculate(xc='LR0.25')
+    omega_w, a0lr_w, alr_w = response_lr.polarizability().arrays
 
     assert a0lr_w == pytest.approx(a0rpa_w, rel=1e-4)
     w, I = findpeak(omega_w, alr_w.imag)
@@ -150,8 +150,8 @@ def test_response_diamond_absorption(in_tmp_dir, eshift, mode, mpi):
         w_ = 14.2626 if mode == 'pw' else 14.38418
         I_ = 5.3896 if mode == 'pw' else 4.82897
 
-    epsinv = dfcalc.get_inverse_dielectric_function(xc='Bootstrap')
-    omega_w, a0btsr_w, abtsr_w = epsinv.polarizability().arrays
+    response_btsr = dfcalc.calculate(xc='Bootstrap')
+    omega_w, a0btsr_w, abtsr_w = response_btsr.polarizability().arrays
 
     assert a0btsr_w == pytest.approx(a0rpa_w, rel=1e-4)
     w, I = findpeak(omega_w, abtsr_w.imag)
