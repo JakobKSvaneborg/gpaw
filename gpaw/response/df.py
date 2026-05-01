@@ -667,7 +667,8 @@ class DielectricFunction(DielectricFunctionCalculator):
                  truncation=None,
                  qsymmetry=True,
                  integrationmode='point integration', rate=0.0,
-                 eshift: float | None = None):
+                 eshift: float | None = None,
+                 ecut_pair=None):
         """Creates a DielectricFunction object.
 
         calc: str
@@ -724,7 +725,8 @@ class DielectricFunction(DielectricFunctionCalculator):
             intraband=intraband,
             qsymmetry=qsymmetry,
             integrationmode=integrationmode,
-            rate=rate, eshift=eshift
+            rate=rate, eshift=eshift,
+            ecut_pair=ecut_pair
         )
         super().__init__(chi0calc)
         self.truncation = truncation
