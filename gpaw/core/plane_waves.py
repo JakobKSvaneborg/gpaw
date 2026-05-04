@@ -691,13 +691,15 @@ class PWArray(XArray[PWDesc]):
                                       a_xGz,
                                       weights)
         else:
-            1 / 0
+            raise ValueError(f'Unknown norm2-kind: {kind}.  '
+                             'Must be normal, kinetic or weighted.')
         if self.desc.dtype == self.real_dtype:
             result_x *= 2
             if self.desc.comm.rank == 0:
                 if kind == 'normal':
                     result_x -= a_xG[:, 0]**2
                 elif kind == 'weighted':
+                    assert weights is not None
                     result_x -= a_xG[:, 0]**2 * weights[0]
         if not skip_sum:
             self.desc.comm.sum(result_x)
