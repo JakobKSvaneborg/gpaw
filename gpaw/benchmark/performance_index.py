@@ -79,7 +79,7 @@ REFERENCES = REFERENCES0 | {
 # Updated references for ALL systems, s.t. improvements are weighted equally.
 # Additionally, Initial magnetic moments have been changed to yield the correct
 # ground state for all systems.
-REFERENCES0 = {
+REFERENCES = {
     'Bi2Se3-3': (-8.911, -0.00074, 24, 62.7),
     'C60-0': (-530.92535, -0.4486, 24, 174.3),
     'C72-2': (-663.739, 3.4112, 24, 343.1),
@@ -125,11 +125,11 @@ def score(data: dict[str, float]) -> tuple[float, int]:
     """
     s = 0.0
     n = 0
-    for name, (_, _, _, tref) in REFERENCES0.items():
+    for name, (_, _, _, tref) in REFERENCES.items():
         if name in data:
             s += tref / data[name]
             n += 1
-    return 100 * RESCALE_FACTOR * s / len(REFERENCES0), n
+    return 100 * RESCALE_FACTOR * s / len(REFERENCES), n
 
 
 def workflow(skip: list[str] | None = None) -> list:
