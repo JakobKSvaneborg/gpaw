@@ -151,6 +151,9 @@ class ActualPairDensityCalculator:
         self.context = kptpair_factory.context
         self.blockcomm = blockcomm
         self.ut_sKnvR = None  # gradient of wave functions for optical limit
+        # Reciprocal cell rows: 2*pi * inv(cell_cv).T. Cached once because
+        # cell_cv is fixed and the inverse appears in inner per-band loops.
+        self._icell_cv_T = np.linalg.inv(self.gs.gd.cell_cv).T
 
     def get_optical_pair_density(self, qpd, kptpair, n_n, m_m, *,
                                  pawcorr, block=False):
@@ -273,8 +276,7 @@ class ActualPairDensityCalculator:
         if self.ut_sKnvR is None or kpt1.K not in self.ut_sKnvR[kpt1.s]:
             self.ut_sKnvR = self.calculate_derivatives(kpt1)
 
-        gd = self.gs.gd
-        k_v = 2 * np.pi * np.dot(kpt1.k_c, np.linalg.inv(gd.cell_cv).T)
+        k_v = 2 * np.pi * np.dot(kpt1.k_c, self._icell_cv_T)
 
         ut_vR = self.ut_sKnvR[kpt1.s][kpt1.K][n - kpt1.n1]
         atomdata_a = self.gs.pawdatasets.by_atom
@@ -312,11 +314,11 @@ class ActualPairDensityCalculator:
         threshold = 1
 
         eps1 = kpt1.eps_n[n - kpt1.n1]
+        # Fancy indexing already returns a fresh array, so no extra copy needed.
         deps_m = (eps1 - kpt2.eps_n)[m_m - kpt2.n1]
         n0_mv = self.calculate_optical_pair_velocity(n, kpt1, kpt2,
                                                      block=block)
 
-        deps_m = deps_m.copy()
         deps_m[deps_m == 0.0] = np.inf
 
         smallness_mv = np.abs(-1e-3 * n0_mv / deps_m[:, np.newaxis])
@@ -337,8 +339,7 @@ class ActualPairDensityCalculator:
         assert np.min(n_n) >= na, 'This is too few bands'
 
         # Load kpoints
-        gd = self.gs.gd
-        k_v = 2 * np.pi * np.dot(kpt.k_c, np.linalg.inv(gd.cell_cv).T)
+        k_v = 2 * np.pi * np.dot(kpt.k_c, self._icell_cv_T)
         atomdata_a = self.gs.pawdatasets.by_atom
 
         # Break bands into degenerate chunks
@@ -403,7 +404,7 @@ class ActualPairDensityCalculator:
         gs = self.gs
         U_cc = gs.ibz2bz[K].U_cc
         A_cv = gs.gd.cell_cv
-        M_vv = np.dot(np.dot(A_cv.T, U_cc.T), np.linalg.inv(A_cv).T)
+        M_vv = np.dot(np.dot(A_cv.T, U_cc.T), self._icell_cv_T)
         ik = gs.kd.bz2ibz_k[K]
         assert gs.kd.comm.size == 1
         kpt = gs.kpt_ks[ik][s]

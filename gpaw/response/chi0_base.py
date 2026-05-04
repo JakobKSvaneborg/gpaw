@@ -51,6 +51,10 @@ class Chi0Integrand(Integrand):
         self.m2 = m2
         self.n1 = n1
         self.n2 = n2
+        # Pre-compute band index arrays. matrix_element() is called once per
+        # integration point, so we avoid re-allocating these every call.
+        self._m_m = np.arange(m1, m2)
+        self._n_n = np.arange(n1, n2)
 
         self._chi0calc = chi0calc
 
@@ -128,9 +132,7 @@ class Chi0Integrand(Integrand):
             qpd, point.spin, K, self.n1, self.n2,
             self.m1, self.m2, blockcomm=self.blockcomm)
 
-        m_m = np.arange(self.m1, self.m2)
-        n_n = np.arange(self.n1, self.n2)
-        n_nmG = target_method(qpd, kptpair, n_n, m_m,
+        n_nmG = target_method(qpd, kptpair, self._n_n, self._m_m,
                               pawcorr=self._chi0calc.pawcorr,
                               block=True)
 

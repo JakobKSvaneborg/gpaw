@@ -234,8 +234,11 @@ class Hilbert(IntegralTask):
             o1 = wd.omega_w[w]
             o2 = wd.omega_w[w + 1]
             p = np.abs(1 / (o2 - o1)**2)
-            p1_m = np.array(p * (o2 - sortedo_m[startindex:endindex]))
-            p2_m = np.array(p * (sortedo_m[startindex:endindex] - o1))
+            # Arithmetic on slices already returns a fresh ndarray; the
+            # outer np.array() wrappers were redundant copies.
+            o_m = sortedo_m[startindex:endindex]
+            p1_m = p * (o2 - o_m)
+            p2_m = p * (o_m - o1)
 
             if blocks1d.blockcomm.size > 1 and w + 1 < wd.wmax:
                 x_mG = sortedn_mG[startindex:endindex, blocks1d.myslice]
