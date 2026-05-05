@@ -2,12 +2,12 @@
 import numpy as np
 import pytest
 from ase import Atoms
-
+from ase.units import Ha
 from gpaw import GPAW, PW
+from gpaw.hybrids import NonSelfConsistentHybridXCCalculator
 from gpaw.hybrids.eigenvalues import non_self_consistent_eigenvalues
 from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW as NewGPAW
-from gpaw.hybrids import NonSelfConsistentHybridXCCalculator
 
 
 @pytest.fixture(scope='module')
@@ -60,6 +60,12 @@ def test_kpts(xc: str, atoms: Atoms, comm) -> None:
     k1, k2, gap = bandgap(e0)
     assert k1 == 4 and k2 == 5
     assert gap == pytest.approx(gaps['PBE'], abs=0.01)
+    if xc == 'HSE06':
+        print(e.shape)
+        print(e[0, 0, :])
+        from gpaw.new.pw.nschse import off_diag
+        H_unn = off_diag(c.dft)
+        print(np.diag(H_unn[0].data) * Ha)
 
 
 def test_2d_non_self_consistent():

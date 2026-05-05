@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import warnings
+from functools import partial
 from pathlib import Path
 from time import time
-from typing import IO, Sequence, TYPE_CHECKING
+from typing import IO, TYPE_CHECKING, Sequence
 
 import numpy as np
 from ase.units import Ha
@@ -22,6 +23,7 @@ from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.utilities import pack_density, unpack_hermitian
+
 if TYPE_CHECKING:
     from gpaw.new.calculation import DFTCalculation
 
@@ -328,6 +330,42 @@ def nsc_corrections(density: Density,
             dxc_asii[a][:] += dHU_sii
 
     return dxc_sR, dhyb_sR, dxc_asii, dhyb_asii
+
+
+def off_diag(dft: DFTCalculation):
+    from gpaw.new.pw.hybrids import PWHybridHamiltonian
+    from gpaw.new.xc import create_functional
+    ibzwfs = dft.ibzwfs
+    density = dft.density
+    potential = dft.potential
+
+    wfs = ibzwfs._wfs_u[0]
+
+    xc = create_functional('HSE06', grid=dft.pot_calc.xc.grid)
+    hamiltonian = PWHybridHamiltonian(
+        density.nt_sR.desc,
+        wfs.psit_nX.desc,
+        xc,
+        dft.setups,
+        dft.relpos_ac,
+        density.D_asii.layout.atomdist,
+        dft.log,
+        ibzwfs.ibz.bz,
+        ibzwfs.kpt_comm,
+        ibzwfs.band_comm,
+        ibzwfs.comm)
+    # hamiltonian = dft.pot_calc.hamiltonian
+    apply = partial(hamiltonian.apply,
+                    potential.vt_sR,
+                    potential.dedtaut_sR,
+                    ibzwfs, density.D_asii)  # used by hybrids
+    hamiltonian.update_wave_functions(ibzwfs)
+    H_unn = []
+    for wfs in ibzwfs.zero_padded_iter():
+        dH = partial(dft.potential.deltaH, spin=wfs.spin)
+        H_nn = wfs.build_hamiltonian(apply, dH, wfs.psit_nX.new())
+        H_unn.append(H_nn)
+    return H_unn
 
 
 # Backwards compatibility:
