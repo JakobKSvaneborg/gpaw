@@ -10,19 +10,6 @@ programming and computer science.  One of the advantages of the language
 is that it is relatively easy to read and understand pre-existing code.
 
 
-Python Notebooks
-----------------
-
-We are working with Python notebooks.  A notebook is split into cells
-(this is a text cell, most cells contain a block of Python code).  You can
-execute a cell by pressing Shift+Enter.  You can edit a text cell by
-doubleclicking it.  You can change the type of a cell on the menu bar
-above, use "Markup" for text and "Code" for Python code.  There are also
-buttons for adding and removing cells.  Cells can be split into two (or
-merged) on the Edit menu.
-
-
-
 Importing the necesary modules
 ==============================
 
@@ -500,11 +487,9 @@ Using ASE to setup band structures for Al using a Freelectron model and DFT
 
 
 .. literalinclude:: al.py
+   :end-before: gpaw
 
 Setup a DFT calculation with GPAW and repeat
 
-.. litteralinclude:: al.py
-
-
-.. code::
-
+.. literalinclude:: al.py
+   :start-after: plot

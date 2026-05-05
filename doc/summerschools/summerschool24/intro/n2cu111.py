@@ -1,3 +1,4 @@
+# creates: N2Cu.traj
 from ase import Atoms
 from ase.calculators.emt import EMT
 from ase.constraints import FixAtoms
