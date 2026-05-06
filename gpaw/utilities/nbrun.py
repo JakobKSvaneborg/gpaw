@@ -109,8 +109,7 @@ def py2rst(path: Path) -> None:
             for line in lines:
                 if line.startswith('# magic: '):
                     print(line)
-                else:
-                    output.append('    ' + line)
+                output.append('    ' + line)
 
         output.append('')
 

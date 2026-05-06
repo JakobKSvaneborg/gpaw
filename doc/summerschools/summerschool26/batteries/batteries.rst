@@ -26,14 +26,15 @@ Tools used:
 
 * Nudged Elastic Band (NEB) calculations for estimating Li migration barriers
 
+.. toctree::
+
+   batteries1
+
 
 Part 1: Li intercalation energy in graphite
 ===========================================
 
-:download:`batteries1.ipynb`, :download:`C64.png`,
-:download:`Li2.png`, :download:`C144Li18.png`
-
-The notebook ``batteries1.ipynb`` will guide you through the first day of the
+The :ref:`batteries1` page will guide you through the first day of the
 battery exercise.
 
 * Setup a graphite structure

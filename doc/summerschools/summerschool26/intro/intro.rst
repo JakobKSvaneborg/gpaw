@@ -46,7 +46,21 @@ Hello
 Hello Hello Hello Hello Hello
 >>> # help is useful for getting help of af method
 >>> help(print)
-...
+Help on built-in function print in module builtins:
+<BLANKLINE>
+print(*objects, sep=' ', end='\n', file=None, flush=False)
+    Prints the values to a stream, or to sys.stdout by default.
+<BLANKLINE>
+    sep
+      string inserted between values, default a space.
+    end
+      string appended after the last value, default a newline.
+    file
+      a file-like object (stream); defaults to the current sys.stdout.
+    flush
+      whether to forcibly flush the stream.
+<BLANKLINE>
+
 
 
 Variables and data types

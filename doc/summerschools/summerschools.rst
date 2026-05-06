@@ -8,7 +8,7 @@ Summer schools
     summerschool26/summerschool26
     summerschool24
     summerschool22
-    summerschool18/summerschool18
+    summerschool18
     summerschool16
     summerschool14
     summerschool12
