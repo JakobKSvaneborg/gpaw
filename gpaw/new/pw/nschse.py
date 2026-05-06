@@ -11,6 +11,7 @@ import numpy as np
 from ase.units import Ha
 from gpaw.core import PWArray, PWDesc, UGArray
 from gpaw.core.atom_arrays import AtomArrays
+from gpaw.core.matrix import Matrix
 from gpaw.mpi import broadcast
 from gpaw.new import zips as zip
 from gpaw.new.brillouin import MonkhorstPackKPoints
@@ -332,37 +333,20 @@ def nsc_corrections(density: Density,
     return dxc_sR, dhyb_sR, dxc_asii, dhyb_asii
 
 
-def off_diag(dft: DFTCalculation):
-    from gpaw.new.pw.hybrids import PWHybridHamiltonian
-    from gpaw.new.xc import create_functional
+def off_diag(dft: DFTCalculation, xc: str = 'HSE06') -> list[Matrix]:
+    dft.change(xc=xc)
     ibzwfs = dft.ibzwfs
     density = dft.density
-    potential = dft.potential
-
-    wfs = ibzwfs._wfs_u[0]
-
-    xc = create_functional('HSE06', grid=dft.pot_calc.xc.grid)
-    hamiltonian = PWHybridHamiltonian(
-        density.nt_sR.desc,
-        wfs.psit_nX.desc,
-        xc,
-        dft.setups,
-        dft.relpos_ac,
-        density.D_asii.layout.atomdist,
-        dft.log,
-        ibzwfs.ibz.bz,
-        ibzwfs.kpt_comm,
-        ibzwfs.band_comm,
-        ibzwfs.comm)
-    # hamiltonian = dft.pot_calc.hamiltonian
+    potential = dft.pot_calc.calculate(density)[0]
+    hamiltonian = dft.scf_loop.hamiltonian
     apply = partial(hamiltonian.apply,
                     potential.vt_sR,
                     potential.dedtaut_sR,
-                    ibzwfs, density.D_asii)  # used by hybrids
+                    ibzwfs, density.D_asii)
     hamiltonian.update_wave_functions(ibzwfs)
     H_unn = []
     for wfs in ibzwfs.zero_padded_iter():
-        dH = partial(dft.potential.deltaH, spin=wfs.spin)
+        dH = partial(potential.deltaH, spin=wfs.spin)
         H_nn = wfs.build_hamiltonian(apply, dH, wfs.psit_nX.new())
         H_unn.append(H_nn)
     return H_unn
