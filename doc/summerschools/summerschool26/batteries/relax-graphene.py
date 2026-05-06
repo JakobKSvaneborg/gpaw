@@ -11,7 +11,7 @@ c = 2 * layerdist
 gra = Graphite('C', latticeconstant={'a': a, 'c': c})
 
 xc = 'LDA'
-calcname = f'graphite-{xc}'
+calcname = 'graphite'
 calc = GPAW(mode=PW(500),
             kpts=(10, 10, 6),
             xc=xc,

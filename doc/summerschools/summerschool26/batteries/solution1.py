@@ -1,4 +1,4 @@
-# creates: layerdist.txt
+# creates: layerdist.json
 # This script will calculate the energy of graphite for a series of
 # inter-layer distances.
 import json
