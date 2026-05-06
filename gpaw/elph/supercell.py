@@ -54,22 +54,44 @@ class Supercell:
 
     def _create_gpaw_calculator(
             self, calcdict, fd_name='elph') -> ASECalculator:
-        """Create empty LCAO calculator to give us projectors"""
-        kpts = calcdict.get('kpts', (1, 1, 1))
-        basis = calcdict.get('basis', 'dzp')
-        comm = calcdict.get('comm', None)
-        txt = calcdict.get('txt', None)
+        """Create empty LCAO calculator to give us projectors.
 
+        Parameters
+        ----------
+        calcdict: dict
+            GPAW keyword arguments forwarded to the calculator.  ``basis``
+            defaults to ``'dzp'`` if not supplied.  The following parameters
+            are set internally from the finite-difference cache and may not
+            be overridden: ``mode``, ``gpts``, ``spinpol``, ``symmetry``,
+            ``parallel``.  Passing ``h`` is also forbidden because the grid
+            is fixed by the cache.
+        fd_name: str
+            Name of the finite-difference JSON cache (default ``'elph'``).
+            Used to read the potential shape and spin information needed to
+            build the calculator.
+        """
         cache = MultiFileJSONCache(fd_name)
         pot_shape = list(np.array(cache['eq']['Vt_sG']).shape)
         assert pot_shape[0] in (1, 2), "only colinear spins"
-        calc = GPAW(mode='lcao', basis=basis, kpts=kpts,
-                    gpts=pot_shape[1:],
-                    spinpol=pot_shape[0] == 2,  # i hope
-                    symmetry={'point_group': False},
-                    parallel={'domain': 1, 'band': 1},
-                    communicator=comm,
-                    txt=txt)
+
+        internal = {
+            'mode': 'lcao',
+            'gpts': pot_shape[1:],
+            'spinpol': pot_shape[0] == 2,
+            'symmetry': {'point_group': False},
+            'parallel': {'domain': 1, 'band': 1},
+        }
+        if 'h' in calcdict:
+            raise ValueError(
+                "'h' cannot be set; grid is determined from cache")
+        for key, val in internal.items():
+            if key in calcdict and calcdict[key] != val:
+                raise ValueError(
+                    f"'{key}' is set internally to {val!r}"
+                    " and cannot be overridden")
+
+        gpaw_kwargs = {'basis': 'dzp', **calcdict, **internal}
+        calc = GPAW(**gpaw_kwargs)
         calc.create_new_calculation(self.atoms * self.supercell)
         return calc
 
