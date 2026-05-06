@@ -11,7 +11,6 @@ a = ccdist * np.sqrt(3)
 c = 2 * layerdist
 gra = Graphite('C', latticeconstant={'a': a, 'c': c})
 
-
 for xc in ['LDA', 'PBE', 'DFTD3']:
     params = dict(
         mode=PW(500),

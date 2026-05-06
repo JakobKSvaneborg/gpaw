@@ -235,7 +235,6 @@ minimize the strain on the unit cell.
 Read in the result of the relaxation and determine the C-C and interlayer
 distances.
 
-
 .. testcode::
 
     from ase.io import read
