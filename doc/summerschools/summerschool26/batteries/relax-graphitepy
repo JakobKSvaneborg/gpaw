@@ -1,3 +1,4 @@
+# web-page: graphite-LDA.traj, graphite-LDA.log
 import numpy as np
 from ase.lattice.hexagonal import Graphite
 from gpaw import GPAW, PW
@@ -11,7 +12,7 @@ c = 2 * layerdist
 gra = Graphite('C', latticeconstant={'a': a, 'c': c})
 
 xc = 'LDA'
-calcname = 'graphite'
+calcname = f'graphite-{xc}'
 calc = GPAW(mode=PW(500),
             kpts=(10, 10, 6),
             xc=xc,

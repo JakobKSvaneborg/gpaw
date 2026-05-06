@@ -1,4 +1,3 @@
-# web-page: graphite-LDA.traj, graphite-LDA.log
 import numpy as np
 from ase.calculators.dftd3 import DFTD3
 from ase.filters import StrainFilter
@@ -18,16 +17,16 @@ for xc in ['LDA', 'PBE', 'DFTD3']:
         dft = GPAW(mode=PW(500),
                    kpts=(10, 10, 6),
                    xc='PBE',
-                   txt=f'graphite-{xc}.log')
+                   txt=f'graphite-{xc}.txt')
         calc = DFTD3(dft=dft, xc='PBE')
     else:
         calc = GPAW(mode=PW(500),
                     kpts=(10, 10, 6),
                     xc=xc,
-                    txt=f'graphite-{xc}.log')
+                    txt=f'graphite-{xc}.txt')
 
     gra.calc = calc  # Connect system and calculator
 
     sf = StrainFilter(gra, mask=[1, 1, 1, 0, 0, 0])
-    opt = BFGS(sf, trajectory=f'graphite-{xc}.traj')
+    opt = BFGS(sf)
     opt.run(fmax=0.01)
