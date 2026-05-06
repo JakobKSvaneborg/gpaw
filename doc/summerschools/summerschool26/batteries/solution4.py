@@ -1,10 +1,13 @@
-from gpaw import GPAW, PW
-from ase import Atom
-from ase.optimize.bfgs import BFGS
 import numpy as np
-from ase.lattice.hexagonal import Graphene
+from ase import Atom
 from ase.filters import StrainFilter
+from ase.io import read
+from ase.lattice.hexagonal import Graphene
+from ase.optimize.bfgs import BFGS
+from gpaw import GPAW, PW
+from gpaw.new.extensions import D3
 
+energies = {}
 for xc in ['LDA', 'PBE', 'DFTD3']:
     ccdist = 1.40
     layerdist = 3.7
@@ -17,14 +20,14 @@ for xc in ['LDA', 'PBE', 'DFTD3']:
     Li_gra = Graphene('C', size=(2, 2, 1), latticeconstant={'a': a, 'c': c})
     Li_gra.append(Atom('Li', (a / 2, ccdist / 2, layerdist / 2)))
 
+    params = dict(
+        mode=PW(500),
+        kpts=(5, 5, 6),
+        txt=calcname + '.log')
     if xc == 'DFTD3':
-        dft = GPAW(mode=PW(500),
-                   kpts=(5, 5, 6),
-                   xc='PBE',
-                   txt=calcname + '.log')
-        calc = DFTD3(dft=dft, xc='PBE')
+        calc = GPAW(xc='PBE', extensions=[D3()], **params)
     else:
-        calc = GPAW(mode=PW(500), kpts=(5, 5, 6), xc=xc, txt=calcname + '.log')
+        calc = GPAW(xc=xc, **params)
 
     Li_gra.calc = calc  # Connect system and calculator
 
@@ -33,7 +36,14 @@ for xc in ['LDA', 'PBE', 'DFTD3']:
     opt.run(fmax=0.01)
 
     e_Li_gra = Li_gra.get_potential_energy()
-    e_Li = Li_metal.get_potential_energy() / len(Li_metal)
+    energies[xc] = e_Li_gra
+
+for xc, e_Li_gra in energies.items():
+    metal = read(f'Li-metal-{xc}.traj')
+    e_Li = metal.get_potential_energy() / len(metal)
+    gra = read(f'graphite-{xc}.traj')
     e_C8 = 8 * gra.get_potential_energy() / len(gra)
     intercalation_energy = e_Li_gra - (e_Li + e_C8)
-    print(f'Intercalation energy: {intercalation_energy:.2f} eV')
+    print(f'Intercalation energy: {intercalation_energy:.2f} eV ({xc})')
+    # ref = {}[xc]
+    # assert abs(intercalation_energy - ref) < 0.01, ref

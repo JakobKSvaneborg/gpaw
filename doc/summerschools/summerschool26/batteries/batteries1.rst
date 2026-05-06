@@ -1,9 +1,9 @@
-.. _batteries1:
-
 .. testsetup::
 
     import ase.visualize as v
     v.view = lambda atoms: None
+
+.. _batteries1:
 
 ========================
 Battery project (part 1)
@@ -132,7 +132,7 @@ calculate the energy of graphite for a series of C-C distances.
 
 
 Determine the equilibrium lattice constant.  We use a
-:class:`numpy.polynomial.Polynomial`.
+:mod:`numpy.polynomial`.
 
 .. testcode::
 
