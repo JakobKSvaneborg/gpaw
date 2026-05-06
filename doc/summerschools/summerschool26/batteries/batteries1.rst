@@ -153,24 +153,15 @@ Determine the equilibrium lattice constant.  We use a
 
     poly1 = poly.deriv()
     poly1.roots()  # two extrema
-
-
-.. testcode::
-
     # Find the minimum:
     emin, ccdist = min((poly(d), d) for d in poly1.roots())
-    ccdist
-
-
-.. testcode::
-
+    print(f'C-C dist: {ccdist:.3f} Å')
     # alternatively:
     poly2 = poly1.deriv()
     for ccdist in poly1.roots():
         if poly2(ccdist) > 0:
             break
-    ccdist
-
+    print(f'C-C dist: {ccdist:.3f} Å')
 
 Make a script that calculates the interlayer distance with EMT in the
 cell below
@@ -308,16 +299,26 @@ object.  This assumes that the trajectory file is called:
 Li metal
 ========
 
+.. image:: Li2.png
 
-![Li metal](Li2.png)
-
-Now we need to calculate the energy of Li metal. We will use the same strategy as for graphite, i.e. first determine the lattice constant, then use the energy of that structure. This time though you will have to do most of the work.
+Now we need to calculate the energy of Li metal.  We will use the same
+strategy as for graphite, i.e.  first determine the lattice constant,
+then use the energy of that structure.  This time though you will have to
+do most of the work.
 
 Some hints:
-1. The crystal structure of Li metal is shown in the image above. That structure is easily created with one of the functions in the [ase.build](https://ase-lib.org/ase/build/build.html) module
+
+1. The crystal structure of Li metal is shown in the image above.  That
+   structure is easily created with one of the functions in the
+   :mod:`ase.build` module
+
 2. A k-point density of approximately 2.4 points / Angstrom will be sufficient
-3. The DFTD3 correction is done *a posteriori*, this means the calculator should be created a little differently, see [the second example here](https://ase-lib.org/ase/calculators/dftd3.html#examples)
-4. See also the [equation of state module](https://ase-lib.org/ase/eos.html)
+
+3. The DFTD3 correction is done *a posteriori*, this means the calculator
+   should be created a little differently, see [the second example
+   here](https://ase-lib.org/ase/calculators/dftd3.html#examples)
+
+4. See also the :mod:`equation of state module <ase.eos>`
 
 In the end try to compare the different functionals with experimental values:
 
@@ -328,62 +329,14 @@ a / Å                3.51
 ========= ==================== ===== ===== ===========
 
 
-
-
-.. code::
-
-    # Teacher
-
-    from ase import Atoms
-    from gpaw import GPAW, PW
-    from ase.build import bulk
-    from ase.calculators.dftd3 import DFTD3
-    from ase.filters import StrainFilter
-    from ase.optimize.bfgs import BFGS
-
-    # This script will optimize lattice constant of metallic lithium
-    for xc in ['LDA', 'PBE', 'DFTD3']:
-        Li_metal = bulk('Li', crystalstructure='bcc', a=3.3)
-
-        if xc == 'DFTD3':
-            dft = GPAW(mode=PW(500),
-                       kpts=(8, 8, 8),
-                       nbands=-10,
-                       txt=f'Li-metal-{xc}.log',
-                       xc='PBE')
-            calc = DFTD3(dft=dft, xc='PBE')
-        else:
-            calc = GPAW(mode=PW(500),
-                        kpts=(8, 8, 8),
-                        nbands=-10,
-                        txt=f'Li-metal-{xc}.log',
-                        xc=xc)
-
-        Li_metal.calc = calc
-
-        sf = StrainFilter(Li_metal, mask=[1, 1, 1, 0, 0, 0])
-        opt = BFGS(sf, trajectory=f'Li-metal-{xc}.traj')
-        opt.run(fmax=0.01)
-
-
-
-Get the lattice information and compare with experimental values
-
-
-.. code::
-
-    a = Li_metal.get_cell()[0][0]  # student: a =
-
-
-<a id='liintercalation'></a>
-
 Li intercalation in graphite
 ============================
 
+.. image:: C144Li18.png
 
-![Li intercalated in graphite](C144Li18.png)
-
-Now we will calculate the intercalation of Li in graphite. For simplicity we will represent the graphite with only one layer. Also try and compare the C-C and interlayer distances to experimental values.
+Now we will calculate the intercalation of Li in graphite.  For
+simplicity we will represent the graphite with only one layer.  Also try
+and compare the C-C and interlayer distances to experimental values.
 
 ========================== ===================== ===== ===== ===========
                             Experimental values   LDA   PBE   PBE+DFTD3
@@ -394,7 +347,7 @@ Interlayer distance / Å                3.706
 
 
 
-.. code::
+.. testcode::
 
     # A little help to get you started with the combined structure
     from ase.lattice.hexagonal import Graphene
@@ -412,44 +365,8 @@ Interlayer distance / Å                3.706
     # Append an Li atom on top of the graphene layer
     Li_gra.append(Atom('Li', (a / 2, ccdist / 2, layerdist / 2)))
 
-
-.. code::
-
-    # Teacher
-
-    from gpaw import GPAW, PW
-    from ase import Atom
-    from ase.optimize.bfgs import BFGS
-    import numpy as np
-    from ase.lattice.hexagonal import Graphene
-    from ase.filters import StrainFilter
-
-    for xc in ['LDA', 'PBE', 'DFTD3']:
-        ccdist = 1.40
-        layerdist = 3.7
-
-        a = ccdist * np.sqrt(3)
-        c = layerdist
-
-        calcname = f'Li-C8-{xc}'
-        # We will require a larger cell, to accomodate the Li
-        Li_gra = Graphene('C', size=(2, 2, 1), latticeconstant={'a': a, 'c': c})
-        Li_gra.append(Atom('Li', (a / 2, ccdist / 2, layerdist / 2)))
-
-        if xc == 'DFTD3':
-            dft = GPAW(mode=PW(500), kpts=(5, 5, 6), xc='PBE', txt=calcname + '.log')
-            calc = DFTD3(dft=dft, xc='PBE')
-        else:
-            calc = GPAW(mode=PW(500), kpts=(5, 5, 6), xc=xc, txt=calcname + '.log')
-
-        Li_gra.calc = calc  # Connect system and calculator
-
-        sf = StrainFilter(Li_gra, mask=[1, 1, 1, 0, 0, 0])
-        opt = BFGS(sf, trajectory=calcname + '.traj')
-        opt.run(fmax=0.01)
-
-
-Now calculate the intercalation energy of Li in graphite with the following formula:
+Now calculate the intercalation energy of Li in graphite with the
+following formula:
 
 .. math::
 
@@ -468,28 +385,13 @@ compare the different functionals with experimental values:
 Intercalation energy / eV               -0.124
 ============================ ===================== ===== ===== ===========
 
-
-
-
-.. code::
-
-    # Teacher
-    e_Li_gra = Li_gra.get_potential_energy()
-    e_Li = Li_metal.get_potential_energy() / len(Li_metal)
-    e_C8 = 8 * gra.get_potential_energy() / len(gra)
-    intercalation_energy = e_Li_gra - (e_Li + e_C8)
-    print(f'Intercalation energy: {intercalation_energy:.2f}eV')
-
-
 Great job!  When you have made it this far it is time to turn your
 attention to the cathode.  If you have lots of time left though see if
 you can handle the bonus exercise.
 
 
-
 Bonus
 =====
-
 
 In the calculation of the intercalated Li we used a graphene layer with 8
 Carbon atoms per unit cell.  We can actually use only 6 Carbon by
@@ -497,7 +399,7 @@ rotating the x and y cell vectors.  This structure will be faster to
 calculate and still have neglible Li-Li interaction.
 
 
-.. code::
+.. testcode::
 
     from ase.visualize import view
 
@@ -508,26 +410,4 @@ calculate and still have neglible Li-Li interaction.
     c = layerdist
 
     Li_gra = Atoms('CCCCCCLi')  # Fill out the positions and cell vectors
-
-    # Teacher
-    for xc in ['LDA', 'PBE', 'DFTD3']:
-        calcname = f'Li-C6-{xc}'
-        Li_gra = Atoms('CCCCCCLi', positions=[(0, 0, 0), (0, ccdist, 0), (a, 0, 0),
-                                              (-a, 0, 0), (-a / 2, -ccdist / 2, 0),
-                                              (a / 2, -ccdist / 2, 0), (0, -ccdist, c / 2)],
-                       cell=([1.5 * a, -1.5 * ccdist, 0],
-                             [1.5 * a, 1.5 * ccdist, 0],
-                             [0, 0, c]),
-                       pbc=(1, 1, 1))
-
-        if xc == 'DFTD3':
-            dft = GPAW(mode=PW(500), kpts=(5, 5, 6), xc='PBE', txt=calcname + '.log')
-            calc = DFTD3(dft=dft, xc='PBE')
-        else:
-            calc = GPAW(mode=PW(500), kpts=(5, 5, 6), xc=xc, txt=calcname + '.log')
-
-        Li_gra.calc = calc  # Connect system and calculator
-
-        sf = StrainFilter(Li_gra, mask=[1, 1, 1, 0, 0, 0])
-        opt = BFGS(sf, trajectory=calcname + '.traj')
-        opt.run(fmax=0.01)
+    ...

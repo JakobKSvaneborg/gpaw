@@ -9,7 +9,7 @@ from ase.calculators.emt import EMT
 from ase.lattice.hexagonal import Graphite
 
 # ccdist is already defined in the previous cell
-ccdist = ...
+ccdist = 1.39
 # Start from a small guess
 layerdist = 2.0
 
