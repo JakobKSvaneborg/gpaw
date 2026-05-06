@@ -32,38 +32,21 @@ Some links for reference:
 * Plotting package `Matplotlib <https://matplotlib.org/>`__
 
 
-.. code::
-
-    import matplotlib.pyplot as plt    # For nice plotting
-    import numpy as np                 # Mathematical operations
-
+>>> import matplotlib.pyplot as plt    # For nice plotting
+>>> import numpy as np                 # Mathematical operations
 
 Let's try some simple stuff.
 
 
-.. code::
-
-    2 + 3
-
-
-.. code::
-
-    print('Hello')
-
-
-.. code::
-
-    print('Hello ' * 5)
-
-
-.. code::
-
-    # help is useful for getting help of af method
-    help(print)
-
-    # you can also use a question mark to get help in a Jupyter notebook,
-    # this opens up a new window (close it if you like)
-
+>>> 2 + 3
+5
+>>> print('Hello')
+Hello
+>>> print('Hello ' * 5)
+Hello Hello Hello Hello Hello
+>>> # help is useful for getting help of af method
+>>> help(print)
+...
 
 
 Variables and data types
@@ -75,24 +58,25 @@ text strings.  You can print a variable with the ``print()`` function:
 
 .. code::
 
-    a = 42
-    mypi = 3.14
-    b = "some text"
-    print(a)
-    print("Pi is approximately", mypi)
-    print(b)
-
+>>> a = 42
+>>> mypi = 3.14
+>>> b = 'some text'
+>>> a
+42
+>>> print('Pi is approximately', mypi)
+Pi is approximately 3.14
+>>> b
+'some text'
 
 The usual mathematical operations are possible.  The operator for
 exponentiation is the double star.
 
-
-.. code::
-
-    print(2 * a)
-    print(16**2)
-    print(a + 2 * mypi)
-
+>>> 2 * a
+84
+>>> 16**2
+256
+>>> a + 2 * mypi
+48.28
 
 
 A `list` is an ordered collection of arbitrary objects
