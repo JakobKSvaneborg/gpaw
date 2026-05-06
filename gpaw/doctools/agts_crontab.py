@@ -48,10 +48,18 @@ def compare_all_files(folder1: Path,
         print(p1, p2)
         err = compare_files(p1, p2)
         if err:
+<<<<<<< Updated upstream
             print(err)
             errors.append((err, p1, p2))
+=======
+            errors.append(path)
+>>>>>>> Stashed changes
     print(len(paths), len(errors), len(missing))
-
+    for path in errors:
+        if path.suffix in {'.png', '.svg'}:
+            pass#rint(f'eog {folder1 / path} {folder2 / path}')
+        else:
+            print(f'meld {folder1 / path} {folder2 / path}')
 
 def compare_files(p1: Path, p2: Path) -> float:
     if p1.suffix in {'.png', '.svg'}:
