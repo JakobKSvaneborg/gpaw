@@ -333,22 +333,30 @@ def nsc_corrections(density: Density,
     return dxc_sR, dhyb_sR, dxc_asii, dhyb_asii
 
 
-def off_diag(dft: DFTCalculation, xc: str = 'HSE06') -> list[Matrix]:
+def non_self_consistent_matrix_elements(dft: DFTCalculation,
+                                        xc: str = 'HSE06') -> list[Matrix]:
+    """Calculate non self-consistent matrix elements of hybrid XC.
+
+    Note: changes dft object in place!
+    """
     dft.change(xc=xc)
-    ibzwfs = dft.ibzwfs
-    density = dft.density
-    potential = dft.pot_calc.calculate(density)[0]
+    # Calculate new potential with hybrid functional:
+    potential = dft.pot_calc.calculate(dft.density)[0]
+
     hamiltonian = dft.scf_loop.hamiltonian
     apply = partial(hamiltonian.apply,
                     potential.vt_sR,
                     potential.dedtaut_sR,
-                    ibzwfs, density.D_asii)
-    hamiltonian.update_wave_functions(ibzwfs)
+                    dft.ibzwfs, dft.density.D_asii)
+    # Distribute waave-functions:
+    hamiltonian.update_wave_functions(dft.ibzwfs)
+
     H_unn = []
-    for wfs in ibzwfs.zero_padded_iter():
+    for wfs in dft.ibzwfs.zero_padded_iter():
         dH = partial(potential.deltaH, spin=wfs.spin)
         H_nn = wfs.build_hamiltonian(apply, dH, wfs.psit_nX.new())
         H_unn.append(H_nn)
+
     return H_unn
 
 

@@ -61,8 +61,8 @@ def test_kpts(xc: str, atoms: Atoms, comm) -> None:
     assert k1 == 4 and k2 == 5
     assert gap == pytest.approx(gaps['PBE'], abs=0.01)
     if xc == 'HSE06':
-        from gpaw.new.pw.nschse import off_diag
-        H_unn = off_diag(c.dft)
+        from gpaw.new.pw.nschse import non_self_consistent_matrix_elements
+        H_unn = non_self_consistent_matrix_elements(c.dft, 'HSE06')
         assert np.diag(H_unn[0].data) * Ha == pytest.approx(e[0, 0])
 
 

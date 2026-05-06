@@ -337,7 +337,6 @@ class PWArray(XArray[PWDesc]):
                           data=data)
 
     def new(self,
-            *,
             data=None,
             dims=None) -> PWArray:
         """Create new PWArray object of same kind.
