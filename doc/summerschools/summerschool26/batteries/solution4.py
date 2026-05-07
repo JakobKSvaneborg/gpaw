@@ -23,9 +23,9 @@ for xc in ['LDA', 'PBE', 'DFTD3']:
     params = dict(
         mode=PW(500),
         kpts=(5, 5, 6),
-        txt=calcname + '.log')
+        txt=calcname + '.txt')
     if xc == 'DFTD3':
-        calc = GPAW(xc='PBE', extensions=[D3()], **params)
+        calc = GPAW(xc='PBE', extensions=[D3(xc='PBE')], **params)
     else:
         calc = GPAW(xc=xc, **params)
 
@@ -45,5 +45,5 @@ for xc, e_Li_gra in energies.items():
     e_C8 = 8 * gra.get_potential_energy() / len(gra)
     intercalation_energy = e_Li_gra - (e_Li + e_C8)
     print(f'Intercalation energy: {intercalation_energy:.2f} eV ({xc})')
-    # ref = {}[xc]
+    # ref = {'LDA': -0.35}[xc]
     # assert abs(intercalation_energy - ref) < 0.01, ref

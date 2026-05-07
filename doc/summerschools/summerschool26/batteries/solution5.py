@@ -29,7 +29,7 @@ for xc in ['LDA', 'PBE', 'DFTD3']:
         kpts=(5, 5, 6),
         txt=calcname + '.log')
     if xc == 'DFTD3':
-        dft = GPAW(xc='PBE', extensions=[D3()], **params)
+        dft = GPAW(xc='PBE', extensions=[D3(xc='PBE')], **params)
     else:
         calc = GPAW(xc=xc, **params)
 
