@@ -348,10 +348,13 @@ def non_self_consistent_matrix_elements(dft: DFTCalculation,
                     potential.vt_sR,
                     potential.dedtaut_sR,
                     dft.ibzwfs, dft.density.D_asii)
-    # Distribute waave-functions:
-    hamiltonian.update_wave_functions(dft.ibzwfs)
 
     ibzwfs = dft.ibzwfs
+    ibzwfs.make_sure_wfs_are_read_from_gpw_file()
+
+    # Distribute waave-functions:
+    hamiltonian.update_wave_functions(ibzwfs)
+
     H_sknn = np.zeros((ibzwfs.nspins,
                        len(ibzwfs.ibz),
                        ibzwfs.nbands,
