@@ -351,13 +351,22 @@ def non_self_consistent_matrix_elements(dft: DFTCalculation,
     # Distribute waave-functions:
     hamiltonian.update_wave_functions(dft.ibzwfs)
 
-    H_unn = []
+    ibzwfs = dft.ibzwfs
+    H_sknn = np.zeros((ibzwfs.nspins,
+                       len(ibzwfs.ibz),
+                       ibzwfs.nbands,
+                       ibzwfs.nbands),
+                      dtype=ibzwfs.dtype)
     for wfs in dft.ibzwfs.zero_padded_iter():
         dH = partial(potential.deltaH, spin=wfs.spin)
         H_nn = wfs.build_hamiltonian(apply, dH, wfs.psit_nX.new())
-        H_unn.append(H_nn)
-
-    return H_unn
+        H_nn = H_nn.gather()
+        if H_nn is not None:
+            H_sknn[wfs.spin, wfs.k] = H_nn.data
+    ibzwfs.band_comm.broadcast(H_sknn, 0)
+    ibzwfs.domain_comm.broadcast(H_sknn, 0)
+    ibzwfs.kpt_comm.sum(H_sknn)
+    return H_sknn
 
 
 # Backwards compatibility:
