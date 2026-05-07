@@ -18,7 +18,7 @@ calc = calc.fixed_density(
 calc.write('na2_gs_casida.gpw', mode='all')
 
 # Standard Casida calculation
-calc = GPAW('na2_gs_casida.gpw')
+calc = GPAW('na2_gs_casida.gpw', legacy_gpaw=True)
 istart = 0
 jend = 90
 lr = LrTDDFT(calc, xc='LDA', restrict={'istart': istart, 'jend': jend})

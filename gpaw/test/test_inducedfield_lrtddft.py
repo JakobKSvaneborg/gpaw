@@ -10,7 +10,6 @@ from gpaw.poisson import FDPoissonSolver
 
 @pytest.mark.ci
 @pytest.mark.lrtddft
-@pytest.mark.old_gpaw_only
 def test_inducedfield_lrtddft(in_tmp_dir):
     do_print_values = False  # Use this for printing the reference values
     poisson_eps = 1e-12

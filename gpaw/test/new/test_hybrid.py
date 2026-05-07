@@ -6,7 +6,6 @@ from gpaw import GPAW
 from gpaw.mpi import world
 
 
-@pytest.mark.new_gpaw_ready
 @pytest.mark.hybrids
 def test_pawexxvv():
     from _gpaw import pawexxvv
@@ -21,23 +20,16 @@ def test_pawexxvv():
         assert np.allclose(V_ii, V2_ii)
 
 
-@pytest.mark.new_gpaw_ready
 @pytest.mark.hybrids
 # @pytest.mark.parametrize('ccirs', [False, True])
 @pytest.mark.parametrize('dtype', [float, complex])
 @pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg'])
-def test_hse06(gpaw_new, dtype, eigensolver):
-
-    if not gpaw_new and eigensolver == 'ppcg':
-        pytest.skip('PPCG only for GPAW new.')
-    if not gpaw_new:
-        pytest.skip('Does not always converge!')
-
+def test_hse06(dtype, eigensolver):
     atoms = Atoms('Li2', [[0, 0, 0], [0, 0, 2.0]])
     atoms.center(vacuum=2.5)
     atoms.calc = GPAW(
         mode=dict(name='pw',
-                  force_complex_dtype=not gpaw_new and dtype is complex),
+                  force_complex_dtype=dtype is complex),
         xc='HSE06',
         eigensolver={'name': eigensolver, 'niter': 6},
         convergence={'density': 1e-6},
@@ -52,15 +44,10 @@ def test_hse06(gpaw_new, dtype, eigensolver):
     assert f == pytest.approx(np.array([[0, 0, -f0], [0, 0, f0]]), abs=3e-4)
 
 
-@pytest.mark.new_gpaw_ready
 @pytest.mark.hybrids
 @pytest.mark.parametrize('dtype', [float, complex])
 @pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg'])
-def test_h(gpaw_new, dtype, eigensolver):
-
-    if not gpaw_new and eigensolver == 'ppcg':
-        pytest.skip('PPCG only for GPAW new.')
-
+def test_h(dtype, eigensolver):
     atoms = Atoms('H', magmoms=[1])
     atoms.center(vacuum=2.5)
     atoms.calc = GPAW(mode=dict(name='pw',

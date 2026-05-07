@@ -5,9 +5,7 @@ from ase import Atoms
 @pytest.mark.ci
 @pytest.mark.mgga
 @pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg'])
-def test_fixdensity(in_tmp_dir, gpaw_new, eigensolver, mpi):
-    if not gpaw_new and eigensolver == 'ppcg':
-        pytest.skip('PPCG only implemented for new GPAW')
+def test_fixdensity(in_tmp_dir, eigensolver, mpi):
     a = 2.5
     slab = Atoms('Li', cell=(a, a, 2 * a), pbc=1)
     slab.calc = mpi.GPAW(
@@ -55,13 +53,9 @@ def test_fixdensity(in_tmp_dir, gpaw_new, eigensolver, mpi):
     assert e3 == pytest.approx(e1, abs=3e-5)
 
     calc = mpi.GPAW('li_nowf.gpw')
-    if not gpaw_new:
-        with pytest.raises(ValueError):
-            calc = calc.fixed_density(txt='li-3.txt', nbands=5, kpts=kpts)
-    else:
-        calc = calc.fixed_density(txt='li-3.txt', nbands=5, kpts=kpts,
-                                  convergence={'minimum iterations': 8},)
-        e4 = calc.get_eigenvalues(kpt=0)[0]
-        f4 = calc.get_fermi_level()
-        assert f4 == pytest.approx(f1, abs=1e-10)
-        assert e4 == pytest.approx(e1, abs=3e-5)
+    calc = calc.fixed_density(txt='li-3.txt', nbands=5, kpts=kpts,
+                              convergence={'minimum iterations': 8},)
+    e4 = calc.get_eigenvalues(kpt=0)[0]
+    f4 = calc.get_fermi_level()
+    assert f4 == pytest.approx(f1, abs=1e-10)
+    assert e4 == pytest.approx(e1, abs=3e-5)

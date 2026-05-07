@@ -17,6 +17,7 @@ from gpaw.hybrids.paw import calculate_paw_stuff
 from gpaw.hybrids.symmetry import Symmetry
 from gpaw.mpi import serial_comm
 from gpaw.new.ase_interface import ASECalculator
+from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.old.calculator import GPAW as GPAWOld
 from gpaw.old.kpt_descriptor import KPointDescriptor
 from gpaw.old.pw.descriptor import PWDescriptor
@@ -59,10 +60,16 @@ def non_self_consistent_eigenvalues(
                     np.zeros((1, 1, 1)),
                     np.zeros((1, 1, 1)))
         calc = GPAW(calc,  # type: ignore
-                    txt=None,
-                    parallel={'band': 1, 'kpt': 1})
+                    legacy_gpaw=False)
 
-    assert isinstance(calc, (GPAWOld, ASECalculator))
+    if not calc.old:
+        from gpaw.new.pw.nschse import NonSelfConsistentHybridXCCalculator
+        hybcalc = NonSelfConsistentHybridXCCalculator.from_dft_calculation(
+            calc.dft, xcname)
+        ibzwfs = calc.dft.ibzwfs
+        assert isinstance(ibzwfs, PWFDIBZWaveFunctions)
+        return hybcalc._calculate(ibzwfs, n1, n2, kpt_indices)
+
     wfs = calc.wfs
 
     if n2 <= 0:

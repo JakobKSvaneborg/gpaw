@@ -48,7 +48,7 @@ class PlaneWavePotentialCalculator(PotentialCalculator):
         self._dedtaut_g = None
 
     def interpolate(self, a_R, a_r=None):
-        return a_R.interpolate(self.fftplan, self.fftplan2,
+        return a_R.interpolate(plan1=self.fftplan, plan2=self.fftplan2,
                                grid=self.fine_grid, out=a_r)
 
     def restrict(self, a_r, a_R=None):

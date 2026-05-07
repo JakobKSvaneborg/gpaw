@@ -7,7 +7,6 @@ from gpaw import GPAW, FermiDirac
 from gpaw.analyse.hirshfeld import HirshfeldPartitioning
 
 
-@pytest.mark.old_gpaw_only
 def test_vdw_H_Hirshfeld():
     h = 0.25
     box = 3

@@ -94,7 +94,8 @@ def system_MoS2_tube():
 
 def system_magbulk():
     atoms = bulk('Fe') * 2
-    atoms.set_initial_magnetic_moments([3] * len(atoms))
+    # Apply Hund's rule:
+    atoms.set_initial_magnetic_moments([4] * len(atoms))
     return atoms
 
 
@@ -113,7 +114,8 @@ def system_c2db():
                           [0.0, 0.5, 8.70],
                           [0.5, 0.0, 6.00]])
     atoms.center(vacuum=6.0, axis=2)
-    atoms.set_initial_magnetic_moments([2, -2, 0, 0])
+    # Apply Hund's rule (anti-ferromagnetic):
+    atoms.set_initial_magnetic_moments([5, -3, 2, 2])
     return atoms
 
 
@@ -190,10 +192,11 @@ def ganfh():
 
 def pto3li2o3():
     # From /home/niflheim2/cmr/C2DB-ASR/ICSD-COD/not_converged/Li2PtO6/
+    # Use Hund's rule
     atoms = Atoms(
         'PtO3Li2O3',
         cell=[5.362, 5.362, 32.360676, 90, 90, 120],
-        magmoms=[2, 0, 0, 0, 0, 0, 0, 0, 0],
+        magmoms=[2, 2, 2, 2, 1, 1, 2, 2, 2],
         pbc=[True, True, False],
         positions=[
             [-1.8096749999999993, 3.1344490451872087, 16.180338],
@@ -210,10 +213,11 @@ def pto3li2o3():
 
 def erge():
     # From /home/niflheim2/cmr/C2DB-ASR/ICSD-COD/lanthanides/ErGe/
+    # Use Hund's rule
     atoms = Atoms(
         'ErGe',
         cell=[3.911, 4.091, 1.0],
-        magmoms=[0, 2],
+        magmoms=[2, 2],
         pbc=[True, True, False],
         scaled_positions=[[0, 0, 0], [0.5, 0.5, 1.124]])
     atoms.center(vacuum=5.5, axis=2)
@@ -221,10 +225,11 @@ def erge():
 
 
 def as4crsi2():
+    # Use Hund's rule
     atoms = Atoms(
         'As4CrSi2',
         cell=[3.81, 3.81, 1.0, 90, 90, 120],
-        magmoms=[0, 0, 0, 0, 4, 0, 0],
+        magmoms=[3, 3, 3, 3, 6, 2, 2],
         pbc=[True, True, False],
         scaled_positions=[
             [0, 0, -4.66],
@@ -268,6 +273,7 @@ def v3cl6():
 def mn2o2():
     a = 4.5155
     b = a / 2
+    # Use Hund's rule
     atoms = Atoms(
         'Mn2O2',
         cell=[[a, b, b], [b, a, b], [b, b, a]],
@@ -276,7 +282,7 @@ def mn2o2():
                    [a, a, a],
                    [b, b, b],
                    [a + b, a + b, a + b]],
-        magmoms=[1, -1, 0, 0])
+        magmoms=[5, 5, 2, 2])
     atoms.cell[:] = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]] @ atoms.cell
     return atoms
 
@@ -300,6 +306,7 @@ def ti2br6():
 
 
 def fe8o8():
+    # Use Hunds rule
     atoms = Atoms(
         'Fe8O8',
         cell=[[-0.017249, 4.052906, 4.049397],
@@ -322,7 +329,7 @@ def fe8o8():
             [-2.1615, 4.1723, 3.9384],
             [-0.1368, 6.1988, 3.9298],
             [-2.1702, 6.1988, 5.9631]],
-        magmoms=[2] * 8 + [0] * 8,
+        magmoms=[4] * 8 + [2] * 8,
         pbc=True)
     return atoms
 

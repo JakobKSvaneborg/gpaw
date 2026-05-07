@@ -1,6 +1,8 @@
-==========
-Benchmarks
-==========
+.. _benchmarks:
+
+===========================
+Perfomance index benchmarks
+===========================
 
 .. image:: pw-perf-index.svg
 .. image:: lcao-perf-index.svg
@@ -105,7 +107,10 @@ History
 * Added two more systems (``ErGe-2M``, ``Fe8O8-3M``).
 
 
-The future
-----------
+2026, April
+-----------
 
 * Added one more system: ``Mn2O2-3M``.
+* Modified all the initial magnetic moments, s.t. the correct ground
+  states are found.
+* Modified expected timings, s.t. the PW score remains unchanged.

@@ -6,7 +6,6 @@ from gpaw.directmin.tools import excite
 from gpaw.mom import prepare_mom_calculation
 
 
-@pytest.mark.hmm  # find better api for calc.set() ...
 @pytest.mark.do
 def test_mom_directopt_pw(in_tmp_dir, gpw_files):
     gpaw_new = False

@@ -8,7 +8,6 @@ from gpaw.cgpaw import get_num_threads
 
 
 def print_cell(gd, pbc_c, log):
-
     log("""Unit cell:
            periodic     x           y           z      points  spacing""")
     h_c = gd.get_grid_spacings()

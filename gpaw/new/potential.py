@@ -29,8 +29,8 @@ class Potential:
                 f'{self.dedtaut_sR})')
 
     def __str__(self) -> str:
-        return (f'potential:\n'
-                f'  grid points: {self.vt_sR.desc.size}\n')
+        return (f'Potential:\n'
+                f'  Grid points: {self.vt_sR.desc.size}\n')
 
     def deltaH(self, P_ani, out_ani, spin):
         if len(P_ani.dims) == 1:  # collinear wave functions

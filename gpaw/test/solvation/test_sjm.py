@@ -3,7 +3,7 @@ from ase.build import fcc111
 
 from gpaw import FermiDirac
 from gpaw.mpi import world
-from gpaw.new.ase_interface import GPAW
+from gpaw import GPAW
 from gpaw.new.sjm import SJM
 from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
                             LinearDielectric, SurfaceInteraction)
@@ -12,6 +12,7 @@ from gpaw.solvation.sjm import SJMPower12Potential
 
 
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
+@pytest.mark.parametrize('gpaw_new', [False, True])
 def test_sjm(gpaw_new, in_tmp_dir, mode):
     if mode == 'pw':
         pytest.skip('Not working at the moment!')

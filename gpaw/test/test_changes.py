@@ -8,7 +8,6 @@ from gpaw.new.ase_interface import GPAW
 
 
 def test_changes():
-
     etot_hse = -9.773299
     fz = 1.44907
     forces_hse = np.array([[0, 0, fz], [0, 0, -fz]])

@@ -359,7 +359,7 @@ class BZWaveFunctions:
 
         for k, rank in enumerate(self.ranks):
             if rank == comm.rank:
-                comm.send(func(self[k]), 0)
+                comm.send(np.ascontiguousarray(func(self[k])), 0)
 
         return np.empty(shape=())
 

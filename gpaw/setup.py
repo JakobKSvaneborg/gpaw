@@ -1359,8 +1359,7 @@ class Setups(list):
             output = StringIO()
             setup.print_info(functools.partial(print, file=output))
             txt = output.getvalue()
-            txt += '  # ' + setup.get_basis_description().replace('\n',
-                                                                  '\n  # ')
+            txt += '  ' + setup.get_basis_description().replace('\n', '\n  ')
             txt = txt.replace('\n', '\n  ')
             s += '  ' + txt + '\n\n'
 

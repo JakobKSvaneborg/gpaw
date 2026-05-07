@@ -5,7 +5,7 @@ from ase.units import Ha
 
 # Contributions to free energy:
 NAMES = ['kinetic', 'coulomb', 'zero', 'external', 'xc', 'entropy',
-         'spinorbit', 'hybrid_xc']
+         'spinorbit', 'hybrid_xc_cc', 'hybrid_xc_vc', 'hybrid_xc_vv']
 
 # Other allowed names:
 OTHERS = {'band', 'kinetic_correction', 'extrapolation',
@@ -62,6 +62,7 @@ class DFTEnergies:
             raise ValueError('Some energy terms are NaN!')
 
     def summary(self, log) -> None:
+        log('Energy contributions:')
         for name in NAMES:
             if name in OTHERS:
                 continue
@@ -70,16 +71,16 @@ class DFTEnergies:
                 if name != 'kinetic':
                     continue
                 e = self.kinetic
-            log(f'{name + ":":10}   {e * Ha:14.6f}')
+            log(f'  {name.title() + ":":10}   {e * Ha:14.6f}')
         extensions = self.extensions_energies
         if extensions:
-            log('--------extensions----------')
+            log('  --------extensions----------')
             for name, e in extensions:
-                log(f'{name + ":":12} {e * Ha:14.6f}')
-        log('----------------------------')
-        log('Free energy: '
+                log(f'  {name.title() + ":":12} {e * Ha:14.6f}')
+        log('  ----------------------------')
+        log('  Free energy: '
             f'{self.total_free * Ha:14.6f}')
-        log('Extrapolated:'
+        log('  Extrapolated:'
             f'{log.green}{self.total_extrapolated * Ha:14.6f}{log.reset}\n')
 
     def write_to_gpw(self, writer):

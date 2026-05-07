@@ -595,6 +595,7 @@ class CLICommand:
 
         from gpaw.dft import MonkhorstPack
         from gpaw.new.symmetry import create_symmetries_object
+        from gpaw.new.logger import Logger
 
         if args.filename == '-':
             atoms = next(connect(sys.stdin).select()).toatoms()
@@ -604,15 +605,11 @@ class CLICommand:
             atoms,
             tolerance=args.tolerance,
             symmorphic=args.symmorphic)
-        txt = str(symmetries)
-        if not args.verbose:
-            txt = txt.split('  rotations', 1)[0]
-        print(txt)
+        log = Logger('-', None)
+        symmetries.summary(log, args.verbose)
+        log()
         if args.k_points:
             k = str2dict('kpts=' + args.k_points)['kpts']
             bz = MonkhorstPack.from_param(k).build(atoms)
             ibz = bz.reduce(symmetries)
-            txt = str(ibz)
-            if not args.verbose:
-                txt = txt.split('  points and weights:', 1)[0]
-            print(txt)
+            ibz.summary(log, args.verbose)
