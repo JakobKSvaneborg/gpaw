@@ -1,3 +1,8 @@
+.. testsetup::
+
+    import ase.visualize as v
+    v.view = lambda atoms: None
+
 .. _intro:
 
 ========================================================
@@ -48,7 +53,7 @@ HelloHelloHelloHelloHello
 >>> help(print)
 Help on built-in function print in module builtins:
 <BLANKLINE>
-print(*objects, sep=' ', end='\n', file=None, flush=False)
+print(*args, sep=' ', end='\n', file=None, flush=False)
     Prints the values to a stream, or to sys.stdout by default.
 <BLANKLINE>
     sep
@@ -60,7 +65,6 @@ print(*objects, sep=' ', end='\n', file=None, flush=False)
     flush
       whether to forcibly flush the stream.
 <BLANKLINE>
-
 
 
 Variables and data types
@@ -96,103 +100,58 @@ A `list` is an ordered collection of arbitrary objects
 You will need lists of data.  A list of data can be specified at once, or
 built gradually.  The latter is demonstated later.
 
-.. code::
-
-    primes = [2, 3, 5, 7, 11, 13, 17, 19, 23]
-    print(primes)
+>>> primes = [2, 3, 5, 7, 11, 13, 17, 19, 23]
 
 Lists are indexed starting with 0, so primes[1] is the *second* prime.
 You can also access a list from the end, using negative numbers.
 
-
-.. code::
-
-    print(primes[1])
-    print(primes[-1])
-
+>>> primes[1]
+3
+>>> primes[-1]
+23
 
 A `list` can contain arbitrary objects
 
-
-.. code::
-
-    # a list
-    l = [1, ('gg', 7), 'hmm', 1.2]
-    print(l)
-    print(l[1])   # Python counts from zero, so this is the second element
-    print(l[-2])  # indexing with negative numbers counts from the end
-
+>>> # a list
+>>> l = [1, ('gg', 7), 'hmm', 1.2]
+>>> l[1]   # Python counts from zero, so this is the second element
+('gg', 7)
+>>> l[-2]  # indexing with negative numbers counts from the end
+'hmm'
 
 
 A `dict`  is a mapping from keys to values
 ------------------------------------------
 
-
-.. code::
-
-    d = {'s': 0, 'p': 1}
-    print(d)
-    print(d['p'])
-    print('Removing an element from the dictionary')
-    del d['s']
-    print(d)
-
+>>> d = {'s': 0, 'p': 1}
+>>> d
+{'s': 0, 'p': 1}
+>>> d['p']
+1
+>>> # Removing an element from the dictionary
+>>> del d['s']
+>>> d
+{'p': 1}
 
 
 A `tuple`  is an ordered collection like a list but is *immutable*
 ------------------------------------------------------------------
+
 useful for keywords in `dict`
 
-
-.. code::
-
-    # with a list we can reassign values
-    x = [2, 3]
-    x[0] = 100
-    print(x)
-    # this it not possible with a tuple
-    y = (2, 3)
-    print('y = ', y)
-    try:
-        y[0] = 100
-    except Exception as x:
-        print(x)
-    print('y = ', y)
-
-
-
-A ``namedtuple`` is a tuple where the elements also have names.
----------------------------------------------------------------
-
-They can be accessed by index or by name.
-
-
-.. code::
-
-    from collections import namedtuple
-    SKN = namedtuple('IndexSKN', ('spin', 'kpt', 'band'))
-    a = SKN(0, 3, 4)
-    print(a)
-    # The elements may be accessed by index (like a normal tuple) or by name:
-    print(a[1])
-    print(a.kpt)
-
-
-.. code::
-
-    # lets try and use a namedtuple as keys for a dict
-    d = {}
-    d[SKN(0, 10, 5)] = 3.14
-    d[SKN(0, 1, 3)] = 2.72
-    print(d)
-
-
-.. code::
-
-    key = SKN(spin=0, kpt=1, band=3)
-    print(d[key])
-    print(d[(0, 1, 3)])  # one can also use a normal tuple as key
-
+>>> # with a list we can reassign values
+>>> x = [2, 3]
+>>> x[0] = 100
+>>> x
+[100, 3]
+>>> # this it not possible with a tuple
+>>> y = (2, 3)
+>>> y[0] = 100
+Traceback (most recent call last):
+  File "<doctest default[4]>", line 1, in <module>
+    y[0] = 100
+    ~^^^
+TypeError: 'tuple' object does not support item assignment
 
 
 =====
@@ -205,79 +164,90 @@ defines an :class:`~numpy.ndarray` type that can hold large arrays of
 uniform multidimensional numeric data.  An array is similar to a ``list``
 or a ``tuple``, but it is a lot more powerful and efficient.
 
+>>> x = np.array([1, 2, 3])
+>>> x
+array([1, 2, 3])
+>>> x.mean()
+np.float64(2.0)
 
-.. code::
+>>> # Multidimensional array
+>>> a = np.zeros((3, 2))
+>>> a[:, 1] = 1.0
+>>> a[1, :] = 2.0
+>>> a.shape
+(3, 2)
+>>> a.ndim  # number of dimensions
+2
+>>> a.dtype  # data type
+dtype('float64')
+>>> # And one can print the entire array (if it is not too big):
+>>> a
+array([[0., 1.],
+       [2., 2.],
+       [0., 1.]])
 
-    x = np.array([1, 2, 3])
-    print(x)
-    print(x.mean())
+>>> # Matrix muliplication
+>>> a.T.shape  # .T transpose a matrix
+(2, 3)
+>>> b = np.dot(a, a.T)
+>>> b
+array([[1., 2., 1.],
+       [2., 8., 2.],
+       [1., 2., 1.]])
+>>> # in a more READABLE way one can use @ to dot matrices together
+>>> c = a @ a.T
+>>> print('c is equal to b:', (c == b).all())
+c is equal to b: True
+>>> # Elementwise multiplication
+>>> a * a
+array([[0., 1.],
+       [4., 4.],
+       [0., 1.]])
 
+>>> # Random Hermitian matrix
+>>> seed = 12345678
+>>> rng = np.random.default_rng(seed)
+>>> rand = rng.random
+>>> H = rand((6, 6)) + 1j * rand((6, 6))  # 1j = sqrt(-1)
+>>> H = H + H.T.conj()
 
-.. code::
+>>> # Eigenvalues and eigenvectors
+>>> eps, U = np.linalg.eig(H)
 
-    # Multidimensional array
-    a = np.zeros((3, 2))
-    a[:, 1] = 1.0
-    a[1, :] = 2.0
-    print("The shape of the array:", a.shape)
-    print("Number of dimensions:", a.ndim)
-    print("Data type:", a.dtype)
-    print("And one can print the entire array (if it is not too big):")
-    print(a)
+>>> #  Make print of numpy arrays less messy:
+>>> np.set_printoptions(precision=3, suppress=True)
+>>> print('The eigenvalues are:', eps.real)
+The eigenvalues are: [ 6.149 -2.369  1.979 -0.692  0.258  0.93 ]
 
+>>> # lets try and sort them
+>>> sorted_indices = eps.real.argsort()
+>>> eps = eps[sorted_indices]
+>>> U = U[:, sorted_indices]
+>>> print('after sorting: ', eps.real)
+after sorting:  [-2.369 -0.692  0.258  0.93   1.979  6.149]
 
-.. code::
-
-    # Matrix muliplication
-    print('shape of a', a.shape)
-    print('shape of a.T', a.T.shape)  # .T transpose a matrix
-    b = np.dot(a, a.T)
-    print(b)
-    # in a more READABLE way one can use @ to dot matrices together
-    c = a @ a.T
-    print('is c equal to b:', (c == b).all())
-
-
-.. code::
-
-    # Elementwise multiplication
-    d = a * a
-    print(d)
-
-
-.. code::
-
-    # Random Hermitian matrix
-    seed = 12345678
-    rng = np.random.default_rng(seed)
-    rand = rng.random
-    H = rand((6, 6)) + 1j * rand((6, 6))  # 1j = sqrt(-1)
-    H = H + H.T.conj()
-
-    # Eigenvalues and eigenvectors
-    eps, U = np.linalg.eig(H)
-
-    #  Make print of numpy arrays less messy:
-    np.set_printoptions(precision=3, suppress=True)
-    print('The eigenvalues are:', eps.real)
-
-    # lets try and sort them
-    sorted_indices = eps.real.argsort()
-    eps = eps[sorted_indices]
-    U = U[:, sorted_indices]
-    print('after sorting: ', eps.real)
-
-    # Check that U diagonalizes H
-    D1 = np.diag(eps)  # Diagonal matrix
-    D2 = U.T.conj() @ H @ U  # Diagonalized H matrix
-    print('Diagonal matrix (from eigenvalues):')
-    print(D1)
-    print('Diagonal matrix (tranforming H):')
-    print(D2)
-    print('Are the numbers in the two matrices close to each other?')
-    print(np.allclose(D2, D1))
-
-
+>>> # Check that U diagonalizes H
+>>> D1 = np.diag(eps)  # Diagonal matrix
+>>> D2 = U.T.conj() @ H @ U  # Diagonalized H matrix
+>>> # Diagonal matrix (from eigenvalues):
+>>> print(D1)
+[[-2.369+0.j  0.   +0.j  0.   +0.j  0.   +0.j  0.   +0.j  0.   +0.j]
+ [ 0.   +0.j -0.692+0.j  0.   +0.j  0.   +0.j  0.   +0.j  0.   +0.j]
+ [ 0.   +0.j  0.   +0.j  0.258-0.j  0.   +0.j  0.   +0.j  0.   +0.j]
+ [ 0.   +0.j  0.   +0.j  0.   +0.j  0.93 +0.j  0.   +0.j  0.   +0.j]
+ [ 0.   +0.j  0.   +0.j  0.   +0.j  0.   +0.j  1.979+0.j  0.   +0.j]
+ [ 0.   +0.j  0.   +0.j  0.   +0.j  0.   +0.j  0.   +0.j  6.149+0.j]]
+>>> # Diagonal matrix (tranforming H):
+>>> print(D2)
+[[-2.369+0.j  0.   -0.j -0.   +0.j  0.   +0.j  0.   +0.j  0.   -0.j]
+ [ 0.   +0.j -0.692+0.j  0.   +0.j -0.   +0.j  0.   +0.j -0.   -0.j]
+ [-0.   -0.j  0.   +0.j  0.258-0.j -0.   -0.j -0.   -0.j  0.   +0.j]
+ [ 0.   -0.j -0.   -0.j -0.   +0.j  0.93 +0.j  0.   -0.j -0.   +0.j]
+ [ 0.   -0.j  0.   -0.j -0.   +0.j  0.   +0.j  1.979-0.j -0.   -0.j]
+ [ 0.   +0.j -0.   +0.j -0.   -0.j  0.   +0.j -0.   +0.j  6.149+0.j]]
+>>> # Are the numbers in the two matrices close to each other?
+>>> np.allclose(D2, D1)
+True
 
 
 ========================
@@ -286,41 +256,11 @@ Plotting with matplotlib
 
 (see here for more details `Matplotlib <https://matplotlib.org/>`__)
 
+.. literalinclude:: mpl-demo.py
+   :start-after: create
+   :end-at: f1
 
-.. code::
-
-    # In a Jupyter Notebook, this magic line gives nice inline figures,
-    # with interactive possibilities.
-    # This line MUST appear before you import matplotlib or a package
-    # using matplotlib (e.g. ase)
-    import numpy as np
-
-
-.. code::
-
-    # Some data
-    x = [1.4, 2.0, 3.0, 3.3]
-    y = [10, -1.1, 2.2, 5.0]
-    y2 = [1, 2, 3, 5]
-
-
-.. code::
-
-    plt.figure()   # Start a new figure
-    # Plot y versus x (called "Series 1" in the legend).
-    #   b = blue.  o = show points.  - = show line.
-    plt.plot(x, y, 'bo-', label="Series 1")
-    # Plot y2 versus x (called "Series 2" in the legend).
-    #   r = red.  x = show points as x'es.   -- = show dashed line
-    plt.plot(x, y2, 'rx--', label="Series 2")
-    plt.title("Title of the plot")
-    plt.xlabel("Label of the x-axis")
-    plt.ylabel("Label of the y-axis")
-    # Uncomment to set range of y values to show - similar for x:
-    # plt.ylim(0, 10)
-    plt.legend()  # make a legend, let matplotlib decide where to place it
-    plt.show()
-
+.. image:: f1.svg
 
 You can save the plot as a figure by pressing the "floppy disk" icon.
 Note that in some browsers it does not work, then you can stop the
@@ -332,52 +272,26 @@ Sometimes, you need larger fonts in a plot that you want to include in a
 report.  Below is the same plot, but with larger fonts.  We also overrule
 the placement of the legend.
 
+.. literalinclude:: mpl-demo.py
+   :start-after: f1
+   :end-at: f2
 
-.. code::
-
-    plt.figure()
-    plt.plot(x, y, 'bo-', label="Series 1")
-    plt.plot(x, y2, 'rx--', label="Series 2")
-    plt.title("Title of the plot", size=24)
-    plt.xlabel("Label of the x-axis", size=16)
-    plt.ylabel("Label of the y-axis", size=16)
-    # Make tick marks larger, and increase the font.
-    plt.tick_params(axis='both', which='major', labelsize=16, size=10)
-    plt.ylim(-0.2, 10.2)     # Set range of y values to show - similar for x.
-    plt.legend(loc="upper left", fontsize=16)  # Make a legend, specify location.
-    plt.tight_layout()   # Fixes that otherwise some of the labels are cropped.
-    plt.show()
-
+.. image:: f2.svg
 
 More advanced example with multiple sub-plots.
 
+.. literalinclude:: mpl-demo.py
+   :start-after: f2
+   :end-at: f3
 
-.. code::
-
-    fig, axs = plt.subplots(1, 2, sharey=True)
-    x = np.linspace(0, 2 * np.pi, 100)
-    axs[0].plot(x, np.cos(x), label='cos')
-    axs[1].plot(x, np.sin(x), label='sin')
-    axs[0].legend()
-    axs[1].legend()
-    plt.show()
-
+.. image:: f3.svg
 
 Plotting a countour
 
+.. literalinclude:: mpl-demo.py
+   :start-after: f3
 
-.. code::
-
-    x = np.linspace(-1, 1, 100)
-    y = np.linspace(-2, 2, 100)
-    X, Y = np.meshgrid(x, y)
-    Z = X**2 + Y**2
-    N = 15
-
-    fig, ax = plt.subplots(1, 1)
-    ax.contour(X, Y, Z, N)
-    ax.set_aspect('equal')
-
+.. image:: f4.svg
 
 
 ===================================
@@ -385,7 +299,6 @@ ASE (atomic simulation environment)
 ===================================
 
 More details can be found here: https://ase-lib.org/index.html
-
 
 
 Everything starts with a structure!
@@ -398,36 +311,25 @@ object used to setup an atomic structure.
 Setting op a molecule using the ``Atoms`` object
 ------------------------------------------------
 
+>>> from ase import Atoms
+>>> d = 1.1
+>>> co = Atoms('CO', positions=[[0, 0, 0], [0, 0, d]])
 
-.. code::
-
-    from ase import Atoms
-    d = 1.1
-    co = Atoms('CO', positions=[[0, 0, 0], [0, 0, d]])
-
-
-.. code::
-
-    # lets try and visualize it using the build in viewer in ase
-    from ase.visualize import view
-    view(co)
-
+>>> # lets try and visualize it using the build in viewer in ase
+>>> from ase.visualize import view
+>>> view(co)
 
 
 Setting up a periodic structure
 -------------------------------
 
-
-.. code::
-
-    d = 2.9
-    L = 10
-    wire = Atoms('Au', positions=[[0, L / 2, L / 2]],
-                 cell=[d, L, L], pbc=[1, 0, 0])
-    # lets try and repeat it and visualize primitive and repeated
-    wire10 = wire * (10, 1, 1)
-    view([wire, wire10])
-
+>>> d = 2.9
+>>> L = 10
+>>> wire = Atoms('Au', positions=[[0, L / 2, L / 2]],
+...              cell=[d, L, L], pbc=[1, 0, 0])
+>>> # lets try and repeat it and visualize primitive and repeated
+>>> wire10 = wire * (10, 1, 1)
+>>> view([wire, wire10])
 
 
 Nitrogen on copper
@@ -435,6 +337,7 @@ Nitrogen on copper
 
 Exercise of the relaxation of a molecule on a surface
 -----------------------------------------------------
+
 This section gives a quick (and incomplete) overview of what ASE can do.
 
 We will calculate the adsorption energy of a nitrogen molecule on a copper
@@ -454,9 +357,7 @@ https://ase-lib.org/ase/optimize.html
 
 3. Try a couple of different optimizers and see which one is the fastest
 
-
 .. literalinclude:: n2cu111.py
-
 
 .. code::
 
@@ -477,7 +378,6 @@ Using ASE to setup band structures for Al using a Freelectron model and DFT
 3. Can you figure out what the ``nbands=-10`` and
    ``convergence={'bands': -5}`` parameters means in the GPAW DFT
    input below ? (Hint try and look at the output file `Al.txt``)
-
 
 .. literalinclude:: al.py
    :end-before: gpaw
