@@ -2,6 +2,8 @@
 
     import ase.visualize as v
     v.view = lambda atoms: None
+    import os
+    os.chdir('summerschools/summerschool26/batteries')
 
 .. _batteries1:
 
@@ -11,7 +13,6 @@ Battery project (part 1)
 
 Day 2 - Li intercalation energy
 ===============================
-
 
 Today we will calculate the energy cost/gain associated with
 intercalating a lithium atom into graphite using approaches at different
@@ -59,7 +60,6 @@ are supposed to, before we move on to the more precise and time
 consuming DFT calculations.  Initially we will calculate the C-C
 distance and interlayer spacing in graphite in a two step procedure.
 
-
 .. testcode::
 
     # The graphite structure is set up using a tool in ASE
@@ -68,20 +68,16 @@ distance and interlayer spacing in graphite in a two step procedure.
     # One has only to provide the lattice constants
     structure = Graphite('C', latticeconstant={'a': 1.5, 'c': 4.0})
 
-
 To verify that the structures is as expected we can check it visually.
-
 
 .. testcode::
 
     from ase.visualize import view
     view(structure)  # This will pop up the ase gui window
 
-
 Next we will use the EMT calculator to get the energy of graphite.
 Remember absolute energies are not meaningful, we will only use energy
 differences.
-
 
 .. testcode::
 
@@ -96,10 +92,8 @@ differences.
 
     Energy of graphite: 15.84 eV
 
-
 The cell below requires some input.  We set up a loop that should
 calculate the energy of graphite for a series of C-C distances.
-
 
 .. testcode::
 
@@ -130,7 +124,6 @@ calculate the energy of graphite for a series of C-C distances.
         # Append results to the list
         energies.append(energy)
 
-
 Determine the equilibrium lattice constant.  We use a
 :mod:`numpy.polynomial`.
 
@@ -148,7 +141,6 @@ Determine the equilibrium lattice constant.  We use a
     ax.set_xlabel('C-C distance [Ang]')
     ax.set_ylabel('energy [eV]')
 
-
 .. testcode::
 
     poly1 = poly.deriv()
@@ -162,14 +154,20 @@ Determine the equilibrium lattice constant.  We use a
         if poly2(ccdist) > 0:
             break
     print(f'C-C dist: {ccdist:.3f} Å')
+    from pathlib import Path
+
+.. testoutput::
+
+    C-C dist: 1.319 Å
+    C-C dist: 1.319 Å
 
 Make a script that calculates the interlayer distance with EMT in the
 cell below
 
-
 .. testcode::
 
-    # This script will calculate the energy of graphite for a series of inter-layer distances.
+    # This script will calculate the energy of graphite
+    # for a series of inter-layer distances.
     from ase.calculators.emt import EMT
     from ase.lattice.hexagonal import Graphite
     import numpy as np
@@ -190,8 +188,6 @@ C-C distance / Å                      1.42
 Interlayer distance / Å               3.35
 ========================= ===================== ===== ===== ===== ==========
 
-
-
 Not surprisingly we need to use more sophisticated theory to model this
 issue.  Below we will use DFT as implemented in GPAW to determine the
 same parameters.
@@ -203,11 +199,11 @@ First we set up an initial guess of the structure as before.
    :end-before: LDA
 
 Then we create the GPAW calculator object.  The parameters are explained
-[here](https://gpaw.readthedocs.io/documentation/basic.html#parameters),
+:ref:`here <parameters>`,
 see especially the section regarding
-[mode](https://gpaw.readthedocs.io/documentation/basic.html#manual-mode).
+:ref:`manual_mode`.
 This graphite structure has a small unit cell, thus plane wave mode,
-`mode=PW()`, will be faster than the grid mode, `mode='fd'`. Plane wave
+``mode=PW()``, will be faster than the grid mode, ``mode='fd'``. Plane wave
 mode also lets us calculate the strain on the unit cell - useful for
 optimizing the lattice parameters.
 
@@ -218,15 +214,16 @@ you will try other functionals.
    :start-at: LDA
    :end-before: sf
 
-Check out the contents of the output file (``graphite-LDA.log``),
+Check out the contents of the output file (:download:`graphite-LDA.txt`),
 all relevant information about the scf cycle are printed therein.
 
 Then we optimize the unit cell of the structure.  We will take advantage
 of the
-[StrainFilter](https://ase-lib.org/ase/constraints.html#the-strainfilter-class)
+`StrainFilter
+<https://ase-lib.org/ase/constraints.html#the-strainfilter-class>`__
 class.  This allows us to simultaneously optimize both C-C distance and
 interlayer distance.  We employ the
-[BFGS](https://aria42.com/blog/2014/12/understanding-lbfgs) algorithm to
+`BFGS <https://aria42.com/blog/2014/12/understanding-lbfgs>`__ algorithm to
 minimize the strain on the unit cell.
 
 .. literalinclude:: relax-graphite.py
@@ -240,18 +237,24 @@ distances.
     from ase.io import read
     import numpy as np
 
-    atoms = read('graphene-LDA.traj')
+    atoms = read('graphite-LDA.traj')
+    # or
+    atoms = read('graphite-LDA.txt')
     a = atoms.cell[0, 0]
     h = atoms.cell[2, 2]
     # Determine the rest from here
-    print(a / np.sqrt(3))
-    print(h / 2)
+    print(f'C-C: {a / np.sqrt(3):.3f} Å')
+    print(f'layer-distance: {h / 2:.3f} Å')
+
+.. testoutput::
+
+    C-C: 1.411 Å
+    layer-distance: 3.213 Å
 
 Now we need to try a GGA type functional (e.g.  PBE) and also try to add
 van der Waals forces on top of PBE (i.e.  PBE+DFTD3). These functionals
 will require more computational time, thus the following might be
 beneficial to read.
-
 
 If the relaxation takes too long time, we can submit it to be run in
 parallel on the computer cluster.  Remember we can then run different
@@ -270,8 +273,7 @@ Check the status of the calculation by ``mq ls``.
 When the calculation finishes the result can be interpreted by
 using the ASE :func:`~ase.io.read` function to get an atoms
 object.  This assumes that the trajectory file is called:
-`graphite-LDA.traj`, if not change accordingly.
-
+:download:`graphite-LDA.traj`, if not change accordingly.
 
 .. testcode::
 
@@ -285,10 +287,10 @@ object.  This assumes that the trajectory file is called:
 
     # Extract the relevant information from the calculation
     # Energy
-    print(atoms.get_potential_energy())
+    energy = atoms.get_potential_energy()
 
     # Unit cell
-    print(atoms.get_cell())
+    cell = atoms.get_cell()
 
     # See the steps of the optimization
     from ase.visualize import view
@@ -344,8 +346,6 @@ C-C distance / Å                       1.441
 Interlayer distance / Å                3.706
 ========================== ===================== ===== ===== ===========
 
-
-
 .. testcode::
 
     # A little help to get you started with the combined structure
@@ -397,10 +397,9 @@ Carbon atoms per unit cell.  We can actually use only 6 Carbon by
 rotating the x and y cell vectors.  This structure will be faster to
 calculate and still have neglible Li-Li interaction.
 
-
 .. testcode::
 
-    from ase.visualize import view
+    from ase import Atoms
 
     ccdist = 1.40
     layerdist = 3.7
@@ -408,5 +407,5 @@ calculate and still have neglible Li-Li interaction.
     a = ccdist * np.sqrt(3)
     c = layerdist
 
-    Li_gra = Atoms('CCCCCCLi')  # Fill out the positions and cell vectors
+    Li_gra = Atoms('C6Li')  # Fill out the positions and cell vectors
     ...

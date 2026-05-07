@@ -45,5 +45,7 @@ for xc, e_Li_gra in energies.items():
     e_C8 = 8 * gra.get_potential_energy() / len(gra)
     intercalation_energy = e_Li_gra - (e_Li + e_C8)
     print(f'Intercalation energy: {intercalation_energy:.2f} eV ({xc})')
-    # ref = {'LDA': -0.35}[xc]
-    # assert abs(intercalation_energy - ref) < 0.01, ref
+    ref = {'LDA': -0.35,
+           'PBE': -0.06,
+           'DFTD3': -0.03}[xc]
+    assert abs(intercalation_energy - ref) < 0.01, ref

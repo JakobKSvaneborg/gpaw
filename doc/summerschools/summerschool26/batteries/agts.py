@@ -14,8 +14,8 @@ def workflow():
 
     run(script='relax-graphite.py', tmax='1h')
     with run(script='solution2.py', tmax='1h', cores=8):
-        with run(script='solution3.py', tmax='1h'):
-            run(script='solution4.py', tmax='1h')
-        run(script='solution5.py', tmax='1h')
+        with run(script='solution3.py', tmax='1h', cores=8):
+            run(script='solution4.py', tmax='1h', cores=8)
+        run(script='solution5.py', tmax='1h', cores=8)
         with run(script='batteries2.py', tmax='3h'):
             run(script='batteries3.py', tmax='1h', cores=8)

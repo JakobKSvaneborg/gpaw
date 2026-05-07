@@ -1,8 +1,9 @@
-from gpaw import GPAW, PW
-from ase import Atoms
-from ase.optimize.bfgs import BFGS
 import numpy as np
+from ase import Atoms
 from ase.filters import StrainFilter
+from ase.io import read
+from ase.optimize.bfgs import BFGS
+from gpaw import GPAW, PW
 from gpaw.new.extensions import D3
 
 ccdist = 1.39
@@ -27,9 +28,9 @@ for xc in ['LDA', 'PBE', 'DFTD3']:
     params = dict(
         mode=PW(500),
         kpts=(5, 5, 6),
-        txt=calcname + '.log')
+        txt=calcname + '.txt')
     if xc == 'DFTD3':
-        dft = GPAW(xc='PBE', extensions=[D3(xc='PBE')], **params)
+        calc = GPAW(xc='PBE', extensions=[D3(xc='PBE')], **params)
     else:
         calc = GPAW(xc=xc, **params)
 
@@ -38,3 +39,16 @@ for xc in ['LDA', 'PBE', 'DFTD3']:
     sf = StrainFilter(Li_gra, mask=[1, 1, 1, 0, 0, 0])
     opt = BFGS(sf, trajectory=calcname + '.traj')
     opt.run(fmax=0.01)
+
+for xc in ['LDA', 'PBE', 'DFTD3']:
+    metal = read(f'Li-metal-{xc}.traj')
+    e_Li = metal.get_potential_energy() / len(metal)
+    gra = read(f'graphite-{xc}.traj')
+    e_C = gra.get_potential_energy() / len(gra)
+    e_Li_gra = read(f'Li-C6-{xc}.traj').get_potential_energy()
+    intercalation_energy = e_Li_gra - (e_Li + 6 * e_C)
+    print(f'Intercalation energy: {intercalation_energy:.2f} eV ({xc})')
+    ref = {'LDA': -0.41,
+           'PBE': -0.09,
+           'DFTD3': -0.08}[xc]
+    assert abs(intercalation_energy - ref) < 0.01, ref

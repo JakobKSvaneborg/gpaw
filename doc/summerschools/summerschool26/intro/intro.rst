@@ -42,8 +42,8 @@ Let's try some simple stuff.
 5
 >>> print('Hello')
 Hello
->>> print('Hello ' * 5)
-Hello Hello Hello Hello Hello
+>>> print('Hello' * 5)
+HelloHelloHelloHelloHello
 >>> # help is useful for getting help of af method
 >>> help(print)
 Help on built-in function print in module builtins:
@@ -68,9 +68,6 @@ Variables and data types
 
 In python, variables contain data of different types, such as numbers or
 text strings.  You can print a variable with the ``print()`` function:
-
-
-.. code::
 
 >>> a = 42
 >>> mypi = 3.14
@@ -99,12 +96,10 @@ A `list` is an ordered collection of arbitrary objects
 You will need lists of data.  A list of data can be specified at once, or
 built gradually.  The latter is demonstated later.
 
-
 .. code::
 
     primes = [2, 3, 5, 7, 11, 13, 17, 19, 23]
     print(primes)
-
 
 Lists are indexed starting with 0, so primes[1] is the *second* prime.
 You can also access a list from the end, using negative numbers.
