@@ -88,8 +88,8 @@ exponentiation is the double star.
 48.28
 
 
-A `list` is an ordered collection of arbitrary objects
-------------------------------------------------------
+A ``list`` is an ordered collection of arbitrary objects
+--------------------------------------------------------
 
 You will need lists of data.  A list of data can be specified at once, or
 built gradually.  The latter is demonstated later.
@@ -115,7 +115,7 @@ A `list` can contain arbitrary objects
 
 
 A ``dict``  is a mapping from keys to values
-------------------------------------------
+--------------------------------------------
 
 >>> d = {'s': 0, 'p': 1}
 >>> d
@@ -129,7 +129,7 @@ A ``dict``  is a mapping from keys to values
 
 
 A ``tuple``  is an ordered collection like a list but is *immutable*
-------------------------------------------------------------------
+--------------------------------------------------------------------
 
 useful for keywords in ``dict``
 
