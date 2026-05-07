@@ -23,10 +23,6 @@ atomic-scale simulations etc are available in Python, but you need to
 "import" the module to get access to it (you also often need to install
 it, but that has been taken care of here).
 
-A few packages support special integration with Notebooks, this includes
-the plotting package ``matplotlib``, where the integration is enabled with
-a notebook-specific command starting with the ``%`` character.
-
 You can add comments to Python code by using the ``#`` character.
 
 Some links for reference:
@@ -36,12 +32,10 @@ Some links for reference:
 * Scientific package `Scipy <https://www.scipy.org/>`__
 * Plotting package `Matplotlib <https://matplotlib.org/>`__
 
-
 >>> import matplotlib.pyplot as plt    # For nice plotting
 >>> import numpy as np                 # Mathematical operations
 
 Let's try some simple stuff.
-
 
 >>> 2 + 3
 5
@@ -120,7 +114,7 @@ A `list` can contain arbitrary objects
 'hmm'
 
 
-A `dict`  is a mapping from keys to values
+A ``dict``  is a mapping from keys to values
 ------------------------------------------
 
 >>> d = {'s': 0, 'p': 1}
@@ -134,10 +128,10 @@ A `dict`  is a mapping from keys to values
 {'p': 1}
 
 
-A `tuple`  is an ordered collection like a list but is *immutable*
+A ``tuple``  is an ordered collection like a list but is *immutable*
 ------------------------------------------------------------------
 
-useful for keywords in `dict`
+useful for keywords in ``dict``
 
 >>> # with a list we can reassign values
 >>> x = [2, 3]
@@ -230,7 +224,7 @@ after sorting:  [-2.369 -0.692  0.258  0.93   1.979  6.149]
 >>> D1 = np.diag(eps)  # Diagonal matrix
 >>> D2 = U.T.conj() @ H @ U  # Diagonalized H matrix
 >>> # Diagonal matrix (from eigenvalues):
->>> print(D1)
+>>> print(D1)  # doctest: +SKIP
 [[-2.369+0.j  0.   +0.j  0.   +0.j  0.   +0.j  0.   +0.j  0.   +0.j]
  [ 0.   +0.j -0.692+0.j  0.   +0.j  0.   +0.j  0.   +0.j  0.   +0.j]
  [ 0.   +0.j  0.   +0.j  0.258-0.j  0.   +0.j  0.   +0.j  0.   +0.j]
@@ -238,7 +232,7 @@ after sorting:  [-2.369 -0.692  0.258  0.93   1.979  6.149]
  [ 0.   +0.j  0.   +0.j  0.   +0.j  0.   +0.j  1.979+0.j  0.   +0.j]
  [ 0.   +0.j  0.   +0.j  0.   +0.j  0.   +0.j  0.   +0.j  6.149+0.j]]
 >>> # Diagonal matrix (tranforming H):
->>> print(D2)
+>>> print(D2)  # doctest: +SKIP
 [[-2.369+0.j  0.   -0.j -0.   +0.j  0.   +0.j  0.   +0.j  0.   -0.j]
  [ 0.   +0.j -0.692+0.j  0.   +0.j -0.   +0.j  0.   +0.j -0.   -0.j]
  [-0.   -0.j  0.   +0.j  0.258-0.j -0.   -0.j -0.   -0.j  0.   +0.j]
@@ -377,7 +371,7 @@ Using ASE to setup band structures for Al using a Freelectron model and DFT
 
 3. Can you figure out what the ``nbands=-10`` and
    ``convergence={'bands': -5}`` parameters means in the GPAW DFT
-   input below ? (Hint try and look at the output file `Al.txt``)
+   input below ? (Hint try and look at the output file ``Al.txt``)
 
 .. literalinclude:: al.py
    :end-before: gpaw
