@@ -1,8 +1,8 @@
 .. _structure_optimization:
 
-========================
- Structure optimization
-========================
+======================
+Structure optimization
+======================
 
 In this tutorial we consider structure optimization of the :mol:`H_2` molecule. For that, we will calculate the atomization energy of the molecule both for the experimentally determined geometry and for the structure relaxed using the GPAW calculator.
 
