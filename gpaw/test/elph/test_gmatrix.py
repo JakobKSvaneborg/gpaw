@@ -11,7 +11,7 @@ from gpaw.elph import ElectronPhononMatrix
 
 @pytest.mark.serial
 @pytest.mark.elph
-def test_gmatrix(module_tmp_path, supercell_cache):
+def test_gmatrix(session_tmp_path, supercell_cache):
     atoms = bulk('Li', crystalstructure='bcc', a=3.51, cubic=True)
     supercell_cache
     elph = ElectronPhononMatrix(atoms, 'supercell', 'elph')

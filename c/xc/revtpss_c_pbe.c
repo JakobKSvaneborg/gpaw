@@ -46,7 +46,7 @@ inline void
 XC(rho2dzeta)(int nspin, const double *rho, double *d, double *zeta)
 {
   assert(nspin==XC_UNPOLARIZED || nspin==XC_POLARIZED);
-  
+
   if(nspin==XC_UNPOLARIZED){
     *d    = max(MIN_DENS, rho[0]);
     *zeta = 0.0;
@@ -58,7 +58,7 @@ XC(rho2dzeta)(int nspin, const double *rho, double *d, double *zeta)
 
 // from old libxc gga_perdew.c
 
-static void 
+static void
 XC(perdew_params)(const XC(func_type) *gga_p, const double *rho, const double *sigma, int order, XC(perdew_t) *pt)
 {
   pt->nspin = gga_p->nspin;
@@ -109,7 +109,7 @@ XC(perdew_params)(const XC(func_type) *gga_p, const double *rho, const double *s
   }
 }
 
-static void 
+static void
 XC(perdew_potentials)(XC(perdew_t) *pt, const double *rho, double e_gga, int order,
 		      double *vrho, double *vsigma,
 		      double *v2rho2, double *v2rhosigma, double *v2sigma2)
@@ -121,7 +121,7 @@ XC(perdew_potentials)(XC(perdew_t) *pt, const double *rho, double e_gga, int ord
   double dzdd[2], dpdz, d2zdd2[3], d2pdz2;
   double dtdsig, d2tdsig2;
   int is, js, ks, ns;
- 
+
   if(order < 1) return;
 
   if(pt->nspin == XC_POLARIZED){
@@ -159,7 +159,7 @@ XC(perdew_potentials)(XC(perdew_t) *pt, const double *rho, double e_gga, int ord
     for(is=0; is<pt->nspin; is++){
       if(rho[is] > MIN_DENS){
 	int k;
-	
+
 	vrho[is] = e_gga;
 	for(k=0; k<6; k++)
 	  vrho[is] += pt->dens * dFdalpha[k]*dalphadd[k][is];
@@ -313,12 +313,12 @@ XC(perdew_potentials)(XC(perdew_t) *pt, const double *rho, double e_gga, int ord
     v2sigma2[4] = 2.0*v2sigma2[0]; /* ab_bb */
     v2sigma2[5] =     v2sigma2[0]; /* bb_bb */
   }
-  
+
 }
 
 // from old libxc gga_c_pbe.c
 
-static const double beta[4]  = {
+static const double pbe_beta[4]  = {
   0.06672455060314922,  /* original PBE */
   0.046,                /* PBE sol      */
   0.089809,
@@ -327,8 +327,8 @@ static const double beta[4]  = {
 
 static double gamm[4];
 
-static inline void 
-pbe_eq8(int func, int order, double rs, double ecunif, double phi, 
+static inline void
+pbe_eq8(int func, int order, double rs, double ecunif, double phi,
 	double *A, double *dec, double *dphi, double *drs,
 	double *dec2, double *decphi, double *dphi2)
 {
@@ -339,7 +339,7 @@ pbe_eq8(int func, int order, double rs, double ecunif, double phi,
   f2   = exp(-f1);
   f3   = f2 - 1.0;
 
-  *A   = beta[func]/(gamm[func]*f3);
+  *A   = pbe_beta[func]/(gamm[func]*f3);
   if(func == 3) *A *= (1. + 0.1*rs)/(1. + 0.1778*rs);
 
   if(order < 1) return;
@@ -350,7 +350,7 @@ pbe_eq8(int func, int order, double rs, double ecunif, double phi,
   *dec    = dx/(gamm[func]*phi3);
   *dphi   = dx*df1dphi;
   *drs    = 0.0;
-  if(func == 3) *drs = beta[func]*((0.1-0.1778)/pow(1+0.1778*rs,2))/(gamm[func]*f3);
+  if(func == 3) *drs = pbe_beta[func]*((0.1-0.1778)/pow(1+0.1778*rs,2))/(gamm[func]*f3);
 
   if(func ==3) return;
   if(order < 2) return;
@@ -363,8 +363,8 @@ pbe_eq8(int func, int order, double rs, double ecunif, double phi,
 }
 
 
-static void 
-pbe_eq7(int func, int order, double rs, double phi, double t, double A, 
+static void
+pbe_eq7(int func, int order, double rs, double phi, double t, double A,
 	double *H, double *dphi, double *drs, double *dt, double *dA,
 	double *d2phi, double *d2phit, double *d2phiA, double *d2t2, double *d2tA, double *d2A2)
 {
@@ -377,7 +377,7 @@ pbe_eq7(int func, int order, double rs, double phi, double t, double A,
 
   f1 = t2 + A*t2*t2;
   f3 = 1.0 + A*f1;
-  f2 = beta[func]*f1/(gamm[func]*f3);
+  f2 = pbe_beta[func]*f1/(gamm[func]*f3);
   if(func == 3) f2 *= (1. + 0.1*rs)/(1. + 0.1778*rs);
 
   *H = gamm[func]*phi3*log(1.0 + f2);
@@ -385,21 +385,21 @@ pbe_eq7(int func, int order, double rs, double phi, double t, double A,
   if(order < 1) return;
 
   *dphi  = 3.0*(*H)/phi;
-    
+
   df1dt  = t*(2.0 + 4.0*A*t2);
-  df2dt  = beta[func]/(gamm[func]*f3*f3) * df1dt;
+  df2dt  = pbe_beta[func]/(gamm[func]*f3*f3) * df1dt;
   if(func == 3) df2dt*=(1. + 0.1*rs)/(1. + 0.1778*rs);
   *dt    = gamm[func]*phi3*df2dt/(1.0 + f2);
-    
+
   df1dA  = t2*t2;
-  df2dA  = beta[func]/(gamm[func]*f3*f3) * (df1dA - f1*f1);
+  df2dA  = pbe_beta[func]/(gamm[func]*f3*f3) * (df1dA - f1*f1);
   if(func == 3) df2dA *= (1. + 0.1*rs)/(1. + 0.1778*rs);
   *dA    = gamm[func]*phi3*df2dA/(1.0 + f2);
 
   df2drs = 0.0;
   *drs = 0.0;
   if(func == 3){
-    df2drs = beta[func]*((0.1-0.1778)/pow(1+0.1778*rs,2))*f1/(gamm[func]*f3);
+    df2drs = pbe_beta[func]*((0.1-0.1778)/pow(1+0.1778*rs,2))*f1/(gamm[func]*f3);
     *drs = gamm[func]*phi3*df2drs/(1.0 + f2);
   }
 
@@ -411,19 +411,19 @@ pbe_eq7(int func, int order, double rs, double phi, double t, double A,
   *d2phiA = 3.0*(*dA)/phi;
 
   d2f1dt2 = 2.0 + 4.0*3.0*A*t2;
-  d2f2dt2 = beta[func]/(gamm[func]*f3*f3) * (d2f1dt2 - 2.0*A/f3*df1dt*df1dt);
+  d2f2dt2 = pbe_beta[func]/(gamm[func]*f3*f3) * (d2f1dt2 - 2.0*A/f3*df1dt*df1dt);
   *d2t2   = gamm[func]*phi3*(d2f2dt2*(1.0 + f2) - df2dt*df2dt)/((1.0 + f2)*(1.0 + f2));
 
   d2f1dtA = 4.0*t*t2;
-  d2f2dtA = beta[func]/(gamm[func]*f3*f3) * 
+  d2f2dtA = pbe_beta[func]/(gamm[func]*f3*f3) *
     (d2f1dtA - 2.0*df1dt*(f1 + A*df1dA)/f3);
   *d2tA   = gamm[func]*phi3*(d2f2dtA*(1.0 + f2) - df2dt*df2dA)/((1.0 + f2)*(1.0 + f2));
 
-  d2f2dA2 = beta[func]/(gamm[func]*f3*f3*f3) *(-2.0)*(2.0*f1*df1dA - f1*f1*f1 + A*df1dA*df1dA);
+  d2f2dA2 = pbe_beta[func]/(gamm[func]*f3*f3*f3) *(-2.0)*(2.0*f1*df1dA - f1*f1*f1 + A*df1dA*df1dA);
   *d2A2   = gamm[func]*phi3*(d2f2dA2*(1.0 + f2) - df2dA*df2dA)/((1.0 + f2)*(1.0 + f2));
 }
 
-void 
+void
 gga_c_pbe_revtpss(XC(func_type) *p, const double *rho, const double *sigma,
                   double *e, double *vrho, double *vsigma,
                   double *v2rho2, double *v2rhosigma, double *v2sigma2)
@@ -466,7 +466,7 @@ gga_c_pbe_revtpss(XC(func_type) *p, const double *rho, const double *sigma,
   pbe_eq8(func, order, pt.rs, pt.ecunif, pt.phi,
 	  &A, &dAdec, &dAdphi, &dAdrs, &d2Adec2, &d2Adecphi, &d2Adphi2);
 
-  pbe_eq7(func, order, pt.rs, pt.phi, pt.t, A, 
+  pbe_eq7(func, order, pt.rs, pt.phi, pt.t, A,
 	  &H, &dHdphi, &dHdrs, &dHdt, &dHdA, &d2Hdphi2, &d2Hdphit, &d2HdphiA, &d2Hdt2, &d2HdtA, &d2HdA2);
 
   me = pt.ecunif + H;
