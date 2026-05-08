@@ -11,7 +11,6 @@ import numpy as np
 from ase.units import Ha
 from gpaw.core import PWArray, PWDesc, UGArray
 from gpaw.core.atom_arrays import AtomArrays
-from gpaw.core.matrix import Matrix
 from gpaw.mpi import broadcast
 from gpaw.new import zips as zip
 from gpaw.new.brillouin import MonkhorstPackKPoints
@@ -334,7 +333,7 @@ def nsc_corrections(density: Density,
 
 
 def non_self_consistent_matrix_elements(dft: DFTCalculation,
-                                        xc: str = 'HSE06') -> list[Matrix]:
+                                        xc: str = 'HSE06') -> np.ndarray:
     """Calculate non self-consistent matrix elements of hybrid XC.
 
     Note: changes dft object in place!
@@ -352,20 +351,20 @@ def non_self_consistent_matrix_elements(dft: DFTCalculation,
     ibzwfs = dft.ibzwfs
     ibzwfs.make_sure_wfs_are_read_from_gpw_file()
 
-    # Distribute waave-functions:
+    # Distribute wave-functions:
     hamiltonian.update_wave_functions(ibzwfs)
 
-    H_sknn = np.zeros((ibzwfs.nspins,
-                       len(ibzwfs.ibz),
-                       ibzwfs.nbands,
-                       ibzwfs.nbands),
-                      dtype=ibzwfs.dtype)
+    H_sknn = np.zeros(
+        (ibzwfs.nspins, len(ibzwfs.ibz), ibzwfs.nbands, ibzwfs.nbands),
+        dtype=ibzwfs.dtype)
     for wfs in dft.ibzwfs.zero_padded_iter():
         dH = partial(potential.deltaH, spin=wfs.spin)
         H_nn = wfs.build_hamiltonian(apply, dH, wfs.psit_nX.new())
         H_nn = H_nn.gather()
         if H_nn is not None:
             H_sknn[wfs.spin, wfs.k] = H_nn.data
+
+    # Collect everything everywhere (not super efficient, but who cares):
     ibzwfs.band_comm.broadcast(H_sknn, 0)
     ibzwfs.domain_comm.broadcast(H_sknn, 0)
     ibzwfs.kpt_comm.sum(H_sknn)
