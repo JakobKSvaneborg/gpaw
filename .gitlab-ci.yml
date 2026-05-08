@@ -494,7 +494,7 @@ test-minimal:
       pytest -v -m ci -We
 
 
-test-cuda-minimal:
+.test-cuda-minimal:
   image: $IMAGE_CUDA
   extends:
     - .test
@@ -509,7 +509,7 @@ test-cuda-minimal:
     - pytest -v -m gpu
 
 
-test-cuda:
+.test-cuda:
   image: $IMAGE_CUDA
   extends:
     - .test
@@ -524,7 +524,7 @@ test-cuda:
     - pytest -v -m gpu
 
 
-test-cuda-mpi:
+.test-cuda-mpi:
   image: $IMAGE_CUDA
   extends:
     - .test
@@ -539,7 +539,7 @@ test-cuda-mpi:
     - gpaw -P 4 python -m pytest -v -x -m gpu
 
 
-test-cuda-mpi-makefile-build:
+.test-cuda-mpi-makefile-build:
   image: $IMAGE_CUDA
   extends:
     - .test

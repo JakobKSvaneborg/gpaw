@@ -333,7 +333,10 @@ class XArray(Generic[DomainType], XP):
     def integrate(self, other: Self | None = None) -> np.ndarray:
         raise NotImplementedError
 
-    def norm2(self, kind: str = 'normal', skip_sum=False) -> np.ndarray:
+    def norm2(self,
+              kind: str = 'normal',
+              weights: np.ndarray | None = None,
+              skip_sum=False) -> np.ndarray:
         raise NotImplementedError
 
     def trace_inner_product(self, other: Self) -> float:

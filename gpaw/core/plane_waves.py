@@ -636,7 +636,10 @@ class PWArray(XArray[PWDesc]):
                     correction *= self.dv
                     out.data -= correction
 
-    def norm2(self, kind: str = 'normal', skip_sum=False) -> np.ndarray:
+    def norm2(self,
+              kind: str = 'normal',
+              weights: np.ndarray | None = None,
+              skip_sum=False) -> np.ndarray:
         r"""Calculate integral over cell.
 
         For kind='normal' we calculate:::
@@ -658,6 +661,7 @@ class PWArray(XArray[PWDesc]):
         """
         a_xG = self._arrays().view(self.real_dtype)
         if kind == 'normal':
+            assert weights is None
             if self.xp is not np:
                 result_x = self.xp.empty((a_xG.shape[0],),
                                          dtype=self.real_dtype)
@@ -665,6 +669,7 @@ class PWArray(XArray[PWDesc]):
             else:
                 result_x = self.xp.einsum('xG, xG -> x', a_xG, a_xG)
         elif kind == 'kinetic':
+            assert weights is None
             x, G2 = a_xG.shape
             if self.xp is not np:
                 result_x = self.xp.empty((x,), dtype=self.real_dtype)
@@ -677,12 +682,25 @@ class PWArray(XArray[PWDesc]):
                                           a_xGz,
                                           a_xGz,
                                           self.xp.asarray(self.desc.ekin_G))
+        elif kind == 'weighted':
+            assert weights is not None
+            x, G2 = a_xG.shape
+            a_xGz = a_xG.reshape((x, G2 // 2, 2))
+            result_x = self.xp.einsum('xGz, xGz, G -> x',
+                                      a_xGz,
+                                      a_xGz,
+                                      weights)
         else:
-            1 / 0
+            raise ValueError(f'Unknown norm2-kind: {kind}.  '
+                             'Must be normal, kinetic or weighted.')
         if self.desc.dtype == self.real_dtype:
             result_x *= 2
-            if self.desc.comm.rank == 0 and kind == 'normal':
-                result_x -= a_xG[:, 0]**2
+            if self.desc.comm.rank == 0:
+                if kind == 'normal':
+                    result_x -= a_xG[:, 0]**2
+                elif kind == 'weighted':
+                    assert weights is not None
+                    result_x -= a_xG[:, 0]**2 * weights[0]
         if not skip_sum:
             self.desc.comm.sum(result_x)
         return result_x.reshape(self.mydims) * self.dv

@@ -23,7 +23,7 @@ g00 = np.array([[[[-1.12259936e-06, 1.25832645e-02],
 @pytest.mark.skipif(world.size > 2,
                     reason='world.size > 2')
 @pytest.mark.elph
-def test_supercell(module_tmp_path, supercell_cache):
+def test_supercell(session_tmp_path, supercell_cache):
     # Generate supercell_cache
     supercell_cache
 

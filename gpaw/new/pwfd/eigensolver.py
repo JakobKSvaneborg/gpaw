@@ -33,7 +33,7 @@ def slparams(nbands: int,
     # We also want ncores to factor into a product of two integers:
     ncores = int(floor(ncores**0.5) * ceil(ncores**0.5))
     if ncores < comm.size:
-        comm = comm.new_communicator(range(ncores))
+        pass  # comm = comm.new_communicator(range(ncores))
     else:
         ncores = comm.size
     return (comm, *suggest_blocking(nbands, ncores))
