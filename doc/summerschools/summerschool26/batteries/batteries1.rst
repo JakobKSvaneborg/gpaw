@@ -182,7 +182,7 @@ evaluated with EMT. Try to compare with the experimental numbers provided
 below.
 
 ========================= ===================== ===== ===== ===== ==========
-                           Experimental values   EMT   LDA   PBE   PBE+DFTD3
+\                          Experimental values   EMT   LDA   PBE   PBE+DFTD3
 ========================= ===================== ===== ===== ===== ==========
 C-C distance / Å                      1.42
 Interlayer distance / Å               3.35
@@ -340,7 +340,7 @@ simplicity we will represent the graphite with only one layer.  Also try
 and compare the C-C and interlayer distances to experimental values.
 
 ========================== ===================== ===== ===== ===========
-                            Experimental values   LDA   PBE   PBE+DFTD3
+\                           Experimental values   LDA   PBE   PBE+DFTD3
 ========================== ===================== ===== ===== ===========
 C-C distance / Å                       1.441
 Interlayer distance / Å                3.706
@@ -379,7 +379,7 @@ These are the experimental values to compare with In the end try to
 compare the different functionals with experimental values:
 
 ============================ ===================== ===== ===== ===========
-                              Experimental values   LDA   PBE   PBE+DFTD3
+\                              Experimental values   LDA   PBE   PBE+DFTD3
 ============================ ===================== ===== ===== ===========
 Intercalation energy / eV               -0.124
 ============================ ===================== ===== ===== ===========
