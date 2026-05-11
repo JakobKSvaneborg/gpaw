@@ -76,7 +76,8 @@ def parse_upf(fname):
     except ParseError:
         # Typical!  Non-well-formed file full of probable FORTRAN output.
         # We'll try to insert our own header and see if things go well.
-        root = fromstring('\n'.join(['<xml>', open(fname).read(), '</xml>']))
+        with open(fname) as fd:
+            root = fromstring('\n'.join(['<xml>', fd.read(), '</xml>']))
 
     pp['fname'] = fname
 
