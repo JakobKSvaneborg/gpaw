@@ -29,32 +29,28 @@ def collect_files_for_web_page(fro: Path, to: Path) -> None:
 
 def compare_all_files(folder1: Path,
                       folder2: Path) -> None:
-    paths = (set(path.relative_to(folder1)
-                 for path in folder1.glob('**/*.*')) |
-             set(path.relative_to(folder2)
-                 for path in folder2.glob('**/*.*')))
-
     errors = []
     missing = []
-    for path in paths:
-        p1 = folder1 / path
-        p2 = folder2 / path
+    ok = 0
+    for p1 in find_created_files(folder1):
+        p2 = folder2 / p1.relative_to(folder1)
         if not p1.is_file():
             missing.append(p1)
             continue
         if not p2.is_file():
             missing.append(p2)
             continue
-        print(p1, p2)
         err = compare_files(p1, p2)
         if err:
-            errors.append(path)
-    print(len(paths), len(errors), len(missing))
-    for path in errors:
-        if path.suffix in {'.png', '.svg'}:
+            errors.append((p1, p2))
+        else:
+            ok += 1
+    print(ok, len(errors), len(missing))
+    for p1, p2 in errors:
+        if p1.suffix in {'.png', '.svg'}:
             pass  # rint(f'eog {folder1 / path} {folder2 / path}')
         else:
-            print(f'meld {folder1 / path} {folder2 / path}')
+            print(f'meld {p1} {p2}')
 
 
 def compare_files(p1: Path, p2: Path) -> float:
