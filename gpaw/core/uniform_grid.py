@@ -528,7 +528,10 @@ class UGArray(XArray[UGDesc]):
 
         return out
 
-    def norm2(self, kind: str = 'normal', skip_sum=False):
+    def norm2(self,
+              kind: str = 'normal',
+              weights: np.ndarray | None = None,
+              skip_sum=False):
         """Calculate integral over cell of absolute value squared.
 
         :::

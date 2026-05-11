@@ -1,11 +1,11 @@
-.. _summerschool24:
+.. _summerschool26:
 
 =======================
-CAMd Summer School 2024
+CAMd Summer School 2026
 =======================
 
 Announcement:
-https://www.fysik.dtu.dk/english/research-sections/camd/events/summer-school-2024
+https://www.fysik.dtu.dk/english/research-sections/camd/events/summer-school-2026
 
 .. highlight:: bash
 

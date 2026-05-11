@@ -3,13 +3,29 @@
 Add this line to crontab on slid2::
 
   # m h dom mon dow command
-  3 3 1,15 * * cd BENCHMARKS && ./job.sh
+  45 1 * * SUN cd BENCHMARKS; ./job.sh > job.out
+  20 6 * * MON cd BENCHMARKS; ./update.sh
 
 where job.sh is::
 
   source /etc/bashrc
   module load Python
   python niflheim_crontab.py
+
+and update.sh is::
+
+  source /etc/bashrc
+  module load Python
+  f=$(ls -d 20*-*-*/ | tail -1)
+  echo $f
+  source $f/venv/bin/activate
+  python niflheim_crontab.py $f
+  cd gpaw-web-page-data
+  git pull
+  git diff
+  git add gpaw_web_page_data/benchmarks/benchmarks.json
+  git commit -m "Update benchmark data"
+  git push
 """
 
 import os
@@ -55,6 +71,7 @@ def update(root: Path):
         s, n = score({name: t for name, (t, i) in dct.items()})
         s = round(s, 2)
         print(mode, s, n)
+        assert n == 20 if mode == 'pw' else 19, (n, mode)
         data['scores'][mode.upper()].append([date, s])
     file.write_text(json.dumps(data, indent=2))
     for path in root.glob('*/*.out'):

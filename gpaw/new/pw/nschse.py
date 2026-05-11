@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import warnings
+from functools import partial
 from pathlib import Path
 from time import time
-from typing import IO, Sequence, TYPE_CHECKING
+from typing import IO, TYPE_CHECKING, Sequence
 
 import numpy as np
 from ase.units import Ha
@@ -22,6 +23,7 @@ from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
 from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
 from gpaw.utilities import pack_density, unpack_hermitian
+
 if TYPE_CHECKING:
     from gpaw.new.calculation import DFTCalculation
 
@@ -254,8 +256,7 @@ class NonSelfConsistentHybridXCCalculator:
                 self.ghat_aLR.add_to(rhot_nR, Q_anL)
                 rhot_nG = pw.empty(len(rhot_nR))
                 rhot_nR.fft(out=rhot_nG, plan=self.plan)
-            for n, rhot_G in enumerate(rhot_nG.data):
-                e_n[n] += np.abs(rhot_G)**2 @ v_G * f1_n[n1] * pw.dv
+            e_n += rhot_nG.norm2('weighted', v_G) * f1_n[n1]
         return e_n
 
     def _semi_local_xc_parts(self,
@@ -329,6 +330,45 @@ def nsc_corrections(density: Density,
             dxc_asii[a][:] += dHU_sii
 
     return dxc_sR, dhyb_sR, dxc_asii, dhyb_asii
+
+
+def non_self_consistent_matrix_elements(dft: DFTCalculation,
+                                        xc: str = 'HSE06') -> np.ndarray:
+    """Calculate non self-consistent matrix elements of hybrid XC.
+
+    Note: changes dft object in place!
+    """
+    dft.change(xc=xc)
+    # Calculate new potential with hybrid functional:
+    potential = dft.pot_calc.calculate(dft.density)[0]
+
+    hamiltonian = dft.scf_loop.hamiltonian
+    apply = partial(hamiltonian.apply,
+                    potential.vt_sR,
+                    potential.dedtaut_sR,
+                    dft.ibzwfs, dft.density.D_asii)
+
+    ibzwfs = dft.ibzwfs
+    ibzwfs.make_sure_wfs_are_read_from_gpw_file()
+
+    # Distribute wave-functions:
+    hamiltonian.update_wave_functions(ibzwfs)
+
+    H_sknn = np.zeros(
+        (ibzwfs.nspins, len(ibzwfs.ibz), ibzwfs.nbands, ibzwfs.nbands),
+        dtype=ibzwfs.dtype)
+    for wfs in dft.ibzwfs.zero_padded_iter():
+        dH = partial(potential.deltaH, spin=wfs.spin)
+        H_nn = wfs.build_hamiltonian(apply, dH, wfs.psit_nX.new())
+        H_nn = H_nn.gather()
+        if H_nn is not None:
+            H_sknn[wfs.spin, wfs.k] = H_nn.data
+
+    # Collect everything everywhere (not super efficient, but who cares):
+    ibzwfs.band_comm.broadcast(H_sknn, 0)
+    ibzwfs.domain_comm.broadcast(H_sknn, 0)
+    ibzwfs.kpt_comm.sum(H_sknn)
+    return H_sknn
 
 
 # Backwards compatibility:

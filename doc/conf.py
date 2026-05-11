@@ -38,7 +38,8 @@ templates_path = ['templates']
 source_suffix = '.rst'
 master_doc = 'index'
 project = 'GPAW'
-copyright = f'{datetime.date.today().year}, GPAW developers'
+year = datetime.date.today().year
+copyright = f'{year}, GPAW developers'
 release = __version__
 exclude_patterns = ['build']
 default_role = 'math'
@@ -46,7 +47,7 @@ pygments_style = 'sphinx'
 autoclass_content = 'both'
 modindex_common_prefix = ['gpaw.']
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3.13', None),
+    'python': (f'https://docs.python.org/3.{year - 2012}', None),
     'ase': ('https://ase-lib.org', None),
     'numpy': ('https://numpy.org/doc/stable', None),
     'cupy': ('https://docs.cupy.dev/en/stable', None),
