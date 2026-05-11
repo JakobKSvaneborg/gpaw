@@ -590,6 +590,12 @@ class G0W0Calculator:
         self.eta = eta / Ha
 
         self.kpts = kpts
+        # O(1) lookup from IBZ k-point index to position in self.kpts,
+        # replacing self.kpts.index() in the hot calculate_q_point loop.
+        # First-occurrence semantics matches list.index().
+        self._kpt_to_index: dict[int, int] = {}
+        for _i, _k in enumerate(self.kpts):
+            self._kpt_to_index.setdefault(int(_k), _i)
         self.bands = bands
 
         b1, b2 = self.bands
@@ -1000,7 +1006,7 @@ class G0W0Calculator:
                     pb.update((nQ + progress) / self.wcalc.qd.get_count())
 
                     k1 = self.wcalc.gs.kd.bz2ibz_k[kpt1.K]
-                    i = self.kpts.index(k1)
+                    i = self._kpt_to_index[int(k1)]
                     self.calculate_q(ie, i, kpt1, kpt2, qpdi, Wdict,
                                      symop=symop,
                                      sigmas=sigmas,

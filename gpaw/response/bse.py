@@ -45,9 +45,8 @@ class BSEMatrix:
         H_sS = self.H_sS
         if deps_max is None:
             deps_max = self.deps_max
-        excludef_S = np.where(np.abs(df_S) < 0.001)[0]
-        excludedeps_S = np.where(np.abs(self.deps_S) > deps_max)[0]
-        exclude_S = np.unique(np.concatenate((excludef_S, excludedeps_S)))
+        exclude_S = np.where((np.abs(df_S) < 0.001)
+                             | (np.abs(self.deps_S) > deps_max))[0]
         bse.context.print('  Using numpy.linalg.eig...')
         bse.context.print('  Eliminated %s pair orbitals' % len(
             exclude_S))
@@ -522,7 +521,11 @@ class BSEBackend:
             else:
                 deps_kmm[ik] = -pair0.get_transition_energies()
             if optical_limit:
-                deps_kmm[np.where(deps_kmm == 0)] = 1.0e-9
+                # Only fix the current k-point's slice; the inner loop body
+                # has already written deps_kmm[ik]. Scanning all of deps_kmm
+                # was wasted work (later iterations overwrite unwritten rows).
+                deps_ik = deps_kmm[ik]
+                deps_ik[deps_ik == 0] = 1.0e-9
 
             # Occupation factors
             if self.add_soc:
@@ -579,8 +582,9 @@ class BSEBackend:
 
         # Scissors operator shift
         if self.eshift is not None:
-            deps_kmm[np.where(df_Kmm[self.myKrange] > 1e-3)] += self.eshift
-            deps_kmm[np.where(df_Kmm[self.myKrange] < -1e-3)] -= self.eshift
+            df_my_kmm = df_Kmm[self.myKrange]
+            deps_kmm[df_my_kmm > 1e-3] += self.eshift
+            deps_kmm[df_my_kmm < -1e-3] -= self.eshift
         deps_Kmm[self.myKrange] = deps_kmm
 
         comm = self.context.comm

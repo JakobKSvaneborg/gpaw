@@ -391,13 +391,11 @@ class KPointTesselation:
 
     @cached_property
     def simplex_volumes(self):
-        volumes_s = np.zeros(self._td.nsimplex, float)
-        for s in range(self._td.nsimplex):
-            K_k = self._td.simplices[s]
-            k_kc = self._td.points[K_k]
-            volume = np.abs(np.linalg.det(k_kc[1:] - k_kc[0])) / 6.
-            volumes_s[s] = volume
-        return volumes_s
+        # k_skc[s, k, c]: vertex k of simplex s in cartesian coord c.
+        k_skc = self._td.points[self._td.simplices]
+        # Edge vectors from vertex 0 to vertices 1, 2, 3.
+        edges_scc = k_skc[:, 1:] - k_skc[:, :1]
+        return np.abs(np.linalg.det(edges_scc)) / 6.
 
     def tetrahedron_weight(self, K, deps_k, omega_w):
         simplices_s = self.pts_k[K]
