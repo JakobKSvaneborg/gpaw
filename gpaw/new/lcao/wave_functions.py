@@ -307,6 +307,7 @@ class LCAOWaveFunctions(WaveFunctions, XP):
         return wfs
 
     def to_pw_expansion(self, nbands, pw):
+        """Evaluate wave-functions in real-space, then FFT to plane-waves."""
         grid = self.basis.grid.new(kpt=self.kpt_c, dtype=self.dtype)
         pw = pw.new(kpt=self.kpt_c)
 
@@ -317,7 +318,10 @@ class LCAOWaveFunctions(WaveFunctions, XP):
         if self.ncomponents < 4:
             psit_nG = pw.empty(nbands, self.band_comm)
             assert mynbands <= psit_nG.data.shape[0]
-            B = max(min(mynbands, 11), 1)
+
+            # In order to save memory for the wave functions in real-space,
+            # we do max 30 bands at a time:
+            B = max(min(mynbands, 30), 1)
             psit_bR = grid.empty(B)
 
             if grid.dtype != pw.dtype:
@@ -328,8 +332,6 @@ class LCAOWaveFunctions(WaveFunctions, XP):
                     n2 = mynbands
                     psit_bR = psit_bR[:n2 - n1]
                 C_bM = self.C_nM.data[n1:n2]
-                # for C_M, psit_G in zip(self.C_nM.data,
-                #                        psit_nG, strict=False):
                 psit_bR.data[:] = 0.0
                 self.basis.lcao_to_grid(as_np(C_bM), psit_bR.data, self.q,
                                         block_size=n2 - n1)
