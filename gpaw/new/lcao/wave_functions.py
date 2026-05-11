@@ -320,7 +320,7 @@ class LCAOWaveFunctions(WaveFunctions, XP):
             assert mynbands <= psit_nG.data.shape[0]
 
             # In order to save memory for the wave functions in real-space,
-            # we do max 30 bands at a time:
+            # we do maximum 30 bands at a time:
             B = max(min(mynbands, 30), 1)
             psit_bR = grid.empty(B)
 
