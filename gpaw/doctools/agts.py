@@ -46,10 +46,13 @@ def compare_all_files(folder1: Path,
         else:
             ok += 1
     print(ok, len(errors), len(missing))
+    for p in missing:
+        print(p)
     for p1, p2 in errors:
         if p1.suffix in {'.png', '.svg'}:
-            pass  # rint(f'eog {folder1 / path} {folder2 / path}')
-        else:
+            print(f'eog {p1} {p2}')
+    for p1, p2 in errors:
+        if p1.suffix not in {'.png', '.svg'}:
             print(f'meld {p1} {p2}')
 
 
