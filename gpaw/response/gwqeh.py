@@ -869,57 +869,57 @@ class GWmQEHCorrection(GWQEHCorrection):
 
     def _interpolate_mqeh_data(self):
         """Pre-compute interpolators for the mQEH Delta-W matrix and
-        basis functions so they can be evaluated at arbitrary |q+G_par|."""
+        basis functions so they can be evaluated at arbitrary |q+G_par|.
+
+        Delta-W is also pre-interpolated along the frequency axis from
+        the QEH omega-grid onto the GW omega-grid, so per-call queries
+        return arrays already on the GW grid (no per-call CubicSpline
+        construction in omega).
+        """
         from scipy.interpolate import CubicSpline
 
         qqeh = self.qqeh_matrix
         sortq = np.argsort(qqeh)
         self._qqeh_sorted = qqeh[sortq]
 
-        # Interpolate Delta-W matrix: shape (nq, nw, nbasis, nbasis)
-        dW_sorted = self.dW_qw_matrix[sortq]
+        # Sort along q for all interpolated arrays
+        dW_sorted = self.dW_qw_matrix[sortq]          # (nq, nw_qeh, nb, nb)
+        phi_sorted = self.phi_qiz_target[sortq]       # (nq, nb, nz)
+        drho_sorted = self.drho_qzi_target[sortq]     # (nq, nz, nb)
         nb = self.nbasis
-        nw = dW_sorted.shape[1]
+        nw_qeh = dW_sorted.shape[1]
+        nz = phi_sorted.shape[2]
 
-        # Build spline interpolators for each (alpha, beta, w) component
-        # Store as array of splines for efficiency
-        self._dW_splines_real = np.empty((nb, nb, nw), dtype=object)
-        self._dW_splines_imag = np.empty((nb, nb, nw), dtype=object)
-        for a in range(nb):
-            for b in range(nb):
-                for iw in range(nw):
-                    vals = dW_sorted[:, iw, a, b]
-                    self._dW_splines_real[a, b, iw] = CubicSpline(
-                        self._qqeh_sorted, vals.real, extrapolate=True)
-                    self._dW_splines_imag[a, b, iw] = CubicSpline(
-                        self._qqeh_sorted, vals.imag, extrapolate=True)
+        # Pre-interpolate Delta-W along the omega axis from the QEH
+        # frequency grid to the GW frequency grid. This makes per-call
+        # queries a single q-evaluation that already returns shape
+        # (nw_gw, nb, nb), eliminating the per-Gpar per-iq construction
+        # of CubicSpline objects in omega.
+        wqeh = self.wqeh_matrix
+        w_spl_re = CubicSpline(wqeh, dW_sorted.real, axis=1,
+                               extrapolate=True)
+        w_spl_im = CubicSpline(wqeh, dW_sorted.imag, axis=1,
+                               extrapolate=True)
+        dW_sorted_W = (w_spl_re(self.omega_w)
+                       + 1j * w_spl_im(self.omega_w))   # (nq, nw_gw, nb, nb)
 
-        # Interpolate density basis functions: shape (nq, nz, nbasis)
-        drho_sorted = self.drho_qzi_target[sortq]
-        nz = drho_sorted.shape[1]
-        self._drho_splines_real = np.empty((nz, nb), dtype=object)
-        self._drho_splines_imag = np.empty((nz, nb), dtype=object)
-        for iz in range(nz):
-            for a in range(nb):
-                vals = drho_sorted[:, iz, a]
-                self._drho_splines_real[iz, a] = CubicSpline(
-                    self._qqeh_sorted, vals.real, extrapolate=True)
-                self._drho_splines_imag[iz, a] = CubicSpline(
-                    self._qqeh_sorted, vals.imag, extrapolate=True)
+        # Single multi-output splines in q for Delta-W, phi, drho.
+        # Real and imag parts split so we can use CubicSpline (which
+        # only takes real data).
+        self._dW_spline_re = CubicSpline(
+            self._qqeh_sorted, dW_sorted_W.real, axis=0, extrapolate=True)
+        self._dW_spline_im = CubicSpline(
+            self._qqeh_sorted, dW_sorted_W.imag, axis=0, extrapolate=True)
+        self._phi_spline_re = CubicSpline(
+            self._qqeh_sorted, phi_sorted.real, axis=0, extrapolate=True)
+        self._phi_spline_im = CubicSpline(
+            self._qqeh_sorted, phi_sorted.imag, axis=0, extrapolate=True)
+        self._drho_spline_re = CubicSpline(
+            self._qqeh_sorted, drho_sorted.real, axis=0, extrapolate=True)
+        self._drho_spline_im = CubicSpline(
+            self._qqeh_sorted, drho_sorted.imag, axis=0, extrapolate=True)
 
-        # Interpolate potential basis functions: shape (nq, nbasis, nz)
-        phi_sorted = self.phi_qiz_target[sortq]
-        self._phi_splines_real = np.empty((nb, nz), dtype=object)
-        self._phi_splines_imag = np.empty((nb, nz), dtype=object)
-        for a in range(nb):
-            for iz in range(nz):
-                vals = phi_sorted[:, a, iz]
-                self._phi_splines_real[a, iz] = CubicSpline(
-                    self._qqeh_sorted, vals.real, extrapolate=True)
-                self._phi_splines_imag[a, iz] = CubicSpline(
-                    self._qqeh_sorted, vals.imag, extrapolate=True)
-
-        self._nw_qeh = nw
+        self._nw_qeh = nw_qeh
         self._nz_qeh = nz
         self._qqeh_max = float(self._qqeh_sorted[-1])
 
@@ -928,7 +928,8 @@ class GWmQEHCorrection(GWQEHCorrection):
         # as q -> 0 (Coulomb-like long-range part), so when |q+G_par|
         # falls below q_cut we substitute a weighted average over the
         # smallest q-points instead of the raw spline extrapolation.
-        self._q0_dW_wab = None
+        # _q0_dW_Wab is on the GW omega-grid (the only one we evaluate).
+        self._q0_dW_Wab = None
         self._q0_cut = 0.0
         q_grid = getattr(self, 'q_grid', None)
         if q_grid is not None and len(q_grid) > 1:
@@ -938,10 +939,11 @@ class GWmQEHCorrection(GWQEHCorrection):
             else:
                 self._q0_cut = q_sorted[1] / 2.0
             q0 = self._qqeh_sorted[self._qqeh_sorted <= self._q0_cut]
+            nw_gw = len(self.omega_w)
             if not self._include_q0:
                 # Match the parent's behavior: zero out the matrix
                 # for |q+G_par| < q0_cut.
-                self._q0_dW_wab = np.zeros((nw, nb, nb), dtype=complex)
+                self._q0_dW_Wab = np.zeros((nw_gw, nb, nb), dtype=complex)
             elif len(q0) > 1:
                 # Weighted average over the small-q ring, weights ~ q
                 # (replicating the area-element of the q -> 0 disk).
@@ -954,25 +956,22 @@ class GWmQEHCorrection(GWQEHCorrection):
                 else:
                     c = 1.0 / np.sum(q0)
                     weights = c * q0
-                # dW_sorted has the same q ordering as _qqeh_sorted
-                small_dW = dW_sorted[:len(q0)]  # (n_small, nw, nb, nb)
-                self._q0_dW_wab = np.tensordot(
-                    weights, small_dW, axes=(0, 0))  # (nw, nb, nb)
+                # dW_sorted_W has the same q ordering as _qqeh_sorted
+                # and is already on the GW omega-grid.
+                small_dW = dW_sorted_W[:len(q0)]   # (n_small, nw_gw, nb, nb)
+                self._q0_dW_Wab = np.tensordot(
+                    weights, small_dW, axes=(0, 0))  # (nw_gw, nb, nb)
 
-    def _eval_dW_matrix(self, q_abs):
-        """Evaluate the Delta-W matrix at a given |q| value.
+    def _eval_dW_on_gwgrid(self, q_abs):
+        """Evaluate Delta-W matrix at |q| on the GW frequency grid.
 
-        Returns array of shape (nw_qeh, nbasis, nbasis).
+        Returns array of shape (nw_gw, nbasis, nbasis).  Substitutes
+        the small-q average when q_abs <= _q0_cut.
         """
-        # q -> 0 substitution: replace spline values with the small-q
-        # average when q_abs < q0_cut. See _interpolate_mqeh_data.
-        if (self._q0_dW_wab is not None
+        if (self._q0_dW_Wab is not None
                 and q_abs <= self._q0_cut):
-            return self._q0_dW_wab.copy()
+            return self._q0_dW_Wab.copy()
         if q_abs > self._qqeh_max:
-            # Cubic-spline extrapolation past the mQEH q_max can give
-            # unphysical values for screened-interaction tails. Warn
-            # once per object so callers can raise q_max or ecut_mqeh.
             if not getattr(self, '_warned_qmax', False):
                 print(('WARNING: evaluating Delta-W at |q+G_par|=%.3f '
                        'Bohr^-1 > qqeh.max()=%.3f; results rely on '
@@ -980,31 +979,16 @@ class GWmQEHCorrection(GWQEHCorrection):
                        'mQEH q_max or decreasing ecut_mqeh.')
                       % (q_abs, self._qqeh_max), file=self.fd)
                 self._warned_qmax = True
-        nb = self.nbasis
-        nw = self._nw_qeh
-        dW_wab = np.empty((nw, nb, nb), dtype=complex)
-        for a in range(nb):
-            for b in range(nb):
-                for iw in range(nw):
-                    dW_wab[iw, a, b] = (
-                        self._dW_splines_real[a, b, iw](q_abs)
-                        + 1j * self._dW_splines_imag[a, b, iw](q_abs))
-        return dW_wab
+        return (self._dW_spline_re(q_abs)
+                + 1j * self._dW_spline_im(q_abs))
 
     def _eval_phi(self, q_abs):
         """Evaluate potential basis functions at |q|.
 
         Returns array of shape (nbasis, nz).
         """
-        nb = self.nbasis
-        nz = self._nz_qeh
-        phi_az = np.empty((nb, nz), dtype=complex)
-        for a in range(nb):
-            for iz in range(nz):
-                phi_az[a, iz] = (
-                    self._phi_splines_real[a, iz](q_abs)
-                    + 1j * self._phi_splines_imag[a, iz](q_abs))
-        return phi_az
+        return (self._phi_spline_re(q_abs)
+                + 1j * self._phi_spline_im(q_abs))
 
     def calculate_QEH(self):
         """Calculate the mQEH self-energy contribution.
@@ -1092,10 +1076,10 @@ class GWmQEHCorrection(GWQEHCorrection):
 
             for ig in range(n_Gpar):
                 q_abs = qplusGpar_abs[ig]
-                # Evaluate Delta-W at this |q+G_par| and interpolate
-                # to the GW frequency grid
-                dW_wab = self._eval_and_interpolate_dW(q_abs)
-                # dW_wab has shape (nw, nbasis, nbasis)
+                # Evaluate Delta-W at this |q+G_par| directly on the
+                # GW frequency grid; the omega-direction interpolation
+                # was precomputed in _interpolate_mqeh_data.
+                dW_wab = self._eval_dW_on_gwgrid(q_abs)
                 # Apply L factor (unit cell height) as in parent
                 dW_wab *= L
 
@@ -1114,6 +1098,29 @@ class GWmQEHCorrection(GWQEHCorrection):
                 (n_Gpar, nb, self._nz_qeh), dtype=complex)
             for ig in range(n_Gpar):
                 phi_Gpar_az[ig] = self._eval_phi(qplusGpar_abs[ig])
+
+            # Precompute per-(G_par-group) z-Fourier phase factors and
+            # G-vector index lists. These depend only on iq (and the FFT
+            # geometry), not on symmetry / kpt / band, so we build them
+            # once per iq and reuse inside _calculate_sigma_mqeh.
+            Q_G = pd0.Q_qG[0]
+            i_cG = np.array(np.unravel_index(Q_G, N_c))
+            Gz_idx = i_cG[2]
+            Gz_idx_wrapped = np.where(Gz_idx > N_c[2] // 2,
+                                      Gz_idx - N_c[2], Gz_idx)
+            z_qeh = self.z_z_qeh
+            twopi_over_Lz = 2 * pi / L
+            G_indices_per_Gpar = []
+            phase_zg_per_Gpar = []
+            for ig in range(n_Gpar):
+                idx = np.where(inverse_idx == ig)[0]
+                G_indices_per_Gpar.append(idx)
+                if len(idx) == 0:
+                    phase_zg_per_Gpar.append(None)
+                    continue
+                Gz_values = Gz_idx_wrapped[idx] * twopi_over_Lz
+                phase_zg_per_Gpar.append(
+                    np.exp(1j * np.outer(z_qeh, Gz_values)))
 
             # PAW corrections
             self.Q_aGii = self.gs.pair_density_paw_corrections(pd0).Q_aGii
@@ -1191,8 +1198,8 @@ class GWmQEHCorrection(GWQEHCorrection):
 
                         sigma, dsigma = self._calculate_sigma_mqeh(
                             n_mG, deps_m, f_m, Wpm_Gpar,
-                            inverse_idx, N_c, pd0, phi_Gpar_az,
-                            qplusGpar_abs, A)
+                            G_indices_per_Gpar, phase_zg_per_Gpar,
+                            phi_Gpar_az, L)
 
                         nn = kpt1.n1 + n - self.bands[0]
                         self.sigma_sin[kpt1.s, i, nn] += sigma
@@ -1206,35 +1213,9 @@ class GWmQEHCorrection(GWQEHCorrection):
 
         return self.sigma_sin, self.dsigma_sin
 
-    def _eval_and_interpolate_dW(self, q_abs):
-        """Evaluate Delta-W matrix at |q| and interpolate to GW freq grid.
-
-        Returns array of shape (nw, nbasis, nbasis) on the GW frequency
-        grid self.omega_w.
-        """
-        from scipy.interpolate import CubicSpline
-
-        # Evaluate on the QEH frequency grid
-        dW_wab_qeh = self._eval_dW_matrix(q_abs)
-        wqeh = self.wqeh_matrix
-
-        nb = self.nbasis
-        nw = self.nw
-        w_grid = self.omega_w
-
-        dW_wab = np.zeros((nw, nb, nb), dtype=complex)
-        for a in range(nb):
-            for b in range(nb):
-                vals = dW_wab_qeh[:, a, b]
-                spl_r = CubicSpline(wqeh, vals.real, extrapolate=True)
-                spl_i = CubicSpline(wqeh, vals.imag, extrapolate=True)
-                dW_wab[:, a, b] = spl_r(w_grid) + 1j * spl_i(w_grid)
-
-        return dW_wab
-
     def _calculate_sigma_mqeh(self, n_mG, deps_m, f_m, Wpm_Gpar,
-                              Gpar_inverse_idx, N_c, pd0, phi_Gpar_az,
-                              qplusGpar_abs, A):
+                              G_indices_per_Gpar, phase_zg_per_Gpar,
+                              phi_Gpar_az, Lz):
         """Calculate self-energy contribution in the mQEH basis.
 
         For each G_parallel, project the pair density onto the mQEH
@@ -1251,18 +1232,17 @@ class GWmQEHCorrection(GWQEHCorrection):
             Occupation numbers.
         Wpm_Gpar : ndarray (n_Gpar, 2*nw, nbasis, nbasis)
             Hilbert-transformed Delta-W matrices for each G_parallel.
-        Gpar_inverse_idx : ndarray (nG,)
-            Maps each G-vector index to its G_parallel group index.
-        N_c : ndarray (3,)
-            FFT grid dimensions.
-        pd0 : SingleQPWDescriptor
-            Plane-wave descriptor.
+        G_indices_per_Gpar : list of ndarray
+            For each unique G_parallel group, the indices into n_mG's
+            G-axis that belong to it.
+        phase_zg_per_Gpar : list of ndarray or None
+            For each unique G_parallel group, exp(i Gz z_qeh) on the
+            QEH z-grid with shape (nz_qeh, n_gz). None for empty groups.
+            Precomputed once per iq in calculate_QEH.
         phi_Gpar_az : ndarray (n_Gpar, nbasis, nz_qeh)
             Potential basis functions at each |q+G_parallel|.
-        qplusGpar_abs : ndarray (n_Gpar,)
-            |q + G_parallel| for each unique G_parallel.
-        A : float
-            In-plane unit cell area.
+        Lz : float
+            DFT cell height (for inverse-FFT normalization).
         """
         o_m = abs(deps_m)
         sgn_m = np.sign(deps_m + 1e-15)
@@ -1271,7 +1251,6 @@ class GWmQEHCorrection(GWQEHCorrection):
         nw = len(self.omega_w)
         nb = self.nbasis
         n_Gpar = Wpm_Gpar.shape[0]
-        nG = n_mG.shape[1]
 
         beta = (2**0.5 - 1) * self.domega0 / self.omega2
         w_m = (o_m / (self.domega0 + beta * o_m)).astype(int)
@@ -1279,68 +1258,22 @@ class GWmQEHCorrection(GWQEHCorrection):
         o2_m = self.omega_w[w_m + 1]
         x = 1.0 / (self.qd.nbzkpts * 2 * pi * self.vol)
 
-        # Compute mixed-space pair densities and project onto mQEH basis
-        # For each G_parallel group, we need rho^n_m(G_parallel, z)
-        # This requires inverse FFT along z of the pair densities
-        # grouped by G_parallel.
-
-        # Get the G-vector indices in the FFT grid
-        Q_G = pd0.Q_qG[0]  # 1D indices into the 3D FFT grid
-        i_cG = np.array(np.unravel_index(Q_G, N_c))  # 3D grid indices
-
-        # Convert grid indices to actual G_z values
-        B_cv = 2.0 * pi * self.gs.gd.icell_cv
-        # G_z values for each G-vector
-        Gz_idx = i_cG[2]  # z-component grid indices
-        # Handle FFT index wrapping
-        Gz_idx_wrapped = np.where(Gz_idx > N_c[2] // 2,
-                                  Gz_idx - N_c[2], Gz_idx)
-
-        # z-grid from the DFT cell
-        Lz = abs(self.gs.gd.cell_cv[2, 2])
-        dz_dft = Lz / N_c[2]
-        z_dft = np.arange(N_c[2]) * dz_dft
-
-        # For each G_parallel, do inverse FFT along z to get
-        # the mixed-space pair density
-        # Then project onto the mQEH potential basis to get C coefficients
-
         # Compute expansion coefficients C_{m,alpha}(G_par) for each band m
         # C_{m,alpha}(G_par) = int dz rho^n_m(G_par, z) phi^{l0}_alpha(z)
         # where phi is the potential basis function (dual to density basis)
+        # and rho(G_par, z) = sum_{G_z} n(G_par, G_z) e^{i G_z z} / Lz.
+        # phase_zg_per_Gpar and G_indices_per_Gpar are precomputed in
+        # calculate_QEH so we don't rebuild them per band / per symmetry.
         C_mGpar_a = np.zeros((len(deps_m), n_Gpar, nb), dtype=complex)
 
         for ig in range(n_Gpar):
-            # Find all G-vectors belonging to this G_parallel group
-            G_indices = np.where(Gpar_inverse_idx == ig)[0]
+            G_indices = G_indices_per_Gpar[ig]
             if len(G_indices) == 0:
                 continue
-
-            # Get the Gz indices for this group
-            gz_indices = Gz_idx_wrapped[G_indices]
-
-            # For each band m, construct rho(G_par, z) via inverse FFT
-            # n_mG[:, G_indices] are the Fourier coefficients for this G_par
-            n_m_gz = n_mG[:, G_indices]  # (nbands, n_gz)
-
-            # Do inverse FFT along z: accumulate exp(i Gz z) * n(Gz)
-            # z-grid: use the QEH z-grid for projection
-            z_qeh = self.z_z_qeh
-            nz_qeh = len(z_qeh)
-
-            # Compute exp(i Gz z) for all Gz and z points
-            Gz_values = gz_indices * (2 * pi / Lz)
-            # phase_zg: (nz_qeh, n_gz)
-            phase_zg = np.exp(1j * np.outer(z_qeh, Gz_values))
-
-            # rho_mz = n_m_gz @ phase_zg.T / Lz gives pair density
-            # in mixed representation
-            # Factor: inverse FFT normalization
+            phase_zg = phase_zg_per_Gpar[ig]   # (nz_qeh, n_gz)
+            n_m_gz = n_mG[:, G_indices]        # (nbands, n_gz)
             rho_mz = n_m_gz @ phase_zg.T / Lz  # (nbands, nz_qeh)
-
-            # Project onto potential basis: C = int dz rho(z) phi(z)
-            # phi_Gpar_az[ig] has shape (nbasis, nz_qeh)
-            phi_az = phi_Gpar_az[ig]  # (nbasis, nz_qeh)
+            phi_az = phi_Gpar_az[ig]           # (nbasis, nz_qeh)
             C_mGpar_a[:, ig, :] = (
                 rho_mz @ phi_az.conj().T * self.dz_qeh)
 
