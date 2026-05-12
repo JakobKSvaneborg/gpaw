@@ -564,6 +564,7 @@ class GWQEHCorrection:
         # qmax = (self.q_grid).max()
 
         # Single layer
+        d = np.asarray(d, dtype=float)
         if len(d) == len(structure) - 1:
             d = interlayer_to_thickness(d)
         HS0 = QEH.heterostructure(
