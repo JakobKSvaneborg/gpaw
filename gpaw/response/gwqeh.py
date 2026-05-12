@@ -248,11 +248,9 @@ class GWQEHCorrection:
 
         # Get KS eigenvalues and occupation numbers:
         b1, b2 = self.bands
-        nibzk = self.gs.kd.nibzkpts
         for i, k in enumerate(self.kpts):
             for s in range(self.nspins):
-                u = s * nibzk + k
-                kpt = self.gs.kpt_u[u]
+                kpt = self.gs.kpt_ks[k][s]
                 self.eps_sin[s, i] = kpt.eps_n[b1:b2]
                 self.f_sin[s, i] = kpt.f_n[b1:b2] / kpt.weight
 
