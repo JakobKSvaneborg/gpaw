@@ -2,6 +2,7 @@ from myqueue.workflow import run
 
 
 def workflow():
+    run(script='hyperfine_21.py')
     with run(script='cu_calc.py', cores=4, tmax='1h'):
         run(script='cu_plot.py')
         run(function=check)
