@@ -98,7 +98,8 @@ class GWQEHCorrection:
 
         self.inputcalc = calc
         self.gs = ResponseGroundStateAdapter.from_input(calc)
-        self.context = ResponseContext(txt=filename + '.txt', comm=world)
+        context_txt = filename + '.txt' if filename is not None else txt
+        self.context = ResponseContext(txt=context_txt, comm=world)
         self.world = world
 
         # Initialize parallelization communicators
