@@ -477,11 +477,12 @@ class GWQEHCorrection:
         except IOError:
             return False
         else:
-            if (data['kpts'] == self.kpts and
-                (data['bands'] == self.bands).all() and
-                    data['nbands'] == self.nbands):
+            # Use np.array_equal so multi-kpt arrays don't raise
+            # "truth value of an array is ambiguous" under the and chain.
+            if (np.array_equal(data['kpts'], self.kpts)
+                    and np.array_equal(data['bands'], self.bands)
+                    and data['nbands'] == self.nbands):
                 self.nq = data['last_q']
-                self.complete = data['complete']
                 self.complete = data['complete']
                 self.sigma_sin = data['sigma_sin']
                 self.dsigma_sin = data['dsigma_sin']
@@ -935,10 +936,16 @@ class GWmQEHCorrection(GWQEHCorrection):
         q_grid = getattr(self, 'q_grid', None)
         if q_grid is not None and len(q_grid) > 1:
             q_sorted = np.sort(q_grid)
-            if self._metal:
-                self._q0_cut = q_sorted[0] / 2.0
-            else:
-                self._q0_cut = q_sorted[1] / 2.0
+            # Match the parent's q_cut: half the first nonzero |q| in the
+            # GW grid. For non-metals q_sorted[0] is the Gamma point (0)
+            # and we want q_sorted[1]; for metals the parent strips q=0
+            # and uses [0] of the truncated array, which is the same
+            # nonzero value. Using "first nonzero" works in both cases
+            # without an unsafe q_sorted[0]/2 = 0 cut for metals.
+            nonzero = q_sorted[~np.isclose(q_sorted, 0)]
+            if len(nonzero) == 0:
+                return
+            self._q0_cut = nonzero[0] / 2.0
             q0 = self._qqeh_sorted[self._qqeh_sorted <= self._q0_cut]
             nw_gw = len(self.omega_w)
             if not self._include_q0:
