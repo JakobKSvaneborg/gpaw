@@ -680,14 +680,20 @@ class GWmQEHCorrection(GWQEHCorrection):
 
         self.ecut_mqeh = ecut_mqeh / Hartree
 
+        # Save flags needed for q->0 averaging of the matrix
+        self._include_q0 = include_q0
+        self._metal = metal
+
         # These will be set by calculate_W_QEH or provided directly
         self.dW_qw_matrix = None
-        self.phi_qiz = None
-        self.drho_qzi = None
+        self.phi_qiz_target = None
+        self.drho_qzi_target = None
         self.nbasis = None
         self.layer_index = layer
         self.qqeh_matrix = None
         self.wqeh_matrix = None
+        self.z_z_qeh = None
+        self.dz_qeh = None
 
         # Store user-provided mQEH data (if any) for setup after parent init
         self._init_dW_qw_matrix = dW_qw_matrix
@@ -706,6 +712,15 @@ class GWmQEHCorrection(GWQEHCorrection):
             omega2=omega2, eta=eta, include_q0=include_q0,
             metal=metal, restart=restart)
 
+        # mQEH must work in a coordinate frame where the third lattice
+        # vector is the out-of-plane direction (Cartesian z). The G_par
+        # grouping and Gz extraction rely on this.
+        cell_cv = self.gs.gd.cell_cv
+        assert np.allclose(cell_cv[2, :2], 0) and \
+            np.allclose(cell_cv[:2, 2], 0), \
+            ('GWmQEHCorrection assumes the third lattice vector is along '
+             'Cartesian z and orthogonal to the in-plane axes.')
+
         # If full mQEH data was provided directly, install it now
         if self._init_dW_qw_matrix is not None:
             self.dW_qw_matrix = self._init_dW_qw_matrix
@@ -717,6 +732,36 @@ class GWmQEHCorrection(GWQEHCorrection):
             self.z_z_qeh = self._init_z_z_qeh
             self.dz_qeh = self._init_dz_qeh
             self._interpolate_mqeh_data()
+        elif self.dW_qw_matrix is None:
+            # Restart path: parent loaded only the scalar from <file>_dW_qw.npz
+            # Try to reload the full matrix + basis data from the same file.
+            self._try_load_mqeh_npz()
+
+    def _try_load_mqeh_npz(self):
+        """Reload the mQEH matrix and basis functions from <file>_dW_qw.npz.
+
+        The parent restart path only reads the scalar dW_qw. Without this,
+        a restart would silently degrade to monopole-only because
+        self.dW_qw_matrix would remain None.
+        """
+        try:
+            data = np.load(self.filename + '_dW_qw.npz')
+        except IOError:
+            return
+        required = ('dW_qw_matrix', 'phi_qiz', 'drho_qzi',
+                    'z_z_qeh', 'dz_qeh', 'nbasis')
+        if not all(k in data.files for k in required):
+            return
+        self.dW_qw_matrix = data['dW_qw_matrix']
+        self.phi_qiz_target = data['phi_qiz']
+        self.drho_qzi_target = data['drho_qzi']
+        self.z_z_qeh = data['z_z_qeh']
+        self.dz_qeh = float(data['dz_qeh'])
+        self.nbasis = int(data['nbasis'])
+        self.qqeh_matrix = self.qqeh.copy()
+        self.wqeh_matrix = self.wqeh.copy()
+        self._interpolate_mqeh_data()
+        print('mQEH matrix data loaded from file', file=self.fd)
 
     def calculate_W_QEH(self, structure, d, layer=0):
         """Calculate the full mQEH Delta-W matrix.
@@ -876,12 +921,65 @@ class GWmQEHCorrection(GWQEHCorrection):
 
         self._nw_qeh = nw
         self._nz_qeh = nz
+        self._qqeh_max = float(self._qqeh_sorted[-1])
+
+        # q -> 0 averaging for the matrix (mirrors the parent's
+        # treatment of dWgw_qw[0]). The mQEH Delta-W matrix can diverge
+        # as q -> 0 (Coulomb-like long-range part), so when |q+G_par|
+        # falls below q_cut we substitute a weighted average over the
+        # smallest q-points instead of the raw spline extrapolation.
+        self._q0_dW_wab = None
+        self._q0_cut = 0.0
+        q_grid = getattr(self, 'q_grid', None)
+        if q_grid is not None and len(q_grid) > 1:
+            q_sorted = np.sort(q_grid)
+            if self._metal:
+                self._q0_cut = q_sorted[0] / 2.0
+            else:
+                self._q0_cut = q_sorted[1] / 2.0
+            q0 = self._qqeh_sorted[self._qqeh_sorted <= self._q0_cut]
+            if not self._include_q0:
+                # Match the parent's behavior: zero out the matrix
+                # for |q+G_par| < q0_cut.
+                self._q0_dW_wab = np.zeros((nw, nb, nb), dtype=complex)
+            elif len(q0) > 1:
+                # Weighted average over the small-q ring, weights ~ q
+                # (replicating the area-element of the q -> 0 disk).
+                if np.isclose(q0[0], 0):
+                    vol = np.pi * (q0[-1] + q0[1] / 2.0)**2
+                    weight0 = np.pi * (q0[1] / 2.0)**2 / vol
+                    c = (1 - weight0) / np.sum(q0)
+                    weights = c * q0
+                    weights[0] = weight0
+                else:
+                    c = 1.0 / np.sum(q0)
+                    weights = c * q0
+                # dW_sorted has the same q ordering as _qqeh_sorted
+                small_dW = dW_sorted[:len(q0)]  # (n_small, nw, nb, nb)
+                self._q0_dW_wab = np.tensordot(
+                    weights, small_dW, axes=(0, 0))  # (nw, nb, nb)
 
     def _eval_dW_matrix(self, q_abs):
         """Evaluate the Delta-W matrix at a given |q| value.
 
         Returns array of shape (nw_qeh, nbasis, nbasis).
         """
+        # q -> 0 substitution: replace spline values with the small-q
+        # average when q_abs < q0_cut. See _interpolate_mqeh_data.
+        if (self._q0_dW_wab is not None
+                and q_abs <= self._q0_cut):
+            return self._q0_dW_wab.copy()
+        if q_abs > self._qqeh_max:
+            # Cubic-spline extrapolation past the mQEH q_max can give
+            # unphysical values for screened-interaction tails. Warn
+            # once per object so callers can raise q_max or ecut_mqeh.
+            if not getattr(self, '_warned_qmax', False):
+                print(('WARNING: evaluating Delta-W at |q+G_par|=%.3f '
+                       'Bohr^-1 > qqeh.max()=%.3f; results rely on '
+                       'spline extrapolation. Consider increasing the '
+                       'mQEH q_max or decreasing ecut_mqeh.')
+                      % (q_abs, self._qqeh_max), file=self.fd)
+                self._warned_qmax = True
         nb = self.nbasis
         nw = self._nw_qeh
         dW_wab = np.empty((nw, nb, nb), dtype=complex)

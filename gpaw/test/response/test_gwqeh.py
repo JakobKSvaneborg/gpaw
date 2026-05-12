@@ -729,3 +729,61 @@ def test_mqeh_full_pipeline(in_tmp_dir, mos2_chi):
     # mQEH should differ from monopole due to G_par>0 contributions
     assert not np.allclose(qp_mono, qp_mqeh, atol=1e-12), \
         'mQEH gives identical result to monopole; G_par contributions missing'
+
+
+# ---------- mQEH restart regression ----------
+
+
+@pytest.mark.response
+@pytest.mark.serial
+def test_mqeh_restart_reloads_matrix(in_tmp_dir, gpw_files):
+    """Restart must reload the full mQEH matrix from <file>_dW_qw.npz.
+
+    Without the child's _try_load_mqeh_npz hook, a restart=True run
+    silently falls back to monopole-only because self.dW_qw_matrix
+    stays None after the parent reads only the scalar dW_qw.
+    """
+    from gpaw.response.gwqeh import GWmQEHCorrection
+
+    gpwfile = str(gpw_files['mos2_pw_fulldiag'])
+    (qqeh, wqeh, dW_scalar,
+     dW_matrix, phi_qiz, drho_qzi, z_z, dz) = _make_synthetic_mqeh_data()
+
+    # First run: writes <file>_dW_qw.npz with matrix + basis arrays.
+    # We mimic calculate_W_QEH's npz write by saving it ourselves, then
+    # constructing the object with dW_qw=None + restart=True so that the
+    # parent path reads the scalar and the child reloads the matrix.
+    fname = 'mqeh_restart_reload'
+    np.savez(fname + '_dW_qw.npz',
+             qqeh=qqeh, wqeh=wqeh,
+             dW_qw=dW_scalar,
+             dW_qw_matrix=dW_matrix,
+             drho_qzi=drho_qzi,
+             phi_qiz=phi_qiz,
+             z_z_qeh=z_z,
+             dz_qeh=dz,
+             nbasis=dW_matrix.shape[2])
+
+    gwq = GWmQEHCorrection(calc=gpwfile,
+                           filename=fname,
+                           kpts=[0],
+                           bands=(8, 12),
+                           qqeh=qqeh,
+                           wqeh=wqeh,
+                           domega0=0.1,
+                           omega2=5.0,
+                           ecut_mqeh=50.0,
+                           restart=True)
+
+    # The matrix must be loaded; otherwise calculate_QEH would crash on
+    # self.nbasis / self._nw_qeh during the G_par loop.
+    assert gwq.dW_qw_matrix is not None, \
+        'Restart did not reload the mQEH matrix from disk'
+    assert gwq.nbasis == dW_matrix.shape[2]
+    assert gwq.phi_qiz_target is not None
+
+    qp_sin = gwq.calculate_qp_correction()
+    # Smoke-check: non-trivial output, no crash.
+    assert qp_sin.shape == (1, 1, 4)
+    assert np.any(np.abs(qp_sin) > 1e-12), \
+        'Restart-loaded matrix produced zero corrections'
