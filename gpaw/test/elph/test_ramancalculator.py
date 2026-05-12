@@ -20,11 +20,10 @@ def get_random_g(nk, nb):
     return g_sqklnn
 
 
-@pytest.mark.old_gpaw_only  # calc.initialize_positions(atoms) not implemented!
 @pytest.mark.serial
 def test_ramancalculator(gpw_files, in_tmp_dir):
     """Test of ResonantRamanCalculator object"""
-    calc = GPAW(gpw_files['bcc_li_lcao'])
+    calc = GPAW(gpw_files['bcc_li_lcao'], legacy_gpaw=True)
     atoms = calc.atoms
     # Initialize calculator if necessary
     if not hasattr(calc.wfs, 'C_nM'):

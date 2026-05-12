@@ -1,11 +1,10 @@
-#include "../python_utils.h"
-#include <stdlib.h>
-#include <pthread.h>
-
-#include "../extensions.h"
-#include "../operators.h"
+#include "python_utils.h"
+#include "extensions.h"
+#include "operators.h"
 #include "bmgs.h"
 #include "gpu.h"
+#include <stdlib.h>
+#include <pthread.h>
 
 #define OPERATOR_NSTREAMS (2)
 

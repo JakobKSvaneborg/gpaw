@@ -9,11 +9,11 @@ pytestmark = pytest.mark.skipif(world.size > 1,
                                 reason='world.size > 1')
 
 
-@pytest.mark.old_gpaw_only
 def test_gamma_point_calculation():
     atoms = molecule('C6H6', vacuum=2)
 
-    calc = GPAW(mode='lcao',
+    calc = GPAW(legacy_gpaw=True,
+                mode='lcao',
                 xc='LDA',
                 basis='szp(dzp)',
                 txt=None)
@@ -39,12 +39,12 @@ def test_gamma_point_calculation():
     assert len(los.indices) == (6 * 3)
 
 
-@pytest.mark.old_gpaw_only
 def test_k_point_calculation():
     atoms = graphene_nanoribbon(2, 1, type='zigzag', saturated=True,
                                 C_H=1.1, C_C=1.4, vacuum=2)
 
-    calc = GPAW(mode='lcao',
+    calc = GPAW(legacy_gpaw=True,
+                mode='lcao',
                 xc='LDA',
                 basis='szp(dzp)',
                 txt=None,

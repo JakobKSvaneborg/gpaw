@@ -40,7 +40,7 @@ cat old >> bin/activate
 rm old
 
 # Fix missing dependency in preinstalled packages
-$PIP install pandas
+$PIP install 'pandas<3.0.0'
 
 # Install ASE from git:
 git clone https://gitlab.com/ase/ase.git

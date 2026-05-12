@@ -232,7 +232,7 @@ class FakeWFS:
         if self.mode == 'fd':
             return self.gd.integrate(a_nX, b_nX, global_integral)
         x = self.pd.integrate(a_nX, b_nX, global_integral)
-        return self.ngpts**2 * x
+        return x
 
     def calculate_density_matrix(self, f_n, C_nM, rho_MM=None):
         assert self.ibzwfs.band_comm.size == 1
@@ -292,7 +292,7 @@ class KPT:
             self.psit_nX = wfs.psit_nX
         else:
             self.C_nM = wfs.C_nM.data
-            self.S_MM = wfs.S_MM.data
+            self.S_MM = wfs.S_MM.data.conj()
             self.P_aMi = wfs.P_aMi
         if mode == 'fd':
             self.phase_cd = wfs.psit_nX.desc.phase_factor_cd
@@ -325,7 +325,8 @@ class KPT:
         if self.scale == 1:
             return data
         if 1:  # isinstance(data, np.ndarray):
-            return data * self.scale
+            # Use data[:] to read from file if needed ...
+            return data[:] * self.scale
         data.scale *= self.scale
         return data
 

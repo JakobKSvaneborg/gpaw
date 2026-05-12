@@ -3,7 +3,15 @@
 
 #include <hip/hip_runtime.h>
 #include <hip/hip_complex.h>
+
+// Tell hipBlas to use hipComplex and hipDoubleComplex instead of hipBlasComplex etc.  Reasons:
+// 1) This is the default behavior in hipBlas > 2
+// 2) For whatever reason hipBlasComplex has its real/imag parts as private variables if using C++, which is different from what the cuBlas type does.
+#define ROCM_MATHLIBS_API_USE_HIP_COMPLEX
 #include <hipblas/hipblas.h>
+
+// FIXME: ROCM_MATHLIBS_API_USE_HIP_COMPLEX has recently been deprecated in favor of -DHIPBLAS_V2.
+// But we need to support older rocm at least for some time still.
 
 #define gpuMemcpyKind             hipMemcpyKind
 #define gpuMemcpyDeviceToHost     hipMemcpyDeviceToHost

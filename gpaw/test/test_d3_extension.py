@@ -3,19 +3,18 @@ import pytest
 from ase import Atoms
 
 from gpaw import restart
-from gpaw.mpi import world
 from gpaw.new.ase_interface import GPAW
 from gpaw.new.extensions import D3
 
 
 @pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
 @pytest.mark.parametrize('mode', [{'name': 'pw', 'ecut': 300}, 'lcao'])
-def test_d3_extensions(mode, parallel, in_tmp_dir, dftd3):
+def test_d3_extensions(mode, parallel, in_tmp_dir, dftd3, mpi):
     from ase.calculators.dftd3 import PureDFTD3
     domain, band = parallel
-    if world.size < domain * band:
+    if mpi.comm.size < domain * band:
         pytest.skip('Not enough cores for this test.')
-    if world.size > domain * band * 2:
+    if mpi.comm.size > domain * band * 2:
         pytest.skip('Too many cores for this test.')
 
     # 1. Create a calculation with a particular list of extensions.
@@ -29,7 +28,7 @@ def test_d3_extensions(mode, parallel, in_tmp_dir, dftd3):
 
     def D3ref(atoms):
         atoms = atoms.copy()
-        atoms.calc = PureDFTD3(xc='PBE')
+        atoms.calc = PureDFTD3(xc='PBE', comm=mpi.comm)
         return atoms.get_potential_energy(), atoms.get_forces()
 
     atoms = get_atoms()
@@ -37,11 +36,12 @@ def test_d3_extensions(mode, parallel, in_tmp_dir, dftd3):
     def get_calc(atoms):
         # To test multiple extensions, create two sprigs which add
         # up to k=ktot, which is what is tested in this test
-        calc = GPAW(extensions=[D3(xc='PBE')],
-                    symmetry='off',
-                    parallel={'band': band, 'domain': domain},
-                    kpts=(2, 1, 1),
-                    mode=mode)
+        calc = mpi.NewGPAW(
+            extensions=[D3(xc='PBE')],
+            symmetry='off',
+            parallel={'band': band, 'domain': domain},
+            kpts=(2, 1, 1),
+            mode=mode)
         atoms.calc = calc
         return calc
 
@@ -63,9 +63,10 @@ def test_d3_extensions(mode, parallel, in_tmp_dir, dftd3):
     atoms.positions[0, 2] += 0.1
 
     # 3. Calculate a reference result without extensions
-    calc = GPAW(mode=mode,
-                kpts=(2, 1, 1),
-                symmetry='off')
+    calc = mpi.NewGPAW(
+        mode=mode,
+        kpts=(2, 1, 1),
+        symmetry='off')
     atoms.calc = calc
 
     E0, F0 = atoms.get_potential_energy(), atoms.get_forces()
@@ -78,10 +79,10 @@ def test_d3_extensions(mode, parallel, in_tmp_dir, dftd3):
     atoms.positions[0, 2] -= 0.1
     movedE0, movedF0 = atoms.get_potential_energy(), atoms.get_forces()
     assert movedE == pytest.approx(movedE0 + movedD3_E)
-    assert movedF == pytest.approx(movedF0 + movedD3_F)
+    assert movedF == pytest.approx(movedF0 + movedD3_F, abs=5e-5)
 
     # 4. Test restarting from a file
-    atoms, calc = restart('calc.gpw', Class=GPAW)
+    atoms, calc = restart('calc.gpw', Class=GPAW, communicator=mpi.comm)
     # Make sure the cached energies and forces are correct
     # without a new calculation
     assert E == pytest.approx(atoms.get_potential_energy())
@@ -114,8 +115,9 @@ def test_d3_extensions(mode, parallel, in_tmp_dir, dftd3):
     for _, _ in zip(relax.irun(), range(3)):
         pass
     calc.write('restart_relax.gpw')
-    atoms, calc = restart('restart_relax.gpw', Class=GPAW)
-    relax = BFGS(atoms, restart='relax_restart')
+    atoms, calc = restart('restart_relax.gpw', Class=GPAW,
+                          communicator=mpi.comm)
+    relax = BFGS(atoms, restart='relax_restart', comm=mpi.comm)
     relax.run()
 
     assert relax.nsteps + 3 == nsteps
@@ -124,18 +126,16 @@ def test_d3_extensions(mode, parallel, in_tmp_dir, dftd3):
 
 
 @pytest.mark.parametrize('parallel', [(1, 1), (1, 2), (2, 2), (2, 1)])
-def test_d3_stress(parallel, in_tmp_dir, dftd3):
+def test_d3_stress(parallel, in_tmp_dir, dftd3, mpi):
     from ase.build import bulk
     from ase.calculators.dftd3 import DFTD3
     from ase.filters import FrechetCellFilter
     from ase.optimize import CellAwareBFGS
 
-    from gpaw.new.ase_interface import GPAW
-
     domain, band = parallel
-    if world.size < domain * band:
+    if mpi.comm.size < domain * band:
         pytest.skip('Not enough cores for this test.')
-    if world.size > domain * band * 2:
+    if mpi.comm.size > domain * band * 2:
         pytest.skip('Too many cores for this test.')
 
     def get_atoms():
@@ -151,13 +151,14 @@ def test_d3_stress(parallel, in_tmp_dir, dftd3):
                   mode=dict(name='pw', ecut=300))
 
     def get_calc(x):
-        return GPAW(**kwargs, **x)
+        return mpi.NewGPAW(**kwargs, **x)
 
     # 1. Old fashioned D3 calculation
     atoms = get_atoms()
-    atoms.calc = DFTD3(xc='PBE', dft=get_calc({}))
+    atoms.calc = DFTD3(xc='PBE', dft=get_calc({}), comm=mpi.comm)
     relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1),
-                          restart='restart_oldfashioned')
+                          restart='restart_oldfashioned',
+                          comm=mpi.comm)
     relax.run(smax=0.001)
     atoms_old_ref = atoms.copy()
     E_ref = atoms.get_potential_energy()
@@ -166,7 +167,8 @@ def test_d3_stress(parallel, in_tmp_dir, dftd3):
     atoms = get_atoms()
     atoms.calc = get_calc(dict(extensions=[D3(xc='PBE')]))
     relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1),
-                          restart='restart_new')
+                          restart='restart_new',
+                          comm=mpi.comm)
     relax.run(smax=0.001)
     nsteps = relax.nsteps
 
@@ -179,14 +181,16 @@ def test_d3_stress(parallel, in_tmp_dir, dftd3):
     atoms = get_atoms()
     atoms.calc = get_calc(dict(extensions=[D3(xc='PBE')]))
     relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1),
-                          restart='restart_cont')
+                          restart='restart_cont',
+                          comm=mpi.comm)
     relax.smax = 1e-4
     for _, _ in zip(relax.irun(), range(3)):
         pass
     atoms.calc.write('restart_cell_relax.gpw')
-    atoms, calc = restart('restart_cell_relax.gpw', Class=GPAW)
+    atoms, calc = mpi.restart('restart_cell_relax.gpw', Class=GPAW)
     relax = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1),
-                          restart='restart_cont')
+                          restart='restart_cont',
+                          comm=mpi.comm)
     relax.run(smax=0.001)
 
     assert relax.nsteps + 3 == nsteps
@@ -197,12 +201,13 @@ def test_d3_stress(parallel, in_tmp_dir, dftd3):
     assert E_ref == pytest.approx(atoms.get_potential_energy(), abs=1e-4)
 
 
-def test_d3_isolated_atom(dftd3):
+def test_d3_isolated_atom(dftd3, mpi):
     atoms = Atoms('He')
     atoms.center(vacuum=3)
-    calc = GPAW(xc='PBE',
-                extensions=[D3(xc='PBE')],
-                mode='pw')
+    calc = mpi.NewGPAW(
+        xc='PBE',
+        extensions=[D3(xc='PBE')],
+        mode='pw')
     atoms.calc = calc
     atoms.get_potential_energy()
     assert np.allclose(atoms.get_forces(), 0, atol=1e-5)

@@ -13,8 +13,8 @@ a = 10.0
 
 
 @pytest.mark.ci
-def test_multipole():
-    gd = GridDescriptor((n, n, n), (a, a, a))
+def test_multipole(mpi):
+    gd = GridDescriptor((n, n, n), (a, a, a), comm=mpi.comm)
     c_LL = np.identity(9, float)
     a_Lg = gd.zeros(9)
     xc = XC('LDA')

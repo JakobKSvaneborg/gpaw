@@ -13,7 +13,7 @@ def test_pipekmezey_fd(in_tmp_dir):
                              [0, 0, 1.128]])
     atoms.center(vacuum=5)
 
-    calc = GPAW(_use_old_gpaw=True,
+    calc = GPAW(legacy_gpaw=True,
                 mode='fd',
                 h=0.24,
                 convergence={'density': 1e-4,

@@ -55,7 +55,7 @@ Total DOS
 ---------
 
 The total density of states can be obtained by the GPAW calculator
-method ``get_dos(spin=0, npts=201, width=None)``. Take a look at the 
+method ``get_dos(spin=0, npts=201, width=None)``. Take a look at the
 :git:`~doc/tutorialsexercises/electronic/dos/dos.py` program and try to
 get a rough idea of what it can do for you.  Use it to plot the
 density of states (DOS) for :ref:`bulk fcc aluminium <aluminium_exercise>`
@@ -333,3 +333,4 @@ One can also do this from the :ref:`command line <cli>`::
 
 .. autoclass:: gpaw.dos.DOSCalculator
     :members:
+.. autofunction:: gpaw.dos.get_projector_numbers

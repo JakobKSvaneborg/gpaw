@@ -7,7 +7,7 @@ from gpaw.mpi import world
 
 
 @pytest.mark.stress
-def test_pw_si_stress(in_tmp_dir, gpaw_new):
+def test_pw_si_stress(in_tmp_dir):
     xc = 'PBE'
     si = bulk('Si')
     si.calc = GPAW(mode=PW(200),
@@ -25,10 +25,6 @@ def test_pw_si_stress(in_tmp_dir, gpaw_new):
                 scale_atoms=True)
 
     si.get_potential_energy()
-
-    if not gpaw_new:
-        # Trigger nasty bug (fixed in !486):
-        si.calc.wfs.pt.blocksize = si.calc.wfs.pd.maxmyng - 1
 
     s_analytical = si.get_stress()
     s_ref = [-0.16569446, -0.07630128, -0.1266625,

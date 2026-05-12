@@ -45,16 +45,21 @@ In Python code, it looks like this:
 .. literalinclude:: h2.py
     :start-after: creates
 
-If the above code was executed, a calculation for a single `\rm{H}_2`
-molecule would be started.  The calculation would be done using a
-supercell of size `6.0 \times 6.0 \times 6.0` Å with cluster
-boundary conditions.  The parameters for the PAW calculation are:
+If the above code was executed, a plane-wave (``pw``) calculation
+for a single :mol:`H_2` molecule would be started.
+The calculation would be done using a cell of size
+`6.0 \times 6.0 \times 6.0` Å with open boundary conditions.
 
-* 2 electronic bands.
+.. note::
+   For plane-waves mode GPAW will always use periodic boundary conditions.
+
+The other (default) parameters for the PAW calculation are:
+
+* Plane-wave cutoff ``ecut`` 340 eV.
+* ``nbands`` 2 electronic bands.
 * Local density approximation (LDA)\ [#LDA]_ for the
-  exchange-correlation functional.
+  exchange-correlation functional ``xc``.
 * Spin-paired calculation.
-* `32 \times 32 \times 32` grid points.
 
 The values of these parameters can be found in the text output file:
 :download:`h2.txt`.
@@ -65,12 +70,11 @@ like this:
 
 >>> calc = GPAW(mode='fd',
 ...             nbands=1,
-...             xc='PBE',
-...             gpts=(24, 24, 24))
+...             xc='PBE')
 
-Here, we want to use one electronic band, the Perdew, Burke, Ernzerhof
-(PBE)\ [#PBE]_ exchange-correlation functional and 24 grid points in
-each direction.
+Here, we want to use finite difference (``fd``) mode,
+one electronic band and the Perdew, Burke, Ernzerhof
+(PBE)\ [#PBE]_ exchange-correlation functional.
 
 .. _parameters:
 
@@ -107,8 +111,8 @@ given in the following sections.
       -
       - :ref:`manual_convergence`
     * - ``eigensolver``
-      - ``str``
-      - ``'dav'``
+      - ``str`` or ``dict``
+      - ``'ppcg'``
       - :ref:`manual_eigensolver`
     * - ``external``
       - Object
@@ -135,9 +139,9 @@ given in the following sections.
       - ``333``
       - :ref:`manual_maxiter`
     * - ``mixer``
-      - Object
+      - Object or ``dict``
       -
-      - Pulay :ref:`manual_mixer` scheme
+      - :ref:`manual_mixer` scheme
     * - ``mode``
       - ``str`` or ``dict``
       -
@@ -759,29 +763,33 @@ and used for output.  Use ``txt=None`` to disable all text output.
 Density mixing
 --------------
 
-Three parameters determine how GPAW does Pulay mixing of the
-densities:
+The mixer can be specified as a dict, e.g.::
 
-* ``beta``: linear mixing coefficient
-* ``nmaxold``: number of old densities to mix
+    mixer={'backend': 'pulay'}
+
+which happenns to be the default option. A powerful alternative is the
+msr1 mixer::
+
+    mixer={'backend': 'msr1', 'beta': 0.04, 'nmaxold': 8}
+
+The parameters which determine how GPAW does mixing of the densities are:
+
+* ``method``: the spin mixing method to use. Options are ``fullspin``,
+  ``difference``, ``sum``, and ``separate``. Default is ``fullspin``.
+* ``backend``: the mixing algorithm to use. Options are ``pulay``,
+  ``msr1``,  ``broyden`` (not recommended), ``fft`` (not recommended),
+  and ``no-mixing`` (not for scf-calculations). Default: ``pulay``.
+* ``beta``: linear mixing coefficient. Default: ``0.08`` for periodic
+  systems and ``0.25`` for non-periodic systems.
+* ``nmaxold``: number of old densities to mix, default is ``16``.
 * ``weight``: when measuring the change from input to output density,
   long wavelength changes are weighted ``weight`` times higher than
-  short wavelength changes
+  short wavelength changes. Default is ``70`` for periodic systems and
+  ``1`` for non-periodic systems.
 
-For small molecules, the best choice is to use
-``mixer=Mixer(beta=0.25, nmaxold=3, weight=1.0)``, which is what GPAW
-will choose if the system has zero-boundary conditions.
-
-If your system is a big molecule or a cluster, it is an advantage to
-use something like ``mixer=Mixer(beta=0.05, nmaxold=5, weight=50.0)``,
-which is also what GPAW will choose if the system has periodic
-boundary conditions in one or more directions.
-
-In spin-polarized calculations ``MixerDif`` will be used instead of
-``Mixer``.
-
-See also the documentation on :ref:`density mixing <densitymix>`.
-
+The mixer can also be specified as an object, with the ``beta``,
+``nmaxold``, and ``weight`` keyword arguments. See also the documentation
+on :ref:`density mixing <densitymix>`.
 
 .. _manual_fixdensity:
 
@@ -915,25 +923,25 @@ Eigensolver
 -----------
 
 The default solver for iterative diagonalization of the Kohn-Sham
-Hamiltonian is a simple Davidson method, (``eigensolver='dav'``), which
+Hamiltonian is the PPCG method, (``eigensolver='ppcg'``), which
 seems to perform well in most cases. Sometimes more efficient/stable
 convergence can be obtained with a different eigensolver. One option is the
 RMM-DIIS (Residual minimization method - direct inversion in iterative
-subspace), (``eigensolver='rmm-diis'``), which performs well when only a few
-unoccupied states are calculated. Another option is the conjugate gradient
-method (``eigensolver='cg'``), which is stable but slower.
+subspace), (``eigensolver='rmm-diis'``). This eigensolver is particularly
+useful if only a few unoccupied states are calculated.
 
-If parallelization over bands is necessary, then Davidson or RMM-DIIS must
-be used.
+More control can be obtained by specifying parameters in a dict::
 
-More control can be obtained by using directly the eigensolver objects::
+  calc = GPAW(...,
+              eigensolver={
+                  'name': 'rmm-diis',
+                  'diis-steps': 3,
+                  'niter': 2},
+              ...)
 
-  from gpaw.eigensolvers import CG
-  calc = GPAW(..., eigensolver=CG(niter=5, rtol=0.20), ...)
-
-Here, ``niter`` specifies the maximum number of conjugate gradient iterations
-for each band (within a single SCF step), and if the relative change
-in residual is less than ``rtol``, the iteration for the band is not continued.
+Here, ``niter`` specifies the maximum number of eigensolver iterations
+(within a single SCF step), and ``diis-steps`` the number of diis steps per
+eigensolver iteration.
 
 LCAO mode has its own eigensolvers. ``DirectLCAO`` eigensolver directly
 diagonalizes the Hamiltonian matrix instead of using an iterative method.

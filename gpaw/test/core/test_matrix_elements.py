@@ -53,3 +53,8 @@ def test_me(domain_band_comms, dtype, nbands, function):
             M2.tril2full()
             dM = M1.data - M2.data
             assert abs(dM).max() < 1e-11
+
+
+if __name__ == '__main__':
+    from gpaw.mpi import serial_comm, world
+    test_me([serial_comm, world], float, 1, None)

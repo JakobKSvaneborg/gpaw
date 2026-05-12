@@ -55,6 +55,6 @@ images += [final]
 interpolate(images)
 
 # Create and relax the DyNEB.
-neb = DyNEB(images)
+neb = DyNEB(images, method='improvedtangent')
 opt = BFGS(neb, logfile='neb.log', trajectory='neb.traj')
 opt.run(fmax=0.05)

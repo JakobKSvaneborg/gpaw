@@ -14,6 +14,7 @@ from gpaw.lrtddft.excitation import Excitation, ExcitationList, get_filehandle
 from gpaw.lrtddft.kssingle import KSSingles
 from gpaw.lrtddft.omega_matrix import OmegaMatrix
 from gpaw.lrtddft.spectrum import spectrum
+from gpaw.old import assert_legacy_gpaw
 from gpaw.xc import XC
 
 __all__ = ['LrTDDFT', 'photoabsorption_spectrum', 'spectrum']
@@ -69,7 +70,7 @@ class LrTDDFT(ExcitationList):
 
         self.set(**kwargs)
         if calculator is not None:
-            calculator = calculator._to_old()
+            assert_legacy_gpaw(calculator)
         self.calculator = calculator
 
         if world is None and calculator is not None:

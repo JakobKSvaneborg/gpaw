@@ -1,8 +1,7 @@
 import numpy as np
 from ase.build import molecule
 
-from gpaw import GPAW, Mixer
-from gpaw.mpi import world
+from gpaw import Mixer
 
 # Place one atom next to cell boundary, then check that reuse_wfs
 # works correctly when atom is subsequently displaced across the
@@ -10,7 +9,7 @@ from gpaw.mpi import world
 # are handled correctly when unprojecting/reprojecting the wavefunctions.
 
 
-def test_reuse_wfs_celldisp(in_tmp_dir, gpaw_new):
+def test_reuse_wfs_celldisp(in_tmp_dir, mpi):
     def check(reuse):
         atoms = molecule('H2')
         atoms.pbc = 1
@@ -19,19 +18,14 @@ def test_reuse_wfs_celldisp(in_tmp_dir, gpaw_new):
         dz = 1e-2
         atoms.positions[:, 2] += dz
 
-        kwargs = {}
-        if not gpaw_new:
-            kwargs['experimental'] = {
-                'reuse_wfs_method': 'paw' if reuse else None}
-
-        calc = GPAW(mode='pw',
-                    txt=f'gpaw-{reuse}.txt',
-                    nbands=1,
-                    eigensolver='davidson',
-                    kpts=[[-0.3, 0.4, 0.2]],
-                    symmetry='off',
-                    mixer=Mixer(0.7, 5, 50.0),
-                    **kwargs)
+        calc = mpi.GPAW(
+            mode='pw',
+            txt=f'gpaw-{reuse}.txt',
+            nbands=1,
+            eigensolver='davidson',
+            kpts=[[-0.3, 0.4, 0.2]],
+            symmetry='off',
+            mixer=Mixer(0.7, 5, 50.0))
         atoms.calc = calc
 
         for ctx in calc.icalculate(atoms):
@@ -41,7 +35,7 @@ def test_reuse_wfs_celldisp(in_tmp_dir, gpaw_new):
 
         atoms.positions[:, 2] -= 2 * dz
 
-        if not reuse and gpaw_new:
+        if not reuse:
             calc.dft.ibzwfs.move_wave_functions = lambda *args: None
 
         for ctx in calc.icalculate(atoms, system_changes=['positions']):
@@ -49,7 +43,7 @@ def test_reuse_wfs_celldisp(in_tmp_dir, gpaw_new):
                 logerr2 = np.log10(ctx.wfs.eigensolver.error)
                 break
 
-        if world.rank == 0:
+        if mpi.comm.rank == 0:
             print(f'reuse={bool(reuse)}')
             print('logerr1', logerr1)
             print('logerr2', logerr2)

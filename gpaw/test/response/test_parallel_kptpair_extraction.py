@@ -3,7 +3,6 @@ from itertools import product
 import numpy as np
 import pytest
 
-from gpaw import GPAW
 from gpaw.mpi import world
 from gpaw.response import ResponseContext, ResponseGroundStateAdapter
 from gpaw.response.kspair import KohnShamKPointPairExtractor
@@ -26,7 +25,7 @@ pytestmark = pytest.mark.skipif(world.size == 1, reason='world.size == 1')
 @pytest.mark.parametrize('system,qrel,nblocks', product(generate_system_s(),
                                                         generate_qrel_q(),
                                                         generate_nblocks_n()))
-def test_parallel_extract_kptdata(in_tmp_dir, gpw_files,
+def test_parallel_extract_kptdata(in_tmp_dir, gpw_files, mpi,
                                   system, qrel, nblocks):
     """Test that the KohnShamKPointPair data extracted from a serial and a
     parallel calculator object is identical."""
@@ -43,13 +42,13 @@ def test_parallel_extract_kptdata(in_tmp_dir, gpw_files,
     assert not serial_gs.is_parallelized()
 
     # Initialize parallel ground state adapter
-    calc = GPAW(gpw_files[wfs], parallel=dict(domain=1))
+    calc = mpi.GPAW(gpw_files[wfs], parallel=dict(domain=1))
     nbands = response_band_cutoff[wfs]
     parallel_gs = ResponseGroundStateAdapter(calc)
     assert parallel_gs.is_parallelized()
 
     # Set up extractors and integrals
-    context = ResponseContext()
+    context = ResponseContext(comm=mpi.comm)
     tcomm, kcomm = block_partition(context.comm, nblocks)
     serial_extractor = initialize_extractor(
         serial_gs, context, tcomm, kcomm)

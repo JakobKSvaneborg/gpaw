@@ -12,7 +12,10 @@ variables:
   # pipelines on shared runners.
   DEFAULT_RUNNER_TAG: "saas-linux-small-amd64"
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
-
+  # We override the Dockers PIP_NO_CACHE_DIR="1" here so that we
+  # actually use the cache:
+  PIP_NO_CACHE_DIR: ""
+  COV: "--cov=gpaw --cov-report= "
   # OpenMPI binds processes to specific physical cores (cf. mpiexec
   # manpage) when there are <= 2 cores.  This will cause it to
   # oversubscribe the /same/ physical cores when running simultaneous
@@ -48,7 +51,7 @@ stages:
     - |
       cat << EOF > siteconfig.py
       mpi = True
-      compiler = 'mpicc'
+      compiler = 'mpic++'
       libraries = []
       library_dirs = []
       include_dirs = []
@@ -61,12 +64,6 @@ stages:
                             '-Werror',
                             ]
       extra_link_args = ['-fopenmp']
-
-      # TODO: PySys_SetArgv() etc deprecated in Python 3.11
-      import sys
-      if sys.version_info >= (3, 11):
-          extra_compile_args += ['-Wno-deprecated-declarations']
-      # end TODO
 
       libraries += ['blas']
 
@@ -86,17 +83,6 @@ stages:
       - _gpaw.*.so
       - "*.log"
     expire_in: 30 mins
-
-.test:
-  stage: test
-  before_script:
-    - !reference [default, before_script]
-
-
-.gpu-job:
-  rules:
-    - if: $CI_COMMIT_BRANCH == "master"
-    - if: $CI_COMMIT_BRANCH =~ "/^gpu-.*/"
 
 
 .lumi-job:
@@ -137,7 +123,7 @@ build:
     - .build
   script:
     - cat siteconfig.py
-    - pip install --user --log build.log --editable .
+    - pip install --user --log build.log --editable . -v
     - gpaw -P 1 info
   cache:
     key: cache-build-oldest
@@ -182,7 +168,7 @@ build-latest:
     - cat siteconfig.py
     - pip install --user --upgrade numpy scipy
     - pip install --user --upgrade mpi4py
-    - pip install --user --editable .
+    - pip install --user --editable . -v
     - gpaw -P 1 info
   cache:
     key: cache-build-latest
@@ -194,7 +180,6 @@ build-cuda:
   image: $IMAGE_CUDA
   extends:
     - .build
-    - .gpu-job
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -211,6 +196,10 @@ build-cuda:
       EOF
     - cat siteconfig.py
     - pip install -v --user --log build.log --editable .
+  cache:
+    key: cache-build-cuda
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-hip-cuda:
@@ -218,7 +207,6 @@ build-hip-cuda:
   when: manual
   extends:
     - .build
-    - .gpu-job
   script:
     - |
       cat << EOF >> siteconfig.py
@@ -245,6 +233,43 @@ build-hip-cuda:
     # flag to underlying nvcc/cicc... and may default to c++14.
     - export HIPCC_COMPILE_FLAGS_APPEND="-std=c++17"
     - pip install -v --user --log build.log --editable .
+  cache:
+    key: cache-build-cuda
+    paths:
+     - $PIP_CACHE_DIR
+
+
+# Like build-cuda but uses the makefile compilation path.
+build-cuda-makefile:
+  image: $IMAGE_CUDA
+  extends:
+    - build-cuda
+  script:
+    - |
+      cat << EOF >> siteconfig.py
+      makefile_build = True
+      gpu = True
+      gpu_target = 'cuda'
+      gpu_compiler = 'nvcc'
+      gpu_compile_args = ['-O3',
+                          '-g']
+      libraries += ['cudart', 'cublas']
+
+      # MAGMA
+      magma = True
+      libraries += ['magma']
+
+      makefile_generate_stubs = True
+      EOF
+    - cat siteconfig.py
+    # Get mypy for stubgen, and other deps that we're missing (pip doesn't get them for us with --no-build-isolation)
+    - pip install --user mypy pybind11
+    - pip install --user --upgrade setuptools packaging
+    - pip install -v --user --log build.log --editable . --no-build-isolation
+  cache:
+    key: cache-build-cuda
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-minimal:
@@ -254,13 +279,43 @@ build-minimal:
   script:
     - |
       cat << EOF > siteconfig.py
+      compiler = 'g++'
       mpi = False
       noblas = True
       nolibxc = True
       EOF
     - cat siteconfig.py
-    - pip install --user --log build.log --editable .
+    - pip install --user --log build.log --editable . -v
     - gpaw info
+
+
+build-cuda-minimal:
+  # Like build-minimal but with GPU. Only includes cudart, cublas libraries.
+  # FIXME: For now we also include MPI, because the GPU part does not compile
+  # without it! Too many direct MPI calls hardcoded in eg. gpu/bc.c.
+  image: $IMAGE_CUDA
+  extends:
+    - .build
+  script:
+    - |
+      cat << EOF > siteconfig.py
+      compiler = 'mpic++'
+      mpi = True
+      noblas = True
+      nolibxc = True
+
+      gpu = True
+      gpu_target = 'cuda'
+      gpu_compiler = 'nvcc'
+      gpu_compile_args = ['-O3']
+      libraries += ['cudart', 'cublas']
+      EOF
+    - cat siteconfig.py
+    - pip install --user --log build.log --editable . -v
+  cache:
+    key: cache-build-cuda
+    paths:
+     - $PIP_CACHE_DIR
 
 
 build-lumi-g:
@@ -273,7 +328,7 @@ build-lumi-g:
     - |
       cat << EOF > siteconfig.py
       mpi = True
-      compiler = 'cc'
+      compiler = 'CC'
       compiler_args = []
       libraries = []
       library_dirs = []
@@ -285,8 +340,7 @@ build-lumi-g:
           '-fPIC',
           '-Wall',
           '-Wno-stringop-overflow',  # suppress warnings from MPI_STATUSES_IGNORE
-          '-Wno-deprecated-declarations',  # PySys_SetArgv() etc deprecated in Python 3.11
-          '-Werror',
+          #'-Werror',
           ]
       extra_link_args = ['-fopenmp']
 
@@ -361,16 +415,50 @@ build-libxc:
     - gpaw -P 1 info
 
 
+gpwfiles:
+  image: $IMAGE_MAIN_LATEST
+  needs:
+    - job: build-latest
+    - job: nightly-all
+  stage: precalculate
+  tags:
+    - xeon40
+  before_script:
+    - !reference [default, before_script]
+  script:
+    - >
+      pytest -n 16 -m generate_gpw_files --durations 30 -v $COV
+    - mv .coverage coverage-$CI_JOB_NAME
+  artifacts:
+    paths:
+      - .pytest_cache/
+      - coverage-$CI_JOB_NAME
+    expire_in: 30 mins
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+      when: on_success
+      allow_failure: true
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+
+.test:
+  stage: test
+  needs:
+    - job: precalculate
+  before_script:
+    - !reference [default, before_script]
+
+
 test-oldest:
   image: $IMAGE_MAIN_OLDEST
   extends:
     - .test
   needs:
-    - build
+    - job: build
   script:
     - gpaw info
     - >
-      OMP_NUM_THREADS=2 pytest -v -We -k 0-fd gpaw/test/test_fuzz.py
+      OMP_NUM_THREADS=2 pytest -v -We "gpaw/test/test_changes.py::test_lcao_to_x[fd]"
 
     # This is the only test which uses OpenMP.
     # We may want to identify a limited set of tests that must work
@@ -382,7 +470,7 @@ test-latest:
   extends:
     - .test
   needs:
-    - build-latest
+    - job: build-latest
   script:
     - gpaw info
     - GPAW_DEBUG=1 pytest -v -m "ci or gpu" --cov=gpaw
@@ -394,35 +482,24 @@ test-latest:
   coverage: '/TOTAL.+ ([0-9]+\.[0-9]+%)/'
 
 
-test-latest-new:
-  image: $IMAGE_MAIN_LATEST
-  extends:
-    - .test
-  needs:
-    - build-latest
-  script:
-    - gpaw info
-    - GPAW_DEBUG=1 GPAW_NEW=1 pytest -v -m "ci and not old_gpaw_only"
-
-
 test-minimal:
   image: $IMAGE_MAIN_OLDEST
   extends:
     - .test
   needs:
-    - build-minimal
+    - job: build-minimal
   script:
     - gpaw info
     - >
       pytest -v -m ci -We
 
-test-cuda:
+
+.test-cuda-minimal:
   image: $IMAGE_CUDA
   extends:
     - .test
-    - .gpu-job
   needs:
-    - build-cuda
+    - job: build-cuda-minimal
   tags:
     - cuda
   script:
@@ -431,31 +508,28 @@ test-cuda:
     - python -c 'import cupy; import cupyx; from cupy.cuda import runtime'
     - pytest -v -m gpu
 
-test-cuda-no-c:
+
+.test-cuda:
   image: $IMAGE_CUDA
   extends:
     - .test
-    - .gpu-job
   needs:
-    - build-cuda
+    - job: build-cuda
   tags:
     - cuda
   script:
     - nvidia-smi
     - gpaw info
     - python -c 'import cupy; import cupyx; from cupy.cuda import runtime'
-    - rm _gpaw.cpython-311-x86_64-linux-gnu.so
-    - python -c "import importlib; assert not importlib.util.find_spec('_gpaw'), '_gpaw module found'"
-    - GPAW_NO_C_EXTENSION=1 pytest -v -m gpu
+    - pytest -v -m gpu
 
 
-test-cuda-mpi:
+.test-cuda-mpi:
   image: $IMAGE_CUDA
   extends:
     - .test
-    - .gpu-job
   needs:
-    - build-cuda
+    - job: build-cuda
   tags:
     - cuda-mpi
   script:
@@ -464,13 +538,28 @@ test-cuda-mpi:
     - GPAW_DEBUG=1 gpaw -P 2 python -m pytest -v -x -m gpu
     - gpaw -P 4 python -m pytest -v -x -m gpu
 
+
+.test-cuda-mpi-makefile-build:
+  image: $IMAGE_CUDA
+  extends:
+    - .test
+  needs:
+    - job: build-cuda-makefile
+  tags:
+    - cuda-mpi
+  script:
+    - nvidia-smi
+    # just a very lightweight test as we mainly want to ensure that
+    # runtime linking is OK
+    - GPAW_USE_GPUS=1 gpaw -P 2 test
+
+
 test-hip-cuda:
   image: $IMAGE_CUDA
   extends:
     - .test
-    - .gpu-job
   needs:
-    - build-hip-cuda
+    - job: build-hip-cuda
   tags:
     - cuda
   script:
@@ -544,17 +633,18 @@ lint:
     - pip install flake8
     - flake8 --version
     - flake8 --doctests gpaw
+    - flake8 setup.py
     - >
       flake8
       --doctests
-      --exclude "doc/platforms/*,doc/*/summerschool24/*/"
+      --exclude "doc/platforms/*,doc/*/summerschool26/*/"
       --extend-ignore E402
       doc
     - >
       flake8
       --doctests
       --extend-ignore E402,E501
-      doc/summerschools/summerschool24/catalysis
+      doc/summerschools/summerschool26/catalysis
       doc/platforms/Linux/Niflheim
 
 
@@ -566,6 +656,10 @@ typecheck:
     - python --version
     - mypy --version
     - mypy --pretty
+  cache:
+    key: cache-typecheck
+    paths:
+      - $PIP_CACHE_DIR
 
 
 docs:
@@ -607,35 +701,6 @@ nightly-all:
     - if: $CI_PIPELINE_SOURCE == "schedule"
 
 
-gpwfiles:
-  image: $IMAGE_MAIN_LATEST
-  extends:
-    - .test
-  needs:
-    - build-latest
-    - nightly-all
-  stage: precalculate
-  tags:
-    - xeon40
-  before_script:
-    - !reference [default, before_script]
-  script:
-    - >
-      pytest -n 16 -m generate_gpw_files --durations 30 -v
-      --cov=gpaw
-    - mv .coverage coverage-$CI_JOB_NAME
-  artifacts:
-    paths:
-      - .pytest_cache/
-      - coverage-$CI_JOB_NAME
-    expire_in: 30 mins
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "push"
-      when: on_success
-      allow_failure: true
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-
-
 .nightly:
   image: $IMAGE_MAIN_LATEST
   variables:
@@ -646,7 +711,7 @@ gpwfiles:
     - .test
   stage: test
   needs:
-    - build-latest
+    - job: build-latest
     - gpwfiles
   tags:
     - xeon40
@@ -683,7 +748,7 @@ gpwfiles:
       gpaw -P $GPAW_MPI_NPROCS python -m pytest
       --test-group-count $GPAW_TESTGROUPS --test-group=$GPAW_MYTESTGROUP
       --test-group-random-seed=42
-      --cov=gpaw --instafail -r s --durations 30
+      $COV --instafail -r s --durations 30
   after_script:
     - coverage combine gpaw-coverage-*
     - mv .coverage coverage-$CI_JOB_NAME
@@ -705,7 +770,7 @@ nightly-mpi-1-group-1-1:
   script:
     - gpaw info
     - pytest --cache-show
-    - pytest -n 8 --instafail -r s --durations 30 --cov=gpaw
+    - pytest -n 8 --instafail -r s --durations 30 $COV
     - coverage
   after_script:
     - mv .coverage coverage-$CI_JOB_NAME
@@ -746,76 +811,9 @@ nightly-mpi-8-group-2-2:
     - .nightly
 
 
-.nightly-mpi-new:
-  variables:
-    GPAW_NEW: "1"
-  script:
-    - >
-      gpaw -P $GPAW_MPI_NPROCS python -m pytest
-      --test-group-count $GPAW_TESTGROUPS --test-group=$GPAW_MYTESTGROUP
-      --test-group-random-seed=42
-      --cov=gpaw --instafail -r s --durations 30
-      -m "not (old_gpaw_only_mpi or old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
-  extends:
-    - .nightly
-
-
-nightly-mpi-1-group-1-1-new:
-  extends:
-    - .nightly-mpi-new
-  script:
-    - gpaw info
-    - pytest --cache-show
-    - >
-      pytest -n 8 --instafail -r s --durations 30 -m
-      "not (old_gpaw_only or dscf or gllb or do or legacy or lrtddft or hybrids or pipekmezey) or new_gpaw_ready"
-      --cov=gpaw
-  after_script:
-    - mv .coverage coverage-$CI_JOB_NAME
-
-
-nightly-mpi-2-group-1-3-new:
-  extends:
-    - .nightly-mpi-new
-
-
-nightly-mpi-2-group-2-3-new:
-  extends:
-    - .nightly-mpi-new
-
-
-nightly-mpi-2-group-3-3-new:
-  extends:
-    - .nightly-mpi-new
-
-
-nightly-mpi-4-group-1-2-new:
-  extends:
-    - .nightly-mpi-new
-  variables:
-    GPAW_DEBUG: "1"
-
-
-nightly-mpi-4-group-2-2-new:
-  extends:
-    - .nightly-mpi-new
-  variables:
-    GPAW_DEBUG: "1"
-
-
-nightly-mpi-8-group-1-2-new:
-  extends:
-    - .nightly-mpi-new
-
-
-nightly-mpi-8-group-2-2-new:
-  extends:
-    - .nightly-mpi-new
-
-
 nightly-mpi4py-4-group-1-2:
   extends:
-    - .nightly-mpi-new
+    - .nightly
   variables:
     GPAW_MPI_BACKEND: "mpi4py"
     GPAW_DEBUG: "1"
@@ -823,7 +821,7 @@ nightly-mpi4py-4-group-1-2:
 
 nightly-mpi4py-4-group-2-2:
   extends:
-    - .nightly-mpi-new
+    - .nightly
   variables:
     GPAW_MPI_BACKEND: "mpi4py"
     GPAW_DEBUG: "1"
@@ -841,14 +839,6 @@ coverage-combine:
     - nightly-mpi-4-group-2-2
     - nightly-mpi-8-group-1-2
     - nightly-mpi-8-group-2-2
-    - nightly-mpi-1-group-1-1-new
-    - nightly-mpi-2-group-1-3-new
-    - nightly-mpi-2-group-2-3-new
-    - nightly-mpi-2-group-3-3-new
-    - nightly-mpi-4-group-1-2-new
-    - nightly-mpi-4-group-2-2-new
-    - nightly-mpi-8-group-1-2-new
-    - nightly-mpi-8-group-2-2-new
     - nightly-mpi4py-4-group-1-2
     - nightly-mpi4py-4-group-2-2
   tags:

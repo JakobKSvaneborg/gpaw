@@ -1,3 +1,9 @@
+
+#include "python_utils.h"
+#include "gpaw_complex.h"
+#include "gpu/gpu-complex.h"
+#include "gpu/gpu_interface.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -6,11 +12,6 @@
 #include <float.h>
 #include <sys/types.h>
 #include <sys/time.h>
-
-#include "../../python_utils.h"
-#include "../../gpaw_complex.h"
-#include "../gpu-complex.h"
-#include "../gpu_interface.h"
 
 #ifndef GPU_USE_COMPLEX
 #  define MBLAS_BLOCK_X  (128)

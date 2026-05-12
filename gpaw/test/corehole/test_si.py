@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from gpaw.mpi import world
 from gpaw import GPAW
@@ -7,11 +6,9 @@ from gpaw.test import gen
 from gpaw.xas import XAS, RecursionMethod
 
 
-@pytest.mark.old_gpaw_only
-@pytest.mark.hmm
 def test_corehole_si(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
     # restart from file
-    calc = GPAW(gpw_files['si_corehole_pw'])
+    calc = GPAW(gpw_files['si_corehole_pw'], legacy_gpaw=True)
     si = calc.atoms
 
     if world.size == 1:
@@ -41,7 +38,8 @@ def test_corehole_si(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
     # 2p corehole
     s = gen('Si', name='hch2p', corehole=(2, 1, 0.5), gpernode=30)
     calc = GPAW(gpw_files['si_corehole_pw'],
-                setups={0: s})
+                setups={0: s},
+                legacy_gpaw=True)
     si.calc = calc
 
     def stopcalc():
@@ -56,8 +54,8 @@ def test_si_nonortho(in_tmp_dir, add_cwd_to_setup_paths, gpw_files):
     # restart from file
     # code moved to fixtures: si_corehole_sym,
     # si_corehole_nosym_pw, si_corehole_sym_pw
-    calc1 = GPAW(gpw_files['si_corehole_sym_pw'])
-    calc2 = GPAW(gpw_files['si_corehole_nosym_pw'])
+    calc1 = GPAW(gpw_files['si_corehole_sym_pw'], legacy_gpaw=True)
+    calc2 = GPAW(gpw_files['si_corehole_nosym_pw'], legacy_gpaw=True)
     if world.size == 1:
         xas1 = XAS(calc1)
         x, y1 = xas1.get_spectra()

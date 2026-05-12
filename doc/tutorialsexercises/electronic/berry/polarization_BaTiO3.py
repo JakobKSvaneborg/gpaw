@@ -14,7 +14,7 @@ calc = GPAW(gpw_gs).fixed_density(symmetry='off')
 
 calc.write(gpw_wfs, mode='all')
 
-phases_c = polarization_phase(gpw_wfs, comm=serial_comm)
+phases_c = polarization_phase(gpw_wfs=gpw_wfs, comm=serial_comm)
 # extract total phase: electronic + ionic
 phi_c = phases_c['phase_c']
 

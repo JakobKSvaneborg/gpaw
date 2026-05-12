@@ -8,7 +8,7 @@ from gpaw.lrtddft2 import LrTDDFT2
 # included in the calculation
 max_energy_diff = 8.0  # eV
 
-calc = GPAW('unocc.gpw')
+calc = GPAW('unocc.gpw', legacy_gpaw=True)
 lr = LrTDDFT2('lr2', calc,
               fxc='LDA',
               max_energy_diff=max_energy_diff,

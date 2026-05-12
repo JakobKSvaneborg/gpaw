@@ -29,19 +29,19 @@ PARAMS = dict(
 # Initial set of 14 materials for the first bechmark-run
 # with old GPAW (version 25.7.0):
 REFERENCES0 = {
-    'Bi2Se3-3': (-21.46195, -0.18655, 24, 46.74),
-    'C60-0': (-530.92535, -0.44820, 24, 204.56),
-    'C72-2': (-530.92535, -0.44820, 24, 389.18),
+    'Bi2Se3-3': (-8.911, -0.00074, 24, 46.74),
+    'C60-0': (-530.92535, -0.4486, 24, 204.56),
+    'C72-2': (-663.739, 3.4112, 24, 389.18),
     'C2-3': (-18.19611, -0.00000, 24, 11.11),
     'Ga2F4N4H10-3': (-99.08900, 0.00013, 40, 80.28),
-    'H2-0': (-6.77477, 0.11710, 24, 3.78),
-    'LiC8-3': (-75.37653, 0.66102, 24, 32.01),
+    'H2-0': (-6.77477, 0.1170, 24, 3.78),
+    'LiC8-3': (-75.37653, 0.6415, 24, 32.01),
     'Fe8-3M': (-72.37710, -0.00713, 24, 114.55),
-    'Al96-2': (-350.06299, -0.01156, 40, 1434.00),
-    'Mo60S120-1': (-1291.31046, 7.55276, 56, 6239.00),
-    'OPt24-2': (-153.25143, -1.61599, 40, 999.75),
-    'CrSi2As4-2M': (-38.89434, -0.17154, 24, 100.10),
-    'VI2-2M': (-9.29013, -0.77486, 24, 31.65),
+    'Al96-2': (-350.06299, -0.01145, 40, 1434.00),
+    'Mo60S120-1': (-1291.31046, 7.2669, 56, 6239.00),
+    'OPt24-2': (-153.25143, -1.6164, 40, 999.75),
+    'CrSi2As4-2M': (-38.89434, -0.1714, 24, 100.10),
+    'VI2-2M': (-12.965, -0.00017, 24, 31.65),
     'Ti2Br6-3': (-32.64699, -0.00286, 24, 155.44)}
 
 RESCALE_FACTOR = 1.0
@@ -50,8 +50,8 @@ RESCALE_FACTOR = 1.0
 # (new GPAW, master branch Nov. 11 2025):
 REFERENCES0 |= {
     'MnVS2-2M': (-29.11777, -0.00014, 24, 98.608),
-    'PtLi2O6-2M': (0.0, 0.0, 24, 454.22),
-    'V3Cl6-2N': (0.0, 0.0, 24, 3364.039)}
+    'PtLi2O6-2M': (-40.713, -2.06842, 24, 454.22),
+    'V3Cl6-2N': (-51.117, -0.10189, 24, 3364.039)}
 
 # Score for the 14 systems was 94.34.
 # Rescaling to 17 systems:
@@ -61,13 +61,49 @@ RESCALE_FACTOR *= old / new
 
 # New initial magmoms for MnVS2-2M (new GPAW, master branch Nov 25 2025).
 # Time for MnVS2-2M system changed from 98.608 to 68.767 seconds:
-REFERENCES0['MnVS2-2M'] = (-29.11777, -0.00014, 24, 68.767)
+REFERENCES0['MnVS2-2M'] = (-29.11777, -0.00016, 24, 68.767)
 
-# New stuff not yet included in benchmark:
+# New score for 17 systems: 115.80
+old = 115.80
+# Adding two more converged systems:
+REFERENCES0 |= {
+    'ErGe-2M': (-5.557, -0.0578, 24, 72.937),
+    'Fe8O8-3M': (-126.756, 0.000025, 40, 316.031)}
+new = (old / 100 * 17 + 2) / 19 * 100
+RESCALE_FACTOR *= old / new
+
+# Not yet included in benchmark:
 REFERENCES = REFERENCES0 | {
-    'ErGe-2M': (0.0, 0.0, 24, 9999999),
-    'Mn2O2-3M': (0.0, 0.0, 24, 9999999),
-    'Fe8O8-3M': (0.0, 0.0, 40, 9999999)}
+    'Mn2O2-3M': (-18.577, -0.01743, 24, 9999999)}
+
+# Updated references for ALL systems, s.t. improvements are weighted equally.
+# Additionally, Initial magnetic moments have been changed to yield the correct
+# ground state for all systems.
+REFERENCES = {
+    'Bi2Se3-3': (-8.911, -0.00074, 24, 62.7),
+    'C60-0': (-530.92535, -0.4486, 24, 174.3),
+    'C72-2': (-663.739, 3.4112, 24, 343.1),
+    'C2-3': (-18.19611, -0.00000, 24, 8.2),
+    'Ga2F4N4H10-3': (-99.08900, 0.00013, 40, 79.7),
+    'H2-0': (-6.77477, 0.1170, 24, 3.0),
+    'LiC8-3': (-75.37653, 0.6415, 24, 36.0),
+    'Fe8-3M': (-72.37710, -0.00713, 24, 97.0),
+    'Al96-2': (-350.06299, -0.01145, 40, 910.6),
+    'Mo60S120-1': (-1291.31046, 7.2669, 56, 4289),
+    'OPt24-2': (-153.25143, -1.6164, 40, 850.0),
+    'CrSi2As4-2M': (-38.89434, -0.1714, 24, 125.1),
+    'VI2-2M': (-12.965, -0.00017, 24, 35.1),
+    'Ti2Br6-3': (-32.64699, -0.00286, 24, 169.0),
+    'MnVS2-2M': (-29.11777, -0.00014, 24, 53.3),
+    'PtLi2O6-2M': (-41.787, -1.6355, 24, 381.3),
+    'V3Cl6-2N': (-51.117, -0.10189, 24, 2328.8),
+    'ErGe-2M': (-6.369, -0.0601, 24, 59.9),
+    'Fe8O8-3M': (-126.756, 0.000025, 40, 311.9),
+    'Mn2O2-3M': (-19.123, -0.006, 24, 108.8)}
+
+RESCALE_FACTOR = 1.125  # Match previous PW score
+
+NAMES = sorted(REFERENCES, key=lambda name: name.split('-')[::-1])
 
 
 def score(data: dict[str, float]) -> tuple[float, int]:
@@ -89,29 +125,33 @@ def score(data: dict[str, float]) -> tuple[float, int]:
     """
     s = 0.0
     n = 0
-    for name, (_, _, _, tref) in REFERENCES0.items():
+    for name, (_, _, _, tref) in REFERENCES.items():
         if name in data:
             s += tref / data[name]
             n += 1
-    return 100 * RESCALE_FACTOR * s / len(REFERENCES0), n
+    return 100 * RESCALE_FACTOR * s / len(REFERENCES), n
 
 
 def workflow(skip: list[str] | None = None) -> list:
     """MyQueue workflow."""
     from myqueue.workflow import run
     handles = []
-    for name, (_, _, cores, _) in REFERENCES.items():
+    for name, (_, _, cores, est_time) in REFERENCES.items():
         if skip and name in skip:
             continue
         tmax = '2h'
         if cores == 24:
-            nodename = 'xeon24el8'
-        if cores == 40:
+            if est_time > 180:
+                nodename = 'xeon24el8'
+            else:
+                nodename = 'xeon24el8_test'
+                tmax = '10m'
+        elif cores == 40:
             nodename = 'xeon40el8_clx'
             tmax = '3h'
         elif cores == 56:
             nodename = 'xeon56'
-            tmax = '5h'
+            tmax = '7h'
 
         handle = run(function=work,
                      args=[name],
@@ -148,11 +188,13 @@ def work(name: str,
     atoms.calc = GPAW(
         txt=None,
         convergence={'maximum iterations': 3},
+        communicator=world,
         **params)
     atoms.get_potential_energy()
 
     atoms.calc = GPAW(
         txt=f'{name}.txt',
+        communicator=world,
         **params)
 
     # First step:
@@ -204,9 +246,9 @@ def read(folder: Path,
         if path.is_file():
             x = json.loads(path.read_text())
             if abs(x[0] - e0) > eps:
-                pass  # print(path, x[0] - e0)
-            if abs(x[4] - (e0 + de0)) > eps / 10:
-                pass  # print(path, 'D', x[4] - (e0 + de0))
+                print(path, x[0], x[0] - e0)
+            if abs((x[4] - x[0] - de0) / e0) > eps:
+                print(path, 'D', x[4] - x[0], x[4] - (e0 + de0))
             if mode == 1:
                 t = x[1]
                 i = x[2]
@@ -224,62 +266,67 @@ def read(folder: Path,
 
 
 def summary(folders: list[Path], mode: int) -> None:
-    from gpaw.new.logger import GREEN, RESET
+    from gpaw.new.logger import GREEN, RED, RESET
     alldata = [read(folder, mode) for folder in folders]
     for i, folder in enumerate(folders):
         print(i + 1, folder)
-    print('-----------------' + '+---------------------' * len(folders))
+    print('-----------------' + '+-----------------------' * len(folders))
     scores = [0.0] * len(folders)
     N = 0
     for r, name in enumerate(REFERENCES):
         print(f'{r + 1:2} {name:12} ', end='')
         times = [data[name][0] for data in alldata]
         iters = [data[name][1] for data in alldata]
-        t0 = min(times)
-        if t0 == np.inf:
-            print()
-            continue
+        t0 = times[0]
         if max(times) < np.inf:
             N += 1
         for n, (t, i) in enumerate(zip(times, iters)):
             if t == np.inf:
-                line = ' | ------(---) ------%'
+                line = ' | -------(---) -------%'
             else:
-                percent = f'{(t / t0 - 1) * 100:+6.1f}%'
-                if t == t0:
+                percent = f'{(t / t0 - 1) * 100:+7.1f}%'
+                if t < t0:
                     percent = GREEN + percent + RESET
-                line = f' | {t:6.1f}({i:3}) {percent}'
+                elif t > t0:
+                    percent = RED + percent + RESET
+                line = f' | {t:7.1f}({i:3}) {percent}'
             print(line, end='')
             if max(times) < np.inf:
                 scores[n] += t / t0
         print()
-    print('-----------------' + '+---------------------' * len(folders) +
+    print('-----------------' + '+-----------------------' * len(folders) +
           '\n           ', end='')
     for s in scores:
         print(f'{(s / N - 1) * 100:+21.1f}%', end='')
-    print('\n           ', end='')
-    for data in alldata:
-        s, _ = score({name: t for name, (t, i) in data.items()})
-        print(f'{s:22.2f}', end='')
+    if mode == 3:
+        print('\n           ', end='')
+        for data in alldata:
+            s, _ = score({name: t for name, (t, i) in data.items()})
+            print(f'{s:22.2f}', end='')
     print()
 
 
 def average(folders: list[Path]) -> None:
     data: dict[str, np.ndarray] = defaultdict(lambda: np.zeros(8))
     for folder in folders:
-        for path in folder.glob('*.json'):
+        for path in folder.glob('*-*.json'):
             x = json.loads(path.read_text())
             data[path.stem] += np.array(x)
-    for name, x in data.items():
+    for name in NAMES:
+        if name not in data:
+            continue
+        x = data[name]
         e1, t1, i1, m1, e2, t2, i2, m2 = x / len(folders)
         print(
-            f'    {name!r}: ('
+            f'    "{name}": ['
             f'{e1:.6f}, {t1:.3f}, {round(i1):.0f}, {int(m1)}, '
-            f'{e2:.6f}, {t2:.3f}, {round(i2):.0f}, {int(m2)}),')
+            f'{e2:.6f}, {t2:.3f}, {round(i2):.0f}, {int(m2)}],')
 
 
-def main(arguments: list[str] | None = None):
+def main(arguments: list[str] | None = None, world=None):
     from argparse import ArgumentParser
+    world = normalize_communicator(world)
+
     parser = ArgumentParser()
     parser.add_argument(
         '-m', '--mode', type=int, default=3,
@@ -302,7 +349,7 @@ def main(arguments: list[str] | None = None):
           '(lengths)          (angles)')
     for name, (e, de, cores, t) in REFERENCES.items():
         atoms = systems[name]()
-        info = get_calculation_info(atoms, **PARAMS)
+        info = get_calculation_info(atoms, comm=world, **PARAMS)
         print(f'{name:12} {len(atoms):4}    {atoms.pbc.sum()}',
               end=' ')
         print(f'{len(info.ibz):3}    {info.ncomponents}   {info.nbands:3}',

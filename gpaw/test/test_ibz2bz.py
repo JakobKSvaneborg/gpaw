@@ -16,15 +16,17 @@ from gpaw.test.gpwfile import response_band_cutoff
      'fe_pw',
      'co_pw',
      'gaas_pw',
-     pytest.param(
-         'v2br4_pw',
-         marks=[pytest.mark.old_gpaw_only]),  # interpolation=3 not implemented
+     'v2br4_pw',
      'srvo3_pw'])
 def test_ibz2bz(in_tmp_dir, gpw_files, gs):
-    """ Tests gpaw.ibz2bz.py
+    """Tests gpaw.ibz2bz.py
+
     Tests functionalities to take wavefunction and projections from
     ibz to full bz by comparing calculations with and without symmetry.
     """
+
+    # interpolation=3 not implemented:
+    legacy_gpaw = True if gs == 'v2br4_pw' else None
 
     atol = 5e-03  # Tolerance when comparing wfs and projections
     atol_eig = 2e-04  # Tolerance when comparing eigenvalues
@@ -32,6 +34,7 @@ def test_ibz2bz(in_tmp_dir, gpw_files, gs):
 
     # Loading calc with symmetry
     calc = GPAW(gpw_files[gs],
+                legacy_gpaw=legacy_gpaw,
                 communicator=mpi.serial_comm)
     wfs = calc.wfs
     nconv = response_band_cutoff[gs]
@@ -43,6 +46,7 @@ def test_ibz2bz(in_tmp_dir, gpw_files, gs):
 
     # Loading calc without symmetry
     calc_nosym = GPAW(gpw_files[gs + '_nosym'],
+                      legacy_gpaw=legacy_gpaw,
                       communicator=mpi.serial_comm)
     wfs_nosym = calc_nosym.wfs
 

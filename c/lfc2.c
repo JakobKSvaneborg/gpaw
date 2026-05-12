@@ -1,6 +1,7 @@
 /*  Copyright (C) 2010 CAMd
  *  Please see the accompanying LICENSE file for further information. */
 
+#include "python_utils.h"
 #include "extensions.h"
 #include "spline.h"
 #include "lfc.h"

@@ -5,7 +5,7 @@ The ``lumi.csc.fi`` supercomputer
 =================================
 
 .. note::
-   These instructions are up-to-date as of September 2025.
+   These instructions are up-to-date as of April 2026.
 
 It is recommended to perform the installations under
 the ``/projappl/project_...`` directory (see `LUMI storage documentation`_).
@@ -29,12 +29,15 @@ Do the following in a clean terminal session and exit afterwards!
 
   # TODO: use correct project_...
   export EBU_USER_PREFIX=/projappl/project_.../EasyBuild
-  module load LUMI/24.03
+  module load LUMI/25.03
   module load partition/G
   module load EasyBuild-user
 
   # Install GPAW
-  eb GPAW-24.6.0-cpeGNU-24.03-rocm.eb -r
+  eb GPAW-25.7.0-cpeGNU-25.03-rocm.eb -r
+
+  # Exit the terminal after easybuild installations!
+  exit
 
 
 Usage on LUMI-G
@@ -46,9 +49,9 @@ Do the following in a clean terminal session (not in the one used for easybuild 
 
   # TODO: use correct project_...
   export EBU_USER_PREFIX=/projappl/project_.../EasyBuild
-  module load LUMI/24.03
+  module load LUMI/25.03
   module load partition/G
-  module load GPAW/24.6.0-cpeGNU-24.03-rocm
+  module load GPAW/25.7.0-cpeGNU-25.03-rocm
   export MPICH_GPU_SUPPORT_ENABLED=1
 
   gpaw info
@@ -63,12 +66,15 @@ Do the following in a clean terminal session and exit afterwards!
 
   # TODO: use correct project_...
   export EBU_USER_PREFIX=/projappl/project_.../EasyBuild
-  module load LUMI/24.03
+  module load LUMI/25.03
   module load partition/C
   module load EasyBuild-user
 
   # Install GPAW
-  eb GPAW-24.6.0-cpeGNU-24.03.eb -r
+  eb GPAW-25.7.0-cpeGNU-25.03.eb -r
+
+  # Exit the terminal after easybuild installations!
+  exit
 
 
 Usage on LUMI-C
@@ -80,9 +86,9 @@ Do the following in a clean terminal session (not in the one used for easybuild 
 
   # TODO: use correct project_...
   export EBU_USER_PREFIX=/projappl/project_.../EasyBuild
-  module load LUMI/24.03
+  module load LUMI/25.03
   module load partition/C
-  module load GPAW/24.6.0-cpeGNU-24.03
+  module load GPAW/25.7.0-cpeGNU-25.03
 
   gpaw info
 
@@ -93,10 +99,6 @@ Developer installation
 Developer installation on LUMI-G
 --------------------------------
 
-For ROCm, it is **strongly** recommended to use the newer ``rocm/6.2.2`` module over the default ``rocm/6.0.3``.
-The 6.0.3 module is known to be buggy and cause failures in eg. certain FFT routines. The instructions here are written
-for ``rocm/6.2.2`` which generally works better with GPAW.
-
 First, install required libraries as EasyBuild modules
 (see `LUMI EasyBuild documentation`_ for detailed description).
 
@@ -106,17 +108,21 @@ Do the following in a clean terminal session and exit afterwards!
 
   # TODO: use correct project_...
   export EBU_USER_PREFIX=/projappl/project_.../EasyBuild
-  module load LUMI/24.03
+  module load LUMI/25.03
   module load partition/G
   module load EasyBuild-user
 
-  # Install
-  eb CuPy-13.4.1-cpeGNU-24.03-rocm-6.2.2.eb -r
-  eb magma-2.8.0-cpeGNU-24.03-rocm6.2.2.eb -r
-  eb libxc-7.0.0-cpeGNU-24.03.eb -r
+  # Get updated build recipes
+  git clone -b update-gpaw-deps https://github.com/cschpc/LUMI-EasyBuild-contrib.git cschpc-LUMI-recipes
 
-If you need ELPA, an experimental EasyBuild recipe for it that uses ``rocm/6.2.2`` can be found attached in
-`this merge request <https://gitlab.com/gpaw/gpaw/-/merge_requests/2724>`_.
+  # Install
+  eb CuPy-13.6.0-cpeGNU-25.03-rocm.eb -r cschpc-LUMI-recipes/easybuild/easyconfigs/
+  eb magma-2.8.0-cpeGNU-25.03-rocm.eb -r cschpc-LUMI-recipes/easybuild/easyconfigs/
+  eb libxc-7.0.0-cpeGNU-25.03-FHC.eb -r
+
+  # Exit the terminal after easybuild installations!
+  exit
+
 
 Exit the terminal now and open a clean terminal.
 The above EasyBuild setup is needed only once.
@@ -137,28 +143,32 @@ Then, the following steps build GPAW in a Python virtual environment:
   cp venv-gpaw-gpu/bin/activate venv-gpaw-gpu/bin/activate.old
   cat << EOF > venv-gpaw-gpu/bin/activate
   export EBU_USER_PREFIX=$EBU_USER_PREFIX
-  module load LUMI/24.03
+  module load LUMI/25.03
   module load partition/G
-  module load cpeGNU/24.03
-  module load SuiteSparse/5.13.0-cpeGNU-24.03-OpenMP    # Dependency of hipSolver for ROCm 6.2
-  module load rocm/6.2.2
-  module load cray-fftw/3.3.10.7
-  module load buildtools-python/24.03-cray-python3.11
-  module load CuPy/13.4.1-cpeGNU-24.03-rocm-6.2.2       # from EBU_USER_PREFIX
-  module load magma/2.8.0-cpeGNU-24.03-rocm6.2.2        # from EBU_USER_PREFIX
-  module load libxc/7.0.0-cpeGNU-24.03                  # from EBU_USER_PREFIX
+  module load cpeGNU/25.03
+  module load rocm/6.3.4
+  module load cray-fftw/3.3.10.10
+  module load buildtools-python/25.03-cray-python3.11
+  module load CuPy/13.6.0-cpeGNU-25.03-rocm             # from EBU_USER_PREFIX
+  module load magma/2.8.0-cpeGNU-25.03-rocm             # from EBU_USER_PREFIX
+  module load libxc/7.0.0-cpeGNU-25.03-FHC              # from EBU_USER_PREFIX
   export MPICH_GPU_SUPPORT_ENABLED=1
+  export HIPCC_COMPILE_FLAGS_APPEND="--offload-arch=gfx90a \$(CC --cray-print-opts=cflags)"
+  export HIPCC_LINK_FLAGS_APPEND="\$(CC --cray-print-opts=libs)"
   EOF
   cat venv-gpaw-gpu/bin/activate.old >> venv-gpaw-gpu/bin/activate
 
   # Activate venv
   source venv-gpaw-gpu/bin/activate
 
+  # Update build tools
+  pip install --upgrade pip setuptools packaging pybind11
+
   # Freeze the system-provided packages
-  pip freeze | tee $(dirname $(which pip))/../constraints.txt
+  pip list --format=freeze | tee $(dirname $(which pip))/../constraints.txt
 
   # Clone GPAW development repository
-  git clone git@gitlab.com:gpaw/gpaw.git
+  git clone https://gitlab.com/gpaw/gpaw.git
   cd gpaw
 
   export GPAW_CONFIG=$(readlink -f doc/platforms/Cray/siteconfig-lumi-gpu.py)
@@ -167,17 +177,14 @@ Then, the following steps build GPAW in a Python virtual environment:
 
   # Install GPAW, with a constraint to ensure we use system-provided packages.
   # Leave the '-e' out if you don't want an editable install
-  rm -rf build _gpaw.*.so gpaw.egg-info
-  pip install --no-build-isolation --constraint $(dirname $(which pip))/../constraints.txt -v --log build-gpu.log -e .
+  rm -rf _build build _gpaw.*.so gpaw.egg-info
+  GPAW_BUILD_JOBS=16 pip install --no-build-isolation --constraint $(dirname $(which pip))/../constraints.txt -v --log build-gpu.log -e .
   cd ..
 
 Note that above the siteconfig file is taken from the git clone.
 Alternatively, download the siteconfig files from here:
 :download:`siteconfig-lumi-gpu.py`,
 :download:`siteconfig-lumi-gpu-elpa.py`.
-
-For ELPA, remember to also add ``module load ELPA/2024.05.001-cpeGNU-24.03-rocm6.2.2`` in your
-``venv-gpaw-gpu/bin/activate`` file.
 
 
 Usage on LUMI-G
@@ -192,11 +199,18 @@ Interactive jobs can be run like this::
 
   srun -p small-g --nodes=1 --ntasks-per-node=1 --gpus-per-node=1 -t 0:30:00 --pty bash
 
-One-liners to run GPU tests::
+To run GPU tests::
 
-  n=1; srun   -p small-g --nodes=1 --ntasks-per-node=$n --gpus-per-node=$n -t 00:10:00 gpaw python -m pytest venv-gpaw-gpu/lib/python3.11/site-packages/gpaw/test/ -v -m gpu --basetemp=$PWD/tmp-pytest-gpu-$n --disable-pytest-warnings
+  # Run in an empty directory
+  mkdir run
+  cd run
+
+  # Find GPAW python files
+  GPAW_HOME=$(dirname $(python -c 'import gpaw; print(gpaw.__file__)' | head -n 1))
+
+  n=1; srun -p small-g --nodes=1 --ntasks-per-node=$n --gpus-per-node=$n -t 00:10:00 python -m pytest $GPAW_HOME/test/ -v -m gpu --basetemp=$PWD/tmp-pytest-gpu-$n --disable-pytest-warnings
   # or:
-  n=1; sbatch -p small-g --nodes=1 --ntasks-per-node=$n --gpus-per-node=$n -t 00:10:00 -J pytest-gpu-$n -o %x.out --wrap="srun gpaw python -m pytest venv-gpaw-gpu/lib/python3.11/site-packages/gpaw/test/ -v -m gpu --basetemp=$PWD/tmp-pytest-gpu-$n --disable-pytest-warnings"
+  n=1; sbatch -p small-g --nodes=1 --ntasks-per-node=$n --gpus-per-node=$n -t 00:10:00 -J pytest-gpu-$n -o %x.out --wrap="srun python -m pytest $GPAW_HOME/test/ -v -m gpu --basetemp=$PWD/tmp-pytest-gpu-$n --disable-pytest-warnings"
 
 
 Omnitrace
@@ -226,12 +240,16 @@ Do the following in a clean terminal session and exit afterwards!
 
   # TODO: use correct project_...
   export EBU_USER_PREFIX=/projappl/project_.../EasyBuild
-  module load LUMI/24.03
+  module load LUMI/25.03
   module load partition/C
   module load EasyBuild-user
 
   # Install
-  eb libxc-7.0.0-cpeGNU-24.03.eb -r
+  eb libxc-7.0.0-cpeGNU-25.03-FHC.eb -r
+
+  # Exit the terminal after easybuild installations!
+  exit
+
 
 Exit the terminal now and open a clean terminal.
 The above EasyBuild setup is needed only once.
@@ -252,30 +270,34 @@ Then, the following steps build GPAW in a Python virtual environment:
   cp venv-gpaw-cpu/bin/activate venv-gpaw-cpu/bin/activate.old
   cat << EOF > venv-gpaw-cpu/bin/activate
   export EBU_USER_PREFIX=$EBU_USER_PREFIX
-  module load LUMI/24.03
+  module load LUMI/25.03
   module load partition/C
-  module load cpeGNU/24.03
-  module load cray-fftw/3.3.10.7
-  module load buildtools-python/24.03-cray-python3.11
-  module load libxc/7.0.0-cpeGNU-24.03                  # from EBU_USER_PREFIX
+  module load cpeGNU/25.03
+  module load cray-fftw/3.3.10.10
+  module load buildtools-python/25.03-cray-python3.11
+  module load libxc/7.0.0-cpeGNU-25.03-FHC              # from EBU_USER_PREFIX
   EOF
   cat venv-gpaw-cpu/bin/activate.old >> venv-gpaw-cpu/bin/activate
 
   # Activate venv
   source venv-gpaw-cpu/bin/activate
 
+  # Update build tools
+  pip install --upgrade pip setuptools packaging pybind11
+
   # Freeze the system-provided packages
-  pip freeze | tee $(dirname $(which pip))/../constraints.txt
+  pip list --format=freeze | tee $(dirname $(which pip))/../constraints.txt
 
   # Clone GPAW development repository
-  git clone git@gitlab.com:gpaw/gpaw.git
+  git clone https://gitlab.com/gpaw/gpaw.git
   cd gpaw
+
   export GPAW_CONFIG=$(readlink -f doc/platforms/Cray/siteconfig-lumi-cpu.py)
 
   # Install GPAW, with a constraint to ensure we use system-provided packages.
   # Leave the '-e' out if you don't want an editable install
-  rm -rf build _gpaw.*.so gpaw.egg-info
-  pip install --no-build-isolation --constraint $(dirname $(which pip))/../constraints.txt -v --log build-cpu.log -e .
+  rm -rf _build build _gpaw.*.so gpaw.egg-info
+  GPAW_BUILD_JOBS=16 pip install --no-build-isolation --constraint $(dirname $(which pip))/../constraints.txt -v --log build-cpu.log -e .
   cd ..
 
 Note that above the siteconfig file is taken from the git clone.
@@ -295,12 +317,20 @@ Interactive jobs can be run like this::
 
   srun -p small --nodes=1 --ntasks-per-node=2 -t 0:30:00 --pty bash
 
-Two-liner to run tests::
+To run tests::
+
+  # Run in an empty directory
+  mkdir run
+  cd run
+
+  # Find GPAW python files
+  GPAW_HOME=$(dirname $(python -c 'import gpaw; print(gpaw.__file__)' | head -n 1))
 
   # Generate gpw files to cache
-  srun -p small --nodes=1 --ntasks-per-node=1 --mem-per-cpu=4G -t 01:00:00 gpaw python -m pytest venv-gpaw-cpu/lib/python3.11/site-packages/gpaw/test/test_generate_gpwfiles.py -v -o cache_dir=$PWD/pytest_cache --disable-pytest-warnings
+  srun -p small --nodes=1 --ntasks-per-node=1 --mem-per-cpu=4G -t 01:00:00 python -m pytest $GPAW_HOME/test/test_generate_gpwfiles.py -v -o cache_dir=$PWD/pytest_cache --disable-pytest-warnings
+
   # Wait and then submit tests
-  for n in 1 2 4 8; do sbatch -p small --nodes=1 --ntasks-per-node=$n --mem-per-cpu=4G -t 04:00:00 -J pytest-cpu-$n -o %x.out --wrap="srun gpaw python -m pytest venv-gpaw-cpu/lib/python3.11/site-packages/gpaw/test/ -v -o cache_dir=$PWD/pytest_cache --basetemp=$PWD/tmp-pytest-cpu-$n --disable-pytest-warnings"; done
+  for n in 1 2 4 8; do sbatch -p small --nodes=1 --ntasks-per-node=$n --mem-per-cpu=4G -t 04:00:00 -J pytest-cpu-$n -o %x.out --wrap="srun python -m pytest $GPAW_HOME/test/ -v -o cache_dir=$PWD/pytest_cache --basetemp=$PWD/tmp-pytest-cpu-$n --disable-pytest-warnings"; done
 
 
 Configuring MyQueue

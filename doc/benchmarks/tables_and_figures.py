@@ -6,12 +6,10 @@ from datetime import date
 from pathlib import Path
 
 from ase.geometry.cell import cell_to_cellpar
-from gpaw.benchmark.performance_index import PARAMS, REFERENCES
+from gpaw.benchmark.performance_index import PARAMS, REFERENCES, NAMES
 from gpaw.benchmark.systems import systems
 from gpaw.calcinfo import get_calculation_info
 from gpaw.doctools.makebadge import makebadge, getcolor
-
-NAMES = sorted(REFERENCES, key=lambda name: name.split('-')[::-1])
 
 
 def tables(data) -> None:

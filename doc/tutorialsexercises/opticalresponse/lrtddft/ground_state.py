@@ -15,7 +15,8 @@ calc = GPAW(mode='fd',
             nbands=1,
             h=0.35,
             setups={'Na': '1'},
-            txt='Na2_gs.txt')
+            txt='Na2_gs.txt',
+            legacy_gpaw=True)
 
 atoms.calc = calc
 e = atoms.get_potential_energy()

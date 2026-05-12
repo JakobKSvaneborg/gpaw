@@ -85,8 +85,8 @@ class MonkhorstPackKPoints(BZPoints):
     def __str__(self):
         a, b, c = self.size_c
         l, m, n = self.shift_c
-        return (f'monkhorst-pack size: [{a}, {b}, {c}]\n'
-                f'monkhorst-pack shift: [{l}, {m}, {n}]\n')
+        return (f'Monkhorst-Pack size: [{a}, {b}, {c}]\n'
+                f'Monkhorst-Pack shift: [{l}, {m}, {n}]\n')
 
 
 class IBZ:
@@ -113,32 +113,40 @@ class IBZ:
         return (f'IBZ(<points: {len(self)}, '
                 f'symmetries: {len(self.symmetries)}>)')
 
-    def __str__(self):
+    def summary(self, log, verbose=True):
         N = len(self)
-        txt = ('bz sampling:\n'
-               f'  number of bz points: {len(self.bz)}\n'
-               f'  number of ibz points: {N}\n')
+        log('BZ-sampling:\n'
+            f'  Number of BZ points: {len(self.bz)}\n'
+            f'  Number of IBZ points: {N}\n')
 
         if self.bz2bz_Ks is not None and -1 in self.bz2bz_Ks:
-            txt += '  your k-points are not as symmetric as your crystal!\n'
+            log('  Your k-points are '
+                f'{log.red}not as symmetric{log.reset} as your crystal!\n')
 
         if isinstance(self.bz, MonkhorstPackKPoints):
-            txt += '  ' + str(self.bz).replace('\n', '\n  ', 1)
+            log('  ' + str(self.bz).replace('\n', '\n  ', 1))
 
-        txt += '  points and weights: [\n'
+        if not verbose:
+            return
+
+        rows = []
         k = 0
         while k < N:
             if k == 10:
                 if N > 10:
-                    txt += '    # ...\n'
+                    rows.append(['...', '', ''])
                 k = N - 1
             a, b, c = self.kpt_kc[k]
             w = self.weight_k[k]
-            t = ',' if k < N - 1 else ']'
-            txt += (f'    [[{a:12.8f}, {b:12.8f}, {c:12.8f}], '
-                    f'{w:.8f}]{t}  # {k}\n')
+            rows.append([f'{k}',
+                         f'({a:12.8f}, {b:12.8f}, {c:12.8f})',
+                         f'{w:.8f}'])
             k += 1
-        return txt
+        log.table(
+            'K-points',
+            comment='in reciprocal-cell coordinates',
+            header=['', 'coordinates', 'weight'],
+            rows=rows)
 
     def ranks(self, comm: MPIComm, nspins: int = 1) -> Array2D:
         """Distribute k-points over MPI-communicator."""

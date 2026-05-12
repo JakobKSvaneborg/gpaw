@@ -101,12 +101,17 @@ class UGDesc(Domain['UGArray']):
         return tuple(self.size_c - self.zerobc_c)
 
     def __repr__(self):
+        if self.zerobc_c.any():
+            zbc = f'zerobc={self.zerobc_c.astype(int).tolist()}, '
+        else:
+            zbc = ''
         return super().__repr__().replace(
             'Domain(',
-            f'UGDesc(size={self.size_c.tolist()}, ')
+            f'UGDesc(size={self.size_c.tolist()}, ' +
+            zbc)
 
     def _short_string(self, global_shape):
-        return f'uniform wave function grid shape: {global_shape}'
+        return f'Uniform wave function grid shape: {global_shape}'
 
     @cached_property
     def phase_factor_cd(self):
@@ -523,7 +528,10 @@ class UGArray(XArray[UGDesc]):
 
         return out
 
-    def norm2(self, kind: str = 'normal', skip_sum=False):
+    def norm2(self,
+              kind: str = 'normal',
+              weights: np.ndarray | None = None,
+              skip_sum=False):
         """Calculate integral over cell of absolute value squared.
 
         :::
@@ -583,6 +591,7 @@ class UGArray(XArray[UGDesc]):
             self.data *= self.desc.eikr(kpt_c, xp=self.xp)
 
     def interpolate(self,
+                    *,
                     plan1: fftw.FFTPlans | None = None,
                     plan2: fftw.FFTPlans | None = None,
                     grid: UGDesc | None = None,
@@ -611,8 +620,8 @@ class UGArray(XArray[UGDesc]):
         if self.desc.comm.size > 1:
             input = self.gather()
             if input is not None:
-                output = input.interpolate(plan1, plan2,
-                                           out.desc.new(comm=None))
+                output = input.interpolate(plan1=plan1, plan2=plan2,
+                                           grid=out.desc.new(comm=None))
                 out.scatter_from(output.data)
             else:
                 out.scatter_from()
@@ -628,7 +637,7 @@ class UGArray(XArray[UGDesc]):
 
         if self.dims:
             for input, output in zips(self.flat(), out.flat()):
-                input.interpolate(plan1, plan2, grid, output)
+                input.interpolate(plan1=plan1, plan2=plan2, out=output)
             return out
 
         plan1.tmp_R[:] = self.data
@@ -795,7 +804,7 @@ class UGArray(XArray[UGDesc]):
             for a_R, b_R in zips(a_xR._arrays(), b_xR._arrays()):
                 b_R[:] = 0.0
                 for r_cc, t_c in zips(rotation_scc, t_sc):
-                    symmetrize_ft(a_R, b_R, r_cc, t_c, offset_c)
+                    symmetrize_ft(a_R, b_R, r_cc, -t_c, offset_c)
             if self.xp is not np:
                 b_xR = b_xR.to_xp(self.xp)
         self.scatter_from(b_xR)

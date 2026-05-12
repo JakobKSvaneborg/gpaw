@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable
 from functools import partial
+from math import ceil, floor
 
 import numpy as np
-
 from gpaw.core.arrays import XArray
 from gpaw.core.atom_centered_functions import AtomArrays
-from gpaw.mpi import broadcast_exception
+from gpaw.core.matrix import suggest_blocking
+from gpaw.mpi import MPIComm, serial_comm
 from gpaw.new import trace, zips
 from gpaw.new.c import calculate_residuals_gpu
 from gpaw.new.eigensolver import Eigensolver, calculate_weights
@@ -16,25 +18,74 @@ from gpaw.new.hamiltonian import Hamiltonian
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.utilities import as_real_dtype
 from gpaw.utilities.blas import axpy
+from gpaw.new.pw.hybrids import PWHybridHamiltonian
+
+
+def slparams(nbands: int,
+             comm: MPIComm,
+             limit: int = 1000) -> tuple[MPIComm, int, int, int]:
+    """Decide on scalapack parameters."""
+    if nbands < limit:
+        return serial_comm, 1, 1, 0
+    # How much of comm should we use?
+    # At least 30,000 numbers per core, approximately:
+    ncores = nbands**2 / 30_000
+    # We also want ncores to factor into a product of two integers:
+    ncores = int(floor(ncores**0.5) * ceil(ncores**0.5))
+    if ncores < comm.size:
+        pass  # comm = comm.new_communicator(range(ncores))
+    else:
+        ncores = comm.size
+    return (comm, *suggest_blocking(nbands, ncores))
 
 
 class PWFDEigensolver(Eigensolver):
     def __init__(self,
+                 *,
                  hamiltonian,
-                 converge_bands: int | str = 'occupied',
+                 convergence: dict,
+                 nbands: int,
+                 domain_band_comm,
                  blocksize: int = 10,
-                 max_buffer_mem: int | None = 200 * 1024 ** 2):
-        self.converge_bands = converge_bands
+                 max_buffer_mem: int | None = 200 * 1024 ** 2,
+                 scalapack_parameters: tuple[int, int, int] | None = None):
+        self.converge_bands = convergence.get('bands', 'occupied')
+        self.residual_target = convergence.get('eigenstates', 4e-8)
         self.blocksize = blocksize
         self.preconditioner: Callable
         self.preconditioner_factory = hamiltonian.create_preconditioner
         self.work_arrays: np.ndarray
         self.data_buffers: np.ndarray
 
+        self.domain_band_comm = domain_band_comm
+
         # Maximal memory to be used for the eigensolver
         # should be infinite if hamiltonian is not band-local (hybrids)
         self.max_buffer_mem = (
             max_buffer_mem if hamiltonian.band_local else None)
+
+        if scalapack_parameters is None:
+            self.scalapack_parameters = slparams(nbands, domain_band_comm)
+        else:
+            r, c, b = scalapack_parameters
+            if b > nbands // max(r, c):
+                warnings.warn(
+                    f'{nbands}x{nbands} matrix on {r}x{c} grid with '
+                    f'blocksize {b} is too small for ScaLapack.  '
+                    'Using Lapack instead.')
+                self.scalapack_parameters = (serial_comm, 1, 1, 0)
+            else:
+                slcomm = domain_band_comm
+                assert r * c <= slcomm.size
+                self.scalapack_parameters = (slcomm, r, c, b)
+
+    def __str__(self):
+        txt = f'{self.__class__.__name__}\n'
+        txt += f'Converge bands: {self.converge_bands}\n'
+        _, r, c, b = self.scalapack_parameters
+        if r * c > 1:
+            txt += f'Scalapack: {r}x{c} grid, blocksize={b}\n'
+        return txt
 
     def _initialize(self, ibzwfs):
         # First time: allocate work-arrays
@@ -42,7 +93,7 @@ class PWFDEigensolver(Eigensolver):
                                                           xp=ibzwfs.xp)
 
     def _allocate_buffer_arrays(self, ibzwfs, shape):
-        G_max = np.prod(ibzwfs.get_max_shape())
+        G_max = max(1, np.prod(ibzwfs.get_max_shape()))
         b = max(wfs.n2 - wfs.n1 for wfs in ibzwfs)
         nbands = ibzwfs.nbands
         dtype_size = ibzwfs._wfs_u[0].psit_nX.data.dtype.itemsize
@@ -109,19 +160,27 @@ class PWFDEigensolver(Eigensolver):
 
         weight_un = calculate_weights(self.converge_bands, ibzwfs)
 
+        if isinstance(hamiltonian, PWHybridHamiltonian):
+            wfs_u = ibzwfs.zero_padded_iter()
+        else:
+            wfs_u = ibzwfs
+
         wfs_error = 0.0
         eig_error = 0.0
         # Loop over k-points:
-        with broadcast_exception(ibzwfs.kpt_comm):
-            for wfs, weight_n in zips(ibzwfs, weight_un):
-                Ht = partial(apply, spin=wfs.spin)
-                temp_wfs_error, temp_eig_error = \
-                    self.iterate_kpt(wfs, weight_n, self.iterate1,
-                                     Ht=Ht, potential=potential,
-                                     dS_aii=dS_aii)
-                wfs_error += wfs.weight * temp_wfs_error
-                if eig_error < temp_eig_error:
-                    eig_error = temp_eig_error
+        for u, wfs in enumerate(wfs_u):
+            if u < len(weight_un):
+                weight_n = weight_un[u]
+            elif weight_n is not None:
+                weight_n *= 0.0
+            Ht = partial(apply, spin=wfs.spin)
+            temp_wfs_error, temp_eig_error = \
+                self.iterate_kpt(wfs, weight_n, self.iterate1,
+                                 Ht=Ht, potential=potential,
+                                 dS_aii=dS_aii)
+            wfs_error += wfs.weight * temp_wfs_error
+            if eig_error < temp_eig_error:
+                eig_error = temp_eig_error
 
         wfs_error = ibzwfs.kpt_band_comm.sum_scalar(
             float(wfs_error)) * ibzwfs.spin_degeneracy

@@ -4,9 +4,7 @@ from ase import Atoms
 from gpaw import GPAW
 
 
-def test_noncollinear_GGA(gpaw_new):
-    if not gpaw_new:
-        pytest.skip('Only in new GPAW')
+def test_noncollinear_GGA():
     a = Atoms('H', [[0, 0, 0]], magmoms=[1])
     a.center(vacuum=2.5)
     a.calc = GPAW(mode='pw',

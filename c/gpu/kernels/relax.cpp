@@ -1,3 +1,7 @@
+#include "gpu/gpu.h"
+#include "gpu/gpu-complex.h"
+#include "gpu/bmgs.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
@@ -5,9 +9,6 @@
 #include <sys/time.h>
 #include <cassert>
 
-#include "../gpu.h"
-#include "../gpu-complex.h"
-#include "../bmgs.h"
 
 #undef BLOCK_X
 #undef BLOCK_Y

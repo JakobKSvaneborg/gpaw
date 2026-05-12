@@ -12,7 +12,6 @@ def lattice_constant(volumes, energies):
 
 
 con = ase.db.connect('si.db')
-results = []
 K = list(range(2, 9))
 A = []
 A0 = []

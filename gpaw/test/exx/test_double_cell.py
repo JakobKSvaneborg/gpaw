@@ -2,16 +2,13 @@ import pytest
 from ase import Atoms
 
 from gpaw import GPAW, PW
+from gpaw.mpi import world
 
 
 @pytest.mark.libxc
 @pytest.mark.hybrids
-@pytest.mark.new_gpaw_ready
 @pytest.mark.parametrize('use_sym', [False, True])
-def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
-    if not gpaw_new and use_sym:
-        pytest.skip('Does not work')
-
+def test_exx_double_cell(in_tmp_dir, use_sym):
     L = 2.6
     a = Atoms('H2',
               [[0, 0, 0], [0.5, 0.5, 0]],
@@ -30,11 +27,10 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
 
     a.calc = GPAW(
         kpts={'size': (1, 1, 4), 'gamma': True},
-        # txt='H2-new.txt',
-        # parallel={'kpt': 1},
+        txt=f'H2-{world.size}-{use_sym}.txt',
+        # parallel={'band': 2},
         **kwargs)
     e1 = a.get_potential_energy()
-    return
     assert e1 == pytest.approx(-11.022063)
     eig1_kn = a.calc.eigenvalues()[0]
     f1 = a.get_forces()
@@ -50,7 +46,7 @@ def test_exx_double_cell(in_tmp_dir, gpaw_new, use_sym):
     a *= (1, 1, 2)
     a.calc = GPAW(
         kpts={'size': (1, 1, 2), 'gamma': True},
-        # txt='H4-new.txt',
+        txt=f'H4-{world.size}-{use_sym}.txt',
         eigensolver={'name': 'davidson', 'niter': 4},
         # parallel={'kpt': 1},
         **kwargs)

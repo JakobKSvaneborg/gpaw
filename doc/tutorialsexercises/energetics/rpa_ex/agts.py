@@ -22,8 +22,8 @@ def check_si():
         6,
         400.0,
         -10.764252623234455,
-        13.867018289712249,
-    ]
+        13.86329]
+
     with open('si_pbe_exx_results.txt', 'r') as file:
         lines = file.readlines()
         for line in lines:
@@ -39,24 +39,19 @@ def check_si():
 
 
 def check_atom():
-    isolated_results, isolated_benchmark = [], [
-        [6.0, -0.664402266578, 9.88627820237],
-        [7.0, -0.778484948334, 9.79998115788],
-        [8.0, -0.82500272946, 9.76744817185],
-        [9.0, -0.841856681349, 9.75715732758],
-        [10.0, -0.848092042293, 9.75399390142],
-        [11.0, -0.850367362642, 9.75296805021],
-        [12.0, -0.85109735188, 9.75265131464]
-    ]
+    refs = [[6.0, -0.6459097136680098, 9.908406700674874],
+            [7.0, -0.7741783923740346, 9.805585672225355],
+            [8.0, -0.8247705762137586, 9.76898428871515],
+            [9.0, -0.8432417920538989, 9.756536401192722],
+            [10.0, -0.8498113915010016, 9.75310722624879],
+            [11.0, -0.8521763270365798, 9.753051109289967],
+            [12.0, -0.8530785423481283, 9.752855601258254]]
     with open('si_atom_pbe_and_exx_energies.txt', 'r') as file:
-        lines = file.readlines()
-        for i, line in enumerate(lines):
-            if i == 0:
-                continue
-            x = [float(x) for x in line.strip().split()]
-            isolated_results.append(x)
+        results = [
+            [float(x) for x in line.split()]
+            for line in file.readlines()]
 
-    for result, benchmark in zip(isolated_results, isolated_benchmark):
-        assert len(result) == 3
-        print(result, benchmark)
-        assert np.allclose(result, benchmark, rtol=1.e-5, atol=1.e-8)
+    for (a0, e0, x0), (a, e, x) in zip(refs, results):
+        assert a == a0
+        assert abs(e - e0) < 0.0001
+        assert abs(x - x0) < 0.001

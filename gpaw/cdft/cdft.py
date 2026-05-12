@@ -17,6 +17,7 @@ from ase.utils import IOContext
 from scipy.optimize import minimize
 
 from gpaw.external import ExternalPotential
+from gpaw.old import assert_legacy_gpaw
 
 
 class CDFT(Calculator):
@@ -101,7 +102,8 @@ class CDFT(Calculator):
 
         super().__init__()
 
-        self.calc = calc._to_old()
+        assert_legacy_gpaw(calc)
+        self.calc = calc
         self.restart = restart
         self.iocontext = IOContext()
         self.log = self.iocontext.openfile(txt, self.calc.world)
@@ -918,7 +920,8 @@ class WeightFunc:
         check = abs(dis) <= Rc
 
         # Make gaussian 3D Guassian
-        gauss = 1 / (mu * (2 * pi)**(1 / 2)) * np.exp(-dis**2 / (2.0 * mu**2))
+        gauss = 1 / ((mu**3) * (2 * pi)**(3 / 2)) * np.exp(
+            -dis**2 / (2.0 * mu**2))
 
         # apply cut-off and return
         return np.array(gauss * check)
@@ -1000,11 +1003,9 @@ class WeightFunc:
                                                       atom, rho_kd)
 
             # make extended array
-            for c in range(n_charge_regions):
-                wn_sg += (dens.nt_sg[0] + dens.nt_sg[1]) * prefactor[0]
+            wn_sg += (dens.nt_sg[0] + dens.nt_sg[1]) * prefactor[0]
 
-            for s in range(n_spin_regions):
-                wn_sg += (dens.nt_sg[0] - dens.nt_sg[1]) * prefactor[1]
+            wn_sg += (dens.nt_sg[0] - dens.nt_sg[1]) * prefactor[1]
 
             for i in [0, 1, 2]:
                 if method == 'analytical':

@@ -2,24 +2,27 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import pi
+from pathlib import Path
 from time import time
-from typing import Callable
+from typing import IO, Callable
 
 import numpy as np
+from ase.units import Ha
 from gpaw.core import PWArray, PWDesc, UGArray, UGDesc
 from gpaw.core.arrays import XArray
 from gpaw.core.atom_arrays import AtomArrays
 from gpaw.core.pwacf import PWAtomCenteredFunctions
-from gpaw.hybrids.paw import pawexxvv
-from gpaw.hybrids.wstc import WignerSeitzTruncatedCoulomb
 from gpaw.mpi import broadcast
 from gpaw.new import zips as zip
+from gpaw.new.calculation import DFTCalculation
 from gpaw.new.ibzwfs import IBZWaveFunctions
 from gpaw.new.logger import Logger
 from gpaw.new.pw.hamiltonian import PWHamiltonian
 from gpaw.new.pwfd.ibzwfs import PWFDIBZWaveFunctions
+from gpaw.new.pwfd.wave_functions import PWFDWaveFunctions
+from gpaw.new.xc import create_functional
 from gpaw.setup import Setups
-from gpaw.utilities import unpack_hermitian
+from gpaw.utilities import unpack_hermitian, pack_density
 from gpaw.utilities.blas import mmm
 from scipy.linalg.blas import get_blas_funcs
 
@@ -36,7 +39,7 @@ class Psit:
 
 
 def truncated_coulomb(cell_cv,
-                      nkpt_c,
+                      bz,
                       omega: float = 0.11,
                       yukawa: bool = False) -> Callable[[PWDesc], np.ndarray]:
     """Fourier transform of truncated Coulomb.
@@ -56,6 +59,8 @@ def truncated_coulomb(cell_cv,
 
     (G+k=0 limit is pi/ω^2).
     """
+    from gpaw.hybrids.wstc import WignerSeitzTruncatedCoulomb
+
     if yukawa:
         return lambda pw: 2 * pi / (pw.ekin_G + 0.5 * omega**2)
 
@@ -69,16 +74,8 @@ def truncated_coulomb(cell_cv,
             return v_G
         return f
 
-    wstc = WignerSeitzTruncatedCoulomb(cell_cv, nkpt_c)
+    wstc = WignerSeitzTruncatedCoulomb(cell_cv, bz.size_c)
     return lambda pw: wstc.get_potential_new(pw)
-
-
-def number_of_non_empty_bands(ibzwfs: PWFDIBZWaveFunctions,
-                              tolerance: float = 1e-5) -> int:
-    nocc = 0
-    for wfs in ibzwfs:
-        nocc = max(nocc, int((wfs.occ_n > tolerance).sum()))
-    return int(ibzwfs.kpt_comm.max_scalar(nocc))
 
 
 def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
@@ -90,7 +87,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
            forces: bool = False) -> tuple[list[Psit], int]:
     """Compute BZ from IBZ and distribute."""
     log = log or Logger(None, None)
-    nocc = number_of_non_empty_bands(ibzwfs)
+    nocc = ibzwfs.number_of_occupied_bands()
     nspins = ibzwfs.nspins
     ibz = ibzwfs.ibz
     log(ibz)
@@ -105,7 +102,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
     kpt_Kc = np.zeros((nbzk, 3))
     psit_KsnG = {}
     for wfs1 in ibzwfs:
-        wfs = wfs1.collect(0, nocc)
+        wfs = wfs1.collect_bands_and_domain(0, nocc)
         if wfs is None:
             continue
         for K, k in enumerate(ibz.bz2ibz_K):
@@ -115,6 +112,7 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
             s = ibz.s_K[K]
             U_cc = symmetries.rotation_scc[s]
             complex_conjugate = ibz.time_reversal_K[K]
+            assert isinstance(wfs, PWFDWaveFunctions)
             psit1_nG = wfs.psit_nX
             assert isinstance(psit1_nG, PWArray)
             psit2_nG = psit1_nG.transform(U_cc, complex_conjugate)
@@ -152,8 +150,9 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
                     comm.send(psit_nG.data[na:nb], rank,
                               block=False, tag=K * nspins + spin))
 
-    pw = ibzwfs._wfs_u[0].psit_nX.desc.new(comm=None)
     _, occ_skn = ibzwfs.get_all_eigs_and_occs(broadcast=True)
+
+    pw = ibzwfs._wfs_u[0].psit_nX.desc.new(comm=None)
 
     mypsits = []
     for rank, K, (na, nb) in blocks:
@@ -171,7 +170,6 @@ def ibz2bz(ibzwfs: PWFDIBZWaveFunctions,
                 [setup.pt_j for setup in setups],
                 relpos_ac)
             P_ani = pt_aiG.integrate(psit_nG)
-
             psit_nR = psit_nG.ifft(grid=grid, plan=plan, periodic=False)
             Q_aniL = {a: np.einsum('ijL, nj -> niL',
                                    setup.Delta_iiL, P_ani[a].conj())
@@ -202,7 +200,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                  relpos_ac,
                  atomdist,
                  log,
-                 nkpt_c,
+                 bz,
                  kpt_comm,
                  band_comm,
                  comm):
@@ -217,7 +215,7 @@ class PWHybridHamiltonian(PWHamiltonian):
         self.delta_aiiL = [setup.Delta_iiL for setup in setups]
         self.relpos_ac = relpos_ac
         self.setups = setups
-        self.nbzk = np.prod(nkpt_c)
+        self.nbzk = len(bz)
         self.real = np.issubdtype(pw.dtype, np.floating)
         self.zaxpy = get_blas_funcs('axpy', dtype=complex)
 
@@ -233,17 +231,40 @@ class PWHybridHamiltonian(PWHamiltonian):
 
         # Cached potential for gamma-point calculation:
         self.coulomb = truncated_coulomb(
-            grid.cell_cv, nkpt_c, xc.exx_omega, xc.exx_yukawa)
+            grid.cell_cv, bz, xc.exx_omega, xc.exx_yukawa)
+
+        self.nupdates = 0
+        self.devc = np.nan
+        self.devv = np.nan
+        self.evv = np.nan
+        self.dekin = np.nan
 
     def update_wave_functions(self,
                               ibzwfs: PWFDIBZWaveFunctions,
-                              forces=False):
+                              forces=False) -> None:
         """Compute BZ from IBZ and distribute over the entire world!"""
         self.mypsits, _ = ibz2bz(
             ibzwfs, self.setups, self.relpos_ac, self.grid_local, self.plan,
-            self.log if self.nbzk == 0 else None, forces)
-        self.xc.energies = {'hybrid_xc': 0.0,
-                            'hybrid_kinetic_correction': 0.0}
+            self.log if self.nupdates == 0 else None, forces)
+        self.devc = 0.0
+        self.devv = 0.0
+        self.evv = 0.0
+        self.dekin = 0.0
+        self.nupdates += 1
+
+    def hybrid_energy_contributions(self) -> tuple[float, float, float, float]:
+        devc = self.comm.sum_scalar(self.devc)
+        devv = self.comm.sum_scalar(self.devv)
+        dekin = -devc - 2 * devv
+        energies = (self.exx_cc,
+                    devc,
+                    devv + self.evv,
+                    dekin + self.dekin)
+        self.devc = np.nan
+        self.devv = np.nan
+        self.evv = np.nan
+        self.dekin = np.nan
+        return energies
 
     def move(self, relpos_av: np.ndarray) -> None:
         self.relpos_ac = relpos_av
@@ -256,12 +277,11 @@ class PWHybridHamiltonian(PWHamiltonian):
                                 Htpsit2_nG: XArray | None = None,
                                 calculate_energy: bool = False,
                                 F_av: np.ndarray | None = None) -> None:
+        from gpaw.hybrids.paw import pawexxvv
+
         assert isinstance(psit2_nG, PWArray)
         assert Htpsit2_nG is None or isinstance(Htpsit2_nG, PWArray)
         assert isinstance(ibzwfs, PWFDIBZWaveFunctions)
-        assert len(ibzwfs.ibz) * ibzwfs.nspins % self.kpt_comm.size == 0
-
-        domain_comm = psit2_nG.desc.comm
 
         if F_av is not None:
             F1_av = np.zeros_like(F_av)
@@ -269,7 +289,7 @@ class PWHybridHamiltonian(PWHamiltonian):
             F1_av = None
 
         # Find projectors and k-point weight for psit2_nG:
-        for wfs in ibzwfs:
+        for u, wfs in enumerate(ibzwfs):
             if wfs.spin != spin:
                 continue
             if np.allclose(wfs.psit_nX.desc.kpt_c, psit2_nG.desc.kpt_c):
@@ -285,27 +305,30 @@ class PWHybridHamiltonian(PWHamiltonian):
             D_aii = D_aii.copy()
             D_aii.data *= 0.5
 
-        evv = 0.0  # valence-valence contribution
-        evc = 0.0  # valence-core contribution
+        # PAW-corrections:
         V_aii = D_aii.new()
         for a, D_ii in D_aii.items():
             VV_ii = pawexxvv(self.VV_app[a], D_ii)
             VC_ii = self.VC_aii[a]
             V_ii = -VC_ii - 2 * VV_ii
             V_aii[a] = V_ii
-            if calculate_energy:
-                ec = (D_ii * VC_ii).sum()
-                ev = (D_ii * VV_ii).sum()
-                evv -= ev
-                evc -= ec
+            if not calculate_energy:
+                continue
+            if wfs.k > 0 or self.band_comm.rank > 0:
+                # Doesn't depend on k
+                continue
+            if wfs.weight == 0.0:
+                # zero-padding
+                continue
+            ec = (D_ii * VC_ii).sum()
+            ev = (D_ii * VV_ii).sum()
+            self.devv -= ev * ibzwfs.spin_degeneracy
+            self.devc -= ec * ibzwfs.spin_degeneracy
 
         # distribute V_aii
         V2_aii = V_aii.gather(broadcast=True)
 
-        if calculate_energy:
-            evv = domain_comm.sum_scalar(evv) * self.kpt_comm.size * kweight
-            evc = domain_comm.sum_scalar(evc) * self.kpt_comm.size * kweight
-        elif F1_av is not None:
+        if F1_av is not None and u == 0 and wfs.weight != 0.0:
             for a, V_ii in V2_aii.items():
                 for psit in self.mypsits:
                     dP_anvi = psit.dP_anvi
@@ -317,26 +340,19 @@ class PWHybridHamiltonian(PWHamiltonian):
                     force_v = 2 / self.nbzk * force_v
                     F1_av[a] += force_v
 
-        ekin = -evc - 2 * evv
+        evv = self._apply1(spin, D_aii, pt_aiG,
+                           psit2_nG, Htpsit2_nG,
+                           kweight, wfs.myocc_n, V_aii,
+                           calculate_energy, F1_av)
 
-        e = self._apply1(spin, D_aii, pt_aiG,
-                         psit2_nG, Htpsit2_nG,
-                         kweight, wfs.myocc_n, V_aii,
-                         calculate_energy, F1_av)
-
-        evv += 0.5 * e
-        ekin -= e
-
+        evv *= 0.5 * ibzwfs.spin_degeneracy
         if calculate_energy:
-            for name, e in [('hybrid_xc', evv + evc),
-                            ('hybrid_kinetic_correction', ekin)]:
-                e *= ibzwfs.spin_degeneracy
-                self.xc.energies[name] += e
-            self.xc.energies['hybrid_xc'] += self.exx_cc
+            self.evv += evv
+            self.dekin -= 2 * evv
 
         if F1_av is not None:
             assert F_av is not None
-            F_av += ibzwfs.spin_degeneracy * kweight * F1_av
+            F_av += ibzwfs.spin_degeneracy * F1_av
 
     def _apply1(self,
                 spin: int,
@@ -383,7 +399,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 V_ani = P2_ani.new()
                 V_ani.data[:] = 0.0
                 e += self._apply2(psit2_nG, P2_ani, s, V_nG, V_ani, f2_n,
-                                  calculate_energy, F1_av) * w
+                                  calculate_energy, w, F1_av) * w
                 if Htpsit_nG is None:
                     continue
                 comm.sum(V_nG.data, root=rank)
@@ -407,6 +423,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 V2_ani,
                 f2_n: np.ndarray,
                 calculate_energy: bool,
+                w: float,
                 F1_av=None) -> float:
         ut2_nR = self.grid_local.empty(len(psit2_nG))
         psit2_nG.ifft(out=ut2_nR, plan=self.plan, periodic=False)
@@ -419,7 +436,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                 v_G = self.coulomb(pw)
                 e += self._apply3(
                     pw, v_G, psit1, ut2_nR, P2_ani, Htpsit2_nG, V2_ani, f2_n,
-                    calculate_energy, F1_av)
+                    calculate_energy, F1_av, w)
 
         e *= -self.exx_fraction / self.nbzk
         return self.comm.sum_scalar(e)
@@ -436,7 +453,8 @@ class PWHybridHamiltonian(PWHamiltonian):
                 V2_ani,
                 f2_n: np.ndarray,
                 calculate_energy: bool,
-                F1_av: np.ndarray | None) -> float:
+                F1_av: np.ndarray | None,
+                w: float) -> float:
         ut1_nR = psit1.ut_nR
         Q1_aniL = psit1.Q_aniL
         f1_n = psit1.f_n
@@ -488,7 +506,7 @@ class PWHybridHamiltonian(PWHamiltonian):
                        Q_anL,
                        f1, f2_n, self.nbzk, self.delta_aiiL,
                        psit1.dP_anvi,
-                       n1, eikR_a, F1_av)
+                       n1, eikR_a, F1_av, w)
                 continue
             if self.real:
                 ghat_GA[0] *= 0.5
@@ -511,17 +529,111 @@ class PWHybridHamiltonian(PWHamiltonian):
 
 
 def forces(ghat_aLG, vrhot2_nG, P2_ani, Q2_anL, f1, f2_n, nbzk, delta_aiiL,
-           dP_anvi, n1, eikR_a, F_av):
+           dP_anvi, n1, eikR_a, F_av, w):
     f12_n = f1 * f2_n
+    w *= 1 / nbzk
     for a, F_nvL in ghat_aLG.derivative(vrhot2_nG).items():
-        F_av[a] -= 0.25 / nbzk * np.einsum('n, nL, nvL -> v',
-                                           f12_n,
-                                           (Q2_anL[a] * eikR_a[a]).conj(),
-                                           F_nvL).real
+        F_av[a] -= 0.25 * w * np.einsum('n, nL, nvL -> v',
+                                        f12_n,
+                                        (Q2_anL[a] * eikR_a[a]).conj(),
+                                        F_nvL).real
     for a, F_nL in ghat_aLG.integrate(vrhot2_nG).items():
         F_iin = delta_aiiL[a] @ F_nL.T
-        F_av[a] -= 0.5 / nbzk * np.einsum('ijn, vi, nj, n -> v',
-                                          F_iin,
-                                          dP_anvi[a][n1],
-                                          P2_ani[a].conj(),
-                                          f12_n).real
+        F_av[a] -= 0.5 * w * np.einsum('ijn, vi, nj, n -> v',
+                                       F_iin,
+                                       dP_anvi[a][n1],
+                                       P2_ani[a].conj(),
+                                       f12_n).real
+
+
+def non_self_consistent_hybrid_xc_energy(
+    dft: DFTCalculation,
+    xc: str,
+    *,
+    log: str | Path | IO[str] | Logger | None = '-') -> np.ndarray:
+    """
+    The returned energy contributions are (in eV):
+
+    1. DFT total free energy (not extrapolated to zero smearing)
+    2. minus DFT XC energy
+    3. Hybrid semi-local XC energy
+    4. EXX core-core energy
+    5. EXX valence-core energy
+    6. EXX valence-valence energy
+    """
+    if not isinstance(log, Logger):
+        log = Logger(log, comm=dft.comm)
+
+    ibzwfs = dft.ibzwfs
+
+    exx = create_functional({'name': xc, 'backend': 'pw'},
+                            dft.pot_calc.fine_grid)
+
+    hybham = PWHybridHamiltonian(
+        dft.density.grid,
+        next(iter(ibzwfs)).psit_nX.desc,
+        exx,
+        dft.setups,
+        dft.relpos_ac,
+        dft.density.D_asii.layout.atomdist,
+        log,
+        ibzwfs.ibz.bz,
+        ibzwfs.kpt_comm,
+        ibzwfs.band_comm,
+        dft.comm)
+
+    ibzwfs.make_sure_wfs_are_read_from_gpw_file()
+
+    assert isinstance(ibzwfs, PWFDIBZWaveFunctions)
+    hybham.update_wave_functions(ibzwfs)
+
+    edft = dft.energies.total_extrapolated
+    exc = dft.energies._energies['xc']
+    log(f'DFT energy: {edft * Ha} eV')
+    log(f'minus DFT-XC energy: {-exc * Ha} eV')
+
+    log('Semi-local contribution:', end=' ', flush=True)
+    t1 = time()
+    semilocal_energy = _semilocal_xc_energy(dft, xc)
+    t2 = time()
+    log(f'{semilocal_energy * Ha:.3f} eV ({t2 - t1:.3f} seconds)')
+
+    log('Calculating EXX contributions:', end=' ', flush=True)
+    for wfs in ibzwfs.zero_padded_iter():
+        hybham.apply_orbital_dependent(
+            ibzwfs,
+            dft.density.D_asii,
+            wfs.psit_nX,
+            spin=wfs.spin,
+            calculate_energy=True)
+    t3 = time()
+    log(f'{t3 - t2:.3f} seconds')
+
+    ecc, evc, evv, _ = hybham.hybrid_energy_contributions()
+    log(f'Core-core contribution:       {ecc * Ha:12.3f}')
+    log(f'Valence-core contribution:    {evc * Ha:12.3f}')
+    log(f'Valence-valence contribution: {evv * Ha:12.3f}', flush=True)
+
+    return np.array(
+        [dft.energies.total_extrapolated,
+         -dft.energies._energies['xc'],
+         semilocal_energy,
+         ecc,
+         evc,
+         evv]) * Ha
+
+
+def _semilocal_xc_energy(dft: DFTCalculation,
+                         xc: str) -> float:
+    from gpaw.hybrids import parse_name
+    semilocal_xc_name, exx_fraction, exx_omega, yukawa = parse_name(xc)
+    fine_grid = dft.pot_calc.fine_grid
+    slxc = create_functional(semilocal_xc_name, fine_grid)
+    nt_sr = dft.density.nt_sR.interpolate(grid=fine_grid)
+    energy = 0.0
+    for a, D_sii in dft.density.D_asii.items():
+        D_sp = np.array([pack_density(D_ii.real) for D_ii in D_sii])
+        energy += slxc.calculate_paw_correction(dft.setups[a], D_sp)
+    energy = dft.density.nt_sR.desc.comm.sum_scalar(energy)
+    energy += slxc.calculate(nt_sr)[0]
+    return energy

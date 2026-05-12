@@ -27,8 +27,11 @@ def get_dipole_transitions(wfs) -> ArrayND:
         # The treatment of the energy difference in the denominator is
         # from https://doi.org/10.1103/PhysRevB.52.14636 eq 7 and note 18
         # therein
-        r_skvnm[kpt.s, kpt.k, :] = -1j * p_skvnm[kpt.s, kpt.k, :] * \
-            np.reciprocal(deltaE, where=~np.isclose(deltaE, 0.0))
+        deltaE_inv = np.zeros_like(deltaE)
+        np.reciprocal(deltaE,
+                      where=~np.isclose(deltaE, 0.0),
+                      out=deltaE_inv)
+        r_skvnm[kpt.s, kpt.k, :] = -1j * p_skvnm[kpt.s, kpt.k, :] * deltaE_inv
     wfs.kd.comm.sum(r_skvnm)
     return r_skvnm
 

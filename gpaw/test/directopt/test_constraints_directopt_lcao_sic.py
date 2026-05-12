@@ -5,7 +5,6 @@ from gpaw import GPAW
 from gpaw.mpi import world
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.do
 def test_constraints_directopt_lcao_sic(in_tmp_dir, gpw_files):
     """

@@ -31,7 +31,7 @@ def test_exx_coarse(in_tmp_dir):
         else:
             tstr = 'Exx on coarse grid'
         timer.start(tstr)
-        loa.calc = GPAW(_use_old_gpaw=True,
+        loa.calc = GPAW(legacy_gpaw=True,
                         mode='fd',
                         h=0.3,
                         eigensolver='rmm-diis',
@@ -48,7 +48,7 @@ def test_exx_coarse(in_tmp_dir):
         if not fg:
             fname = 'exx_load.gpw'
             loa.calc.write(fname)
-            calcl = GPAW(fname)
+            calcl = GPAW(fname, legacy_gpaw=True)
             func = calcl.parameters.xc
 
             assert func['name'] == 'PBE0', 'wrong name for functional'

@@ -9,8 +9,8 @@ pytestmark = pytest.mark.skipif(not LibElpa.have_elpa(),
                                 reason='not LibElpa.have_elpa()')
 
 
-def test_lcao_lcao_elpa_kpts(gpaw_new, mpi, require_real_mpi):
-    if gpaw_new and mpi.comm.size == 8:
+def test_lcao_lcao_elpa_kpts(mpi, require_real_mpi):
+    if mpi.comm.size == 8:
         pytest.skip('Not implementted')
 
     energies = []

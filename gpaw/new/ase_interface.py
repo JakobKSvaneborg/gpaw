@@ -11,7 +11,7 @@ from ase.units import Ha
 
 from gpaw import __version__
 from gpaw.core import UGArray
-from gpaw.dft import GPAW, Parameters
+from gpaw.dft import GPAW as AnyGPAW, Parameters
 from gpaw.dos import DOSCalculator
 from gpaw.mpi import broadcast, synchronize_atoms
 from gpaw.new import Timer, trace
@@ -25,32 +25,32 @@ from gpaw.new.xc import create_functional
 from gpaw.typing import Array1D, Array2D, Array3D
 from gpaw.utilities import pack_density
 from gpaw.utilities.memory import maxrss
+from gpaw.utilities.timing import simpletimer
 
-LOGO = """\
-  ___ ___ ___ _ _ _
- |   |   |_  | | | |
- | | | | | . | | | |
- |__ |  _|___|_____| - {version}
- |___|_|
-"""
+
+LOGO = '  __  _  _\n | _ |_)|_||  |\n |__||  | ||/\\| - {version}\n'
+
+
+def GPAW(*args, **kwargs):
+    return AnyGPAW(*args, legacy_gpaw=False, **kwargs)
 
 
 def write_header(log: Logger, params: Parameters) -> None:
     from gpaw.old.logger import write_header as header
     log(LOGO.format(version=__version__))
     header(log, log.comm)
-    with log.indent('input parameters:'):
-        log(params)
-    with log.indent('\nenvironment variables:'):
+    with log.indent('\nEnvironment variables:'):
         import gpaw
-        parts = []
+        envvars = {}
         for name in sorted(gpaw.allowed_envvars):
             try:
                 value = getattr(gpaw, name)
             except AttributeError:
                 continue
-            parts.append(f'{name}={value!r}')
-        log(',\n'.join(parts))
+            envvars[name] = value
+        log.dict(envvars)
+    with log.indent('\nInput parameters:'):
+        log(params)
 
 
 def compare_atoms(a1: Atoms, a2: Atoms) -> set[str]:
@@ -117,6 +117,9 @@ class ASECalculator:
         Will also calculate "cheap" properties: energy, magnetic moments
         and dipole moment.
         """
+
+        inittimer = simpletimer()
+
         if atoms is None:
             atoms = self.atoms
         else:
@@ -166,6 +169,9 @@ class ASECalculator:
             self.create_new_calculation(atoms)
 
         assert self.hooks.keys() <= {'scf_step', 'converged'}
+        self.log(f'Initialization done in: {inittimer():.3f} s\n')
+
+        scftimer = simpletimer()
 
         with self.timer('SCF'):
             for ctx in self.dft.iconverge(
@@ -173,11 +179,15 @@ class ASECalculator:
                 yield ctx
                 self.hooks.get('scf_step', lambda ctx: None)(ctx)
 
-        self.log(f'Converged in {ctx.niter} steps')
+        scftime = scftimer()
+
+        self.log(f'\nConverged in {ctx.niter} steps')
+        self.log(f'SCF loop duration: {scftime:.3f} s '
+                 f'({scftime / ctx.niter:.3f} s/step)')
 
         # Calculate all the cheap things:
-        self.dft.energy()
-        self.dft.dipole()
+        self.dft.calculate_energy()
+        self.dft.calculate_dipole()
         self.dft.magmoms()
 
         self.dft.write_converged()
@@ -207,10 +217,10 @@ class ASECalculator:
 
         if prop == 'forces':
             with self.timer('Forces'):
-                self.dft.forces()
+                self.dft.calculate_forces()
         elif prop == 'stress':
             with self.timer('Stress'):
-                self.dft.stress()
+                self.dft.calculate_stress()
         elif prop not in self.dft.results:
             raise KeyError('Unknown property:', prop)
 
@@ -358,20 +368,24 @@ class ASECalculator:
         yield from self.iconverge(atoms)
 
     def new(self, **kwargs) -> ASECalculator:
-        kwargs = {**self.params.todict(), **kwargs}
-        return GPAW(**kwargs)
+        kwargs = {
+            'communicator': self.comm,
+            **self.params.todict(),
+            **kwargs}
+
+        return AnyGPAW(**kwargs)
 
     def get_pseudo_wave_function(self, band, kpt=0, spin=None,
                                  periodic=False,
                                  broadcast=True,
                                  pad=True) -> Array3D | None:
-        psit_R = self.dft.wave_functions(n1=band, n2=band + 1,
-                                         kpt=kpt, spin=spin,
-                                         periodic=periodic,
-                                         broadcast=broadcast,
-                                         _pad=pad)[0]
-        if psit_R is not None:
-            return psit_R.data
+        psit_1R = self.dft.wave_functions(n1=band, n2=band + 1,
+                                          kpt=kpt, spin=spin,
+                                          periodic=periodic,
+                                          broadcast=broadcast,
+                                          _pad=pad)
+        if psit_1R is not None:
+            return psit_1R[0].data
         return None
 
     def get_atoms(self):
@@ -612,7 +626,9 @@ class ASECalculator:
                              dft.ibzwfs,
                              dft.scf_loop.occ_calc,
                              nbands,
-                             dft.density.nvalence + dft.density.charge)
+                             dft.density.nvalence + dft.density.charge,
+                             scalapack,
+                             self.log)
         dft.ibzwfs = ibzwfs
         self.params.nbands = ibzwfs.nbands
         if 'nbands' not in self.params._non_defaults:
@@ -642,6 +658,8 @@ class ASECalculator:
             raise TypeError('Only mode={"dtype": dtype} is allowed.')
 
         old_params = self.params.todict()
+        old_params.pop('h', None)
+        kwargs['gpts'] = self.dft.density.nt_sR.desc.size
         kwargs = {**old_params, **kwargs,
                   'mode': {**old_params['mode'], **mode}}
 
@@ -771,23 +789,3 @@ class ASECalculator:
     def get_bz_to_ibz_map(self):
         """Return indices from BZ to IBZ."""
         return self.dft.ibzwfs.ibz.bz2ibz_K.copy()
-
-    def _to_old(self):
-        import tempfile
-        from gpaw.old.calculator import GPAW as OldGPAW
-        from gpaw.mpi import broadcast_string
-
-        if self._dft is None:
-            return OldGPAW(**self.params.todict(),
-                           communicator=self.comm,
-                           txt=self.log.fd)
-
-        # Quick hack for now:
-        # write gpw-file and read with old GPAW!
-        if self.comm.rank == 0:
-            gpw = tempfile.mkstemp(suffix='.gpw')[1]
-        else:
-            gpw = None
-        gpw = broadcast_string(gpw, comm=self.comm)
-        self.write(gpw, mode='all')
-        return OldGPAW(gpw, communicator=self.comm)

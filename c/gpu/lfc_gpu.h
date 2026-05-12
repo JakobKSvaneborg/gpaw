@@ -1,7 +1,8 @@
 #pragma once
 
+#include "python_utils.h"
 #include "gpu_interface.h"
-#include "../lfc.h"
+#include "lfc.h"
 
 GPAW_GPU_LINKAGE_BEGIN
 

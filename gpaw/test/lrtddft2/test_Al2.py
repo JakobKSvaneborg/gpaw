@@ -39,6 +39,7 @@ def test_lrtddft2_Al2(in_tmp_dir):
     lr_comms = LrCommunicators(world, domain_size, eh_size)
 
     calc = GPAW(restart_file,
+                legacy_gpaw=True,
                 communicator=lr_comms.dd_comm)
     de = 3.0
     lr = LrTDDFT2('Al2_lri',

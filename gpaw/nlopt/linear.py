@@ -1,15 +1,12 @@
 import numpy as np
 from ase.units import Ha
 
-from gpaw.mpi import normalize_communicator
-
 
 def get_chi_tensor(
         nlodata,
         freqs=[1.0], eta=0.05,
         ftol=1e-4, Etol=1e-6, eshift=0.0,
-        band_n=None, out_name=None,
-        world=None):
+        band_n=None, out_name=None):
     """
     Calculate full linear susceptibility tensor for nonmagnetic semiconductors;
     array will be saved to disk if out_name is given.
@@ -37,7 +34,7 @@ def get_chi_tensor(
         Full linear susceptibility tensor (3, 3, nw).
 
     """
-    world = normalize_communicator(world)
+    comm = nlodata.comm
 
     # Covert inputs in eV to Ha
     freqs = np.array(freqs)
@@ -70,14 +67,14 @@ def get_chi_tensor(
         # Add it to previous with a weight
         sum_vvl += tmp * we
 
-    world.sum(sum_vvl)
+    comm.sum(sum_vvl)
 
     # Multiply prefactors (4pi from eps0, 8pi^3 from BZ)
     prefactor = 4 * np.pi / (2 * np.pi)**3
     chi_vvl = prefactor * sum_vvl
 
     # Save it to the file
-    if world.rank == 0 and out_name is not None:
+    if comm.rank == 0 and out_name is not None:
         tmp = chi_vvl.reshape(9, nw)
         lin = np.vstack((freqs, tmp))
         np.save(out_name, lin)

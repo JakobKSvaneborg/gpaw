@@ -95,7 +95,7 @@ class ExcitedState(GPAW):
     def write(self, dirname, mode=''):
         """Write yourself to a directory
 
-        Paramaters
+        Parameters
         ----------
         dirname: string or path
           Write the files to the directory dirname. The directory
@@ -124,6 +124,7 @@ class ExcitedState(GPAW):
         """Read ExcitedState from a directory"""
         filename = str(Path(dirname) / 'exst')
         atoms, calculator = restart(filename,
+                                    legacy_gpaw=True,
                                     communicator=communicator, txt=txt)
         if log is not None:
             calculator.log = log

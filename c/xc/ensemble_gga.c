@@ -2,8 +2,8 @@
  *  Copyright (C) 2007-2009  CAMd
  *  Please see the accompanying LICENSE file for further information. */
 
-#include <math.h>
 #include "xc_gpaw.h"
+#include <math.h>
 
 double beefvdw_exchange(const xc_parameters* par,
                        double n, double rs, double a2,

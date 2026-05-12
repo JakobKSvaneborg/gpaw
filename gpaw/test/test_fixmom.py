@@ -1,11 +1,11 @@
 import pytest
 from ase import Atoms
 
-from gpaw import GPAW, FermiDirac
+from gpaw import FermiDirac
 from gpaw.mixer import MixerSum
 
 
-def test_fixmom():
+def test_fixmom(mpi):
     a = 2.87
     bulk = Atoms('Fe2',
                  scaled_positions=[(0, 0, 0), (0.5, 0.5, 0.5)],
@@ -14,12 +14,13 @@ def test_fixmom():
                  pbc=True)
     mom0 = sum(bulk.get_initial_magnetic_moments())
     conv = {'eigenstates': 0.1, 'density': 0.001, 'energy': 0.01}
-    calc = GPAW(mode='pw',
-                mixer=MixerSum(0.1, 3),
-                nbands=11,
-                kpts=(3, 3, 3),
-                convergence=conv,
-                occupations=FermiDirac(0.1, fixmagmom=True))
+    calc = mpi.GPAW(
+        mode='pw',
+        mixer=MixerSum(0.1, 3),
+        nbands=11,
+        kpts=(3, 3, 3),
+        convergence=conv,
+        occupations=FermiDirac(0.1, fixmagmom=True))
     bulk.calc = calc
     bulk.get_potential_energy()
     mom = bulk.get_magnetic_moment()

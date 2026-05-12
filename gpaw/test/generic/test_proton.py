@@ -4,7 +4,6 @@ Also, its interaction with an external potential in the form of a point charge
 is tested.
 """
 import numpy as np
-import pytest
 from ase import Atoms
 from ase.units import Bohr, Hartree
 
@@ -12,7 +11,6 @@ from gpaw import GPAW
 from gpaw.external import PointChargePotential
 
 
-@pytest.mark.old_gpaw_only
 def test_generic_proton(in_tmp_dir):
     a = 4.5
     H = Atoms('H', [(a / 2, a / 2, a / 2)],

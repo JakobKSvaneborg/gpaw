@@ -1,10 +1,9 @@
 #ifndef GPU_BMGS_H
 #define GPU_BMGS_H
 
+#include "gpu_utils.h"
 #include "gpu.h"
 #include "gpu-complex.h"
-
-#include "gpu_interface.h"
 
 GPAW_GPU_LINKAGE_BEGIN
 

@@ -37,10 +37,10 @@ for molecule in data:
     assert len(ss) == len(s1) + len(s2)
     if xc == 'TS09' or xc == 'TPSS' or xc == 'M06-L' or xc == 'dftd4':
         c = GPAW(mode='fd', xc='PBE', h=h, nbands=-6,
-                 occupations=FermiDirac(width=0.1))
+                 occupations=FermiDirac(width=0.1), legacy_gpaw=True)
     else:
         c = GPAW(mode='fd', xc=xc, h=h, nbands=-6,
-                 occupations=FermiDirac(width=0.1))
+                 occupations=FermiDirac(width=0.1), legacy_gpaw=True)
     E = []
     for s in [s1, s2, ss]:
         s.calc = c

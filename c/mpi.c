@@ -3,13 +3,15 @@
  *  Copyright (C) 2005-2009  CSC - IT Center for Science Ltd.
  *  Please see the accompanying LICENSE file for further information. */
 
-#include "python_utils.h"
 #ifdef PARALLEL
 
-#include <mpi.h>
+#include "python_utils.h"
 #include "extensions.h"
-#include <structmember.h>
+
+#include <mpi.h>
 #include "mympi.h"
+
+#include <structmember.h>
 #ifdef __bgp__
 #include <mpix.h>
 #endif
@@ -39,8 +41,6 @@ static void synchronize_if_gpu(PyObject* a)
     }
 #endif
 }
-
-void gpaw_device_synchronize();
 
 // Check that a processor number is valid
 #define CHK_PROC(n) if (n < 0 || n >= self->size) {\
@@ -286,12 +286,21 @@ static PyObject * mpi_sendreceive(MPIObject *self, PyObject *args,
     int dest, src;
     int sendtag = 123;
     int recvtag = 123;
-    static char *kwlist[] = {"a", "dest", "b", "src", "sendtag", "recvtag",
-			     NULL};
+    
+    // Some scary code below, explanation:
+    // Before Python 3.13 the PyArg macro below takes kwlist as char** instead of const char**.
+    // Meanwhile if we compile this as C++, string literals must be const char* type.
+    // We must then cast away constness when passing kwlist to Python, which _should_
+    // be OK since Python doesn't actually modify the strings. Python 3.13 removes the need for this by making the argument const.
+    // The following casts with (char**) instead of const_cast for C-compatibility.
+
+    static const char *kwlist[] = {"a", "dest", "b", "src", "sendtag", "recvtag", NULL};
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OiOi|ii:sendreceive",
-				     kwlist,
-				     &a, &dest, &b, &src, &sendtag, &recvtag))
-	return NULL;
+          (char**)kwlist, &a, &dest, &b, &src, &sendtag, &recvtag))
+    {
+      return NULL;
+    }
+
     CHK_ARRAY(a);
     CHK_OTHER_PROC(dest);
     CHK_ARRAY(b);
@@ -320,11 +329,16 @@ static PyObject * mpi_receive(MPIObject *self, PyObject *args, PyObject *kwargs)
   int src;
   int tag = 123;
   int block = 1;
-  static char *kwlist[] = {"a", "src", "tag", "block", NULL};
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Oi|ii:receive", kwlist,
+  // Scary code, see comment in mpi_sendreceive
+  static const char *kwlist[] = {"a", "src", "tag", "block", NULL};
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Oi|ii:receive", (char**)kwlist,
 				   &a, &src, &tag, &block))
+  {
     return NULL;
+  }
+
   CHK_ARRAY(a);
   CHK_OTHER_PROC(src);
   int n = Array_ITEMSIZE(a);
@@ -366,10 +380,15 @@ static PyObject * mpi_send(MPIObject *self, PyObject *args, PyObject *kwargs)
   int dest;
   int tag = 123;
   int block = 1;
-  static char *kwlist[] = {"a", "dest", "tag", "block", NULL};
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Oi|ii:send", kwlist,
+
+  // Scary code, see comment in mpi_sendreceive
+  static const char *kwlist[] = {"a", "dest", "tag", "block", NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Oi|ii:send", (char**)kwlist,
 				   &a, &dest, &tag, &block))
+  {
     return NULL;
+  }
+
   CHK_ARRAY(a);
   CHK_OTHER_PROC(dest);
   int n = Array_ITEMSIZE(a);
@@ -409,10 +428,15 @@ static PyObject * mpi_ssend(MPIObject *self, PyObject *args, PyObject *kwargs)
   PyObject* a;
   int dest;
   int tag = 123;
-  static char *kwlist[] = {"a", "dest", "tag", NULL};
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Oi|i:send", kwlist,
+
+  // Scary code, see comment in mpi_sendreceive
+  static const char *kwlist[] = {"a", "dest", "tag", NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "Oi|i:send", (char**)kwlist,
 				   &a, &dest, &tag))
+  {
     return NULL;
+  }
+
   CHK_ARRAY_RO(a);
   CHK_OTHER_PROC(dest);
   int n = Array_ITEMSIZE(a);
@@ -643,11 +667,15 @@ static PyObject * mpi_reduce(MPIObject *self, PyObject *args, PyObject *kwargs,
 #endif
   PyObject* obj;
   int root = -1;
-  static char *kwlist[] = {"a", "root", NULL};
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|i:reduce", kwlist,
+  // Scary code, see comment in mpi_sendreceive
+  static const char *kwlist[] = {"a", "root", NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|i:reduce", (char**)kwlist,
 				   &obj, &root))
+  {
     return NULL;
+  }
+
   CHK_PROC_DEF(root);
   if (PyFloat_Check(obj))
     {
@@ -779,11 +807,15 @@ static PyObject * mpi_reduce_scalar(MPIObject *self, PyObject *args, PyObject *k
 #endif
   PyObject* obj;
   int root = -1;
-  static char *kwlist[] = {"a", "root", NULL};
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|i:reduce", kwlist,
+  // Scary code, see comment in mpi_sendreceive
+  static const char *kwlist[] = {"a", "root", NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|i:reduce", (char**)kwlist,
 				   &obj, &root))
+  {
     return NULL;
+  }
+
   CHK_PROC_DEF(root);
   if (PyFloat_Check(obj))
     {
@@ -972,7 +1004,7 @@ static PyObject *mpi_compare(MPIObject *self, PyObject *args)
 {
   MPIObject* other;
   int result;
-  char* pyresult;
+  const char* pyresult;
   if (!PyArg_ParseTuple(args, "O", &other))
     return NULL;
 
@@ -1068,10 +1100,10 @@ static PyObject * mpi_alltoallv(MPIObject *self, PyObject *args)
   /* Create count and displacement arrays in units of bytes */
   int elem_size = Array_ITEMSIZE(send_obj);
 
-  long* tmp1 = Array_DATA(send_cnts);
-  long* tmp2 = Array_DATA(send_displs);
-  long* tmp3 = Array_DATA(recv_cnts);
-  long* tmp4 = Array_DATA(recv_displs);
+  long* tmp1 = (long*)Array_DATA(send_cnts);
+  long* tmp2 = (long*)Array_DATA(send_displs);
+  long* tmp3 = (long*)Array_DATA(recv_cnts);
+  long* tmp4 = (long*)Array_DATA(recv_displs);
   for (int i=0; i < self->size; i++) {
       s_cnts[i] = tmp1[i] * elem_size;
       s_displs[i] = tmp2[i] * elem_size;
@@ -1299,7 +1331,7 @@ static PyObject * MPICommunicator(MPIObject *self, PyObject *args)
   // Check that all ranks make sense
   for (int i = 0; i < n; i++)
     {
-      int *x = PyArray_GETPTR1(iranks, i);
+      int *x = (int*)PyArray_GETPTR1(iranks, i);
       if (*x < 0 || *x >= self->size)
 	{
 	  Py_DECREF(iranks);
@@ -1308,7 +1340,7 @@ static PyObject * MPICommunicator(MPIObject *self, PyObject *args)
 	}
       for (int j = 0; j < i; j++)
 	{
-	  int *y = PyArray_GETPTR1(iranks, j);
+	  int *y = (int*)PyArray_GETPTR1(iranks, j);
 	  if (*y == *x)
 	    {
 	      Py_DECREF(iranks);

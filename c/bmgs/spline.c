@@ -2,11 +2,11 @@
  *  Copyright (C) 2007-2008  CAMd
  *  Please see the accompanying LICENSE file for further information. */
 
+
+#include "bmgs.h"
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
-#include "bmgs.h"
-
 
 bmgsspline bmgs_spline(int l, double dr, int nbins, double* f)
 {

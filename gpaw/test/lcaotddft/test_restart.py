@@ -10,7 +10,6 @@ from gpaw.mpi import world
 from gpaw.tddft.folding import frequencies
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.gllb
 @pytest.mark.libxc
 @pytest.mark.rttddft

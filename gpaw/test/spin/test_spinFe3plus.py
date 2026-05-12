@@ -4,7 +4,7 @@ from ase import Atoms
 from gpaw import GPAW, FermiDirac
 
 
-def test_spin_spinFe3plus():
+def test_spin_spinFe3plus(comm):
     h = 0.4
     q = 3
 
@@ -18,6 +18,7 @@ def test_spin_spinFe3plus():
              hund=True,
              eigensolver='rmm-diis',
              occupations=FermiDirac(width=0.1),
+             communicator=comm,
              convergence=convergence)
     s.calc = c
     assert s.get_magnetic_moment() == pytest.approx(5, abs=0.1)
@@ -28,6 +29,7 @@ def test_spin_spinFe3plus():
     s.set_initial_magnetic_moments(mm)
     c = GPAW(mode='fd', charge=q, h=h, nbands=5,
              occupations=FermiDirac(width=0.1, fixmagmom=True),
+             communicator=comm,
              convergence=convergence)
     s.calc = c
     assert s.get_magnetic_moment() == pytest.approx(5, abs=0.1)

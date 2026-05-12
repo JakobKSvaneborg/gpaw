@@ -12,8 +12,8 @@ import gpaw.cgpaw as cgpaw
 import gpaw.fftw as fftw
 from gpaw.gpu import __file__ as gpaw_gpu_filename
 from gpaw.gpu import cupy, cupy_is_fake
-from gpaw.mpi import have_mpi, normalize_communicator
-from gpaw.new.c import GPU_AWARE_MPI, GPU_ENABLED
+from gpaw.mpi import normalize_communicator
+from gpaw.new.c import GPU_AWARE_MPI, GPU_ENABLED, GPAW_IS_CPP
 from gpaw.utilities import compiled_with_libvdwxc, compiled_with_sl
 from gpaw.utilities.elpa import LibElpa
 
@@ -96,11 +96,18 @@ def info(comm=None) -> None:
         githash = ''
 
     results.append(('_gpaw' + githash,
-                    os.path.normpath(getattr(cgpaw._gpaw, '__file__',
-                                             'built-in'))))
+                    os.path.normpath(cgpaw.get_extension_module_path())))
 
+    have_mpi = hasattr(cgpaw, 'Communicator')
     results.append(('MPI enabled', have_mpi))
     results.append(('OpenMP enabled', cgpaw.have_openmp))
+    results.append(('Compiled as C++', GPAW_IS_CPP))
+    if not GPAW_IS_CPP:
+        warnings['C++ required'] = (
+            'Next version of GPAW will start requiring a C++ compiler. '
+            'Please modify your siteconfig.py and set `compiler` to a valid '
+            'C++ compiler. For example, change `gcc` to `g++`, or `mpicc` to '
+            '`mpicxx`, or `cc` to `CC`')
     results.append(('GPU enabled', GPU_ENABLED))
     results.append(('GPU-aware MPI', GPU_AWARE_MPI))
     cupy_version = 'cupy-' + cupy.__version__
@@ -115,7 +122,8 @@ def info(comm=None) -> None:
                                   'environment variable GPAW_CPUPY=1, '
                                   'which uses GPAW\'s fake CuPy '
                                   '(gpaw.gpu.cpupy) for testing purposes')
-    results.append(('MAGMA', cgpaw.have_magma))
+    from gpaw.cgpaw.gpu import magma
+    results.append(('MAGMA', magma.is_available()))
     if have_mpi:
         have_sl = compiled_with_sl()
         have_elpa = LibElpa.have_elpa()
@@ -153,15 +161,15 @@ def info(comm=None) -> None:
              for a, b in results]
     n1 = max(len(a) for a, _ in lines)
     n2 = max(len(b) for _, b in lines)
-    output_width = n1 + 6 + n2
-    box_edge = ' ' + '-' * (output_width - 2)
+    output_width = n1 + 1 + n2
+    box_edge = '-' * output_width
     print(box_edge)
     for a, b in lines:
         if a in warnings:
             a, b = warn(a, width=n1), warn(b, width=n2)
         else:
             a, b = f'{a:{n1}}', f'{b:{n2}}'
-        print(f'| {a}  {b} |')
+        print(f'{a} {b}')
     print(box_edge)
 
     if not warnings:

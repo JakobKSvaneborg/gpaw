@@ -13,7 +13,8 @@ adjust_cell(atoms, 4., h=h)
 
 atoms.calc = GPAW(mode='fd', xc=xc, h=h,
                   occupations=FermiDirac(width=0.1),
-                  symmetry={'point_group': False})
+                  symmetry={'point_group': False},
+                  legacy_gpaw=True)
 atoms.get_potential_energy()
 
 

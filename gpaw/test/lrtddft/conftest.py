@@ -17,7 +17,8 @@ def H2struct():
 @pytest.fixture
 def H2(H2struct):
     H2 = H2struct.copy()
-    H2.calc = GPAW(mode='fd',
+    H2.calc = GPAW(legacy_gpaw=True,
+                   mode='fd',
                    xc='PBE',
                    poissonsolver={'name': 'fd'},
                    nbands=3,

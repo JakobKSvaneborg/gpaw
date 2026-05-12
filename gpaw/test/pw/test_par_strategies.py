@@ -23,7 +23,7 @@ for d in [1, 2, 4, 8]:
             pytest.param(
                 True,
                 marks=[pytest.mark.gpu])])
-def test_pw_par_strategies(in_tmp_dir, d, k, gpu, gpaw_new):
+def test_pw_par_strategies(in_tmp_dir, d, k, gpu):
     ecut = 200
     kpoints = [1, 1, 4]
     atoms = Atoms('HLi',
@@ -64,4 +64,4 @@ def test_pw_par_strategies(in_tmp_dir, d, k, gpu, gpaw_new):
 
 
 if __name__ == '__main__':
-    test_pw_par_strategies(None, 1, 1, True, True)
+    test_pw_par_strategies(None, 2, 1, True, True)

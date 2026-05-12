@@ -26,12 +26,13 @@ using this link: :download:`gpaw-venv.sh` or these commands::
     $ gpaw=https://gitlab.com/gpaw/gpaw
     $ wget $gpaw/-/raw/master/doc/platforms/gbar/gpaw-venv.sh
 
-and run it like this::
+and run it like this (replace ``venv-name`` with a suitable name for
+your virtual environment.  It could be ``venv`` or a course name or number.  No spaces!)::
 
-    $ sh gpaw-venv.sh <venv-name>
+    $ sh gpaw-venv.sh venv-name
     ...
 
-After a few minutes, you will have a ``<venv-name>`` folder with
+After a few minutes, you will have a ``venv-name`` folder with
 a GPAW installation inside (plus some other stuff).
 
 .. note::

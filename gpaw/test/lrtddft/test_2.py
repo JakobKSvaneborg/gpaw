@@ -19,7 +19,8 @@ def test_lrtddft_2(in_tmp_dir):
                 (a / 2, a / 2, (c + R) / 2)],
                cell=(a, a, c))
 
-    calc = GPAW(mode='fd',
+    calc = GPAW(legacy_gpaw=True,
+                mode='fd',
                 xc=xc,
                 nbands=2,
                 spinpol=False,
@@ -35,7 +36,7 @@ def test_lrtddft_2(in_tmp_dir):
     lr.diagonalize()
 
     print('-> reading gs with wfs')
-    gs = GPAW('H2saved_wfs.gpw', txt=txt)
+    gs = GPAW('H2saved_wfs.gpw', txt=txt, legacy_gpaw=True)
 
     lr1 = LrTDDFT(gs, xc=xc, txt='-')
     # check the oscillator strength
@@ -43,7 +44,7 @@ def test_lrtddft_2(in_tmp_dir):
                 lr[0].get_oscillator_strength()[0] - 1) < 1e-7)
 
     print('-> reading gs without wfs')
-    gs = GPAW('H2saved.gpw', txt=None)
+    gs = GPAW('H2saved.gpw', legacy_gpaw=True)
 
     lr2 = LrTDDFT(gs, txt='-')
     # check the oscillator strrength

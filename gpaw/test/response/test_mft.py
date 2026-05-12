@@ -3,8 +3,10 @@ Test with unrealisticly loose parameters to catch if the numerics change.
 """
 
 import numpy as np
+
 # General modules
 import pytest
+
 # Script modules
 from ase.build import bulk
 
@@ -21,7 +23,8 @@ from gpaw.response.mft import (HeisenbergExchangeCalculator,
                                calculate_pair_site_zeeman_energy,
                                calculate_single_particle_site_magnetization,
                                calculate_single_particle_site_zeeman_energy)
-from gpaw.response.site_data import (AtomicSites, calculate_site_magnetization,
+from gpaw.response.site_data import (AtomicSites,
+                                     calculate_site_magnetization,
                                      calculate_site_zeeman_energy,
                                      get_site_radii_range)
 from gpaw.response.site_kernels import (CylindricalSiteKernels,
@@ -33,7 +36,7 @@ from gpaw.test.response.test_chiks import generate_qrel_q, get_q_c
 
 @pytest.mark.response
 @pytest.mark.kspair
-def test_Fe_bcc(in_tmp_dir, gpw_files):
+def test_Fe_bcc(in_tmp_dir, gpw_files, mpi):
     # ---------- Inputs ---------- #
 
     # MFT calculation
@@ -52,7 +55,7 @@ def test_Fe_bcc(in_tmp_dir, gpw_files):
     # ---------- Script ---------- #
 
     # Extract the ground state fixture
-    calc = GPAW(gpw_files['fe_pw'], parallel=dict(domain=1))
+    calc = mpi.GPAW(gpw_files['fe_pw'], parallel=dict(domain=1))
     nbands = response_band_cutoff['fe_pw']
     atoms = calc.atoms
 
@@ -67,7 +70,7 @@ def test_Fe_bcc(in_tmp_dir, gpw_files):
 
     # Initialize the Heisenberg exchange calculator
     gs = ResponseGroundStateAdapter(calc)
-    context = ResponseContext()
+    context = ResponseContext(comm=mpi.comm)
     chiks_calc = ChiKSCalculator(gs, context,
                                  ecut=ecut, nbands=nbands, gammacentered=True)
     localft_calc = LocalFTCalculator.from_rshe_parameters(gs, context)
@@ -119,7 +122,7 @@ def test_Fe_bcc(in_tmp_dir, gpw_files):
 
 @pytest.mark.response
 @pytest.mark.kspair
-def test_Co_hcp(in_tmp_dir, gpw_files):
+def test_Co_hcp(in_tmp_dir, gpw_files, mpi):
     # ---------- Inputs ---------- #
 
     # MFT calculation
@@ -148,7 +151,7 @@ def test_Co_hcp(in_tmp_dir, gpw_files):
     # ---------- Script ---------- #
 
     # Extract the ground state fixture
-    calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
+    calc = mpi.GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
     nbands = response_band_cutoff['co_pw']
     atoms = calc.get_atoms()
 
@@ -163,7 +166,7 @@ def test_Co_hcp(in_tmp_dir, gpw_files):
 
     # Initialize the exchange calculator with and without symmetry
     gs = ResponseGroundStateAdapter(calc)
-    context = ResponseContext()
+    context = ResponseContext(comm=mpi.comm)
     chiks_calc0 = ChiKSCalculator(gs, context, qsymmetry=False,
                                   ecut=ecut, nbands=nbands, gammacentered=True)
     localft_calc = LocalPAWFTCalculator(gs, context)
@@ -234,25 +237,38 @@ def test_Co_hcp(in_tmp_dir, gpw_files):
 
 @pytest.mark.response
 @pytest.mark.kspair
-def test_NiO_withU(in_tmp_dir):
+@pytest.mark.parametrize('xc', ['LDA', 'LDA_X+LDA_C_PZ'])
+def test_NiO_withU(in_tmp_dir, xc, comm, add_cwd_to_setup_paths):
 
     a0 = 4.17
     a = bulk('NiO', 'rocksalt', a=a0)
     a.set_initial_magnetic_moments([2, 0])
 
+    if xc == 'LDA':
+        e0_q = np.array([0., -2.98733, -0.03207])
+    else:
+        e0_q = np.array([0., -3.18565137, -0.03267547])
+        from gpaw.test import gen
+        gen('Ni', xcname='LDA_X+LDA_C_PZ', write_xml=True, world=comm)
+        gen('O', xcname='LDA_X+LDA_C_PZ', write_xml=True, world=comm)
+
     calc = GPAW(mode=PW(400),
-                xc='LDA',
+                xc=xc,
                 setups={'Ni': ':d,4.0'},
                 kpts={'size': (2, 2, 2), 'gamma': True},
                 occupations=FermiDirac(0.001),
-                parallel=dict(domain=1))
-
+                convergence={'density': 1e-5},
+                mixer={'method': 'difference',
+                       'beta': 0.05,
+                       'weight': 50},
+                parallel=dict(domain=1),
+                communicator=comm)
     a.calc = calc
     a.get_potential_energy()
 
     # q-points and atomic sites
-    q_qc = np.vstack([[0, 0, 0], [0, 0, 0.5], [0, 0.5, 0.5]])
-    context = ResponseContext(txt='mft_nio.txt')
+    q_qc = np.array([[0, 0, 0], [0, 0, 0.5], [0, 0.5, 0.5]])
+    context = ResponseContext(txt='mft_nio.txt', comm=comm)
     gs = ResponseGroundStateAdapter(calc)
     _, r_a = get_site_radii_range(gs)
     sites = AtomicSites(indices=[0], radii=[[r_a[0]]])
@@ -263,21 +279,18 @@ def test_NiO_withU(in_tmp_dir):
     J_q = np.array([jcalc(q_c).array[..., 0]  # dimension: J_abp
                     for q_c in q_qc])[:, 0, 0]
     e_q = calculate_single_site_magnon_energies(J_q, q_qc, m)
-    print('-----', e_q)
-
-    assert e_q == pytest.approx(
-        np.array([0., -2.98733, -0.03207]), abs=1e-2)
+    assert e_q == pytest.approx(e0_q, abs=2e-2)
 
 
 @pytest.mark.response
 @pytest.mark.kspair
 @pytest.mark.parametrize('qrel', generate_qrel_q())
-def test_Co_site_magnetization_sum_rule(in_tmp_dir, gpw_files, qrel):
+def test_Co_site_magnetization_sum_rule(in_tmp_dir, gpw_files, qrel, mpi):
     # Set up ground state adapter and basic parameters
-    calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
+    calc = mpi.GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
     gs = ResponseGroundStateAdapter(calc)
     sites = get_co_sites(gs)
-    context = 'Co_sum_rule.txt'
+    context = ResponseContext(txt='Co_sum_rule.txt', comm=mpi.comm)
     nbands = response_band_cutoff['co_pw']
 
     # Get wave vector to test
@@ -337,12 +350,12 @@ def test_Co_site_magnetization_sum_rule(in_tmp_dir, gpw_files, qrel):
 @pytest.mark.response
 @pytest.mark.kspair
 @pytest.mark.parametrize('qrel', generate_qrel_q())
-def test_Co_site_zeeman_energy_sum_rule(in_tmp_dir, gpw_files, qrel):
+def test_Co_site_zeeman_energy_sum_rule(in_tmp_dir, gpw_files, qrel, mpi):
     # Set up ground state adapter and atomic site data
-    calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
+    calc = mpi.GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
     gs = ResponseGroundStateAdapter(calc)
     sites = get_co_sites(gs)
-    context = ResponseContext('Co_sum_rule.txt')
+    context = ResponseContext('Co_sum_rule.txt', comm=mpi.comm)
     nbands = response_band_cutoff['co_pw']
 
     # Get wave vector to test
@@ -412,11 +425,11 @@ def get_Co_exchange_reference(qrel):
 @pytest.mark.response
 @pytest.mark.kspair
 @pytest.mark.parametrize('qrel', generate_qrel_q())
-def test_Co_exchange(in_tmp_dir, gpw_files, qrel):
+def test_Co_exchange(in_tmp_dir, gpw_files, qrel, mpi):
     # Set up ground state adapter and atomic site data
-    calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
+    calc = mpi.GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
     gs = ResponseGroundStateAdapter(calc)
-    context = ResponseContext('Co_exchange.txt')
+    context = ResponseContext('Co_exchange.txt', comm=mpi.comm)
     sites = get_co_sites(gs)
     nbands = response_band_cutoff['co_pw']
 
@@ -469,9 +482,9 @@ def test_Co_exchange(in_tmp_dir, gpw_files, qrel):
 @pytest.mark.response
 @pytest.mark.kspair
 @pytest.mark.parallel
-def test_heisenberg_distribution_over_transitions(in_tmp_dir, gpw_files):
+def test_heisenberg_distribution_over_transitions(in_tmp_dir, gpw_files, mpi):
     # Set up ground state adapter and atomic site data
-    calc = GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
+    calc = mpi.GPAW(gpw_files['co_pw'], parallel=dict(domain=1))
     gs = ResponseGroundStateAdapter(calc)
     sites = get_co_sites(gs)
 
@@ -479,7 +492,7 @@ def test_heisenberg_distribution_over_transitions(in_tmp_dir, gpw_files):
     # nbands, which produces a number of band and spin transitions, which isn't
     # divisible by the number of blocks.
     nbands = response_band_cutoff['co_pw'] - 3
-    context = ResponseContext('distributed.txt')
+    context = ResponseContext('distributed.txt', comm=mpi.comm)
     calc = HeisenbergExchangeCalculator(
         gs, sites, context=context, nbands=nbands, nblocks='max')
     assert context.comm.size % 2 == 0

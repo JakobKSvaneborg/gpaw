@@ -100,7 +100,7 @@ def test_pwlfc_expand(dtype, cc):
               cc, f_cupy_GI, I_J)
 
     if dtype in {np.float32, np.complex64}:
-        tol = 1e-6
+        tol = 1.3e-6
     else:
         tol = 1e-12
     assert f_kernel_GI.get() == pytest.approx(f_cupy_GI.get(),

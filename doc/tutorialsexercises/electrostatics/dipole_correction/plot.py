@@ -1,7 +1,6 @@
-# web-page: zero.png, periodic.png, corrected.png, pwcorrected.png, slab.png
+# web-page: zero.png, periodic.png, corrected.png, pwcorrected.png
 import numpy as np
 import matplotlib.pyplot as plt
-from ase.io import write
 from gpaw import GPAW
 
 # this test requires OpenEXR-libs
@@ -38,11 +37,3 @@ for name in ['zero', 'periodic', 'corrected', 'pwcorrected']:
         title = name.title()
     plt.title(title + ' boundary conditions')
     plt.savefig(name + '.png')
-
-write('slab.pov',
-      calc.atoms,
-      rotation='-90x',
-      show_unit_cell=2,
-      povray_settings=dict(
-          transparent=False,
-          display=False)).render()

@@ -13,7 +13,6 @@ from gpaw.wannier.wannier90 import Wannier90
 
 
 @pytest.mark.serial  # See issue 1447
-@pytest.mark.old_gpaw_only
 @pytest.mark.parametrize('symm', [True, False])
 @pytest.mark.response
 def test_w(in_tmp_dir, gpw_files, symm, wannier90):

@@ -26,19 +26,21 @@ def calc_me(atoms, nbands):
     molecule_name = atoms.get_chemical_formula()
     atoms.set_initial_magnetic_moments([-1.0, 1.0])
     fname = '.'.join([molecule_name, 'PBE-SIN'])
-    calc = GPAW(_use_old_gpaw=True,
-                mode='fd',
+    calc = GPAW(mode='fd',
                 h=0.25,
                 xc='PBE',
                 eigensolver=CG(niter=5),
                 nbands=nbands,
                 txt=fname + '.log',
                 occupations=FermiDirac(0.0, fixmagmom=True),
+                mixer={'method': 'difference',
+                       'nmaxold': 3},
                 convergence={
                     'energy': 0.005,
                     'bands': nbands,
                     'eigenstates': 1e-4,
-                    'density': 1e-3})
+                    'density': 1e-3},
+                legacy_gpaw=True)
     atoms.calc = calc
     try:
         atoms.get_potential_energy()

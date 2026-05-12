@@ -7,7 +7,6 @@ from gpaw import GPAW, Davidson, Mixer, PoissonSolver
 from gpaw.test import gen
 
 
-@pytest.mark.old_gpaw_only
 def test_corehole_h2o_recursion(in_tmp_dir):
     # Generate setup for oxygen with half a core-hole:
     s = gen('O', name='hch1s', corehole=(1, 0, 0.5))
@@ -21,7 +20,7 @@ def test_corehole_h2o_recursion(in_tmp_dir):
                 cell=(a, a, a), pbc=False)
     H2O.center()
     calc = GPAW(
-        _use_old_gpaw=True,
+        legacy_gpaw=True,
         mode='fd',
         nbands=10,
         h=0.2,

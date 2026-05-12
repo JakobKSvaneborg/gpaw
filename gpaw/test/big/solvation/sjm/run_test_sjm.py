@@ -1,13 +1,10 @@
 import numpy as np
 from ase import Atoms
 from ase.optimize import BFGS
-
-from gpaw import GPAW, GPAW_NEW, FermiDirac, restart
-from gpaw.new.sjm import SJM as NewSJM
+from gpaw import FermiDirac, restart
 from gpaw.solvation import (EffectivePotentialCavity, GradientSurface,
                             LinearDielectric, SurfaceInteraction)
-from gpaw.solvation.sjm import SJM as OldSJM
-from gpaw.solvation.sjm import SJMPower12Potential
+from gpaw.solvation.sjm import SJM, SJMPower12Potential
 
 # Solvent parameters
 u0 = 0.180  # eV
@@ -61,15 +58,10 @@ params = dict(
     txt='sjm.txt',
     convergence={'energy': 0.000005})
 
-if GPAW_NEW:
-    calc = GPAW(
-        **params,
-        extensions=[NewSJM(**sj, **solvation)])
-else:
-    calc = OldSJM(
-        **params,
-        sj=sj,
-        **solvation)
+calc = SJM(
+    **params,
+    sj=sj,
+    **solvation)
 
 atoms.calc = calc
 E = []
@@ -90,7 +82,7 @@ assert abs(E[0] - E[-1]) < 1e-2
 
 calc.write('sjm.gpw')
 
-atoms, calc = restart('sjm.gpw', Class=OldSJM)
+atoms, calc = restart('sjm.gpw', Class=SJM)
 calc.set(sj={'tol': 0.002})
 atoms.get_potential_energy()
 assert abs(calc.get_electrode_potential() - 4.5) < 0.002

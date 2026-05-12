@@ -11,7 +11,8 @@ def oxygen():
     atoms.cell = [3, 4, 5]
     atoms.center()
 
-    atoms.calc = GPAW(mode='fd',
+    atoms.calc = GPAW(legacy_gpaw=True,
+                      mode='fd',
                       occupations=FermiDirac(width=0.1),
                       nbands=5)
     atoms.get_potential_energy()

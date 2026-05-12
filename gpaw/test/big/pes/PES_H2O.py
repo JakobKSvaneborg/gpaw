@@ -24,7 +24,8 @@ calc_params = dict(
     mixer=MixerDif(0.1, 5, weight=100.0),
     parallel={'domain': world.size},
     xc='PBE',
-    spinpol=True)
+    spinpol=True,
+    legacy_gpaw=True)
 
 m_calc = GPAW(**calc_params, nbands=4, txt='H2O-m.txt')
 

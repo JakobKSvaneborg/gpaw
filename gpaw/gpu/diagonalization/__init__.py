@@ -1,7 +1,8 @@
+from __future__ import annotations
 # Tight coupling with matrix.py... so need to be careful with circular imports
 from typing import TYPE_CHECKING
 
-from gpaw.cgpaw import have_magma
+from gpaw.cgpaw.gpu import magma
 from gpaw.gpu import cupy_is_fake, device_count, is_hip
 from gpaw.gpu.diagonalization.diagonalizer import (CPUPYDiagonalizer,
                                                    CuPyDiagonalizer,
@@ -13,8 +14,8 @@ if TYPE_CHECKING:
     from gpaw.core.matrix import Matrix
 
 
-def suggest_diagonalizer(matrix: "Matrix") -> tuple[GPUDiagonalizer,
-                                                    DiagonalizerOptions]:
+def suggest_diagonalizer(matrix: Matrix) -> tuple[GPUDiagonalizer,
+                                                  DiagonalizerOptions]:
     """Attempts to choose a good GPU diagonalizer backend and options for the
     given matrix.
     """
@@ -36,7 +37,7 @@ def suggest_diagonalizer(matrix: "Matrix") -> tuple[GPUDiagonalizer,
     if matrix_size < 400:
         return CPUPYDiagonalizer(), options
 
-    if have_magma:
+    if magma.is_available():
         if device_count > 1:
             # Multi-gpu can be faster for large matrices.
             # The following does some rudimentary GPU count selection.

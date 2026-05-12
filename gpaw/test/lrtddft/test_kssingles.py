@@ -6,7 +6,6 @@ from gpaw.lrtddft.kssingle import KSSingles
 from gpaw.mpi import world
 
 
-@pytest.mark.new_gpaw_ready
 @pytest.mark.lrtddft
 def test_old_io(in_tmp_dir):
     """Test reading of old style output files"""
@@ -43,7 +42,12 @@ def test_old_io(in_tmp_dir):
 def ch4():
     ch4 = molecule('CH4')
     ch4.center(vacuum=2)
-    ch4.calc = GPAW(mode='fd', h=0.25, nbands=8, txt=None)
+    ch4.calc = GPAW(
+        legacy_gpaw=True,
+        mode='fd',
+        h=0.25,
+        nbands=8,
+        txt=None)
     ch4.get_potential_energy()
     return ch4
 
@@ -100,7 +104,6 @@ def test_mul(ch4_kss):
     assert (ks0.magn == ks1.magn).all()
 
 
-@pytest.mark.new_gpaw_ready
 @pytest.mark.lrtddft
 def test_add_sub(in_tmp_dir):
     """Test adding and subtracting"""

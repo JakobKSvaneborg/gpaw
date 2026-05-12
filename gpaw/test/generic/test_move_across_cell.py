@@ -15,17 +15,8 @@ from gpaw import GPAW, Davidson, MixerSum
      dict(mode='pw',
           eigensolver=Davidson(3),
           parallel={'gpu': True}),
-     # pw + lcao extrapolation is currently broken (PWLFC lacks integrate2):
-     # dict(mode='pw', experimental={'reuse_wfs_method': 'lcao'}),
-     dict(mode='fd', h=0.3,
-          eigensolver=Davidson(3),
-          experimental={'reuse_wfs_method': 'lcao'}),
      dict(mode='lcao', basis='sz(dzp)', h=0.3)])
-def test_generic_move_across_cell(gpaw_new, params):
-    if not gpaw_new and 'parallel' in params:
-        pytest.skip('No GPU-mode for old GPAW')
-    if gpaw_new:
-        params.pop('experimental', None)
+def test_generic_move_across_cell(params):
     params.update(
         xc='oldLDA',
         # make sure MixerSum works for spin-paired system also:
@@ -50,7 +41,4 @@ def test_generic_move_across_cell(gpaw_new, params):
 
     # We should be within the convergence criterion.
     # It runs a minimum of two/three iterations:
-    if not calc.old:
-        assert calc.dft.scf_loop.niter == 2
-    else:
-        assert calc.scf.niter == 3
+    assert calc.dft.scf_loop.niter == 2

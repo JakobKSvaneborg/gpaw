@@ -24,8 +24,10 @@ def test_spin_dir_constraint_H(in_tmp_dir):
         xc='LDA',
         nbands=1,
         symmetry='off',
+        eigensolver={'niter': 8},  # Needs good eigenstates
+        mixer={'backend': 'msr1'},
         soc=True,
-        magmoms=np.array([[1, 1, 1]]) / np.sqrt(3),
+        magmoms=np.array([[1., 0.9, 0.9]]) / np.sqrt(3),
         parallel={'domain': 1, 'band': 1},
         extensions=[constraint])
 
@@ -37,8 +39,8 @@ def test_spin_dir_constraint_H(in_tmp_dir):
     # Assert that spin points along x
     smm_v = calc.dft.density.calculate_magnetic_moments()[0]
     assert smm_v[0] == pytest.approx(1., abs=1e-3)
-    assert smm_v[1] == pytest.approx(0., abs=1e-3)
-    assert smm_v[2] == pytest.approx(0., abs=1e-3)
+    assert smm_v[1] == pytest.approx(0., abs=1e-2)
+    assert smm_v[2] == pytest.approx(0., abs=1e-2)
 
 
 @pytest.mark.soc

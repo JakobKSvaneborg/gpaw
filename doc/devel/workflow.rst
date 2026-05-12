@@ -76,6 +76,33 @@ And with MPI (2, 4 and 8 cores)::
    relevant.
 
 
+.. _workflow_c_extension:
+
+Working with the C-extension
+============================
+
+Developers who frequenty modify GPAW's C/C++ code may find it convenient to
+use build helpers like Makefiles to reduce the time spent recompiling code.
+GPAW's build system can generate a Makefile containing the same compilation
+commands as what the default build backend (Setuptools) would execute,
+but with better support for incremental builds through proper dependency
+tracking.
+
+You can enable this feature by setting ``makefile_build = True`` in your
+``siteconfig.py``. This instructs the build system to produce a Makefile and
+build with ``make`` instead of using Setuptools. There is also
+``configure_only = True`` that tells the build system to only generate the
+Makefile without compiling anything. See the comments in ``setup.py`` for more
+details.
+
+.. note::
+
+   * Use ``pip install -e . -v --no-build-isolation`` to generate the Makefile.
+   * You will need to regenerate the Makefile every time you modify
+     ``siteconfig.py`` or add new C/C++ source files.
+   * This feature has only been tested on Linux systems.
+
+
 Creating a merge request
 ========================
 

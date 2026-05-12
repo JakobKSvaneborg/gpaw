@@ -38,8 +38,13 @@ def sh2(setupname):
     atoms.center(3)
 
     nbands = 6
-    atoms.calc = GPAW(mode='fd', h=0.3, nbands=nbands,
-                      setups={'S': setupname}, txt=None)
+    atoms.calc = GPAW(
+        legacy_gpaw=True,
+        mode='fd',
+        h=0.3,
+        nbands=nbands,
+        setups={'S': setupname},
+        txt=None)
     atoms.get_potential_energy()
 
     return atoms
@@ -149,8 +154,13 @@ def test_parallel(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
     fserial = f'serial_xas_rank{mpi.world.rank}.npz'
     comm = mpi.world.new_communicator([mpi.world.rank])
     print('serial, rank, size:', mpi.world.rank, comm.size)
-    atoms.calc = GPAW(mode='fd', h=0.3, setups={'S': s2p1ch_name},
-                      txt=None, communicator=comm)
+    atoms.calc = GPAW(
+        legacy_gpaw=True,
+        mode='fd',
+        h=0.3,
+        setups={'S': s2p1ch_name},
+        txt=None,
+        communicator=comm)
 
     print('serial, atoms.calc.world.size:', atoms.calc.world.size)
     atoms.get_potential_energy()
@@ -164,7 +174,12 @@ def test_parallel(in_tmp_dir, add_cwd_to_setup_paths, s2p1ch_name):
 
     # parallel calculation
     fparallel = 'parallel_xas.npz'
-    atoms.calc = GPAW(mode='fd', h=0.3, setups={'S': s2p1ch_name}, txt=None)
+    atoms.calc = GPAW(
+        legacy_gpaw=True,
+        mode='fd',
+        h=0.3,
+        setups={'S': s2p1ch_name},
+        txt=None)
     print('parallel, atoms.calc.world.size:', atoms.calc.world.size)
     atoms.get_potential_energy()
 

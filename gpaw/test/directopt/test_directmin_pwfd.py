@@ -6,7 +6,6 @@ from ase.build import molecule
 from gpaw import FD, GPAW, PW
 
 
-@pytest.mark.new_gpaw_ready
 @pytest.mark.do
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
 def test_directmin_H2(in_tmp_dir, mode):
@@ -53,7 +52,6 @@ def test_directmin_H2(in_tmp_dir, mode):
     assert f2 == pytest.approx(f0, abs=1e-2)
 
 
-@pytest.mark.new_gpaw_ready
 @pytest.mark.do
 @pytest.mark.parametrize('mode', ['pw', 'fd'])
 def test_directmin_C2H4(in_tmp_dir, mode):

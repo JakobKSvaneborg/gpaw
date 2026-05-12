@@ -7,7 +7,6 @@
  *  Please see the accompanying LICENSE file for further information. */
 
 #include "python_utils.h"
-#include <stdlib.h>
 #include "extensions.h"
 #include "bc.h"
 #include "mympi.h"
@@ -16,6 +15,8 @@
 #include <omp.h>
 #endif
 #include "threading.h"
+
+#include <stdlib.h>
 
 #ifdef GPAW_ASYNC
   #define GPAW_ASYNC3 3

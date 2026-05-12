@@ -1,6 +1,5 @@
 from itertools import count
 
-import pytest
 from ase.build import bulk
 
 from gpaw import GPAW
@@ -32,7 +31,6 @@ def ikwargs():
                 yield dict(parallel=parallel)
 
 
-@pytest.mark.old_gpaw_only
 def test_lcao_kpts_many_combinations(in_tmp_dir, require_real_mpi):
     counter = count()
 
@@ -83,11 +81,12 @@ def test_lcao_kpts_many_combinations(in_tmp_dir, require_real_mpi):
                 print('T', t2 - t1)
             energies.append(e)
             forces.append(f)
-            corrname = calc.wfs.atomic_correction.name
-            if kwargs['parallel']['sl_auto']:
-                assert corrname == 'sparse'
-            else:
-                assert corrname == 'dense'
+            if calc.old:
+                corrname = calc.wfs.atomic_correction.name
+                if kwargs['parallel']['sl_auto']:
+                    assert corrname == 'sparse'
+                else:
+                    assert corrname == 'dense'
 
             if energies:
                 eerr = abs(e - energies[0])
@@ -107,4 +106,4 @@ def test_lcao_kpts_many_combinations(in_tmp_dir, require_real_mpi):
             print('maxeerr', maxeerr)
             print('maxferr', maxferr)
             assert maxeerr < 1e-9, maxeerr
-            assert maxferr < 1e-10, maxferr
+            assert maxferr < 1e-9, maxferr

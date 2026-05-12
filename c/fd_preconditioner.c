@@ -7,7 +7,6 @@
 
 
 #include "python_utils.h"
-#include <stdlib.h>
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -16,6 +15,8 @@
 #include "operators.h"
 #include "transformers.h"
 #include "threading.h"
+
+#include <stdlib.h>
 
 #define DIMS_SAME(a, b) (PyArray_NDIM(a) == PyArray_NDIM(b) && \
                          memcmp(PyArray_DIMS(a), \

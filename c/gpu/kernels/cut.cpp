@@ -1,8 +1,8 @@
 #include <string.h>
 
-#include "../gpu.h"
-#include "../gpu-complex.h"
-#include "../bmgs.h"
+#include "gpu/gpu.h"
+#include "gpu/gpu-complex.h"
+#include "gpu/bmgs.h"
 
 #ifndef GPU_USE_COMPLEX
 #define BLOCK_MAX 32

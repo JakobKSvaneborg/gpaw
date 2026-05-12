@@ -107,7 +107,8 @@ def calculate(element, vacuum, xc, magmom, comm):
         mixer = MixerSum(0.4, nmaxold=1, weight=100)
         atom.set_positions(atom.get_positions() + [0.0, 0.0, 0.0001])
 
-    calc_atom = GPAW(mode='fd',
+    calc_atom = GPAW(legacy_gpaw=True,
+                     mode='fd',
                      xc=_xc(data[element][xc][2]),
                      experimental={'niter_fixdensity': 2},
                      eigensolver='rmm-diis',
@@ -126,7 +127,8 @@ def calculate(element, vacuum, xc, magmom, comm):
         mms = [1.0 for i in range(len(compound))]
         compound.set_initial_magnetic_moments(mms)
 
-    calc = GPAW(mode='fd',
+    calc = GPAW(legacy_gpaw=True,
+                mode='fd',
                 xc=_xc(data[element][xc][2]),
                 experimental={'niter_fixdensity': 2},
                 eigensolver='rmm-diis',
@@ -175,7 +177,6 @@ E_ref = {'H': {'B3LYP': -0.11369634560501423,
                'PBEH': -0.30365500626180042}}  # svnversion 5599 # -np 4
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.slow
 @pytest.mark.parametrize('xc', ['PBE0', 'B3LYP'])
 def test_exx_AA_enthalpy(in_tmp_dir, add_cwd_to_setup_paths, xc, comm):

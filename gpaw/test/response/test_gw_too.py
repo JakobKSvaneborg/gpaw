@@ -3,17 +3,17 @@ import pickle
 import numpy as np
 import pytest
 
-from gpaw.mpi import world
 from gpaw.response.g0w0 import G0W0
 
 
 @pytest.mark.response
-def test_do_GW_too(in_tmp_dir, gpw_files, scalapack):
+def test_do_GW_too(in_tmp_dir, gpw_files, scalapack, mpi):
     gw0 = G0W0(gpw_files['c_pw'], 'gw0',
                bands=(3, 5),
                nblocks=1,
                ecut_extrapolation=True,
-               ecut=40)
+               ecut=40,
+               world=mpi.comm)
     results0 = gw0.calculate()
     gw = G0W0(gpw_files['c_pw'], 'gwtoo',
               bands=(3, 5),
@@ -22,11 +22,12 @@ def test_do_GW_too(in_tmp_dir, gpw_files, scalapack):
               ecut_extrapolation=True,
               ecut=40,
               fxc_mode='GWP',
-              do_GW_too=True)
+              do_GW_too=True,
+              world=mpi.comm)
 
     gw.calculate()
 
-    world.barrier()
+    mpi.comm.barrier()
 
     files = gw.savepckl()
 

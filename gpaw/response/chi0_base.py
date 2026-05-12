@@ -239,7 +239,7 @@ class Chi0ComponentCalculator:
 
     def check_high_symmetry_ibz_kpts(self):
         """Check that the ground state includes all corners of the IBZ."""
-        ibz_vertices_kc = self.gs.get_ibz_vertices()
+        ibz_vertices_kc = self.gs.get_ibz_vertices(context=self.context)
         # Here we mimic the k-point grid compatibility check of
         # gpaw.bztools.contains_ibz_vertices_predicate()
         bzk_kc = self.gs.kd.bzk_kc
@@ -303,8 +303,21 @@ class Chi0ComponentCalculator:
         if integrationmode == 'point integration':
             k_kc = generator.get_kpt_domain()
         elif integrationmode == 'tetrahedron integration':
+            calc = self.gs._calc
+            if calc.old:
+                tolerance = calc.symmetry.tol
+                _backwards_compatible = True
+            else:
+                sym = calc.dft.ibzwfs.ibz.symmetries
+                tolerance = sym.tolerance
+                _backwards_compatible = sym._backwards_compatible
+            atoms = calc.atoms
+
             k_kc = generator.get_tetrahedron_kpt_domain(
-                pbc_c=self.pbc, cell_cv=self.gs.gd.cell_cv)
+                cell_cv=atoms.cell, pbc_c=atoms.pbc, tolerance=tolerance,
+                _backwards_compatible=_backwards_compatible,
+                comm=self.context.comm)
+
         kpoints = KPointDomain(k_kc, self.gs.gd.icell_cv)
 
         # In the future, we probably want to put enough functionality on the

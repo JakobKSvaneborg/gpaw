@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from ase import Atoms
 
 from gpaw import GPAW, Davidson, FermiDirac, Mixer
@@ -7,7 +6,6 @@ from gpaw.cdft.cdft import CDFT
 from gpaw.cdft.cdft_coupling import CouplingParameters
 
 
-@pytest.mark.old_gpaw_only
 def test_pbc_cdft(in_tmp_dir, not_parallelized, comm):
     distance = 2.5
     sys = Atoms('He2', positions=([0., 0., 0.], [0., 0., distance]))
@@ -17,6 +15,7 @@ def test_pbc_cdft(in_tmp_dir, not_parallelized, comm):
 
     # Calculator for the initial state
     calc_a = GPAW(
+        legacy_gpaw=True,
         h=0.2,
         mode='fd',
         basis='dzp',
@@ -55,6 +54,7 @@ def test_pbc_cdft(in_tmp_dir, not_parallelized, comm):
 
     # the same for the final state
     calc_b = GPAW(
+        legacy_gpaw=True,
         h=0.2,
         mode='fd',
         basis='dzp',

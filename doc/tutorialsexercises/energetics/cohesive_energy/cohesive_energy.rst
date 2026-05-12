@@ -4,7 +4,7 @@ Cohesive energy of bulk FCC Pt
 When calculating cohesive energies, one will need to calculate the energy
 of isolated atoms.  For some atoms it can be difficult to converge to the
 correct magnetic state.  For those difficult cases it often helps to use
-:ref:`directmin` instead of the default Davidson eigensolver.  Here is
+:ref:`directmin` instead of the default PPCG eigensolver.  Here is
 an example for Pt:
 
 .. literalinclude::  pt.py

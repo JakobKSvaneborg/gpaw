@@ -1,11 +1,11 @@
+#include "gpu/gpu.h"
+#include "gpu/gpu-complex.h"
+#include "gpu/bmgs.h"
+
 #include <stdio.h>
 #include <time.h>
 #include <sys/types.h>
 #include <sys/time.h>
-
-#include "../gpu.h"
-#include "../gpu-complex.h"
-#include "../bmgs.h"
 
 #ifndef GPU_USE_COMPLEX
 #  define BLOCK_SIZEX 32

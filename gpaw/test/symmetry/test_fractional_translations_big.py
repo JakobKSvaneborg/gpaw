@@ -23,6 +23,7 @@ def test_symmetry_fractional_translations_big():
                 nbands=32,
                 symmetry={'symmorphic': False},
                 gpts=(16, 16, 20),
+                convergence={'density': 1e-5},
                 eigensolver='rmm-diis')
 
     atoms.calc = calc
@@ -37,6 +38,7 @@ def test_symmetry_fractional_translations_big():
                 kpts=(3, 3, 2),
                 nbands=32,
                 gpts=(16, 16, 20),
+                convergence={'density': 1e-5},
                 eigensolver='rmm-diis')
 
     atoms.calc = calc

@@ -3,7 +3,6 @@ import pytest
 from gpaw.atom.all_electron import AllElectron
 
 
-@pytest.mark.new_gpaw_ready
 @pytest.mark.gllb
 @pytest.mark.libxc
 def test_gllb_atomic():

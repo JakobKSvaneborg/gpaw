@@ -5,7 +5,7 @@ from gpaw.response.g0w0 import G0W0
 
 
 @pytest.mark.response
-def test_gw_anisotropic(in_tmp_dir, gpw_files):
+def test_gw_anisotropic(in_tmp_dir, gpw_files, mpi):
     gw = G0W0(gpw_files['sic_pw'],
               'gw-test',
               nbands=5,
@@ -14,7 +14,8 @@ def test_gw_anisotropic(in_tmp_dir, gpw_files):
               frequencies={'type': 'nonlinear', 'domega0': 0.3},
               truncation=None,
               kpts=[(-0.125, 0.125, 0.125), (-0.125, -0.125, -0.125)],
-              bands=(3, 5))
+              bands=(3, 5),
+              world=mpi.comm)
 
     e_qp = gw.calculate()['qp']
 

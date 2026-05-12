@@ -20,7 +20,8 @@ def test_lrtddft_apmb(mpi):
         H2 = Atoms([Atom('H', (a / 2, a / 2, (c - R) / 2)),
                     Atom('H', (a / 2, a / 2, (c + R) / 2))],
                    cell=(a, a, c))
-        calc = mpi.GPAW(mode='fd', xc='PBE', nbands=2, spinpol=False, txt=txt)
+        calc = mpi.GPAW(mode='fd', xc='PBE', nbands=2, spinpol=False, txt=txt,
+                        legacy_gpaw=True)
         H2.calc = calc
         H2.get_potential_energy()
     else:
@@ -47,6 +48,7 @@ def test_lrtddft_apmb(mpi):
 
     if not load:
         c_spin = mpi.GPAW(
+            legacy_gpaw=True,
             mode='fd', xc='PBE', nbands=2,
             spinpol=True, parallel={'domain': mpi.comm.size},
             txt=txt)

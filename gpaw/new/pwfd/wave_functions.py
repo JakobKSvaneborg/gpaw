@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from functools import partial
 from math import pi
-
 import numpy as np
 
 from gpaw.core.arrays import XArray
@@ -13,7 +12,7 @@ from gpaw.core.plane_waves import PWArray
 from gpaw.core.uniform_grid import UGArray, UGDesc
 from gpaw.fftw import get_efficient_fft_size
 from gpaw.gpu import XP, as_np
-from gpaw.mpi import receive, send
+from gpaw.mpi import receive, send, MPIComm, serial_comm
 from gpaw.new import prod, trace, zips
 from gpaw.new.potential import Potential
 from gpaw.new.wave_functions import WaveFunctions
@@ -32,6 +31,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                  setups: Setups,
                  relpos_ac: Array2D,
                  atomdist: AtomDistribution,
+                 domain_band_comm: MPIComm,
                  weight: float = 1.0,
                  ncomponents: int = 1,
                  qspiral_v: Vector | None = None):
@@ -50,7 +50,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                          ncomponents=ncomponents,
                          qspiral_v=qspiral_v,
                          dtype=psit_nX.desc.dtype,
-                         domain_comm=psit_nX.desc.comm,
+                         domain_band_comm=domain_band_comm,
                          band_comm=psit_nX.comm)
         self._pt_aiX: AtomCenteredFunctions | None = None
         self.orthonormalized = False
@@ -64,7 +64,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                  wfs: PWFDWaveFunctions,
                  psit_nX: XArray,
                  relpos_ac=None,
-                 atomdist=None) -> PWFDWaveFunctions:
+                 atomdist=None,
+                 domain_band_comm=None) -> PWFDWaveFunctions:
         return cls(
             psit_nX,
             spin=wfs.spin,
@@ -75,6 +76,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             atomdist=atomdist or wfs.atomdist,
             weight=wfs.weight,
             ncomponents=wfs.ncomponents,
+            domain_band_comm=domain_band_comm or wfs.domain_band_comm,
             qspiral_v=wfs.qspiral_v)
 
     def __del__(self):
@@ -246,7 +248,8 @@ class PWFDWaveFunctions(WaveFunctions, XP):
     def build_hamiltonian(self,
                           Ht,
                           dH,
-                          psit2_nX):
+                          psit2_nX,
+                          calculate_energy=True):
         """
         psit2_nX will be used as a buffer
         for the wave functions.
@@ -268,45 +271,43 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         P2_ani = P_ani.new()
         domain_comm = psit_nX.desc.comm
 
-        Ht = partial(Ht, out=psit2_nX, spin=self.spin, calculate_energy=True)
-        H_nm = psit_nX.matrix_elements(psit_nX,
+        Ht = partial(Ht, out=psit2_nX, spin=self.spin,
+                     calculate_energy=calculate_energy)
+        H_nn = psit_nX.matrix_elements(psit_nX,
                                        function=Ht,
                                        domain_sum=False,
                                        cc=True)
         dH(P_ani, out_ani=P2_ani, spin=self.spin)
         P_ani.matrix.multiply(P2_ani, opb='C', symmetric=True,
-                              out=H_nm, beta=1.0)
-        domain_comm.sum(H_nm.data, 0)
+                              out=H_nn, beta=1.0)
+        domain_comm.sum(H_nn.data, 0)
 
         # XXX correct return?
         # gives correct result only on master
-        return H_nm
+        return H_nn
 
     @trace
-    def subspace_eigenvalues(self, H_nm,
-                             scalapack_params=(None, 1, 1, None)):
+    def subspace_eigenvalues(self, H_nn,
+                             scalapack_params=(None, 1, 1, 0)):
 
         psit_nX = self.psit_nX
         domain_comm = psit_nX.desc.comm
-        if domain_comm.rank == 0:
-            slcomm, r, c, b = scalapack_params
-            if r == c == 1:
-                slcomm = None
-            self.eig_n = as_np(H_nm.eigh(scalapack=(slcomm, r, c, b)),
-                               dtype=np.float64)
-            H_nm.complex_conjugate()
-            # H.data[n, :] now contains the nth eigenvector and eps_n[n]
-            # the nth eigenvalue
-        else:
-            self.eig_n = np.empty(psit_nX.dims[0])
-
-        # broad cast eigenvalues
-        domain_comm.broadcast(self.eig_n, 0)
-
-        # broadcast eigenvectors (not needed if only eigenvalues used)
-        domain_comm.broadcast(H_nm.data, 0)
-        self.eigvec_n = H_nm.data[:]
-        return
+        slcomm, r, c, b = scalapack_params
+        blocksize = (
+            (self.nbands + self.band_comm.size - 1) // self.band_comm.size,
+            self.nbands)
+        H0_nn = H_nn.new(
+            dist=(self.domain_band_comm,
+                  self.band_comm.size,
+                  self.domain_comm.size,
+                  *blocksize),
+            data=H_nn.data if self.domain_comm.rank == 0 else None)
+        eig_n = H0_nn.eigh(scalapack=(slcomm, r, c, b))
+        self.eig_n = as_np(eig_n, dtype=np.float64)
+        H0_nn.complex_conjugate()
+        # H.data[n, :] now contains the nth eigenvector and eps_n[n]
+        # the nth eigenvalue
+        domain_comm.broadcast(H_nn.data, 0)
 
     @trace
     def canonical_transformation(self, H_nm, psit2_nX, data_buffer):
@@ -332,9 +333,10 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                              dH,
                              psit2_nX,
                              data_buffer=None,
-                             scalapack_parameters=(None, 1, 1, None),
+                             scalapack_parameters=(None, 1, 1, 0),
                              nocc=None,
-                             eigenvalues_only=False):
+                             eigenvalues_only=False,
+                             calculate_energy=True):
         """
         If data_buffer is None, psit2_nX will be used as a buffer
         for the wave functions.
@@ -351,16 +353,17 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             m  i   ij  j  n
         """
 
-        H_nm = self.build_hamiltonian(Ht, dH, psit2_nX)
+        H_nn = self.build_hamiltonian(Ht, dH, psit2_nX,
+                                      calculate_energy=calculate_energy)
         if nocc is not None:
             # decouple occupied from unoccupied orbitals
-            H_nm.data[:nocc, nocc:] = 0
-            H_nm.data[nocc:, :nocc] = 0
-        self.subspace_eigenvalues(H_nm,
+            H_nn.data[:nocc, nocc:] = 0
+            H_nn.data[nocc:, :nocc] = 0
+        self.subspace_eigenvalues(H_nn,
                                   scalapack_params=scalapack_parameters)
         if eigenvalues_only:
             return
-        self.canonical_transformation(H_nm, psit2_nX, data_buffer)
+        self.canonical_transformation(H_nn, psit2_nX, data_buffer)
 
     def force_contribution(self,
                            potential: Potential,
@@ -409,23 +412,22 @@ class PWFDWaveFunctions(WaveFunctions, XP):
             F_v -= np.einsum('nsvi, ij, nsj -> v', F_nsvi, dO_ii, P_nsi)
             F_av[a] += 2 * F_v.real
 
-    def collect(self,
-                n1: int = 0,
-                n2: int = 0) -> PWFDWaveFunctions | None:
-        """Collect range of bands to master of band and domain comms."""
+    def collect_bands(self,
+                      n1: int = 0,
+                      n2: int = 0) -> PWFDWaveFunctions | None:
+        """Collect range of bands to master of band-comm."""
         # Also collect projections instead of recomputing XXX
         n2 = n2 if n2 > 0 else self.nbands + n2
         spinors = (2,) if self.ncomponents == 4 else ()
         band_comm = self.psit_nX.comm
-        domain_comm = self.psit_nX.desc.comm
+        grid = self.psit_nX.desc
+        domain_comm = grid.comm
         nbands = self.nbands
         mynbands = (nbands + band_comm.size - 1) // band_comm.size
         rank1, b1 = divmod(n1, mynbands)
         rank2, b2 = divmod(n2, mynbands)
         if band_comm.rank == 0:
-            if domain_comm.rank == 0:
-                psit_nX = self.psit_nX.desc.new(comm=None).empty(
-                    (n2 - n1, *spinors), xp=self.psit_nX.xp)
+            psit_nX = grid.empty((n2 - n1, *spinors), xp=self.psit_nX.xp)
             rank = rank1
             ba = b1
             na = n1
@@ -436,24 +438,22 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                 nb = na + bb - ba
                 if bb > ba:
                     if rank == 0:
-                        psit_bX = self.psit_nX[ba:bb].gather()
-                        if domain_comm.rank == 0:
-                            psit_nX.data[:bb - ba] = psit_bX.data
+                        psit_bX = self.psit_nX[ba:bb]
+                        psit_nX.data[:bb - ba] = psit_bX.data
                     else:
-                        if domain_comm.rank == 0:
-                            band_comm.receive(psit_nX.data[na - n1:nb - n1],
-                                              rank)
+                        band_comm.receive(psit_nX.data[na - n1:nb - n1],
+                                          rank)
                 rank += 1
                 ba = 0
                 na = nb
-            if domain_comm.rank == 0:
-                wfs = PWFDWaveFunctions.from_wfs(
-                    self,
-                    psit_nX,
-                    atomdist=self.atomdist.gather())
-                if self.has_eigs:
-                    wfs.eig_n = self.eig_n[n1:n2]
-                return wfs
+
+            wfs = PWFDWaveFunctions.from_wfs(self, psit_nX,
+                                             domain_band_comm=domain_comm)
+            if self.has_eigs:
+                wfs.eig_n = self.eig_n[n1:n2]
+                if self._occ_n is not None:
+                    wfs._occ_n = self._occ_n[n1:n2]
+            return wfs
         else:
             rank = band_comm.rank
             ranka, ba = max((rank1, b1), (rank, 0))
@@ -462,6 +462,27 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                 assert ranka == rankb == rank
                 band_comm.send(self.psit_nX.data[ba:bb], dest=0)
 
+        return None
+
+    def collect_bands_and_domain(self,
+                                 n1: int = 0,
+                                 n2: int = 0) -> PWFDWaveFunctions | None:
+        """Collect range of bands to master of band and domain comms."""
+        wfs = self.collect_bands(n1, n2)
+        domain_comm = self.psit_nX.desc.comm
+        if wfs is None or domain_comm.size == 1:
+            return wfs
+        psit_nX = wfs.psit_nX.gather()
+        atomdist = self.atomdist.gather()
+        if domain_comm.rank == 0:
+            wfs1 = PWFDWaveFunctions.from_wfs(
+                wfs,
+                psit_nX,
+                atomdist=atomdist,
+                domain_band_comm=serial_comm)
+            wfs1._eig_n = wfs._eig_n
+            wfs1._occ_n = wfs._occ_n
+            return wfs1
         return None
 
     def copy(self) -> PWFDWaveFunctions:
@@ -474,6 +495,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                                 atomdist=self.atomdist,
                                 weight=self.weight,
                                 ncomponents=self.ncomponents,
+                                domain_band_comm=self.domain_band_comm,
                                 qspiral_v=self.qspiral_v)
         wfs.eig_n = self.eig_n
         wfs._occ_n = self._occ_n
@@ -485,22 +507,28 @@ class PWFDWaveFunctions(WaveFunctions, XP):
                  self.spin,
                  self.q,
                  self.k,
+                 self.eig_n,
+                 self._occ_n,
                  self.weight)
         send(stuff, rank, comm)
 
     def receive(self, rank, comm):
-        kpt_c, data, spin, q, k, weight = receive(rank, comm)
+        kpt_c, data, spin, q, k, eig_n, occ_n, weight = receive(rank, comm)
         psit_nX = self.psit_nX.desc.new(kpt=kpt_c, comm=None).from_data(data)
-        return PWFDWaveFunctions(psit_nX,
-                                 spin=spin,
-                                 q=q,
-                                 k=k,
-                                 setups=self.setups,
-                                 relpos_ac=self.relpos_ac,
-                                 atomdist=self.atomdist.gather(),
-                                 weight=weight,
-                                 ncomponents=self.ncomponents,
-                                 qspiral_v=self.qspiral_v)
+        wfs = PWFDWaveFunctions(psit_nX,
+                                spin=spin,
+                                q=q,
+                                k=k,
+                                setups=self.setups,
+                                relpos_ac=self.relpos_ac,
+                                atomdist=self.atomdist.gather(),
+                                weight=weight,
+                                ncomponents=self.ncomponents,
+                                domain_band_comm=serial_comm,
+                                qspiral_v=self.qspiral_v)
+        wfs.eig_n = eig_n
+        wfs._occ_n = occ_n
+        return wfs
 
     def dipole_matrix_elements(self) -> Array3D:
         """Calculate dipole matrix-elements.
@@ -565,7 +593,7 @@ class PWFDWaveFunctions(WaveFunctions, XP):
         psit_nX = self.psit_nX.gather()  # gather X
         if psit_nX is not None:
             data_nX = psit_nX.matrix.gather()  # gather n
-            if data_nX.dist.comm.rank == 0:
+            if data_nX is not None:
                 # XXX PW-gamma-point mode: float or complex matrix.dtype?
                 return data_nX.data.view(
                     psit_nX.data.dtype).reshape((-1,) + psit_nX.data.shape[1:])

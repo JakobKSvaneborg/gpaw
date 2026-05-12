@@ -170,7 +170,7 @@ class UGAtomCenteredFunctions(AtomCenteredFunctions):
             for sphere, rank in zips(self._lfc.sphere_a,
                                      self._atomdist.rank_a):
                 assert sphere.rank == rank
-            assert self.grid.comm is self._atomdist.comm
+            assert self.grid.comm.size == self._atomdist.comm.size
 
         self._layout = AtomArraysLayout([sum(2 * f.l + 1 for f in funcs)
                                          for funcs in self.functions],

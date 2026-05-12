@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from ase import Atoms
 from ase.units import Bohr
 
-from gpaw import GPAW
+from gpaw.dft import DFT
 from gpaw.sphere.spherical_harmonics import Y
 
 L = 6.0
@@ -13,19 +13,21 @@ co = Atoms('CO',
            cell=[L, L, L],
            positions=[(0, 0, 0), (d, 0, 0)])
 co.center()
-co.calc = GPAW(mode='lcao',
-               txt='CO.txt')
-e = co.get_potential_energy()
-print(co.positions[:, 0] - L / 2)
+
+dft = DFT(co,
+          mode='lcao',
+          txt='CO.txt')
+dft.converge()
 
 dpi = 100
 C = 'g'
 N = 100
-for a, pp in enumerate(co.calc.wfs.setups):
+# Loop over atoms and PAW-potentials:
+for a, pp in enumerate(dft.setups):
     rc = max(pp.rcut_j)
     print(pp.rcut_j)
     x = np.linspace(-rc, rc, 2 * N + 1)
-    P_i = co.calc.wfs.kpt_qs[0][0].projections[a][1] / Bohr**1.5
+    P_i = dft.ibzwfs._wfs_u[0].P_ani[a][1] / Bohr**1.5
     phi_i = np.empty((len(P_i), len(x)))
     phit_i = np.empty((len(P_i), len(x)))
     i = 0
@@ -50,7 +52,7 @@ for a, pp in enumerate(co.calc.wfs.setups):
              label=r'$\psi^%s$' % symbol)
     C = 'r'
 
-psit = co.calc.get_pseudo_wave_function(band=1)
+psit = dft.wave_function(band=1).data
 n = len(psit)
 psit2 = psit[:, :, n // 2]
 psit1 = psit2[:, n // 2]

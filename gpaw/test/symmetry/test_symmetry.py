@@ -2,7 +2,6 @@ from math import sqrt
 
 import numpy as np
 import pytest
-
 from gpaw.new.brillouin import MonkhorstPackKPoints
 from gpaw.new.symmetry import Symmetries, SymmetryAnalysisBug
 
@@ -103,28 +102,60 @@ def test_new():
 
 
 def test_5x5():
-    # This system should have 6 symmetries (identity, two rotations
-    # and three mirrors), but our code finds only 4.
-    # Following that, k-point reduction of a 5x5 Monkhorst-Pack
-    # grid blows up!
+    """For this system, the symmetry module finds a set of symmetries which
+    form an incomplete space group (the elements do not form a magma,
+                                    i.e. the set is not closed).
+    The error is fixed by simply using the correct units for the tolerance,
+    i.e. the error is fixed when _backwards_compatible is false.
+    If we ever remove backwards compatibility for the symmetries module,
+    this test should probably be removed."""
+
     a = 5.6
+
+    kwargs = {'cell': [a, a, 9., 90, 90, 60],
+              'pbc': (1, 1, 0),
+              'tolerance': 1e-7,
+              'relative_positions': [[0.33333333, 0.3333333, 0.50058348],
+                                     [0.66666666, 0.6666666, 0.55294505],
+                                     [0.0, 0.0, 0.44741016],
+                                     [0.0, 0.0, 0.68013199],
+                                     [0.33333333, 0.33333333, 0.31908923],
+                                     [0.66666667, 0.66666667, 0.64723956],
+                                     [0.0, 0.0, 0.35260054]],
+              'ids': [0, 1, 1, 1, 1, 2, 2],
+              'symmorphic': True,
+              'guarantee_group': False}
+
     with pytest.raises(SymmetryAnalysisBug):
         sym = Symmetries.from_cell_and_atoms(
-            [a, a, 9, 90, 90, 60],
-            pbc=(1, 1, 0),
-            _backwards_compatible=True,
-            relative_positions=[[0.33333333, 0.3333333, 0.50058348],
-                                [0.66666666, 0.6666666, 0.55294505],
-                                [0.0, 0.0, 0.44741016],
-                                [0.0, 0.0, 0.68013199],
-                                [0.33333333, 0.33333333, 0.31908923],
-                                [0.66666667, 0.66666667, 0.64723956],
-                                [0.0, 0.0, 0.35260054]],
-            ids=[0, 1, 1, 1, 1, 2, 2],
-            symmorphic=True)
+            **kwargs, _backwards_compatible=True)
 
-    if 0:
-        mp = MonkhorstPackKPoints((5, 5, 1))
-        ibz = mp.reduce(sym)
-        print(ibz)
-        assert (ibz.weight_k > 0.0).all()
+    sym = Symmetries.from_cell_and_atoms(
+        **kwargs, _backwards_compatible=False)
+    assert len(sym) == 1  # Strict tolerance yields no symmetries
+
+    mp = MonkhorstPackKPoints((5, 5, 1))
+    ibz = mp.reduce(sym)
+    assert len(ibz) == 13
+    assert (ibz.weight_k > 0.0).all()
+
+
+@pytest.mark.serial
+def test_tolerance():
+    a = 1.2
+    h = 3.0
+    d = 0.001
+    tol = 1.1 * d
+
+    # Test length error:
+    sym = Symmetries.from_cell([a, a, h, 90, 90, 120])
+    assert len(sym) == 24
+    sym = Symmetries.from_cell([a + d, a, h, 90, 90, 120], tolerance=tol)
+    assert len(sym) == 24
+
+    # Test angle error:
+    sym = Symmetries.from_cell([a, a, a])
+    assert len(sym) == 48
+    sym = Symmetries.from_cell([[a, d, 0], [0, a, 0], [0, 0, a]],
+                               tolerance=tol)
+    assert len(sym) == 48

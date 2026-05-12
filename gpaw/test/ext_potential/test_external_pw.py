@@ -6,13 +6,13 @@ from gpaw import GPAW, PW
 from gpaw.external import ConstantElectricField, ConstantPotential
 
 
-@pytest.mark.old_gpaw_only
 def test_stark_pw():
     h = Atoms('H', pbc=(1, 1, 0), magmoms=[1])
     h.center(vacuum=3.0)
     field = 0.2
     params = dict(mode=PW(300),
-                  convergence={'energy': 1e-6})
+                  convergence={'energy': 1e-6,
+                               'density': 1e-5})
 
     h.calc = GPAW(**params)
 
@@ -46,7 +46,6 @@ def test_stark_pw():
         # assert a == pytest.approx(aref, abs=0.1)
 
 
-@pytest.mark.old_gpaw_only
 def test_ext_potential_external_pw():
     ConstantPotential()
 
@@ -63,7 +62,7 @@ def test_ext_potential_external_pw():
     txt = None
 
     convergence = {'eigenstates': 1.e-6 * 40 * 1.5**3,
-                   'density': 1.e-2,
+                   'density': 1.e-3,
                    'energy': 0.1}
 
     # without potential

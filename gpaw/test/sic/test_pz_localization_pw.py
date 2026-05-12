@@ -3,7 +3,6 @@ import pytest
 from gpaw import GPAW
 
 
-@pytest.mark.old_gpaw_only
 @pytest.mark.sic
 def test_pz_localization_pw(in_tmp_dir, gpw_files):
     """

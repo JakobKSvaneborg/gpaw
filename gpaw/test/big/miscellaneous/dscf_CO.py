@@ -12,7 +12,8 @@ calc_params = dict(
     spinpol=True,
     convergence={'energy': 100,
                  'density': 100,
-                 'bands': -1})
+                 'bands': -1},
+    legacy_gpaw=True)
 calc_mol = GPAW(**calc_params)
 
 CO = molecule('CO')

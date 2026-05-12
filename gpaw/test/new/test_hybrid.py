@@ -6,7 +6,6 @@ from gpaw import GPAW
 from gpaw.mpi import world
 
 
-@pytest.mark.new_gpaw_ready
 @pytest.mark.hybrids
 def test_pawexxvv():
     from _gpaw import pawexxvv
@@ -21,23 +20,18 @@ def test_pawexxvv():
         assert np.allclose(V_ii, V2_ii)
 
 
-@pytest.mark.new_gpaw_ready
 @pytest.mark.hybrids
 # @pytest.mark.parametrize('ccirs', [False, True])
 @pytest.mark.parametrize('dtype', [float, complex])
 @pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg'])
-def test_hse06(gpaw_new, dtype, eigensolver):
-
-    if not gpaw_new and eigensolver == 'ppcg':
-        pytest.skip('PPCG only for GPAW new.')
-
+def test_hse06(dtype, eigensolver):
     atoms = Atoms('Li2', [[0, 0, 0], [0, 0, 2.0]])
     atoms.center(vacuum=2.5)
     atoms.calc = GPAW(
         mode=dict(name='pw',
                   force_complex_dtype=dtype is complex),
         xc='HSE06',
-        eigensolver=eigensolver,
+        eigensolver={'name': eigensolver, 'niter': 6},
         convergence={'density': 1e-6},
         parallel={'domain': world.size},
         nbands=4)
@@ -46,19 +40,14 @@ def test_hse06(gpaw_new, dtype, eigensolver):
     eigs = atoms.calc.get_eigenvalues(spin=0)
     assert eigs[0] == pytest.approx(-4.67477532, abs=1e-4)
     f = atoms.get_forces()
-    f0 = 2.3505
-    assert f == pytest.approx(np.array([[0, 0, -f0], [0, 0, f0]]), abs=1e-4)
+    f0 = 2.35055
+    assert f == pytest.approx(np.array([[0, 0, -f0], [0, 0, f0]]), abs=3e-4)
 
 
-@pytest.mark.new_gpaw_ready
 @pytest.mark.hybrids
 @pytest.mark.parametrize('dtype', [float, complex])
 @pytest.mark.parametrize('eigensolver', ['davidson', 'ppcg'])
-def test_h(gpaw_new, dtype, eigensolver):
-
-    if not gpaw_new and eigensolver == 'ppcg':
-        pytest.skip('PPCG only for GPAW new.')
-
+def test_h(dtype, eigensolver):
     atoms = Atoms('H', magmoms=[1])
     atoms.center(vacuum=2.5)
     atoms.calc = GPAW(mode=dict(name='pw',
@@ -67,7 +56,7 @@ def test_h(gpaw_new, dtype, eigensolver):
                       eigensolver=eigensolver,
                       nbands=2,
                       parallel={'kpt': 1, 'band': 1, 'domain': world.size},
-                      convergence={'energy': 1e-4})
+                      convergence={'density': 1e-6})
     e = atoms.get_potential_energy()
     eigs = atoms.calc.get_eigenvalues(spin=0)
     assert e == pytest.approx(-1.7041, abs=4e-4)

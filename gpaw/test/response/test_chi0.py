@@ -7,12 +7,13 @@ from ase.dft.kpoints import monkhorst_pack
 from gpaw import GPAW, PW, FermiDirac
 from gpaw.mpi import serial_comm
 from gpaw.response.chi0 import Chi0Calculator
+from gpaw.response.context import ResponseContext
 from gpaw.response.frequencies import FrequencyDescriptor
 
 
 @pytest.mark.response
 @pytest.mark.slow
-def test_response_chi0(in_tmp_dir):
+def test_response_chi0(in_tmp_dir, mpi):
     # inputs to loop over [k, gamma, center, sym]
     settings = product([2, 3], *[[False, True]] * 3)
 
@@ -28,7 +29,7 @@ def test_response_chi0(in_tmp_dir):
             a.center()
         name = 'si.k%d.g%d.c%d.s%d' % (k, gamma, center, bool(sym))
 
-        calc = a.calc = GPAW(
+        calc = a.calc = mpi.GPAW(
             kpts=kpts,
             symmetry={'point_group': sym},
             mode=PW(150),
@@ -40,8 +41,9 @@ def test_response_chi0(in_tmp_dir):
 
         calc = GPAW(name, txt=None, communicator=serial_comm)
 
+        context = ResponseContext(txt=name + '.log', comm=mpi.comm)
         chi0_calc = Chi0Calculator(
-            gs=calc, context=name + '.log',
+            gs=calc, context=context,
             wd=FrequencyDescriptor.from_array_or_dict([0, 1.0, 2.0]),
             hilbert=False, ecut=100)
         chi0 = chi0_calc.calculate(q_c)

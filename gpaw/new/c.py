@@ -6,6 +6,9 @@ from gpaw.new.timer import trace
 
 __all__ = ['GPU_AWARE_MPI']
 
+# Did we compile as C++?
+GPAW_IS_CPP = getattr(cgpaw, 'gpaw_cpp', False)
+
 # Use GPU aware MPI if it's available, unless disabled by envvar.
 GPU_AWARE_MPI = (getattr(cgpaw, 'gpu_aware_mpi', False)
                  and not bool(ENVVAR_GPAW_NO_GPU_MPI))

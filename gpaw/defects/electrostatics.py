@@ -1,7 +1,7 @@
 """ Defects module """
 
 import numpy as np
-from gpaw.mpi import serial_comm
+from gpaw.mpi import serial_comm, rank0_call
 from gpaw.core import PWDesc, UGDesc, UGArray
 from ase.units import Bohr, Hartree
 from ase.geometry import find_mic
@@ -17,21 +17,13 @@ def charged_defect_corrections(calc_pristine, calc_defect, defect_index=0,
     Makes ElectrostaticCorrections instance for charged defects.
 
     calc_pristine: ``GPAW`` calculator for neutral pristine reference
-
     calc_defect: ``GPAW`` calculator for charged defect
-
     defect_index: index of defect site in the pristine reference
-
     charge: charge state of the defect calculation
-
     epsilon: macroscopic electrostatic constant of the host system
-
     ecut: energy cutoff for ``calculate_model_potential`` [eV]
-
     rc: spread of the model charge distribution [Angstrom]
-
     ravg: average radius for bulk-atom average [Angstrom]
-
     method: method selection string
 
     """
@@ -54,7 +46,8 @@ def charged_defect_corrections(calc_pristine, calc_defect, defect_index=0,
                                     sigma=sigma,
                                     epsilon=epsilon,
                                     method=method,
-                                    atoms_pristine=atoms_prs)
+                                    atoms_pristine=atoms_prs,
+                                    comm=calc_pristine.world)
 
 
 def build_ugarray(atoms, data):
@@ -67,7 +60,8 @@ def gather_electrostatic_potential(calc):
     phi_r = calc.get_electrostatic_potential()
     atoms = calc.get_atoms()
     phi_R = build_ugarray(atoms, phi_r)
-    phi_R = phi_R.gather(broadcast=True)
+    # gather on master
+    phi_R = phi_R.gather(broadcast=False)
     return phi_R
 
 
@@ -105,30 +99,22 @@ class ElectrostaticCorrections():
     Calculate the electrostatic corrections for electrostatic potentials.
 
     phi_pristine: ``UGArray`` pristine electrostatic_potential [eV]
-
     phi_defect: ``UGArray`` defect electrostatic_potential [eV]
-
     charge: charge state of the defect calculation
-
     epsilon: macroscopic electrostatic constant of the host system
-
     sigma: spread of the Gaussian model charge distribution [Angstrom]
-
     r0: defect position [Angstrom]
-
     ravg: average radius for bulk-atom average [Angstrom]
-
     ecut: energy cutoff for ``calculate_model_potential`` [eV]
-
     method: method selection string
-
     atoms_pristine: ``Atoms`` pristine atomic structure
     (only used for bulk-atom average)
 
     """
     def __init__(self, phi_pristine, phi_defect, ecut=500,
                  charge=None, epsilon=None, sigma=None, r0=None,
-                 ravg=2.5, method='full-planar', atoms_pristine=None):
+                 ravg=2.5, method='full-planar', atoms_pristine=None,
+                 comm=serial_comm):
 
         # read and check electrostatic potentials
         # conversion to Hartree and Bohr
@@ -151,6 +137,7 @@ class ElectrostaticCorrections():
         assert method in _avg_methods_
         self.method = method
         self.atoms_prs = atoms_pristine
+        self.comm = comm
 
         # set grid coarsening
         self.nfreq = 4              # grid coarsening
@@ -323,7 +310,7 @@ class ElectrostaticCorrections():
         self.rc_vR = self.r_vR[:, ::nfreq, ::nfreq, ::nfreq]
         self.ngc_v = np.array(self.rc_vR.shape[1:])
 
-    def calculate_potential_profile(self, nfreq=2, nsample=8):
+    def _calculate_potential_profile(self, nfreq=2, nsample=8):
         self.coarsen_grid(nfreq=nfreq)
 
         # restrict to z-axis
@@ -359,6 +346,10 @@ class ElectrostaticCorrections():
 
         return profile
 
+    def calculate_potential_profile(self, **kwargs):
+        comm = self.comm
+        return rank0_call(self._calculate_potential_profile, comm)(**kwargs)
+
     def calculate_potential_alignment(self):
         if self.dphi is not None:
             return self.dphi
@@ -391,10 +382,14 @@ class ElectrostaticCorrections():
 
         return self.dphi
 
-    def calculate_correction(self):
+    def _calculate_correction(self):
         # conversion to eV
         Eli = self.calculate_isolated_correction() * Hartree
         Elp = self.calculate_periodic_correction() * Hartree
         Delta_V = self.calculate_potential_alignment() * Hartree
         print('Eli=', Eli, 'Elp=', Elp, 'Delta_V=', Delta_V)
-        return - (Elp - Eli) + Delta_V * self.charge
+        Ecorr = - (Elp - Eli) + Delta_V * self.charge
+        return Ecorr
+
+    def calculate_correction(self):
+        return rank0_call(self._calculate_correction, self.comm)()

@@ -10,7 +10,6 @@ from gpaw.analyse.vdwradii import vdWradii
 from gpaw.utilities.adjust_cell import adjust_cell
 
 
-@pytest.mark.old_gpaw_only
 def test_vdw_ts09(in_tmp_dir, mpi):
     h = 0.4
     s = molecule('LiH')
@@ -28,7 +27,7 @@ def test_vdw_ts09(in_tmp_dir, mpi):
         out_traj = 'LiH.traj'
         out_txt = 'LiH.txt'
 
-        cc = mpi.GPAW(mode='fd', h=h, xc='PBE', txt=out_txt)
+        cc = mpi.GPAW(legacy_gpaw=True, mode='fd', h=h, xc='PBE', txt=out_txt)
 
         # this is needed to initialize txt output
         if cc.old:

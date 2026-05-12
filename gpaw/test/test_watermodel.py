@@ -6,7 +6,6 @@ import pytest
 from ase import Atoms
 from ase.calculators.tip3p import TIP3P, angleHOH, rOH
 from ase.constraints import FixBondLengths
-from ase.io import read
 from ase.io.trajectory import Trajectory
 from ase.md import Langevin as Langevin0
 
@@ -22,7 +21,7 @@ def Langevin(*args, **kwargs):
 
 
 @pytest.mark.slow
-def test_watermodel(in_tmp_dir):
+def test_watermodel(in_tmp_dir, mpi):
     NSTEPS = 600
     SCALE = 200
 
@@ -60,8 +59,9 @@ def test_watermodel(in_tmp_dir):
     rng = np.random.RandomState(123)
     md = Langevin(atoms, 1 * units.fs, temperature_K=300,
                   rng=rng,
-                  friction=0.01, logfile='C.log')
-    traj = Trajectory('C.traj', 'w', atoms)
+                  friction=0.01, logfile='C.log',
+                  comm=mpi.comm)
+    traj = Trajectory('C.traj', 'w', atoms, comm=mpi.comm)
     md.attach(traj.write, interval=1)
 
     start = time.time()
@@ -77,8 +77,9 @@ def test_watermodel(in_tmp_dir):
     rng = np.random.RandomState(123)
     md_ref = Langevin(atoms_ref, 1 * units.fs, temperature_K=300,
                       rng=rng,
-                      friction=0.01, logfile='ref.log')
-    traj_ref = Trajectory('ref.traj', 'w', atoms_ref)
+                      friction=0.01, logfile='ref.log',
+                      comm=mpi.comm)
+    traj_ref = Trajectory('ref.traj', 'w', atoms_ref, comm=mpi.comm)
     md_ref.attach(traj_ref.write, interval=1)
     start = time.time()
     with md_ref:
@@ -91,8 +92,11 @@ def test_watermodel(in_tmp_dir):
     traj_ref.close()
 
     # Compare trajectories
-    images = read('C.traj@:')
-    images_ref = read('ref.traj@:')
+    with Trajectory('C.traj', comm=mpi.comm) as traj:
+        images = [*traj]
+    with Trajectory('ref.traj', comm=mpi.comm) as traj:
+        images_ref = [*traj]
+
     for img1, img2 in zip(images, images_ref):
         norm = np.linalg.norm(img1.get_positions() - img2.get_positions())
         print(norm)

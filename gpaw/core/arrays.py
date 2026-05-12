@@ -114,8 +114,11 @@ class XArray(Generic[DomainType], XP):
         # Choose mybands, s.t. they fit into
         # data_buffer. Hence, datasize divided by nX
         # rounded down.
-        mybands = min(datasize // nX,
-                      self.data.shape[0])
+        if nX == 0:
+            mybands = self.data.shape[0]
+        else:
+            mybands = min(datasize // nX,
+                          self.data.shape[0])
         mybands = self.desc.comm.min_scalar(mybands)
         data = data_buffer[:mybands * nX].reshape(
             (mybands,) + X)
@@ -284,10 +287,10 @@ class XArray(Generic[DomainType], XP):
         raise NotImplementedError
 
     def gathergather(self):
-        a_xX = self.gather()  # gather X
+        a_xX = self.gather()  # gather X (grid-points or plane-waves)
         if a_xX is not None:
             m_xX = a_xX.matrix.gather()  # gather x
-            if m_xX.dist.comm.rank == 0:
+            if m_xX is not None:
                 data = m_xX.data
                 if a_xX.data.dtype != data.dtype:
                     data = data.view(complex)
@@ -320,6 +323,7 @@ class XArray(Generic[DomainType], XP):
         return result
 
     def interpolate(self,
+                    *,
                     plan1: fftw.FFTPlans | None = None,
                     plan2: fftw.FFTPlans | None = None,
                     grid: UGDesc | None = None,
@@ -329,7 +333,10 @@ class XArray(Generic[DomainType], XP):
     def integrate(self, other: Self | None = None) -> np.ndarray:
         raise NotImplementedError
 
-    def norm2(self, kind: str = 'normal', skip_sum=False) -> np.ndarray:
+    def norm2(self,
+              kind: str = 'normal',
+              weights: np.ndarray | None = None,
+              skip_sum=False) -> np.ndarray:
         raise NotImplementedError
 
     def trace_inner_product(self, other: Self) -> float:

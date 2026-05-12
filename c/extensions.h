@@ -6,11 +6,10 @@
 #ifndef H_EXTENSIONS
 #define H_EXTENSIONS
 
-
-#include "python_utils.h"
 #include "gpaw_complex.h"
 #include <stdlib.h>
 #include <stdbool.h>
+#include <assert.h>
 
 /* If strict ANSI, then some useful macros are not defined */
 #if defined(__STRICT_ANSI__) && !defined(__DARWIN_UNIX03)
@@ -25,12 +24,12 @@ static inline void* gpaw_malloc(size_t n)
 }
 
 #ifdef GPAW_BGP
-#define GPAW_MALLOC(T, n) (gpaw_malloc((n) * sizeof(T)))
+#define GPAW_MALLOC(T, n) (T*)(gpaw_malloc((n) * sizeof(T)))
 #else
 #ifdef GPAW_AIX
-#define GPAW_MALLOC(T, n) (malloc((n) * sizeof(T)))
+#define GPAW_MALLOC(T, n) (T*)(malloc((n) * sizeof(T)))
 #else
-#define GPAW_MALLOC(T, n) (gpaw_malloc((n) * sizeof(T)))
+#define GPAW_MALLOC(T, n) (T*)(gpaw_malloc((n) * sizeof(T)))
 #endif
 #endif
 #define MIN(x, y) ((x) < (y) ? (x) : (y))

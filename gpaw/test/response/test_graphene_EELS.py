@@ -7,7 +7,7 @@ from gpaw.test import findpeak
 
 @pytest.mark.dielectricfunction
 @pytest.mark.response
-def test_graphene_EELS(in_tmp_dir, gpw_files):
+def test_graphene_EELS(in_tmp_dir, gpw_files, mpi):
     # Test values
     q_qc = [
         [0, 0, 0],
@@ -21,7 +21,8 @@ def test_graphene_EELS(in_tmp_dir, gpw_files):
     # Calculation
     dfcalc = DielectricFunction(gpw_files['graphene_pw'], truncation='2D',
                                 frequencies=np.linspace(0., 9., 141),
-                                eta=0.3, ecut=150, rate='eta', hilbert=False)
+                                eta=0.3, ecut=150, rate='eta', hilbert=False,
+                                world=mpi.comm)
     for q_c, refs in zip(q_qc, refs_q):
         epsinv = dfcalc.get_inverse_dielectric_function(q_c=q_c)
         omega_w, eels0_w, eels_w = epsinv.eels_spectrum().arrays

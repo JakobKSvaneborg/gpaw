@@ -1,9 +1,8 @@
 #pragma once
 
-#include "../gpu-runtime.h"
+#include "gpu/gpu-runtime.h"
 #include "utils.hpp"
 
-#include <cstdint>
 #include <string>
 #include <cstdint>
 

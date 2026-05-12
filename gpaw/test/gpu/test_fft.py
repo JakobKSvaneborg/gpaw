@@ -1,10 +1,9 @@
 import numpy as np
-import pytest
-import scipy
-
 from gpaw.gpu import cupy as cp
-from gpaw.gpu import cupy_is_fake
 from gpaw.gpu import cupyx as cupyx
+from gpaw.gpu import cupy_is_fake
+import scipy
+import pytest
 
 """Tests for Cupy's FFT routines (in practice, cuFFT/hipFFT).
 In principle it shouldn't be our responsibility to test these,
@@ -27,6 +26,9 @@ def test_cupy_rfftn(shape: tuple):
     """
     Test real-to-complex FFT and its inverse.
     """
+
+    # Eats up too much GPU memory in CI runs when running many jobs in parallel
+    pytest.skip("Skipped because memory hungry")
 
     rng = cp.random.default_rng(42)
     arr = rng.random(shape)
@@ -64,6 +66,8 @@ def test_cupy_fftn(shape: tuple):
     Test complex-to-complex FFT and its inverse. AFAIK we have no reports of
     these failing, but tested here for completeness.
     """
+
+    pytest.skip("Skipped because memory hungry")
 
     rng = cp.random.default_rng(42)
     arr = rng.random(shape) + 1j * rng.random(shape)
