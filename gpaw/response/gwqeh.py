@@ -171,27 +171,14 @@ class GWQEHCorrection:
         self.nw = len(self.omega_w)
         self.wsize = 2 * self.nw
 
-        # Calculate screened potential of Heterostructure
-        if dW_qw is None:
-            if restart:
-                try:
-                    data = np.load(filename + "_dW_qw.npz")
-                    self.qqeh = data['qqeh']
-                    self.wqeh = data['wqeh']
-                    dW_qw = data['dW_qw']
-                except IOError:
-                    dW_qw = self.calculate_W_QEH(structure, d, layer)
-            else:
-                dW_qw = self.calculate_W_QEH(structure, d, layer)
-        else:
-            self.qqeh = qqeh
-            self.wqeh = wqeh
-
-        self.dW_qw = self.get_W_on_grid(dW_qw, include_q0=include_q0,
-                                        metal=metal)
-
-        assert self.nw == self.dW_qw.shape[1], \
-            ('Frequency grids doesnt match!')
+        # Install the screened-potential difference dW. Default impl
+        # below handles the (nq, nw) scalar / monopole representation;
+        # subclasses (e.g. GWmQEHCorrection) override to install a
+        # matrix representation instead.
+        self._setup_dW(dW_qw=dW_qw, qqeh=qqeh, wqeh=wqeh,
+                       structure=structure, d=d, layer=layer,
+                       restart=restart,
+                       include_q0=include_q0, metal=metal)
 
         self.htp = HilbertTransform(self.omega_w, self.eta, gw=True)
         self.htm = HilbertTransform(self.omega_w, -self.eta, gw=True)
@@ -235,6 +222,35 @@ class GWQEHCorrection:
               (self.kncomm.size, ['es', ''][self.kncomm.size == 1]),
               file=self.fd)
         print('Number of blocks:', self.blockcomm.size, file=self.fd)
+
+    def _setup_dW(self, *, dW_qw, qqeh, wqeh, structure, d, layer,
+                  restart, include_q0, metal):
+        """Initialize dW from input, npz, or QEH and install it on the
+        GW grid.
+
+        Default implementation: scalar (nq, nw) monopole stored as
+        ``self.dW_qw``. Subclasses override to install a different
+        representation (e.g. the mQEH matrix).
+        """
+        if dW_qw is None:
+            if restart:
+                try:
+                    data = np.load(self.filename + "_dW_qw.npz")
+                    self.qqeh = data['qqeh']
+                    self.wqeh = data['wqeh']
+                    dW_qw = data['dW_qw']
+                except IOError:
+                    dW_qw = self.calculate_W_QEH(structure, d, layer)
+            else:
+                dW_qw = self.calculate_W_QEH(structure, d, layer)
+        else:
+            self.qqeh = qqeh
+            self.wqeh = wqeh
+
+        self.dW_qw = self.get_W_on_grid(dW_qw, include_q0=include_q0,
+                                        metal=metal)
+        assert self.nw == self.dW_qw.shape[1], \
+            'Frequency grids do not match!'
 
     def calculate_QEH(self):
         print('Calculating QEH self-energy contribution', file=self.fd)
@@ -681,7 +697,7 @@ class GWmQEHCorrection(GWQEHCorrection):
 
     def __init__(self, calc, gwfile=None, filename=None, kpts=[0], bands=None,
                  structure=None, d=None, layer=0,
-                 dW_qw=None, qqeh=None, wqeh=None,
+                 qqeh=None, wqeh=None,
                  txt=sys.stdout, world=mpi.world, domega0=0.025,
                  omega2=10.0, eta=0.1, include_q0=True, metal=False,
                  restart=False, ecut_mqeh=50.0,
@@ -694,12 +710,12 @@ class GWmQEHCorrection(GWQEHCorrection):
         self._include_q0 = include_q0
         self._metal = metal
 
-        # These will be set by calculate_W_QEH or provided directly.
-        # NOTE: GWmQEHCorrection deliberately does NOT carry the QEH potential
-        # basis (phi_qiz). The mQEH self-energy is bilinear in the rho-LS
-        # coefficients of the pair density (see _calculate_sigma_mqeh), so
-        # the truncated phi basis from Layer.get_phi_qaz must never appear
-        # in this class. If you find yourself reaching for phi, that is a
+        # State set by _setup_dW (override below). NOTE: this class
+        # deliberately does NOT carry the QEH potential basis
+        # (phi_qiz). The mQEH self-energy is bilinear in the rho-LS
+        # coefficients of the pair density (see _calculate_sigma_mqeh),
+        # so the truncated phi basis from Layer.get_phi_qaz must never
+        # appear here. If you find yourself reaching for phi, that is a
         # sign that the projection has reverted to the old (buggy)
         # phi-inner-product form.
         self.dW_qw_matrix = None
@@ -711,18 +727,19 @@ class GWmQEHCorrection(GWQEHCorrection):
         self.z_z_qeh = None
         self.dz_qeh = None
 
-        # Store user-provided mQEH data (if any) for setup after parent init
+        # Stash user-provided mQEH data so the _setup_dW override
+        # (dispatched from super().__init__()) can pick it up.
         self._init_dW_qw_matrix = dW_qw_matrix
         self._init_drho_qzi = drho_qzi
         self._init_z_z_qeh = z_z_qeh
         self._init_dz_qeh = dz_qeh
 
-        # Call parent __init__, which will call calculate_W_QEH
-        # (or load dW_qw) and set up everything
+        # The parent's `dW_qw` scalar pipeline is not used by mQEH; we
+        # never pass a scalar here.
         super().__init__(
             calc=calc, gwfile=gwfile, filename=filename, kpts=kpts,
             bands=bands, structure=structure, d=d, layer=layer,
-            dW_qw=dW_qw, qqeh=qqeh, wqeh=wqeh,
+            dW_qw=None, qqeh=qqeh, wqeh=wqeh,
             txt=txt, world=world, domega0=domega0,
             omega2=omega2, eta=eta, include_q0=include_q0,
             metal=metal, restart=restart)
@@ -736,57 +753,90 @@ class GWmQEHCorrection(GWQEHCorrection):
             ('GWmQEHCorrection assumes the third lattice vector is along '
              'Cartesian z and orthogonal to the in-plane axes.')
 
-        # If full mQEH data was provided directly, install it now
-        if self._init_dW_qw_matrix is not None:
-            self.dW_qw_matrix = self._init_dW_qw_matrix
-            self.nbasis = self._init_dW_qw_matrix.shape[2]
-            self.qqeh_matrix = qqeh.copy()
-            self.wqeh_matrix = wqeh.copy()
-            self.drho_qzi_target = self._init_drho_qzi
-            self.z_z_qeh = self._init_z_z_qeh
-            self.dz_qeh = self._init_dz_qeh
-            self._interpolate_mqeh_data()
-        elif self.dW_qw_matrix is None:
-            # Restart path: parent loaded only the scalar from <file>_dW_qw.npz
-            # Try to reload the full matrix + basis data from the same file.
-            self._try_load_mqeh_npz()
+    def _setup_dW(self, *, dW_qw, qqeh, wqeh, structure, d, layer,
+                  restart, include_q0, metal):
+        """Install the mQEH dW matrix; the parent's scalar pipeline is
+        not used.
 
-    def _try_load_mqeh_npz(self):
-        """Reload the mQEH matrix and basis functions from <file>_dW_qw.npz.
-
-        The parent restart path only reads the scalar dW_qw. Without this,
-        a restart would silently degrade to monopole-only because
-        self.dW_qw_matrix would remain None.
+        ``self.dW_qw`` is intentionally never set: nothing in the mQEH
+        path reads it (the per-q evaluation goes through
+        ``self._eval_dW_on_gwgrid`` on the precomputed matrix splines).
+        ``include_q0`` and ``metal`` are consumed by
+        ``_interpolate_mqeh_data`` via ``self._include_q0`` /
+        ``self._metal`` set in ``__init__``; ``dW_qw`` is ignored.
         """
-        try:
-            data = np.load(self.filename + '_dW_qw.npz')
-        except IOError:
+        del dW_qw, include_q0, metal       # not used by mQEH
+
+        # Path 1: user-supplied matrix (synthetic-data / test path).
+        if self._init_dW_qw_matrix is not None:
+            assert qqeh is not None and wqeh is not None, \
+                ('GWmQEHCorrection: qqeh and wqeh must be supplied '
+                 'when dW_qw_matrix is provided directly')
+            self.qqeh = np.asarray(qqeh)
+            self.wqeh = np.asarray(wqeh)
+            self._install_mqeh_matrix(
+                dW_qw_matrix=self._init_dW_qw_matrix,
+                drho_qzi=self._init_drho_qzi,
+                z_z_qeh=self._init_z_z_qeh,
+                dz_qeh=self._init_dz_qeh,
+                qqeh_matrix=self.qqeh,
+                wqeh_matrix=self.wqeh)
             return
-        required = ('dW_qw_matrix', 'drho_qzi',
-                    'z_z_qeh', 'dz_qeh', 'nbasis')
-        if not all(k in data.files for k in required):
-            return
-        self.dW_qw_matrix = data['dW_qw_matrix']
-        self.drho_qzi_target = data['drho_qzi']
-        self.z_z_qeh = data['z_z_qeh']
-        self.dz_qeh = float(data['dz_qeh'])
-        # Defend against silent unit drift across restart.
-        assert np.isclose(self.dz_qeh,
-                          self.z_z_qeh[1] - self.z_z_qeh[0]), \
-            'dz_qeh inconsistent with z_z_qeh spacing in restart file'
-        self.nbasis = int(data['nbasis'])
-        self.qqeh_matrix = self.qqeh.copy()
-        self.wqeh_matrix = self.wqeh.copy()
+
+        # Path 2: restart from <filename>_dW_qw.npz.
+        if restart:
+            try:
+                data = np.load(self.filename + '_dW_qw.npz')
+            except IOError:
+                pass
+            else:
+                required = ('dW_qw_matrix', 'drho_qzi', 'z_z_qeh',
+                            'dz_qeh', 'nbasis', 'qqeh', 'wqeh')
+                if all(k in data.files for k in required):
+                    self.qqeh = data['qqeh']
+                    self.wqeh = data['wqeh']
+                    self._install_mqeh_matrix(
+                        dW_qw_matrix=data['dW_qw_matrix'],
+                        drho_qzi=data['drho_qzi'],
+                        z_z_qeh=data['z_z_qeh'],
+                        dz_qeh=float(data['dz_qeh']),
+                        qqeh_matrix=self.qqeh,
+                        wqeh_matrix=self.wqeh)
+                    print('mQEH matrix data loaded from file',
+                          file=self.fd)
+                    return
+
+        # Path 3: fresh QEH computation (sets state on self).
+        self.calculate_W_QEH(structure, d, layer)
+
+    def _install_mqeh_matrix(self, *, dW_qw_matrix, drho_qzi, z_z_qeh,
+                             dz_qeh, qqeh_matrix, wqeh_matrix):
+        """Set mQEH matrix state and build the q / omega interpolators.
+
+        Single chokepoint for state installation so all three paths
+        (synthetic data, restart, fresh QEH) go through the same code.
+        """
+        dW = np.asarray(dW_qw_matrix)
+        self.dW_qw_matrix = dW
+        self.nbasis = int(dW.shape[2])
+        self.drho_qzi_target = np.asarray(drho_qzi)
+        self.z_z_qeh = np.asarray(z_z_qeh)
+        self.dz_qeh = float(dz_qeh)
+        self.qqeh_matrix = np.asarray(qqeh_matrix).copy()
+        self.wqeh_matrix = np.asarray(wqeh_matrix).copy()
+        # Defend against silent unit drift in the restart / synthetic
+        # paths.
+        if len(self.z_z_qeh) > 1:
+            assert np.isclose(self.dz_qeh,
+                              self.z_z_qeh[1] - self.z_z_qeh[0]), \
+                'dz_qeh inconsistent with z_z_qeh spacing'
         self._interpolate_mqeh_data()
-        print('mQEH matrix data loaded from file', file=self.fd)
 
     def calculate_W_QEH(self, structure, d, layer=0):
-        """Calculate the full mQEH Delta-W matrix.
+        """Compute and install the full mQEH Delta-W matrix.
 
-        Returns the scalar (monopole) dW_qw for the parent class grid
-        interpolation, but also stores the full basis Delta-W matrix,
-        density basis functions, and potential basis functions needed
-        for the mQEH projection.
+        State-setter: writes ``self.dW_qw_matrix`` and friends via
+        ``_install_mqeh_matrix``. Does not return anything.
         """
         from qeh import QEH
         from qeh.heterostructure import expand_layers
@@ -833,59 +883,43 @@ class GWmQEHCorrection(GWQEHCorrection):
         dW_qwab = (W_qwij[:, :, i0:i1, i0:i1]
                    - W0_qwij[:, :, :nbasis_target, :nbasis_target])
 
-        # Store the full mQEH data
-        self.dW_qw_matrix = dW_qwab
-        self.nbasis = nbasis_target
-        self.qqeh_matrix = HS.hs.q_q.copy()
-        self.wqeh_matrix = HS.hs.omega_w.copy()
-
-        # Store density basis functions for the target layer on the
-        # heterostructure z-grid. We intentionally do NOT store the
-        # potential basis: the mQEH self-energy is a rho-bilinear (see
-        # _calculate_sigma_mqeh), and Layer.get_phi_qaz hard-zeros phi
-        # outside the layer width, which would break the projection.
+        # Density basis functions for the target layer on the het z-grid.
+        # We intentionally do NOT take the potential basis: the mQEH
+        # self-energy is a rho-bilinear (see _calculate_sigma_mqeh),
+        # and Layer.get_phi_qaz hard-zeros phi outside the layer width,
+        # which would break the projection.
         target_layer = HS.hs.layers_l[layer]
-        self.drho_qzi_target = np.array(
+        drho_qzi = np.array(
             [target_layer.get_drho_qza(iq_q=[iq])[0]
              for iq in range(HS.hs.qN)])
-        self.z_z_qeh = HS.hs.z_z.copy()
-        self.dz_qeh = HS.hs.dz
 
-        self.wqeh = HS.hs.omega_w
-        self.qqeh = HS.hs.q_q
+        qqeh = HS.hs.q_q.copy()
+        wqeh = HS.hs.omega_w.copy()
+        # Set self.qqeh / self.wqeh for npz consumers; matrix copies
+        # are installed by _install_mqeh_matrix below.
+        self.qqeh = qqeh
+        self.wqeh = wqeh
 
-        # Save for restart
+        self._install_mqeh_matrix(
+            dW_qw_matrix=dW_qwab,
+            drho_qzi=drho_qzi,
+            z_z_qeh=HS.hs.z_z.copy(),
+            dz_qeh=HS.hs.dz,
+            qqeh_matrix=qqeh,
+            wqeh_matrix=wqeh)
+
+        # Save for restart. No 'dW_qw' scalar -- mQEH does not use it,
+        # and writing the (0,0) slice was a misnomer (it is the first
+        # eigenmode of V*chi, not the W&T-2017 monopole).
         if self.world.rank == 0:
-            data = {'qqeh': self.qqeh,
-                    'wqeh': self.wqeh,
-                    'dW_qw': dW_qwab[:, :, 0, 0],  # monopole for compat
+            data = {'qqeh': qqeh,
+                    'wqeh': wqeh,
                     'dW_qw_matrix': dW_qwab,
-                    'drho_qzi': self.drho_qzi_target,
+                    'drho_qzi': drho_qzi,
                     'z_z_qeh': self.z_z_qeh,
                     'dz_qeh': self.dz_qeh,
                     'nbasis': self.nbasis}
-            np.savez(self.filename + "_dW_qw.npz", **data)
-
-        # Return monopole component for parent class
-        return dW_qwab[:, :, 0, 0]
-
-    def get_W_on_grid(self, dW_qw, include_q0=True, metal=False):
-        """Interpolate the full mQEH Delta-W matrix onto the GW grid.
-
-        The parent class method is called for the monopole scalar dW.
-        Here we additionally interpolate the full Delta-W matrix and
-        the basis functions onto the q-grid used in the GW calculation.
-        """
-        # Call parent to get the scalar dW on the GW grid
-        # (used as fallback / comparison)
-        dW_scalar = super().get_W_on_grid(dW_qw, include_q0=include_q0,
-                                          metal=metal)
-
-        # If we have the full matrix data, interpolate it too
-        if self.dW_qw_matrix is not None:
-            self._interpolate_mqeh_data()
-
-        return dW_scalar
+            np.savez(self.filename + '_dW_qw.npz', **data)
 
     def _interpolate_mqeh_data(self):
         """Pre-compute interpolators for the mQEH Delta-W matrix and
