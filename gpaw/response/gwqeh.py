@@ -990,7 +990,20 @@ class GWmQEHCorrection(GWQEHCorrection):
         State-setter: writes ``self.dW_qw_matrix`` and friends via
         ``_install_mqeh_matrix``. Does not return anything.
         """
-        from qeh import QEH
+        # MQEH (not QEH) is the right driver here. The self-energy
+        # bilinear in _calculate_sigma_mqeh is d^dagger W d where d
+        # are rho-LS coefficients of the pair density, which is only
+        # correct when W = <rho|W|rho>. That is exactly what MQEH's
+        # get_screened_potential returns (its Coulomb-kernel override
+        # is V_{ij} = <rho_i|dphi_j>; see qeh/mqeh.py:13-31).
+        # QEH.get_screened_potential instead returns
+        # V_{ij} = (gphi @ phi @ dphi) which is in the dual-phi basis;
+        # combined with the rho-LS projection here, dimensionful basis
+        # factors (g_phi ~ 1/Lz from phi=1, S^{-1} ~ 1/<rho|rho>) end
+        # up multiplying sigma by ~Lz^2 / (basis overlap)^2, giving
+        # the wild O(100 eV) overestimate observed for mbb-format
+        # BBs whose rho is biorthogonal to phi (not L2-normalized).
+        from qeh import MQEH
         from qeh.heterostructure import expand_layers
 
         structure = expand_layers(structure)
@@ -1002,7 +1015,7 @@ class GWmQEHCorrection(GWQEHCorrection):
             d = interlayer_to_thickness(d)
 
         # Single layer (isolated monolayer)
-        HS0 = QEH.heterostructure(
+        HS0 = MQEH.heterostructure(
             BBfiles=[structure[layer]],
             layerwidth_l=[d[layer] / Bohr],
             wmax=wmax,
@@ -1015,7 +1028,7 @@ class GWmQEHCorrection(GWQEHCorrection):
         W0_qwij = HS0.get_screened_potential(subtract_bare_coulomb=True)
 
         # Full heterostructure
-        HS = QEH.heterostructure(
+        HS = MQEH.heterostructure(
             BBfiles=structure,
             layerwidth_l=d / Bohr,
             wmax=wmax,
