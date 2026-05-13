@@ -706,9 +706,19 @@ class GWmQEHCorrection(GWQEHCorrection):
 
         self.ecut_mqeh = ecut_mqeh / Hartree
 
-        # Save flags needed for q->0 averaging of the matrix
+        if metal:
+            # _interpolate_mqeh_data does not implement the parent's
+            # metal=True semantics (strip q=0 from the QEH interpolation
+            # grid; shift the q_cut accordingly). Refuse rather than
+            # silently treating a metal as a semiconductor.
+            raise NotImplementedError(
+                'metal=True is not yet supported for GWmQEHCorrection; '
+                'the matrix q-interpolation in _interpolate_mqeh_data '
+                'would silently fall back to the non-metal q_cut.')
+
+        # Used by _interpolate_mqeh_data to decide whether to zero or
+        # weight-average the small-q ring of the dW matrix.
         self._include_q0 = include_q0
-        self._metal = metal
 
         # State set by _setup_dW (override below). NOTE: this class
         # deliberately does NOT carry the QEH potential basis
@@ -761,9 +771,10 @@ class GWmQEHCorrection(GWQEHCorrection):
         ``self.dW_qw`` is intentionally never set: nothing in the mQEH
         path reads it (the per-q evaluation goes through
         ``self._eval_dW_on_gwgrid`` on the precomputed matrix splines).
-        ``include_q0`` and ``metal`` are consumed by
-        ``_interpolate_mqeh_data`` via ``self._include_q0`` /
-        ``self._metal`` set in ``__init__``; ``dW_qw`` is ignored.
+        ``include_q0`` is honored via ``self._include_q0`` (stored in
+        ``__init__``) inside ``_interpolate_mqeh_data``. ``metal`` is
+        rejected at construction time, so it cannot reach this method
+        as ``True``. ``dW_qw`` is ignored.
         """
         del dW_qw, include_q0, metal       # not used by mQEH
 
@@ -830,6 +841,15 @@ class GWmQEHCorrection(GWQEHCorrection):
             assert np.isclose(self.dz_qeh,
                               self.z_z_qeh[1] - self.z_z_qeh[0]), \
                 'dz_qeh inconsistent with z_z_qeh spacing'
+        # Compute the GW q-magnitude grid that _interpolate_mqeh_data's
+        # q -> 0 averaging block depends on. Before the legacy-scalar
+        # refactor this attribute was set as a side effect of the
+        # parent's get_W_on_grid; with that path gone we have to
+        # populate it directly here, otherwise _q0_dW_Wab stays None
+        # and include_q0 / small-q averaging silently no-op.
+        rcell_cv = 2 * pi * np.linalg.inv(self.gs.gd.cell_cv).T
+        q_vs = np.dot(self.qd.ibzk_kc, rcell_cv)
+        self.q_grid = (q_vs**2).sum(axis=1) ** 0.5
         self._interpolate_mqeh_data()
 
     def calculate_W_QEH(self, structure, d, layer=0):

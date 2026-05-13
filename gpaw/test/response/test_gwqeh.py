@@ -641,6 +641,75 @@ def test_mqeh_ecut_convergence(in_tmp_dir, gpw_files):
         'Low and high ecut give identical results'
 
 
+@pytest.mark.response
+@pytest.mark.serial
+def test_mqeh_include_q0_toggle(in_tmp_dir, gpw_files):
+    """include_q0 must actually change the small-q matrix contribution.
+
+    Regression for the q_grid wiring: _interpolate_mqeh_data uses
+    self.q_grid to set the small-q cutoff and decide whether to zero
+    (include_q0=False) or weight-average (include_q0=True) the matrix
+    dW for |q+G_par| below that cutoff. Before the q_grid was wired
+    into _install_mqeh_matrix, self.q_grid was unset on the mQEH path,
+    so neither branch fired and the two flag values produced
+    identical output.
+    """
+    from gpaw.response.gwqeh import GWmQEHCorrection
+
+    gpwfile = str(gpw_files['mos2_pw_fulldiag'])
+    (qqeh, wqeh, dW_scalar,
+     dW_matrix, drho_qzi, z_z, dz) = _make_synthetic_mqeh_data()
+
+    common = dict(
+        calc=gpwfile, kpts=[0], bands=(8, 12),
+        qqeh=qqeh, wqeh=wqeh,
+        domega0=0.1, omega2=5.0, ecut_mqeh=50.0,
+        dW_qw_matrix=dW_matrix, drho_qzi=drho_qzi,
+        z_z_qeh=z_z, dz_qeh=dz)
+
+    gwq_in = GWmQEHCorrection(filename='mqeh_q0_in',
+                              include_q0=True, **common)
+    qp_in = gwq_in.calculate_qp_correction()
+
+    gwq_out = GWmQEHCorrection(filename='mqeh_q0_out',
+                               include_q0=False, **common)
+    qp_out = gwq_out.calculate_qp_correction()
+
+    assert np.any(np.abs(qp_in) > 1e-12), \
+        'include_q0=True corrections are zero'
+    assert not np.allclose(qp_in, qp_out, atol=1e-12), \
+        ('include_q0 toggle has no effect on the mQEH self-energy; '
+         'self.q_grid is probably not being set before '
+         '_interpolate_mqeh_data')
+
+
+@pytest.mark.response
+@pytest.mark.serial
+def test_mqeh_metal_rejected(in_tmp_dir, gpw_files):
+    """metal=True must raise NotImplementedError for GWmQEHCorrection.
+
+    The matrix q-interpolation in _interpolate_mqeh_data does not
+    implement the parent's metal-handling (strip q=0 from interp,
+    different q_cut). Until it does, the kwarg should be refused so
+    users don't silently get the non-metal q_cut on a metallic system.
+    """
+    from gpaw.response.gwqeh import GWmQEHCorrection
+
+    gpwfile = str(gpw_files['mos2_pw_fulldiag'])
+    (qqeh, wqeh, dW_scalar,
+     dW_matrix, drho_qzi, z_z, dz) = _make_synthetic_mqeh_data()
+
+    with pytest.raises(NotImplementedError):
+        GWmQEHCorrection(
+            calc=gpwfile, filename='mqeh_metal_should_fail',
+            kpts=[0], bands=(8, 12),
+            qqeh=qqeh, wqeh=wqeh,
+            domega0=0.1, omega2=5.0, ecut_mqeh=50.0,
+            metal=True,
+            dW_qw_matrix=dW_matrix, drho_qzi=drho_qzi,
+            z_z_qeh=z_z, dz_qeh=dz)
+
+
 # ---------- Full mQEH pipeline test (requires qeh package) ----------
 
 
