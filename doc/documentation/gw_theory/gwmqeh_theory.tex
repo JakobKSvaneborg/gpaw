@@ -262,75 +262,69 @@ $1/\Omega = 1/(AL_z)$.  The sign $e^{+\im\Gz z}$ matches the
 $e^{-\im\GG\!\cdot\!\rr}$ convention used by GPAW's
 \texttt{ActualPairDensityCalculator}.
 
-\subsection{Density-basis least-squares projection}
+\subsection{Density-basis least-squares projection of the pair density}
 \label{sec:LS}
 
-The mQEH ansatz approximates the $z,z'$ kernel in \eq{GGsum-to-zz} by
-the rank-$N_i$ expansion
-\begin{equation}
-\Delta W^{i}\bigl(q_\parallel;z,z';\omega\bigr)\;\approx\;
-\sum_{\alpha\beta=1}^{N_i}
-\rho^{i}_{\alpha}(z;q_\parallel)\,
-\widetilde{\Delta W}^{i}_{\alpha\beta}(q_\parallel,\omega)\,
-\rho^{i*}_{\beta}(z';q_\parallel),
-\label{eq:dW-rank-N}
-\end{equation}
-with the coefficients $\widetilde{\Delta W}^{i}_{\alpha\beta}$ fixed
-by the dual-pairing condition
-\begin{equation}
-\Delta W^{i}_{\alpha\beta}(q_\parallel,\omega)
-\;=\;\int\!\dd z\,\dd z'\;
-\rho^{i*}_{\alpha}(z;q_\parallel)\,
-\Delta W^{i}(q_\parallel;z,z';\omega)\,
-\rho^{i}_{\beta}(z';q_\parallel),
-\label{eq:dWab-pairing}
-\end{equation}
-i.e., the matrix returned by QEH from \eq{WmQEH-def} for $\Delta W$
-(this is precisely what is stored in \texttt{dW\_qw\_matrix}).
+The approximation that defines mQEH lives entirely in the
+\emph{pair density}, not in the screened interaction.  The matrix
+$\Delta W^{i}_{\alpha\beta}(q_\parallel,\omega)$ produced by QEH
+(\eq{WmQEH-def}) is the \emph{exact} matrix element of the true
+kernel $\Delta W^{i}(z,z';q_\parallel,\omega)$ between
+$\rho^{i}_{\alpha}$ and $\rho^{i}_{\beta}$; it is \emph{not} the
+expansion coefficient of a rank-$N_i$ ansatz for $\Delta W^{i}$
+itself.  Writing the kernel as
+$\Delta W^{i}(z,z')=\sum_{\alpha\beta}\rho^{i}_{\alpha}(z)\,
+\Delta W^{i}_{\alpha\beta}\,\rho^{i*}_{\beta}(z')$ would be the
+distinct (and unjustified) rank-$N_i$ replacement
+$\Delta W\leftarrow S^{-1}(\Delta W)S^{-1}$ in the operator sense ---
+the two coincide only when $S=\mathbb{1}$, which is generically false
+on the heterostructure $z$-grid (see below).  The implementation does
+\emph{not} do this; it uses the exact matrix elements as they come
+out of QEH and approximates the pair density instead.
 
-\eq{dW-rank-N} and \eq{dWab-pairing} together imply
+Approximate the $z$-resolved pair density in the density basis,
 \begin{equation}
-\widetilde{\Delta W}^{i}_{\alpha\beta}(q_\parallel,\omega) \;=\;
-\sum_{\gamma\delta}
-\bigl[S^{-1}\bigr]_{\alpha\gamma}(q_\parallel)\;
-\Delta W^{i}_{\gamma\delta}(q_\parallel,\omega)\;
-\bigl[S^{-1}\bigr]_{\delta\beta}(q_\parallel),
-\label{eq:dWtilde}
+\bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;z)\;\approx\;
+\sum_{\alpha=1}^{N_i} d^{(nm)}_{\alpha}(\qpar+\Gpar)\;
+\rho^{i}_{\alpha}\!\bigl(z;|\qpar+\Gpar|\bigr),
+\label{eq:rho-expansion}
 \end{equation}
-where
+where the coefficients are chosen to minimise the residual on the
+heterostructure $z$-grid,
+\begin{equation}
+\{d^{(nm)}_{\alpha}\}\;=\;
+\underset{\{d_\alpha\}}{\arg\min}\;
+\Bigl\|\,\bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;\cdot)
+\;-\;\sum_{\alpha} d_{\alpha}\,\rho^{i}_{\alpha}\Bigr\|^{2}_{L^{2}(\text{het grid})}.
+\label{eq:LS-variational}
+\end{equation}
+The orthogonal complement
+\begin{equation}
+\bar\rho^{\perp}_{nm}(\Gpar;z)\;=\;
+\bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;z)\;-\;
+\sum_{\alpha} d^{(nm)}_{\alpha}\,\rho^{i}_{\alpha}(z;|\qpar+\Gpar|)
+\label{eq:rho-perp}
+\end{equation}
+is what the mQEH self-energy discards; enriching $\{\rho_\alpha\}$
+shrinks $\|\bar\rho^{\perp}\|$ monotonically and the result
+approaches the exact PW form.
+
+Setting $\partial/\partial d^*_\alpha\|\,\bar\rho-\sum_\beta d_\beta
+\rho_\beta\|^{2}=0$ yields the normal equation
+$S\,d=R$ with the rho--rho overlap and the rho--pair-density overlap
 \begin{equation}
 S_{\alpha\beta}(q_\parallel)\;=\;
 \int\!\dd z\;\rho^{i*}_{\alpha}(z;q_\parallel)\,
-\rho^{i}_{\beta}(z;q_\parallel)
-\label{eq:Soverlap}
-\end{equation}
-is the rho-overlap on the (full) heterostructure $z$-grid.  Crucially
-$S\neq\mathbb{1}$: the QEH density basis is not orthonormal on the
-het grid (it is biorthogonal to the truncated $\phi$-basis, which we
-do not have access to here).
-
-Substituting \eq{dW-rank-N} into \eq{GGsum-to-zz} and using the
-overlap integrals
-\begin{equation}
-R^{(nm)}_{\alpha}(\qpar+\Gpar)\;\equiv\;
+\rho^{i}_{\beta}(z;q_\parallel),\qquad
+R^{(nm)}_{\alpha}(\qpar+\Gpar)\;=\;
 \int\!\dd z\;\rho^{i*}_{\alpha}\!\bigl(z;|\qpar+\Gpar|\bigr)\,
 \bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;z),
-\label{eq:R-def}
+\label{eq:S-and-R}
 \end{equation}
-the inner $\Gpar$-block of the PW sum becomes
-\begin{equation}
-\sum_{\alpha\beta}
-R^{(nm)*}_{\alpha}\,
-\widetilde{\Delta W}^{i}_{\alpha\beta}(|\qpar+\Gpar|,\omega)\,
-R^{(nm)}_{\beta}
-\;=\;
-\sum_{\alpha\beta}\;
-d^{(nm)*}_{\alpha}(\qpar+\Gpar)\;
-\Delta W^{i}_{\alpha\beta}\!\bigl(|\qpar+\Gpar|,\omega\bigr)\;
-d^{(nm)}_{\beta}(\qpar+\Gpar),
-\label{eq:GGsum-final}
-\end{equation}
-with the rho-coefficients
+both on the heterostructure $z$-grid; crucially $S\neq\mathbb{1}$
+because $\{\rho_\alpha\}$ is biorthogonal to the truncated
+$\phi$-basis (which we cannot access on the het grid; see Sec.~5),
+not orthonormal in the usual $L^{2}$ sense.  The coefficients are
 \begin{equation}
 \boxed{\;
 d^{(nm)}_{\alpha}(\qpar+\Gpar)\;=\;
@@ -339,41 +333,36 @@ R^{(nm)}_{\beta}(\qpar+\Gpar).
 \;}
 \label{eq:d-def}
 \end{equation}
-The right-hand side of \eq{d-def} is the solution of the normal
-equation $\sum_{\beta} S_{\alpha\beta}\,d_{\beta} = R_{\alpha}$, which
-is exactly what the code does:
+
+Substituting \eq{rho-expansion} into the $(z,z')$ integrand of
+\eq{GGsum-to-zz} and using \emph{exact} matrix elements for
+$\Delta W^{i}_{\alpha\beta}$,
+\begin{equation}
+\int\!\dd z\,\dd z'\;
+\bar\rho^{m,\kk+\qq*}_{n,\kk}(\Gpar;z)\,
+\Delta W^{i}(z,z';|\qpar+\Gpar|,\omega)\,
+\bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;z')
+\;\approx\;
+\sum_{\alpha\beta}\;
+d^{(nm)*}_{\alpha}\;\Delta W^{i}_{\alpha\beta}(|\qpar+\Gpar|,\omega)\;
+d^{(nm)}_{\beta},
+\label{eq:GGsum-final}
+\end{equation}
+with the approximation error
+$\int\bar\rho^{\perp*}\Delta W\bar\rho^{\perp}+\text{cross terms}$
+suppressed in the rich-basis limit.  The right-hand side of
+\eq{GGsum-final} is the bilinear form the implementation evaluates.
+The least-squares route is precisely what the code does
+(\texttt{gwqeh.py}\,L.~1381--1384, inside
+\texttt{\_calculate\_sigma\_mqeh}):
 \begin{lstlisting}[language=Python]
 # R_{m,a} = int rho_a*(z) bar_rho(z) dz
 R_m_a = (rho_mz @ drho_za.conj()) * self.dz_qeh
 # Normal equation: S @ d.T = R.T  =>  d = solve(S, R.T).T
 d_mGpar_a[:, ig, :] = np.linalg.solve(S_Gpar_ab[ig], R_m_a.T).T
 \end{lstlisting}
-(\texttt{gwqeh.py}\,L.~1381--1384, inside
-\texttt{\_calculate\_sigma\_mqeh}).
-
-\paragraph{Variational interpretation.}
-\eq{d-def} is the least-squares projection of
-$\bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;\cdot)$ onto the density basis on
-the het grid:
-\begin{equation}
-\{d^{(nm)}_{\alpha}\}\;=\;
-\underset{\{d_\alpha\}}{\arg\min}\;
-\Bigl\|\,\bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;\cdot)
-\;-\;\sum_{\alpha} d_{\alpha}\,\rho^{i}_{\alpha}\!\bigl(\,\cdot\,;|\qpar+\Gpar|\bigr)\,\Bigr\|^{2}_{L^{2}(\text{het grid})}.
-\label{eq:LS-variational}
-\end{equation}
-The mQEH self-energy keeps only the in-span part of the pair density.
-The orthogonal complement,
-\begin{equation}
-\bar\rho^{\perp}_{nm}(\Gpar;z)\;=\;
-\bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;z)\;-\;
-\sum_{\alpha} d^{(nm)}_{\alpha}\,\rho^{i}_{\alpha}(z;|\qpar+\Gpar|),
-\label{eq:rho-perp}
-\end{equation}
-is discarded.  This is the controlled approximation introduced by the
-truncated density basis: enriching $\{\rho_\alpha\}$ shrinks
-$\|\bar\rho^{\perp}\|$ monotonically and the mQEH self-energy
-approaches the exact PW form, as one would hope.
+followed by the contraction \texttt{(d\_a.conj() @ W\_ab @ d\_a)}
+at L.~1402--1403.
 
 \subsection{Final self-energy formula}
 
@@ -514,8 +503,8 @@ drho_Gpar_za[ig] = drho_za
 # S_{ab} = int rho_a*(z) rho_b(z) dz on the het z-grid.
 S_Gpar_ab[ig] = (drho_za.conj().T @ drho_za) * self.dz_qeh
 \end{lstlisting}
-(\texttt{gwqeh.py}\,L.~1175--1181), implementing \eq{Soverlap}.  Per
-band transition $m$, the overlap vector \eq{R-def} is built as a
+(\texttt{gwqeh.py}\,L.~1175--1181), implementing \eq{S-and-R}.  Per
+band transition $m$, the overlap vector \eq{S-and-R} is built as a
 single matrix product (\texttt{gwqeh.py}\,L.~1381):
 \begin{lstlisting}[language=Python]
 R_m_a = (rho_mz @ drho_za.conj()) * self.dz_qeh
@@ -608,12 +597,12 @@ $\Delta W^{i}_{\alpha\beta}(q_\parallel,\omega)$ &
 $\langle\rho|\Delta W|\rho\rangle$ matrix on layer $i$
 & \texttt{dW\_qw\_matrix}\\
 $S_{\alpha\beta}(q_\parallel)$ & rho-overlap on the het $z$-grid,
-\eq{Soverlap} & \texttt{S\_Gpar\_ab}\\
+\eq{S-and-R} & \texttt{S\_Gpar\_ab}\\
 $\Gpar$ partition of $\GG$ & in-plane / out-of-plane split &
 \texttt{unique\_Gpar}, \texttt{inverse\_idx}\\
 $\bar\rho(\Gpar;z)$ & $z$-resolved pair density, \eq{rho-z} &
 \texttt{rho\_mz}\\
-$R^{(nm)}_{\alpha}$ & rho-pair-density overlap, \eq{R-def} &
+$R^{(nm)}_{\alpha}$ & rho-pair-density overlap, \eq{S-and-R} &
 \texttt{R\_m\_a}\\
 $d^{(nm)}_{\alpha}$ & least-squares rho-coefficients, \eq{d-def} &
 \texttt{d\_mGpar\_a}\\
