@@ -270,7 +270,9 @@ class GWQEHCorrection:
             print('Calculating contribution from IBZ q-point #%d/%d q_c=%s'
                   % (nq, Nq, qcstr), file=self.fd)
 
-            # Screened potential
+            # Screened potential. QEH returns dW in Hartree*Bohr^2; the
+            # factor L absorbs the 1/L in x = 1/(N_q*2pi*Omega) so that
+            # x*L = 1/(N_q*2pi*A) matches Eq.(9) of W&T 2017.
             dW_w = self.dW_qw[nq]
             dW_w = dW_w[:, np.newaxis, np.newaxis]
             L = abs(self.gs.gd.cell_cv[2, 2])
@@ -758,6 +760,10 @@ class GWmQEHCorrection(GWQEHCorrection):
         self.drho_qzi_target = data['drho_qzi']
         self.z_z_qeh = data['z_z_qeh']
         self.dz_qeh = float(data['dz_qeh'])
+        # Defend against silent unit drift across restart.
+        assert np.isclose(self.dz_qeh,
+                          self.z_z_qeh[1] - self.z_z_qeh[0]), \
+            'dz_qeh inconsistent with z_z_qeh spacing in restart file'
         self.nbasis = int(data['nbasis'])
         self.qqeh_matrix = self.qqeh.copy()
         self.wqeh_matrix = self.wqeh.copy()
@@ -1086,7 +1092,7 @@ class GWmQEHCorrection(GWQEHCorrection):
                 # GW frequency grid; the omega-direction interpolation
                 # was precomputed in _interpolate_mqeh_data.
                 dW_wab = self._eval_dW_on_gwgrid(q_abs)
-                # Apply L factor (unit cell height) as in parent
+                # dW is Hartree*Bohr^2; *= L makes x*L = 1/(N_q*2pi*A).
                 dW_wab *= L
 
                 # Set up Wpm for Hilbert transform
@@ -1283,24 +1289,8 @@ class GWmQEHCorrection(GWQEHCorrection):
             C_mGpar_a[:, ig, :] = (
                 rho_mz @ phi_az.conj().T * self.dz_qeh)
 
-        # Now compute self-energy using the expansion coefficients
-        # The factor 1/A appears because we sum over G_parallel:
-        # (1/Omega) sum_G (...) = (1/A) sum_{G_par} (1/L) sum_{G_z} (...)
-        # The (1/L) is absorbed into the inverse FFT normalization above,
-        # and (1/Omega) is already in x, so we need an extra factor of
-        # (Omega / A) = L to compensate for splitting 1/Omega into 1/(A*L).
-        # Since dW was already multiplied by L, the net effect is that
-        # x (which contains 1/Omega) handles the normalization correctly
-        # when we sum over G_parallel contributions.
-        # The pair density normalization: n_mG from GPAW includes dv,
-        # so rho(G_par, z) = sum_{G_z} n(G_par,G_z) e^{iG_z z} / L_z
-        # and C_alpha = int dz rho(G_par,z) phi_alpha(z) dz_qeh
-        # The self-energy is:
-        # (1/(N_q * 2pi)) * sum_{G_par} sum_{a,b} C*_a W_ab C_b / A
-        # where the 1/A factor replaces 1/Omega from the parent.
-        # Since x = 1/(N_q * 2pi * Omega) = 1/(N_q * 2pi * A * L),
-        # and W already includes factor L, we get x*L = 1/(N_q*2pi*A).
-        # So we should use x directly (no extra 1/A).
+        # Prefactor: x = 1/(N_q*2pi*Omega) and dW carries an extra L,
+        # so x*L = 1/(N_q*2pi*A) matches Eq.(9) of W&T 2017.
         sigma = 0.0
         dsigma = 0.0
 
