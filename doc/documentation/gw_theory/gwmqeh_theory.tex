@@ -1,0 +1,698 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{bm}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{braket}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+
+\emergencystretch=3em
+\sloppy
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  columns=fullflexible,
+  frame=single,
+  keywordstyle=\color{blue!60!black}\bfseries,
+  commentstyle=\color{green!50!black}\itshape,
+  language=Python,
+}
+
+% Common shorthands
+\newcommand{\rr}{\mathbf{r}}
+\newcommand{\qq}{\mathbf{q}}
+\newcommand{\GG}{\mathbf{G}}
+\newcommand{\kk}{\mathbf{k}}
+\newcommand{\Gpar}{\mathbf{G}_{\!\parallel}}
+\newcommand{\qpar}{\mathbf{q}_{\parallel}}
+\newcommand{\Gz}{G_{z}}
+\newcommand{\dd}{\mathrm{d}}
+\newcommand{\im}{\mathrm{i}}
+\newcommand{\half}{\tfrac{1}{2}}
+\newcommand{\Tr}{\mathrm{Tr}}
+\newcommand{\Heter}{\text{HS}}
+\newcommand{\sgn}{\mathrm{sgn}}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\eq}[1]{Eq.~(\ref{eq:#1})}
+
+\title{The $G\Delta W$ method in the mQEH basis: \\ mathematical analysis of the \texttt{GWmQEHCorrection} implementation}
+\author{Branch \texttt{claude/implement-gdeltaw-mqeh-E3yyU} of GPAW}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We document the mathematics behind \texttt{gpaw.response.gwqeh.GWmQEHCorrection},
+which extends the $G\Delta W$ method of Winther and
+Thygesen [2D~Mater.~\textbf{4}, 025059 (2017)] from the monopole approximation
+to the full multi-pole quantum-electrostatic heterostructure (mQEH)
+basis.  The original $G\Delta W$ method assumes that the change in the
+screened Coulomb interaction $\Delta W^i$ of a 2D layer $i$ embedded
+in a van der Waals heterostructure is well described by its in-plane
+macroscopic ($\GG=\GG'=0$) component, equivalent to keeping a single
+monopole density basis function per layer.  In the mQEH generalisation
+the building block of each layer carries multiple density basis
+functions $\{\rho_{\alpha}\}_{\alpha=1}^{N_i}$, and the QEH library
+returns the matrix
+\[
+W^{\text{mQEH}}_{\alpha\beta}(q_\parallel,\omega) =
+\int\!\dd z\,\dd z'\;\rho_{\alpha}^{*}(z;q_\parallel)\;
+W^{\Heter}(z,z';q_\parallel,\omega)\;\rho_{\beta}(z';q_\parallel)
+\]
+on a heterostructure $z$-grid.  Each GPAW Bloch pair density
+$\bar\rho^{nm}(\Gpar;z)$, after Fourier-transforming the out-of-plane
+plane-wave index $\Gz$ into $z$, is then \emph{least-squares-fitted}
+into the (non-orthogonal) density basis to extract expansion
+coefficients $d^{nm}_{\alpha}(\qpar+\Gpar)$.  The mQEH self-energy
+contribution is the bilinear form
+$\sum_{\alpha\beta} d^{nm*}_{\alpha} W^{\text{mQEH}}_{\alpha\beta}
+d^{nm}_{\beta}$ summed over in-plane $\Gpar$ shells and over band
+transitions.
+\end{abstract}
+
+\section{Recap of the $G\Delta W$ method}
+
+The screened Coulomb interaction
+\begin{equation}
+W(\rr,\rr',\omega) = \int \dd\rr''\, \eps^{-1}(\rr,\rr'',\omega)\,
+   V(\rr'',\rr'),
+\label{eq:W-def}
+\end{equation}
+splits in a heterostructure of 2D layers as
+\begin{equation}
+W^{i,\Heter}(\rr,\rr',\omega) =
+   W^i(\rr,\rr',\omega) + \Delta W^i(\rr,\rr',\omega),
+\label{eq:dW-decomp}
+\end{equation}
+where $W^i$ is the freestanding-monolayer screened interaction and
+$\Delta W^i$ is the change in screening due to the surrounding layers
+(Eq.~(5) of the paper).  The QP correction due to the environment is
+\begin{equation}
+\Delta E_{n\kk}^{i,\text{scr}} = Z_{n\kk}^i\,
+   \mathrm{Re}\,\Delta\Sigma_{n\kk}^i(\omega=\eps_{n\kk}),
+\label{eq:dE-Z-dSigma}
+\end{equation}
+with $Z_{n\kk}^i = (1 - \partial_\omega\Sigma_{n\kk})^{-1}$ the GW
+renormalisation factor (Eq.~(6) of the paper).
+
+In a plane-wave representation the full GW self-energy on top of
+DFT eigenstates reads
+\begin{equation}
+\Sigma_{n\kk}=\frac{1}{(2\pi)^3}\!\int_\text{BZ}\!\dd\qq\,
+\frac{\im}{2\pi}\!\int\dd\omega'\sum_{m,\GG\GG'}
+\frac{\rho^{m,\kk+\qq}_{n,\kk}(\GG)\,
+      \bigl[\rho^{m,\kk+\qq}_{n,\kk}(\GG')\bigr]^{*}}
+     {\omega+\omega'-\eps_{m\kk+\qq}-\im\eta\,\sgn(\eps_{m\kk+\qq}-\mu)}
+\,\widetilde W_{\GG\GG'}(\qq,\omega'),
+\label{eq:Sigma-PW}
+\end{equation}
+with $\widetilde W = W - V$ (Eq.~(9) of the paper) and the pair density
+\begin{equation}
+\rho^{m,\kk+\qq}_{n,\kk}(\GG) =
+   \braket{n\kk | \, e^{\im (\qq+\GG)\!\cdot\!\rr}\,| m,\kk+\qq}.
+\label{eq:pair-density}
+\end{equation}
+Both the paper and the implementation use the $\kk+\qq$ convention:
+the inner k-point in \texttt{calculate\_QEH} is obtained via
+\texttt{K2 = kd.find\_k\_plus\_q(Q\_c, [kpt1.K])} so that
+$\kk_2 = \kk_1+\qq$, and \texttt{deps\_m = eps1 - kpt2.eps\_n} encodes
+$\eps_{n\kk}-\eps_{m,\kk+\qq}$ (\texttt{gwqeh.py}\,L.~1145, 1196).
+The $e^{+\im(\qq+\GG)\cdot\rr}$ matrix element in \eq{pair-density}
+is consistent with momentum conservation $\kk_2 = \kk+\qq$ modulo a
+reciprocal-lattice vector $\GG$.
+
+\paragraph{Original (monopole) approximation.}
+$\Delta W^i$ is generated by charges \emph{outside} layer~$i$ and
+therefore varies slowly across the (thin) layer.  Winther \& Thygesen
+exploit this to retain only the macroscopic component
+$\GG=\GG'=0$ in \eq{Sigma-PW}, which is the average of
+$\Delta W^i(z,z',\qq,\omega)$ over the layer thickness $d_i$:
+\begin{equation}
+\Delta W^i(\qq,\omega) =
+\frac{1}{d_i^2}\int_{z_i-d_i/2}^{z_i+d_i/2}\!\!\!\!\int
+W^{\Heter}(z,z',\qq,\omega) - W^i(z,z',\qq,\omega)\,\dd z\,\dd z'.
+\label{eq:dW-monopole}
+\end{equation}
+The resulting self-energy correction is the central equation of the
+original $G\Delta W$ paper (its Eq.~(12)),
+\begin{equation}
+\Delta\Sigma_{n\kk}^{i,\text{mono}}\;=\;
+\frac{1}{(2\pi)^3}\!\int_\text{BZ}\!\!\dd\qq\,
+\frac{\im}{2\pi}\!\int\dd\omega'\sum_{m}
+\frac{|\rho^{m,\kk+\qq}_{n,\kk}(\GG=0)|^{2}}
+     {\omega+\omega'-\eps_{m\kk+\qq}-\im\eta\,\sgn(\eps_{m\kk+\qq}-\mu)}
+\,\Delta W^i(\qq,\omega').
+\label{eq:Sigma-monopole}
+\end{equation}
+This is the formula implemented in the parent class
+\texttt{GWQEHCorrection.calculate\_QEH} of
+\texttt{gpaw/response/gwqeh.py}: the descriptor is built with
+\texttt{self.ecut = 0.1\,Ha} so that the plane-wave basis contains
+exactly the single vector $\GG=0$.
+
+\section{The mQEH density basis and \texorpdfstring{$W^{\text{mQEH}}$}{W\_mQEH}}
+
+\subsection{Density basis functions}
+
+The QEH model represents the linear density response of an isolated
+2D layer~$i$ in a small basis of \emph{density basis functions}
+$\{\rho^{i}_{\alpha}(z;q_\parallel)\}_{\alpha=1}^{N_i}$, which depend
+on the magnitude of the in-plane momentum
+$q_\parallel = |\qpar|$ (see
+\texttt{qeh/bb\_calculator/basis\_functions.py::MQEHBasis} for the
+construction as eigenvectors of $V\chi$).  The original monopole QEH
+corresponds to $N_i=1$ with $\rho^{i}_{1}$ the constant in-plane
+charge profile of the layer.
+
+It is essential for what follows that the \texttt{Layer} class only
+ships the density basis to the consumer through
+\texttt{get\_drho\_qza} (\texttt{qeh/buildingblock.py}\,L.~525--526).
+A potential basis $\phi^{i}_{\alpha}(z;q_\parallel)$ is also defined
+internally, but it is hard-zeroed outside the geometric layer width
+in \texttt{Layer.get\_phi\_qaz} (\texttt{qeh/buildingblock.py}\,L.~535--548),
+\emph{breaking} the biorthogonality
+$\int\dd z\,\phi^{i*}_{\alpha}\rho^{i}_{\beta}=\delta_{\alpha\beta}$
+that holds on the building-block grid but \emph{not} on the
+heterostructure grid that the mQEH self-energy actually integrates
+over.  The implementation therefore deliberately \emph{never reaches
+for $\phi$}; the docstring of \texttt{GWmQEHCorrection.\_\_init\_\_}
+contains an explicit warning to this effect
+(\texttt{gwqeh.py}\,L.~723--730).  Section~\ref{sec:LS} below explains
+how the loss of biorthogonality is replaced by a least-squares
+projection in the density basis alone.
+
+\subsection{The mQEH $W$ matrix}
+
+In the density basis the screened interaction of a whole
+heterostructure becomes an $N\times N$ matrix, with
+$N = \sum_{l} N_l$ summing the basis sizes of every layer.  The QEH
+library produces it as
+\begin{equation}
+\hat W^{\Heter}(q_\parallel,\omega)
+\;=\; \hat V(q_\parallel) \;+\;
+\hat V(q_\parallel)\,\hat\chi^{\Heter}(q_\parallel,\omega)\,
+\hat V(q_\parallel),
+\label{eq:W-matrix}
+\end{equation}
+where each entry of $\hat W$ is taken to be the symmetric
+$\langle\rho|W|\rho\rangle$ matrix element,
+\begin{equation}
+W^{\text{mQEH}}_{(i\alpha)(j\beta)}(q_\parallel,\omega)
+\;=\; \int\!\dd z\,\dd z'\;
+\rho^{i*}_{\alpha}(z;q_\parallel)\;
+W^{\Heter}(z,z';q_\parallel,\omega)\;
+\rho^{j}_{\beta}(z';q_\parallel),
+\label{eq:WmQEH-def}
+\end{equation}
+i.e., $\hat W^{\text{mQEH}}$ takes the rho-coefficients of an external
+probe density in and returns rho-projections of the resulting
+screened potential out (the comment block at \texttt{gwqeh.py}\,L.~1307--1311
+makes this explicit).  The change in screening acting on layer $i$ is
+the on-layer block of the difference between full heterostructure and
+isolated monolayer,
+\begin{equation}
+\Delta W^{i}_{\alpha\beta}(q_\parallel,\omega)\;=\;
+W^{\Heter}_{(i\alpha)(i\beta)}(q_\parallel,\omega)
+\;-\;W^{i,0}_{\alpha\beta}(q_\parallel,\omega),
+\qquad \alpha,\beta=1,\ldots,N_i,
+\label{eq:dW-matrix}
+\end{equation}
+sliced in \texttt{calculate\_W\_QEH} (\texttt{gwqeh.py}\,L.~895--904).
+The bare Coulomb contribution $\hat V$ of \eq{W-matrix} cancels
+identically in \eq{dW-matrix}, so the implementation calls
+\texttt{get\_screened\_potential(subtract\_bare\_coulomb=True)} on
+both sides (\texttt{gwqeh.py}\,L.~883, 892), avoiding a wasted
+matrix-add and -subtract pair.  This is a pure efficiency change; the
+underlying math is unaltered.
+
+\section{Self-energy in the mQEH basis}
+
+\subsection{In-plane / out-of-plane split and the relevant integrand}
+
+Decompose each plane-wave vector as $\GG=(\Gpar,\Gz)$ and write the
+in-plane reciprocal vector $\qpar+\Gpar$.  By in-plane translational
+invariance of the heterostructure $\Delta W^i$ is diagonal in
+$\Gpar$, so the double PW sum in \eq{Sigma-PW} contracts to
+\begin{multline}
+\sum_{\GG\GG'}\rho^{m,\kk+\qq}_{n,\kk}(\GG)\,
+\bigl[\rho^{m,\kk+\qq}_{n,\kk}(\GG')\bigr]^{*}\,
+\Delta W^{i}_{\GG\GG'}(\qq,\omega)
+\;=\\
+\sum_{\Gpar}
+\int\!\dd z\,\dd z'\;
+\bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;z)\,
+\Delta W^{i}\!\bigl(\,|\qpar+\Gpar|\,;\,z,z'\,\bigr)\,
+\bigl[\bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;z')\bigr]^{*},
+\label{eq:GGsum-to-zz}
+\end{multline}
+with the $z$-resolved in-plane Fourier component of the pair density
+\begin{equation}
+\bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;z) \;=\;
+\frac{1}{L_z}\sum_{\Gz}
+\rho^{m,\kk+\qq}_{n,\kk}(\Gpar,\Gz)\, e^{+\im\Gz z}.
+\label{eq:rho-z}
+\end{equation}
+The factor $1/L_z$ on the right of \eq{rho-z} is the inverse-FFT
+normalisation that absorbs the missing $\Gz$ sum from the PW measure
+$1/\Omega = 1/(AL_z)$.  The sign $e^{+\im\Gz z}$ matches the
+$e^{-\im\GG\!\cdot\!\rr}$ convention used by GPAW's
+\texttt{ActualPairDensityCalculator}.
+
+\subsection{Density-basis least-squares projection of the pair density}
+\label{sec:LS}
+
+The approximation that defines mQEH lives entirely in the
+\emph{pair density}, not in the screened interaction.  The matrix
+$\Delta W^{i}_{\alpha\beta}(q_\parallel,\omega)$ produced by QEH
+(\eq{WmQEH-def}) is the \emph{exact} matrix element of the true
+kernel $\Delta W^{i}(z,z';q_\parallel,\omega)$ between
+$\rho^{i}_{\alpha}$ and $\rho^{i}_{\beta}$; it is \emph{not} the
+expansion coefficient of a rank-$N_i$ ansatz for $\Delta W^{i}$
+itself.  Writing the kernel as
+$\Delta W^{i}(z,z')=\sum_{\alpha\beta}\rho^{i}_{\alpha}(z)\,
+\Delta W^{i}_{\alpha\beta}\,\rho^{i*}_{\beta}(z')$ would be the
+distinct (and unjustified) rank-$N_i$ replacement
+$\Delta W\leftarrow S^{-1}(\Delta W)S^{-1}$ in the operator sense ---
+the two coincide only when $S=\mathbb{1}$, which is generically false
+on the heterostructure $z$-grid (see below).  The implementation does
+\emph{not} do this; it uses the exact matrix elements as they come
+out of QEH and approximates the pair density instead.
+
+Approximate the $z$-resolved pair density in the density basis,
+\begin{equation}
+\bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;z)\;\approx\;
+\sum_{\alpha=1}^{N_i} d^{(nm)}_{\alpha}(\qpar+\Gpar)\;
+\rho^{i}_{\alpha}\!\bigl(z;|\qpar+\Gpar|\bigr),
+\label{eq:rho-expansion}
+\end{equation}
+where the coefficients are chosen to minimise the residual on the
+heterostructure $z$-grid,
+\begin{equation}
+\{d^{(nm)}_{\alpha}\}\;=\;
+\underset{\{d_\alpha\}}{\arg\min}\;
+\Bigl\|\,\bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;\cdot)
+\;-\;\sum_{\alpha} d_{\alpha}\,\rho^{i}_{\alpha}\Bigr\|^{2}_{L^{2}(\text{het grid})}.
+\label{eq:LS-variational}
+\end{equation}
+The orthogonal complement
+\begin{equation}
+\bar\rho^{\perp}_{nm}(\Gpar;z)\;=\;
+\bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;z)\;-\;
+\sum_{\alpha} d^{(nm)}_{\alpha}\,\rho^{i}_{\alpha}(z;|\qpar+\Gpar|)
+\label{eq:rho-perp}
+\end{equation}
+is what the mQEH self-energy discards; enriching $\{\rho_\alpha\}$
+shrinks $\|\bar\rho^{\perp}\|$ monotonically and the result
+approaches the exact PW form.
+
+Setting $\partial/\partial d^*_\alpha\|\,\bar\rho-\sum_\beta d_\beta
+\rho_\beta\|^{2}=0$ yields the normal equation
+$S\,d=R$ with the rho--rho overlap and the rho--pair-density overlap
+\begin{equation}
+S_{\alpha\beta}(q_\parallel)\;=\;
+\int\!\dd z\;\rho^{i*}_{\alpha}(z;q_\parallel)\,
+\rho^{i}_{\beta}(z;q_\parallel),\qquad
+R^{(nm)}_{\alpha}(\qpar+\Gpar)\;=\;
+\int\!\dd z\;\rho^{i*}_{\alpha}\!\bigl(z;|\qpar+\Gpar|\bigr)\,
+\bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;z),
+\label{eq:S-and-R}
+\end{equation}
+both on the heterostructure $z$-grid; crucially $S\neq\mathbb{1}$
+because $\{\rho_\alpha\}$ is biorthogonal to the truncated
+$\phi$-basis (which we cannot access on the het grid; see Sec.~5),
+not orthonormal in the usual $L^{2}$ sense.  The coefficients are
+\begin{equation}
+\boxed{\;
+d^{(nm)}_{\alpha}(\qpar+\Gpar)\;=\;
+\sum_{\beta}\bigl[S^{-1}\bigr]_{\alpha\beta}(|\qpar+\Gpar|)\;
+R^{(nm)}_{\beta}(\qpar+\Gpar).
+\;}
+\label{eq:d-def}
+\end{equation}
+
+Substituting \eq{rho-expansion} into the $(z,z')$ integrand of
+\eq{GGsum-to-zz} and using \emph{exact} matrix elements for
+$\Delta W^{i}_{\alpha\beta}$,
+\begin{multline}
+\int\!\dd z\,\dd z'\;
+\bar\rho^{m,\kk+\qq*}_{n,\kk}(\Gpar;z)\,
+\Delta W^{i}(z,z';|\qpar+\Gpar|,\omega)\,
+\bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;z')
+\;\approx\\
+\sum_{\alpha\beta}\;
+d^{(nm)*}_{\alpha}\;\Delta W^{i}_{\alpha\beta}(|\qpar+\Gpar|,\omega)\;
+d^{(nm)}_{\beta},
+\label{eq:GGsum-final}
+\end{multline}
+with the approximation error
+$\int\bar\rho^{\perp*}\Delta W\bar\rho^{\perp}+\text{cross terms}$
+suppressed in the rich-basis limit.  The right-hand side of
+\eq{GGsum-final} is the bilinear form the implementation evaluates.
+The least-squares route is precisely what the code does
+(\texttt{gwqeh.py}\,L.~1381--1384, inside
+\texttt{\_calculate\_sigma\_mqeh}):
+\begin{lstlisting}[language=Python]
+# R_{m,a} = int rho_a*(z) bar_rho(z) dz
+R_m_a = (rho_mz @ drho_za.conj()) * self.dz_qeh
+# Normal equation: S @ d.T = R.T  =>  d = solve(S, R.T).T
+d_mGpar_a[:, ig, :] = np.linalg.solve(S_Gpar_ab[ig], R_m_a.T).T
+\end{lstlisting}
+followed by the contraction \texttt{(d\_a.conj() @ W\_ab @ d\_a)}
+at L.~1402--1403.
+
+\subsection{Final self-energy formula}
+
+Inserting \eq{GGsum-to-zz}, \eq{rho-z}, and \eq{GGsum-final} into
+\eq{Sigma-PW}, restricted to the difference $\Delta W^i$, gives
+\begin{multline}
+\Delta\Sigma^{i,\text{mQEH}}_{n\kk}\;=\;
+\frac{1}{(2\pi)^3 L_z}\!\int_\text{BZ}\!\dd\qq\;
+\frac{\im}{2\pi}\!\int\dd\omega'\!\sum_{m,\Gpar}\\[2pt]
+\times\;
+\frac{\sum_{\alpha\beta}
+   d^{(nm)*}_{\alpha}(\qpar+\Gpar)\,
+   \Delta W^{i}_{\alpha\beta}\!\bigl(|\qpar+\Gpar|,\omega'\bigr)\,
+   d^{(nm)}_{\beta}(\qpar+\Gpar)}
+{\omega+\omega'-\eps_{m\kk+\qq}-\im\eta\,\sgn(\eps_{m\kk+\qq}-\mu)}.
+\label{eq:Sigma-mQEH-final}
+\end{multline}
+The explicit $1/L_z$ comes from \eq{rho-z}; the remaining
+$1/(2\pi)^3\!\int\dd\qq$ is the 3D BZ measure of the original PW
+expression.  As shown in (M2) below, the implementation absorbs the
+$L_z$ by multiplying $\Delta W^{i}_{\alpha\beta}$ by $L$ once per
+$\Gpar$ (\texttt{gwqeh.py}\,L.~1158), after which the parent's
+prefactor $x = 1/(N_q\,2\pi\,\Omega)$ can be reused unchanged and the
+effective in-plane normalisation reduces to $1/(N_q\,2\pi\,A)$.
+
+\subsection{Frequency representation}
+
+As in the parent class the $\omega'$ integral is performed through a
+Hilbert transform on the non-uniform spectral grid $\{\omega_w\}$.
+The code stores the $\pm\im\eta$ branches in a single tensor
+\texttt{Wpm\_Gpar} of shape $(n_{\Gpar},2N_\omega,N_i,N_i)$:
+\begin{lstlisting}[language=Python]
+Wpm_Gpar[ig, :nw] = dW_wab
+Wpm_Gpar[ig, nw:] = dW_wab.copy()
+self.htp(Wpm_Gpar[ig, :nw])
+self.htm(Wpm_Gpar[ig, nw:])
+\end{lstlisting}
+(\texttt{gwqeh.py}\,L.~1161--1166).  After this transformation the
+contribution from each electronic state $m$ reduces to a linear
+interpolation between two adjacent frequency points exactly as in the
+standard GW code, but with the scalar $W_w$ replaced by an
+$N_i\!\times\!N_i$ matrix $W^{\pm}_{w,\alpha\beta}$.
+
+\section{Mapping the math to \texttt{GWmQEHCorrection}}
+
+We list the correspondence between each step in
+\texttt{calculate\_QEH} / \texttt{\_calculate\_sigma\_mqeh}
+(\texttt{gpaw/response/gwqeh.py}) and the equations above.
+
+\paragraph{(M1) Building the in-plane PW basis.}
+The cutoff is raised from the monopole limit
+$E_\text{cut}=0.1\,\text{Ha}$ to a user-controlled value
+$E_\text{cut}^{\text{mQEH}}$, exposed as
+\texttt{ecut\_mqeh} (default $50\,\text{eV}$, L.~703):
+\begin{lstlisting}[language=Python]
+pd0 = SingleQPWDescriptor.from_q(q_c, self.ecut_mqeh,
+                                 self.gs.gd, gammacentered=True)
+G_Gv  = pd0.get_reciprocal_vectors()           # q + G
+G0_Gv = pd0.get_reciprocal_vectors(add_q=False)
+\end{lstlisting}
+The vectors are partitioned by their in-plane component
+$\Gpar=(G_x,G_y)$:
+\begin{lstlisting}[language=Python]
+Gpar_rounded = np.round(G0_Gv[:, :2], decimals=8)
+unique_Gpar, inverse_idx = np.unique(
+    Gpar_rounded, axis=0, return_inverse=True)
+\end{lstlisting}
+This realises the partitioning of the inner sum
+$\sum_{\GG\GG'}\rightarrow \sum_{\Gpar}\sum_{\Gz\Gz'}$ that leads to
+\eq{GGsum-to-zz}.  An assertion on the cell metric (L.~760--764)
+ensures that the third lattice vector is along Cartesian $\hat z$, so
+that this Cartesian split coincides with the lattice partition.
+\texttt{metal=True} is explicitly refused at construction time
+(L.~709--717) because the small-$q$ averaging block has not yet been
+adapted to it.
+
+\paragraph{(M2) Evaluating $\Delta W^i_{\alpha\beta}$ at
+$|\qpar+\Gpar|$.}  The mQEH matrix data are pre-interpolated by
+\texttt{\_interpolate\_mqeh\_data} (L.~944--1039): one cubic spline
+in $\omega$ moves the data onto the GW frequency grid; then a cubic
+spline in $q_\parallel$ over the resulting array lets us evaluate
+$\Delta W^i_{\alpha\beta}(|\qpar+\Gpar|,\omega)$ for every member of
+the $\Gpar$-grid with a single \texttt{CubicSpline} call.  The result
+is rescaled by $L = L_z$ at the moment it is used,
+\begin{lstlisting}[language=Python]
+dW_wab = self._eval_dW_on_gwgrid(q_abs)
+# dW is Hartree*Bohr^2; *= L makes x*L = 1/(N_q*2pi*A).
+dW_wab *= L
+\end{lstlisting}
+(\texttt{gwqeh.py}\,L.~1156--1158).  This is the source of the
+$1/L_z$ absorption discussed below \eq{Sigma-mQEH-final}.
+
+The small-$q$ behaviour is handled exactly as in the parent class
+(L.~1004--1039): inside a disk of radius
+\texttt{\_q0\_cut} around $\qpar+\Gpar=0$ the spline is replaced by a
+weighted average over the sampled small-$q$ points
+\begin{equation}
+\overline{\Delta W}^{\,q\to 0}_{\alpha\beta}(\omega) =
+\sum_{q_0\le q_\text{cut}} w(q_0)\, \Delta W^i_{\alpha\beta}(q_0,\omega),
+\qquad
+w(q_0) \propto q_0,
+\label{eq:q0-average}
+\end{equation}
+mirroring the integration of $W(q)$ over the $\qq=0$ disk in the
+parent class.  The same logic is applied component-wise to every
+matrix element of $\Delta W^i_{\alpha\beta}$.
+
+\paragraph{(M3) Computing $\bar\rho(\Gpar;z)$.}  The pair density
+\eq{pair-density} is computed by GPAW's
+\texttt{ActualPairDensityCalculator} in the same call that the parent
+class uses, but now with the larger PW basis.  For each unique
+$\Gpar$, the implementation collects the indices of the $\Gz$ members
+and applies \eq{rho-z}:
+\begin{lstlisting}[language=Python]
+phase_zg = exp(1j * np.outer(z_qeh, Gz_values))   # exp(+i Gz z)
+n_m_gz   = n_mG[:, G_indices]                     # rho(Gpar, Gz)
+rho_mz   = n_m_gz @ phase_zg.T / Lz               # bar-rho(Gpar; z)
+\end{lstlisting}
+(\texttt{gwqeh.py}\,L.~1376--1378).  Note the $1/L_z$ on the right.
+The $z$-grid \texttt{z\_qeh} and the spacing \texttt{dz\_qeh} are
+imported from the QEH heterostructure object together with the
+density basis, so the same discretisation is used for $\bar\rho$ and
+$\rho^{i}_{\alpha}$.  A self-consistency assertion guards against
+unit drift,
+\begin{lstlisting}[language=Python]
+assert np.isclose(self.dz_qeh, self.z_z_qeh[1] - self.z_z_qeh[0])
+\end{lstlisting}
+(\texttt{gwqeh.py}\,L.~840--843).  The phase factors $\exp(\im\Gz z)$
+depend only on the $\Gpar$ group and the q-point geometry, so they
+are precomputed once per IBZ q-point and reused inside
+\texttt{\_calculate\_sigma\_mqeh} (commit \texttt{fee44a26}).
+
+\paragraph{(M4) Overlap matrix $S_{\alpha\beta}$ and overlap vector
+$R^{(nm)}_{\alpha}$.}  Before entering the band loop, the rho
+overlap on the het grid is precomputed at every $|\qpar+\Gpar|$:
+\begin{lstlisting}[language=Python]
+drho_za = self._eval_drho(qplusGpar_abs[ig])
+drho_Gpar_za[ig] = drho_za
+# S_{ab} = int rho_a*(z) rho_b(z) dz on the het z-grid.
+S_Gpar_ab[ig] = (drho_za.conj().T @ drho_za) * self.dz_qeh
+\end{lstlisting}
+(\texttt{gwqeh.py}\,L.~1175--1181), implementing \eq{S-and-R}.  Per
+band transition $m$, the overlap vector \eq{S-and-R} is built as a
+single matrix product (\texttt{gwqeh.py}\,L.~1381):
+\begin{lstlisting}[language=Python]
+R_m_a = (rho_mz @ drho_za.conj()) * self.dz_qeh
+\end{lstlisting}
+
+\paragraph{(M5) Rho-coefficients $d^{(nm)}_{\alpha}$.}
+\eq{d-def} is implemented by a single linear solve
+(\texttt{gwqeh.py}\,L.~1383):
+\begin{lstlisting}[language=Python]
+d_mGpar_a[:, ig, :] = np.linalg.solve(S_Gpar_ab[ig], R_m_a.T).T
+\end{lstlisting}
+This is the line that distinguishes the present implementation from
+an inner-product-with-$\phi$ approach: $S$ is in general
+non-diagonal, and a least-squares projection is required for the
+correct expansion.
+
+\paragraph{(M6) Quadratic form and self-energy.}
+The inner double sum in \eq{Sigma-mQEH-final},
+\begin{equation}
+\mathcal{T}_{nm}(\qpar+\Gpar,\omega') \;=\;
+\sum_{\alpha\beta}
+d^{(nm)*}_{\alpha}\,
+\Delta W^{i}_{\alpha\beta}\,
+d^{(nm)}_{\beta},
+\label{eq:Tnm}
+\end{equation}
+is evaluated for each transition $m$ and each $\Gpar$ as a small
+$N_i\!\times\!N_i$ quadratic form,
+\begin{lstlisting}[language=Python]
+sigma1 += p * (d_a.conj() @ W1_ab @ d_a).imag
+sigma2 += p * (d_a.conj() @ W2_ab @ d_a).imag
+\end{lstlisting}
+(\texttt{gwqeh.py}\,L.~1402--1403) with the same Hilbert-transformed
+indexing \texttt{s*nw+w} used by the parent class.  The two terms
+\texttt{sigma1}, \texttt{sigma2} are linearly interpolated in
+$\omega$ to obtain $\Sigma_{n\kk}$ and similarly for
+$\partial_\omega\Sigma_{n\kk}$.
+
+\paragraph{(M7) Compatibility with the parent class.}
+\texttt{GWmQEHCorrection} inherits from \texttt{GWQEHCorrection} but
+\emph{severs} the legacy scalar plumbing inherited from the monopole
+class (commit \texttt{95cb94b0}): \texttt{self.dW\_qw} is never set,
+the parent's \texttt{get\_W\_on\_grid} is never called, and the
+single \texttt{\_setup\_dW} override (L.~766--821) is the only entry
+point that installs the mQEH state.  The state itself is installed by
+the helper \texttt{\_install\_mqeh\_matrix} (L.~823--853), which is
+the single chokepoint for the three input paths (synthetic data /
+restart from NPZ / fresh QEH computation).  No scalar
+\texttt{dW\_qw} is written to the restart file any more --- the
+former \texttt{dW\_qwab[:,:,0,0]} slice was a misnomer since it is
+the first eigenmode of $V\chi$, not the Winther--Thygesen monopole.
+
+\section{Why the potential basis $\phi$ never appears}
+
+A common derivation of mQEH-type formulas exploits the biorthogonality
+$\int\dd z\,\phi^{i*}_{\alpha}\rho^{i}_{\beta}=\delta_{\alpha\beta}$
+and uses the potential basis $\phi$ to define the expansion
+coefficients of the pair density.  That derivation is mathematically
+clean but \emph{not applicable here}: the QEH library only ships
+$\phi$ on the geometric layer width
+($|z-z_i|<d_i/2$) and explicitly zeroes it elsewhere
+(\texttt{qeh/buildingblock.py::Layer.get\_phi\_qaz}, L.~539--546).
+The biorthogonality therefore fails on the heterostructure $z$-grid
+that the GW pair densities live on,
+\begin{equation}
+\int_{\text{het grid}}\!\dd z\;\phi^{i*}_{\alpha}(z)\,
+\rho^{i}_{\beta}(z)\;\neq\;\delta_{\alpha\beta},
+\label{eq:biorth-broken}
+\end{equation}
+and any $\phi$-inner-product projection would silently incorporate
+this truncation error.  The least-squares route via the rho basis
+(\eq{d-def}) sidesteps the issue: every quantity in the projection
+lives on the same het grid, on which $\{\rho_\alpha\}$ is sampled
+without truncation.  The docstring of
+\texttt{\_calculate\_sigma\_mqeh} (L.~1322--1326) warns explicitly
+against any future change that re-introduces $\phi$.
+
+\section{Summary of equations and implementation}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{l l l}
+\hline
+Symbol & Meaning & Code object \\
+\hline
+$\rho^{i}_{\alpha}(z;q_\parallel)$ & density basis function of layer
+$i$ & \texttt{drho\_qzi\_target}\\
+$\Delta W^{i}_{\alpha\beta}(q_\parallel,\omega)$ &
+$\langle\rho|\Delta W|\rho\rangle$ matrix on layer $i$
+& \texttt{dW\_qw\_matrix}\\
+$S_{\alpha\beta}(q_\parallel)$ & rho-overlap on the het $z$-grid,
+\eq{S-and-R} & \texttt{S\_Gpar\_ab}\\
+$\Gpar$ partition of $\GG$ & in-plane / out-of-plane split &
+\texttt{unique\_Gpar}, \texttt{inverse\_idx}\\
+$\bar\rho(\Gpar;z)$ & $z$-resolved pair density, \eq{rho-z} &
+\texttt{rho\_mz}\\
+$R^{(nm)}_{\alpha}$ & rho-pair-density overlap, \eq{S-and-R} &
+\texttt{R\_m\_a}\\
+$d^{(nm)}_{\alpha}$ & least-squares rho-coefficients, \eq{d-def} &
+\texttt{d\_mGpar\_a}\\
+$L_z\,\Delta W^{i}_{\alpha\beta}$ & rescaled matrix used in
+self-energy & \texttt{Wpm\_Gpar}\\
+$\mathcal{T}_{nm}$ in \eq{Tnm} & matrix quadratic form &
+\texttt{(d\_a.conj() @ W\_ab @ d\_a).imag}\\
+$\Delta\Sigma^{i,\text{mQEH}}_{n\kk}$ & self-energy correction,
+\eq{Sigma-mQEH-final} & \texttt{sigma\_sin}\\
+\hline
+\end{tabular}
+\caption{Mathematical objects of \eq{Sigma-mQEH-final} and their
+names in \texttt{gpaw/response/gwqeh.py}.}
+\label{tab:summary}
+\end{table}
+
+\paragraph{Final self-energy formula.}  The expression actually
+evaluated by \texttt{GWmQEHCorrection.calculate\_QEH} is
+\begin{equation}
+\boxed{\;
+\Delta\Sigma^{i,\text{mQEH}}_{n\kk}\;=\;
+\frac{1}{N_{\mathbf{q}}\,2\pi\,\Omega}
+\sum_{\qq\in\text{IBZ}}\sum_{m,\,\Gpar}
+\mathcal{I}_{nm}\!\Bigl[\,
+L_z\,
+\sum_{\alpha\beta}
+d^{(nm)*}_{\alpha}\,
+\Delta W^{i}_{\alpha\beta}\!\bigl(|\qpar+\Gpar|,\omega'\bigr)\,
+d^{(nm)}_{\beta}
+\Bigr](\eps_{n\kk}),
+\;}
+\label{eq:Sigma-code}
+\end{equation}
+with the rho-coefficients defined in \eq{d-def}.
+$\mathcal{I}_{nm}[\,\cdot\,](\omega)$ stands for the
+Hilbert-transformed frequency convolution implemented by the
+\texttt{HilbertTransform} class and the linear interpolation in
+$\omega$ along the non-uniform grid \texttt{omega\_w}.  The prefactor
+$1/(N_{\mathbf{q}}\,2\pi\,\Omega)$ is exactly the \texttt{x} variable
+of \texttt{\_calculate\_sigma\_mqeh}; combined with the $L_z$
+absorbed in $\Delta W$ at evaluation time, it yields the
+$1/(N_{\mathbf{q}}\,2\pi\,A)$ in-plane normalisation of
+\eq{Sigma-mQEH-final}.
+
+The QP correction is finally
+\begin{equation}
+\Delta E^{i,\text{scr,mQEH}}_{n\kk}
+\;=\;Z_{n\kk}^{i}\,
+\mathrm{Re}\,\Delta\Sigma^{i,\text{mQEH}}_{n\kk}(\omega=\eps_{n\kk}),
+\end{equation}
+identical in form to \eq{dE-Z-dSigma} of the original paper but with
+$\Delta\Sigma$ now containing the full mQEH multi-pole response.  The
+renormalisation factor $Z$ is taken from the freestanding-monolayer
+$G_0W_0$ calculation, \texttt{gwfile}, exactly as in the parent class.
+
+\paragraph{Note on the monopole limit.}
+Setting $N_i=1$ does \emph{not} reduce \eq{Sigma-code} to the
+parent's \eq{Sigma-monopole} in general.  The monopole class uses the
+PW macroscopic component $\rho^{nm}(\GG=0)$ together with the QEH
+matrix element $W_{(i,1)(i,1)}$ taken directly as a scalar.  The
+mQEH class with $N_i=1$ uses the same scalar $\Delta W^{i}_{11}$ but
+weights it by $|d^{(nm)}_{1}|^{2}$ with $d^{(nm)}_{1} = R^{(nm)}_{1}/S_{11}$,
+i.e.\ the best-fit single-coefficient projection of the pair density
+onto the QEH monopole density profile $\rho^{i}_{1}$ on the het
+$z$-grid.  These two scalars coincide only for a specific choice of
+$\rho^{i}_{1}$ (constant inside the layer, zero outside, normalised
+so that the projection of $\bar\rho$ matches the layer average) ---
+\emph{not} for the QEH-defined monopole eigenfunction of $V\chi$.
+The two implementations are therefore consistent in form but not
+numerically equivalent at $N_i=1$, and a quantitative cross-check
+between them is not a regression test on either side.
+
+\section*{References}
+
+\begin{description}
+\item[\textbullet] K. T. Winther, K. S. Thygesen,
+  \emph{Band structure engineering in van der Waals heterostructures
+  via dielectric screening: the $G\Delta W$ method}, 2D Mater.\ 4,
+  025059 (2017), \href{https://arxiv.org/abs/1703.03188}{arXiv:1703.03188}.
+\item[\textbullet] K. Andersen, S. Latini, K. S. Thygesen,
+  \emph{Dielectric genome of van der Waals heterostructures},
+  Nano Lett.\ 15, 4616 (2015).
+\item[\textbullet] Implementation:
+  \texttt{gpaw/response/gwqeh.py}, class
+  \texttt{GWmQEHCorrection},
+  branch \texttt{claude/implement-gdeltaw-mqeh-E3yyU}.
+\end{description}
+
+\end{document}
