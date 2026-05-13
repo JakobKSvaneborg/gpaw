@@ -577,7 +577,13 @@ class GWQEHCorrection:
             # qmax=qmax / Bohr
         )
 
-        W0_qw = HS0.get_screened_potential()[..., 0, 0]
+        # We only need the V*chi*V part: in dW = W_full - W_iso the bare
+        # Coulomb V drops out analytically (same v kernel, same target
+        # density basis on both sides), so subtracting it inside QEH
+        # avoids a wasted numerical cancellation between two large
+        # quantities that share a basis-projection error.
+        W0_qw = HS0.get_screened_potential(
+            subtract_bare_coulomb=True)[..., 0, 0]
 
         # Full heterostructure
 
@@ -586,7 +592,8 @@ class GWQEHCorrection:
                                  # qmax=qmax / Bohr
                                  )
         basis_idx = 2 * layer
-        W_qw = HS.get_screened_potential()[..., basis_idx, basis_idx]
+        W_qw = HS.get_screened_potential(
+            subtract_bare_coulomb=True)[..., basis_idx, basis_idx]
 
         # Difference in screened potential:
         dW_qw = W_qw - W0_qw
@@ -799,7 +806,11 @@ class GWmQEHCorrection(GWQEHCorrection):
             wmax=wmax,
         )
 
-        W0_qwij = HS0.get_screened_potential()
+        # Drop the bare-Coulomb part of W on both sides of the
+        # difference: V cancels exactly in dW = W_full - W_iso, so we
+        # only need V*chi*V here. See parent calculate_W_QEH for the
+        # full argument.
+        W0_qwij = HS0.get_screened_potential(subtract_bare_coulomb=True)
 
         # Full heterostructure
         HS = QEH.heterostructure(
@@ -808,7 +819,7 @@ class GWmQEHCorrection(GWQEHCorrection):
             wmax=wmax,
         )
 
-        W_qwij = HS.get_screened_potential()
+        W_qwij = HS.get_screened_potential(subtract_bare_coulomb=True)
 
         # Number of basis functions for the target layer
         nbasis_target = HS.hs.layers_l[layer].bb.aN
