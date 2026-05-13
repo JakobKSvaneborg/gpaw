@@ -28,6 +28,14 @@ def frequency_grid(domega0, omega2, omegamax):
     return omega_w
 
 
+# Hard-coded toggle: when True, GWQEHCorrection.calculate_W_QEH routes to
+# the legacy single-basis qeh.old_qeh.Heterostructure path instead of the
+# modern multi-basis qeh.QEH wrapper. Used internally to reproduce
+# previously published GWQEH numbers against the same screening engine
+# they were originally generated with. Not exposed as a public knob.
+_USE_LEGACY_QEH = False
+
+
 class GWQEHCorrection:
     def __init__(self, calc, gwfile=None, filename=None, kpts=[0], bands=None,
                  structure=None, d=None, layer=0,
@@ -574,6 +582,15 @@ class GWQEHCorrection:
         return dWgw_qw
 
     def calculate_W_QEH(self, structure, d, layer=0):
+        # Module-level _USE_LEGACY_QEH chooses between the modern
+        # multi-basis qeh.QEH wrapper (default) and the legacy
+        # qeh.old_qeh.Heterostructure path. Both populate self.qqeh,
+        # self.wqeh, write <filename>_dW_qw.npz, and return dW_qw.
+        if _USE_LEGACY_QEH:
+            return self._calculate_W_QEH_legacy(structure, d, layer=layer)
+        return self._calculate_W_QEH_modern(structure, d, layer=layer)
+
+    def _calculate_W_QEH_modern(self, structure, d, layer=0):
         from qeh import QEH
         from qeh.heterostructure import expand_layers
 
@@ -615,6 +632,121 @@ class GWQEHCorrection:
         dW_qw = W_qw - W0_qw
         self.wqeh = HS.hs.omega_w
         self.qqeh = HS.hs.q_q
+
+        if self.world.rank == 0:
+            data = {'qqeh': self.qqeh,
+                    'wqeh': self.wqeh,
+                    'dW_qw': dW_qw}
+            np.savez(self.filename + "_dW_qw.npz",
+                     **data)
+
+        return dW_qw
+
+    def _calculate_W_QEH_legacy(self, structure, d, layer=0):
+        """Compute dW_qw using the legacy qeh.old_qeh.Heterostructure.
+
+        The legacy class differs from the modern wrapper in three ways
+        that this method bridges:
+          - constructor takes (structure, d_interlayer, thicknesses=,
+            d0=) instead of (BBfiles=, layerwidth_l=);
+          - wmax is in eV, not Hartree;
+          - get_screened_potential already returns the layer-projected
+            (qN, wN) scalar W_qw (no basis indexing needed).
+        Grids are still in Hartree / inverse Bohr on the returned
+        object, matching the modern path's contract for self.wqeh /
+        self.qqeh.
+        """
+        from qeh.old_qeh import (
+            Heterostructure as LegacyHeterostructure,
+            expand_layers as legacy_expand_layers,
+        )
+
+        structure = legacy_expand_layers(list(structure))
+        self.w_grid = self.omega_w
+        # Legacy treats wmax as eV (it does wmax/Hartree internally);
+        # self.w_grid is in Hartree.
+        wmax_eV = self.w_grid[-1] * Hartree
+
+        d = np.asarray(d, dtype=float)
+        N = len(structure)
+
+        # Normalize the input into the (interlayer_distances, thicknesses)
+        # pair the legacy class expects. Per-layer thicknesses match the
+        # modern path's `layerwidth_l` semantics; interlayer distances
+        # follow the center-to-center convention used by legacy `d`.
+        if N == 1:
+            if len(d) != 1:
+                raise ValueError(
+                    f'For a single-layer structure, expected d of length '
+                    f'1 (the layer thickness in Ang); got length {len(d)}.')
+            thicknesses_Ang = np.array([float(d[0])])
+            d_interlayer_Ang = np.zeros(0)
+        elif len(d) == N - 1:
+            d_interlayer_Ang = d
+            # Legacy's default thickness rule matches
+            # interlayer_to_thickness(d) exactly, so we use the same
+            # helper to keep HS0's d0 in sync with the per-layer
+            # thicknesses the full HS will derive internally.
+            thicknesses_Ang = interlayer_to_thickness(d_interlayer_Ang)
+        elif len(d) == N:
+            thicknesses_Ang = d
+            # Center-to-center distance between adjacent layers.
+            d_interlayer_Ang = 0.5 * (thicknesses_Ang[:-1]
+                                      + thicknesses_Ang[1:])
+        else:
+            raise ValueError(
+                f'd has length {len(d)}; expected {N - 1} (interlayer '
+                f'distances) or {N} (per-layer thicknesses) for a '
+                f'{N}-layer structure.')
+
+        # Isolated target layer (W_iso). d0 in the legacy class is the
+        # single-layer width when n_layers == 1; passing d=[] keeps the
+        # constructor happy (it only sums d for grid sizing).
+        HS0 = LegacyHeterostructure(
+            structure=[structure[layer]],
+            d=np.zeros(0),
+            d0=float(thicknesses_Ang[layer]),
+            wmax=wmax_eV,
+        )
+        # subtract_bare_coulomb=True: skip the V add-back so dW = W -
+        # W0 doesn't carry the bare-Coulomb cancellation residue
+        # between the two basis-projection grids (same rationale as
+        # the modern path).
+        W0_qw = HS0.get_screened_potential(
+            layer=0, subtract_bare_coulomb=True)
+
+        # Full heterostructure (W_full). For N == 1 this is the same
+        # object as HS0; we still build it so the rest of the method
+        # has a uniform shape (and so HS.frequencies / HS.q_abs come
+        # from the full-stack object on multilayer runs).
+        if N == 1:
+            HS = LegacyHeterostructure(
+                structure=list(structure),
+                d=np.zeros(0),
+                d0=float(thicknesses_Ang[0]),
+                wmax=wmax_eV,
+            )
+        else:
+            HS = LegacyHeterostructure(
+                structure=list(structure),
+                d=d_interlayer_Ang,
+                thicknesses=thicknesses_Ang,
+                # d0 is only consulted by the substrate branch (which
+                # we don't use); legacy still requires it to be a
+                # number because of `self.d0 = d0 / Bohr`.
+                d0=float(thicknesses_Ang[0]),
+                wmax=wmax_eV,
+            )
+        W_qw = HS.get_screened_potential(
+            layer=layer, subtract_bare_coulomb=True)
+
+        dW_qw = W_qw - W0_qw
+
+        # Legacy stores the q/omega grids directly on the instance,
+        # already in 1/Bohr and Hartree -- same units the rest of the
+        # GWQEH pipeline expects.
+        self.wqeh = HS.frequencies
+        self.qqeh = HS.q_abs
 
         if self.world.rank == 0:
             data = {'qqeh': self.qqeh,
