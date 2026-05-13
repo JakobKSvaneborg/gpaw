@@ -414,7 +414,6 @@ def test_mqeh_zero_dW(in_tmp_dir, gpw_files):
                             filename='mqeh_zero',
                             kpts=[0],
                             bands=(8, 12),
-                            dW_qw=dW_zero,
                             qqeh=qqeh,
                             wqeh=wqeh,
                             domega0=0.1,
@@ -452,7 +451,6 @@ def test_mqeh_linearity_in_dW(in_tmp_dir, gpw_files):
                              filename='mqeh_1x',
                              kpts=[0],
                              bands=(8, 12),
-                             dW_qw=dW_scalar,
                              qqeh=qqeh,
                              wqeh=wqeh,
                              domega0=0.1,
@@ -468,7 +466,6 @@ def test_mqeh_linearity_in_dW(in_tmp_dir, gpw_files):
                              filename='mqeh_2x',
                              kpts=[0],
                              bands=(8, 12),
-                             dW_qw=2.0 * dW_scalar,
                              qqeh=qqeh,
                              wqeh=wqeh,
                              domega0=0.1,
@@ -504,7 +501,6 @@ def test_mqeh_physical_signs(in_tmp_dir, gpw_files):
                             filename='mqeh_signs',
                             kpts=[0],
                             bands=(8, 12),
-                            dW_qw=dW_scalar,
                             qqeh=qqeh,
                             wqeh=wqeh,
                             domega0=0.1,
@@ -546,7 +542,6 @@ def test_mqeh_nonzero_with_higher_basis(in_tmp_dir, gpw_files):
                              filename='mqeh_nb1',
                              kpts=[0],
                              bands=(8, 12),
-                             dW_qw=dW_scalar1,
                              qqeh=qqeh,
                              wqeh=wqeh,
                              domega0=0.1,
@@ -566,7 +561,6 @@ def test_mqeh_nonzero_with_higher_basis(in_tmp_dir, gpw_files):
                              filename='mqeh_nb2',
                              kpts=[0],
                              bands=(8, 12),
-                             dW_qw=dW_scalar2,
                              qqeh=qqeh,
                              wqeh=wqeh,
                              domega0=0.1,
@@ -609,7 +603,6 @@ def test_mqeh_ecut_convergence(in_tmp_dir, gpw_files):
                                 filename='mqeh_ecut_low',
                                 kpts=[0],
                                 bands=(8, 12),
-                                dW_qw=dW_scalar,
                                 qqeh=qqeh,
                                 wqeh=wqeh,
                                 domega0=0.1,
@@ -626,7 +619,6 @@ def test_mqeh_ecut_convergence(in_tmp_dir, gpw_files):
                                  filename='mqeh_ecut_high',
                                  kpts=[0],
                                  bands=(8, 12),
-                                 dW_qw=dW_scalar,
                                  qqeh=qqeh,
                                  wqeh=wqeh,
                                  domega0=0.1,
@@ -647,6 +639,75 @@ def test_mqeh_ecut_convergence(in_tmp_dir, gpw_files):
     # Results should differ when more G_par vectors are included
     assert not np.allclose(qp_low, qp_high, atol=1e-12), \
         'Low and high ecut give identical results'
+
+
+@pytest.mark.response
+@pytest.mark.serial
+def test_mqeh_include_q0_toggle(in_tmp_dir, gpw_files):
+    """include_q0 must actually change the small-q matrix contribution.
+
+    Regression for the q_grid wiring: _interpolate_mqeh_data uses
+    self.q_grid to set the small-q cutoff and decide whether to zero
+    (include_q0=False) or weight-average (include_q0=True) the matrix
+    dW for |q+G_par| below that cutoff. Before the q_grid was wired
+    into _install_mqeh_matrix, self.q_grid was unset on the mQEH path,
+    so neither branch fired and the two flag values produced
+    identical output.
+    """
+    from gpaw.response.gwqeh import GWmQEHCorrection
+
+    gpwfile = str(gpw_files['mos2_pw_fulldiag'])
+    (qqeh, wqeh, dW_scalar,
+     dW_matrix, drho_qzi, z_z, dz) = _make_synthetic_mqeh_data()
+
+    common = dict(
+        calc=gpwfile, kpts=[0], bands=(8, 12),
+        qqeh=qqeh, wqeh=wqeh,
+        domega0=0.1, omega2=5.0, ecut_mqeh=50.0,
+        dW_qw_matrix=dW_matrix, drho_qzi=drho_qzi,
+        z_z_qeh=z_z, dz_qeh=dz)
+
+    gwq_in = GWmQEHCorrection(filename='mqeh_q0_in',
+                              include_q0=True, **common)
+    qp_in = gwq_in.calculate_qp_correction()
+
+    gwq_out = GWmQEHCorrection(filename='mqeh_q0_out',
+                               include_q0=False, **common)
+    qp_out = gwq_out.calculate_qp_correction()
+
+    assert np.any(np.abs(qp_in) > 1e-12), \
+        'include_q0=True corrections are zero'
+    assert not np.allclose(qp_in, qp_out, atol=1e-12), \
+        ('include_q0 toggle has no effect on the mQEH self-energy; '
+         'self.q_grid is probably not being set before '
+         '_interpolate_mqeh_data')
+
+
+@pytest.mark.response
+@pytest.mark.serial
+def test_mqeh_metal_rejected(in_tmp_dir, gpw_files):
+    """metal=True must raise NotImplementedError for GWmQEHCorrection.
+
+    The matrix q-interpolation in _interpolate_mqeh_data does not
+    implement the parent's metal-handling (strip q=0 from interp,
+    different q_cut). Until it does, the kwarg should be refused so
+    users don't silently get the non-metal q_cut on a metallic system.
+    """
+    from gpaw.response.gwqeh import GWmQEHCorrection
+
+    gpwfile = str(gpw_files['mos2_pw_fulldiag'])
+    (qqeh, wqeh, dW_scalar,
+     dW_matrix, drho_qzi, z_z, dz) = _make_synthetic_mqeh_data()
+
+    with pytest.raises(NotImplementedError):
+        GWmQEHCorrection(
+            calc=gpwfile, filename='mqeh_metal_should_fail',
+            kpts=[0], bands=(8, 12),
+            qqeh=qqeh, wqeh=wqeh,
+            domega0=0.1, omega2=5.0, ecut_mqeh=50.0,
+            metal=True,
+            dW_qw_matrix=dW_matrix, drho_qzi=drho_qzi,
+            z_z_qeh=z_z, dz_qeh=dz)
 
 
 # ---------- Full mQEH pipeline test (requires qeh package) ----------
@@ -713,9 +774,10 @@ def test_mqeh_full_pipeline(in_tmp_dir, mos2_chi):
 def test_mqeh_restart_reloads_matrix(in_tmp_dir, gpw_files):
     """Restart must reload the full mQEH matrix from <file>_dW_qw.npz.
 
-    Without the child's _try_load_mqeh_npz hook, a restart=True run
-    silently falls back to monopole-only because self.dW_qw_matrix
-    stays None after the parent reads only the scalar dW_qw.
+    The child's _setup_dW override is responsible for loading the
+    matrix on restart. If it stops firing, calculate_QEH crashes on
+    self.nbasis / self._nw_qeh during the G_par loop because the
+    matrix state stays uninitialized.
     """
     from gpaw.response.gwqeh import GWmQEHCorrection
 
@@ -724,13 +786,10 @@ def test_mqeh_restart_reloads_matrix(in_tmp_dir, gpw_files):
      dW_matrix, drho_qzi, z_z, dz) = _make_synthetic_mqeh_data()
 
     # First run: writes <file>_dW_qw.npz with matrix + basis arrays.
-    # We mimic calculate_W_QEH's npz write by saving it ourselves, then
-    # constructing the object with dW_qw=None + restart=True so that the
-    # parent path reads the scalar and the child reloads the matrix.
+    # We mimic calculate_W_QEH's npz write directly here.
     fname = 'mqeh_restart_reload'
     np.savez(fname + '_dW_qw.npz',
              qqeh=qqeh, wqeh=wqeh,
-             dW_qw=dW_scalar,
              dW_qw_matrix=dW_matrix,
              drho_qzi=drho_qzi,
              z_z_qeh=z_z,
