@@ -270,7 +270,9 @@ class GWQEHCorrection:
             print('Calculating contribution from IBZ q-point #%d/%d q_c=%s'
                   % (nq, Nq, qcstr), file=self.fd)
 
-            # Screened potential
+            # Screened potential. QEH returns dW in Hartree*Bohr^2; the
+            # factor L absorbs the 1/L in x = 1/(N_q*2pi*Omega) so that
+            # x*L = 1/(N_q*2pi*A) matches Eq.(9) of W&T 2017.
             dW_w = self.dW_qw[nq]
             dW_w = dW_w[:, np.newaxis, np.newaxis]
             L = abs(self.gs.gd.cell_cv[2, 2])
@@ -676,7 +678,7 @@ class GWmQEHCorrection(GWQEHCorrection):
                  txt=sys.stdout, world=mpi.world, domega0=0.025,
                  omega2=10.0, eta=0.1, include_q0=True, metal=False,
                  restart=False, ecut_mqeh=50.0,
-                 dW_qw_matrix=None, phi_qiz=None, drho_qzi=None,
+                 dW_qw_matrix=None, drho_qzi=None,
                  z_z_qeh=None, dz_qeh=None):
 
         self.ecut_mqeh = ecut_mqeh / Hartree
@@ -685,9 +687,15 @@ class GWmQEHCorrection(GWQEHCorrection):
         self._include_q0 = include_q0
         self._metal = metal
 
-        # These will be set by calculate_W_QEH or provided directly
+        # These will be set by calculate_W_QEH or provided directly.
+        # NOTE: GWmQEHCorrection deliberately does NOT carry the QEH potential
+        # basis (phi_qiz). The mQEH self-energy is bilinear in the rho-LS
+        # coefficients of the pair density (see _calculate_sigma_mqeh), so
+        # the truncated phi basis from Layer.get_phi_qaz must never appear
+        # in this class. If you find yourself reaching for phi, that is a
+        # sign that the projection has reverted to the old (buggy)
+        # phi-inner-product form.
         self.dW_qw_matrix = None
-        self.phi_qiz_target = None
         self.drho_qzi_target = None
         self.nbasis = None
         self.layer_index = layer
@@ -698,7 +706,6 @@ class GWmQEHCorrection(GWQEHCorrection):
 
         # Store user-provided mQEH data (if any) for setup after parent init
         self._init_dW_qw_matrix = dW_qw_matrix
-        self._init_phi_qiz = phi_qiz
         self._init_drho_qzi = drho_qzi
         self._init_z_z_qeh = z_z_qeh
         self._init_dz_qeh = dz_qeh
@@ -728,7 +735,6 @@ class GWmQEHCorrection(GWQEHCorrection):
             self.nbasis = self._init_dW_qw_matrix.shape[2]
             self.qqeh_matrix = qqeh.copy()
             self.wqeh_matrix = wqeh.copy()
-            self.phi_qiz_target = self._init_phi_qiz
             self.drho_qzi_target = self._init_drho_qzi
             self.z_z_qeh = self._init_z_z_qeh
             self.dz_qeh = self._init_dz_qeh
@@ -749,15 +755,18 @@ class GWmQEHCorrection(GWQEHCorrection):
             data = np.load(self.filename + '_dW_qw.npz')
         except IOError:
             return
-        required = ('dW_qw_matrix', 'phi_qiz', 'drho_qzi',
+        required = ('dW_qw_matrix', 'drho_qzi',
                     'z_z_qeh', 'dz_qeh', 'nbasis')
         if not all(k in data.files for k in required):
             return
         self.dW_qw_matrix = data['dW_qw_matrix']
-        self.phi_qiz_target = data['phi_qiz']
         self.drho_qzi_target = data['drho_qzi']
         self.z_z_qeh = data['z_z_qeh']
         self.dz_qeh = float(data['dz_qeh'])
+        # Defend against silent unit drift across restart.
+        assert np.isclose(self.dz_qeh,
+                          self.z_z_qeh[1] - self.z_z_qeh[0]), \
+            'dz_qeh inconsistent with z_z_qeh spacing in restart file'
         self.nbasis = int(data['nbasis'])
         self.qqeh_matrix = self.qqeh.copy()
         self.wqeh_matrix = self.wqeh.copy()
@@ -819,15 +828,14 @@ class GWmQEHCorrection(GWQEHCorrection):
         self.qqeh_matrix = HS.hs.q_q.copy()
         self.wqeh_matrix = HS.hs.omega_w.copy()
 
-        # Store density and potential basis functions for the target layer
-        # drho_qzi: density basis functions on z-grid, shape (nq, nz, nbasis)
-        # phi_qiz: potential basis functions, shape (nq, nbasis, nz)
+        # Store density basis functions for the target layer on the
+        # heterostructure z-grid. We intentionally do NOT store the
+        # potential basis: the mQEH self-energy is a rho-bilinear (see
+        # _calculate_sigma_mqeh), and Layer.get_phi_qaz hard-zeros phi
+        # outside the layer width, which would break the projection.
         target_layer = HS.hs.layers_l[layer]
         self.drho_qzi_target = np.array(
             [target_layer.get_drho_qza(iq_q=[iq])[0]
-             for iq in range(HS.hs.qN)])
-        self.phi_qiz_target = np.array(
-            [target_layer.get_phi_qaz(iq_q=[iq])[0]
              for iq in range(HS.hs.qN)])
         self.z_z_qeh = HS.hs.z_z.copy()
         self.dz_qeh = HS.hs.dz
@@ -842,7 +850,6 @@ class GWmQEHCorrection(GWQEHCorrection):
                     'dW_qw': dW_qwab[:, :, 0, 0],  # monopole for compat
                     'dW_qw_matrix': dW_qwab,
                     'drho_qzi': self.drho_qzi_target,
-                    'phi_qiz': self.phi_qiz_target,
                     'z_z_qeh': self.z_z_qeh,
                     'dz_qeh': self.dz_qeh,
                     'nbasis': self.nbasis}
@@ -886,11 +893,10 @@ class GWmQEHCorrection(GWQEHCorrection):
 
         # Sort along q for all interpolated arrays
         dW_sorted = self.dW_qw_matrix[sortq]          # (nq, nw_qeh, nb, nb)
-        phi_sorted = self.phi_qiz_target[sortq]       # (nq, nb, nz)
         drho_sorted = self.drho_qzi_target[sortq]     # (nq, nz, nb)
         nb = self.nbasis
         nw_qeh = dW_sorted.shape[1]
-        nz = phi_sorted.shape[2]
+        nz = drho_sorted.shape[1]
 
         # Pre-interpolate Delta-W along the omega axis from the QEH
         # frequency grid to the GW frequency grid. This makes per-call
@@ -905,17 +911,14 @@ class GWmQEHCorrection(GWQEHCorrection):
         dW_sorted_W = (w_spl_re(self.omega_w)
                        + 1j * w_spl_im(self.omega_w))   # (nq, nw_gw, nb, nb)
 
-        # Single multi-output splines in q for Delta-W, phi, drho.
+        # Single multi-output splines in q for Delta-W and drho.
         # Real and imag parts split so we can use CubicSpline (which
-        # only takes real data).
+        # only takes real data). NB: no phi spline -- mQEH does not
+        # access the truncated potential basis.
         self._dW_spline_re = CubicSpline(
             self._qqeh_sorted, dW_sorted_W.real, axis=0, extrapolate=True)
         self._dW_spline_im = CubicSpline(
             self._qqeh_sorted, dW_sorted_W.imag, axis=0, extrapolate=True)
-        self._phi_spline_re = CubicSpline(
-            self._qqeh_sorted, phi_sorted.real, axis=0, extrapolate=True)
-        self._phi_spline_im = CubicSpline(
-            self._qqeh_sorted, phi_sorted.imag, axis=0, extrapolate=True)
         self._drho_spline_re = CubicSpline(
             self._qqeh_sorted, drho_sorted.real, axis=0, extrapolate=True)
         self._drho_spline_im = CubicSpline(
@@ -990,13 +993,13 @@ class GWmQEHCorrection(GWQEHCorrection):
         return (self._dW_spline_re(q_abs)
                 + 1j * self._dW_spline_im(q_abs))
 
-    def _eval_phi(self, q_abs):
-        """Evaluate potential basis functions at |q|.
+    def _eval_drho(self, q_abs):
+        """Evaluate density basis functions at |q|.
 
-        Returns array of shape (nbasis, nz).
+        Returns array of shape (nz, nbasis).
         """
-        return (self._phi_spline_re(q_abs)
-                + 1j * self._phi_spline_im(q_abs))
+        return (self._drho_spline_re(q_abs)
+                + 1j * self._drho_spline_im(q_abs))
 
     def calculate_QEH(self):
         """Calculate the mQEH self-energy contribution.
@@ -1086,7 +1089,7 @@ class GWmQEHCorrection(GWQEHCorrection):
                 # GW frequency grid; the omega-direction interpolation
                 # was precomputed in _interpolate_mqeh_data.
                 dW_wab = self._eval_dW_on_gwgrid(q_abs)
-                # Apply L factor (unit cell height) as in parent
+                # dW is Hartree*Bohr^2; *= L makes x*L = 1/(N_q*2pi*A).
                 dW_wab *= L
 
                 # Set up Wpm for Hilbert transform
@@ -1097,13 +1100,20 @@ class GWmQEHCorrection(GWQEHCorrection):
                 self.htp(Wpm_Gpar[ig, :nw])
                 self.htm(Wpm_Gpar[ig, nw:])
 
-            # Prepare potential basis functions for projection
-            # at each |q + G_parallel|
-            # phi_az(|q+G_par|) has shape (nbasis, nz_qeh)
-            phi_Gpar_az = np.zeros(
-                (n_Gpar, nb, self._nz_qeh), dtype=complex)
+            # Density basis functions rho_alpha(|q+G_par|; z) on the QEH
+            # z-grid, and the rho overlap S_{ab}(|q+G_par|) on the same
+            # grid. These are the only basis-side ingredients of the mQEH
+            # sigma; phi never appears.
+            drho_Gpar_za = np.zeros(
+                (n_Gpar, self._nz_qeh, nb), dtype=complex)
+            S_Gpar_ab = np.zeros((n_Gpar, nb, nb), dtype=complex)
             for ig in range(n_Gpar):
-                phi_Gpar_az[ig] = self._eval_phi(qplusGpar_abs[ig])
+                drho_za = self._eval_drho(qplusGpar_abs[ig])
+                drho_Gpar_za[ig] = drho_za
+                # S_{ab} = int rho_a*(z) rho_b(z) dz on the het z-grid.
+                # Generally != delta_ab because the het-grid integration
+                # is not the BB-grid integration used for biorthogonality.
+                S_Gpar_ab[ig] = (drho_za.conj().T @ drho_za) * self.dz_qeh
 
             # Precompute per-(G_par-group) z-Fourier phase factors and
             # G-vector index lists. These depend only on iq (and the FFT
@@ -1205,7 +1215,7 @@ class GWmQEHCorrection(GWQEHCorrection):
                         sigma, dsigma = self._calculate_sigma_mqeh(
                             n_mG, deps_m, f_m, Wpm_Gpar,
                             G_indices_per_Gpar, phase_zg_per_Gpar,
-                            phi_Gpar_az, L)
+                            drho_Gpar_za, S_Gpar_ab, L)
 
                         nn = kpt1.n1 + n - self.bands[0]
                         self.sigma_sin[kpt1.s, i, nn] += sigma
@@ -1221,12 +1231,34 @@ class GWmQEHCorrection(GWQEHCorrection):
 
     def _calculate_sigma_mqeh(self, n_mG, deps_m, f_m, Wpm_Gpar,
                               G_indices_per_Gpar, phase_zg_per_Gpar,
-                              phi_Gpar_az, Lz):
+                              drho_Gpar_za, S_Gpar_ab, Lz):
         """Calculate self-energy contribution in the mQEH basis.
 
-        For each G_parallel, project the pair density onto the mQEH
-        density basis to get expansion coefficients, then contract
-        with the Delta-W matrix.
+        For each G_parallel, fit the pair density onto the mQEH density
+        basis by least squares (the rho basis is in general not
+        orthogonal on the heterostructure z-grid), then contract the
+        resulting rho-coefficients with the Delta-W matrix.
+
+        In the mQEH convention (qeh.MQEH), W_qwij = V + V chi V is the
+        symmetric <rho|W|rho> kernel: it takes rho-coefficients of a
+        probe density in and returns rho-projections of the screened
+        potential out (see qeh/mqeh.py:13-31, 228-269). The self-energy
+        bilinear is therefore
+
+            Sigma ~ d^dagger W^mQEH d
+
+        with d_alpha the least-squares rho-coefficients of bar_rho,
+        obtained from the normal equation
+
+            S_{ab} d_b = R_a,
+            R_a = int rho_a*(z) bar_rho(z) dz,
+            S_{ab} = int rho_a*(z) rho_b(z) dz.
+
+        The truncated potential basis phi_qiz does not appear -- using
+        it would silently revert to the old phi-inner-product form,
+        which is only equivalent under exact biorthogonality on the het
+        z-grid (broken by Layer.get_phi_qaz's hard zeroing outside the
+        layer width).
 
         Parameters
         ----------
@@ -1244,9 +1276,11 @@ class GWmQEHCorrection(GWQEHCorrection):
         phase_zg_per_Gpar : list of ndarray or None
             For each unique G_parallel group, exp(i Gz z_qeh) on the
             QEH z-grid with shape (nz_qeh, n_gz). None for empty groups.
-            Precomputed once per iq in calculate_QEH.
-        phi_Gpar_az : ndarray (n_Gpar, nbasis, nz_qeh)
-            Potential basis functions at each |q+G_parallel|.
+        drho_Gpar_za : ndarray (n_Gpar, nz_qeh, nbasis)
+            Density basis functions rho_alpha(|q+G_par|; z).
+        S_Gpar_ab : ndarray (n_Gpar, nbasis, nbasis)
+            Rho overlap matrix S_{ab} = int rho_a* rho_b dz on the het
+            z-grid.
         Lz : float
             DFT cell height (for inverse-FFT normalization).
         """
@@ -1264,59 +1298,44 @@ class GWmQEHCorrection(GWQEHCorrection):
         o2_m = self.omega_w[w_m + 1]
         x = 1.0 / (self.qd.nbzkpts * 2 * pi * self.vol)
 
-        # Compute expansion coefficients C_{m,alpha}(G_par) for each band m
-        # C_{m,alpha}(G_par) = int dz rho^n_m(G_par, z) phi^{l0}_alpha(z)
-        # where phi is the potential basis function (dual to density basis)
-        # and rho(G_par, z) = sum_{G_z} n(G_par, G_z) e^{i G_z z} / Lz.
-        # phase_zg_per_Gpar and G_indices_per_Gpar are precomputed in
-        # calculate_QEH so we don't rebuild them per band / per symmetry.
-        C_mGpar_a = np.zeros((len(deps_m), n_Gpar, nb), dtype=complex)
+        # d_{m, ig, a} = (S^{-1} R)_{m, ig, a} are the rho-LS coefficients
+        # of the pair density bar_rho^{nm}(G_par; z) in the rho basis.
+        # rho(G_par, z) = sum_{G_z} n(G_par, G_z) e^{i G_z z} / Lz
+        # (inverse z-FFT consistent with GPAW's e^{-iG.r} forward sign).
+        d_mGpar_a = np.zeros((len(deps_m), n_Gpar, nb), dtype=complex)
 
         for ig in range(n_Gpar):
             G_indices = G_indices_per_Gpar[ig]
             if len(G_indices) == 0:
                 continue
-            phase_zg = phase_zg_per_Gpar[ig]   # (nz_qeh, n_gz)
-            n_m_gz = n_mG[:, G_indices]        # (nbands, n_gz)
-            rho_mz = n_m_gz @ phase_zg.T / Lz  # (nbands, nz_qeh)
-            phi_az = phi_Gpar_az[ig]           # (nbasis, nz_qeh)
-            C_mGpar_a[:, ig, :] = (
-                rho_mz @ phi_az.conj().T * self.dz_qeh)
+            phase_zg = phase_zg_per_Gpar[ig]      # (nz_qeh, n_gz)
+            n_m_gz = n_mG[:, G_indices]           # (nbands, n_gz)
+            rho_mz = n_m_gz @ phase_zg.T / Lz     # (nbands, nz_qeh)
+            drho_za = drho_Gpar_za[ig]            # (nz_qeh, nbasis)
+            # R_{m, a} = int rho_a*(z) bar_rho^{nm}(z) dz
+            R_m_a = (rho_mz @ drho_za.conj()) * self.dz_qeh
+            # Normal equation: S @ d.T = R.T  =>  d = solve(S, R.T).T
+            d_mGpar_a[:, ig, :] = np.linalg.solve(
+                S_Gpar_ab[ig], R_m_a.T).T
 
-        # Now compute self-energy using the expansion coefficients
-        # The factor 1/A appears because we sum over G_parallel:
-        # (1/Omega) sum_G (...) = (1/A) sum_{G_par} (1/L) sum_{G_z} (...)
-        # The (1/L) is absorbed into the inverse FFT normalization above,
-        # and (1/Omega) is already in x, so we need an extra factor of
-        # (Omega / A) = L to compensate for splitting 1/Omega into 1/(A*L).
-        # Since dW was already multiplied by L, the net effect is that
-        # x (which contains 1/Omega) handles the normalization correctly
-        # when we sum over G_parallel contributions.
-        # The pair density normalization: n_mG from GPAW includes dv,
-        # so rho(G_par, z) = sum_{G_z} n(G_par,G_z) e^{iG_z z} / L_z
-        # and C_alpha = int dz rho(G_par,z) phi_alpha(z) dz_qeh
-        # The self-energy is:
-        # (1/(N_q * 2pi)) * sum_{G_par} sum_{a,b} C*_a W_ab C_b / A
-        # where the 1/A factor replaces 1/Omega from the parent.
-        # Since x = 1/(N_q * 2pi * Omega) = 1/(N_q * 2pi * A * L),
-        # and W already includes factor L, we get x*L = 1/(N_q*2pi*A).
-        # So we should use x directly (no extra 1/A).
+        # Prefactor: x = 1/(N_q*2pi*Omega) and dW carries an extra L,
+        # so x*L = 1/(N_q*2pi*A) matches Eq.(9) of W&T 2017.
         sigma = 0.0
         dsigma = 0.0
 
-        for o, o1, o2, sgn, s, w, C_Gpar_a in zip(
-                o_m, o1_m, o2_m, sgn_m, s_m, w_m, C_mGpar_a):
+        for o, o1, o2, sgn, s, w, d_Gpar_a in zip(
+                o_m, o1_m, o2_m, sgn_m, s_m, w_m, d_mGpar_a):
             p = x * sgn
             sigma1 = 0.0
             sigma2 = 0.0
 
             for ig in range(n_Gpar):
-                C_a = C_Gpar_a[ig]  # (nbasis,)
+                d_a = d_Gpar_a[ig]                    # (nbasis,)
                 W1_ab = Wpm_Gpar[ig, s * nw + w]      # (nbasis, nbasis)
                 W2_ab = Wpm_Gpar[ig, s * nw + w + 1]  # (nbasis, nbasis)
 
-                sigma1 += p * (C_a.conj() @ W1_ab @ C_a).imag
-                sigma2 += p * (C_a.conj() @ W2_ab @ C_a).imag
+                sigma1 += p * (d_a.conj() @ W1_ab @ d_a).imag
+                sigma2 += p * (d_a.conj() @ W2_ab @ d_a).imag
 
             sigma += ((o - o1) * sigma2 + (o2 - o) * sigma1) / (o2 - o1)
             dsigma += sgn * (sigma2 - sigma1) / (o2 - o1)
