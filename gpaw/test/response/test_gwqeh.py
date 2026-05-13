@@ -335,18 +335,17 @@ def test_gwqeh_full_pipeline(in_tmp_dir, mos2_chi):
 
 
 def _make_synthetic_mqeh_data(nq=50, nw=100, nbasis=1, amplitude=0.005):
-    """Create synthetic mQEH Delta-W matrix and basis functions for testing.
+    """Create synthetic mQEH Delta-W matrix and density basis for testing.
 
-    Generates a full set of mQEH data (Delta-W matrix, density and potential
-    basis functions on a z-grid) without requiring the qeh package.
+    Generates a Delta-W matrix and the rho density basis on a z-grid
+    without requiring the qeh package. The potential basis phi is not
+    produced: GWmQEHCorrection does not accept or use it (the self-energy
+    is bilinear in the rho-LS coefficients).
 
-    For nbasis=1 (monopole), the density basis is a Gaussian localized at z=0
-    and the potential basis is the constant function phi=1.  The Delta-W matrix
-    is a scalar (1x1) matching the scalar _make_synthetic_dW.
+    For nbasis=1, the density basis is a Gaussian localized at z=0.
+    For nbasis=2, a dipole-like (odd) basis function is added.
 
-    For nbasis=2, a dipole basis function is added.
-
-    Returns qqeh, wqeh, dW_qw (scalar monopole), dW_qw_matrix, phi_qiz,
+    Returns qqeh, wqeh, dW_qw (scalar monopole), dW_qw_matrix,
     drho_qzi, z_z, dz.
     """
     qqeh = np.linspace(0, 3.0, nq)   # Bohr^-1
@@ -363,33 +362,16 @@ def _make_synthetic_mqeh_data(nq=50, nw=100, nbasis=1, amplitude=0.005):
     # Density basis functions: Gaussians centered at z=0
     sigma = 1.5  # width in Bohr
     drho_monopole = np.exp(-z_z**2 / (2 * sigma**2))
-    drho_monopole /= np.sqrt(np.sum(drho_monopole**2) * dz)  # normalize
+    drho_monopole /= np.sqrt(np.sum(drho_monopole**2) * dz)  # ||rho||_2 = 1
 
-    # Potential basis: constant (dual to monopole density when properly
-    # normalized). For the monopole, phi=1/integral(drho) so that
-    # <drho|phi> = 1 (biorthonormality).
-    integral_drho = np.sum(drho_monopole) * dz
-    phi_monopole = np.ones(nz) / integral_drho
-
-    # Build arrays
-    # drho_qzi: shape (nq, nz, nbasis) - density functions on z-grid
     drho_qzi = np.zeros((nq, nz, nbasis), dtype=complex)
     drho_qzi[:, :, 0] = drho_monopole[np.newaxis, :]
 
-    # phi_qiz: shape (nq, nbasis, nz) - potential basis functions
-    phi_qiz = np.zeros((nq, nbasis, nz), dtype=complex)
-    phi_qiz[:, 0, :] = phi_monopole[np.newaxis, :]
-
     if nbasis >= 2:
-        # Dipole: z * Gaussian
+        # Dipole-like: z * Gaussian, orthogonal to the monopole by parity
         drho_dipole = z_z * np.exp(-z_z**2 / (2 * sigma**2))
         drho_dipole /= np.sqrt(np.sum(drho_dipole**2) * dz)
-
-        integral_z_drho = np.sum(drho_dipole * z_z) * dz
-        phi_dipole = z_z / integral_z_drho
-
         drho_qzi[:, :, 1] = drho_dipole[np.newaxis, :]
-        phi_qiz[:, 1, :] = phi_dipole[np.newaxis, :]
 
     # Delta-W matrix: shape (nq, nw, nbasis, nbasis)
     # Monopole-monopole matches the scalar dW
@@ -405,7 +387,7 @@ def _make_synthetic_mqeh_data(nq=50, nw=100, nbasis=1, amplitude=0.005):
         dW_qw_matrix[:, :, 1, 1] = 0.3 * dW_scalar
 
     return (qqeh, wqeh, dW_scalar.astype(complex),
-            dW_qw_matrix, phi_qiz, drho_qzi, z_z, dz)
+            dW_qw_matrix, drho_qzi, z_z, dz)
 
 
 # ---------- mQEH integration tests (DFT + synthetic mQEH data) ----------
@@ -423,7 +405,7 @@ def test_mqeh_zero_dW(in_tmp_dir, gpw_files):
 
     gpwfile = str(gpw_files['mos2_pw_fulldiag'])
     (qqeh, wqeh, dW_scalar,
-     dW_matrix, phi_qiz, drho_qzi, z_z, dz) = _make_synthetic_mqeh_data()
+     dW_matrix, drho_qzi, z_z, dz) = _make_synthetic_mqeh_data()
 
     dW_zero = np.zeros_like(dW_scalar)
     dW_matrix_zero = np.zeros_like(dW_matrix)
@@ -439,7 +421,6 @@ def test_mqeh_zero_dW(in_tmp_dir, gpw_files):
                             omega2=5.0,
                             ecut_mqeh=50.0,
                             dW_qw_matrix=dW_matrix_zero,
-                            phi_qiz=phi_qiz,
                             drho_qzi=drho_qzi,
                             z_z_qeh=z_z,
                             dz_qeh=dz)
@@ -465,7 +446,7 @@ def test_mqeh_linearity_in_dW(in_tmp_dir, gpw_files):
 
     gpwfile = str(gpw_files['mos2_pw_fulldiag'])
     (qqeh, wqeh, dW_scalar,
-     dW_matrix, phi_qiz, drho_qzi, z_z, dz) = _make_synthetic_mqeh_data()
+     dW_matrix, drho_qzi, z_z, dz) = _make_synthetic_mqeh_data()
 
     gwq1 = GWmQEHCorrection(calc=gpwfile,
                              filename='mqeh_1x',
@@ -478,7 +459,6 @@ def test_mqeh_linearity_in_dW(in_tmp_dir, gpw_files):
                              omega2=5.0,
                              ecut_mqeh=50.0,
                              dW_qw_matrix=dW_matrix,
-                             phi_qiz=phi_qiz,
                              drho_qzi=drho_qzi,
                              z_z_qeh=z_z,
                              dz_qeh=dz)
@@ -495,7 +475,6 @@ def test_mqeh_linearity_in_dW(in_tmp_dir, gpw_files):
                              omega2=5.0,
                              ecut_mqeh=50.0,
                              dW_qw_matrix=2.0 * dW_matrix,
-                             phi_qiz=phi_qiz,
                              drho_qzi=drho_qzi,
                              z_z_qeh=z_z,
                              dz_qeh=dz)
@@ -519,7 +498,7 @@ def test_mqeh_physical_signs(in_tmp_dir, gpw_files):
 
     gpwfile = str(gpw_files['mos2_pw_fulldiag'])
     (qqeh, wqeh, dW_scalar,
-     dW_matrix, phi_qiz, drho_qzi, z_z, dz) = _make_synthetic_mqeh_data()
+     dW_matrix, drho_qzi, z_z, dz) = _make_synthetic_mqeh_data()
 
     gwq = GWmQEHCorrection(calc=gpwfile,
                             filename='mqeh_signs',
@@ -532,7 +511,6 @@ def test_mqeh_physical_signs(in_tmp_dir, gpw_files):
                             omega2=5.0,
                             ecut_mqeh=50.0,
                             dW_qw_matrix=dW_matrix,
-                            phi_qiz=phi_qiz,
                             drho_qzi=drho_qzi,
                             z_z_qeh=z_z,
                             dz_qeh=dz)
@@ -562,7 +540,7 @@ def test_mqeh_nonzero_with_higher_basis(in_tmp_dir, gpw_files):
 
     # Monopole only (nbasis=1)
     (qqeh, wqeh, dW_scalar1,
-     dW_matrix1, phi1, drho1, z_z, dz) = _make_synthetic_mqeh_data(nbasis=1)
+     dW_matrix1, drho1, z_z, dz) = _make_synthetic_mqeh_data(nbasis=1)
 
     gwq1 = GWmQEHCorrection(calc=gpwfile,
                              filename='mqeh_nb1',
@@ -575,7 +553,6 @@ def test_mqeh_nonzero_with_higher_basis(in_tmp_dir, gpw_files):
                              omega2=5.0,
                              ecut_mqeh=50.0,
                              dW_qw_matrix=dW_matrix1,
-                             phi_qiz=phi1,
                              drho_qzi=drho1,
                              z_z_qeh=z_z,
                              dz_qeh=dz)
@@ -583,7 +560,7 @@ def test_mqeh_nonzero_with_higher_basis(in_tmp_dir, gpw_files):
 
     # Monopole + dipole (nbasis=2)
     (qqeh, wqeh, dW_scalar2,
-     dW_matrix2, phi2, drho2, z_z, dz) = _make_synthetic_mqeh_data(nbasis=2)
+     dW_matrix2, drho2, z_z, dz) = _make_synthetic_mqeh_data(nbasis=2)
 
     gwq2 = GWmQEHCorrection(calc=gpwfile,
                              filename='mqeh_nb2',
@@ -596,7 +573,6 @@ def test_mqeh_nonzero_with_higher_basis(in_tmp_dir, gpw_files):
                              omega2=5.0,
                              ecut_mqeh=50.0,
                              dW_qw_matrix=dW_matrix2,
-                             phi_qiz=phi2,
                              drho_qzi=drho2,
                              z_z_qeh=z_z,
                              dz_qeh=dz)
@@ -626,7 +602,7 @@ def test_mqeh_ecut_convergence(in_tmp_dir, gpw_files):
 
     gpwfile = str(gpw_files['mos2_pw_fulldiag'])
     (qqeh, wqeh, dW_scalar,
-     dW_matrix, phi_qiz, drho_qzi, z_z, dz) = _make_synthetic_mqeh_data()
+     dW_matrix, drho_qzi, z_z, dz) = _make_synthetic_mqeh_data()
 
     # Very low ecut: only G_par=0
     gwq_low = GWmQEHCorrection(calc=gpwfile,
@@ -640,7 +616,6 @@ def test_mqeh_ecut_convergence(in_tmp_dir, gpw_files):
                                 omega2=5.0,
                                 ecut_mqeh=0.1,
                                 dW_qw_matrix=dW_matrix,
-                                phi_qiz=phi_qiz,
                                 drho_qzi=drho_qzi,
                                 z_z_qeh=z_z,
                                 dz_qeh=dz)
@@ -658,7 +633,6 @@ def test_mqeh_ecut_convergence(in_tmp_dir, gpw_files):
                                  omega2=5.0,
                                  ecut_mqeh=50.0,
                                  dW_qw_matrix=dW_matrix,
-                                 phi_qiz=phi_qiz,
                                  drho_qzi=drho_qzi,
                                  z_z_qeh=z_z,
                                  dz_qeh=dz)
@@ -747,7 +721,7 @@ def test_mqeh_restart_reloads_matrix(in_tmp_dir, gpw_files):
 
     gpwfile = str(gpw_files['mos2_pw_fulldiag'])
     (qqeh, wqeh, dW_scalar,
-     dW_matrix, phi_qiz, drho_qzi, z_z, dz) = _make_synthetic_mqeh_data()
+     dW_matrix, drho_qzi, z_z, dz) = _make_synthetic_mqeh_data()
 
     # First run: writes <file>_dW_qw.npz with matrix + basis arrays.
     # We mimic calculate_W_QEH's npz write by saving it ourselves, then
@@ -759,7 +733,6 @@ def test_mqeh_restart_reloads_matrix(in_tmp_dir, gpw_files):
              dW_qw=dW_scalar,
              dW_qw_matrix=dW_matrix,
              drho_qzi=drho_qzi,
-             phi_qiz=phi_qiz,
              z_z_qeh=z_z,
              dz_qeh=dz,
              nbasis=dW_matrix.shape[2])
@@ -780,7 +753,7 @@ def test_mqeh_restart_reloads_matrix(in_tmp_dir, gpw_files):
     assert gwq.dW_qw_matrix is not None, \
         'Restart did not reload the mQEH matrix from disk'
     assert gwq.nbasis == dW_matrix.shape[2]
-    assert gwq.phi_qiz_target is not None
+    assert gwq.drho_qzi_target is not None
 
     qp_sin = gwq.calculate_qp_correction()
     # Smoke-check: non-trivial output, no crash.
