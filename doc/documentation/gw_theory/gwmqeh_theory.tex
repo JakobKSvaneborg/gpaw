@@ -11,6 +11,9 @@
 \usepackage{xcolor}
 \usepackage{listings}
 
+\emergencystretch=3em
+\sloppy
+
 \lstset{
   basicstyle=\ttfamily\small,
   breaklines=true,
@@ -237,18 +240,18 @@ Decompose each plane-wave vector as $\GG=(\Gpar,\Gz)$ and write the
 in-plane reciprocal vector $\qpar+\Gpar$.  By in-plane translational
 invariance of the heterostructure $\Delta W^i$ is diagonal in
 $\Gpar$, so the double PW sum in \eq{Sigma-PW} contracts to
-\begin{equation}
+\begin{multline}
 \sum_{\GG\GG'}\rho^{m,\kk+\qq}_{n,\kk}(\GG)\,
 \bigl[\rho^{m,\kk+\qq}_{n,\kk}(\GG')\bigr]^{*}\,
 \Delta W^{i}_{\GG\GG'}(\qq,\omega)
-\;=\;
+\;=\\
 \sum_{\Gpar}
 \int\!\dd z\,\dd z'\;
 \bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;z)\,
 \Delta W^{i}\!\bigl(\,|\qpar+\Gpar|\,;\,z,z'\,\bigr)\,
 \bigl[\bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;z')\bigr]^{*},
 \label{eq:GGsum-to-zz}
-\end{equation}
+\end{multline}
 with the $z$-resolved in-plane Fourier component of the pair density
 \begin{equation}
 \bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;z) \;=\;
@@ -337,17 +340,17 @@ R^{(nm)}_{\beta}(\qpar+\Gpar).
 Substituting \eq{rho-expansion} into the $(z,z')$ integrand of
 \eq{GGsum-to-zz} and using \emph{exact} matrix elements for
 $\Delta W^{i}_{\alpha\beta}$,
-\begin{equation}
+\begin{multline}
 \int\!\dd z\,\dd z'\;
 \bar\rho^{m,\kk+\qq*}_{n,\kk}(\Gpar;z)\,
 \Delta W^{i}(z,z';|\qpar+\Gpar|,\omega)\,
 \bar\rho^{m,\kk+\qq}_{n,\kk}(\Gpar;z')
-\;\approx\;
+\;\approx\\
 \sum_{\alpha\beta}\;
 d^{(nm)*}_{\alpha}\;\Delta W^{i}_{\alpha\beta}(|\qpar+\Gpar|,\omega)\;
 d^{(nm)}_{\beta},
 \label{eq:GGsum-final}
-\end{equation}
+\end{multline}
 with the approximation error
 $\int\bar\rho^{\perp*}\Delta W\bar\rho^{\perp}+\text{cross terms}$
 suppressed in the rich-basis limit.  The right-hand side of
@@ -368,17 +371,18 @@ at L.~1402--1403.
 
 Inserting \eq{GGsum-to-zz}, \eq{rho-z}, and \eq{GGsum-final} into
 \eq{Sigma-PW}, restricted to the difference $\Delta W^i$, gives
-\begin{equation}
+\begin{multline}
 \Delta\Sigma^{i,\text{mQEH}}_{n\kk}\;=\;
 \frac{1}{(2\pi)^3 L_z}\!\int_\text{BZ}\!\dd\qq\;
-\frac{\im}{2\pi}\!\int\dd\omega'\!\sum_{m,\Gpar}
+\frac{\im}{2\pi}\!\int\dd\omega'\!\sum_{m,\Gpar}\\[2pt]
+\times\;
 \frac{\sum_{\alpha\beta}
    d^{(nm)*}_{\alpha}(\qpar+\Gpar)\,
    \Delta W^{i}_{\alpha\beta}\!\bigl(|\qpar+\Gpar|,\omega'\bigr)\,
    d^{(nm)}_{\beta}(\qpar+\Gpar)}
 {\omega+\omega'-\eps_{m\kk+\qq}-\im\eta\,\sgn(\eps_{m\kk+\qq}-\mu)}.
 \label{eq:Sigma-mQEH-final}
-\end{equation}
+\end{multline}
 The explicit $1/L_z$ comes from \eq{rho-z}; the remaining
 $1/(2\pi)^3\!\int\dd\qq$ is the 3D BZ measure of the original PW
 expression.  As shown in (M2) below, the implementation absorbs the
