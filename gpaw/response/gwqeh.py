@@ -1029,6 +1029,58 @@ class GWmQEHCorrection(GWQEHCorrection):
         q_vs = np.dot(self.qd.ibzk_kc, rcell_cv)
         self.q_grid = (q_vs**2).sum(axis=1) ** 0.5
         self._interpolate_mqeh_data()
+        self._log_dW_magnitudes()
+
+    def _log_dW_magnitudes(self):
+        """Print the magnitude of dW(q_min, omega=0) so the mQEH matrix
+        scale can be compared against the legacy ``GWQEHCorrection``
+        scalar dW (which is known to give correct numbers when fed the
+        old-style ``-bb`` building blocks via ``qeh.QEH``).
+
+        For each of the three smallest q-values on the qeh grid we print
+        the (0, 0) matrix element (the rho-rho-basis analog of the
+        legacy monopole-monopole slice), the Frobenius norm of the
+        whole nbasis x nbasis block, and -- as a synthetic monopole
+        contraction -- ``e_0^T dW e_0`` and ``trace(dW)``, all reported
+        in eV. Magnitudes that differ from the legacy scalar dW by
+        many orders of magnitude (at the same q, omega) localize the
+        10^6 over-estimate to the matrix itself rather than to the
+        projection coefficients.
+        """
+        if self.world.rank != 0:
+            return
+        dW_qwab = self.dW_qw_matrix          # shape (nq, nw_qeh, nb, nb)
+        qqeh = self.qqeh_matrix
+        wqeh = self.wqeh_matrix
+        iw_static = int(np.argmin(np.abs(wqeh)))   # omega = 0 (or closest)
+        sortq = np.argsort(qqeh)
+        n_show = min(3, len(qqeh))
+        print('mQEH dW-magnitude diagnostic (eV; compare with legacy '
+              'GWQEHCorrection scalar dW at same q):', file=self.fd)
+        for k in range(n_show):
+            iq = int(sortq[k])
+            dW_ab = dW_qwab[iq, iw_static]
+            mag00 = abs(dW_ab[0, 0]) * Hartree
+            mag_fro = float(np.linalg.norm(dW_ab)) * Hartree
+            mag_tr = abs(np.trace(dW_ab)) * Hartree
+            print(('  iq=%2d  |q|=%.4e Bohr^-1  '
+                   '|dW[0,0]|=%.3e  ||dW||_F=%.3e  |tr dW|=%.3e')
+                  % (iq, qqeh[iq], mag00, mag_fro, mag_tr),
+                  file=self.fd)
+        # Also flag a sanity ratio: the (0,0)-vs-Frobenius spread tells
+        # whether mQEH spreads dW across many basis modes or
+        # concentrates it on the first one (the legacy scalar is
+        # effectively just the first mode).
+        iq0 = int(sortq[0])
+        dW0_ab = dW_qwab[iq0, iw_static]
+        denom = float(np.linalg.norm(dW0_ab))
+        if denom > 0:
+            ratio = abs(dW0_ab[0, 0]) / denom
+            print(('  spread: |dW[0,0]| / ||dW||_F = %.3f at iq=%d '
+                   '(close to 1 means matrix is monopole-dominated; '
+                   'close to 0 means the legacy [0,0] slice is not a '
+                   'good proxy for the full mQEH bilinear)')
+                  % (ratio, iq0), file=self.fd)
 
     def calculate_W_QEH(self, structure, d, layer=0):
         """Compute and install the full mQEH Delta-W matrix.
@@ -1319,6 +1371,13 @@ class GWmQEHCorrection(GWQEHCorrection):
         self._residual_count_over_threshold = 0
         self._residual_count_total = 0
 
+        # Per-sample dW / d_a / bilinear diagnostic prints. Fires once
+        # (first call to _calculate_sigma_mqeh with non-empty data),
+        # then suppresses. Compare the printed magnitudes against the
+        # legacy GWQEHCorrection scalar dW and against |n_G|^2 at the
+        # same q-point to localize the 10^6 overshoot.
+        self._diag_sample_printed = False
+
         # Get KS eigenvalues and occupation numbers
         b1, b2 = self.bands
         for i, k in enumerate(self.kpts):
@@ -1439,9 +1498,13 @@ class GWmQEHCorrection(GWQEHCorrection):
                 # Evaluate Delta-W at this |q+G_par| directly on the
                 # GW frequency grid; the omega-direction interpolation
                 # was precomputed in _interpolate_mqeh_data.
+                # NB: no `*= L` here -- the spatial prefactor in
+                # _calculate_sigma_mqeh is now 1/(N_q*2pi*A) directly,
+                # not the parent class's 1/(N_q*2pi*V)*L combo. This is
+                # algebraically identical (V = A*L) but exposes the
+                # 2D-area assumption so the legacy-vs-mQEH unit
+                # convention is auditable in one place.
                 dW_wab = self._eval_dW_on_gwgrid(q_abs)
-                # dW is Hartree*Bohr^2; *= L makes x*L = 1/(N_q*2pi*A).
-                dW_wab *= L
 
                 # Set up Wpm for Hilbert transform
                 Wpm_Gpar[ig, :nw] = dW_wab
@@ -1793,7 +1856,13 @@ class GWmQEHCorrection(GWQEHCorrection):
         w_m = (o_m / (self.domega0 + beta * o_m)).astype(int)
         o1_m = self.omega_w[w_m]
         o2_m = self.omega_w[w_m + 1]
-        x = 1.0 / (self.qd.nbzkpts * 2 * pi * self.vol)
+        # Spatial prefactor 1/(N_q*2pi*A) (Eq.(9) of W&T 2017). The
+        # parent's scalar path uses 1/(N_q*2pi*V) and multiplies dW
+        # by L; that produces the same x*L = 1/(N_q*2pi*A). The mQEH
+        # path now folds the L into x directly so the 1/A assumption
+        # is local to one line.
+        A = abs(np.linalg.det(self.gs.gd.cell_cv[:2, :2]))
+        x = 1.0 / (self.qd.nbzkpts * 2 * pi * A)
 
         # d_{m, ig, a} = (S^{-1} R)_{m, ig, a} are the rho-LS coefficients
         # of the pair density bar_rho^{nm}(G_par; z) in the rho basis.
@@ -1838,10 +1907,52 @@ class GWmQEHCorrection(GWQEHCorrection):
                         'qplusGpar_abs': qabs,
                     })
 
-        # Prefactor: x = 1/(N_q*2pi*Omega) and dW carries an extra L,
-        # so x*L = 1/(N_q*2pi*A) matches Eq.(9) of W&T 2017.
+        # Prefactor x = 1/(N_q*2pi*A) -- set above; dW has no extra L
+        # multiplier in this path. Matches Eq.(9) of W&T 2017.
         sigma = 0.0
         dsigma = 0.0
+
+        # One-shot per-sample diagnostic. We print the rho-LS
+        # coefficient magnitude, the dW magnitude and the bilinear
+        # d^dagger W d for the first (m, ig) we encounter on this
+        # rank. These three numbers, together with the prefactor x
+        # printed below, fully determine where a 10^6 overshoot
+        # could be hiding (matrix scale vs. coefficient scale vs.
+        # prefactor).
+        diag_fire = (not self._diag_sample_printed
+                     and self.world.rank == 0
+                     and d_mGpar_a.shape[0] > 0
+                     and n_Gpar > 0)
+        if diag_fire:
+            m_diag = 0
+            ig_diag = (int(np.argmin(qplusGpar_abs))
+                       if qplusGpar_abs is not None else 0)
+            d_diag = d_mGpar_a[m_diag, ig_diag]
+            iw_static = 0       # first GW omega slot (~ omega = 0)
+            W_diag = Wpm_Gpar[ig_diag, iw_static]
+            bilinear = complex(d_diag.conj() @ W_diag @ d_diag)
+            qabs_str = (
+                '%.4e Bohr^-1' % float(qplusGpar_abs[ig_diag])
+                if qplusGpar_abs is not None else 'unknown')
+            print(('mQEH sample diagnostic (rank 0, first non-empty '
+                   'call): ig=%d, |q+G_par|=%s, m=%d')
+                  % (ig_diag, qabs_str, m_diag), file=self.fd)
+            print(('  |d_a|     = [' + ', '.join(
+                '%.3e' % abs(z) for z in d_diag) + ']'), file=self.fd)
+            print(('  |d_a|_2   = %.3e   (rho-LS norm of the pair density)')
+                  % float(np.linalg.norm(d_diag)), file=self.fd)
+            print(('  ||W||_F   = %.3e Ha*Bohr^2   '
+                   '|W[0,0]| = %.3e Ha*Bohr^2')
+                  % (float(np.linalg.norm(W_diag)),
+                     abs(W_diag[0, 0])), file=self.fd)
+            print(('  |d^* W d| = %.3e Ha*Bohr^2 (compare to legacy '
+                   "GWQEHCorrection's |n_G[0]|^2 * dW_legacy at same q)")
+                  % abs(bilinear), file=self.fd)
+            print(('  prefactor x = %.3e Bohr^-2 (1/(N_q*2pi*A); '
+                   'final per-sample contribution magnitude '
+                   '~ x * |d^* W d| = %.3e Ha)')
+                  % (x, x * abs(bilinear)), file=self.fd)
+            self._diag_sample_printed = True
 
         for o, o1, o2, sgn, s, w, d_Gpar_a in zip(
                 o_m, o1_m, o2_m, sgn_m, s_m, w_m, d_mGpar_a):
