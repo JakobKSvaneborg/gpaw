@@ -836,9 +836,23 @@ class GWmQEHCorrection(GWQEHCorrection):
                  dW_qw_matrix=None, drho_qzi=None,
                  z_z_qeh=None, dz_qeh=None,
                  dump_pair_densities=False,
-                 dump_pair_densities_max_samples=40):
+                 dump_pair_densities_max_samples=40,
+                 lagrange_constrained_ls=True):
 
         self.ecut_mqeh = ecut_mqeh / Hartree
+
+        # Enforce charge conservation in the rho-LS projection by
+        # imposing the single linear constraint
+        #     sum_a d_a * (int rho_a(z) dz) = int bar_rho(z) dz
+        # via a Lagrange multiplier. The in-plane pair density
+        # bar_rho^{nm}(q, z) integrates to zero in z as q -> 0 (charge
+        # conservation), and that cancellation is precisely what kills
+        # the 2pi/q Coulomb divergence in the bilinear. An
+        # unconstrained least-squares fit on a truncated rho basis can
+        # leave a residual with non-zero integral, which then couples
+        # to the divergent small-q W and produces nonsense. Default to
+        # True; set False to A/B test against the unconstrained LS.
+        self._lagrange_constrained_ls = bool(lagrange_constrained_ls)
 
         if metal:
             # _interpolate_mqeh_data does not implement the parent's
@@ -1923,8 +1937,39 @@ class GWmQEHCorrection(GWQEHCorrection):
             drho_za = drho_Gpar_za[ig]            # (nz_qeh, nbasis)
             # R_{m, a} = int rho_a*(z) bar_rho^{nm}(z) dz
             R_m_a = (rho_mz @ drho_za.conj()) * self.dz_qeh
-            # Normal equation: S @ d.T = R.T  =>  d = solve(S, R.T).T
-            d_a = np.linalg.solve(S_Gpar_ab[ig], R_m_a.T).T
+            if self._lagrange_constrained_ls:
+                # Constrained LS: minimize ||bar_rho - sum_a d_a rho_a||
+                # subject to (int rho_a dz) d_a = int bar_rho dz. The
+                # constraint is the charge-conservation identity that
+                # forces the truncation residual to have zero z-integral,
+                # preserving the cancellation of the 1/q Coulomb
+                # divergence in d^* W d as q -> 0. KKT system follows
+                # qeh/bb_calculator/bb_builder.py:_constrained_ls and
+                # the (commented-out) Lagrange-multiplier branch of
+                # qehbse.WqzQEH.get_projector_overlap.
+                # c_a = int rho_a(z) dz (no conjugate); the physical
+                # constraint is sum_a d_a c_a = int bar_rho dz, so the
+                # KKT bottom row is c^T d = t and the right column
+                # carries the gradient of the constraint w.r.t. d^*,
+                # which is c^* (cf. qeh/bb_calculator/bb_builder.py
+                # _constrained_ls).
+                c_a = drho_za.sum(0) * self.dz_qeh          # (nb,)
+                t_m = rho_mz.sum(1) * self.dz_qeh           # (nbands,)
+                KKT = np.zeros((nb + 1, nb + 1), dtype=complex)
+                KKT[:nb, :nb] = S_Gpar_ab[ig]
+                KKT[:nb, nb] = c_a.conj()
+                KKT[nb, :nb] = c_a
+                # KKT[nb, nb] = 0  (already zero)
+                rhs = np.zeros((rho_mz.shape[0], nb + 1), dtype=complex)
+                rhs[:, :nb] = R_m_a
+                rhs[:, nb] = t_m
+                sol = np.linalg.solve(KKT, rhs.T).T          # (nbands, nb+1)
+                d_a = sol[:, :nb]
+            else:
+                # Unconstrained normal equation: S @ d.T = R.T
+                # Kept available for A/B testing against the constrained
+                # solve above; see __init__'s lagrange_constrained_ls.
+                d_a = np.linalg.solve(S_Gpar_ab[ig], R_m_a.T).T
             d_mGpar_a[:, ig, :] = d_a
             # Diagnostic: how well does the rho-LS expansion reproduce
             # the pair density? See _check_LS_residual.
@@ -1988,6 +2033,33 @@ class GWmQEHCorrection(GWQEHCorrection):
             print(('  diag(S)   = [' + ', '.join(
                 '%.3e' % v for v in S_diag) + ']   '
                   '(rho overlap on het grid; ~1.0 if BB norm survives)'),
+                  file=self.fd)
+            # Charge-conservation diagnostic: sum_a d_a * (int rho_a dz)
+            # should equal int bar_rho dz. Print both sides and the
+            # residual. With lagrange_constrained_ls=True the residual
+            # should be ~ numerical zero; with False it can be O(1)
+            # and is the suspected source of the small-q overshoot.
+            drho_za_diag = drho_Gpar_za[ig_diag]
+            c_a_diag = drho_za_diag.sum(0) * self.dz_qeh
+            cTd = complex(c_a_diag @ d_diag)
+            # rho_mz for band m=0, ig=ig_diag isn't directly available
+            # here (we only have d_mGpar_a). Recompute t from the
+            # original probe via the inverse FFT for the sample only.
+            G_indices_diag = G_indices_per_Gpar[ig_diag]
+            if (len(G_indices_diag) > 0
+                    and phase_zg_per_Gpar[ig_diag] is not None):
+                rho_mz_diag = (
+                    n_mG[m_diag:m_diag + 1, G_indices_diag]
+                    @ phase_zg_per_Gpar[ig_diag].T / Lz)
+                t_diag = complex(rho_mz_diag.sum() * self.dz_qeh)
+            else:
+                t_diag = 0.0 + 0.0j
+            print(('  charge-cons: c^T d = %.3e   '
+                   'int bar_rho dz = %.3e   '
+                   '|c^T d - t| = %.3e   '
+                   '(constraint = %s)')
+                  % (abs(cTd), abs(t_diag), abs(cTd - t_diag),
+                     'ON' if self._lagrange_constrained_ls else 'OFF'),
                   file=self.fd)
             print(('  ||W||_F   = %.3e Ha*Bohr^2   '
                    '|W[0,0]| = %.3e Ha*Bohr^2')
