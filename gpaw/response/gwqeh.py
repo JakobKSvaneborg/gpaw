@@ -953,11 +953,26 @@ class GWmQEHCorrection(GWQEHCorrection):
         self.calculate_W_QEH(structure, d, layer)
 
     def _install_mqeh_matrix(self, *, dW_qw_matrix, drho_qzi, z_z_qeh,
-                             dz_qeh, qqeh_matrix, wqeh_matrix):
+                             dz_qeh, qqeh_matrix, wqeh_matrix,
+                             z_qeh_layer=None):
         """Set mQEH matrix state and build the q / omega interpolators.
 
         Single chokepoint for state installation so all three paths
         (synthetic data, restart, fresh QEH) go through the same code.
+
+        Parameters
+        ----------
+        z_qeh_layer : float or None
+            Center-of-the-target-layer z in the qeh frame, used by
+            ``calculate_QEH`` to align the inverse-FFT'd DFT pair
+            density with the qeh density basis. On the QEH-driven
+            path this is ``HS.hs.layers_l[layer].z0`` (exact, by
+            construction). On user-supplied-data paths it is not
+            generally known; if None, we fall back to the L2-centroid
+            of the monopole basis at the smallest q, which equals z0
+            for a symmetric basis but can drift for an asymmetric one
+            (e.g. when the BB's z-extent leaks past the next layer
+            in a bilayer hs).
         """
         dW = np.asarray(dW_qw_matrix)
         self.dW_qw_matrix = dW
@@ -973,27 +988,22 @@ class GWmQEHCorrection(GWQEHCorrection):
             assert np.isclose(self.dz_qeh,
                               self.z_z_qeh[1] - self.z_z_qeh[0]), \
                 'dz_qeh inconsistent with z_z_qeh spacing'
-        # z-position of the target layer in the QEH heterostructure frame.
-        # The pair density coming out of the inverse FFT of n_G is in the
-        # DFT-cell frame (cell origin at z=0, atoms at their cell-relative
-        # positions). The qeh basis lives on a separately constructed
-        # z-grid where the target layer sits at a (typically much
-        # smaller) z. To align the two frames before projecting in
-        # calculate_QEH, we need to know where the layer is in qeh.
-        # We pick it up here from the L2-centroid of the monopole
-        # density basis function at the smallest q -- robust across
-        # both the QEH-driven path (where it equals
-        # HS.hs.layers_l[layer].z0 by construction) and the user-
-        # supplied path (where the convention is whatever the caller
-        # chose for z_z_qeh).
-        iq_small = int(np.argmin(np.abs(self.qqeh_matrix)))
-        drho_0 = self.drho_qzi_target[iq_small, :, 0]
-        w_z = np.abs(drho_0) ** 2
-        if w_z.sum() > 0:
-            self.z_qeh_layer = float(
-                (w_z * self.z_z_qeh).sum() / w_z.sum())
+        if z_qeh_layer is not None:
+            self.z_qeh_layer = float(z_qeh_layer)
         else:
-            self.z_qeh_layer = float(self.z_z_qeh.mean())
+            # Fallback: L2-centroid of monopole basis at smallest q.
+            # Accurate for a symmetric basis function; can drift for
+            # an asymmetric one. The QEH-driven path passes z_qeh_layer
+            # explicitly via calculate_W_QEH, so this fallback only
+            # runs for user-supplied-data callers (synthetic tests).
+            iq_small = int(np.argmin(np.abs(self.qqeh_matrix)))
+            drho_0 = self.drho_qzi_target[iq_small, :, 0]
+            w_z = np.abs(drho_0) ** 2
+            if w_z.sum() > 0:
+                self.z_qeh_layer = float(
+                    (w_z * self.z_z_qeh).sum() / w_z.sum())
+            else:
+                self.z_qeh_layer = float(self.z_z_qeh.mean())
         # Compute the GW q-magnitude grid that _interpolate_mqeh_data's
         # q -> 0 averaging block depends on. Before the legacy-scalar
         # refactor this attribute was set as a side effect of the
@@ -1092,7 +1102,8 @@ class GWmQEHCorrection(GWQEHCorrection):
             z_z_qeh=HS.hs.z_z.copy(),
             dz_qeh=HS.hs.dz,
             qqeh_matrix=qqeh,
-            wqeh_matrix=wqeh)
+            wqeh_matrix=wqeh,
+            z_qeh_layer=float(target_layer.z0))
 
         # Save for restart. No 'dW_qw' scalar -- mQEH does not use it,
         # and writing the (0,0) slice was a misnomer (it is the first
@@ -1337,10 +1348,26 @@ class GWmQEHCorrection(GWQEHCorrection):
         pos_av = self.gs.get_pos_av()              # Bohr
         z_DFT_layer = float(pos_av[:, 2].mean())
         z_offset = z_DFT_layer - self.z_qeh_layer
+        n_periodic_images = (self.z_z_qeh[-1] - self.z_z_qeh[0]) / L
         print(f'mQEH z-frame: z_DFT_layer={z_DFT_layer:.4f} Bohr, '
               f'z_qeh_layer={self.z_qeh_layer:.4f} Bohr, '
               f'z_offset={z_offset:.4f} Bohr',
               file=self.fd)
+        print(f'mQEH grids: Lz_DFT={L:.4f} Bohr, '
+              f'qeh z-grid extent [{self.z_z_qeh[0]:.3f}, '
+              f'{self.z_z_qeh[-1]:.3f}] Bohr ({n_periodic_images:.2f} '
+              f'DFT periods)',
+              file=self.fd)
+        if n_periodic_images > 1.5:
+            print(('  NOTE: the qeh z-grid covers more than one DFT '
+                   'cell. The inverse z-FFT of the DFT pair density '
+                   'is periodic with period Lz_DFT, so multiple '
+                   'periodic images of the layer peak will appear in '
+                   'the qeh grid. The projection only captures one of '
+                   'them, inflating the LS residual; the contracted '
+                   'self-energy is unaffected as long as drho doesn''t '
+                   'overlap with the periodic images.'),
+                  file=self.fd)
 
         Nq = len(self.qd.ibzk_kc)
         for iq, q_c in enumerate(self.qd.ibzk_kc):
