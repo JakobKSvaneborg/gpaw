@@ -837,7 +837,10 @@ class GWmQEHCorrection(GWQEHCorrection):
                  z_z_qeh=None, dz_qeh=None,
                  dump_pair_densities=False,
                  dump_pair_densities_max_samples=40,
-                 lagrange_constrained_ls=True):
+                 lagrange_constrained_ls=True,
+                 chi_files=None,
+                 build_bb_on_query_grid=False,
+                 bb_aN=4, bb_zN=200, bb_output_dir=None):
 
         self.ecut_mqeh = ecut_mqeh / Hartree
 
@@ -853,6 +856,30 @@ class GWmQEHCorrection(GWQEHCorrection):
         # to the divergent small-q W and produces nonsense. Default to
         # True; set False to A/B test against the unconstrained LS.
         self._lagrange_constrained_ls = bool(lagrange_constrained_ls)
+
+        # Exact-grid path: build mqeh building blocks from raw chi files
+        # on the precise list of (|q+G_par|, omega) values that the GW
+        # path will query, eliminating spline interpolation in q and
+        # omega entirely. `chi_files` is a per-layer list of *-chi.npz
+        # paths (with repetition for repeated materials). If
+        # `build_bb_on_query_grid` is True, `_setup_dW` ignores
+        # `structure` and instead dispatches to
+        # `_build_and_install_mqeh_from_chi`, which (i) gathers the W
+        # query grid from `self.qd.ibzk_kc` and `self.ecut_mqeh`,
+        # (ii) calls `qeh.bb_calculator.bb_builder.interpolate_chi_to_bb`
+        # on each unique chi file with that grid, and (iii) loads the
+        # resulting mbb files via `qeh.MQEH.heterostructure`.
+        self._chi_files = (list(chi_files) if chi_files is not None
+                           else None)
+        self._build_bb_on_query_grid = bool(build_bb_on_query_grid)
+        self._bb_aN = int(bb_aN)
+        self._bb_zN = int(bb_zN)
+        self._bb_output_dir = (str(bb_output_dir)
+                               if bb_output_dir is not None else None)
+        if self._build_bb_on_query_grid and not self._chi_files:
+            raise ValueError(
+                'GWmQEHCorrection: chi_files must be a non-empty list '
+                'when build_bb_on_query_grid=True')
 
         if metal:
             # _interpolate_mqeh_data does not implement the parent's
@@ -978,7 +1005,13 @@ class GWmQEHCorrection(GWQEHCorrection):
                           file=self.fd)
                     return
 
-        # Path 3: fresh QEH computation (sets state on self).
+        # Path 4: build mbb files from chi files on the exact W query
+        # grid, then install. Avoids spline interpolation entirely.
+        if self._build_bb_on_query_grid:
+            self._build_and_install_mqeh_from_chi(d=d, layer=layer)
+            return
+
+        # Path 3: fresh QEH computation from pre-built BBs (spline path).
         self.calculate_W_QEH(structure, d, layer)
 
     def _install_mqeh_matrix(self, *, dW_qw_matrix, drho_qzi, z_z_qeh,
@@ -1241,6 +1274,148 @@ class GWmQEHCorrection(GWQEHCorrection):
                     'dz_qeh': self.dz_qeh,
                     'nbasis': self.nbasis}
             np.savez(self.filename + '_dW_qw.npz', **data)
+
+    def _gather_mqeh_query_grid(self):
+        """Collect the exact (|q+G_par|, omega) values that the mQEH
+        path will query.
+
+        For each GW IBZ q-point we replicate the SingleQPWDescriptor
+        construction from ``calculate_QEH`` (with ``self.ecut_mqeh``),
+        group the G-vectors by their in-plane component, and harvest
+        ``|q + G_par|``. The union across all iq is the q-grid the
+        custom mbb building blocks should live on. Returns the
+        sorted, strictly-positive q-grid and a reference to
+        ``self.omega_w`` (already on the GW frequency grid).
+        """
+        rcell_cv = 2 * pi * np.linalg.inv(self.gs.gd.cell_cv).T
+        q_abs_set = set()
+        for q_c in self.qd.ibzk_kc:
+            q_v = np.dot(q_c, rcell_cv)
+            pd0 = SingleQPWDescriptor.from_q(
+                q_c, self.ecut_mqeh, self.gs.gd, gammacentered=True)
+            G0_Gv = pd0.get_reciprocal_vectors(add_q=False)
+            Gpar_Gv = G0_Gv[:, :2]
+            Gpar_rounded = np.round(Gpar_Gv, decimals=8)
+            unique_Gpar = np.unique(Gpar_rounded, axis=0)
+            for Gpar_v in unique_Gpar:
+                qpG_v = q_v[:2] + Gpar_v
+                q_abs_set.add(float(np.sqrt(np.sum(qpG_v ** 2))))
+        q_q = np.array(sorted(q_abs_set))
+        # Drop near-zero entries: the qeh Poisson-1D solver silently
+        # replaces q=0 with 1e-12 internally; we handle |q+G_par|=0
+        # via the small-q ring in _interpolate_mqeh_data instead.
+        q_q = q_q[q_q > 1e-8]
+        w_w = np.asarray(self.omega_w)
+        return q_q, w_w
+
+    def _build_and_install_mqeh_from_chi(self, *, d, layer):
+        """Build per-material mbb files from chi files on the exact
+        W query grid, then install the heterostructure dW matrix.
+
+        Avoids spline interpolation in q and omega entirely: every
+        ``|q+G_par|`` the GW path will query is a sample point of the
+        built BB. Rank 0 writes the mbb files to ``self._bb_output_dir``
+        (or ``<filename>_mbb_built/`` when unset); all ranks
+        synchronize on a barrier and then load via
+        ``qeh.MQEH.heterostructure``.
+
+        See ``GWmQEHCorrection.__init__`` (``chi_files``,
+        ``build_bb_on_query_grid``, ``bb_aN``, ``bb_zN``,
+        ``bb_output_dir``) for the user-facing knobs.
+        """
+        import os
+        from qeh import MQEH
+        from qeh.bb_calculator.bb_builder import interpolate_chi_to_bb
+        from qeh.bb_calculator.basis_functions import MQEHBasis
+
+        chi_files = list(self._chi_files)
+
+        d_arr = np.asarray(d, dtype=float)
+        if len(d_arr) == len(chi_files) - 1:
+            d_arr = interlayer_to_thickness(d_arr)
+        assert len(d_arr) == len(chi_files), (
+            'GWmQEHCorrection.chi_files must be one entry per layer; '
+            'got %d chi files vs %d layer widths'
+            % (len(chi_files), len(d_arr)))
+
+        q_q, w_w = self._gather_mqeh_query_grid()
+        print(('mQEH exact-grid mode: gathered Nq=%d unique |q+G_par| '
+               'values, Nw=%d omega values; building mbb files from '
+               '%d distinct chi file(s)')
+              % (len(q_q), len(w_w), len(set(chi_files))),
+              file=self.fd)
+
+        bb_output_dir = self._bb_output_dir
+        if bb_output_dir is None:
+            bb_output_dir = self.filename + '_mbb_built'
+
+        chi_to_mbb = {}
+        for chi_path in dict.fromkeys(chi_files):
+            stem = os.path.splitext(os.path.basename(chi_path))[0]
+            if stem.endswith('-chi'):
+                stem = stem[:-4]
+            chi_to_mbb[chi_path] = os.path.join(
+                bb_output_dir, stem + '-mbb')
+
+        if self.world.rank == 0:
+            os.makedirs(bb_output_dir, exist_ok=True)
+            for chi_path, mbb_path in chi_to_mbb.items():
+                print('  %s -> %s' % (chi_path, mbb_path), file=self.fd)
+                basis = MQEHBasis(chi_path)
+                interpolate_chi_to_bb(
+                    chi_path, outfile=mbb_path,
+                    aN=self._bb_aN, zN=self._bb_zN,
+                    q_grid=q_q, w_grid=w_w,
+                    basis=basis)
+        self.world.barrier()
+
+        bbfiles = [chi_to_mbb[chi_path] for chi_path in chi_files]
+        wmax = float(w_w[-1])
+
+        HS0 = MQEH.heterostructure(
+            BBfiles=[bbfiles[layer]],
+            layerwidth_l=[d_arr[layer] / Bohr],
+            wmax=wmax)
+        W0_qwij = HS0.get_screened_potential(subtract_bare_coulomb=True)
+
+        HS = MQEH.heterostructure(
+            BBfiles=bbfiles,
+            layerwidth_l=d_arr / Bohr,
+            wmax=wmax)
+        W_qwij = HS.get_screened_potential(subtract_bare_coulomb=True)
+
+        nbasis_target = HS.hs.layers_l[layer].bb.aN
+        i0 = sum(HS.hs.layers_l[l].bb.aN for l in range(layer))
+        i1 = i0 + nbasis_target
+        dW_qwab = (W_qwij[:, :, i0:i1, i0:i1]
+                   - W0_qwij[:, :, :nbasis_target, :nbasis_target])
+
+        target_layer = HS.hs.layers_l[layer]
+        drho_qzi = np.array(
+            [target_layer.get_drho_qza(iq_q=[iq])[0]
+             for iq in range(HS.hs.qN)])
+
+        qqeh = HS.hs.q_q.copy()
+        wqeh = HS.hs.omega_w.copy()
+        self.qqeh = qqeh
+        self.wqeh = wqeh
+
+        self._install_mqeh_matrix(
+            dW_qw_matrix=dW_qwab,
+            drho_qzi=drho_qzi,
+            z_z_qeh=HS.hs.z_z.copy(),
+            dz_qeh=HS.hs.dz,
+            qqeh_matrix=qqeh,
+            wqeh_matrix=wqeh,
+            z_qeh_layer=float(target_layer.z0),
+            bb_dZ=float(target_layer.bb.dZ))
+
+        if self.world.rank == 0:
+            np.savez(self.filename + '_dW_qw.npz',
+                     qqeh=qqeh, wqeh=wqeh,
+                     dW_qw_matrix=dW_qwab, drho_qzi=drho_qzi,
+                     z_z_qeh=self.z_z_qeh, dz_qeh=self.dz_qeh,
+                     nbasis=self.nbasis)
 
     def _interpolate_mqeh_data(self):
         """Pre-compute interpolators for the mQEH Delta-W matrix and
