@@ -969,7 +969,7 @@ class GWmQEHCorrection(GWQEHCorrection):
 
     def _install_mqeh_matrix(self, *, dW_qw_matrix, drho_qzi, z_z_qeh,
                              dz_qeh, qqeh_matrix, wqeh_matrix,
-                             z_qeh_layer=None):
+                             z_qeh_layer=None, bb_dZ=None):
         """Set mQEH matrix state and build the q / omega interpolators.
 
         Single chokepoint for state installation so all three paths
@@ -988,6 +988,13 @@ class GWmQEHCorrection(GWQEHCorrection):
             for a symmetric basis but can drift for an asymmetric one
             (e.g. when the BB's z-extent leaks past the next layer
             in a bilayer hs).
+        bb_dZ : float or None
+            The target layer building block's own z-grid spacing
+            (``HS.hs.layers_l[layer].bb.dZ``), only used by the
+            install-time diagnostic to flag a mismatch between the
+            BB's L2-normalization grid and the het z-grid that
+            ``S_ab = <rho|rho>`` is computed on. None on user-supplied
+            data paths.
         """
         dW = np.asarray(dW_qw_matrix)
         self.dW_qw_matrix = dW
@@ -997,6 +1004,7 @@ class GWmQEHCorrection(GWQEHCorrection):
         self.dz_qeh = float(dz_qeh)
         self.qqeh_matrix = np.asarray(qqeh_matrix).copy()
         self.wqeh_matrix = np.asarray(wqeh_matrix).copy()
+        self.bb_dZ_target = (float(bb_dZ) if bb_dZ is not None else None)
         # Defend against silent unit drift in the restart / synthetic
         # paths.
         if len(self.z_z_qeh) > 1:
@@ -1081,6 +1089,40 @@ class GWmQEHCorrection(GWQEHCorrection):
                    'close to 0 means the legacy [0,0] slice is not a '
                    'good proxy for the full mQEH bilinear)')
                   % (ratio, iq0), file=self.fd)
+        # Grid-mismatch diagnostic. drho is L2-normalized on the BB's
+        # own z-grid (`bb.dZ`). After splining onto the het z-grid
+        # (`dz_qeh`), `S_ab = (drho^* drho) * dz_qeh` should still be
+        # ~identity along the diagonal *iff* dz_qeh == bb.dZ. If the
+        # het builder up/down-samples (dz_qeh != bb.dZ), diag(S)
+        # silently picks up a factor of ~ dz_qeh / bb.dZ, which then
+        # squares into the d^* W d bilinear via S^{-1}. A factor of
+        # (dz_qeh / bb.dZ)^2 of 10^2-10^4 is a plausible component of
+        # the 10^6 overshoot.
+        if self.bb_dZ_target is not None:
+            ratio_dz = self.dz_qeh / self.bb_dZ_target
+            print(('  z-grid: dz_qeh=%.6f Bohr, bb.dZ=%.6f Bohr, '
+                   'dz_qeh / bb.dZ = %.4f   '
+                   '(deviates from 1.0 ==> drho was re-gridded)')
+                  % (self.dz_qeh, self.bb_dZ_target, ratio_dz),
+                  file=self.fd)
+        # diag(S_ab) at the smallest qeh-q: this is the actual numeric
+        # value of <rho_a | rho_a> on the het z-grid, computed exactly
+        # the same way as inside _calculate_sigma_mqeh. Expect ~1 if
+        # the BB normalization survives the het re-grid; otherwise the
+        # deviation is the candidate scale of the bilinear's bias.
+        drho_za = self.drho_qzi_target[iq0]                # (nz, nb)
+        S_ab = (drho_za.conj().T @ drho_za) * self.dz_qeh
+        diag_S = np.abs(np.diag(S_ab))
+        print(('  diag(S_ab) at iq=%d: [' + ', '.join(
+            '%.3e' % v for v in diag_S) + ']   '
+              '(expect ~1.0 if drho is L2-normalized on the het grid)')
+              % iq0, file=self.fd)
+        if diag_S.size > 0:
+            print(('  diag(S) deviation: max|1 - diag(S)| = %.3e  '
+                   'mean diag(S) = %.3e')
+                  % (float(np.max(np.abs(1.0 - diag_S))),
+                     float(np.mean(diag_S))),
+                  file=self.fd)
 
     def calculate_W_QEH(self, structure, d, layer=0):
         """Compute and install the full mQEH Delta-W matrix.
@@ -1170,7 +1212,8 @@ class GWmQEHCorrection(GWQEHCorrection):
             dz_qeh=HS.hs.dz,
             qqeh_matrix=qqeh,
             wqeh_matrix=wqeh,
-            z_qeh_layer=float(target_layer.z0))
+            z_qeh_layer=float(target_layer.z0),
+            bb_dZ=float(target_layer.bb.dZ))
 
         # Save for restart. No 'dW_qw' scalar -- mQEH does not use it,
         # and writing the (0,0) slice was a misnomer (it is the first
@@ -1941,6 +1984,11 @@ class GWmQEHCorrection(GWQEHCorrection):
                 '%.3e' % abs(z) for z in d_diag) + ']'), file=self.fd)
             print(('  |d_a|_2   = %.3e   (rho-LS norm of the pair density)')
                   % float(np.linalg.norm(d_diag)), file=self.fd)
+            S_diag = np.abs(np.diag(S_Gpar_ab[ig_diag]))
+            print(('  diag(S)   = [' + ', '.join(
+                '%.3e' % v for v in S_diag) + ']   '
+                  '(rho overlap on het grid; ~1.0 if BB norm survives)'),
+                  file=self.fd)
             print(('  ||W||_F   = %.3e Ha*Bohr^2   '
                    '|W[0,0]| = %.3e Ha*Bohr^2')
                   % (float(np.linalg.norm(W_diag)),
