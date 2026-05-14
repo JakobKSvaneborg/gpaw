@@ -834,7 +834,9 @@ class GWmQEHCorrection(GWQEHCorrection):
                  omega2=10.0, eta=0.1, include_q0=True, metal=False,
                  restart=False, ecut_mqeh=50.0,
                  dW_qw_matrix=None, drho_qzi=None,
-                 z_z_qeh=None, dz_qeh=None):
+                 z_z_qeh=None, dz_qeh=None,
+                 dump_pair_densities=False,
+                 dump_pair_densities_max_samples=40):
 
         self.ecut_mqeh = ecut_mqeh / Hartree
 
@@ -851,6 +853,19 @@ class GWmQEHCorrection(GWQEHCorrection):
         # Used by _interpolate_mqeh_data to decide whether to zero or
         # weight-average the small-q ring of the dW matrix.
         self._include_q0 = include_q0
+
+        # When dump_pair_densities is True, calculate_QEH saves a small
+        # ``<filename>_mqeh_pair_densities.npz`` containing the first
+        # ``dump_pair_densities_max_samples`` (rho_mz, drho_za, d) tuples
+        # encountered, plus their (iq, ig, m, |q+G_par|) metadata. The
+        # companion script ``gpaw/response/gwmqeh_plot_pair_densities.py``
+        # loads this file and plots each pair density alongside its
+        # rho-LS fit ``sum_a d_a rho_a(z)`` so the alignment between the
+        # DFT pair density (in the qeh frame, after the z-frame shift)
+        # and the mQEH basis can be eyeballed cheaply on a laptop.
+        self._dump_pair_densities = bool(dump_pair_densities)
+        self._dump_max = int(dump_pair_densities_max_samples)
+        self._pair_density_samples = []
 
         # State set by _setup_dW (override below). NOTE: this class
         # deliberately does NOT carry the QEH potential basis
@@ -1587,10 +1602,54 @@ class GWmQEHCorrection(GWQEHCorrection):
                      self._residual_max_seen),
                   file=self.fd)
 
+        # Pair-density dump (opt-in via dump_pair_densities=True).
+        if self._dump_pair_densities and self._pair_density_samples:
+            self._save_pair_density_dump()
+
         self.complete = True
         self.save_state_file()
 
         return self.sigma_sin, self.dsigma_sin
+
+    def _save_pair_density_dump(self):
+        """Write the stashed pair-density / basis / LS-coefficient
+        samples to ``<filename>_mqeh_pair_densities.npz``.
+
+        The companion script
+        ``gpaw/response/gwmqeh_plot_pair_densities.py`` loads this file
+        and plots each pair density alongside its rho-LS fit, so the
+        alignment between the (qeh-frame-shifted) DFT pair density and
+        the mQEH basis can be visualized cheaply without GPAW on a
+        laptop.
+        """
+        if self.world.rank != 0:
+            return
+        samples = self._pair_density_samples
+        n = len(samples)
+        rho_mz = np.array([s['rho_mz'] for s in samples])     # (n, nz)
+        drho_za = np.array([s['drho_za'] for s in samples])   # (n, nz, nb)
+        d_a = np.array([s['d_a'] for s in samples])           # (n, nb)
+        iq = np.array([s['iq'] for s in samples], dtype=int)
+        ig = np.array([s['ig'] for s in samples], dtype=int)
+        m = np.array([s['m'] for s in samples], dtype=int)
+        qabs = np.array([s['qplusGpar_abs'] for s in samples],
+                        dtype=float)
+        fname = self.filename + '_mqeh_pair_densities.npz'
+        np.savez(
+            fname,
+            z_z_qeh=self.z_z_qeh,
+            dz_qeh=self.dz_qeh,
+            z_qeh_layer=self.z_qeh_layer,
+            rho_mz=rho_mz,
+            drho_za=drho_za,
+            d_a=d_a,
+            iq=iq,
+            ig=ig,
+            m=m,
+            qplusGpar_abs=qabs,
+        )
+        print(f'Wrote {n} pair-density samples to {fname}',
+              file=self.fd)
 
     def _check_LS_residual(self, rho_mz, d_a, drho_za, ig,
                            qplusGpar_abs=None):
@@ -1759,6 +1818,25 @@ class GWmQEHCorrection(GWQEHCorrection):
             # the pair density? See _check_LS_residual.
             self._check_LS_residual(rho_mz, d_a, drho_za, ig,
                                     qplusGpar_abs=qplusGpar_abs)
+            # Optional pair-density dump: stash up to _dump_max
+            # (rho_mz, drho_za, d_a) tuples for offline plotting via
+            # gwmqeh_plot_pair_densities.py.
+            if (self._dump_pair_densities
+                    and len(self._pair_density_samples) < self._dump_max):
+                qabs = (float(qplusGpar_abs[ig])
+                        if qplusGpar_abs is not None else float('nan'))
+                for m in range(rho_mz.shape[0]):
+                    if len(self._pair_density_samples) >= self._dump_max:
+                        break
+                    self._pair_density_samples.append({
+                        'rho_mz': np.asarray(rho_mz[m]).copy(),
+                        'drho_za': np.asarray(drho_za).copy(),
+                        'd_a': np.asarray(d_a[m]).copy(),
+                        'iq': int(getattr(self, 'nq', -1)),
+                        'ig': int(ig),
+                        'm': int(m),
+                        'qplusGpar_abs': qabs,
+                    })
 
         # Prefactor: x = 1/(N_q*2pi*Omega) and dW carries an extra L,
         # so x*L = 1/(N_q*2pi*A) matches Eq.(9) of W&T 2017.
