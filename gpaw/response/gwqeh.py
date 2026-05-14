@@ -973,6 +973,27 @@ class GWmQEHCorrection(GWQEHCorrection):
             assert np.isclose(self.dz_qeh,
                               self.z_z_qeh[1] - self.z_z_qeh[0]), \
                 'dz_qeh inconsistent with z_z_qeh spacing'
+        # z-position of the target layer in the QEH heterostructure frame.
+        # The pair density coming out of the inverse FFT of n_G is in the
+        # DFT-cell frame (cell origin at z=0, atoms at their cell-relative
+        # positions). The qeh basis lives on a separately constructed
+        # z-grid where the target layer sits at a (typically much
+        # smaller) z. To align the two frames before projecting in
+        # calculate_QEH, we need to know where the layer is in qeh.
+        # We pick it up here from the L2-centroid of the monopole
+        # density basis function at the smallest q -- robust across
+        # both the QEH-driven path (where it equals
+        # HS.hs.layers_l[layer].z0 by construction) and the user-
+        # supplied path (where the convention is whatever the caller
+        # chose for z_z_qeh).
+        iq_small = int(np.argmin(np.abs(self.qqeh_matrix)))
+        drho_0 = self.drho_qzi_target[iq_small, :, 0]
+        w_z = np.abs(drho_0) ** 2
+        if w_z.sum() > 0:
+            self.z_qeh_layer = float(
+                (w_z * self.z_z_qeh).sum() / w_z.sum())
+        else:
+            self.z_qeh_layer = float(self.z_z_qeh.mean())
         # Compute the GW q-magnitude grid that _interpolate_mqeh_data's
         # q -> 0 averaging block depends on. Before the legacy-scalar
         # refactor this attribute was set as a side effect of the
@@ -1261,6 +1282,17 @@ class GWmQEHCorrection(GWQEHCorrection):
         self.sigma_sin = np.zeros(self.shape)
         self.dsigma_sin = np.zeros(self.shape)
 
+        # Reset LS-residual diagnostic state. The check fires inside
+        # _calculate_sigma_mqeh and emits per-occurrence warnings up to
+        # _residual_max_warnings; after that it accumulates silently and
+        # we print a summary below.
+        self._residual_warnings_emitted = 0
+        self._residual_max_warnings = 10
+        self._residual_threshold = 0.25
+        self._residual_max_seen = 0.0
+        self._residual_count_over_threshold = 0
+        self._residual_count_total = 0
+
         # Get KS eigenvalues and occupation numbers
         b1, b2 = self.bands
         for i, k in enumerate(self.kpts):
@@ -1277,6 +1309,38 @@ class GWmQEHCorrection(GWQEHCorrection):
         L = abs(self.gs.gd.cell_cv[2, 2])
         A = abs(np.linalg.det(self.gs.gd.cell_cv[:2, :2]))
         N_c = self.gs.gd.N_c
+
+        # ----- z-frame alignment between the DFT cell and the qeh grid -----
+        # The pair density n_G is computed in the DFT cell with the cell
+        # origin at z=0 and atoms at their cell-relative positions, so the
+        # inverse z-FFT
+        #     bar_rho(z) = (1/Lz) sum_{Gz} n_G(Gpar, Gz) e^{iGz z}
+        # gives bar_rho as a function of z *in the DFT-cell frame*. It
+        # peaks at z_DFT_layer, the centroid of the target layer's atoms
+        # in the cell (~ Lz/2 for a centered slab).
+        #
+        # The qeh density basis drho_a(z) lives on the QEH heterostructure
+        # z-grid, where the target layer sits at z_qeh_layer
+        # (= HS.hs.layers_l[layer].z0, typically a few Bohr). The qeh
+        # z-grid is built by QEH from layer thicknesses + BB extents and
+        # has no notion of the DFT cell origin.
+        #
+        # Without correction the projection R_a = <drho_a | bar_rho>
+        # samples drho_a where it peaks (z_qeh = z_qeh_layer) but
+        # bar_rho_DFT at those same numerical z values is deep in the
+        # vacuum of the DFT cell, so the integral is exponentially
+        # suppressed (~exp(-(z_DFT_layer-z_qeh_layer)^2 / sigma^2),
+        # often 10^-10 or smaller). The fix is to evaluate the inverse
+        # FFT at z + z_offset, with z_offset = z_DFT_layer - z_qeh_layer
+        # -- equivalently, multiply n_G by e^{iGz z_offset} before
+        # summing; via the shift theorem these are the same operation.
+        pos_av = self.gs.get_pos_av()              # Bohr
+        z_DFT_layer = float(pos_av[:, 2].mean())
+        z_offset = z_DFT_layer - self.z_qeh_layer
+        print(f'mQEH z-frame: z_DFT_layer={z_DFT_layer:.4f} Bohr, '
+              f'z_qeh_layer={self.z_qeh_layer:.4f} Bohr, '
+              f'z_offset={z_offset:.4f} Bohr',
+              file=self.fd)
 
         Nq = len(self.qd.ibzk_kc)
         for iq, q_c in enumerate(self.qd.ibzk_kc):
@@ -1364,12 +1428,18 @@ class GWmQEHCorrection(GWQEHCorrection):
             # G-vector index lists. These depend only on iq (and the FFT
             # geometry), not on symmetry / kpt / band, so we build them
             # once per iq and reuse inside _calculate_sigma_mqeh.
+            #
+            # The +z_offset shift moves the inverse-FFT evaluation point
+            # from the qeh frame into the DFT-cell frame, so bar_rho
+            # peaks at the qeh-frame layer center (z = z_qeh_layer)
+            # where drho is, rather than at the DFT-cell layer center
+            # (where drho would see only its tail).
             Q_G = pd0.Q_qG[0]
             i_cG = np.array(np.unravel_index(Q_G, N_c))
             Gz_idx = i_cG[2]
             Gz_idx_wrapped = np.where(Gz_idx > N_c[2] // 2,
                                       Gz_idx - N_c[2], Gz_idx)
-            z_qeh = self.z_z_qeh
+            z_qeh_shifted = self.z_z_qeh + z_offset
             twopi_over_Lz = 2 * pi / L
             G_indices_per_Gpar = []
             phase_zg_per_Gpar = []
@@ -1381,7 +1451,7 @@ class GWmQEHCorrection(GWQEHCorrection):
                     continue
                 Gz_values = Gz_idx_wrapped[idx] * twopi_over_Lz
                 phase_zg_per_Gpar.append(
-                    np.exp(1j * np.outer(z_qeh, Gz_values)))
+                    np.exp(1j * np.outer(z_qeh_shifted, Gz_values)))
 
             # PAW corrections
             self.Q_aGii = self.gs.pair_density_paw_corrections(pd0).Q_aGii
@@ -1460,7 +1530,8 @@ class GWmQEHCorrection(GWQEHCorrection):
                         sigma, dsigma = self._calculate_sigma_mqeh(
                             n_mG, deps_m, f_m, Wpm_Gpar,
                             G_indices_per_Gpar, phase_zg_per_Gpar,
-                            drho_Gpar_za, S_Gpar_ab, L)
+                            drho_Gpar_za, S_Gpar_ab, L,
+                            qplusGpar_abs=qplusGpar_abs)
 
                         nn = kpt1.n1 + n - self.bands[0]
                         self.sigma_sin[kpt1.s, i, nn] += sigma
@@ -1469,14 +1540,103 @@ class GWmQEHCorrection(GWQEHCorrection):
         self.world.sum(self.sigma_sin)
         self.world.sum(self.dsigma_sin)
 
+        # LS-residual summary. The residual measures how well the mQEH
+        # basis can represent the in-plane pair density that the self-
+        # energy sandwiches; a small value means the bilinear
+        # d^dagger W d is a faithful expansion of <rho|W|rho>, a large
+        # value means the formula is contracting a heavily-truncated
+        # density and the answer is unreliable.
+        if self._residual_count_total > 0:
+            frac = (self._residual_count_over_threshold
+                    / self._residual_count_total)
+            print(('mQEH LS-residual summary: '
+                   '%d / %d (m, G_par) pair densities exceeded the '
+                   '%.2f threshold (%.1f%%); max ||rho - rho_mqeh|| / '
+                   '||rho|| = %.4f')
+                  % (self._residual_count_over_threshold,
+                     self._residual_count_total,
+                     self._residual_threshold,
+                     100.0 * frac,
+                     self._residual_max_seen),
+                  file=self.fd)
+
         self.complete = True
         self.save_state_file()
 
         return self.sigma_sin, self.dsigma_sin
 
+    def _check_LS_residual(self, rho_mz, d_a, drho_za, ig,
+                           qplusGpar_abs=None):
+        """Diagnostic: compare the rho-LS reconstruction against the
+        actual in-plane pair density.
+
+        We compute
+            rho_mqeh(z) = sum_alpha d_alpha rho_alpha(z)
+        for each band ``m`` and compare to the original
+        ``rho_mz(z) = (1/Lz) sum_Gz n(G_par, Gz) e^{iGz z}`` using the
+        relative L2 norm
+
+            residual = ||rho_mz - rho_mqeh||_2 / ||rho_mz||_2.
+
+        A faithful expansion has residual << 1. A residual close to 1
+        means the basis does not span the pair density at all -- typical
+        causes are (i) a frame mismatch between the qeh z-grid and the
+        DFT cell origin (rho_mz peaks where drho has no support), or
+        (ii) a basis with too few functions to capture the pair
+        density's z-shape. Per-occurrence warnings are emitted up to a
+        cap so we don't drown stdout; a final summary prints in
+        ``calculate_QEH``.
+        """
+        rho_recon = d_a @ drho_za.T
+        diff = rho_mz - rho_recon
+        norms_rho = np.linalg.norm(rho_mz, axis=1)
+        norms_diff = np.linalg.norm(diff, axis=1)
+        mask = norms_rho > 1e-20
+        if not mask.any():
+            return
+        residuals = np.zeros_like(norms_rho)
+        residuals[mask] = norms_diff[mask] / norms_rho[mask]
+
+        self._residual_count_total += int(mask.sum())
+        bad = mask & (residuals > self._residual_threshold)
+        n_bad = int(bad.sum())
+        if n_bad == 0:
+            self._residual_max_seen = max(self._residual_max_seen,
+                                          float(residuals[mask].max()))
+            return
+
+        self._residual_count_over_threshold += n_bad
+        worst_m = int(np.argmax(residuals))
+        worst = float(residuals[worst_m])
+        self._residual_max_seen = max(self._residual_max_seen, worst)
+
+        if self._residual_warnings_emitted < self._residual_max_warnings:
+            qabs_str = (
+                f', |q+G_par|={qplusGpar_abs[ig]:.4f} Bohr^-1'
+                if qplusGpar_abs is not None else '')
+            iq = getattr(self, 'nq', -1)
+            print(('WARNING: large LS residual %.3f at iq=%d, ig=%d, '
+                   'm=%d%s -- the mQEH basis cannot reproduce the '
+                   'in-plane pair density at this (q+G_par). If many '
+                   'of these fire, the d^dagger W d contraction is '
+                   'integrating over a heavily-truncated rho and the '
+                   'self-energy is unreliable. A common cause is a '
+                   'frame mismatch between the qeh z-grid (drho peaks '
+                   'at z_qeh_layer) and the DFT cell origin (pair '
+                   'density peaks at z_DFT_layer).')
+                  % (worst, iq, ig, worst_m, qabs_str),
+                  file=self.fd)
+            self._residual_warnings_emitted += 1
+            if (self._residual_warnings_emitted
+                    == self._residual_max_warnings):
+                print('  (further LS-residual warnings suppressed; '
+                      'see summary at end of calculate_QEH)',
+                      file=self.fd)
+
     def _calculate_sigma_mqeh(self, n_mG, deps_m, f_m, Wpm_Gpar,
                               G_indices_per_Gpar, phase_zg_per_Gpar,
-                              drho_Gpar_za, S_Gpar_ab, Lz):
+                              drho_Gpar_za, S_Gpar_ab, Lz,
+                              qplusGpar_abs=None):
         """Calculate self-energy contribution in the mQEH basis.
 
         For each G_parallel, fit the pair density onto the mQEH density
@@ -1519,8 +1679,11 @@ class GWmQEHCorrection(GWQEHCorrection):
             For each unique G_parallel group, the indices into n_mG's
             G-axis that belong to it.
         phase_zg_per_Gpar : list of ndarray or None
-            For each unique G_parallel group, exp(i Gz z_qeh) on the
-            QEH z-grid with shape (nz_qeh, n_gz). None for empty groups.
+            For each unique G_parallel group, exp(i Gz (z_qeh + z_offset))
+            on the QEH z-grid with shape (nz_qeh, n_gz). z_offset is the
+            DFT-to-qeh z alignment computed in calculate_QEH; the phase
+            already encodes it so that the inverse FFT of n_G yields a
+            pair density aligned with drho. None for empty groups.
         drho_Gpar_za : ndarray (n_Gpar, nz_qeh, nbasis)
             Density basis functions rho_alpha(|q+G_par|; z).
         S_Gpar_ab : ndarray (n_Gpar, nbasis, nbasis)
@@ -1528,6 +1691,9 @@ class GWmQEHCorrection(GWQEHCorrection):
             z-grid.
         Lz : float
             DFT cell height (for inverse-FFT normalization).
+        qplusGpar_abs : ndarray (n_Gpar,) or None
+            |q + G_par| in Bohr^-1 for each G_par group, only used in
+            LS-residual warnings to make them actionable.
         """
         o_m = abs(deps_m)
         sgn_m = np.sign(deps_m + 1e-15)
@@ -1560,8 +1726,12 @@ class GWmQEHCorrection(GWQEHCorrection):
             # R_{m, a} = int rho_a*(z) bar_rho^{nm}(z) dz
             R_m_a = (rho_mz @ drho_za.conj()) * self.dz_qeh
             # Normal equation: S @ d.T = R.T  =>  d = solve(S, R.T).T
-            d_mGpar_a[:, ig, :] = np.linalg.solve(
-                S_Gpar_ab[ig], R_m_a.T).T
+            d_a = np.linalg.solve(S_Gpar_ab[ig], R_m_a.T).T
+            d_mGpar_a[:, ig, :] = d_a
+            # Diagnostic: how well does the rho-LS expansion reproduce
+            # the pair density? See _check_LS_residual.
+            self._check_LS_residual(rho_mz, d_a, drho_za, ig,
+                                    qplusGpar_abs=qplusGpar_abs)
 
         # Prefactor: x = 1/(N_q*2pi*Omega) and dW carries an extra L,
         # so x*L = 1/(N_q*2pi*A) matches Eq.(9) of W&T 2017.
