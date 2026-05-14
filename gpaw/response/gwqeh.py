@@ -836,9 +836,50 @@ class GWmQEHCorrection(GWQEHCorrection):
                  dW_qw_matrix=None, drho_qzi=None,
                  z_z_qeh=None, dz_qeh=None,
                  dump_pair_densities=False,
-                 dump_pair_densities_max_samples=40):
+                 dump_pair_densities_max_samples=40,
+                 lagrange_constrained_ls=True,
+                 chi_files=None,
+                 build_bb_on_query_grid=False,
+                 bb_aN=4, bb_zN=200, bb_output_dir=None):
 
         self.ecut_mqeh = ecut_mqeh / Hartree
+
+        # Enforce charge conservation in the rho-LS projection by
+        # imposing the single linear constraint
+        #     sum_a d_a * (int rho_a(z) dz) = int bar_rho(z) dz
+        # via a Lagrange multiplier. The in-plane pair density
+        # bar_rho^{nm}(q, z) integrates to zero in z as q -> 0 (charge
+        # conservation), and that cancellation is precisely what kills
+        # the 2pi/q Coulomb divergence in the bilinear. An
+        # unconstrained least-squares fit on a truncated rho basis can
+        # leave a residual with non-zero integral, which then couples
+        # to the divergent small-q W and produces nonsense. Default to
+        # True; set False to A/B test against the unconstrained LS.
+        self._lagrange_constrained_ls = bool(lagrange_constrained_ls)
+
+        # Exact-grid path: build mqeh building blocks from raw chi files
+        # on the precise list of (|q+G_par|, omega) values that the GW
+        # path will query, eliminating spline interpolation in q and
+        # omega entirely. `chi_files` is a per-layer list of *-chi.npz
+        # paths (with repetition for repeated materials). If
+        # `build_bb_on_query_grid` is True, `_setup_dW` ignores
+        # `structure` and instead dispatches to
+        # `_build_and_install_mqeh_from_chi`, which (i) gathers the W
+        # query grid from `self.qd.ibzk_kc` and `self.ecut_mqeh`,
+        # (ii) calls `qeh.bb_calculator.bb_builder.interpolate_chi_to_bb`
+        # on each unique chi file with that grid, and (iii) loads the
+        # resulting mbb files via `qeh.MQEH.heterostructure`.
+        self._chi_files = (list(chi_files) if chi_files is not None
+                           else None)
+        self._build_bb_on_query_grid = bool(build_bb_on_query_grid)
+        self._bb_aN = int(bb_aN)
+        self._bb_zN = int(bb_zN)
+        self._bb_output_dir = (str(bb_output_dir)
+                               if bb_output_dir is not None else None)
+        if self._build_bb_on_query_grid and not self._chi_files:
+            raise ValueError(
+                'GWmQEHCorrection: chi_files must be a non-empty list '
+                'when build_bb_on_query_grid=True')
 
         if metal:
             # _interpolate_mqeh_data does not implement the parent's
@@ -964,12 +1005,18 @@ class GWmQEHCorrection(GWQEHCorrection):
                           file=self.fd)
                     return
 
-        # Path 3: fresh QEH computation (sets state on self).
+        # Path 4: build mbb files from chi files on the exact W query
+        # grid, then install. Avoids spline interpolation entirely.
+        if self._build_bb_on_query_grid:
+            self._build_and_install_mqeh_from_chi(d=d, layer=layer)
+            return
+
+        # Path 3: fresh QEH computation from pre-built BBs (spline path).
         self.calculate_W_QEH(structure, d, layer)
 
     def _install_mqeh_matrix(self, *, dW_qw_matrix, drho_qzi, z_z_qeh,
                              dz_qeh, qqeh_matrix, wqeh_matrix,
-                             z_qeh_layer=None):
+                             z_qeh_layer=None, bb_dZ=None):
         """Set mQEH matrix state and build the q / omega interpolators.
 
         Single chokepoint for state installation so all three paths
@@ -988,6 +1035,13 @@ class GWmQEHCorrection(GWQEHCorrection):
             for a symmetric basis but can drift for an asymmetric one
             (e.g. when the BB's z-extent leaks past the next layer
             in a bilayer hs).
+        bb_dZ : float or None
+            The target layer building block's own z-grid spacing
+            (``HS.hs.layers_l[layer].bb.dZ``), only used by the
+            install-time diagnostic to flag a mismatch between the
+            BB's L2-normalization grid and the het z-grid that
+            ``S_ab = <rho|rho>`` is computed on. None on user-supplied
+            data paths.
         """
         dW = np.asarray(dW_qw_matrix)
         self.dW_qw_matrix = dW
@@ -997,6 +1051,7 @@ class GWmQEHCorrection(GWQEHCorrection):
         self.dz_qeh = float(dz_qeh)
         self.qqeh_matrix = np.asarray(qqeh_matrix).copy()
         self.wqeh_matrix = np.asarray(wqeh_matrix).copy()
+        self.bb_dZ_target = (float(bb_dZ) if bb_dZ is not None else None)
         # Defend against silent unit drift in the restart / synthetic
         # paths.
         if len(self.z_z_qeh) > 1:
@@ -1029,6 +1084,92 @@ class GWmQEHCorrection(GWQEHCorrection):
         q_vs = np.dot(self.qd.ibzk_kc, rcell_cv)
         self.q_grid = (q_vs**2).sum(axis=1) ** 0.5
         self._interpolate_mqeh_data()
+        self._log_dW_magnitudes()
+
+    def _log_dW_magnitudes(self):
+        """Print the magnitude of dW(q_min, omega=0) so the mQEH matrix
+        scale can be compared against the legacy ``GWQEHCorrection``
+        scalar dW (which is known to give correct numbers when fed the
+        old-style ``-bb`` building blocks via ``qeh.QEH``).
+
+        For each of the three smallest q-values on the qeh grid we print
+        the (0, 0) matrix element (the rho-rho-basis analog of the
+        legacy monopole-monopole slice), the Frobenius norm of the
+        whole nbasis x nbasis block, and -- as a synthetic monopole
+        contraction -- ``e_0^T dW e_0`` and ``trace(dW)``, all reported
+        in eV. Magnitudes that differ from the legacy scalar dW by
+        many orders of magnitude (at the same q, omega) localize the
+        10^6 over-estimate to the matrix itself rather than to the
+        projection coefficients.
+        """
+        if self.world.rank != 0:
+            return
+        dW_qwab = self.dW_qw_matrix          # shape (nq, nw_qeh, nb, nb)
+        qqeh = self.qqeh_matrix
+        wqeh = self.wqeh_matrix
+        iw_static = int(np.argmin(np.abs(wqeh)))   # omega = 0 (or closest)
+        sortq = np.argsort(qqeh)
+        n_show = min(3, len(qqeh))
+        print('mQEH dW-magnitude diagnostic (eV; compare with legacy '
+              'GWQEHCorrection scalar dW at same q):', file=self.fd)
+        for k in range(n_show):
+            iq = int(sortq[k])
+            dW_ab = dW_qwab[iq, iw_static]
+            mag00 = abs(dW_ab[0, 0]) * Hartree
+            mag_fro = float(np.linalg.norm(dW_ab)) * Hartree
+            mag_tr = abs(np.trace(dW_ab)) * Hartree
+            print(('  iq=%2d  |q|=%.4e Bohr^-1  '
+                   '|dW[0,0]|=%.3e  ||dW||_F=%.3e  |tr dW|=%.3e')
+                  % (iq, qqeh[iq], mag00, mag_fro, mag_tr),
+                  file=self.fd)
+        # Also flag a sanity ratio: the (0,0)-vs-Frobenius spread tells
+        # whether mQEH spreads dW across many basis modes or
+        # concentrates it on the first one (the legacy scalar is
+        # effectively just the first mode).
+        iq0 = int(sortq[0])
+        dW0_ab = dW_qwab[iq0, iw_static]
+        denom = float(np.linalg.norm(dW0_ab))
+        if denom > 0:
+            ratio = abs(dW0_ab[0, 0]) / denom
+            print(('  spread: |dW[0,0]| / ||dW||_F = %.3f at iq=%d '
+                   '(close to 1 means matrix is monopole-dominated; '
+                   'close to 0 means the legacy [0,0] slice is not a '
+                   'good proxy for the full mQEH bilinear)')
+                  % (ratio, iq0), file=self.fd)
+        # Grid-mismatch diagnostic. drho is L2-normalized on the BB's
+        # own z-grid (`bb.dZ`). After splining onto the het z-grid
+        # (`dz_qeh`), `S_ab = (drho^* drho) * dz_qeh` should still be
+        # ~identity along the diagonal *iff* dz_qeh == bb.dZ. If the
+        # het builder up/down-samples (dz_qeh != bb.dZ), diag(S)
+        # silently picks up a factor of ~ dz_qeh / bb.dZ, which then
+        # squares into the d^* W d bilinear via S^{-1}. A factor of
+        # (dz_qeh / bb.dZ)^2 of 10^2-10^4 is a plausible component of
+        # the 10^6 overshoot.
+        if self.bb_dZ_target is not None:
+            ratio_dz = self.dz_qeh / self.bb_dZ_target
+            print(('  z-grid: dz_qeh=%.6f Bohr, bb.dZ=%.6f Bohr, '
+                   'dz_qeh / bb.dZ = %.4f   '
+                   '(deviates from 1.0 ==> drho was re-gridded)')
+                  % (self.dz_qeh, self.bb_dZ_target, ratio_dz),
+                  file=self.fd)
+        # diag(S_ab) at the smallest qeh-q: this is the actual numeric
+        # value of <rho_a | rho_a> on the het z-grid, computed exactly
+        # the same way as inside _calculate_sigma_mqeh. Expect ~1 if
+        # the BB normalization survives the het re-grid; otherwise the
+        # deviation is the candidate scale of the bilinear's bias.
+        drho_za = self.drho_qzi_target[iq0]                # (nz, nb)
+        S_ab = (drho_za.conj().T @ drho_za) * self.dz_qeh
+        diag_S = np.abs(np.diag(S_ab))
+        print(('  diag(S_ab) at iq=%d: [' + ', '.join(
+            '%.3e' % v for v in diag_S) + ']   '
+              '(expect ~1.0 if drho is L2-normalized on the het grid)')
+              % iq0, file=self.fd)
+        if diag_S.size > 0:
+            print(('  diag(S) deviation: max|1 - diag(S)| = %.3e  '
+                   'mean diag(S) = %.3e')
+                  % (float(np.max(np.abs(1.0 - diag_S))),
+                     float(np.mean(diag_S))),
+                  file=self.fd)
 
     def calculate_W_QEH(self, structure, d, layer=0):
         """Compute and install the full mQEH Delta-W matrix.
@@ -1118,7 +1259,8 @@ class GWmQEHCorrection(GWQEHCorrection):
             dz_qeh=HS.hs.dz,
             qqeh_matrix=qqeh,
             wqeh_matrix=wqeh,
-            z_qeh_layer=float(target_layer.z0))
+            z_qeh_layer=float(target_layer.z0),
+            bb_dZ=float(target_layer.bb.dZ))
 
         # Save for restart. No 'dW_qw' scalar -- mQEH does not use it,
         # and writing the (0,0) slice was a misnomer (it is the first
@@ -1132,6 +1274,148 @@ class GWmQEHCorrection(GWQEHCorrection):
                     'dz_qeh': self.dz_qeh,
                     'nbasis': self.nbasis}
             np.savez(self.filename + '_dW_qw.npz', **data)
+
+    def _gather_mqeh_query_grid(self):
+        """Collect the exact (|q+G_par|, omega) values that the mQEH
+        path will query.
+
+        For each GW IBZ q-point we replicate the SingleQPWDescriptor
+        construction from ``calculate_QEH`` (with ``self.ecut_mqeh``),
+        group the G-vectors by their in-plane component, and harvest
+        ``|q + G_par|``. The union across all iq is the q-grid the
+        custom mbb building blocks should live on. Returns the
+        sorted, strictly-positive q-grid and a reference to
+        ``self.omega_w`` (already on the GW frequency grid).
+        """
+        rcell_cv = 2 * pi * np.linalg.inv(self.gs.gd.cell_cv).T
+        q_abs_set = set()
+        for q_c in self.qd.ibzk_kc:
+            q_v = np.dot(q_c, rcell_cv)
+            pd0 = SingleQPWDescriptor.from_q(
+                q_c, self.ecut_mqeh, self.gs.gd, gammacentered=True)
+            G0_Gv = pd0.get_reciprocal_vectors(add_q=False)
+            Gpar_Gv = G0_Gv[:, :2]
+            Gpar_rounded = np.round(Gpar_Gv, decimals=8)
+            unique_Gpar = np.unique(Gpar_rounded, axis=0)
+            for Gpar_v in unique_Gpar:
+                qpG_v = q_v[:2] + Gpar_v
+                q_abs_set.add(float(np.sqrt(np.sum(qpG_v ** 2))))
+        q_q = np.array(sorted(q_abs_set))
+        # Drop near-zero entries: the qeh Poisson-1D solver silently
+        # replaces q=0 with 1e-12 internally; we handle |q+G_par|=0
+        # via the small-q ring in _interpolate_mqeh_data instead.
+        q_q = q_q[q_q > 1e-8]
+        w_w = np.asarray(self.omega_w)
+        return q_q, w_w
+
+    def _build_and_install_mqeh_from_chi(self, *, d, layer):
+        """Build per-material mbb files from chi files on the exact
+        W query grid, then install the heterostructure dW matrix.
+
+        Avoids spline interpolation in q and omega entirely: every
+        ``|q+G_par|`` the GW path will query is a sample point of the
+        built BB. Rank 0 writes the mbb files to ``self._bb_output_dir``
+        (or ``<filename>_mbb_built/`` when unset); all ranks
+        synchronize on a barrier and then load via
+        ``qeh.MQEH.heterostructure``.
+
+        See ``GWmQEHCorrection.__init__`` (``chi_files``,
+        ``build_bb_on_query_grid``, ``bb_aN``, ``bb_zN``,
+        ``bb_output_dir``) for the user-facing knobs.
+        """
+        import os
+        from qeh import MQEH
+        from qeh.bb_calculator.bb_builder import interpolate_chi_to_bb
+        from qeh.bb_calculator.basis_functions import MQEHBasis
+
+        chi_files = list(self._chi_files)
+
+        d_arr = np.asarray(d, dtype=float)
+        if len(d_arr) == len(chi_files) - 1:
+            d_arr = interlayer_to_thickness(d_arr)
+        assert len(d_arr) == len(chi_files), (
+            'GWmQEHCorrection.chi_files must be one entry per layer; '
+            'got %d chi files vs %d layer widths'
+            % (len(chi_files), len(d_arr)))
+
+        q_q, w_w = self._gather_mqeh_query_grid()
+        print(('mQEH exact-grid mode: gathered Nq=%d unique |q+G_par| '
+               'values, Nw=%d omega values; building mbb files from '
+               '%d distinct chi file(s)')
+              % (len(q_q), len(w_w), len(set(chi_files))),
+              file=self.fd)
+
+        bb_output_dir = self._bb_output_dir
+        if bb_output_dir is None:
+            bb_output_dir = self.filename + '_mbb_built'
+
+        chi_to_mbb = {}
+        for chi_path in dict.fromkeys(chi_files):
+            stem = os.path.splitext(os.path.basename(chi_path))[0]
+            if stem.endswith('-chi'):
+                stem = stem[:-4]
+            chi_to_mbb[chi_path] = os.path.join(
+                bb_output_dir, stem + '-mbb')
+
+        if self.world.rank == 0:
+            os.makedirs(bb_output_dir, exist_ok=True)
+            for chi_path, mbb_path in chi_to_mbb.items():
+                print('  %s -> %s' % (chi_path, mbb_path), file=self.fd)
+                basis = MQEHBasis(chi_path)
+                interpolate_chi_to_bb(
+                    chi_path, outfile=mbb_path,
+                    aN=self._bb_aN, zN=self._bb_zN,
+                    q_grid=q_q, w_grid=w_w,
+                    basis=basis)
+        self.world.barrier()
+
+        bbfiles = [chi_to_mbb[chi_path] for chi_path in chi_files]
+        wmax = float(w_w[-1])
+
+        HS0 = MQEH.heterostructure(
+            BBfiles=[bbfiles[layer]],
+            layerwidth_l=[d_arr[layer] / Bohr],
+            wmax=wmax)
+        W0_qwij = HS0.get_screened_potential(subtract_bare_coulomb=True)
+
+        HS = MQEH.heterostructure(
+            BBfiles=bbfiles,
+            layerwidth_l=d_arr / Bohr,
+            wmax=wmax)
+        W_qwij = HS.get_screened_potential(subtract_bare_coulomb=True)
+
+        nbasis_target = HS.hs.layers_l[layer].bb.aN
+        i0 = sum(HS.hs.layers_l[l].bb.aN for l in range(layer))
+        i1 = i0 + nbasis_target
+        dW_qwab = (W_qwij[:, :, i0:i1, i0:i1]
+                   - W0_qwij[:, :, :nbasis_target, :nbasis_target])
+
+        target_layer = HS.hs.layers_l[layer]
+        drho_qzi = np.array(
+            [target_layer.get_drho_qza(iq_q=[iq])[0]
+             for iq in range(HS.hs.qN)])
+
+        qqeh = HS.hs.q_q.copy()
+        wqeh = HS.hs.omega_w.copy()
+        self.qqeh = qqeh
+        self.wqeh = wqeh
+
+        self._install_mqeh_matrix(
+            dW_qw_matrix=dW_qwab,
+            drho_qzi=drho_qzi,
+            z_z_qeh=HS.hs.z_z.copy(),
+            dz_qeh=HS.hs.dz,
+            qqeh_matrix=qqeh,
+            wqeh_matrix=wqeh,
+            z_qeh_layer=float(target_layer.z0),
+            bb_dZ=float(target_layer.bb.dZ))
+
+        if self.world.rank == 0:
+            np.savez(self.filename + '_dW_qw.npz',
+                     qqeh=qqeh, wqeh=wqeh,
+                     dW_qw_matrix=dW_qwab, drho_qzi=drho_qzi,
+                     z_z_qeh=self.z_z_qeh, dz_qeh=self.dz_qeh,
+                     nbasis=self.nbasis)
 
     def _interpolate_mqeh_data(self):
         """Pre-compute interpolators for the mQEH Delta-W matrix and
@@ -1319,6 +1603,13 @@ class GWmQEHCorrection(GWQEHCorrection):
         self._residual_count_over_threshold = 0
         self._residual_count_total = 0
 
+        # Per-sample dW / d_a / bilinear diagnostic prints. Fires once
+        # (first call to _calculate_sigma_mqeh with non-empty data),
+        # then suppresses. Compare the printed magnitudes against the
+        # legacy GWQEHCorrection scalar dW and against |n_G|^2 at the
+        # same q-point to localize the 10^6 overshoot.
+        self._diag_sample_printed = False
+
         # Get KS eigenvalues and occupation numbers
         b1, b2 = self.bands
         for i, k in enumerate(self.kpts):
@@ -1439,9 +1730,13 @@ class GWmQEHCorrection(GWQEHCorrection):
                 # Evaluate Delta-W at this |q+G_par| directly on the
                 # GW frequency grid; the omega-direction interpolation
                 # was precomputed in _interpolate_mqeh_data.
+                # NB: no `*= L` here -- the spatial prefactor in
+                # _calculate_sigma_mqeh is now 1/(N_q*2pi*A) directly,
+                # not the parent class's 1/(N_q*2pi*V)*L combo. This is
+                # algebraically identical (V = A*L) but exposes the
+                # 2D-area assumption so the legacy-vs-mQEH unit
+                # convention is auditable in one place.
                 dW_wab = self._eval_dW_on_gwgrid(q_abs)
-                # dW is Hartree*Bohr^2; *= L makes x*L = 1/(N_q*2pi*A).
-                dW_wab *= L
 
                 # Set up Wpm for Hilbert transform
                 Wpm_Gpar[ig, :nw] = dW_wab
@@ -1793,7 +2088,13 @@ class GWmQEHCorrection(GWQEHCorrection):
         w_m = (o_m / (self.domega0 + beta * o_m)).astype(int)
         o1_m = self.omega_w[w_m]
         o2_m = self.omega_w[w_m + 1]
-        x = 1.0 / (self.qd.nbzkpts * 2 * pi * self.vol)
+        # Spatial prefactor 1/(N_q*2pi*A) (Eq.(9) of W&T 2017). The
+        # parent's scalar path uses 1/(N_q*2pi*V) and multiplies dW
+        # by L; that produces the same x*L = 1/(N_q*2pi*A). The mQEH
+        # path now folds the L into x directly so the 1/A assumption
+        # is local to one line.
+        A = abs(np.linalg.det(self.gs.gd.cell_cv[:2, :2]))
+        x = 1.0 / (self.qd.nbzkpts * 2 * pi * A)
 
         # d_{m, ig, a} = (S^{-1} R)_{m, ig, a} are the rho-LS coefficients
         # of the pair density bar_rho^{nm}(G_par; z) in the rho basis.
@@ -1811,8 +2112,39 @@ class GWmQEHCorrection(GWQEHCorrection):
             drho_za = drho_Gpar_za[ig]            # (nz_qeh, nbasis)
             # R_{m, a} = int rho_a*(z) bar_rho^{nm}(z) dz
             R_m_a = (rho_mz @ drho_za.conj()) * self.dz_qeh
-            # Normal equation: S @ d.T = R.T  =>  d = solve(S, R.T).T
-            d_a = np.linalg.solve(S_Gpar_ab[ig], R_m_a.T).T
+            if self._lagrange_constrained_ls:
+                # Constrained LS: minimize ||bar_rho - sum_a d_a rho_a||
+                # subject to (int rho_a dz) d_a = int bar_rho dz. The
+                # constraint is the charge-conservation identity that
+                # forces the truncation residual to have zero z-integral,
+                # preserving the cancellation of the 1/q Coulomb
+                # divergence in d^* W d as q -> 0. KKT system follows
+                # qeh/bb_calculator/bb_builder.py:_constrained_ls and
+                # the (commented-out) Lagrange-multiplier branch of
+                # qehbse.WqzQEH.get_projector_overlap.
+                # c_a = int rho_a(z) dz (no conjugate); the physical
+                # constraint is sum_a d_a c_a = int bar_rho dz, so the
+                # KKT bottom row is c^T d = t and the right column
+                # carries the gradient of the constraint w.r.t. d^*,
+                # which is c^* (cf. qeh/bb_calculator/bb_builder.py
+                # _constrained_ls).
+                c_a = drho_za.sum(0) * self.dz_qeh          # (nb,)
+                t_m = rho_mz.sum(1) * self.dz_qeh           # (nbands,)
+                KKT = np.zeros((nb + 1, nb + 1), dtype=complex)
+                KKT[:nb, :nb] = S_Gpar_ab[ig]
+                KKT[:nb, nb] = c_a.conj()
+                KKT[nb, :nb] = c_a
+                # KKT[nb, nb] = 0  (already zero)
+                rhs = np.zeros((rho_mz.shape[0], nb + 1), dtype=complex)
+                rhs[:, :nb] = R_m_a
+                rhs[:, nb] = t_m
+                sol = np.linalg.solve(KKT, rhs.T).T          # (nbands, nb+1)
+                d_a = sol[:, :nb]
+            else:
+                # Unconstrained normal equation: S @ d.T = R.T
+                # Kept available for A/B testing against the constrained
+                # solve above; see __init__'s lagrange_constrained_ls.
+                d_a = np.linalg.solve(S_Gpar_ab[ig], R_m_a.T).T
             d_mGpar_a[:, ig, :] = d_a
             # Diagnostic: how well does the rho-LS expansion reproduce
             # the pair density? See _check_LS_residual.
@@ -1838,10 +2170,84 @@ class GWmQEHCorrection(GWQEHCorrection):
                         'qplusGpar_abs': qabs,
                     })
 
-        # Prefactor: x = 1/(N_q*2pi*Omega) and dW carries an extra L,
-        # so x*L = 1/(N_q*2pi*A) matches Eq.(9) of W&T 2017.
+        # Prefactor x = 1/(N_q*2pi*A) -- set above; dW has no extra L
+        # multiplier in this path. Matches Eq.(9) of W&T 2017.
         sigma = 0.0
         dsigma = 0.0
+
+        # One-shot per-sample diagnostic. We print the rho-LS
+        # coefficient magnitude, the dW magnitude and the bilinear
+        # d^dagger W d for the first (m, ig) we encounter on this
+        # rank. These three numbers, together with the prefactor x
+        # printed below, fully determine where a 10^6 overshoot
+        # could be hiding (matrix scale vs. coefficient scale vs.
+        # prefactor).
+        diag_fire = (not self._diag_sample_printed
+                     and self.world.rank == 0
+                     and d_mGpar_a.shape[0] > 0
+                     and n_Gpar > 0)
+        if diag_fire:
+            m_diag = 0
+            ig_diag = (int(np.argmin(qplusGpar_abs))
+                       if qplusGpar_abs is not None else 0)
+            d_diag = d_mGpar_a[m_diag, ig_diag]
+            iw_static = 0       # first GW omega slot (~ omega = 0)
+            W_diag = Wpm_Gpar[ig_diag, iw_static]
+            bilinear = complex(d_diag.conj() @ W_diag @ d_diag)
+            qabs_str = (
+                '%.4e Bohr^-1' % float(qplusGpar_abs[ig_diag])
+                if qplusGpar_abs is not None else 'unknown')
+            print(('mQEH sample diagnostic (rank 0, first non-empty '
+                   'call): ig=%d, |q+G_par|=%s, m=%d')
+                  % (ig_diag, qabs_str, m_diag), file=self.fd)
+            print(('  |d_a|     = [' + ', '.join(
+                '%.3e' % abs(z) for z in d_diag) + ']'), file=self.fd)
+            print(('  |d_a|_2   = %.3e   (rho-LS norm of the pair density)')
+                  % float(np.linalg.norm(d_diag)), file=self.fd)
+            S_diag = np.abs(np.diag(S_Gpar_ab[ig_diag]))
+            print(('  diag(S)   = [' + ', '.join(
+                '%.3e' % v for v in S_diag) + ']   '
+                  '(rho overlap on het grid; ~1.0 if BB norm survives)'),
+                  file=self.fd)
+            # Charge-conservation diagnostic: sum_a d_a * (int rho_a dz)
+            # should equal int bar_rho dz. Print both sides and the
+            # residual. With lagrange_constrained_ls=True the residual
+            # should be ~ numerical zero; with False it can be O(1)
+            # and is the suspected source of the small-q overshoot.
+            drho_za_diag = drho_Gpar_za[ig_diag]
+            c_a_diag = drho_za_diag.sum(0) * self.dz_qeh
+            cTd = complex(c_a_diag @ d_diag)
+            # rho_mz for band m=0, ig=ig_diag isn't directly available
+            # here (we only have d_mGpar_a). Recompute t from the
+            # original probe via the inverse FFT for the sample only.
+            G_indices_diag = G_indices_per_Gpar[ig_diag]
+            if (len(G_indices_diag) > 0
+                    and phase_zg_per_Gpar[ig_diag] is not None):
+                rho_mz_diag = (
+                    n_mG[m_diag:m_diag + 1, G_indices_diag]
+                    @ phase_zg_per_Gpar[ig_diag].T / Lz)
+                t_diag = complex(rho_mz_diag.sum() * self.dz_qeh)
+            else:
+                t_diag = 0.0 + 0.0j
+            print(('  charge-cons: c^T d = %.3e   '
+                   'int bar_rho dz = %.3e   '
+                   '|c^T d - t| = %.3e   '
+                   '(constraint = %s)')
+                  % (abs(cTd), abs(t_diag), abs(cTd - t_diag),
+                     'ON' if self._lagrange_constrained_ls else 'OFF'),
+                  file=self.fd)
+            print(('  ||W||_F   = %.3e Ha*Bohr^2   '
+                   '|W[0,0]| = %.3e Ha*Bohr^2')
+                  % (float(np.linalg.norm(W_diag)),
+                     abs(W_diag[0, 0])), file=self.fd)
+            print(('  |d^* W d| = %.3e Ha*Bohr^2 (compare to legacy '
+                   "GWQEHCorrection's |n_G[0]|^2 * dW_legacy at same q)")
+                  % abs(bilinear), file=self.fd)
+            print(('  prefactor x = %.3e Bohr^-2 (1/(N_q*2pi*A); '
+                   'final per-sample contribution magnitude '
+                   '~ x * |d^* W d| = %.3e Ha)')
+                  % (x, x * abs(bilinear)), file=self.fd)
+            self._diag_sample_printed = True
 
         for o, o1, o2, sgn, s, w, d_Gpar_a in zip(
                 o_m, o1_m, o2_m, sgn_m, s_m, w_m, d_mGpar_a):
