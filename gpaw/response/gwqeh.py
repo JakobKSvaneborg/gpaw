@@ -1186,30 +1186,65 @@ class GWmQEHCorrection(GWQEHCorrection):
     def _eval_dW_on_gwgrid(self, q_abs):
         """Evaluate Delta-W matrix at |q| on the GW frequency grid.
 
-        Returns array of shape (nw_gw, nbasis, nbasis).  Substitutes
-        the small-q average when q_abs <= _q0_cut.
+        Returns array of shape (nw_gw, nbasis, nbasis).
+
+        Out-of-range handling:
+          * |q| <= self._q0_cut: substitute the small-q ring average
+            (or zero when include_q0=False), as in the parent's get_W_on_grid.
+          * |q| < qqeh.min(): if the q0 averaging didn't fire (no
+            small-q ring available), fall back to the spline value at
+            qqeh.min() rather than a cubic extrapolation downward.
+          * |q| > qqeh.max(): physical dW for an interlayer screening
+            correction decays roughly as exp(-q d) at large q, so the
+            cubic-spline polynomial extrapolation is unbounded and
+            wrong by many orders of magnitude (and typically with a
+            wrong sign as the cubic flips). Clamp to zero in this
+            regime instead -- a tiny missing tail is far less harmful
+            than a polynomial that blows up. The one-shot warning
+            still fires so the user can grow qqeh.max() or shrink
+            ecut_mqeh to push the cutoff out.
         """
         if (self._q0_dW_Wab is not None
                 and q_abs <= self._q0_cut):
             return self._q0_dW_Wab.copy()
         if q_abs > self._qqeh_max:
             if not getattr(self, '_warned_qmax', False):
-                print(('WARNING: evaluating Delta-W at |q+G_par|=%.3f '
-                       'Bohr^-1 > qqeh.max()=%.3f; results rely on '
-                       'spline extrapolation. Consider increasing the '
-                       'mQEH q_max or decreasing ecut_mqeh.')
-                      % (q_abs, self._qqeh_max), file=self.fd)
+                print(('WARNING: evaluating Delta-W at |q+G_par| > '
+                       'qqeh.max()=%.3f Bohr^-1; clamping dW to 0 for '
+                       'q > qqeh.max() (physical W decays exponentially '
+                       'at large q, but cubic-spline extrapolation '
+                       'diverges polynomially and would dominate the '
+                       'sum). Consider increasing the mQEH q_max in '
+                       'the building block or decreasing ecut_mqeh.')
+                      % self._qqeh_max, file=self.fd)
                 self._warned_qmax = True
-        return (self._dW_spline_re(q_abs)
-                + 1j * self._dW_spline_im(q_abs))
+            nb = self.nbasis
+            nw_gw = len(self.omega_w)
+            return np.zeros((nw_gw, nb, nb), dtype=complex)
+        # |q| inside [qqeh.min(), qqeh.max()] is the interpolation regime.
+        # For |q| < qqeh.min() (and outside the q0_cut block above), the
+        # spline would extrapolate downward; pin to the qqeh.min() value
+        # instead so a divergent dW(q -> 0) doesn't get amplified by a
+        # cubic that goes the wrong way.
+        q_eval = max(float(q_abs), float(self._qqeh_sorted[0]))
+        return (self._dW_spline_re(q_eval)
+                + 1j * self._dW_spline_im(q_eval))
 
     def _eval_drho(self, q_abs):
         """Evaluate density basis functions at |q|.
 
-        Returns array of shape (nz, nbasis).
+        Returns array of shape (nz, nbasis). Clamps |q| to the
+        ``qqeh`` interpolation range to avoid the same divergent
+        cubic-extrapolation pathology fixed in
+        :meth:`_eval_dW_on_gwgrid`. The induced-density basis
+        functions also live on the qqeh grid only, and extrapolating
+        them past the endpoints can produce nonsense the rho-LS
+        projection then propagates into the self-energy.
         """
-        return (self._drho_spline_re(q_abs)
-                + 1j * self._drho_spline_im(q_abs))
+        q_clip = float(
+            np.clip(q_abs, self._qqeh_sorted[0], self._qqeh_sorted[-1]))
+        return (self._drho_spline_re(q_clip)
+                + 1j * self._drho_spline_im(q_clip))
 
     def calculate_QEH(self):
         """Calculate the mQEH self-energy contribution.
