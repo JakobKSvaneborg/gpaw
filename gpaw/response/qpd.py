@@ -12,6 +12,12 @@ class SingleQPWDescriptor(PWDescriptor):
     def from_q(q_c, ecut, gd, gammacentered=False):
         """Construct a plane wave descriptor for q_c with a given cutoff."""
         qd = KPointDescriptor([q_c])
+
+        # For non-periodic systems (e.g., 2D materials), we need a periodic
+        # grid descriptor for PW operations
+        if not gd.pbc_c.all():
+            gd = gd.new_descriptor(pbc_c=True)
+
         if not isinstance(ecut, dict):
             return SingleQPWDescriptor(ecut, gd, complex, qd,
                                        gammacentered=gammacentered)
