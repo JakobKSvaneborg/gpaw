@@ -235,7 +235,7 @@ class MicroSetup:
 
     def evaluate_function(self, add_f):
         """Evaluate a given function f(r) on the angular and radial grids."""
-        f_ng = np.array([self.rgd.zeros() for n in range(self.Y_nL.shape[0])])
+        f_ng = self.rgd.zeros(self.Y_nL.shape[0])
         for n, Y_L in enumerate(self.Y_nL):
             n_sg = Y_L @ self.n_sLg
             add_f(self.rgd, n_sg, f_ng[n])
@@ -252,7 +252,7 @@ class MicroSetup:
         rgd = self.rgd
         f_g = rgd.zeros()
         ft_g = rgd.zeros()
-        df_ng = np.array([rgd.zeros() for n in range(self.Y_nL.shape[0])])
+        df_ng = rgd.zeros(self.Y_nL.shape[0])
         for n, Y_L in enumerate(self.Y_nL):
             f_g[:] = 0.
             n_sg = Y_L @ self.n_sLg

@@ -266,13 +266,14 @@ class WCalculator(WBaseCalculator):
 
         einv_wGG = dfc.get_epsinv_wGG(only_correlation=False)
         W_wGG = np.empty_like(einv_wGG)
+        # The bare-Coulomb outer product is independent of frequency.
+        V_outer_GG = sqrtV_G * sqrtV_G[:, np.newaxis]
         for iw, (einv_GG, W_GG) in enumerate(zip(einv_wGG, W_wGG)):
             # If only_correlation = True function spits out
             # W^c = sqrt(V)(epsinv - delta_GG')sqrt(V). However, full epsinv
             # is still needed for q0_corrector.
             einvt_GG = (einv_GG - dfc.I_GG) if only_correlation else einv_GG
-            W_GG[:] = einvt_GG * (sqrtV_G *
-                                  sqrtV_G[:, np.newaxis])
+            W_GG[:] = einvt_GG * V_outer_GG
             if self.q0_corrector is not None and chi0.optical_limit:
                 W = dfc.wblocks.a + iw
                 self.q0_corrector.add_q0_correction(chi0.qpd, W_GG,
@@ -316,12 +317,13 @@ class WCalculator(WBaseCalculator):
         my_gslice = WgG_grid.myslice[1]
 
         dielectric_WgG = chi0.chi0_wGG  # XXX
+        # sqrtV_G and the bare-Coulomb outer product are independent of iw.
+        sqrtV_G = coulomb.sqrtV(chi0.qpd, q_v=None)
+        V_outer_GG = sqrtV_G * sqrtV_G[:, np.newaxis]
+        I_GG = np.eye(nG)
         for iw, chi0_GG in enumerate(chi0.chi0_wGG):
-            sqrtV_G = coulomb.sqrtV(chi0.qpd, q_v=None)
-            e_GG = np.eye(nG) - chi0_GG * sqrtV_G * sqrtV_G[:, np.newaxis]
-            e_gG = e_GG[my_gslice]
-
-            dielectric_WgG[iw, :, :] = e_gG
+            e_GG = I_GG - chi0_GG * V_outer_GG
+            dielectric_WgG[iw, :, :] = e_GG[my_gslice]
 
         wgg_grid = Grid(comm=self.blockcomm, shape=WGG)
 
@@ -337,10 +339,13 @@ class WCalculator(WBaseCalculator):
 
         self.context.timer.start('Dyson eq.')
 
+        # Both terms below are constant across the frequency loop; build them
+        # once to avoid O(nw) redundant (nG, nG) allocations.
+        identity_gG = I_GG[my_gslice]
+        thing_gG = V_outer_GG[my_gslice]
         for iw, inveps_gG in enumerate(inveps_WgG):
-            inveps_gG -= np.identity(nG)[my_gslice]
-            thing_GG = sqrtV_G * sqrtV_G[:, np.newaxis]
-            inveps_gG *= thing_GG[my_gslice]
+            inveps_gG -= identity_gG
+            inveps_gG *= thing_gG
 
         W_WgG = inveps_WgG
         Wp_wGG = W_WgG.copy()
