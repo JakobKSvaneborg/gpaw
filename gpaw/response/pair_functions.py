@@ -385,11 +385,11 @@ def get_pw_coordinates(qpd):
         Coordinates on the reciprocal lattice
     """
     # List of all plane waves
-    G_Gv = np.array([qpd.G_Qv[Q] for Q in qpd.Q_qG[0]])
+    G_Gv = qpd.G_Qv[qpd.Q_qG[0]]
 
     # Use cell to get coordinates
     B_cv = 2.0 * np.pi * qpd.gd.icell_cv
-    return np.round(np.dot(G_Gv, np.linalg.inv(B_cv))).astype(int)
+    return np.round(G_Gv @ np.linalg.inv(B_cv)).astype(int)
 
 
 def write_pair_function(filename, zd, pf_z):

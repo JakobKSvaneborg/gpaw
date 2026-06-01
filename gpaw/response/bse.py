@@ -1603,8 +1603,9 @@ class BSEPlus:
             chi_irr_BSE_wGG - chi0_limited_wGG + chi0_full_wGG
         eye = np.eye(chi_irr_BSEPlus_wGG.shape[1])
 
+        v_GG = self.v_G[np.newaxis, np.newaxis, :]
         chi_BSEPlus_wGG = \
-            np.linalg.solve(eye - chi_irr_BSEPlus_wGG @ np.diag(self.v_G),
+            np.linalg.solve(eye - chi_irr_BSEPlus_wGG * v_GG,
                             chi_irr_BSEPlus_wGG)
 
         if self.truncation == '2D':
@@ -1619,7 +1620,7 @@ class BSEPlus:
 
         if save_chi_BSE:
             chi_BSE_wGG = \
-                np.linalg.solve(eye - chi_irr_BSE_wGG @ np.diag(self.v_G),
+                np.linalg.solve(eye - chi_irr_BSE_wGG * v_GG,
                                 chi_irr_BSE_wGG)
 
             if self.truncation == '2D':
@@ -1635,7 +1636,7 @@ class BSEPlus:
 
         if save_chi_RPA:
             chi_full_wGG = \
-                np.linalg.solve(eye - chi0_full_wGG @ np.diag(self.v_G),
+                np.linalg.solve(eye - chi0_full_wGG * v_GG,
                                 chi0_full_wGG)
 
             if self.truncation == '2D':

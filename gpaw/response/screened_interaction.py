@@ -316,12 +316,12 @@ class WCalculator(WBaseCalculator):
         my_gslice = WgG_grid.myslice[1]
 
         dielectric_WgG = chi0.chi0_wGG  # XXX
+        sqrtV_G = coulomb.sqrtV(chi0.qpd, q_v=None)
+        sqrtVV_GG = sqrtV_G * sqrtV_G[:, np.newaxis]
+        eye_gG = np.eye(nG)[my_gslice]
+        sqrtVV_gG = sqrtVV_GG[my_gslice]
         for iw, chi0_GG in enumerate(chi0.chi0_wGG):
-            sqrtV_G = coulomb.sqrtV(chi0.qpd, q_v=None)
-            e_GG = np.eye(nG) - chi0_GG * sqrtV_G * sqrtV_G[:, np.newaxis]
-            e_gG = e_GG[my_gslice]
-
-            dielectric_WgG[iw, :, :] = e_gG
+            dielectric_WgG[iw, :, :] = eye_gG - (chi0_GG * sqrtVV_GG)[my_gslice]
 
         wgg_grid = Grid(comm=self.blockcomm, shape=WGG)
 
@@ -338,9 +338,8 @@ class WCalculator(WBaseCalculator):
         self.context.timer.start('Dyson eq.')
 
         for iw, inveps_gG in enumerate(inveps_WgG):
-            inveps_gG -= np.identity(nG)[my_gslice]
-            thing_GG = sqrtV_G * sqrtV_G[:, np.newaxis]
-            inveps_gG *= thing_GG[my_gslice]
+            inveps_gG -= eye_gG
+            inveps_gG *= sqrtVV_gG
 
         W_WgG = inveps_WgG
         Wp_wGG = W_WgG.copy()
