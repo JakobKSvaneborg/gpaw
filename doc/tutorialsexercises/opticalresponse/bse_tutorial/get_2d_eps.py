@@ -12,15 +12,18 @@ for iq in range(22):
     q_c = [iq / 42, iq / 42, 0]
 
     # Dielectric function (using the bare Coulomb)
-    eps = df.get_literal_dielectric_function(q_c=q_c)
-    epsinv_GG = np.linalg.inv(eps.eps_wGG[0])
+    response = df.calculate(q_c=q_c)
+    eps_wGG = response.dielectric_matrix()
+    epsinv_GG = np.linalg.inv(eps_wGG[0])
     # Customized dielectric function (using the truncated Coulomb)
-    eps_t = df.get_customized_dielectric_function(q_c=q_c, truncation='2D')
-    epsinv_t_GG = np.linalg.inv(eps_t.eps_wGG[0])
+    response_t = df.calculate(q_c=q_c, truncation='2D')
+    eps_t_wGG = response_t.dielectric_matrix()
+    epsinv_t_GG = np.linalg.inv(eps_t_wGG[0])
 
     # Periodic degrees of freedom
-    Gvec_Gv = eps.qpd.get_reciprocal_vectors(add_q=False)
-    z0 = eps.qpd.gd.cell_cv[2, 2] / 2  # Center of layer
+    qpd = response.chi0.qpd
+    Gvec_Gv = qpd.get_reciprocal_vectors(add_q=False)
+    z0 = qpd.gd.cell_cv[2, 2] / 2  # Center of layer
 
     epsinv = 0.0
     epsinv_t = 0.0
