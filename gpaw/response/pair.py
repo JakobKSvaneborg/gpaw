@@ -187,7 +187,6 @@ class ActualPairDensityCalculator:
             assert output_buffer.dtype == qpd.dtype
             n_nmG = output_buffer
         for j, n in enumerate(n_n):
-            Q_G = kptpair.Q_G
             with self.context.timer('conj'):
                 ut1cc_R = kpt1.ut_nR[n - kpt1.na].conj()
             with self.context.timer('paw'):
@@ -274,7 +273,7 @@ class ActualPairDensityCalculator:
             self.ut_sKnvR = self.calculate_derivatives(kpt1)
 
         gd = self.gs.gd
-        k_v = 2 * np.pi * np.dot(kpt1.k_c, np.linalg.inv(gd.cell_cv).T)
+        k_v = 2 * np.pi * np.dot(kpt1.k_c, gd.icell_cv)
 
         ut_vR = self.ut_sKnvR[kpt1.s][kpt1.K][n - kpt1.n1]
         atomdata_a = self.gs.pawdatasets.by_atom
@@ -338,7 +337,7 @@ class ActualPairDensityCalculator:
 
         # Load kpoints
         gd = self.gs.gd
-        k_v = 2 * np.pi * np.dot(kpt.k_c, np.linalg.inv(gd.cell_cv).T)
+        k_v = 2 * np.pi * np.dot(kpt.k_c, gd.icell_cv)
         atomdata_a = self.gs.pawdatasets.by_atom
 
         # Break bands into degenerate chunks
@@ -386,7 +385,7 @@ class ActualPairDensityCalculator:
                 vel_nnv[n] = -1j * nabla0_nv
 
             for iv in range(3):
-                vel, _ = np.linalg.eig(vel_nnv[..., iv])
+                vel = np.linalg.eigvals(vel_nnv[..., iv])
                 vel_nv[ind_n - na, iv] = vel  # Use eigenvalues
 
         return vel_nv[n_n - na]
@@ -403,7 +402,7 @@ class ActualPairDensityCalculator:
         gs = self.gs
         U_cc = gs.ibz2bz[K].U_cc
         A_cv = gs.gd.cell_cv
-        M_vv = np.dot(np.dot(A_cv.T, U_cc.T), np.linalg.inv(A_cv).T)
+        M_vv = np.dot(np.dot(A_cv.T, U_cc.T), gs.gd.icell_cv)
         ik = gs.kd.bz2ibz_k[K]
         assert gs.kd.comm.size == 1
         kpt = gs.kpt_ks[ik][s]
