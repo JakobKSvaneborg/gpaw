@@ -934,8 +934,7 @@ class BSEBackend:
                 A_T = np.dot(rhot_S, v_St)
                 B_T = np.dot(rhot_S * dft_S, v_St)
                 tmp = np.dot(v_St.conj().T, v_St)
-                overlap_TT = np.linalg.inv(tmp)
-                C_T = np.dot(B_T.conj(), overlap_TT.T) * A_T
+                C_T = np.linalg.solve(tmp, B_T.conj()) * A_T
             comm.broadcast(C_T, 0)
 
         return w_T, C_T

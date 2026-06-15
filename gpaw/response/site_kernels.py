@@ -304,14 +304,11 @@ def construct_wave_vectors(qpd):
     interest."""
     G_Gv, q_v = get_plane_waves_and_reduced_wave_vector(qpd)
 
-    # Allocate arrays for G, G' and q respectively
-    nG = len(G_Gv)
-    G1_GGv = np.tile(G_Gv[:, np.newaxis, :], [1, nG, 1])
-    G2_GGv = np.tile(G_Gv[np.newaxis, :, :], [nG, 1, 1])
-    q_GGv = np.tile(q_v[np.newaxis, np.newaxis, :], [nG, nG, 1])
-
-    # Contruct the wave vector G1 - G2 + q
-    Q_GGv = G1_GGv - G2_GGv + q_GGv
+    # Construct the wave vector G1 - G2 + q via broadcasting.  Doing the
+    # subtraction first and adding q in place avoids three large temporary
+    # arrays compared with the previous np.tile-based approach.
+    Q_GGv = G_Gv[:, np.newaxis, :] - G_Gv[np.newaxis, :, :]
+    Q_GGv += q_v
 
     return Q_GGv
 

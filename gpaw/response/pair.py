@@ -274,7 +274,7 @@ class ActualPairDensityCalculator:
             self.ut_sKnvR = self.calculate_derivatives(kpt1)
 
         gd = self.gs.gd
-        k_v = 2 * np.pi * np.dot(kpt1.k_c, np.linalg.inv(gd.cell_cv).T)
+        k_v = 2 * np.pi * np.dot(kpt1.k_c, gd.icell_cv)
 
         ut_vR = self.ut_sKnvR[kpt1.s][kpt1.K][n - kpt1.n1]
         atomdata_a = self.gs.pawdatasets.by_atom
@@ -316,7 +316,6 @@ class ActualPairDensityCalculator:
         n0_mv = self.calculate_optical_pair_velocity(n, kpt1, kpt2,
                                                      block=block)
 
-        deps_m = deps_m.copy()
         deps_m[deps_m == 0.0] = np.inf
 
         smallness_mv = np.abs(-1e-3 * n0_mv / deps_m[:, np.newaxis])
@@ -338,7 +337,7 @@ class ActualPairDensityCalculator:
 
         # Load kpoints
         gd = self.gs.gd
-        k_v = 2 * np.pi * np.dot(kpt.k_c, np.linalg.inv(gd.cell_cv).T)
+        k_v = 2 * np.pi * np.dot(kpt.k_c, gd.icell_cv)
         atomdata_a = self.gs.pawdatasets.by_atom
 
         # Break bands into degenerate chunks
