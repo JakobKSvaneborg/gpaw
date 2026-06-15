@@ -112,6 +112,10 @@ def test_repr(moment_corrections, expected_string):
     assert isinstance(rep, str)
     assert rep == expected_repr, f'{rep} not equal to {expected_repr}'
 
+    # repr() must not mutate stored centers (they are kept in Bohr)
+    rep2 = repr(poisson)
+    assert rep2 == rep
+
 
 @pytest.fixture
 def gd():

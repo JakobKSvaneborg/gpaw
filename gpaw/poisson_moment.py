@@ -53,7 +53,7 @@ class MomentCorrection:
     def __repr__(self) -> str:
         center = self.center
         if center is not None:
-            center *= Bohr
+            center = center * Bohr
         return f'{repr(self.moms)} @ {repr(center)}'
 
 
