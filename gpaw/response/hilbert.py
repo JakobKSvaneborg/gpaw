@@ -75,7 +75,8 @@ class HilbertTransform:
         """Inplace transform"""
         B_wx = S_wx.reshape((len(S_wx), -1))
         nw, nx = B_wx.shape
-        tmp_wx = np.zeros((nw, min(nx, self.blocksize)), complex)
+        # mmm with beta=0 fully overwrites the buffer, so np.empty suffices.
+        tmp_wx = np.empty((nw, min(nx, self.blocksize)), complex)
         for x in range(0, nx, self.blocksize):
             b_wx = B_wx[:, x:x + self.blocksize]
             c_wx = tmp_wx[:, :b_wx.shape[1]]
@@ -97,7 +98,8 @@ class GWHilbertTransforms:
         nw = len(A_wGG)
         H_xw = self._stacked_H_nww.reshape(-1, nw)
         A_wy = A_wGG.reshape(nw, -1)
-        tmp_xy = np.zeros((H_xw.shape[0], A_wy.shape[1]), complex)
+        # mmm with beta=0 fully overwrites the buffer, so np.empty suffices.
+        tmp_xy = np.empty((H_xw.shape[0], A_wy.shape[1]), complex)
         # gemm(1.0, A_wy, H_xw, 0.0, tmp_xy)
         mmm(1.0, H_xw, 'N', A_wy, 'N', 0.0, tmp_xy)
         return tmp_xy.reshape((2, *A_wGG.shape))

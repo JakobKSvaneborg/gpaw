@@ -150,12 +150,14 @@ class GenericUpdate(IntegralTask):
 
         blocks1d = Blocks1D(self.blockcomm, chi0_wGG.shape[2])
         n_Gm = np.ascontiguousarray(n_mG.T)
+        # Hoist the block-dependent slicing out of the frequency loop.
+        if blocks1d.blockcomm.size > 1:
+            my_n_mG = n_mG[:, blocks1d.myslice]
+        else:
+            my_n_mG = n_mG
         for omega, chi0_GG in zip(wd.omega_w, chi0_wGG):
             x_m = (1 / (omega + deps1_m) - 1 / (omega - deps2_m))
-            if blocks1d.blockcomm.size > 1:
-                nx_mG = n_mG[:, blocks1d.myslice] * x_m[:, np.newaxis]
-            else:
-                nx_mG = n_mG * x_m[:, np.newaxis]
+            nx_mG = my_n_mG * x_m[:, np.newaxis]
 
             mmm(1.0, nx_mG, 'T', n_Gm, 'C', 1.0, chi0_GG)
 
@@ -175,14 +177,17 @@ class Hermitian(IntegralTask):
 
         blocks1d = Blocks1D(self.blockcomm, chi0_wGG.shape[2])
         nc_mG = n_mG.conj()
-        for w, omega in enumerate(wd.omega_w):
-            if blocks1d.blockcomm.size == 1:
+        # Hoist the block-size branch out of the frequency loop.
+        if blocks1d.blockcomm.size == 1:
+            for w, omega in enumerate(wd.omega_w):
                 x_m = np.abs(2 * deps_m / (omega.imag**2 + deps_m**2))**0.5
                 nx_mG = nc_mG * x_m[:, np.newaxis]
                 rk(-1.0, nx_mG, 1.0, chi0_wGG[w], 'n')
-            else:
+        else:
+            my_n_mG = n_mG[:, blocks1d.myslice]
+            for w, omega in enumerate(wd.omega_w):
                 x_m = np.abs(2 * deps_m / (omega.imag**2 + deps_m**2))
-                mynx_mG = n_mG[:, blocks1d.myslice] * x_m[:, np.newaxis]
+                mynx_mG = my_n_mG * x_m[:, np.newaxis]
                 mmm(-1.0, mynx_mG, 'T', nc_mG, 'N', 1.0, chi0_wGG[w])
 
 
@@ -289,10 +294,13 @@ class OpticalLimit(IntegralTask):
         deps1_m = deps_m + 1j * self.eta
         deps2_m = deps_m - 1j * self.eta
         nc_mG = n_mG.conj()
+        # Hoist the constant slices/transposes out of the frequency loop.
+        n_vm = n_mG[:, :3].T
+        nc_vm = nc_mG[:, :3].T
         for w, omega in enumerate(wd.omega_w):
             x_m = (1 / (omega + deps1_m) - 1 / (omega - deps2_m))
-            chi0_wxvG[w, 0] += np.dot(x_m * n_mG[:, :3].T, nc_mG)
-            chi0_wxvG[w, 1] += np.dot(x_m * nc_mG[:, :3].T, n_mG)
+            chi0_wxvG[w, 0] += np.dot(x_m * n_vm, nc_mG)
+            chi0_wxvG[w, 1] += np.dot(x_m * nc_vm, n_mG)
 
 
 class HermitianOpticalLimit(IntegralTask):
@@ -307,10 +315,13 @@ class HermitianOpticalLimit(IntegralTask):
         """Optical limit update of hermitian chi."""
         deps_m += self.eshift * np.sign(deps_m)
         nc_mG = n_mG.conj()
+        # Hoist the constant slices/transposes out of the frequency loop.
+        n_vm = n_mG[:, :3].T
+        nc_vm = nc_mG[:, :3].T
         for w, omega in enumerate(wd.omega_w):
             x_m = - np.abs(2 * deps_m / (omega.imag**2 + deps_m**2))
-            chi0_wxvG[w, 0] += np.dot(x_m * n_mG[:, :3].T, nc_mG)
-            chi0_wxvG[w, 1] += np.dot(x_m * nc_mG[:, :3].T, n_mG)
+            chi0_wxvG[w, 0] += np.dot(x_m * n_vm, nc_mG)
+            chi0_wxvG[w, 1] += np.dot(x_m * nc_vm, n_mG)
 
 
 class HilbertOpticalLimit(IntegralTask):

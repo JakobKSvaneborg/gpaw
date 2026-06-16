@@ -181,7 +181,8 @@ class ActualPairDensityCalculator:
         Q_G = kptpair.Q_G  # Fourier components of kpoint pair
         nG = len(Q_G)
         if output_buffer is None:
-            n_nmG = np.zeros((len(n_n), len(m_m), nG), qpd.dtype)
+            # All entries are filled by the loop below, so np.empty suffices.
+            n_nmG = np.empty((len(n_n), len(m_m), nG), qpd.dtype)
         else:
             assert output_buffer.shape == (len(n_n), len(m_m), nG)
             assert output_buffer.dtype == qpd.dtype
@@ -207,8 +208,8 @@ class ActualPairDensityCalculator:
         kpt2 = kptpair.kpt2
 
         if output_buffer is None:
-            # v = (x, y, z)
-            n_nmv = np.zeros((len(n_n), len(m_m), 3), qpd.dtype)
+            # v = (x, y, z); all entries are filled by the loop below.
+            n_nmv = np.empty((len(n_n), len(m_m), 3), qpd.dtype)
         else:
             assert output_buffer.shape == (len(n_n), len(m_m), 3)
             assert output_buffer.dtype == qpd.dtype

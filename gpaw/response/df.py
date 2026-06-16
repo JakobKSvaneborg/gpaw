@@ -468,10 +468,15 @@ class CustomizableDielectricFunction(DielectricFunctionData):
          M              00        00
         """
         eps0_W = self._macroscopic_component(self.eps_wGG)
-        # Invert Ε(q,ω) one frequency at a time to compute Ε_M(q,ω)
-        eps_w = np.zeros((self.wblocks.nlocal,), complex)
-        for w, eps_GG in enumerate(self.eps_wGG):
-            eps_w[w] = 1 / np.linalg.inv(eps_GG)[0, 0]
+        # Invert Ε(q,ω) one frequency at a time to compute Ε_M(q,ω).
+        # Only the (0, 0) element of the inverse is needed, so we solve
+        # against the first standard basis vector instead of inverting.
+        eps_w = np.empty((self.wblocks.nlocal,), complex)
+        if self.wblocks.nlocal > 0:
+            e0_G = np.zeros(self.eps_wGG.shape[1], complex)
+            e0_G[0] = 1.0
+            for w, eps_GG in enumerate(self.eps_wGG):
+                eps_w[w] = 1 / np.linalg.solve(eps_GG, e0_G)[0]
         eps_W = self.wblocks.all_gather(eps_w)
         return ScalarResponseFunctionSet(self.wd, eps0_W, eps_W)
 

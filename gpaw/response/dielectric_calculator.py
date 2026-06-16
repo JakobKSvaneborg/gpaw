@@ -90,16 +90,15 @@ class _DielectricFunctionCalculator:
         return self.chiVV_GG @ self.fxc_GG
 
     def eps_GG_gwp(self):
-        gwp_inv_GG = np.linalg.inv(self.I_GG - self._chiVVfxc_GG() +
-                                   self.chiVV_GG)
-        return self.I_GG - gwp_inv_GG @ self.chiVV_GG
+        return self.I_GG - np.linalg.solve(
+            self.I_GG - self._chiVVfxc_GG() + self.chiVV_GG, self.chiVV_GG)
 
     def eps_GG_gws(self):
         # Note how the signs are different wrt. gwp.
         # Nobody knows why.
-        gws_inv_GG = np.linalg.inv(self.I_GG + self._chiVVfxc_GG() -
-                                   self.chiVV_GG)
-        return gws_inv_GG @ (self.I_GG - self.chiVV_GG)
+        return np.linalg.solve(
+            self.I_GG + self._chiVVfxc_GG() - self.chiVV_GG,
+            self.I_GG - self.chiVV_GG)
 
     def eps_GG_plain(self):
         return self.I_GG - self.chiVV_GG
