@@ -760,6 +760,27 @@ class ASECalculator:
                                initialwannier, kpointgrid, fixedstates,
                                edf, spin, nbands)
 
+    def get_bz_pseudo_wave_function(self, band, kpt=0, spin=None,
+                                    periodic=False,
+                                    broadcast=True,
+                                    pad=True) -> Array3D | None:
+        """Get pseudo wave function at a BZ k-point (symmetry-aware).
+
+        Same as ``get_pseudo_wave_function`` except ``kpt`` is a
+        full-BZ k-point index rather than an IBZ index.  When
+        symmetry is off (IBZ == BZ), the two functions return
+        identical results.
+        """
+        psit_1R = self.dft.wave_functions(n1=band, n2=band + 1,
+                                          kpt=kpt, spin=spin,
+                                          periodic=periodic,
+                                          broadcast=broadcast,
+                                          _pad=pad,
+                                          _unfold_bz=True)
+        if psit_1R is not None:
+            return psit_1R[0].data
+        return None
+
     def initialize_positions(self, atoms=None):
         pass
 
