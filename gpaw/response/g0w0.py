@@ -232,10 +232,9 @@ class QSymmetryOp:
         d_c = self.apply(q_c) - Q_c
         assert np.allclose(d_c.round(), d_c)
 
-    def get_M_vv(self, cell_cv):
-        # We'll be inverting these cells a lot.
-        # Should have an object with the cell and its inverse which does this.
-        return cell_cv.T @ self.U_cc.T @ np.linalg.inv(cell_cv).T
+    def get_M_vv(self, gd):
+        # gd.icell_cv is the precomputed np.linalg.inv(cell_cv).T
+        return gd.cell_cv.T @ self.U_cc.T @ gd.icell_cv
 
     @classmethod
     def get_symops(cls, qd, iq, q_c):
@@ -286,7 +285,7 @@ class QSymmetryOp:
                                         coordinate_transformation=self.apply)
 
         qG_Gv = qpd.get_reciprocal_vectors(add_q=True)
-        M_vv = self.get_M_vv(qpd.gd.cell_cv)
+        M_vv = self.get_M_vv(qpd.gd)
         mypawcorr = pawcorr.remap_by_symop(self, qG_Gv, M_vv)
 
         return mypawcorr, Q_G

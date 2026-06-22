@@ -978,8 +978,7 @@ class BSEBackend:
         vchi_w *= 4 * np.pi / self.gs.volume
 
         if not np.allclose(self.q_c, 0.0):
-            cell_cv = self.gs.gd.cell_cv
-            B_cv = 2 * np.pi * np.linalg.inv(cell_cv).T
+            B_cv = 2 * np.pi * self.gs.gd.icell_cv
             q_v = np.dot(self.q_c, B_cv)
             vchi_w /= np.dot(q_v, q_v)
 
@@ -1047,26 +1046,32 @@ class BSEBackend:
                C_tGG = B_Gt.T.conj()[..., np.newaxis] * A_Gt.T[:, np.newaxis]
                '''
             if comm.size == 1:
-                C_tGG = np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt)
-                C1_tGG = np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt)
+                C_tGG = np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt,
+                                  optimize='optimal')
+                C1_tGG = np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt,
+                                   optimize='optimal')
             else:
                 grid = BlacsGrid(comm, comm.size, 1)
                 desc = grid.new_descriptor(nR, nG * nG, nr, nG * nG)
                 C_tGG = desc.empty(dtype=complex).reshape((-1, nG, nG))
-                np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt, out=C_tGG)
+                np.einsum('Gt,Ht->tGH', B_Gt.conj(), A_Gt, out=C_tGG,
+                          optimize='optimal')
                 C1_tGG = desc.empty(dtype=complex).reshape((-1, nG, nG))
-                np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt, out=C1_tGG)
+                np.einsum('Gt,Ht->tGH', A_Gt.conj(), B_Gt, out=C1_tGG,
+                          optimize='optimal')
 
         eta /= Hartree
 
         if C_tGG is not None:
             tmp_tw = 1 / (w_w[None, :] / Hartree - w_t[:, None] + 1j * eta)
-            chi_wGG_local = np.einsum('tw,tAB->wAB', tmp_tw, C_tGG)
+            chi_wGG_local = np.einsum('tw,tAB->wAB', tmp_tw, C_tGG,
+                                      optimize='optimal')
 
             if C1_tGG is not None:
                 n_tmp_tw = - 1 / (w_w[None, :] / Hartree
                                   + w_t[:, None] + 1j * eta)
-                chi_wGG_local += np.einsum('tw,tAB->wAB', n_tmp_tw, C1_tGG)
+                chi_wGG_local += np.einsum('tw,tAB->wAB', n_tmp_tw, C1_tGG,
+                                           optimize='optimal')
 
             chi_wGG_local *= 1 / self.gs.volume
 

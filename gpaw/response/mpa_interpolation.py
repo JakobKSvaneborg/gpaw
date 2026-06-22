@@ -36,15 +36,15 @@ def fit_residue(
             A_GGwp[:, :, w, p][p >= npr_GG] = 0.0
 
     temp_GGp = np.einsum('GHwp,GHw->GHp',
-                         A_GGwp.conj(), b_GGw)
+                         A_GGwp.conj(), b_GGw, optimize='optimal')
     XTX_GGpp = np.einsum('GHwp,GHwo->GHpo',
-                         A_GGwp.conj(), A_GGwp)
+                         A_GGwp.conj(), A_GGwp, optimize='optimal')
 
     if XTX_GGpp.shape[2] == 1:
         # 1D matrix, invert the number
         XTX_GGpp = 1 / XTX_GGpp
         R_GGp = np.einsum('GHpo,GHo->GHp',
-                          XTX_GGpp, temp_GGp)
+                          XTX_GGpp, temp_GGp, optimize='optimal')
     else:
         try:
             # Note: Numpy 2.0 changed the broadcasting rules of
@@ -56,7 +56,7 @@ def fit_residue(
         except np.linalg.LinAlgError:
             XTX_GGpp = np.linalg.pinv(XTX_GGpp)
             R_GGp = np.einsum('GHpo,GHo->GHp',
-                              XTX_GGpp, temp_GGp)
+                              XTX_GGpp, temp_GGp, optimize='optimal')
 
     return R_GGp.transpose((2, 0, 1))
 

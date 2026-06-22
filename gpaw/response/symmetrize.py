@@ -79,7 +79,8 @@ def initialize_G_maps(symmetries: QSymmetries, qpd: SingleQPWDescriptor):
     assert np.allclose(symmetries.q_c, qpd.q_c)
     B_cv = 2.0 * np.pi * qpd.gd.icell_cv
     G_Gv = qpd.get_reciprocal_vectors(add_q=False)
-    G_Gc = np.dot(G_Gv, np.linalg.inv(B_cv))
+    # Equivalent to np.dot(G_Gv, inv(B_cv)) but solves rather than inverts.
+    G_Gc = np.linalg.solve(B_cv.T, G_Gv.T).T
     Q_G = qpd.Q_qG[0]
 
     G_sG = []

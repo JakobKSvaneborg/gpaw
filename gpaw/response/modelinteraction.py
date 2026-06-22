@@ -230,7 +230,8 @@ class ModelInteraction:
             A_mnG += np.einsum('ia,jb,abG->ijG',
                                Uwan_mnk[:, :, iK1].conj(),
                                Uwan_mnk[:, :, iK2],
-                               rholoc)
+                               rholoc,
+                               optimize='optimal')
         self.intrablockcomm.sum(A_mnG)
         return A_mnG
 
