@@ -355,19 +355,18 @@ def get_inverted_pw_mapping(qpd1, qpd2):
     G1_Gc = get_pw_coordinates(qpd1)
     G2_Gc = get_pw_coordinates(qpd2)
 
-    mG2_G1 = []
-    for G1_c in G1_Gc:
-        found_match = False
-        for G2, G2_c in enumerate(G2_Gc):
-            if np.all(G2_c == -G1_c):
-                mG2_G1.append(G2)
-                found_match = True
-                break
-        if not found_match:
+    # Build a hash table from G2 coordinates to their index, so that looking
+    # up the partner -G1 is O(1) per entry rather than O(N).
+    G2_lookup = {tuple(G2_c): G2 for G2, G2_c in enumerate(G2_Gc)}
+    mG2_G1 = np.empty(len(G1_Gc), dtype=int)
+    for i, G1_c in enumerate(G1_Gc):
+        partner = G2_lookup.get(tuple(-G1_c))
+        if partner is None:
             raise ValueError('Could not match qpd1 and qpd2')
+        mG2_G1[i] = partner
 
-    # Set up mapping from GG' to -G-G'
-    invmap_GG = tuple(np.meshgrid(mG2_G1, mG2_G1, indexing='ij'))
+    # Set up mapping from GG' to -G-G' (use np.ix_ for cheap broadcast indices)
+    invmap_GG = np.ix_(mG2_G1, mG2_G1)
 
     return invmap_GG
 

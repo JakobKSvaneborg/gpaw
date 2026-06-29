@@ -522,7 +522,7 @@ class BSEBackend:
             else:
                 deps_kmm[ik] = -pair0.get_transition_energies()
             if optical_limit:
-                deps_kmm[np.where(deps_kmm == 0)] = 1.0e-9
+                deps_kmm[deps_kmm == 0] = 1.0e-9
 
             # Occupation factors
             if self.add_soc:
@@ -579,8 +579,9 @@ class BSEBackend:
 
         # Scissors operator shift
         if self.eshift is not None:
-            deps_kmm[np.where(df_Kmm[self.myKrange] > 1e-3)] += self.eshift
-            deps_kmm[np.where(df_Kmm[self.myKrange] < -1e-3)] -= self.eshift
+            my_df_kmm = df_Kmm[self.myKrange]
+            deps_kmm[my_df_kmm > 1e-3] += self.eshift
+            deps_kmm[my_df_kmm < -1e-3] -= self.eshift
         deps_Kmm[self.myKrange] = deps_kmm
 
         comm = self.context.comm
@@ -629,11 +630,12 @@ class BSEBackend:
 
         mySsize = self.myKsize * self.nv * self.nc
         H_sS = np.reshape(H_kmmKmm, (mySsize, self.nS))
-        for iS in range(mySsize):
+        if mySsize > 0:
             # Multiply by occupations
-            H_sS[iS] *= df_S[iS0 + iS]
-            # add bare transition energies
-            H_sS[iS, iS0 + iS] += deps_s[iS]
+            H_sS *= df_S[iS0:iS0 + mySsize, np.newaxis]
+            # Add bare transition energies on the diagonal block
+            diag_idx = np.arange(mySsize)
+            H_sS[diag_idx, iS0 + diag_idx] += deps_s
 
         return BSEMatrix(df_S, H_sS, deps_S, self.deps_max)
 
@@ -1023,11 +1025,12 @@ class BSEBackend:
         self.blocks = Blocks1D(comm, len(w_T))
         w_t = w_T[self.blocks.myslice]
 
+        rhoT_GR = rho_RG.T
         if not self.use_tammdancoff:
             if comm.rank == 0:
                 v_RT = v_Rt
-                A_GT = rho_RG.T @ v_RT
-                B_GT = rho_RG.T * df_R[np.newaxis] @ v_RT
+                A_GT = rhoT_GR @ v_RT
+                B_GT = (rhoT_GR * df_R[np.newaxis]) @ v_RT
                 tmp = v_RT.conj().T @ v_RT
                 overlap_tt = np.linalg.inv(tmp)
                 C_tGG = ((B_GT.conj() @ overlap_tt.T).T)[..., np.newaxis] *\
@@ -1040,8 +1043,8 @@ class BSEBackend:
             C_tGG = flat_C_tGG.reshape((nR, nG, nG))[self.blocks.myslice]
             C1_tGG = None
         else:
-            A_Gt = rho_RG.T @ v_Rt
-            B_Gt = (rho_RG.T * df_R[np.newaxis]) @ v_Rt
+            A_Gt = rhoT_GR @ v_Rt
+            B_Gt = (rhoT_GR * df_R[np.newaxis]) @ v_Rt
             '''The following computes
                C1_tGG = A_Gt.T.conj()[..., np.newaxis] * B_Gt.T[:, np.newaxis]
                C_tGG = B_Gt.T.conj()[..., np.newaxis] * A_Gt.T[:, np.newaxis]

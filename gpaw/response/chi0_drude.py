@@ -75,10 +75,10 @@ class Chi0DrudeCalculator(Chi0ComponentCalculator):
                                   out_wxx=tmp_plasmafreq_wvv)  # Output array
         tmp_plasmafreq_wvv *= prefactor
 
-        # Symmetrize the plasma frequency
+        # Symmetrize the plasma frequency (in-place on the temporary buffer).
         operators = HeadSymmetryOperators(symmetries, self.gs.gd)
-        plasmafreq_vv = tmp_plasmafreq_wvv[0].copy()
-        operators.symmetrize_wvv(plasmafreq_vv[np.newaxis])
+        operators.symmetrize_wvv(tmp_plasmafreq_wvv)
+        plasmafreq_vv = tmp_plasmafreq_wvv[0]
 
         # Store and print the plasma frequency
         chi0_drude.plasmafreq_vv += 4 * np.pi * plasmafreq_vv

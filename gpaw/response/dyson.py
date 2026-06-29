@@ -201,5 +201,9 @@ class DysonEquation:
         """
         if lambd is None:
             lambd = 1.  # no rescaling
-        leftside_GG = np.eye(self.nG) - lambd * self.xi_GG
+        # Build 1 - λ Ξ via diagonal update rather than allocating a
+        # full identity matrix.
+        leftside_GG = (-lambd) * self.xi_GG
+        diag = np.diagonal(leftside_GG)
+        np.fill_diagonal(leftside_GG, diag + 1.0)
         return np.linalg.solve(leftside_GG, self.chiks_GG)

@@ -490,22 +490,21 @@ class LocalPAWFTEngine:
                  ^
             Y_lm(K) for used (l,m) coefficients M
         """
-        nmyG = G_myGv.shape[0]
         Gnorm_myG, Gdir_myGv = self._calculate_norm_and_direction(G_myGv)
 
-        # Setup arrays to fully vectorize computations
-        nM = len(L_M)
-        (r_gMmyG, l_gMmyG,
-         Gnorm_gMmyG) = (a.reshape(len(r_g), nM, nmyG)
-                         for a in np.meshgrid(r_g, l_M, Gnorm_myG,
-                                              indexing='ij'))
-
+        # Broadcast (r_g, l_M, Gnorm_myG) into a (g, M, myG) shape on the fly
+        # rather than materializing three meshgrid buffers.
+        r_g3 = r_g[:, np.newaxis, np.newaxis]
+        l_M3 = l_M[np.newaxis, :, np.newaxis]
+        Gnorm_myG3 = Gnorm_myG[np.newaxis, np.newaxis, :]
         with self.context.timer('Compute spherical bessel functions'):
             # Slow step
-            j_gMmyG = spherical_jn(l_gMmyG, Gnorm_gMmyG * r_gMmyG)
+            j_gMmyG = spherical_jn(l_M3, Gnorm_myG3 * r_g3)
 
         Y_MmyG = Yarr(L_M, Gdir_myGv)
-        ii_MmyG = (-1j) ** np.repeat(l_M, nmyG).reshape((nM, nmyG))
+        # ii depends only on l_M; let it broadcast over the myG axis at the
+        # call-site to avoid the (nM, nmyG) materialization.
+        ii_MmyG = ((-1j) ** l_M)[:, np.newaxis]
 
         return ii_MmyG, j_gMmyG, Y_MmyG
 
