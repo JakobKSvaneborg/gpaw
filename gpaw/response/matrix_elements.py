@@ -339,11 +339,12 @@ class PlaneWaveMatrixElementCalculator(MatrixElementCalculator):
         f_mytG = matrix_element.local_array_view
         F_aGii = self.get_paw_corrections(matrix_element.qpd)
         for a, F_Gii in enumerate(F_aGii):
-            # Make outer product of the projector overlaps
-            P1ccP2_mytii = P1_amyti[a].conj()[..., np.newaxis] \
-                * P2_amyti[a][:, np.newaxis]
-            # Sum over partial wave indices and add correction to the output
-            f_mytG[:] += np.einsum('tij, Gij -> tG', P1ccP2_mytii, F_Gii)
+            # Contract the projector overlap pair (P1*, P2) against F_Gii
+            # directly. einsum's optimizer picks an order that avoids
+            # materializing the outer-product (t, i, j) intermediate.
+            f_mytG[:] += np.einsum('ti, tj, Gij -> tG',
+                                   P1_amyti[a].conj(), P2_amyti[a],
+                                   F_Gii, optimize=True)
 
 
 class NewPairDensityCalculator(PlaneWaveMatrixElementCalculator):
@@ -542,11 +543,11 @@ class SiteMatrixElementCalculator(MatrixElementCalculator):
         F_apii = self.get_paw_correction_tensor()
         for a, (A, F_pii) in enumerate(zip(
                 self.sites.A_a, F_apii)):
-            # Make outer product of the projector overlaps
-            P1ccP2_mytii = P1_Amyti[A].conj()[..., np.newaxis] \
-                * P2_Amyti[A][:, np.newaxis]
-            # Sum over partial wave indices and add correction to the output
-            f_mytap[:, a] += np.einsum('tij, pij -> tp', P1ccP2_mytii, F_pii)
+            # Contract (P1*, P2) against F_pii without materializing
+            # the (t, i, j) outer product.
+            f_mytap[:, a] += np.einsum('ti, tj, pij -> tp',
+                                       P1_Amyti[A].conj(), P2_Amyti[A],
+                                       F_pii, optimize=True)
 
 
 class SitePairDensityCalculator(SiteMatrixElementCalculator):
@@ -622,11 +623,11 @@ class SiteSpinPairEnergyCalculator(SiteMatrixElementCalculator):
         for a, A in enumerate(self.sites.A_a):
             if a in self.WzU_aii:  # Hubbard corrected sites
                 WzU_ii = self.WzU_aii[a]
-                # Make outer product of the projector overlaps
-                P1ccP2_mytii = P1_Amyti[A].conj()[..., np.newaxis] \
-                    * P2_Amyti[A][:, np.newaxis]
-                # Sum over partial wave indices and add correction
-                Ddxc_myt = np.einsum('tij, ij -> t', P1ccP2_mytii, WzU_ii)
+                # Contract (P1*, P2) against WzU_ii without materializing
+                # the (t, i, j) outer product.
+                Ddxc_myt = np.einsum('ti, tj, ij -> t',
+                                     P1_Amyti[A].conj(), P2_Amyti[A],
+                                     WzU_ii, optimize=True)
                 d_mytap[:, a] += Ddxc_myt[:, np.newaxis]
 
     @cached_property

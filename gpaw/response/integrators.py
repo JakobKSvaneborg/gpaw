@@ -144,7 +144,8 @@ class GenericUpdate(IntegralTask):
     def run(self, wd, n_mG, deps_m, chi0_wGG):
         """Update chi."""
 
-        deps_m += self.eshift * np.sign(deps_m)
+        if self.eshift:
+            deps_m += self.eshift * np.sign(deps_m)
         deps1_m = deps_m + 1j * self.eta
         deps2_m = deps_m - 1j * self.eta
 
@@ -171,7 +172,8 @@ class Hermitian(IntegralTask):
     # @timer('CHI_0 hermetian update')
     def run(self, wd, n_mG, deps_m, chi0_wGG):
         """If eta=0 use hermitian update."""
-        deps_m += self.eshift * np.sign(deps_m)
+        if self.eshift:
+            deps_m += self.eshift * np.sign(deps_m)
 
         blocks1d = Blocks1D(self.blockcomm, chi0_wGG.shape[2])
         nc_mG = n_mG.conj()
@@ -201,7 +203,8 @@ class Hilbert(IntegralTask):
         Updates spectral function A_wGG and saves it to chi0_wGG for
         later hilbert-transform."""
 
-        deps_m += self.eshift * np.sign(deps_m)
+        if self.eshift:
+            deps_m += self.eshift * np.sign(deps_m)
         o_m = abs(deps_m)
         w_m = wd.get_floor_index(o_m)
 
@@ -268,9 +271,7 @@ class Intraband(IntegralTask):
         """Add intraband contributions"""
         # Intraband is a little bit special, we use neither wd nor deps_M
 
-        for vel_v in vel_mv:
-            x_vv = np.outer(vel_v, vel_v)
-            chi0_wvv[0] += x_vv
+        chi0_wvv[0] += vel_mv.T @ vel_mv
 
 
 class OpticalLimit(IntegralTask):
@@ -284,7 +285,8 @@ class OpticalLimit(IntegralTask):
     # @timer('CHI_0 optical limit update')
     def run(self, wd, n_mG, deps_m, chi0_wxvG):
         """Optical limit update of chi."""
-        deps_m += self.eshift * np.sign(deps_m)
+        if self.eshift:
+            deps_m += self.eshift * np.sign(deps_m)
 
         deps1_m = deps_m + 1j * self.eta
         deps2_m = deps_m - 1j * self.eta
@@ -305,7 +307,8 @@ class HermitianOpticalLimit(IntegralTask):
     # @timer('CHI_0 hermitian optical limit update')
     def run(self, wd, n_mG, deps_m, chi0_wxvG):
         """Optical limit update of hermitian chi."""
-        deps_m += self.eshift * np.sign(deps_m)
+        if self.eshift:
+            deps_m += self.eshift * np.sign(deps_m)
         nc_mG = n_mG.conj()
         for w, omega in enumerate(wd.omega_w):
             x_m = - np.abs(2 * deps_m / (omega.imag**2 + deps_m**2))
@@ -323,7 +326,8 @@ class HilbertOpticalLimit(IntegralTask):
     # @timer('CHI_0 optical limit hilbert-update')
     def run(self, wd, n_mG, deps_m, chi0_wxvG):
         """Optical limit update of chi-head and -wings."""
-        deps_m += self.eshift * np.sign(deps_m)
+        if self.eshift:
+            deps_m += self.eshift * np.sign(deps_m)
 
         for deps, n_G in zip(deps_m, n_mG):
             o = abs(deps)
@@ -533,7 +537,6 @@ class HilbertOpticalLimitTetrahedron:
             if i0 == i1:
                 continue
             x_vG = np.outer(n_G[:3], n_G.conj())
-            xc_vG = x_vG.conj()
-            for iw, weight in enumerate(W_w):
-                out_wxvG[i0 + iw, 0, :, :] += weight * x_vG
-                out_wxvG[i0 + iw, 1, :, :] += weight * xc_vG
+            W_w = W_w[:, np.newaxis, np.newaxis]
+            out_wxvG[i0:i1, 0, :, :] += W_w * x_vG
+            out_wxvG[i0:i1, 1, :, :] += W_w * x_vG.conj()

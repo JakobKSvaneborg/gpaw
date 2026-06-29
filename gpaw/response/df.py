@@ -195,9 +195,9 @@ class Chi0DysonEquations:
             modified=modified, Kxc_GG=Kxc_GG)
         # Calculate v^(1/2)(q) χ₀(q,ω) v^(1/2)(q)
         sqrtv_G = v_G**0.5
+        sqrtvv_GG = sqrtv_G * sqrtv_G[:, np.newaxis]
         vchi0_symm_wGG = chi0_wGG  # reuse buffer
-        for w, chi0_GG in enumerate(chi0_wGG):
-            vchi0_symm_wGG[w] = chi0_GG * sqrtv_G * sqrtv_G[:, np.newaxis]
+        vchi0_symm_wGG *= sqrtvv_GG
         # Invert Dyson equation
         vchi_symm_wGG = self.invert_dyson_like_equation(
             vchi0_symm_wGG, K_GG, reuse_buffer=False)
@@ -209,8 +209,9 @@ class Chi0DysonEquations:
         P_wGG = self.polarizability_operator(direction=direction)
         nG = len(V_GG)
         eps_wGG = P_wGG  # reuse buffer
+        I_GG = np.eye(nG)
         for w, P_GG in enumerate(P_wGG):
-            eps_wGG[w] = np.eye(nG) - V_GG @ P_GG
+            eps_wGG[w] = I_GG - V_GG @ P_GG
         return CustomizableDielectricFunction.from_chi0_dyson_eqs(
             self, eps_wGG)
 
@@ -468,10 +469,16 @@ class CustomizableDielectricFunction(DielectricFunctionData):
          M              00        00
         """
         eps0_W = self._macroscopic_component(self.eps_wGG)
-        # Invert Ε(q,ω) one frequency at a time to compute Ε_M(q,ω)
+        # Invert Ε(q,ω) one frequency at a time to compute Ε_M(q,ω).
+        # Only the [0, 0] element of the inverse is needed: solving for the
+        # first column avoids the full O(nG^3) inverse for one scalar.
         eps_w = np.zeros((self.wblocks.nlocal,), complex)
-        for w, eps_GG in enumerate(self.eps_wGG):
-            eps_w[w] = 1 / np.linalg.inv(eps_GG)[0, 0]
+        if self.eps_wGG.size:
+            nG = self.eps_wGG.shape[1]
+            e0 = np.zeros(nG, complex)
+            e0[0] = 1.0
+            for w, eps_GG in enumerate(self.eps_wGG):
+                eps_w[w] = 1 / np.linalg.solve(eps_GG, e0)[0]
         eps_W = self.wblocks.all_gather(eps_w)
         return ScalarResponseFunctionSet(self.wd, eps0_W, eps_W)
 

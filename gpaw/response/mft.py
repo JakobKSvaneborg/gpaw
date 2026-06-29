@@ -117,13 +117,15 @@ class IsotropicExchangeCalculator:
         nsites = site_kernels.nsites
         J_pab = np.empty(site_kernels.shape + (nsites,), dtype=complex)
 
-        # Compute exchange coupling
+        # Compute exchange coupling. The original (a, b) double loop with
+        #   J_ab = -2/V0 * conj(Wxc) @ conj(K_a).T @ chiksr @ K_b @ Wxc
+        # repeats the same K_b @ Wxc and chiksr products for every a.
+        # Precomputing KW_aG = K @ Wxc once per site reduces the cost from
+        # O(nsites^2) full matmuls to O(nsites) matvecs plus one matmul.
         for J_ab, K_aGG in zip(J_pab, site_kernels.calculate(qpd)):
-            for a in range(nsites):
-                for b in range(nsites):
-                    J = np.conj(Wxc_G) @ np.conj(K_aGG[a]).T @ chiksr_GG \
-                        @ K_aGG[b] @ Wxc_G
-                    J_ab[a, b] = - 2. * J / V0
+            KW_aG = K_aGG @ Wxc_G  # (nsites, nG)
+            chiksr_KW_aG = KW_aG @ chiksr_GG.T  # chiksr @ KW per site
+            J_ab[:] = (-2. / V0) * (KW_aG.conj() @ chiksr_KW_aG.T)
 
         # Transpose to have the partitions index last
         J_abp = np.transpose(J_pab, (1, 2, 0))
