@@ -852,9 +852,10 @@ class G0W0Calculator:
                                 myn_G @ S_GG @ nc_G
 
                     self.context.timer.start('Wmodel.get_HW')
-                    S_GG, dSdw_GG = Wmodel.get_HW(deps, f)
+                    nSn, ndSn = Wmodel.get_HW_expectation_value(
+                        deps, f, myn_G, nc_G)
                     self.context.timer.stop('Wmodel.get_HW')
-                    if S_GG is None:
+                    if nSn is None:
                         continue
 
                     # ie: ecut index for extrapolation
@@ -864,10 +865,8 @@ class G0W0Calculator:
                     # * wave function, where the sigma expectation value is
                     # evaluated
                     slot = ie, kpt1.s, k, nn
-                    self.context.timer.start('n_G @ S_GG @ n_G')
-                    sigma.sigma_eskn[slot] += (myn_G @ S_GG @ nc_G).real
-                    sigma.dsigma_eskn[slot] += (myn_G @ dSdw_GG @ nc_G).real
-                    self.context.timer.stop('n_G @ S_GG @ n_G')
+                    sigma.sigma_eskn[slot] += nSn.real
+                    sigma.dsigma_eskn[slot] += ndSn.real
 
     def check(self, ie, i_cG, shift0_c, N_c, Q_c, pawcorr):
         # Can we delete this check? XXX
