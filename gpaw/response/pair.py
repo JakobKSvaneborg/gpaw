@@ -186,12 +186,16 @@ class ActualPairDensityCalculator:
             assert output_buffer.shape == (len(n_n), len(m_m), nG)
             assert output_buffer.dtype == qpd.dtype
             n_nmG = output_buffer
+        with self.context.timer('paw'):
+            # One matrix product per atom for all bands at once
+            C_anGi = pawcorr.multiply_bands(
+                kpt1.P_ani, [n - kpt1.na for n in n_n])
         for j, n in enumerate(n_n):
             Q_G = kptpair.Q_G
             with self.context.timer('conj'):
                 ut1cc_R = kpt1.ut_nR[n - kpt1.na].conj()
             with self.context.timer('paw'):
-                C1_aGi = pawcorr.multiply(kpt1.P_ani, band=n - kpt1.na)
+                C1_aGi = [C_nGi[j] for C_nGi in C_anGi]
                 n_nmG[j] = cpd(ut1cc_R, C1_aGi, kpt2, qpd, Q_G, block=block)
 
         return n_nmG
