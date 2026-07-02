@@ -303,20 +303,25 @@ class PlaneWaveMatrixElementCalculator(MatrixElementCalculator):
         for f_G, ft_R in zip(f_mytG, ft_mytR):
             f_G[:] += qpd.fft(ft_R, 0, Q_G) * self.gs.gd.dv
 
+    @cached_property
+    def f_R(self):
+        """The local functional f(n(r)) on the coarse real-space grid.
+
+        NB: Here we assume that f(r) is sufficiently smooth to be represented
+        on a regular grid (unlike the wave functions).
+        """
+        n_sR, gd = self.gs.get_all_electron_density(gridrefinement=1)
+        f_R = gd.zeros()
+        self.add_f(gd, n_sR, f_R)
+        return f_R
+
     @timer('Evaluate pseudo matrix element')
     def _evaluate_pseudo_matrix_element(self, ut1_mytR, ut2_mytR):
         """Evaluate the pseudo matrix element in real-space."""
         # Evaluate the pseudo pair density      ˷          ˷
         nt_mytR = ut1_mytR.conj() * ut2_mytR  # u_nks^*(r) u_n'k's'(r)
 
-        # Evaluate the local functional f(n(r)) on the coarse real-space grid
-        # NB: Here we assume that f(r) is sufficiently smooth to be represented
-        # on a regular grid (unlike the wave functions).
-        n_sR, gd = self.gs.get_all_electron_density(gridrefinement=1)
-        f_R = gd.zeros()
-        self.add_f(gd, n_sR, f_R)
-
-        return nt_mytR * f_R[np.newaxis]
+        return nt_mytR * self.f_R[np.newaxis]
 
     @timer('Calculate the matrix-element PAW corrections')
     def _add_paw_correction(self, P1_amyti, P2_amyti,
@@ -455,9 +460,40 @@ class SiteMatrixElementCalculator(MatrixElementCalculator):
         # PAW correction tensor
         self._F_apii = None
 
+        # Spherical truncation function collection for a given q_c
+        self._currentq_c = None
+        self._stfc = None
+
     @abstractmethod
     def add_f(self, gd, n_sx, f_x):
         """Add the local functional f(n(r)) to the f_x output array."""
+
+    @cached_property
+    def f_R(self):
+        """The local functional f(n(r)) on the coarse real-space grid.
+
+        NB: Here we assume that f(r) is sufficiently smooth to be represented
+        on a regular grid (unlike the wave functions).
+        """
+        n_sR, gd = self.gs.get_all_electron_density(gridrefinement=1)
+        f_R = gd.zeros()
+        self.add_f(gd, n_sR, f_R)
+        return f_R
+
+    def get_stfc(self, q_c):
+        """Get spherical truncation function collection for a given q_c.
+
+        The collection is set up on the coarse real-space grid with a
+        KPointDescriptor including only the q-point.
+        """
+        if self._currentq_c is None or not np.allclose(q_c, self._currentq_c):
+            qd = KPointDescriptor([q_c])
+            self._stfc = spherical_truncation_function_collection(
+                self.gs.gd, self.site_data.spos_ac,
+                self.sites.rc_ap, self.site_data.drcut,
+                self.site_data.lambd_ap, kd=qd, dtype=complex)
+            self._currentq_c = q_c
+        return self._stfc
 
     def print_rshe_info(self, a, info_string):
         """Print information about the expansion at site a."""
@@ -507,27 +543,16 @@ class SiteMatrixElementCalculator(MatrixElementCalculator):
         psit2_mytR = np.exp(2j * np.pi * r_Rc @ k2_c)[np.newaxis] * ut2_mytR
         # Calculate real-space pair densities ñ_kt(r)
         nt_mytR = psit1_mytR.conj() * psit2_mytR
-        # Evaluate the local functional f(n(r)) on the coarse real-space grid
-        # NB: Here we assume that f(r) is sufficiently smooth to be represented
-        # on a regular grid (unlike the wave functions).
-        n_sR, gd = self.gs.get_all_electron_density(gridrefinement=1)
-        f_R = gd.zeros()
-        self.add_f(gd, n_sR, f_R)
 
-        # Set up spherical truncation function collection on the coarse
-        # real-space grid with a KPointDescriptor including only the q-point.
-        qd = KPointDescriptor([matrix_element.q_c])
-        stfc = spherical_truncation_function_collection(
-            self.gs.gd, self.site_data.spos_ac,
-            self.sites.rc_ap, self.site_data.drcut, self.site_data.lambd_ap,
-            kd=qd, dtype=complex)
+        # Get spherical truncation function collection for the q-point
+        stfc = self.get_stfc(matrix_element.q_c)
 
         # Integrate Θ(r∊Ω_ap) f(r) ñ_kt(r)
         ntlocal = nt_mytR.shape[0]
         ft_amytp = {a: np.empty((ntlocal, self.sites.npartitions),
                                 dtype=complex)
                     for a in range(len(self.sites))}
-        stfc.integrate(nt_mytR * f_R[np.newaxis], ft_amytp, q=0)
+        stfc.integrate(nt_mytR * self.f_R[np.newaxis], ft_amytp, q=0)
 
         # Add integral to output array
         f_mytap = matrix_element.local_array_view
