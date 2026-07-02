@@ -492,12 +492,12 @@ class TetrahedronIntegrator(Integrator):
         self.kncomm.sum(out_wxx)
 
         if self.blockcomm.size == 1 and task.symmetrizable_unless_blocked:
-            # Fill in upper/lower triangle also:
+            # Fill in upper triangle from the lower triangle
             nx = out_wxx.shape[1]
             il = np.tril_indices(nx, -1)
             iu = il[::-1]
             for out_xx in out_wxx:
-                out_xx[il] = out_xx[iu].conj()
+                out_xx[iu] = out_xx[il].conj()
 
 
 class HilbertTetrahedron:
@@ -510,21 +510,47 @@ class HilbertTetrahedron:
     def run(self, n_MG, deps_Mk, W_Mw, i0_M, i1_M, out_wxx):
         """Update output array with dissipative part."""
         blocks1d = Blocks1D(self.blockcomm, out_wxx.shape[2])
+        distributed = blocks1d.blockcomm.size > 1
 
-        for n_G, deps_k, W_w, i0, i1 in zip(n_MG, deps_Mk, W_Mw,
-                                            i0_M, i1_M):
+        # Bucket the transitions by frequency index, so that all rank-1
+        # updates sharing a frequency can be performed together as a
+        # single BLAS-3 update per frequency.
+        M_wm: dict = {}
+        weight_wm: dict = {}
+        for M, (W_w, i0, i1) in enumerate(zip(W_Mw, i0_M, i1_M)):
             if i0 == i1:
                 continue
-
             for iw, weight in enumerate(W_w):
-                if blocks1d.blockcomm.size > 1:
-                    myn_G = n_G[blocks1d.myslice].reshape((-1, 1))
-                    # gemm(weight, n_G.reshape((-1, 1)), myn_G,
-                    #      1.0, out_wxx[i0 + iw], 'c')
-                    mmm(weight, myn_G, 'N', n_G.reshape((-1, 1)), 'C',
-                        1.0, out_wxx[i0 + iw])
-                else:
-                    czher(weight, n_G.conj(), out_wxx[i0 + iw])
+                if weight == 0.0:
+                    continue
+                M_wm.setdefault(i0 + iw, []).append(M)
+                weight_wm.setdefault(i0 + iw, []).append(weight)
+
+        for w, M_m in M_wm.items():
+            weight_m = np.array(weight_wm[w])
+            n_mG = n_MG[M_m]
+            if distributed:
+                a_gm = np.ascontiguousarray(
+                    (weight_m[:, np.newaxis]
+                     * n_mG[:, blocks1d.myslice]).T)
+                b_Gm = np.ascontiguousarray(n_mG.T)
+                mmm(1.0, a_gm, 'N', b_Gm, 'C', 1.0, out_wxx[w])
+            else:
+                # The update is Hermitian, so scale the rows with the
+                # square root of the (real) weights and use rank-k
+                # updates of the lower triangle; the upper triangle is
+                # filled in by the integrator afterwards.
+                nc_mG = n_mG.conj()
+                pos_m = weight_m > 0
+                if pos_m.any():
+                    a_mG = np.sqrt(weight_m[pos_m])[:, np.newaxis] \
+                        * nc_mG[pos_m]
+                    rk(1.0, a_mG, 1.0, out_wxx[w], 'n')
+                if not pos_m.all():
+                    neg_m = ~pos_m
+                    a_mG = np.sqrt(-weight_m[neg_m])[:, np.newaxis] \
+                        * nc_mG[neg_m]
+                    rk(-1.0, a_mG, 1.0, out_wxx[w], 'n')
 
 
 class HilbertOpticalLimitTetrahedron:
