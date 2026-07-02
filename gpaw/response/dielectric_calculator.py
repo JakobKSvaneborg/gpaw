@@ -139,9 +139,60 @@ class _GammaDielectricFunctionCalculator:
 
     def get_epsinv_GG(self):
         # Get average epsinv over small region around Gamma
+        if self._dfc.mode == 'GW':
+            return self._get_epsinv_GG_woodbury()
         epsinv_GG = np.zeros(self.chi0_GG.shape, complex)
         for qweight, sqrtV_G, chi0_mapping in self.gamma_int:
             chi0p_GG = chi0_mapping(self.chi0_GG, self.chi0_vv, self.chi0_xvG)
             _dfc = self._dfc.new_with(sqrtV_G=sqrtV_G, chi0_GG=chi0p_GG)
             epsinv_GG += qweight * _dfc.get_epsinv_GG()
+        return epsinv_GG
+
+    def _get_epsinv_GG_woodbury(self):
+        """Average epsinv over the Gamma region using rank-2 updates.
+
+        For each optical wave vector q_f in the Gamma-point integration
+        domain, eps(q_f) differs from the base dielectric matrix only in
+        row 0 and column 0 (the Coulomb kernel of the remaining G-vectors
+        is unaffected by the tiny |q_f| ~ 1e-6 offset).  Thus, instead of
+        performing a full O(nG^3) inversion per integration point, the
+        base matrix is inverted once, and each eps(q_f)^-1 is obtained
+        through the Sherman-Morrison-Woodbury identity at O(nG^2) cost.
+        """
+        gamma_int = self.gamma_int
+        A_GG = self._dfc.eps_GG_plain()
+        Ainv_GG = np.linalg.inv(A_GG)
+
+        epsinv_GG = Ainv_GG.copy()
+        for q in range(len(gamma_int)):
+            qweight, qf_v = gamma_int.integral_domain[q]
+            sqrtV_G = gamma_int.coulomb.sqrtV(qpd=gamma_int.qpd, q_v=qf_v)
+
+            # Row 0 and column 0 of chi0(q_f)
+            head = qf_v @ self.chi0_vv @ qf_v
+            row_G = qf_v @ self.chi0_xvG[0]
+            col_G = qf_v @ self.chi0_xvG[1]
+            row_G[0] = head
+            col_G[0] = head
+
+            # eps(q_f) = A + e_0 a^T + b e_0^T with b[0] = 0
+            a_G = -sqrtV_G[0] * row_G * sqrtV_G - A_GG[0]
+            a_G[0] += 1.0
+            b_G = -sqrtV_G * col_G * sqrtV_G[0] - A_GG[:, 0]
+            b_G[0] = 0.0
+
+            # Woodbury update with U = [e_0, b], V = [a, e_0]
+            AinvU_G2 = np.empty((len(a_G), 2), complex)
+            AinvU_G2[:, 0] = Ainv_GG[:, 0]
+            AinvU_G2[:, 1] = Ainv_GG @ b_G
+            VtAinv_2G = np.empty((2, len(a_G)), complex)
+            VtAinv_2G[0] = a_G @ Ainv_GG
+            VtAinv_2G[1] = Ainv_GG[0]
+            M_22 = np.eye(2, dtype=complex)
+            M_22[0, 0] += a_G @ Ainv_GG[:, 0]
+            M_22[0, 1] += a_G @ AinvU_G2[:, 1]
+            M_22[1, 0] += Ainv_GG[0, 0]
+            M_22[1, 1] += Ainv_GG[0] @ b_G
+            epsinv_GG -= qweight * (
+                AinvU_G2 @ np.linalg.solve(M_22, VtAinv_2G))
         return epsinv_GG
