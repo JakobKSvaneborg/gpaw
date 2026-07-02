@@ -240,8 +240,9 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
                                   optical=False, n1=n1, n2=n2, m1=m1, m2=m2)
 
         chi0_body.data_WgG[:] /= prefactor
-        if self.hilbert:
-            # Allocate a temporary array for the spectral function
+        if self.hilbert and chi0_body.data_WgG.any():
+            # We are accumulating into an existing chi0 array, so we need a
+            # separate temporary array for the spectral function
             out_WgG = chi0_body.zeros()
         else:
             # Use the preallocated array for direct updates
@@ -261,16 +262,22 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
                 ht = HilbertTransform(np.array(self.wd.omega_w), self.eta,
                                       timeordered=self.timeordered)
                 ht(out_WgG)
-            # Update the actual chi0 array
-            chi0_body.data_WgG[:] += out_WgG
+            if out_WgG is not chi0_body.data_WgG:
+                # Update the actual chi0 array
+                chi0_body.data_WgG[:] += out_WgG
         chi0_body.data_WgG[:] *= prefactor
 
-        tmp_chi0_wGG = chi0_body.copy_array_with_distribution('wGG')
         with self.context.timer('symmetrize_wGG'):
             operators = BodySymmetryOperators(symmetries, chi0_body.qpd)
-            operators.symmetrize_wGG(tmp_chi0_wGG)
-        chi0_body.data_WgG[:] = chi0_body.blockdist.distribute_as(
-            tmp_chi0_wGG, chi0_body.nw, 'WgG')
+            if chi0_body.blockdist.blockcomm.size == 1:
+                # Symmetrize the chi0 array in place; all distributions are
+                # equivalent in this case, so no need to copy the full array
+                operators.symmetrize_wGG(chi0_body.data_WgG)
+            else:
+                tmp_chi0_wGG = chi0_body.array_with_distribution('wGG')
+                operators.symmetrize_wGG(tmp_chi0_wGG)
+                chi0_body.data_WgG[:] = chi0_body.blockdist.distribute_as(
+                    tmp_chi0_wGG, chi0_body.nw, 'WgG')
 
     def construct_hermitian_task(self):
         return Hermitian(self.integrator.blockcomm, eshift=self.eshift)
