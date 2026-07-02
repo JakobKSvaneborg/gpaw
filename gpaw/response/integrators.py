@@ -95,19 +95,12 @@ class PointIntegrator(Integrator):
         self.kncomm.sum(out_wxx)
 
         if self.blockcomm.size == 1 and task.symmetrizable_unless_blocked:
-            # Fill in upper/lower triangle also:
+            # Fill in upper triangle from the lower triangle
             nx = out_wxx.shape[1]
             il = np.tril_indices(nx, -1)
             iu = il[::-1]
-
-            if isinstance(task, Hilbert):
-                # XXX special hack since one of them wants the other
-                # triangle.
-                for out_xx in out_wxx:
-                    out_xx[il] = out_xx[iu].conj()
-            else:
-                for out_xx in out_wxx:
-                    out_xx[iu] = out_xx[il].conj()
+            for out_xx in out_wxx:
+                out_xx[iu] = out_xx[il].conj()
 
         out_wxx *= prefactor
 
@@ -252,11 +245,24 @@ class Hilbert(IntegralTask):
 
             if blocks1d.blockcomm.size <= 1 and w + 1 < wd.wmax:
                 x_mG = sortedn_mG[startindex:endindex]
-                l_Gm = (p1_m[:, None] * x_mG).T.copy()
-                r_Gm = x_mG.T.copy()
-                mmm(1.0, r_Gm, 'N', l_Gm, 'C', 1.0, chi0_wGG[w])
-                l_Gm = (p2_m[:, None] * x_mG).T.copy()
-                mmm(1.0, r_Gm, 'N', l_Gm, 'C', 1.0, chi0_wGG[w + 1])
+                if p1_m.min() >= 0. and p2_m.min() >= 0.:
+                    # The update is Hermitian with non-negative weights
+                    # (the generic case), so we can scale the rows by the
+                    # square-root of the weights and use a rank-k update
+                    # at half the flops of a full matrix product. Only the
+                    # lower triangle is updated; the upper triangle is
+                    # filled in by the integrator afterwards.
+                    xc_mG = x_mG.conj()
+                    rk(1.0, np.sqrt(p1_m)[:, None] * xc_mG,
+                       1.0, chi0_wGG[w], 'n')
+                    rk(1.0, np.sqrt(p2_m)[:, None] * xc_mG,
+                       1.0, chi0_wGG[w + 1], 'n')
+                else:  # rare edge case: fall back to full matrix products
+                    l_Gm = (p1_m[:, None] * x_mG).T.copy()
+                    r_Gm = x_mG.T.copy()
+                    mmm(1.0, r_Gm, 'N', l_Gm, 'C', 1.0, chi0_wGG[w])
+                    l_Gm = (p2_m[:, None] * x_mG).T.copy()
+                    mmm(1.0, r_Gm, 'N', l_Gm, 'C', 1.0, chi0_wGG[w + 1])
 
 
 class Intraband(IntegralTask):
