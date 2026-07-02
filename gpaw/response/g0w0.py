@@ -1041,8 +1041,15 @@ class G0W0Calculator:
         Wdict = {}
 
         for fxc_mode in self.fxc_modes:
-            rqpd = chi0.qpd.copy_with(ecut=ecut)  # reduced qpd
-            rchi0 = chi0.copy_with_reduced_pd(rqpd)
+            if ecut == chi0.qpd.ecut:
+                # No reduction of the plane-wave basis; avoid copying the
+                # full chi0 data (the screened-interaction calculation does
+                # not modify it)
+                rqpd = chi0.qpd
+                rchi0 = chi0
+            else:
+                rqpd = chi0.qpd.copy_with(ecut=ecut)  # reduced qpd
+                rchi0 = chi0.copy_with_reduced_pd(rqpd)
             Wdict[fxc_mode] = self.wcalc.get_HW_model(rchi0,
                                                       fxc_mode=fxc_mode)
             if (chi0calc.chi0_body_calc.pawcorr is not None and
