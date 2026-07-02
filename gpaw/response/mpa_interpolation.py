@@ -24,21 +24,27 @@ def fit_residue(
 ) -> Array3D:
     npols = len(E_pGG)
     nw = len(omega_w)
-    A_GGwp = np.zeros((*E_pGG.shape[1:], nw, npols), dtype=np.complex128)
-    b_GGw = np.zeros((*E_pGG.shape[1:], nw), dtype=np.complex128)
+    # Mask out poles beyond the number of physical poles at each (G, G')
+    valid_pGG = np.arange(npols)[:, np.newaxis, np.newaxis] < npr_GG
+
+    # Accumulate the normal equations of the least-squares problem
+    # streaming over frequencies, instead of materializing the full
+    # (nG x nG x nw x npols) design matrix.
+    XTX_GGpp = np.zeros((*E_pGG.shape[1:], npols, npols),
+                        dtype=np.complex128)
+    temp_GGp = np.zeros((*E_pGG.shape[1:], npols), dtype=np.complex128)
     for w in range(nw):
-        A_GGwp[:, :, w, :] = (
-            2 * E_pGG / (omega_w[w]**2 - E_pGG**2)).transpose((1, 2, 0))
-        b_GGw[:, :, w] = X_wGG[w, :, :]
-
+        A_pGG = 2 * E_pGG / (omega_w[w]**2 - E_pGG**2)
+        A_pGG *= valid_pGG
+        Ac_pGG = A_pGG.conj()
+        for p in range(npols):
+            temp_GGp[..., p] += Ac_pGG[p] * X_wGG[w]
+            for o in range(p, npols):
+                XTX_GGpp[..., p, o] += Ac_pGG[p] * A_pGG[o]
+    # Fill in the lower triangle by hermiticity
     for p in range(npols):
-        for w in range(A_GGwp.shape[2]):
-            A_GGwp[:, :, w, p][p >= npr_GG] = 0.0
-
-    temp_GGp = np.einsum('GHwp,GHw->GHp',
-                         A_GGwp.conj(), b_GGw)
-    XTX_GGpp = np.einsum('GHwp,GHwo->GHpo',
-                         A_GGwp.conj(), A_GGwp)
+        for o in range(p + 1, npols):
+            XTX_GGpp[..., o, p] = XTX_GGpp[..., p, o].conj()
 
     if XTX_GGpp.shape[2] == 1:
         # 1D matrix, invert the number
