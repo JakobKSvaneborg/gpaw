@@ -126,8 +126,17 @@ class Chi0DysonEquations:
             out_wGG = in_wGG
         else:
             out_wGG = np.zeros_like(in_wGG)
+        # For a diagonal kernel (e.g. the identity for the bare Coulomb
+        # interaction), A(q,ω) K(q) is a simple column scaling. Skip the
+        # O(nG³) matrix product per frequency in that case.
+        K_G = np.diagonal(K_GG)
+        diagonal_kernel = np.count_nonzero(K_GG - np.diag(K_G)) == 0
         for w, in_GG in enumerate(in_wGG):
-            out_wGG[w] = DysonEquation(in_GG, in_GG @ K_GG).invert()
+            if diagonal_kernel:
+                xi_GG = in_GG * K_G[np.newaxis]
+            else:
+                xi_GG = in_GG @ K_GG
+            out_wGG[w] = DysonEquation(in_GG, xi_GG).invert()
         return out_wGG
 
     def rpa_density_response(self, direction='x', qinf_v=None):
