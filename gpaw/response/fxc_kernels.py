@@ -9,7 +9,6 @@ from gpaw.response import timer
 from gpaw.response.dyson import PWKernel
 from gpaw.response.localft import (LocalFTCalculator, add_LDA_dens_fxc,
                                    add_LSDA_trans_fxc)
-from gpaw.response.pw_parallelization import Blocks1D
 
 
 class FXCKernel(PWKernel):
@@ -172,31 +171,26 @@ class AdiabaticFXCCalculator:
     @timer('Create Q_dG map')
     def create_Q_dG_map(self, large_qpd, dG_dGv):
         """Create mapping between (G-G') index dG and large_qpd index Q."""
-        G_Qv = large_qpd.get_reciprocal_vectors(add_q=False)
-        # Make sure to match the precision of dG_dGv
-        G_Qv = G_Qv.round(decimals=6)
+        # Match the wave vectors in (integer) reciprocal lattice coordinates
+        # through a dictionary lookup instead of computing a dense
+        # (nQ x ndG) matrix of Cartesian distances.
+        iB_vc = np.linalg.inv(2.0 * np.pi * large_qpd.gd.icell_cv)
+        G_Qc = large_qpd.get_reciprocal_vectors(add_q=False) @ iB_vc
+        assert np.allclose(G_Qc.round(), G_Qc, atol=1e-4)
+        Q_index = {tuple(G_c): Q
+                   for Q, G_c in enumerate(G_Qc.round().astype(int))}
 
-        # Distribute dG over world
-        # This is necessary because the next step is to create a K_QdGv buffer
-        # of which the norm is taken. When the number of plane-wave
-        # coefficients is large, this step becomes a memory bottleneck, hence
-        # the distribution.
-        dGblocks = Blocks1D(self.context.comm, dG_dGv.shape[0])
-        dG_mydGv = dG_dGv[dGblocks.myslice]
-
-        # Determine Q index for each dG index
-        diff_QmydG = np.linalg.norm(G_Qv[:, np.newaxis] - dG_mydGv[np.newaxis],
-                                    axis=2)
-        Q_mydG = np.argmin(diff_QmydG, axis=0)
-
-        # Check that all the identified Q indices produce identical reciprocal
-        # lattice vectors
-        assert np.allclose(np.diagonal(diff_QmydG[Q_mydG]), 0.), \
+        dG_dGc = dG_dGv @ iB_vc
+        assert np.allclose(dG_dGc.round(), dG_dGc, atol=1e-4), \
             'Could not find a perfect matching reciprocal wave vector in '\
             'large_qpd for all dG_dGv'
-
-        # Collect the global Q_dG map
-        Q_dG = dGblocks.all_gather(Q_mydG)
+        try:
+            Q_dG = np.array([Q_index[tuple(dG_c)]
+                             for dG_c in dG_dGc.round().astype(int)])
+        except KeyError:
+            raise ValueError(
+                'Could not find a perfect matching reciprocal wave vector '
+                'in large_qpd for all dG_dGv') from None
 
         return Q_dG
 

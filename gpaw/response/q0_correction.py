@@ -1,5 +1,7 @@
 import numpy as np
 
+from ase.dft import monkhorst_pack
+
 
 class Q0Correction:
     def __init__(self, cell_cv, bzk_kc, N_c):
@@ -14,6 +16,8 @@ class Q0Correction:
         assert (abs(cell_cv[:2, 2]).max() < eps and
                 abs(cell_cv[2, :2]).max() < eps and
                 cell_cv[2, 2] > 0)
+        iq = np.argmin(np.sum(bzk_kc**2, axis=1))
+        assert np.allclose(bzk_kc[iq], 0)
 
         # Hardcoded crap?
         x0density = 0.1  # ? 0.01
@@ -31,12 +35,64 @@ class Q0Correction:
         npts_c += (npts_c + 1) % 2
         self.npts_c = npts_c
 
+        # Precompute the frequency-independent quantities of the numerical
+        # q-point integral around Gamma
+        qpts_qc = monkhorst_pack(self.npts_c)
+        self.qgamma = np.argmin(np.sum(qpts_qc**2, axis=1))
+        self.nq = len(qpts_qc)
+
+        qpts_qv = np.dot(qpts_qc, self.q0cell_cv)
+        qpts_q = np.sum(qpts_qv**2, axis=1)**0.5
+        qpts_q[self.qgamma] = 1e-14
+        self.qpts_qv = qpts_qv
+        self.qpts_q = qpts_q
+        self.qdir_qv = qpts_qv / qpts_q[:, np.newaxis]
+        self.qdir_qvv = self.qdir_qv[:, :, np.newaxis] \
+            * self.qdir_qv[:, np.newaxis, :]
+
+        q0vol = abs(np.linalg.det(self.q0cell_cv))
+        q0area = q0vol / self.q0cell_cv[2, 2]
+        dq0 = q0area / self.nq
+        dq0rad = (dq0 / np.pi)**0.5
+        self.R = L / 2.
+        self.x0area = q0area * self.R**2
+        self.dx0rad = dq0rad * self.R
+        self.exp_q = 4 * np.pi * (1 - np.exp(-qpts_q * self.R))
+
+        # Frequency-independent G-vector quantities for a given qpd
+        self._cached_qpd = None
+        self._dv_Gv = None
+
+    def _get_dv_Gv(self, qpd):
+        """Get the gradient-correction integrand, dv_G G_Gv.
+
+        Only depends on the plane-wave descriptor (not the frequency), so
+        it is cached between calls.
+        """
+        if self._cached_qpd is not qpd:
+            R = self.R
+            G_Gv = qpd.get_reciprocal_vectors(add_q=False)[1:]
+            G_Gv = G_Gv + np.array([1e-14, 1e-14, 0])
+            G2_G = np.sum(G_Gv**2, axis=1)
+            Gpar_G = np.sum(G_Gv[:, 0:2]**2, axis=1)**0.5
+
+            pi = np.pi
+            L = self.cell_cv[2, 2]
+            dv_G = ((pi * L * G2_G * np.exp(-Gpar_G * R) *
+                     np.cos(G_Gv[:, 2] * R) -
+                     4 * pi * Gpar_G * (1 - np.exp(-Gpar_G * R) *
+                                        np.cos(G_Gv[:, 2] * R))) /
+                    (G2_G**1.5 * Gpar_G *
+                     (4 * pi * (1 - np.exp(-Gpar_G * R) *
+                                np.cos(G_Gv[:, 2] * R)))**0.5))
+
+            self._dv_Gv = dv_G[:, np.newaxis] * G_Gv
+            self._cached_qpd = qpd
+        return self._dv_Gv
+
     def add_q0_correction(self, qpd, W_GG, einv_GG,
                           chi0_xvG, chi0_vv, sqrtV_G):
-        from ase.dft import monkhorst_pack
-        qpts_qc = self.bzk_kc
         pi = np.pi
-        L = self.cell_cv[2, 2]
 
         vc_G0 = sqrtV_G[1:]**2
 
@@ -51,43 +107,18 @@ class Q0Correction:
         S_vG0 = a_vG0
         L_vv = A_vv
 
-        # Get necessary G vectors.
-        G_Gv = qpd.get_reciprocal_vectors(add_q=False)[1:]
-        G_Gv += np.array([1e-14, 1e-14, 0])
-        G2_G = np.sum(G_Gv**2, axis=1)
-        Gpar_G = np.sum(G_Gv[:, 0:2]**2, axis=1)**0.5
-
-        # There is still a lot of stuff here,
-        # which could go to the constructor! XXX
-        iq = np.argmin(np.sum(qpts_qc**2, axis=1))
-        assert np.allclose(qpts_qc[iq], 0)
-        q0vol = abs(np.linalg.det(self.q0cell_cv))
-
-        qpts_qc = monkhorst_pack(self.npts_c)
-        qgamma = np.argmin(np.sum(qpts_qc**2, axis=1))
-
-        qpts_qv = np.dot(qpts_qc, self.q0cell_cv)
-        qpts_q = np.sum(qpts_qv**2, axis=1)**0.5
-        qpts_q[qgamma] = 1e-14
-        qdir_qv = qpts_qv / qpts_q[:, np.newaxis]
-        qdir_qvv = qdir_qv[:, :, np.newaxis] * qdir_qv[:, np.newaxis, :]
-        nq = len(qpts_qc)
-        q0area = q0vol / self.q0cell_cv[2, 2]
-        dq0 = q0area / nq
-        dq0rad = (dq0 / pi)**0.5
-        R = L / 2.
-        x0area = q0area * R**2
-        dx0rad = dq0rad * R
-
-        exp_q = 4 * pi * (1 - np.exp(-qpts_q * R))
-        dv_G = ((pi * L * G2_G * np.exp(-Gpar_G * R) * np.cos(G_Gv[:, 2] * R) -
-                 4 * pi * Gpar_G * (1 - np.exp(-Gpar_G * R) *
-                                    np.cos(G_Gv[:, 2] * R))) /
-                (G2_G**1.5 * Gpar_G *
-                 (4 * pi * (1 - np.exp(-Gpar_G * R) *
-                            np.cos(G_Gv[:, 2] * R)))**0.5))
-
-        dv_Gv = dv_G[:, np.newaxis] * G_Gv
+        # Get frequency-independent quantities
+        L = self.cell_cv[2, 2]
+        qgamma = self.qgamma
+        nq = self.nq
+        qpts_qv = self.qpts_qv
+        qpts_q = self.qpts_q
+        qdir_qv = self.qdir_qv
+        qdir_qvv = self.qdir_qvv
+        x0area = self.x0area
+        dx0rad = self.dx0rad
+        exp_q = self.exp_q
+        dv_Gv = self._get_dv_Gv(qpd)
 
         # Add corrections
         W_GG[:, 0] = 0.0
