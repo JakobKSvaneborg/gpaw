@@ -142,15 +142,17 @@ class KPointDomainGenerator:
                              axis=0)
         return k_kc
 
+    @cached_property
+    def _weight_K(self):
+        """Map from BZ k-point index to its symmetry-group weight."""
+        weight_K = np.zeros(self.kd.nbzkpts, int)
+        for K_K in self.group_kpoints():
+            weight_K[K_K] = len(K_K)
+        return weight_K
+
     def get_kpoint_weight(self, k_c):
         K = self.kptfinder.find(k_c)
-        iK = self.kd.bz2ibz_k[K]
-        K_k = self.unfold_ibz_kpoint(iK)
-        K_gK = self.group_kpoints(K_k)
-
-        for K_k in K_gK:
-            if K in K_k:
-                return len(K_k)
+        return self._weight_K[K]
 
     def unfold_ibz_kpoint(self, ik):
         """Return kpoints related to irreducible kpoint."""

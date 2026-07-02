@@ -361,6 +361,16 @@ class HWModel:
         """
         raise NotImplementedError
 
+    def get_HW_expectation_value(self, omega, occ, u_G, v_G):
+        """Get (u | HW(omega) | v) and its frequency derivative.
+
+        Generic fallback which materializes the full matrices.
+        """
+        S_GG, dSdw_GG = self.get_HW(omega, occ)
+        if S_GG is None:
+            return None, None
+        return u_G @ S_GG @ v_G, u_G @ dSdw_GG @ v_G
+
 
 class FullFrequencyHWModel(HWModel):
     def __init__(self, wd, HW_swGG, factor):
@@ -368,7 +378,7 @@ class FullFrequencyHWModel(HWModel):
         self.HW_swGG = HW_swGG
         self.factor = factor
 
-    def get_HW(self, omega, occ):
+    def _interpolation_data(self, omega, occ):
         # For more information about how fsign and wsign works, see
         # https://backend.orbit.dtu.dk/ws/portalfiles/portal/93075765/hueser_PhDthesis.pdf
         # eq. 2.2 endind up to eq. 2.11
@@ -389,18 +399,45 @@ class FullFrequencyHWModel(HWModel):
 
         # Interpolation indexes w + 1, therefore - 2 here
         if w > len(wd) - 2:
-            return None, None
+            return None
 
         o1 = wd.omega_w[w]
         o2 = wd.omega_w[w + 1]
+        p = self.factor * wsign
+
+        return s, w, o, o1, o2, wsign, p
+
+    def get_HW(self, omega, occ):
+        data = self._interpolation_data(omega, occ)
+        if data is None:
+            return None, None
+        s, w, o, o1, o2, wsign, p = data
 
         C1_GG = self.HW_swGG[s][w]
         C2_GG = self.HW_swGG[s][w + 1]
-        p = self.factor * wsign
 
         sigma_GG = ((o - o1) * C2_GG + (o2 - o) * C1_GG) / (o2 - o1)
         dsigma_GG = wsign * (C2_GG - C1_GG) / (o2 - o1)
         return -1j * p * sigma_GG, -1j * p * dsigma_GG
+
+    def get_HW_expectation_value(self, omega, occ, u_G, v_G):
+        """Get (u | HW(omega) | v) and its frequency derivative.
+
+        Since the interpolated HW(omega) is linear in the stored Hilbert
+        transform slices, the expectation value can be evaluated with two
+        matrix-vector products, without materializing any full matrix.
+        """
+        data = self._interpolation_data(omega, occ)
+        if data is None:
+            return None, None
+        s, w, o, o1, o2, wsign, p = data
+
+        uC1v = u_G @ self.HW_swGG[s][w] @ v_G
+        uC2v = u_G @ self.HW_swGG[s][w + 1] @ v_G
+
+        sigma = ((o - o1) * uC2v + (o2 - o) * uC1v) / (o2 - o1)
+        dsigma = wsign * (uC2v - uC1v) / (o2 - o1)
+        return -1j * p * sigma, -1j * p * dsigma
 
 
 class MPAHWModel(HWModel):

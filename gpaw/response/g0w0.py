@@ -284,12 +284,19 @@ class QSymmetryOp:
         # density matrix
         Q_G = phase_shifted_fft_indices(kpt1.k_c, kpt2.k_c, qpd,
                                         coordinate_transformation=self.apply)
-
-        qG_Gv = qpd.get_reciprocal_vectors(add_q=True)
-        M_vv = self.get_M_vv(qpd.gd.cell_cv)
-        mypawcorr = pawcorr.remap_by_symop(self, qG_Gv, M_vv)
+        mypawcorr = self.remap_pawcorr(pawcorr, qpd)
 
         return mypawcorr, Q_G
+
+    def remap_pawcorr(self, pawcorr, qpd):
+        """Remap PAW corrections by the symmetry operation.
+
+        Depends only on the symmetry operation and the plane-wave
+        descriptor, not on the k-point pair.
+        """
+        qG_Gv = qpd.get_reciprocal_vectors(add_q=True)
+        M_vv = self.get_M_vv(qpd.gd.cell_cv)
+        return pawcorr.remap_by_symop(self, qG_Gv, M_vv)
 
 
 def get_nmG(kpt1, kpt2, mypawcorr, n, qpd, I_G, pair_calc, timer=None):
@@ -845,9 +852,10 @@ class G0W0Calculator:
                                 myn_G @ S_GG @ nc_G
 
                     self.context.timer.start('Wmodel.get_HW')
-                    S_GG, dSdw_GG = Wmodel.get_HW(deps, f)
+                    nSn, ndSn = Wmodel.get_HW_expectation_value(
+                        deps, f, myn_G, nc_G)
                     self.context.timer.stop('Wmodel.get_HW')
-                    if S_GG is None:
+                    if nSn is None:
                         continue
 
                     # ie: ecut index for extrapolation
@@ -857,10 +865,8 @@ class G0W0Calculator:
                     # * wave function, where the sigma expectation value is
                     # evaluated
                     slot = ie, kpt1.s, k, nn
-                    self.context.timer.start('n_G @ S_GG @ n_G')
-                    sigma.sigma_eskn[slot] += (myn_G @ S_GG @ nc_G).real
-                    sigma.dsigma_eskn[slot] += (myn_G @ dSdw_GG @ nc_G).real
-                    self.context.timer.stop('n_G @ S_GG @ n_G')
+                    sigma.sigma_eskn[slot] += nSn.real
+                    sigma.dsigma_eskn[slot] += ndSn.real
 
     def check(self, ie, i_cG, shift0_c, N_c, Q_c, pawcorr):
         # Can we delete this check? XXX
@@ -1034,8 +1040,15 @@ class G0W0Calculator:
         Wdict = {}
 
         for fxc_mode in self.fxc_modes:
-            rqpd = chi0.qpd.copy_with(ecut=ecut)  # reduced qpd
-            rchi0 = chi0.copy_with_reduced_pd(rqpd)
+            if ecut == chi0.qpd.ecut:
+                # No reduction of the plane-wave basis; avoid copying the
+                # full chi0 data (the screened-interaction calculation does
+                # not modify it)
+                rqpd = chi0.qpd
+                rchi0 = chi0
+            else:
+                rqpd = chi0.qpd.copy_with(ecut=ecut)  # reduced qpd
+                rchi0 = chi0.copy_with_reduced_pd(rqpd)
             Wdict[fxc_mode] = self.wcalc.get_HW_model(rchi0,
                                                       fxc_mode=fxc_mode)
             if (chi0calc.chi0_body_calc.pawcorr is not None and

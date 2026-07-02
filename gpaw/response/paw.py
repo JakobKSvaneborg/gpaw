@@ -474,6 +474,26 @@ class PWPAWCorrectionData:
                   for Qa_Gii, P1_ni in zip(self.Q_aGii, P_ani)]
         return C1_aGi
 
+    def multiply_bands(self, P_ani, bands):
+        """Corrections multiplied by the projections for a range of bands.
+
+        Returns a list over atoms of (nbands, nG, ni) arrays, such that
+        C_anGi[a][n] == multiply(P_ani, band=bands[n])[a], evaluated as a
+        single matrix product per atom instead of one matrix-vector
+        product per atom per band.
+        """
+        assert isinstance(P_ani, list)
+        assert len(P_ani) == len(self.Q_aGii)
+
+        C_anGi = []
+        for Qa_Gii, P_ni in zip(self.Q_aGii, P_ani):
+            nG, ni1, ni2 = Qa_Gii.shape
+            C_nGi = np.ascontiguousarray(
+                (Qa_Gii.reshape(nG * ni1, ni2)
+                 @ P_ni[bands].conj().T).T.reshape(len(bands), nG, ni1))
+            C_anGi.append(C_nGi)
+        return C_anGi
+
     def reduce_ecut(self, G2G):
         # XXX actually we should return this with another PW descriptor.
         return self._new([Q_Gii.take(G2G, axis=0) for Q_Gii in self.Q_aGii])

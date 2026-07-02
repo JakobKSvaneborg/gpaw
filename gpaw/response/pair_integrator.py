@@ -452,7 +452,7 @@ class KPointPairPointIntegral(KPointPairIntegral):
         K_gK = generator.group_kpoints()
         bzk_kc = np.array([self.gs.kd.bzk_kc[K_K[0]] for
                            K_K in K_gK])
-        # Generate k-point weights
-        weight_k = np.array([generator.get_kpoint_weight(k_c)
-                             for k_c in bzk_kc])
+        # The weight of each representative k-point is simply the number of
+        # symmetry-equivalent k-points in its group
+        weight_k = np.array([len(K_K) for K_K in K_gK])
         return bzk_kc, weight_k
