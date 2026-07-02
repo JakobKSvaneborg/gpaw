@@ -33,6 +33,32 @@ def decide_whether_tammdancoff(val_m, con_m):
     return True
 
 
+class KPointCache:
+    """Bounded LRU cache of KPointPairFactory.get_k_point() results.
+
+    Extracting a k-point involves reading and inverse Fourier transforming
+    all wave functions in the band window, so reloading the same k-point
+    inside the BSE q-point loops is expensive. This cache bounds the number
+    of simultaneously stored k-points to keep memory in check.
+    """
+
+    def __init__(self, kptpair_factory, maxsize):
+        self.kptpair_factory = kptpair_factory
+        self.maxsize = maxsize
+        self._cache: dict = {}
+
+    def get_k_point(self, s, K, n1, n2):
+        key = (s, K, n1, n2)
+        if key in self._cache:
+            kpt = self._cache.pop(key)  # move to the back (most recent)
+        else:
+            kpt = self.kptpair_factory.get_k_point(s, K, n1, n2)
+            while len(self._cache) >= self.maxsize:
+                self._cache.pop(next(iter(self._cache)))
+        self._cache[key] = kpt
+        return kpt
+
+
 @dataclass
 class BSEMatrix:
     df_S: np.ndarray
@@ -661,6 +687,12 @@ class BSEBackend:
 
         self.context.print('Calculating screened potential and direct kernel')
 
+        # Cache extracted k-points across the q-point loops. The cache is
+        # sized to pin the local (K1-side) k-points while leaving room for
+        # one q-point worth of K2-side k-points.
+        kpoints = KPointCache(
+            kpf, maxsize=max(4 * self.nspins * self.myKsize, 1))
+
         # Outer loop over IBZ q-points: compute W_GG once per IBZ q-point
         for iq in range(self.qd.nibzkpts):
             q_c = self.qd.ibzk_kc[iq]
@@ -673,39 +705,48 @@ class BSEBackend:
                 self._compute_screened_potential_for_q(q_c)
             self.context.timer.stop('Compute W_GG')
 
+            # The remapped PAW corrections only depend on the symmetry
+            # operation relating the BZ q-point to the current IBZ q-point,
+            # so they can be reused between k-point pairs.
+            pawcorr_cache: dict = {}
+
             # Process all BZ q-points that map to this IBZ q-point
             for iQ in bz_indices:
                 Q_c = self.qd.bzk_kc[iQ]
                 for ik1, iK1 in enumerate(self.myKrange):
-                    kptv1_s = [kpf.get_k_point(s, iK1, self.vi, self.vf)
+                    kptv1_s = [kpoints.get_k_point(s, iK1, self.vi, self.vf)
                                for s in range(self.nspins)]
-                    kptc1_s = [kpf.get_k_point(s, self.ikq_k[iK1],
-                                               self.ci, self.cf)
+                    kptc1_s = [kpoints.get_k_point(s, self.ikq_k[iK1],
+                                                   self.ci, self.cf)
                                for s in range(self.nspins)]
                     iK2 = self.kd.find_k_plus_q(Q_c, [kptv1_s[0].K])[0]
-                    kptv2_s = [kpf.get_k_point(s, iK2, self.vi, self.vf)
+                    kptv2_s = [kpoints.get_k_point(s, iK2, self.vi, self.vf)
                                for s in range(self.nspins)]
-                    kptc2_s = [kpf.get_k_point(s, self.ikq_k[iK2],
-                                               self.ci, self.cf)
+                    kptc2_s = [kpoints.get_k_point(s, self.ikq_k[iK2],
+                                                   self.ci, self.cf)
                                for s in range(self.nspins)]
 
                     rho3_nnG, _, sign = self.get_density_matrix(
                         pair_calc, kptv1_s[0], kptv2_s[0],
-                        pawcorr0=pawcorr_q, qpd=qpd_q)
+                        pawcorr0=pawcorr_q, qpd=qpd_q,
+                        pawcorr_cache=pawcorr_cache)
 
                     rho4_nnG, _, _sign4 = self.get_density_matrix(
                         pair_calc, kptc1_s[0], kptc2_s[0],
-                        pawcorr0=pawcorr_q, qpd=qpd_q)
+                        pawcorr0=pawcorr_q, qpd=qpd_q,
+                        pawcorr_cache=pawcorr_cache)
                     assert sign == _sign4
 
                     if self.nspins == 2:
                         rho3s1_nnG, _, _sign3 = self.get_density_matrix(
                             pair_calc, kptv1_s[1], kptv2_s[1],
-                            pawcorr0=pawcorr_q, qpd=qpd_q)
+                            pawcorr0=pawcorr_q, qpd=qpd_q,
+                            pawcorr_cache=pawcorr_cache)
 
                         rho4s1_nnG, _, _sign4 = self.get_density_matrix(
                             pair_calc, kptc1_s[1], kptc2_s[1],
-                            pawcorr0=pawcorr_q, qpd=qpd_q)
+                            pawcorr0=pawcorr_q, qpd=qpd_q,
+                            pawcorr_cache=pawcorr_cache)
                         assert sign == _sign3
                         assert sign == _sign4
                     else:
@@ -776,12 +817,17 @@ class BSEBackend:
     @timer('get_density_matrix')
     def get_density_matrix(self, pair_calc, kpt1, kpt2,
                            pawcorr0=None, qpd=None,
-                           screened_potential=None):
+                           screened_potential=None,
+                           pawcorr_cache=None):
         """Compute pair density matrix for a k-point pair.
 
         Either (pawcorr0, qpd) or screened_potential must be provided.
         Using (pawcorr0, qpd) directly avoids the need to store a
         ScreenedPotential object with all W_qGG.
+
+        The remapped PAW corrections only depend on the symmetry operation
+        (not the k-point pair), so when looping over k-point pairs at fixed
+        q, a dict may be supplied as pawcorr_cache to reuse them.
         """
         self.context.timer.start('Symop')
         from gpaw.response.g0w0 import QSymmetryOp, get_nmG
@@ -792,7 +838,17 @@ class BSEBackend:
         if pawcorr0 is None:
             pawcorr0 = screened_potential.pawcorr_q[iq]
         nG = qpd.ngmax
-        pawcorr, I_G = symop.apply_symop_q(qpd, pawcorr0, kpt1, kpt2)
+        from gpaw.response.pair import phase_shifted_fft_indices
+        I_G = phase_shifted_fft_indices(kpt1.k_c, kpt2.k_c, qpd,
+                                        coordinate_transformation=symop.apply)
+        if pawcorr_cache is not None:
+            key = (symop.symno, symop.sign)
+            pawcorr = pawcorr_cache.get(key)
+            if pawcorr is None:
+                pawcorr = symop.remap_pawcorr(pawcorr0, qpd)
+                pawcorr_cache[key] = pawcorr
+        else:
+            pawcorr = symop.remap_pawcorr(pawcorr0, qpd)
         self.context.timer.stop('Symop')
 
         rho_nnG = np.zeros((len(kpt1.eps_n), len(kpt2.eps_n), nG), complex)

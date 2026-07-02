@@ -284,12 +284,19 @@ class QSymmetryOp:
         # density matrix
         Q_G = phase_shifted_fft_indices(kpt1.k_c, kpt2.k_c, qpd,
                                         coordinate_transformation=self.apply)
-
-        qG_Gv = qpd.get_reciprocal_vectors(add_q=True)
-        M_vv = self.get_M_vv(qpd.gd.cell_cv)
-        mypawcorr = pawcorr.remap_by_symop(self, qG_Gv, M_vv)
+        mypawcorr = self.remap_pawcorr(pawcorr, qpd)
 
         return mypawcorr, Q_G
+
+    def remap_pawcorr(self, pawcorr, qpd):
+        """Remap PAW corrections by the symmetry operation.
+
+        Depends only on the symmetry operation and the plane-wave
+        descriptor, not on the k-point pair.
+        """
+        qG_Gv = qpd.get_reciprocal_vectors(add_q=True)
+        M_vv = self.get_M_vv(qpd.gd.cell_cv)
+        return pawcorr.remap_by_symop(self, qG_Gv, M_vv)
 
 
 def get_nmG(kpt1, kpt2, mypawcorr, n, qpd, I_G, pair_calc, timer=None):
