@@ -82,6 +82,11 @@ def initialize_G_maps(symmetries: QSymmetries, qpd: SingleQPWDescriptor):
     G_Gc = np.dot(G_Gv, np.linalg.inv(B_cv))
     Q_G = qpd.Q_qG[0]
 
+    # Sort the plane-wave indices once, so that the mapped index of each
+    # G-vector can be looked up in O(log nG) for every symmetry.
+    Q_order = np.argsort(Q_G)
+    Q_sorted = Q_G[Q_order]
+
     G_sG = []
     for U_cc, sign, shift_c in symmetries:
         iU_cc = np.linalg.inv(U_cc).T
@@ -91,13 +96,11 @@ def initialize_G_maps(symmetries: QSymmetries, qpd: SingleQPWDescriptor):
         UQ_G = np.ravel_multi_index(UG_Gc.round().astype(int).T,
                                     qpd.gd.N_c, 'wrap')
 
-        G_G = len(Q_G) * [None]
-        for G, UQ in enumerate(UQ_G):
-            try:
-                G_G[G] = np.argwhere(Q_G == UQ)[0][0]
-            except IndexError as err:
-                raise RuntimeError(
-                    'Something went wrong: a symmetry operation mapped a '
-                    'G-vector outside the plane-wave cutoff sphere') from err
-        G_sG.append(np.array(G_G, dtype=np.int32))
+        pos_G = np.searchsorted(Q_sorted, UQ_G)
+        pos_G[pos_G == len(Q_sorted)] = 0  # guard out-of-range lookups
+        if not (Q_sorted[pos_G] == UQ_G).all():
+            raise RuntimeError(
+                'Something went wrong: a symmetry operation mapped a '
+                'G-vector outside the plane-wave cutoff sphere')
+        G_sG.append(Q_order[pos_G].astype(np.int32))
     return np.array(G_sG)
