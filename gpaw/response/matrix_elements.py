@@ -14,6 +14,7 @@ from gpaw.response.site_data import AtomicSiteData
 from gpaw.response.site_paw import (calculate_nonlocal_hubbard_potential,
                                     calculate_site_matrix_element_correction)
 from gpaw.sphere.integrate import spherical_truncation_function_collection
+from gpaw.utilities.blas import mmm
 
 
 class MatrixElement(ABC):
@@ -337,13 +338,22 @@ class PlaneWaveMatrixElementCalculator(MatrixElementCalculator):
                                        - φ_ai^*(r-R_a) φ_ai'(r-R_a)] f[n](r)
         """
         f_mytG = matrix_element.local_array_view
+        if len(f_mytG) == 0:
+            return
         F_aGii = self.get_paw_corrections(matrix_element.qpd)
         for a, F_Gii in enumerate(F_aGii):
-            # Make outer product of the projector overlaps
-            P1ccP2_mytii = P1_amyti[a].conj()[..., np.newaxis] \
-                * P2_amyti[a][:, np.newaxis]
+            nG, ni1, ni2 = F_Gii.shape
+            # Make outer product of the projector overlaps with a composite
+            # partial-wave index x = (i, i')
+            P1ccP2_mytx = (P1_amyti[a].conj()[..., np.newaxis]
+                           * P2_amyti[a][:, np.newaxis]).reshape(-1, ni1 * ni2)
+            if P1ccP2_mytx.dtype != f_mytG.dtype:
+                P1ccP2_mytx = P1ccP2_mytx.astype(f_mytG.dtype)
             # Sum over partial wave indices and add correction to the output
-            f_mytG[:] += np.einsum('tij, Gij -> tG', P1ccP2_mytii, F_Gii)
+            # using BLAS, f_mytG += P1ccP2_mytx @ F_xG
+            mmm(1.0, P1ccP2_mytx, 'N',
+                np.ascontiguousarray(F_Gii.reshape(nG, ni1 * ni2)), 'T',
+                1.0, f_mytG)
 
 
 class NewPairDensityCalculator(PlaneWaveMatrixElementCalculator):
