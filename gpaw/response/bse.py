@@ -801,17 +801,16 @@ class BSEBackend:
 
     @timer('add_indirect_kernel')
     def add_indirect_kernel(self, kptpair_factory, rhoex_KmmG, H_kmmKmm):
+        nK, nv, nc, nG = rhoex_KmmG.shape
         for ik1, iK1 in enumerate(self.myKrange):
-            kptv1 = kptpair_factory.get_k_point(
-                0, iK1, self.vi, self.vf)
-            rho1V_mmG = rhoex_KmmG.conj()[iK1, :, :] * self.v_G
+            rho1V_xG = (rhoex_KmmG.conj()[iK1]
+                        * self.v_G).reshape(nv * nc, nG)
             for Q_c in self.qd.bzk_kc:
-                iK2 = self.kd.find_k_plus_q(Q_c, [kptv1.K])[0]
-                rho2_mmG = rhoex_KmmG[iK2]
+                iK2 = self.kd.find_k_plus_q(Q_c, [iK1])[0]
+                rho2_xG = rhoex_KmmG[iK2].reshape(nv * nc, nG)
                 self.context.timer.start('Coulomb')
-                H_kmmKmm[ik1, :, :, iK2, :, :] += np.einsum(
-                    'ijG,mnG->ijmn', rho1V_mmG, rho2_mmG,
-                    optimize='optimal')
+                H_kmmKmm[ik1, :, :, iK2, :, :] += \
+                    (rho1V_xG @ rho2_xG.T).reshape(nv, nc, nv, nc)
                 self.context.timer.stop('Coulomb')
 
     @timer('get_density_matrix')
@@ -1116,13 +1115,19 @@ class BSEBackend:
         eta /= Hartree
 
         if C_tGG is not None:
-            tmp_tw = 1 / (w_w[None, :] / Hartree - w_t[:, None] + 1j * eta)
-            chi_wGG_local = np.einsum('tw,tAB->wAB', tmp_tw, C_tGG)
+            # chi_wGG = sum_t 1 / (w - w_t) C_tGG as a single GEMM
+            nw = len(w_w)
+            ntlocal = C_tGG.shape[0]
+            tmp_wt = 1 / (w_w[:, None] / Hartree - w_t[None, :] + 1j * eta)
+            chi_wGG_local = (tmp_wt @ C_tGG.reshape(ntlocal, nG * nG)
+                             ).reshape(nw, nG, nG)
 
             if C1_tGG is not None:
-                n_tmp_tw = - 1 / (w_w[None, :] / Hartree
-                                  + w_t[:, None] + 1j * eta)
-                chi_wGG_local += np.einsum('tw,tAB->wAB', n_tmp_tw, C1_tGG)
+                n_tmp_wt = - 1 / (w_w[:, None] / Hartree
+                                  + w_t[None, :] + 1j * eta)
+                chi_wGG_local += (
+                    n_tmp_wt @ C1_tGG.reshape(ntlocal, nG * nG)
+                ).reshape(nw, nG, nG)
 
             chi_wGG_local *= 1 / self.gs.volume
 
