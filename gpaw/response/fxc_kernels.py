@@ -218,11 +218,6 @@ def create_add_fxc(fxc: str, spincomponent: str):
 
 def calculate_dG_GGv(qpd):
     """Calculate dG_GG' = (G-G') for the plane wave basis in qpd."""
-    nG = qpd.ngmax
     G_Gv = qpd.get_reciprocal_vectors(add_q=False)
-
-    dG_GGv = np.zeros((nG, nG, 3))
-    for v in range(3):
-        dG_GGv[:, :, v] = np.subtract.outer(G_Gv[:, v], G_Gv[:, v])
-
-    return dG_GGv
+    # Broadcasted subtract fills all three cartesian components at once.
+    return G_Gv[:, np.newaxis, :] - G_Gv[np.newaxis, :, :]

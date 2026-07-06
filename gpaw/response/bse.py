@@ -629,11 +629,12 @@ class BSEBackend:
 
         mySsize = self.myKsize * self.nv * self.nc
         H_sS = np.reshape(H_kmmKmm, (mySsize, self.nS))
-        for iS in range(mySsize):
-            # Multiply by occupations
-            H_sS[iS] *= df_S[iS0 + iS]
-            # add bare transition energies
-            H_sS[iS, iS0 + iS] += deps_s[iS]
+        if mySsize > 0:
+            # Multiply by occupations (broadcast over columns).
+            H_sS *= df_S[iS0:iS0 + mySsize, np.newaxis]
+            # Add bare transition energies on the diagonal.
+            local_idx = np.arange(mySsize)
+            H_sS[local_idx, iS0 + local_idx] += deps_s
 
         return BSEMatrix(df_S, H_sS, deps_S, self.deps_max)
 
@@ -673,15 +674,19 @@ class BSEBackend:
                 self._compute_screened_potential_for_q(q_c)
             self.context.timer.stop('Compute W_GG')
 
-            # Process all BZ q-points that map to this IBZ q-point
-            for iQ in bz_indices:
-                Q_c = self.qd.bzk_kc[iQ]
-                for ik1, iK1 in enumerate(self.myKrange):
-                    kptv1_s = [kpf.get_k_point(s, iK1, self.vi, self.vf)
-                               for s in range(self.nspins)]
-                    kptc1_s = [kpf.get_k_point(s, self.ikq_k[iK1],
-                                               self.ci, self.cf)
-                               for s in range(self.nspins)]
+            # Swap the (iQ, iK1) loop order so we only load kptv1_s / kptc1_s
+            # (which involve an inverse FFT of the wavefunctions) once per
+            # local iK1, rather than once per (iQ, iK1) pair. This keeps
+            # memory constant (one k-point at a time) while still saving the
+            # nK-fold redundant recomputation of the k1-side k-points.
+            for ik1, iK1 in enumerate(self.myKrange):
+                kptv1_s = [kpf.get_k_point(s, iK1, self.vi, self.vf)
+                           for s in range(self.nspins)]
+                kptc1_s = [kpf.get_k_point(s, self.ikq_k[iK1],
+                                           self.ci, self.cf)
+                           for s in range(self.nspins)]
+                for iQ in bz_indices:
+                    Q_c = self.qd.bzk_kc[iQ]
                     iK2 = self.kd.find_k_plus_q(Q_c, [kptv1_s[0].K])[0]
                     kptv2_s = [kpf.get_k_point(s, iK2, self.vi, self.vf)
                                for s in range(self.nspins)]
@@ -728,12 +733,17 @@ class BSEBackend:
                     W_GG_eff = W_GG.conj() if sign == -1 else W_GG
 
                     self.context.timer.start('Screened exchange')
-                    W_mmmm = np.einsum(
-                        'ijk,km,pqm->ipjq',
-                        rho3_nnG.conj(),
-                        W_GG_eff,
-                        rho4_nnG,
-                        optimize='optimal')
+                    # 'ijk,km,pqm->ipjq' is two GEMMs; avoid the einsum path
+                    # search on every iteration by writing it explicitly:
+                    #   tmp_mvG = rho3.conj().reshape(nv*nv, nG) @ W_GG_eff
+                    #   → contract along the last G with rho4.reshape(nc*nc,nG)
+                    nv1, nv2, nG_ = rho3_nnG.shape
+                    nc1, nc2, _ = rho4_nnG.shape
+                    tmp = (rho3_nnG.conj().reshape(nv1 * nv2, nG_)
+                           @ W_GG_eff)  # (nv1*nv2, nG)
+                    tmp = tmp @ rho4_nnG.reshape(nc1 * nc2, nG_).T
+                    W_mmmm = tmp.reshape(nv1, nv2, nc1, nc2).transpose(
+                        0, 2, 1, 3)
                     H_kmmKmm[ik1, :, :, iK2] -= \
                         W_mmmm * (self.add_soc + 1) / 2
                     self.context.timer.stop('Screened exchange')
@@ -760,17 +770,24 @@ class BSEBackend:
 
     @timer('add_indirect_kernel')
     def add_indirect_kernel(self, kptpair_factory, rhoex_KmmG, H_kmmKmm):
+        nv, nc = self.nv, self.nc
         for ik1, iK1 in enumerate(self.myKrange):
             kptv1 = kptpair_factory.get_k_point(
                 0, iK1, self.vi, self.vf)
-            rho1V_mmG = rhoex_KmmG.conj()[iK1, :, :] * self.v_G
+            # Only conjugate the slice we actually need — the previous
+            # `rhoex_KmmG.conj()[iK1]` materialized a full copy of the
+            # entire (nK, nv, nc, nG) pair-density tensor per iteration.
+            rho1V_mmG = rhoex_KmmG[iK1].conj() * self.v_G
+            # 'ijG,mnG->ijmn' is just a GEMM after reshape; drop einsum path
+            # search cost (was `optimize='optimal'` inside a hot loop).
+            rho1V_flat = rho1V_mmG.reshape(nv * nc, -1)
             for Q_c in self.qd.bzk_kc:
                 iK2 = self.kd.find_k_plus_q(Q_c, [kptv1.K])[0]
                 rho2_mmG = rhoex_KmmG[iK2]
                 self.context.timer.start('Coulomb')
-                H_kmmKmm[ik1, :, :, iK2, :, :] += np.einsum(
-                    'ijG,mnG->ijmn', rho1V_mmG, rho2_mmG,
-                    optimize='optimal')
+                rho2_flat = rho2_mmG.reshape(nv * nc, -1)
+                block = (rho1V_flat @ rho2_flat.T).reshape(nv, nc, nv, nc)
+                H_kmmKmm[ik1, :, :, iK2, :, :] += block
                 self.context.timer.stop('Coulomb')
 
     @timer('get_density_matrix')
@@ -972,9 +989,10 @@ class BSEBackend:
                                       w_T * Hartree, C_T)
 
         eta /= Hartree
-        for iw, w in enumerate(w_w / Hartree):
-            tmp_T = 1. / (w - w_T + 1j * eta)
-            vchi_w[iw] += np.dot(tmp_T, C_T)
+        # Vectorize the frequency loop: one (nw, nT) matmul instead of nw
+        # matvecs of length nT.
+        tmp_wT = 1. / (w_w[:, None] / Hartree - w_T[None, :] + 1j * eta)
+        vchi_w += tmp_wT @ C_T
         vchi_w *= 4 * np.pi / self.gs.volume
 
         if not np.allclose(self.q_c, 0.0):
@@ -1603,8 +1621,12 @@ class BSEPlus:
             chi_irr_BSE_wGG - chi0_limited_wGG + chi0_full_wGG
         eye = np.eye(chi_irr_BSEPlus_wGG.shape[1])
 
+        # Multiplying by np.diag(v_G) is an element-wise scaling of the last
+        # axis; do that directly to avoid an O(nG^3) matmul per frequency
+        # against a mostly-zero matrix.
+        vG_row = self.v_G[np.newaxis, np.newaxis, :]
         chi_BSEPlus_wGG = \
-            np.linalg.solve(eye - chi_irr_BSEPlus_wGG @ np.diag(self.v_G),
+            np.linalg.solve(eye - chi_irr_BSEPlus_wGG * vG_row,
                             chi_irr_BSEPlus_wGG)
 
         if self.truncation == '2D':
@@ -1619,7 +1641,7 @@ class BSEPlus:
 
         if save_chi_BSE:
             chi_BSE_wGG = \
-                np.linalg.solve(eye - chi_irr_BSE_wGG @ np.diag(self.v_G),
+                np.linalg.solve(eye - chi_irr_BSE_wGG * vG_row,
                                 chi_irr_BSE_wGG)
 
             if self.truncation == '2D':
@@ -1635,7 +1657,7 @@ class BSEPlus:
 
         if save_chi_RPA:
             chi_full_wGG = \
-                np.linalg.solve(eye - chi0_full_wGG @ np.diag(self.v_G),
+                np.linalg.solve(eye - chi0_full_wGG * vG_row,
                                 chi0_full_wGG)
 
             if self.truncation == '2D':

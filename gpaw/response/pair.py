@@ -409,13 +409,22 @@ class ActualPairDensityCalculator:
         kpt = gs.kpt_ks[ik][s]
         psit_nG = kpt.psit_nG
         iG_Gv = 1j * gs.pd.get_reciprocal_vectors(q=ik, add_q=False)
-        ut_nvR = gs.gd.zeros((n2 - n1, 3), complex)
+        # Compute the intermediate (n, v, R) tensor of ifft(iG_Gv[:, v] *
+        # psit_nG[n]) once, then fold in M_vv with a single tensordot instead
+        # of a triple Python loop.
+        ut_nvR_raw = gs.gd.zeros((n2 - n1, 3), complex)
+        map_ = gs.ibz2bz[K].map_pseudo_wave
         for n in range(n1, n2):
+            psi_G = psit_nG[n]
             for v in range(3):
-                ut_R = gs.ibz2bz[K].map_pseudo_wave(
-                    gs.pd.ifft(iG_Gv[:, v] * psit_nG[n], ik))
-                for v2 in range(3):
-                    ut_nvR[n - n1, v2] += ut_R * M_vv[v, v2]
+                ut_nvR_raw[n - n1, v] = map_(gs.pd.ifft(iG_Gv[:, v] * psi_G,
+                                                        ik))
+        # ut_nvR[n, w, :] = sum_v M_vv[v, w] * ut_nvR_raw[n, v, :]
+        # tensordot(ut_nvR_raw, M_vv, axes=([1], [0])) has shape (nb, ng, 3);
+        # move the reduced axis back to position 1 to preserve the (n, w, R)
+        # layout expected by callers.
+        ut_nvR = np.moveaxis(
+            np.tensordot(ut_nvR_raw, M_vv, axes=([1], [0])), -1, 1)
 
         return ut_nvR
 

@@ -118,12 +118,14 @@ class IsotropicExchangeCalculator:
         J_pab = np.empty(site_kernels.shape + (nsites,), dtype=complex)
 
         # Compute exchange coupling
+        # Factorize the sum J_ab = -2 (M_a)† chiksr_GG M_b / V0 with
+        # M_aG = K_aGG[a] @ Wxc_G, precomputing the common subexpressions.
         for J_ab, K_aGG in zip(J_pab, site_kernels.calculate(qpd)):
-            for a in range(nsites):
-                for b in range(nsites):
-                    J = np.conj(Wxc_G) @ np.conj(K_aGG[a]).T @ chiksr_GG \
-                        @ K_aGG[b] @ Wxc_G
-                    J_ab[a, b] = - 2. * J / V0
+            # M_aG has shape (nsites, nG)
+            M_aG = K_aGG @ Wxc_G
+            # (nsites, nG) @ (nG, nG) → (nsites, nG)
+            L_aG = M_aG.conj() @ chiksr_GG
+            J_ab[:] = - 2. / V0 * (L_aG @ M_aG.T)
 
         # Transpose to have the partitions index last
         J_abp = np.transpose(J_pab, (1, 2, 0))

@@ -412,10 +412,12 @@ def fourier_bessel_transform(k_G, l, rgd, f_g):
 
     on the supplied radial grid.
     """
-    # Vectorize calculation of spherical Bessel functions
-    l_Gg = l * np.ones((len(k_G), rgd.N), dtype=int)
+    # Vectorize calculation of spherical Bessel functions. SciPy's
+    # spherical_jn broadcasts the scalar l against the (G, g) argument grid,
+    # so avoid materializing an nG x rgd.N integer array just to pass a
+    # constant.
     kr_Gg = k_G[:, np.newaxis] * rgd.r_g[np.newaxis]
-    jl_Gg = spherical_jn(l_Gg, kr_Gg)  # so slow...
+    jl_Gg = spherical_jn(l, kr_Gg)  # so slow...
     # Integrate the radial grid using linear interpolation
     f_G = rgd.integrate_trapz(jl_Gg * f_g[np.newaxis])
     return f_G

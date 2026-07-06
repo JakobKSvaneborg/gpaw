@@ -53,6 +53,11 @@ def calculate_site_matrix_element_correction(
                 for rcut, lambd in zip(rcut_p, lambd_p)]
     F_pii = np.zeros((Np, ni, ni), dtype=float)
 
+    # Precompute the radial integrals ∫ θ_p(r) f_L(r) dn_g(r) dr, which are
+    # scalars depending on (j1, j2, L, p) but not on (m1, m2). The old
+    # implementation recomputed each such integral (2*l1+1)*(2*l2+1) times.
+    theta_pg_arr = np.asarray(theta_pg)
+
     # Loop of radial function indices for partial waves i and i'
     i1_counter = 0
     for j1, l1 in enumerate(l_j):
@@ -61,25 +66,22 @@ def calculate_site_matrix_element_correction(
             # Calculate the radial partial wave correction
             dn_g = phi_jg[j1] * phi_jg[j2] - phit_jg[j1] * phit_jg[j2]
 
-            # Generate m-indices for each radial function
-            for m1 in range(2 * l1 + 1):
-                for m2 in range(2 * l2 + 1):
-                    # Set up the i=(l,m) index for each partial wave
-                    i1 = i1_counter + m1
-                    i2 = i2_counter + m2
-
-                    # Loop through the real spherical harmonics of the local
-                    # function f(r)
-                    for L, f_g in zip(rshe.L_M, rshe.f_gM.T):
-                        # Angular integral
-                        gaunt_coeff = G_LLL[l1**2 + m1, l2**2 + m2, L]
-                        if gaunt_coeff == 0:
-                            continue
-                        # Radial integral
-                        for p, theta_g in enumerate(theta_pg):
-                            F_pii[p, i1, i2] += \
-                                gaunt_coeff * rgd.integrate_trapz(
-                                theta_g * f_g * dn_g)
+            # (2*l1+1) x (2*l2+1) slabs of Gaunt coefficients, one per L.
+            for L, f_g in zip(rshe.L_M, rshe.f_gM.T):
+                gaunt_mm = G_LLL[l1**2:l1**2 + 2 * l1 + 1,
+                                 l2**2:l2**2 + 2 * l2 + 1, L]
+                if not np.any(gaunt_mm):
+                    continue
+                # Radial integrand independent of (m1, m2); do all p in one go.
+                integrand_pg = theta_pg_arr * (f_g * dn_g)
+                radial_p = np.array(
+                    [rgd.integrate_trapz(integrand_pg[p])
+                     for p in range(Np)])
+                # Scatter-add into F_pii using the gaunt block.
+                F_pii[:,
+                      i1_counter:i1_counter + 2 * l1 + 1,
+                      i2_counter:i2_counter + 2 * l2 + 1] += \
+                    radial_p[:, np.newaxis, np.newaxis] * gaunt_mm
 
             # Add to i and i' counters
             i2_counter += 2 * l2 + 1

@@ -268,9 +268,8 @@ class Intraband(IntegralTask):
         """Add intraband contributions"""
         # Intraband is a little bit special, we use neither wd nor deps_M
 
-        for vel_v in vel_mv:
-            x_vv = np.outer(vel_v, vel_v)
-            chi0_wvv[0] += x_vv
+        # sum_m vel_mv[m] ⊗ vel_mv[m] == vel_mv.T @ vel_mv
+        chi0_wvv[0] += vel_mv.T @ vel_mv
 
 
 class OpticalLimit(IntegralTask):
@@ -289,10 +288,13 @@ class OpticalLimit(IntegralTask):
         deps1_m = deps_m + 1j * self.eta
         deps2_m = deps_m - 1j * self.eta
         nc_mG = n_mG.conj()
+        # Hoist the transposed contiguous "v = xyz" rows out of the loop.
+        n_vm = n_mG[:, :3].T
+        nc_vm = nc_mG[:, :3].T
         for w, omega in enumerate(wd.omega_w):
             x_m = (1 / (omega + deps1_m) - 1 / (omega - deps2_m))
-            chi0_wxvG[w, 0] += np.dot(x_m * n_mG[:, :3].T, nc_mG)
-            chi0_wxvG[w, 1] += np.dot(x_m * nc_mG[:, :3].T, n_mG)
+            chi0_wxvG[w, 0] += np.dot(x_m * n_vm, nc_mG)
+            chi0_wxvG[w, 1] += np.dot(x_m * nc_vm, n_mG)
 
 
 class HermitianOpticalLimit(IntegralTask):
@@ -307,10 +309,15 @@ class HermitianOpticalLimit(IntegralTask):
         """Optical limit update of hermitian chi."""
         deps_m += self.eshift * np.sign(deps_m)
         nc_mG = n_mG.conj()
+        # Hoist the transposed contiguous "v = xyz" rows out of the loop.
+        n_vm = n_mG[:, :3].T
+        nc_vm = nc_mG[:, :3].T
+        deps2_m = deps_m**2
+        two_deps_m = 2 * deps_m
         for w, omega in enumerate(wd.omega_w):
-            x_m = - np.abs(2 * deps_m / (omega.imag**2 + deps_m**2))
-            chi0_wxvG[w, 0] += np.dot(x_m * n_mG[:, :3].T, nc_mG)
-            chi0_wxvG[w, 1] += np.dot(x_m * nc_mG[:, :3].T, n_mG)
+            x_m = - np.abs(two_deps_m / (omega.imag**2 + deps2_m))
+            chi0_wxvG[w, 0] += np.dot(x_m * n_vm, nc_mG)
+            chi0_wxvG[w, 1] += np.dot(x_m * nc_vm, n_mG)
 
 
 class HilbertOpticalLimit(IntegralTask):
@@ -391,13 +398,11 @@ class KPointTesselation:
 
     @cached_property
     def simplex_volumes(self):
-        volumes_s = np.zeros(self._td.nsimplex, float)
-        for s in range(self._td.nsimplex):
-            K_k = self._td.simplices[s]
-            k_kc = self._td.points[K_k]
-            volume = np.abs(np.linalg.det(k_kc[1:] - k_kc[0])) / 6.
-            volumes_s[s] = volume
-        return volumes_s
+        # Batch the (nsimplex,) tetrahedra volumes into a single det call.
+        k_skc = self._td.points[self._td.simplices]  # (nsimplex, 4, 3)
+        # d_skc[s, i, :] = k_skc[s, i + 1] - k_skc[s, 0]
+        d_skc = k_skc[:, 1:] - k_skc[:, :1]
+        return np.abs(np.linalg.det(d_skc)) / 6.
 
     def tetrahedron_weight(self, K, deps_k, omega_w):
         simplices_s = self.pts_k[K]
@@ -409,19 +414,23 @@ class KPointTesselation:
 
     @cached_property
     def pts_k(self):
+        # Batch the "is this simplex degenerate?" check into one det call.
+        points = self._td.points
+        simplices = self._td.simplices
+        nsimplex = self._td.nsimplex
+        k_skc = points[simplices]  # (nsimplex, 4, 3)
+        # A_skv: appends a column of ones (nsimplex, 4, 4)
+        A_skv = np.concatenate(
+            [k_skc, np.ones((nsimplex, 4, 1), float)], axis=2)
+        # D_skv drops the first column (radii^2) — we take the det of the last
+        # 4 columns of the 5-column matrix, which is exactly the det of A_skv.
+        a_s = np.linalg.det(A_skv)
+        keep_s = np.abs(a_s) >= 1e-10
+
         pts_k = [[] for n in range(self.nkpts)]
-        for s, K_k in enumerate(self._td.simplices):
-            A_kv = np.append(self._td.points[K_k],
-                             np.ones(4)[:, np.newaxis], axis=1)
-
-            D_kv = np.append((A_kv[:, :-1]**2).sum(1)[:, np.newaxis],
-                             A_kv, axis=1)
-            a = np.linalg.det(D_kv[:, np.arange(5) != 0])
-
-            if np.abs(a) < 1e-10:
-                continue
-
-            for K in K_k:
+        # Only iterate over non-degenerate simplices.
+        for s in np.flatnonzero(keep_s):
+            for K in simplices[s]:
                 pts_k[K].append(s)
 
         return [np.array(pts_k[k], int) for k in range(self.nkpts)]
@@ -504,21 +513,25 @@ class HilbertTetrahedron:
     def run(self, n_MG, deps_Mk, W_Mw, i0_M, i1_M, out_wxx):
         """Update output array with dissipative part."""
         blocks1d = Blocks1D(self.blockcomm, out_wxx.shape[2])
+        distributed = blocks1d.blockcomm.size > 1
 
         for n_G, deps_k, W_w, i0, i1 in zip(n_MG, deps_Mk, W_Mw,
                                             i0_M, i1_M):
             if i0 == i1:
                 continue
 
-            for iw, weight in enumerate(W_w):
-                if blocks1d.blockcomm.size > 1:
-                    myn_G = n_G[blocks1d.myslice].reshape((-1, 1))
-                    # gemm(weight, n_G.reshape((-1, 1)), myn_G,
-                    #      1.0, out_wxx[i0 + iw], 'c')
-                    mmm(weight, myn_G, 'N', n_G.reshape((-1, 1)), 'C',
+            # Hoist the values that don't depend on the frequency iw.
+            nc_G = n_G.conj()
+            if distributed:
+                # Outer product between local and global rows.
+                myn_col = n_G[blocks1d.myslice].reshape((-1, 1))
+                n_col = n_G.reshape((-1, 1))
+                for iw, weight in enumerate(W_w):
+                    mmm(weight, myn_col, 'N', n_col, 'C',
                         1.0, out_wxx[i0 + iw])
-                else:
-                    czher(weight, n_G.conj(), out_wxx[i0 + iw])
+            else:
+                for iw, weight in enumerate(W_w):
+                    czher(weight, nc_G, out_wxx[i0 + iw])
 
 
 class HilbertOpticalLimitTetrahedron:
@@ -534,6 +547,7 @@ class HilbertOpticalLimitTetrahedron:
                 continue
             x_vG = np.outer(n_G[:3], n_G.conj())
             xc_vG = x_vG.conj()
-            for iw, weight in enumerate(W_w):
-                out_wxvG[i0 + iw, 0, :, :] += weight * x_vG
-                out_wxvG[i0 + iw, 1, :, :] += weight * xc_vG
+            # Broadcast the whole frequency window in one shot.
+            W_w111 = W_w[:, np.newaxis, np.newaxis]
+            out_wxvG[i0:i1, 0] += W_w111 * x_vG
+            out_wxvG[i0:i1, 1] += W_w111 * xc_vG

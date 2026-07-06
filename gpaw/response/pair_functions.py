@@ -189,9 +189,8 @@ def map_zGG_array_to_reduced_pd(qpdi, qpd, in_zGG):
     out_zGG_shape = (in_zGG.shape[0], nG, nG)
     out_zGG = np.zeros(out_zGG_shape, complex)
 
-    # Extract values
-    for z, in_GG in enumerate(in_zGG):
-        out_zGG[z][G2_GG] = in_GG[G1_GG]
+    # Extract values with a single batched fancy-index assignment.
+    out_zGG[:, G2_GG[0], G2_GG[1]] = in_zGG[:, G1_GG[0], G1_GG[1]]
 
     return out_zGG
 

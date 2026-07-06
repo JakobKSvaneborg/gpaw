@@ -61,14 +61,14 @@ class HilbertTransform:
         """
 
         nw = len(o_w)
-        H_ij = np.zeros((nw, nw), complex)
         do_j = o_w[1:] - o_w[:-1]
-        for i, o in enumerate(o_w):
-            d_j = o_w - o * sign
-            y_j = 1j * np.arctan(d_j / eta) + 0.5 * np.log(d_j**2 + eta**2)
-            y_j = (y_j[1:] - y_j[:-1]) / do_j
-            H_ij[i, :-1] = 1 - (d_j[1:] - 1j * eta) * y_j
-            H_ij[i, 1:] -= 1 - (d_j[:-1] - 1j * eta) * y_j
+        # Vectorized construction: d_ij = o_w[None, :] - sign * o_w[:, None]
+        d_ij = o_w[np.newaxis, :] - sign * o_w[:, np.newaxis]
+        y_ij = 1j * np.arctan(d_ij / eta) + 0.5 * np.log(d_ij**2 + eta**2)
+        dy_ij = (y_ij[:, 1:] - y_ij[:, :-1]) / do_j
+        H_ij = np.zeros((nw, nw), complex)
+        H_ij[:, :-1] = 1 - (d_ij[:, 1:] - 1j * eta) * dy_ij
+        H_ij[:, 1:] -= 1 - (d_ij[:, :-1] - 1j * eta) * dy_ij
         return H_ij
 
     def __call__(self, S_wx):

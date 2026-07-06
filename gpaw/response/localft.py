@@ -235,7 +235,10 @@ class MicroSetup:
 
     def evaluate_function(self, add_f):
         """Evaluate a given function f(r) on the angular and radial grids."""
-        f_ng = np.array([self.rgd.zeros() for n in range(self.Y_nL.shape[0])])
+        n_ang = self.Y_nL.shape[0]
+        # Preallocate the (n, g) block directly instead of building a Python
+        # list of empty radial arrays and wrapping it in np.array().
+        f_ng = np.zeros((n_ang, self.rgd.N))
         for n, Y_L in enumerate(self.Y_nL):
             n_sg = Y_L @ self.n_sLg
             add_f(self.rgd, n_sg, f_ng[n])
@@ -252,7 +255,9 @@ class MicroSetup:
         rgd = self.rgd
         f_g = rgd.zeros()
         ft_g = rgd.zeros()
-        df_ng = np.array([rgd.zeros() for n in range(self.Y_nL.shape[0])])
+        n_ang = self.Y_nL.shape[0]
+        # Preallocate directly rather than building via np.array of a list.
+        df_ng = np.zeros((n_ang, rgd.N))
         for n, Y_L in enumerate(self.Y_nL):
             f_g[:] = 0.
             n_sg = Y_L @ self.n_sLg
@@ -449,14 +454,18 @@ class LocalPAWFTEngine:
         # Calculate the PAW correction as an integral over the radial grid
         # and rshe coefficients
         with self.context.timer('Integrate PAW correction'):
-            angular_coef_MmyG = ii_MmyG * Y_MmyG
-            # Radial integral, dv = 4πr^2
+            # Radial integral, dv = 4πr^2 — contract the g index directly
+            # against dv_g and df_gM using a single einsum, avoiding the
+            # intermediate (g, M, myG) product.
             df_gM = rshe.f_gM
-            radial_coef_MmyG = np.tensordot(j_gMmyG * df_gM[..., np.newaxis],
-                                            rgd.dv_g, axes=([0, 0]))
-            # Angular integral (sum over l,m)
-            atomic_corr_myG = np.sum(angular_coef_MmyG * radial_coef_MmyG,
-                                     axis=0)
+            radial_coef_MmyG = np.einsum(
+                'gMi,gM,g->Mi',
+                j_gMmyG, df_gM, rgd.dv_g, optimize=True)
+            # Angular integral (sum over l, m) fused with the (-i)^l * Y_lm
+            # angular coefficient to skip an extra (M, myG) temporary.
+            atomic_corr_myG = np.einsum(
+                'Mi,Mi,Mi->i',
+                ii_MmyG, Y_MmyG, radial_coef_MmyG, optimize=True)
 
             position_prefactor_myG = np.exp(-1j * np.inner(G_myGv, R_v))
 
