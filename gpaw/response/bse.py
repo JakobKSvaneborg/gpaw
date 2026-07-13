@@ -629,11 +629,12 @@ class BSEBackend:
 
         mySsize = self.myKsize * self.nv * self.nc
         H_sS = np.reshape(H_kmmKmm, (mySsize, self.nS))
-        for iS in range(mySsize):
-            # Multiply by occupations
-            H_sS[iS] *= df_S[iS0 + iS]
-            # add bare transition energies
-            H_sS[iS, iS0 + iS] += deps_s[iS]
+        # Vectorised: previously this was a python-level loop over mySsize
+        # (which can be in the millions for dense k-grids).
+        H_sS *= df_S[iS0:iS0 + mySsize, np.newaxis]
+        # add bare transition energies on the diagonal block
+        diag_idx = np.arange(mySsize)
+        H_sS[diag_idx, iS0 + diag_idx] += deps_s
 
         return BSEMatrix(df_S, H_sS, deps_S, self.deps_max)
 
@@ -763,7 +764,7 @@ class BSEBackend:
         for ik1, iK1 in enumerate(self.myKrange):
             kptv1 = kptpair_factory.get_k_point(
                 0, iK1, self.vi, self.vf)
-            rho1V_mmG = rhoex_KmmG.conj()[iK1, :, :] * self.v_G
+            rho1V_mmG = rhoex_KmmG[iK1].conj() * self.v_G
             for Q_c in self.qd.bzk_kc:
                 iK2 = self.kd.find_k_plus_q(Q_c, [kptv1.K])[0]
                 rho2_mmG = rhoex_KmmG[iK2]
@@ -1604,7 +1605,7 @@ class BSEPlus:
         eye = np.eye(chi_irr_BSEPlus_wGG.shape[1])
 
         chi_BSEPlus_wGG = \
-            np.linalg.solve(eye - chi_irr_BSEPlus_wGG @ np.diag(self.v_G),
+            np.linalg.solve(eye - chi_irr_BSEPlus_wGG * self.v_G,
                             chi_irr_BSEPlus_wGG)
 
         if self.truncation == '2D':
@@ -1619,7 +1620,7 @@ class BSEPlus:
 
         if save_chi_BSE:
             chi_BSE_wGG = \
-                np.linalg.solve(eye - chi_irr_BSE_wGG @ np.diag(self.v_G),
+                np.linalg.solve(eye - chi_irr_BSE_wGG * self.v_G,
                                 chi_irr_BSE_wGG)
 
             if self.truncation == '2D':
@@ -1635,7 +1636,7 @@ class BSEPlus:
 
         if save_chi_RPA:
             chi_full_wGG = \
-                np.linalg.solve(eye - chi0_full_wGG @ np.diag(self.v_G),
+                np.linalg.solve(eye - chi0_full_wGG * self.v_G,
                                 chi0_full_wGG)
 
             if self.truncation == '2D':

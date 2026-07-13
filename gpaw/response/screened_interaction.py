@@ -266,13 +266,18 @@ class WCalculator(WBaseCalculator):
 
         einv_wGG = dfc.get_epsinv_wGG(only_correlation=False)
         W_wGG = np.empty_like(einv_wGG)
+        # Hoisted out of the frequency loop below: sqrtV(G) sqrtV(G') is
+        # frequency-independent, and the (nG-1,) diagonal update for
+        # W_GG[1:, 1:] does not need a full (nG-1, nG-1) np.diag matrix.
+        sqrtVprod_GG = sqrtV_G * sqrtV_G[:, np.newaxis]
+        sqrtV_sq_1 = sqrtV_G[1:]**2
+        di = np.arange(1, len(sqrtV_G))
         for iw, (einv_GG, W_GG) in enumerate(zip(einv_wGG, W_wGG)):
             # If only_correlation = True function spits out
             # W^c = sqrt(V)(epsinv - delta_GG')sqrt(V). However, full epsinv
             # is still needed for q0_corrector.
             einvt_GG = (einv_GG - dfc.I_GG) if only_correlation else einv_GG
-            W_GG[:] = einvt_GG * (sqrtV_G *
-                                  sqrtV_G[:, np.newaxis])
+            np.multiply(einvt_GG, sqrtVprod_GG, out=W_GG)
             if self.q0_corrector is not None and chi0.optical_limit:
                 W = dfc.wblocks.a + iw
                 self.q0_corrector.add_q0_correction(chi0.qpd, W_GG,
@@ -285,7 +290,7 @@ class WCalculator(WBaseCalculator):
                 # and thus we add the Coulomb interaction here manually
                 if not only_correlation:
                     W_GG[0, 0] += V0
-                    W_GG[1:, 1:] += np.diag(sqrtV_G[1:]**2)
+                    W_GG[di, di] += sqrtV_sq_1
 
             elif (self.integrate_gamma.is_analytical and chi0.optical_limit) \
                     or self.integrate_gamma.is_numerical:
@@ -316,9 +321,12 @@ class WCalculator(WBaseCalculator):
         my_gslice = WgG_grid.myslice[1]
 
         dielectric_WgG = chi0.chi0_wGG  # XXX
+        # Hoist frequency-independent quantities out of the loop.
+        sqrtV_G = coulomb.sqrtV(chi0.qpd, q_v=None)
+        sqrtVprod_GG = sqrtV_G * sqrtV_G[:, np.newaxis]
+        eye_nG = np.eye(nG)
         for iw, chi0_GG in enumerate(chi0.chi0_wGG):
-            sqrtV_G = coulomb.sqrtV(chi0.qpd, q_v=None)
-            e_GG = np.eye(nG) - chi0_GG * sqrtV_G * sqrtV_G[:, np.newaxis]
+            e_GG = eye_nG - chi0_GG * sqrtVprod_GG
             e_gG = e_GG[my_gslice]
 
             dielectric_WgG[iw, :, :] = e_gG
@@ -337,10 +345,12 @@ class WCalculator(WBaseCalculator):
 
         self.context.timer.start('Dyson eq.')
 
+        thing_GG = sqrtVprod_GG
+        eye_slice = np.identity(nG)[my_gslice]
+        thing_slice = thing_GG[my_gslice]
         for iw, inveps_gG in enumerate(inveps_WgG):
-            inveps_gG -= np.identity(nG)[my_gslice]
-            thing_GG = sqrtV_G * sqrtV_G[:, np.newaxis]
-            inveps_gG *= thing_GG[my_gslice]
+            inveps_gG -= eye_slice
+            inveps_gG *= thing_slice
 
         W_WgG = inveps_WgG
         Wp_wGG = W_WgG.copy()

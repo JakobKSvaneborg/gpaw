@@ -117,13 +117,14 @@ class IsotropicExchangeCalculator:
         nsites = site_kernels.nsites
         J_pab = np.empty(site_kernels.shape + (nsites,), dtype=complex)
 
-        # Compute exchange coupling
+        # Compute exchange coupling.  The chained matmuls in the original
+        # nsites**2 python loop performed O(nsites**2 * nG**2) work; the
+        # equivalent M_ab = (K_a Wxc)^H  chi  (K_b Wxc) reduces to two
+        # nsites*nG**2 GEMVs/GEMM and one nsites**2 * nG contraction.
         for J_ab, K_aGG in zip(J_pab, site_kernels.calculate(qpd)):
-            for a in range(nsites):
-                for b in range(nsites):
-                    J = np.conj(Wxc_G) @ np.conj(K_aGG[a]).T @ chiksr_GG \
-                        @ K_aGG[b] @ Wxc_G
-                    J_ab[a, b] = - 2. * J / V0
+            KW_aG = K_aGG @ Wxc_G                    # (nsites, nG)
+            chiKW_aG = KW_aG @ chiksr_GG.T           # (nsites, nG)
+            J_ab[:] = -2. / V0 * (KW_aG.conj() @ chiKW_aG.T)
 
         # Transpose to have the partitions index last
         J_abp = np.transpose(J_pab, (1, 2, 0))
