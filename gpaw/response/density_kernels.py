@@ -155,21 +155,28 @@ def calculate_bootstrap_kernel(qpd, chi0_GG, context):
         v_G = 4 * np.pi / qpd.G2_qG[0]
 
     nG = len(v_G)
-    K_GG = np.diag(v_G)
+    eye_GG = np.eye(nG, nG)
 
-    Kxc_GG = np.zeros((nG, nG), dtype=complex)
+    # Kxc_GG is always a diagonal matrix throughout the SCF; track its
+    # diagonal entries as a 1-D vector and only materialize the full matrix
+    # once at the end.  This reduces np.dot(chi0_GG, Kxc_GG) from O(nG^3) to
+    # O(nG^2) and eliminates several full-matrix allocations per iteration.
+    kxc_G = np.zeros(nG, dtype=complex)
     dminv_GG = np.zeros((nG, nG), dtype=complex)
 
     for iscf in range(120):
         dminvold_GG = dminv_GG.copy()
-        Kxc_GG = K_GG + Kxc_GG
+        kxc_G += v_G
 
-        chi_GG = np.dot(np.linalg.inv(np.eye(nG, nG)
-                                      - np.dot(chi0_GG, Kxc_GG)), chi0_GG)
-        dminv_GG = np.eye(nG, nG) + np.dot(K_GG, chi_GG)
+        # chi0 @ Kxc == chi0 * kxc[None, :] when Kxc is diagonal.
+        # solve((I - chi0 @ Kxc), chi0) avoids materializing the inverse.
+        chi_GG = np.linalg.solve(eye_GG - chi0_GG * kxc_G[np.newaxis, :],
+                                 chi0_GG)
+        # K_GG @ chi_GG == v_G[:, None] * chi_GG when K_GG = diag(v_G).
+        dminv_GG = eye_GG + v_G[:, None] * chi_GG
 
-        alpha = dminv_GG[0, 0] / (K_GG[0, 0] * chi0_GG[0, 0])
-        Kxc_GG = alpha * K_GG
+        alpha = dminv_GG[0, 0] / (v_G[0] * chi0_GG[0, 0])
+        kxc_G = alpha * v_G
         p(iscf, 'alpha =', alpha, flush=False)
         error = np.abs(dminvold_GG - dminv_GG).sum()
         if np.sum(error) < 0.1:
@@ -178,4 +185,6 @@ def calculate_bootstrap_kernel(qpd, chi0_GG, context):
         if iscf > 100:
             p('Too many fxc scf steps !')
 
+    Kxc_GG = np.zeros((nG, nG), dtype=complex)
+    Kxc_GG.flat[::nG + 1] = kxc_G
     return np.array([Kxc_GG])
