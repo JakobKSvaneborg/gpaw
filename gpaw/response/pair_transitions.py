@@ -155,17 +155,16 @@ def get_pairwise_band_transitions_domain(nbands):
 
 def remove_null_transitions(n1_M, n2_M, nocc1=None, nocc2=None):
     """Remove pairs of bands, between which transitions are impossible"""
-    n1_newM = []
-    n2_newM = []
-    for n1, n2 in zip(n1_M, n2_M):
-        if nocc1 is not None and (n1 < nocc1 and n2 < nocc1):
-            continue  # both bands are fully occupied
-        elif nocc2 is not None and (n1 >= nocc2 and n2 >= nocc2):
-            continue  # both bands are completely unoccupied
-        n1_newM.append(n1)
-        n2_newM.append(n2)
-
-    return np.array(n1_newM), np.array(n2_newM)
+    # Vectorized mask instead of a Python loop; behavior identical to the
+    # original element-by-element version.
+    n1_M = np.asarray(n1_M)
+    n2_M = np.asarray(n2_M)
+    keep = np.ones(n1_M.shape, dtype=bool)
+    if nocc1 is not None:
+        keep &= ~((n1_M < nocc1) & (n2_M < nocc1))
+    if nocc2 is not None:
+        keep &= ~((n1_M >= nocc2) & (n2_M >= nocc2))
+    return n1_M[keep], n2_M[keep]
 
 
 def get_spin_transitions_domain(bandsummation, spincomponent, nspins):

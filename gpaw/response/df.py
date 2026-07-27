@@ -125,7 +125,7 @@ class Chi0DysonEquations:
         if reuse_buffer:
             out_wGG = in_wGG
         else:
-            out_wGG = np.zeros_like(in_wGG)
+            out_wGG = np.empty_like(in_wGG)
         for w, in_GG in enumerate(in_wGG):
             out_wGG[w] = DysonEquation(in_GG, in_GG @ K_GG).invert()
         return out_wGG
@@ -468,10 +468,17 @@ class CustomizableDielectricFunction(DielectricFunctionData):
          M              00        00
         """
         eps0_W = self._macroscopic_component(self.eps_wGG)
-        # Invert Ε(q,ω) one frequency at a time to compute Ε_M(q,ω)
-        eps_w = np.zeros((self.wblocks.nlocal,), complex)
-        for w, eps_GG in enumerate(self.eps_wGG):
-            eps_w[w] = 1 / np.linalg.inv(eps_GG)[0, 0]
+        # Invert Ε(q,ω) one frequency at a time to compute Ε_M(q,ω).
+        # We only need the [0, 0] element of the inverse, i.e. the first
+        # component of Ε_GG^{-1} e_0, which is one LU solve with a single
+        # RHS instead of a full inverse.
+        eps_w = np.empty((self.wblocks.nlocal,), complex)
+        if self.wblocks.nlocal > 0:
+            nG = self.eps_wGG.shape[-1]
+            e0_G = np.zeros(nG, complex)
+            e0_G[0] = 1.0
+            for w, eps_GG in enumerate(self.eps_wGG):
+                eps_w[w] = 1 / np.linalg.solve(eps_GG, e0_G)[0]
         eps_W = self.wblocks.all_gather(eps_w)
         return ScalarResponseFunctionSet(self.wd, eps0_W, eps_W)
 

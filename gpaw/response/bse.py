@@ -27,10 +27,7 @@ from gpaw.utilities.elpa import LibElpa
 
 
 def decide_whether_tammdancoff(val_m, con_m):
-    for n in val_m:
-        if n in con_m:
-            return False
-    return True
+    return set(val_m).isdisjoint(con_m)
 
 
 @dataclass
@@ -648,12 +645,17 @@ class BSEBackend:
         """
         kpf = kptpair_factory
 
-        # Build reverse mapping from IBZ q-point index to all BZ indices.
+        # Build reverse mapping from IBZ q-point index to all BZ indices
         # (ibz2bz_k maps each IBZ point to one representative BZ point,
-        # but here we need all BZ points that reduce to each IBZ point.)
+        # but here we need all BZ points that reduce to each IBZ point).
+        # One linear pass over bz2ibz instead of one scan per IBZ q-point:
+        # O(nBZ) instead of O(nBZ * nibz).
         bz2ibz = self.qd.bz2ibz_k
-        iq_to_bz_indices = [np.where(bz2ibz == iq)[0]
-                            for iq in range(self.qd.nibzkpts)]
+        _iq_to_bz_lists = [[] for _ in range(self.qd.nibzkpts)]
+        for Q, iq in enumerate(bz2ibz):
+            _iq_to_bz_lists[int(iq)].append(Q)
+        iq_to_bz_indices = [np.asarray(inds, dtype=int)
+                            for inds in _iq_to_bz_lists]
 
         n_iterations_done = 0
         # Total (k, Q) loop iterations for progress tracking
@@ -763,7 +765,9 @@ class BSEBackend:
         for ik1, iK1 in enumerate(self.myKrange):
             kptv1 = kptpair_factory.get_k_point(
                 0, iK1, self.vi, self.vf)
-            rho1V_mmG = rhoex_KmmG.conj()[iK1, :, :] * self.v_G
+            # Slice first, then conjugate, so only one k-slice is copied
+            # instead of the entire (nK, nv, nc, nG) array.
+            rho1V_mmG = rhoex_KmmG[iK1].conj() * self.v_G
             for Q_c in self.qd.bzk_kc:
                 iK2 = self.kd.find_k_plus_q(Q_c, [kptv1.K])[0]
                 rho2_mmG = rhoex_KmmG[iK2]
@@ -1603,8 +1607,10 @@ class BSEPlus:
             chi_irr_BSE_wGG - chi0_limited_wGG + chi0_full_wGG
         eye = np.eye(chi_irr_BSEPlus_wGG.shape[1])
 
+        # chi @ diag(v_G) == chi * v_G (broadcast on last axis);
+        # avoids building an nG x nG diagonal matrix and an O(nw*nG^3) matmul.
         chi_BSEPlus_wGG = \
-            np.linalg.solve(eye - chi_irr_BSEPlus_wGG @ np.diag(self.v_G),
+            np.linalg.solve(eye - chi_irr_BSEPlus_wGG * self.v_G,
                             chi_irr_BSEPlus_wGG)
 
         if self.truncation == '2D':
@@ -1619,7 +1625,7 @@ class BSEPlus:
 
         if save_chi_BSE:
             chi_BSE_wGG = \
-                np.linalg.solve(eye - chi_irr_BSE_wGG @ np.diag(self.v_G),
+                np.linalg.solve(eye - chi_irr_BSE_wGG * self.v_G,
                                 chi_irr_BSE_wGG)
 
             if self.truncation == '2D':
@@ -1635,7 +1641,7 @@ class BSEPlus:
 
         if save_chi_RPA:
             chi_full_wGG = \
-                np.linalg.solve(eye - chi0_full_wGG @ np.diag(self.v_G),
+                np.linalg.solve(eye - chi0_full_wGG * self.v_G,
                                 chi0_full_wGG)
 
             if self.truncation == '2D':
