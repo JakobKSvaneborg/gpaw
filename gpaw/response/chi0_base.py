@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -139,7 +140,9 @@ class Chi0Integrand(Integrand):
 
         df_nm = kptpair.get_occupation_differences()
         df_nm[df_nm <= 1e-20] = 0.0
-        n_nmG *= df_nm[..., np.newaxis]**0.5
+        # Take the sqrt in place and drop the ``**0.5`` copy of df_nm.
+        np.sqrt(df_nm, out=df_nm)
+        n_nmG *= df_nm[..., np.newaxis]
 
         return n_nmG
 
@@ -406,8 +409,11 @@ class Chi0ComponentPWCalculator(Chi0ComponentCalculator, ABC):
         if sum(self.pbc) == 1:
             raise ValueError('1-D not supported atm.')
 
-    @property
+    @cached_property
     def pair_calc(self) -> ActualPairDensityCalculator:
+        # Cache the calculator so its wavefunction-derivative cache
+        # (``ut_sKnvR``, used for the optical limit) survives across
+        # k-points instead of being discarded on every property access.
         return self.kptpair_factory.pair_calculator(self.blockcomm)
 
     def construct_integral_task(self):

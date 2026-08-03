@@ -266,13 +266,15 @@ class WCalculator(WBaseCalculator):
 
         einv_wGG = dfc.get_epsinv_wGG(only_correlation=False)
         W_wGG = np.empty_like(einv_wGG)
+        # Precompute the outer product of sqrtV once — it is identical for
+        # every frequency and dominated the inner loop before.
+        sqrtV_GG = sqrtV_G * sqrtV_G[:, np.newaxis]
         for iw, (einv_GG, W_GG) in enumerate(zip(einv_wGG, W_wGG)):
             # If only_correlation = True function spits out
             # W^c = sqrt(V)(epsinv - delta_GG')sqrt(V). However, full epsinv
             # is still needed for q0_corrector.
             einvt_GG = (einv_GG - dfc.I_GG) if only_correlation else einv_GG
-            W_GG[:] = einvt_GG * (sqrtV_G *
-                                  sqrtV_G[:, np.newaxis])
+            W_GG[:] = einvt_GG * sqrtV_GG
             if self.q0_corrector is not None and chi0.optical_limit:
                 W = dfc.wblocks.a + iw
                 self.q0_corrector.add_q0_correction(chi0.qpd, W_GG,
@@ -285,7 +287,10 @@ class WCalculator(WBaseCalculator):
                 # and thus we add the Coulomb interaction here manually
                 if not only_correlation:
                     W_GG[0, 0] += V0
-                    W_GG[1:, 1:] += np.diag(sqrtV_G[1:]**2)
+                    # Add the diagonal in place instead of materializing a
+                    # full (G-1) x (G-1) dense matrix from np.diag.
+                    diag_view = np.einsum('ii->i', W_GG[1:, 1:])
+                    diag_view += sqrtV_G[1:]**2
 
             elif (self.integrate_gamma.is_analytical and chi0.optical_limit) \
                     or self.integrate_gamma.is_numerical:
@@ -456,8 +461,10 @@ class MPACalculator(WBaseCalculator):
         else:
             sqrtV_G = dfc.sqrtV_G
 
-        W_pGG = pi * R_pGG * sqrtV_G[np.newaxis, :, np.newaxis] \
-            * sqrtV_G[np.newaxis, np.newaxis, :]
+        # Fold the two outer-product broadcasts into a single (G, G) matrix
+        # so we only allocate one (npoles, G, G) temporary instead of three.
+        sqrtV_GG = sqrtV_G[:, np.newaxis] * sqrtV_G[np.newaxis, :]
+        W_pGG = (pi * R_pGG) * sqrtV_GG[np.newaxis]
 
         assert self.q0_corrector is None
         if (self.integrate_gamma.is_analytical and chi0.optical_limit)\

@@ -77,7 +77,7 @@ class Chi0DrudeCalculator(Chi0ComponentCalculator):
 
         # Symmetrize the plasma frequency
         operators = HeadSymmetryOperators(symmetries, self.gs.gd)
-        plasmafreq_vv = tmp_plasmafreq_wvv[0].copy()
+        plasmafreq_vv = tmp_plasmafreq_wvv[0]
         operators.symmetrize_wvv(plasmafreq_vv[np.newaxis])
 
         # Store and print the plasma frequency
@@ -161,10 +161,10 @@ class PlasmaFrequencyIntegrand(Integrand):
             f_n = kpt1.f_n
             width = self._drude.gs.get_occupations_width()
             if width > 1e-15:
-                dfde_n = - 1. / width * (f_n - f_n**2.0)
+                dfde_n = (-1.0 / width) * f_n * (1.0 - f_n)
+                vel_nv *= np.sqrt(-dfde_n[:, np.newaxis])
             else:
-                dfde_n = np.zeros_like(f_n)
-            vel_nv *= np.sqrt(-dfde_n[:, np.newaxis])
+                vel_nv[:] = 0.0
             weight = np.sqrt(self.generator.get_kpoint_weight(k_c) /
                              self.generator.how_many_symmetries())
             vel_nv *= weight

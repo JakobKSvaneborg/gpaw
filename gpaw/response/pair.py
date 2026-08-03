@@ -187,7 +187,6 @@ class ActualPairDensityCalculator:
             assert output_buffer.dtype == qpd.dtype
             n_nmG = output_buffer
         for j, n in enumerate(n_n):
-            Q_G = kptpair.Q_G
             with self.context.timer('conj'):
                 ut1cc_R = kpt1.ut_nR[n - kpt1.na].conj()
             with self.context.timer('paw'):

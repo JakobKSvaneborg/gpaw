@@ -495,14 +495,19 @@ class LocalPAWFTEngine:
 
         # Setup arrays to fully vectorize computations
         nM = len(L_M)
-        (r_gMmyG, l_gMmyG,
-         Gnorm_gMmyG) = (a.reshape(len(r_g), nM, nmyG)
-                         for a in np.meshgrid(r_g, l_M, Gnorm_myG,
-                                              indexing='ij'))
+        kr_gmyG = Gnorm_myG[np.newaxis] * r_g[:, np.newaxis]
 
         with self.context.timer('Compute spherical bessel functions'):
-            # Slow step
-            j_gMmyG = spherical_jn(l_gMmyG, Gnorm_gMmyG * r_gMmyG)
+            # spherical_jn falls back to a slow per-element Python dispatch
+            # when the order ``l`` is an array. Loop over the (very few)
+            # distinct l-values instead so each call sees a scalar order and
+            # takes the fast C path.
+            j_gMmyG = np.empty((len(r_g), nM, nmyG), dtype=float)
+            l_arr = np.asarray(l_M)
+            for lval in np.unique(l_arr):
+                m_mask = (l_arr == lval)
+                jl_gmyG = spherical_jn(int(lval), kr_gmyG)
+                j_gMmyG[:, m_mask, :] = jl_gmyG[:, np.newaxis, :]
 
         Y_MmyG = Yarr(L_M, Gdir_myGv)
         ii_MmyG = (-1j) ** np.repeat(l_M, nmyG).reshape((nM, nmyG))

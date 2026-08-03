@@ -522,7 +522,7 @@ class BSEBackend:
             else:
                 deps_kmm[ik] = -pair0.get_transition_energies()
             if optical_limit:
-                deps_kmm[np.where(deps_kmm == 0)] = 1.0e-9
+                deps_kmm[deps_kmm == 0] = 1.0e-9
 
             # Occupation factors
             if self.add_soc:
@@ -629,11 +629,11 @@ class BSEBackend:
 
         mySsize = self.myKsize * self.nv * self.nc
         H_sS = np.reshape(H_kmmKmm, (mySsize, self.nS))
-        for iS in range(mySsize):
-            # Multiply by occupations
-            H_sS[iS] *= df_S[iS0 + iS]
-            # add bare transition energies
-            H_sS[iS, iS0 + iS] += deps_s[iS]
+        # Vectorized replacement for a Python row-loop over up to hundreds of
+        # thousands of pair states.
+        H_sS *= df_S[iS0:iS0 + mySsize, np.newaxis]
+        row_s = np.arange(mySsize)
+        H_sS[row_s, iS0 + row_s] += deps_s
 
         return BSEMatrix(df_S, H_sS, deps_S, self.deps_max)
 
@@ -763,7 +763,7 @@ class BSEBackend:
         for ik1, iK1 in enumerate(self.myKrange):
             kptv1 = kptpair_factory.get_k_point(
                 0, iK1, self.vi, self.vf)
-            rho1V_mmG = rhoex_KmmG.conj()[iK1, :, :] * self.v_G
+            rho1V_mmG = rhoex_KmmG[iK1].conj() * self.v_G
             for Q_c in self.qd.bzk_kc:
                 iK2 = self.kd.find_k_plus_q(Q_c, [kptv1.K])[0]
                 rho2_mmG = rhoex_KmmG[iK2]

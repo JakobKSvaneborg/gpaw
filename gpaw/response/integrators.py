@@ -103,11 +103,9 @@ class PointIntegrator(Integrator):
             if isinstance(task, Hilbert):
                 # XXX special hack since one of them wants the other
                 # triangle.
-                for out_xx in out_wxx:
-                    out_xx[il] = out_xx[iu].conj()
+                out_wxx[:, il[0], il[1]] = out_wxx[:, iu[0], iu[1]].conj()
             else:
-                for out_xx in out_wxx:
-                    out_xx[iu] = out_xx[il].conj()
+                out_wxx[:, iu[0], iu[1]] = out_wxx[:, il[0], il[1]].conj()
 
         out_wxx *= prefactor
 

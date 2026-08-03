@@ -122,13 +122,19 @@ class Chi0DysonEquations:
 
         while possibly storing the output B(q,ω) in the input A(q,ω) buffer.
         """
+        # Batched Dyson solve: replaces a Python-level frequency loop over
+        # np.linalg.solve with a single batched call, so nw small
+        # (G, G) systems become one large call handled by LAPACK.
+        nG = in_wGG.shape[-1]
+        xi_wGG = in_wGG @ K_GG
+        lhs_wGG = -xi_wGG
+        diag = np.einsum('wii->wi', lhs_wGG)
+        diag += 1.0
+        result_wGG = np.linalg.solve(lhs_wGG, in_wGG)
         if reuse_buffer:
-            out_wGG = in_wGG
-        else:
-            out_wGG = np.zeros_like(in_wGG)
-        for w, in_GG in enumerate(in_wGG):
-            out_wGG[w] = DysonEquation(in_GG, in_GG @ K_GG).invert()
-        return out_wGG
+            in_wGG[:] = result_wGG
+            return in_wGG
+        return result_wGG
 
     def rpa_density_response(self, direction='x', qinf_v=None):
         """Calculate the RPA susceptibility for (semi-)finite q.
@@ -196,8 +202,9 @@ class Chi0DysonEquations:
         # Calculate v^(1/2)(q) χ₀(q,ω) v^(1/2)(q)
         sqrtv_G = v_G**0.5
         vchi0_symm_wGG = chi0_wGG  # reuse buffer
-        for w, chi0_GG in enumerate(chi0_wGG):
-            vchi0_symm_wGG[w] = chi0_GG * sqrtv_G * sqrtv_G[:, np.newaxis]
+        # Single vectorized in-place scaling over all frequencies at once,
+        # avoiding a Python loop and per-w temporary allocations.
+        vchi0_symm_wGG *= sqrtv_G * sqrtv_G[:, np.newaxis]
         # Invert Dyson equation
         vchi_symm_wGG = self.invert_dyson_like_equation(
             vchi0_symm_wGG, K_GG, reuse_buffer=False)

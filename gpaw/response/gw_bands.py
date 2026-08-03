@@ -175,13 +175,9 @@ class GWBands:
             evac = 0.0
         x_x, k_xc, k_x, X = self.find_k_along_path(plot_BZ=False)
 
-        k_ibz_x = np.zeros_like(k_x)
-        eGW_kn = np.zeros((len(k_x), e_kn.shape[1]))
-        for n in range(e_kn.shape[1]):
-            for ik in range(len(k_x)):
-                ibzkpt = kd.bz2ibz_k[k_x[ik]]
-                k_ibz_x[ik] = ibzkpt
-                eGW_kn[ik, n] = e_kn[ibzkpt, n]
+        # Vectorized replacement for a nested Python loop over (n, ik).
+        k_ibz_x = kd.bz2ibz_k[np.asarray(k_x)]
+        eGW_kn = e_kn[k_ibz_x]
 
         N_occ = (eGW_kn[0] < ef).sum()
         print(N_occ, bandrange[0])
