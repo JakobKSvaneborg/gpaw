@@ -312,11 +312,12 @@ class ActualPairDensityCalculator:
         threshold = 1
 
         eps1 = kpt1.eps_n[n - kpt1.n1]
+        # Fancy indexing with an int array already returns a new array,
+        # so the subsequent in-place write is safe without an extra copy.
         deps_m = (eps1 - kpt2.eps_n)[m_m - kpt2.n1]
         n0_mv = self.calculate_optical_pair_velocity(n, kpt1, kpt2,
                                                      block=block)
 
-        deps_m = deps_m.copy()
         deps_m[deps_m == 0.0] = np.inf
 
         smallness_mv = np.abs(-1e-3 * n0_mv / deps_m[:, np.newaxis])

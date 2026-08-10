@@ -53,7 +53,10 @@ def calculate_site_matrix_element_correction(
                 for rcut, lambd in zip(rcut_p, lambd_p)]
     F_pii = np.zeros((Np, ni, ni), dtype=float)
 
-    # Loop of radial function indices for partial waves i and i'
+    # Loop of radial function indices for partial waves i and i'. The
+    # radial integral over (theta_p, f_L, dn_j1j2) depends only on
+    # (j1, j2, L, p) -- NOT on m1, m2 -- so we hoist it out of the m1/m2
+    # loops. Otherwise it is recomputed (2*l1+1)*(2*l2+1) times per L, p.
     i1_counter = 0
     for j1, l1 in enumerate(l_j):
         i2_counter = 0
@@ -61,25 +64,24 @@ def calculate_site_matrix_element_correction(
             # Calculate the radial partial wave correction
             dn_g = phi_jg[j1] * phi_jg[j2] - phit_jg[j1] * phit_jg[j2]
 
-            # Generate m-indices for each radial function
-            for m1 in range(2 * l1 + 1):
-                for m2 in range(2 * l2 + 1):
-                    # Set up the i=(l,m) index for each partial wave
-                    i1 = i1_counter + m1
-                    i2 = i2_counter + m2
+            # Loop through the real spherical harmonics of the local
+            # function f(r) and precompute the p-dependent radial integrals.
+            for L, f_g in zip(rshe.L_M, rshe.f_gM.T):
+                dnf_g = dn_g * f_g
+                radint_p = np.array(
+                    [rgd.integrate_trapz(theta_g * dnf_g)
+                     for theta_g in theta_pg])
 
-                    # Loop through the real spherical harmonics of the local
-                    # function f(r)
-                    for L, f_g in zip(rshe.L_M, rshe.f_gM.T):
-                        # Angular integral
-                        gaunt_coeff = G_LLL[l1**2 + m1, l2**2 + m2, L]
+                # Generate m-indices for each radial function
+                for m1 in range(2 * l1 + 1):
+                    L1sq = l1 ** 2 + m1
+                    i1 = i1_counter + m1
+                    for m2 in range(2 * l2 + 1):
+                        i2 = i2_counter + m2
+                        gaunt_coeff = G_LLL[L1sq, l2 ** 2 + m2, L]
                         if gaunt_coeff == 0:
                             continue
-                        # Radial integral
-                        for p, theta_g in enumerate(theta_pg):
-                            F_pii[p, i1, i2] += \
-                                gaunt_coeff * rgd.integrate_trapz(
-                                theta_g * f_g * dn_g)
+                        F_pii[:, i1, i2] += gaunt_coeff * radint_p
 
             # Add to i and i' counters
             i2_counter += 2 * l2 + 1

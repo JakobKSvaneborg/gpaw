@@ -139,7 +139,10 @@ class Chi0Integrand(Integrand):
 
         df_nm = kptpair.get_occupation_differences()
         df_nm[df_nm <= 1e-20] = 0.0
-        n_nmG *= df_nm[..., np.newaxis]**0.5
+        # np.sqrt is faster than **0.5 and can operate in-place, avoiding
+        # a full-size temporary before the broadcast multiply.
+        np.sqrt(df_nm, out=df_nm)
+        n_nmG *= df_nm[..., np.newaxis]
 
         return n_nmG
 

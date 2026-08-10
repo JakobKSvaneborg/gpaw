@@ -117,13 +117,18 @@ class IsotropicExchangeCalculator:
         nsites = site_kernels.nsites
         J_pab = np.empty(site_kernels.shape + (nsites,), dtype=complex)
 
-        # Compute exchange coupling
+        # Compute exchange coupling. Factor the O(nsites^2) inner loop into
+        # two O(nsites) matvec passes, each of size nG x nG, so the site
+        # loop reduces to an O(nsites^2 * nG) dot product.
+        prefactor = -2.0 / V0
         for J_ab, K_aGG in zip(J_pab, site_kernels.calculate(qpd)):
-            for a in range(nsites):
-                for b in range(nsites):
-                    J = np.conj(Wxc_G) @ np.conj(K_aGG[a]).T @ chiksr_GG \
-                        @ K_aGG[b] @ Wxc_G
-                    J_ab[a, b] = - 2. * J / V0
+            # u_aG[a] = K_aGG[a] @ Wxc_G      (rhs contraction)
+            # v_aG[a] = chiksr_GG.T @ conj(K_aGG[a]) @ conj(Wxc_G)
+            u_aG = np.einsum('aGH,H->aG', K_aGG, Wxc_G, optimize=True)
+            v_aG = chiksr_GG @ u_aG.T                    # (nG, nsites)
+            # J_ab = conj(Wxc) . conj(K_a).T . chiksr . K_b . Wxc
+            #      = conj(u_aG[a]) . v_aG[:, b]
+            J_ab[:, :] = prefactor * (u_aG.conj() @ v_aG)
 
         # Transpose to have the partitions index last
         J_abp = np.transpose(J_pab, (1, 2, 0))

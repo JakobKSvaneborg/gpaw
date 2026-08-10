@@ -258,7 +258,7 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
             # response function.
             with self.context.timer('Hilbert transform'):
                 # Make Hilbert transform
-                ht = HilbertTransform(np.array(self.wd.omega_w), self.eta,
+                ht = HilbertTransform(self.wd.omega_w, self.eta,
                                       timeordered=self.timeordered)
                 ht(out_WgG)
             # Update the actual chi0 array
@@ -443,7 +443,7 @@ class Chi0OpticalExtensionCalculator(Chi0ComponentPWCalculator):
                                   out_wxx=tmp_chi0_WxvP)  # Output array
         if self.hilbert:
             with self.context.timer('Hilbert transform'):
-                ht = HilbertTransform(np.array(self.wd.omega_w), self.eta,
+                ht = HilbertTransform(self.wd.omega_w, self.eta,
                                       timeordered=self.timeordered)
                 ht(tmp_chi0_WxvP)
         tmp_chi0_WxvP *= prefactor

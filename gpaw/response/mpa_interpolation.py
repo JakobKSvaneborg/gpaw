@@ -23,17 +23,18 @@ def fit_residue(
     npr_GG: Array2D, omega_w: Array1D, X_wGG: Array3D, E_pGG: Array3D
 ) -> Array3D:
     npols = len(E_pGG)
-    nw = len(omega_w)
-    A_GGwp = np.zeros((*E_pGG.shape[1:], nw, npols), dtype=np.complex128)
-    b_GGw = np.zeros((*E_pGG.shape[1:], nw), dtype=np.complex128)
-    for w in range(nw):
-        A_GGwp[:, :, w, :] = (
-            2 * E_pGG / (omega_w[w]**2 - E_pGG**2)).transpose((1, 2, 0))
-        b_GGw[:, :, w] = X_wGG[w, :, :]
+    # Vectorised construction: build A[G, H, w, p] = 2 E[p,G,H] /
+    # (omega[w]^2 - E[p,G,H]^2) in one broadcast, then move axes into place.
+    E2 = E_pGG * E_pGG
+    denom_wpGG = omega_w[:, None, None, None] ** 2 - E2[None, :, :, :]
+    A_wpGG = (2.0 * E_pGG[None, :, :, :]) / denom_wpGG
+    A_GGwp = np.ascontiguousarray(A_wpGG.transpose(2, 3, 0, 1))
+    b_GGw = np.ascontiguousarray(X_wGG.transpose(1, 2, 0))
 
+    # Mask pole entries that are beyond the number of active poles for the
+    # given (G, H). The mask is w-independent -> apply it once per p.
     for p in range(npols):
-        for w in range(A_GGwp.shape[2]):
-            A_GGwp[:, :, w, p][p >= npr_GG] = 0.0
+        A_GGwp[p >= npr_GG, :, p] = 0.0
 
     temp_GGp = np.einsum('GHwp,GHw->GHp',
                          A_GGwp.conj(), b_GGw)

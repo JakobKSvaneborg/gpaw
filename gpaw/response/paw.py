@@ -233,26 +233,28 @@ def calculate_pair_density_correction(qG_Gv: np.ndarray, *,
 
                 # Angular part of the integral
                 f_G = (-1j)**l * dn_G
+                # klY_G depends only on m (not m1/m2); compute once per m.
+                qG_v = qG_Gv.T
                 for m in range(l**2, (l + 1)**2):
                     # Calculate the solid harmonic
                     #        m ˰
                     # |K|^l Y (K)
                     #        l
-                    klY_G = Y(m, *qG_Gv.T)
+                    klYf_G = Y(m, *qG_v) * f_G
 
                     # Generate m-indices for each radial function
                     for m1 in range(2 * l1 + 1):
+                        L1 = l1 ** 2 + m1
+                        i1 = i1_counter + m1
                         for m2 in range(2 * l2 + 1):
-                            # Set up the i=(l,m) index for each partial wave
-                            i1 = i1_counter + m1
                             i2 = i2_counter + m2
                             # Extract Gaunt coefficients
-                            gaunt_coeff = G_LLL[l1**2 + m1, l2**2 + m2, m]
+                            gaunt_coeff = G_LLL[L1, l2 ** 2 + m2, m]
                             if (gaunt_coeff == 0):
                                 continue
 
                             # Add contribution to the PAW correction
-                            Qbar_Gii[:, i1, i2] += gaunt_coeff * klY_G * f_G
+                            Qbar_Gii[:, i1, i2] += gaunt_coeff * klYf_G
 
             # Add to i and i' counters
             i2_counter += 2 * l2 + 1
@@ -331,7 +333,14 @@ def calculate_matrix_element_correction(qG_Gv, pawdata,
     # K-vector norm and direction
     k_G = np.linalg.norm(qG_Gv, axis=1)
     Kd_Gv = qG_Gv.copy()
-    Kd_Gv[k_G > 1e-10] /= k_G[k_G > 1e-10, np.newaxis]
+    kmask = k_G > 1e-10
+    Kd_Gv[kmask] /= k_G[kmask, np.newaxis]
+
+    # Precompute solid harmonics Y(Lp, ...) once per Lp: the innermost m1/m2
+    # loop only selects a Gaunt coefficient and does not depend on Lp values
+    # beyond the value of Y itself. We build a dict keyed on Lp lazily.
+    Y_cache: dict = {}
+    Kd_v = Kd_Gv.T
 
     # Loop of radial function indices for partial waves i and i'
     i1_counter = 0
@@ -362,7 +371,15 @@ def calculate_matrix_element_correction(qG_Gv, pawdata,
                     x_G = 4 * np.pi * (-1j)**lp * dnf_G
                     # Loop through available m-indices for the partial waves
                     # and generate the composite L=(l,m) index as well as the
-                    # partial wave index i
+                    # partial wave index i. Y_G(Lp) depends only on Lp, so
+                    # cache Y_G * x_G once per Lp before iterating m1/m2.
+                    Yx_by_Lp: dict = {}
+                    for mp in range(2 * lp + 1):
+                        Lp = lp ** 2 + mp
+                        if Lp not in Y_cache:
+                            Y_cache[Lp] = Y(Lp, *Kd_v)
+                        Yx_by_Lp[Lp] = Y_cache[Lp] * x_G
+
                     for m1 in range(2 * l1 + 1):
                         L1 = l1**2 + m1
                         i1 = i1_counter + m1
@@ -377,10 +394,7 @@ def calculate_matrix_element_correction(qG_Gv, pawdata,
                                 # coefficient) is finite,
                                 coeff = G_LLLL[L1, L2, L, Lp]
                                 if abs(coeff) > 1e-10:
-                                    # Calculate spherical harmonic and add
-                                    # contribution to the PAW correction
-                                    Y_G = Y(Lp, *Kd_Gv.T)
-                                    Fbar_Gii[:, i1, i2] += coeff * Y_G * x_G
+                                    Fbar_Gii[:, i1, i2] += coeff * Yx_by_Lp[Lp]
 
             # Add to i and i' counters
             i2_counter += 2 * l2 + 1
@@ -412,10 +426,11 @@ def fourier_bessel_transform(k_G, l, rgd, f_g):
 
     on the supplied radial grid.
     """
-    # Vectorize calculation of spherical Bessel functions
-    l_Gg = l * np.ones((len(k_G), rgd.N), dtype=int)
+    # Vectorize calculation of spherical Bessel functions. Passing a scalar
+    # `l` avoids allocating a full int matrix of shape (nG, ng) just to
+    # broadcast a constant.
     kr_Gg = k_G[:, np.newaxis] * rgd.r_g[np.newaxis]
-    jl_Gg = spherical_jn(l_Gg, kr_Gg)  # so slow...
+    jl_Gg = spherical_jn(l, kr_Gg)
     # Integrate the radial grid using linear interpolation
     f_G = rgd.integrate_trapz(jl_Gg * f_g[np.newaxis])
     return f_G

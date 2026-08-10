@@ -268,9 +268,8 @@ class Intraband(IntegralTask):
         """Add intraband contributions"""
         # Intraband is a little bit special, we use neither wd nor deps_M
 
-        for vel_v in vel_mv:
-            x_vv = np.outer(vel_v, vel_v)
-            chi0_wvv[0] += x_vv
+        # sum_m outer(vel_v, vel_v) == vel_mv.T @ vel_mv
+        chi0_wvv[0] += vel_mv.T @ vel_mv
 
 
 class OpticalLimit(IntegralTask):
@@ -533,7 +532,6 @@ class HilbertOpticalLimitTetrahedron:
             if i0 == i1:
                 continue
             x_vG = np.outer(n_G[:3], n_G.conj())
-            xc_vG = x_vG.conj()
-            for iw, weight in enumerate(W_w):
-                out_wxvG[i0 + iw, 0, :, :] += weight * x_vG
-                out_wxvG[i0 + iw, 1, :, :] += weight * xc_vG
+            W3 = W_w[:, np.newaxis, np.newaxis]
+            out_wxvG[i0:i0 + len(W_w), 0, :, :] += W3 * x_vG
+            out_wxvG[i0:i0 + len(W_w), 1, :, :] += W3 * x_vG.conj()

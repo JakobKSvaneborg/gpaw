@@ -629,11 +629,11 @@ class BSEBackend:
 
         mySsize = self.myKsize * self.nv * self.nc
         H_sS = np.reshape(H_kmmKmm, (mySsize, self.nS))
-        for iS in range(mySsize):
-            # Multiply by occupations
-            H_sS[iS] *= df_S[iS0 + iS]
-            # add bare transition energies
-            H_sS[iS, iS0 + iS] += deps_s[iS]
+        # Multiply by occupations (row-wise scaling)
+        H_sS *= df_S[iS0:iS0 + mySsize, np.newaxis]
+        # add bare transition energies along the local diagonal
+        idx = np.arange(mySsize)
+        H_sS[idx, iS0 + idx] += deps_s
 
         return BSEMatrix(df_S, H_sS, deps_S, self.deps_max)
 
@@ -763,7 +763,7 @@ class BSEBackend:
         for ik1, iK1 in enumerate(self.myKrange):
             kptv1 = kptpair_factory.get_k_point(
                 0, iK1, self.vi, self.vf)
-            rho1V_mmG = rhoex_KmmG.conj()[iK1, :, :] * self.v_G
+            rho1V_mmG = rhoex_KmmG[iK1].conj() * self.v_G
             for Q_c in self.qd.bzk_kc:
                 iK2 = self.kd.find_k_plus_q(Q_c, [kptv1.K])[0]
                 rho2_mmG = rhoex_KmmG[iK2]
@@ -934,8 +934,9 @@ class BSEBackend:
                 A_T = np.dot(rhot_S, v_St)
                 B_T = np.dot(rhot_S * dft_S, v_St)
                 tmp = np.dot(v_St.conj().T, v_St)
-                overlap_TT = np.linalg.inv(tmp)
-                C_T = np.dot(B_T.conj(), overlap_TT.T) * A_T
+                # np.dot(B.conj(), inv(tmp).T) == inv(tmp) @ B.conj() (B is 1D);
+                # solve avoids the explicit inverse.
+                C_T = np.linalg.solve(tmp, B_T.conj()) * A_T
             comm.broadcast(C_T, 0)
 
         return w_T, C_T
@@ -1029,9 +1030,10 @@ class BSEBackend:
                 A_GT = rho_RG.T @ v_RT
                 B_GT = rho_RG.T * df_R[np.newaxis] @ v_RT
                 tmp = v_RT.conj().T @ v_RT
-                overlap_tt = np.linalg.inv(tmp)
-                C_tGG = ((B_GT.conj() @ overlap_tt.T).T)[..., np.newaxis] *\
-                    A_GT.T[:, np.newaxis]
+                # (B_GT.conj() @ inv(tmp).T).T == inv(tmp) @ B_GT.conj().T
+                # Solve avoids the explicit inverse.
+                X_TG = np.linalg.solve(tmp, B_GT.conj().T)
+                C_tGG = X_TG[..., np.newaxis] * A_GT.T[:, np.newaxis]
                 C_tGG = C_tGG[:nR].reshape((nR, nG, nG))
                 flat_C_tGG = C_tGG.ravel()
             else:
@@ -1602,9 +1604,12 @@ class BSEPlus:
         chi_irr_BSEPlus_wGG = \
             chi_irr_BSE_wGG - chi0_limited_wGG + chi0_full_wGG
         eye = np.eye(chi_irr_BSEPlus_wGG.shape[1])
+        # chi @ diag(v) == chi * v (broadcast along last axis) -- avoids
+        # materialising a dense G x G diagonal and an unnecessary matmul.
+        v_scale = self.v_G[np.newaxis, np.newaxis, :]
 
         chi_BSEPlus_wGG = \
-            np.linalg.solve(eye - chi_irr_BSEPlus_wGG @ np.diag(self.v_G),
+            np.linalg.solve(eye - chi_irr_BSEPlus_wGG * v_scale,
                             chi_irr_BSEPlus_wGG)
 
         if self.truncation == '2D':
@@ -1619,7 +1624,7 @@ class BSEPlus:
 
         if save_chi_BSE:
             chi_BSE_wGG = \
-                np.linalg.solve(eye - chi_irr_BSE_wGG @ np.diag(self.v_G),
+                np.linalg.solve(eye - chi_irr_BSE_wGG * v_scale,
                                 chi_irr_BSE_wGG)
 
             if self.truncation == '2D':
@@ -1635,7 +1640,7 @@ class BSEPlus:
 
         if save_chi_RPA:
             chi_full_wGG = \
-                np.linalg.solve(eye - chi0_full_wGG @ np.diag(self.v_G),
+                np.linalg.solve(eye - chi0_full_wGG * v_scale,
                                 chi0_full_wGG)
 
             if self.truncation == '2D':

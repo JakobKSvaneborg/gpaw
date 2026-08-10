@@ -161,7 +161,9 @@ class PlasmaFrequencyIntegrand(Integrand):
             f_n = kpt1.f_n
             width = self._drude.gs.get_occupations_width()
             if width > 1e-15:
-                dfde_n = - 1. / width * (f_n - f_n**2.0)
+                # f * (1 - f) uses fewer temporaries than f - f**2 and skips
+                # the pow dispatch.
+                dfde_n = (-1.0 / width) * (f_n * (1.0 - f_n))
             else:
                 dfde_n = np.zeros_like(f_n)
             vel_nv *= np.sqrt(-dfde_n[:, np.newaxis])

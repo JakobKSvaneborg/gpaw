@@ -201,5 +201,8 @@ class DysonEquation:
         """
         if lambd is None:
             lambd = 1.  # no rescaling
-        leftside_GG = np.eye(self.nG) - lambd * self.xi_GG
+        # Build (I - lambd * xi) without allocating a separate identity: scale
+        # xi (a copy) and add 1.0 to its diagonal in place.
+        leftside_GG = self.xi_GG * (-lambd)
+        leftside_GG.flat[::self.nG + 1] += 1.0
         return np.linalg.solve(leftside_GG, self.chiks_GG)

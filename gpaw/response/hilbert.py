@@ -97,7 +97,9 @@ class GWHilbertTransforms:
         nw = len(A_wGG)
         H_xw = self._stacked_H_nww.reshape(-1, nw)
         A_wy = A_wGG.reshape(nw, -1)
-        tmp_xy = np.zeros((H_xw.shape[0], A_wy.shape[1]), complex)
+        # mmm with beta=0.0 overwrites tmp_xy unconditionally, so we don't
+        # need the zero-initialisation cost.
+        tmp_xy = np.empty((H_xw.shape[0], A_wy.shape[1]), complex)
         # gemm(1.0, A_wy, H_xw, 0.0, tmp_xy)
         mmm(1.0, H_xw, 'N', A_wy, 'N', 0.0, tmp_xy)
         return tmp_xy.reshape((2, *A_wGG.shape))

@@ -155,20 +155,24 @@ def calculate_bootstrap_kernel(qpd, chi0_GG, context):
         v_G = 4 * np.pi / qpd.G2_qG[0]
 
     nG = len(v_G)
-    K_GG = np.diag(v_G)
+    K_GG = np.diag(v_G)  # kept for API compatibility with the return path
 
     Kxc_GG = np.zeros((nG, nG), dtype=complex)
     dminv_GG = np.zeros((nG, nG), dtype=complex)
+    I_GG = np.eye(nG)
+    v_col = v_G[:, np.newaxis]  # for diagonal-left multiplication
+    v0 = v_G[0]
 
     for iscf in range(120):
         dminvold_GG = dminv_GG.copy()
         Kxc_GG = K_GG + Kxc_GG
 
-        chi_GG = np.dot(np.linalg.inv(np.eye(nG, nG)
-                                      - np.dot(chi0_GG, Kxc_GG)), chi0_GG)
-        dminv_GG = np.eye(nG, nG) + np.dot(K_GG, chi_GG)
+        # inv(A) @ B == solve(A, B) but faster and better conditioned
+        chi_GG = np.linalg.solve(I_GG - chi0_GG @ Kxc_GG, chi0_GG)
+        # K_GG is diagonal (= diag(v_G)): (K_GG @ chi)[i,j] == v_G[i]*chi[i,j]
+        dminv_GG = I_GG + v_col * chi_GG
 
-        alpha = dminv_GG[0, 0] / (K_GG[0, 0] * chi0_GG[0, 0])
+        alpha = dminv_GG[0, 0] / (v0 * chi0_GG[0, 0])
         Kxc_GG = alpha * K_GG
         p(iscf, 'alpha =', alpha, flush=False)
         error = np.abs(dminvold_GG - dminv_GG).sum()
