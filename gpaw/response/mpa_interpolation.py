@@ -170,12 +170,18 @@ def mpa_cond_vectorized(
         E_GGp[out_poles_GG, i] = 2 * wmax - 0.01j
         for j in range(i + 1, npols):
             diff = E_GGp[:, :, j].real - E_GGp[:, :, i].real
-            equal_poles_GG = diff < pole_resolution
-            if np.sum(equal_poles_GG.ravel()):
+            # A pair (i, j) is "too close" only when both poles are still
+            # valid (diff >= 0 excludes cases where pole i is already the
+            # sentinel 2*wmax - 0.01j, which would make diff negative).
+            equal_poles_GG = (0 <= diff) & (diff < pole_resolution)
+            # Since poles are sorted by real part, once no (G, G') pair
+            # is close to pole i at position j, no larger j will be either.
+            if not equal_poles_GG.any():
                 break
 
-            # if the poles are to close, move them to the end, set value
-            # to sort to the end of array (e.g., 2x wmax)
+            # Merge close poles: keep the average at position j and mark
+            # position i with the sentinel value 2*wmax - 0.01j so that
+            # the final sort pushes it to the end of the pole axis.
             E_GGp[:, :, j] = np.where(
                 equal_poles_GG,
                 (E_GGp[:, :, j].real + E_GGp[:, :, i].real) / 2
