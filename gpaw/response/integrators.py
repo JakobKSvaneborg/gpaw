@@ -268,9 +268,9 @@ class Intraband(IntegralTask):
         """Add intraband contributions"""
         # Intraband is a little bit special, we use neither wd nor deps_M
 
-        for vel_v in vel_mv:
-            x_vv = np.outer(vel_v, vel_v)
-            chi0_wvv[0] += x_vv
+        # sum_m outer(v_m, v_m) == V^T V — one BLAS call replaces the loop.
+        if len(vel_mv):
+            chi0_wvv[0] += vel_mv.T @ vel_mv
 
 
 class OpticalLimit(IntegralTask):

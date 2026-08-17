@@ -238,7 +238,9 @@ def calculate_pair_density_correction(qG_Gv: np.ndarray, *,
                     #        m ˰
                     # |K|^l Y (K)
                     #        l
-                    klY_G = Y(m, *qG_Gv.T)
+                    # Hoist klY_G * f_G above the (m1, m2) loop — depends only
+                    # on m, saves up to (2l1+1)(2l2+1) full npw multiplies.
+                    klYf_G = Y(m, *qG_Gv.T) * f_G
 
                     # Generate m-indices for each radial function
                     for m1 in range(2 * l1 + 1):
@@ -252,7 +254,7 @@ def calculate_pair_density_correction(qG_Gv: np.ndarray, *,
                                 continue
 
                             # Add contribution to the PAW correction
-                            Qbar_Gii[:, i1, i2] += gaunt_coeff * klY_G * f_G
+                            Qbar_Gii[:, i1, i2] += gaunt_coeff * klYf_G
 
             # Add to i and i' counters
             i2_counter += 2 * l2 + 1
@@ -360,6 +362,12 @@ def calculate_matrix_element_correction(qG_Gv, pawdata,
 
                     # Calculate angular part of the correction
                     x_G = 4 * np.pi * (-1j)**lp * dnf_G
+                    # Precompute the m'-dependent spherical harmonic *once*
+                    # (times x_G) instead of repeating it inside every (m1,m2)
+                    # pair. Saves up to (2l1+1)(2l2+1) evaluations of Y(...)
+                    # and npw-length multiplies per (l, lp).
+                    Yx_Gp = [Y(lp**2 + mp, *Kd_Gv.T) * x_G
+                             for mp in range(2 * lp + 1)]
                     # Loop through available m-indices for the partial waves
                     # and generate the composite L=(l,m) index as well as the
                     # partial wave index i
@@ -377,10 +385,8 @@ def calculate_matrix_element_correction(qG_Gv, pawdata,
                                 # coefficient) is finite,
                                 coeff = G_LLLL[L1, L2, L, Lp]
                                 if abs(coeff) > 1e-10:
-                                    # Calculate spherical harmonic and add
-                                    # contribution to the PAW correction
-                                    Y_G = Y(Lp, *Kd_Gv.T)
-                                    Fbar_Gii[:, i1, i2] += coeff * Y_G * x_G
+                                    # Add contribution to the PAW correction
+                                    Fbar_Gii[:, i1, i2] += coeff * Yx_Gp[mp]
 
             # Add to i and i' counters
             i2_counter += 2 * l2 + 1
@@ -412,10 +418,11 @@ def fourier_bessel_transform(k_G, l, rgd, f_g):
 
     on the supplied radial grid.
     """
-    # Vectorize calculation of spherical Bessel functions
-    l_Gg = l * np.ones((len(k_G), rgd.N), dtype=int)
+    # Vectorize calculation of spherical Bessel functions.
+    # Passing scalar l lets scipy use its fast fixed-order path and avoids
+    # allocating a full (len(k_G), rgd.N) integer array of copies of l.
     kr_Gg = k_G[:, np.newaxis] * rgd.r_g[np.newaxis]
-    jl_Gg = spherical_jn(l_Gg, kr_Gg)  # so slow...
+    jl_Gg = spherical_jn(l, kr_Gg)
     # Integrate the radial grid using linear interpolation
     f_G = rgd.integrate_trapz(jl_Gg * f_g[np.newaxis])
     return f_G

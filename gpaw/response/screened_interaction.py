@@ -266,13 +266,14 @@ class WCalculator(WBaseCalculator):
 
         einv_wGG = dfc.get_epsinv_wGG(only_correlation=False)
         W_wGG = np.empty_like(einv_wGG)
+        # sqrtV_G outer product is frequency-independent — build once.
+        sqrtV_GG = sqrtV_G * sqrtV_G[:, np.newaxis]
         for iw, (einv_GG, W_GG) in enumerate(zip(einv_wGG, W_wGG)):
             # If only_correlation = True function spits out
             # W^c = sqrt(V)(epsinv - delta_GG')sqrt(V). However, full epsinv
             # is still needed for q0_corrector.
             einvt_GG = (einv_GG - dfc.I_GG) if only_correlation else einv_GG
-            W_GG[:] = einvt_GG * (sqrtV_G *
-                                  sqrtV_G[:, np.newaxis])
+            np.multiply(einvt_GG, sqrtV_GG, out=W_GG)
             if self.q0_corrector is not None and chi0.optical_limit:
                 W = dfc.wblocks.a + iw
                 self.q0_corrector.add_q0_correction(chi0.qpd, W_GG,

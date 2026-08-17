@@ -32,8 +32,13 @@ class BodySymmetryOperators:
 
     def symmetrize_wGG(self, A_wGG):
         """Symmetrize an array in GG'."""
+        if len(A_wGG) == 0:
+            return
+        # Reuse one scratch buffer across all frequencies.
+        tmp_GG = np.empty_like(A_wGG[0], order='C')
+        inv_nsym = 1.0 / self.nsym
         for A_GG in A_wGG:
-            tmp_GG = np.zeros_like(A_GG, order='C')
+            tmp_GG.fill(0)
             for G_G, sign in zip(self.G_sG, self.sign_s):
                 # Numpy:
                 # if sign == 1:
@@ -42,7 +47,7 @@ class BodySymmetryOperators:
                 #     tmp_GG += A_GG[G_G, :][:, G_G].T
                 # C:
                 GG_shuffle(G_G, sign, A_GG, tmp_GG)
-            A_GG[:] = tmp_GG / self.nsym
+            np.multiply(tmp_GG, inv_nsym, out=A_GG)
 
     # Set up complex frequency alias
     symmetrize_zGG = symmetrize_wGG
@@ -82,6 +87,11 @@ def initialize_G_maps(symmetries: QSymmetries, qpd: SingleQPWDescriptor):
     G_Gc = np.dot(G_Gv, np.linalg.inv(B_cv))
     Q_G = qpd.Q_qG[0]
 
+    # Q_G does not depend on the symmetry; build a single reverse-lookup so
+    # each symmetry's map is an O(N_G) hash lookup instead of an O(N_G^2)
+    # linear scan through Q_G per G-vector.
+    Q_to_G = {int(q): i for i, q in enumerate(Q_G)}
+
     G_sG = []
     for U_cc, sign, shift_c in symmetries:
         iU_cc = np.linalg.inv(U_cc).T
@@ -91,13 +101,12 @@ def initialize_G_maps(symmetries: QSymmetries, qpd: SingleQPWDescriptor):
         UQ_G = np.ravel_multi_index(UG_Gc.round().astype(int).T,
                                     qpd.gd.N_c, 'wrap')
 
-        G_G = len(Q_G) * [None]
-        for G, UQ in enumerate(UQ_G):
-            try:
-                G_G[G] = np.argwhere(Q_G == UQ)[0][0]
-            except IndexError as err:
-                raise RuntimeError(
-                    'Something went wrong: a symmetry operation mapped a '
-                    'G-vector outside the plane-wave cutoff sphere') from err
-        G_sG.append(np.array(G_G, dtype=np.int32))
+        try:
+            G_G = np.fromiter((Q_to_G[int(uq)] for uq in UQ_G),
+                              dtype=np.int32, count=len(UQ_G))
+        except KeyError as err:
+            raise RuntimeError(
+                'Something went wrong: a symmetry operation mapped a '
+                'G-vector outside the plane-wave cutoff sphere') from err
+        G_sG.append(G_G)
     return np.array(G_sG)

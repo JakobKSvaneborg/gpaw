@@ -760,12 +760,15 @@ class BSEBackend:
 
     @timer('add_indirect_kernel')
     def add_indirect_kernel(self, kptpair_factory, rhoex_KmmG, H_kmmKmm):
+        # The old code called kptpair_factory.get_k_point (a full wave-function
+        # IFFT + PAW projection remap) just to read kptv1.K — but that is
+        # trivially the loop variable iK1. Also rhoex_KmmG.conj() was called
+        # on the whole (nK, nv, nc, nG) array before slicing off one K row,
+        # copying tens of MB per iteration for nothing.
         for ik1, iK1 in enumerate(self.myKrange):
-            kptv1 = kptpair_factory.get_k_point(
-                0, iK1, self.vi, self.vf)
-            rho1V_mmG = rhoex_KmmG.conj()[iK1, :, :] * self.v_G
+            rho1V_mmG = rhoex_KmmG[iK1].conj() * self.v_G
             for Q_c in self.qd.bzk_kc:
-                iK2 = self.kd.find_k_plus_q(Q_c, [kptv1.K])[0]
+                iK2 = self.kd.find_k_plus_q(Q_c, [iK1])[0]
                 rho2_mmG = rhoex_KmmG[iK2]
                 self.context.timer.start('Coulomb')
                 H_kmmKmm[ik1, :, :, iK2, :, :] += np.einsum(
@@ -1604,7 +1607,7 @@ class BSEPlus:
         eye = np.eye(chi_irr_BSEPlus_wGG.shape[1])
 
         chi_BSEPlus_wGG = \
-            np.linalg.solve(eye - chi_irr_BSEPlus_wGG @ np.diag(self.v_G),
+            np.linalg.solve(eye - chi_irr_BSEPlus_wGG * self.v_G,
                             chi_irr_BSEPlus_wGG)
 
         if self.truncation == '2D':
@@ -1619,7 +1622,7 @@ class BSEPlus:
 
         if save_chi_BSE:
             chi_BSE_wGG = \
-                np.linalg.solve(eye - chi_irr_BSE_wGG @ np.diag(self.v_G),
+                np.linalg.solve(eye - chi_irr_BSE_wGG * self.v_G,
                                 chi_irr_BSE_wGG)
 
             if self.truncation == '2D':
@@ -1635,7 +1638,7 @@ class BSEPlus:
 
         if save_chi_RPA:
             chi_full_wGG = \
-                np.linalg.solve(eye - chi0_full_wGG @ np.diag(self.v_G),
+                np.linalg.solve(eye - chi0_full_wGG * self.v_G,
                                 chi0_full_wGG)
 
             if self.truncation == '2D':

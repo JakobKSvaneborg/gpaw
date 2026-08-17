@@ -113,17 +113,17 @@ class FrequencyGridDescriptor(FrequencyDescriptor):
     def get_index_range(self, lim1_m, lim2_m):
         """Get index range. """
 
-        i0_m = np.zeros(len(lim1_m), int)
-        i1_m = np.zeros(len(lim2_m), int)
-
-        for m, (lim1, lim2) in enumerate(zip(lim1_m, lim2_m)):
-            i_x = np.logical_and(lim1 <= self.omega_w,
-                                 lim2 >= self.omega_w)
-            if i_x.any():
-                inds = np.argwhere(i_x)
-                i0_m[m] = inds.min()
-                i1_m[m] = inds.max() + 1
-
+        # omega_w is sorted, so binary-search all M limits at once
+        # (O(M log nomega)) rather than a Python loop of O(M * nomega) bool
+        # scans + argwhere.
+        omega_w = self.omega_w
+        i0_m = np.searchsorted(omega_w, lim1_m, side='left').astype(int)
+        i1_m = np.searchsorted(omega_w, lim2_m, side='right').astype(int)
+        # Windows that contain no grid point at all: zero out to match the
+        # previous (i0=i1=0) behaviour.
+        empty = i0_m >= i1_m
+        i0_m[empty] = 0
+        i1_m[empty] = 0
         return i0_m, i1_m
 
 

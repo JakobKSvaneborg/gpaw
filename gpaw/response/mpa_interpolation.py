@@ -201,7 +201,10 @@ def pade_solve(X_wGG: Array3D, z_w: Array1D) -> tuple[Array3D, Array2D]:
     c_GGw = X_wGG.transpose((1, 2, 0)).copy()
 
     for i in range(1, 2 * npols):
-        cm1_GGw = np.copy(c_GGw)
+        # NumPy materialises the RHS of an arithmetic expression before
+        # writing it through __setitem__, so aliasing cm1_GGw with c_GGw is
+        # safe and saves a full-array copy of c_GGw per iteration.
+        cm1_GGw = c_GGw
         bm2_GGm = np.copy(bm1_GGm)
         bm1_GGm = np.copy(b_GGm)
 

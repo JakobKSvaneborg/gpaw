@@ -193,11 +193,13 @@ class Chi0DysonEquations:
             if self.xc_kernel else None
         v_G, K_GG = self.get_coulomb_scaled_kernel(
             modified=modified, Kxc_GG=Kxc_GG)
-        # Calculate v^(1/2)(q) χ₀(q,ω) v^(1/2)(q)
+        # Calculate v^(1/2)(q) χ₀(q,ω) v^(1/2)(q).
+        # Hoist the sqrtv outer product out of the frequency loop and apply
+        # it in-place via a single broadcast, avoiding 2*nw temporaries.
         sqrtv_G = v_G**0.5
+        sqrtvv_GG = sqrtv_G[:, np.newaxis] * sqrtv_G
+        chi0_wGG *= sqrtvv_GG
         vchi0_symm_wGG = chi0_wGG  # reuse buffer
-        for w, chi0_GG in enumerate(chi0_wGG):
-            vchi0_symm_wGG[w] = chi0_GG * sqrtv_G * sqrtv_G[:, np.newaxis]
         # Invert Dyson equation
         vchi_symm_wGG = self.invert_dyson_like_equation(
             vchi0_symm_wGG, K_GG, reuse_buffer=False)
@@ -468,10 +470,15 @@ class CustomizableDielectricFunction(DielectricFunctionData):
          M              00        00
         """
         eps0_W = self._macroscopic_component(self.eps_wGG)
-        # Invert Ε(q,ω) one frequency at a time to compute Ε_M(q,ω)
+        # Invert Ε(q,ω) one frequency at a time to compute Ε_M(q,ω).
+        # We only need inv(A)[0, 0], so solve A x = e_0 and read x[0] — this
+        # is one back-solve rather than a full LU + N back-substitutions.
         eps_w = np.zeros((self.wblocks.nlocal,), complex)
-        for w, eps_GG in enumerate(self.eps_wGG):
-            eps_w[w] = 1 / np.linalg.inv(eps_GG)[0, 0]
+        if self.wblocks.nlocal:
+            e0 = np.zeros(self.eps_wGG.shape[-1], complex)
+            e0[0] = 1.0
+            for w, eps_GG in enumerate(self.eps_wGG):
+                eps_w[w] = 1 / np.linalg.solve(eps_GG, e0)[0]
         eps_W = self.wblocks.all_gather(eps_w)
         return ScalarResponseFunctionSet(self.wd, eps0_W, eps_W)
 
