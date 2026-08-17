@@ -279,6 +279,8 @@ class Chi0BodyCalculator(Chi0ComponentPWCalculator):
         return Hilbert(self.integrator.blockcomm, eshift=self.eshift)
 
     def construct_tetra_hilbert_task(self):
+        assert self.eshift is None, \
+            'energy shift is not applied for tetrahedron integration'
         return HilbertTetrahedron(self.integrator.blockcomm)
 
     def construct_literal_task(self):
