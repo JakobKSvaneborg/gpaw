@@ -102,7 +102,7 @@ class GWBands:
 
     def get_dft_eigenvalues(self):
         Nk = len(self.calc.get_ibz_k_points())
-        bands = np.arange(self.bandrange[0], self.bandrange[-1])
+        bands = np.arange(self.bandrange[0], self.bandrange[-1] + 1)
         e_kn = np.array([self.calc.get_eigenvalues(kpt=k)[bands]
                          for k in range(Nk)])
         return e_kn
