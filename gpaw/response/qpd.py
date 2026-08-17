@@ -104,6 +104,8 @@ class SingleCylQPWDescriptor(SingleQPWDescriptor):
         if gammacentered is None:
             gammacentered = self.gammacentered
 
+        ecut_dict = {'class': SingleCylQPWDescriptor,
+                     'kwargs': {'ecut_xy': ecut,
+                                'ecut_z': self.ecut_z}}
         return SingleCylQPWDescriptor.from_q(
-            self.q_c, ecut_xy=ecut, ecut_z=self.ecut_z,
-            gd=gd, gammacentered=gammacentered)
+            self.q_c, ecut_dict, gd, gammacentered=gammacentered)
